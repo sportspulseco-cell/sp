@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Editorial dark — matches the apps. Landing is dark-first. */
+    --bg: #050505;
+    --bg-subtle: #0a0a0a;
+    --bg-elev: #0e0e0e;
+    --surface-1: #0a0a0a;
+    --surface-2: #131313;
+
+    --fg: #ededed;
+    --fg-muted: #999999;
+    --fg-subtle: #6a6a6a;
+
+    --border: #1c1c1c;
+    --border-strong: #2a2a2a;
+
+    --accent: #635bff;
+    --accent-fg: #ffffff;
+    --accent-soft: #1d1a3d;
+
+    --success: #46d369;
+    --warning: #f7b955;
+    --error: #ff5050;
+
+    --cyan: #22d3ee;
+    --cyan-glow: rgba(34, 211, 238, 0.45);
+  }
+
+  html {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Helvetica, Arial, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Subtle dot grid for hero / sections */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .bg-radial-fade {
+    background:
+      radial-gradient(ellipse at center top, rgba(99, 91, 255, 0.18), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(34, 211, 238, 0.10), transparent 50%);
+  }
+
+  .mask-fade-edges {
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+}
