@@ -1,0 +1,63 @@
+# Env / secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# MCP config (contains PAT)
+.mcp.json
+
+# Node
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Skills tooling
+skills-lock.json
+
+# Local Claude / agent / MCP config
+.claude/
+.agents/
+
+# Playwright MCP test artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+
+# Local screenshots / scratch (these accumulate at repo root during dev)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp
+
+# Editor / OS noise
+*.code-workspace

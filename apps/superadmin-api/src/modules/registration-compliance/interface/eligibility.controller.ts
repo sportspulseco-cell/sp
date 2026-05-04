@@ -1,0 +1,80 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import type { AuthPrincipal } from "@sportspulse/auth";
+import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
+import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import {
+  EligibilityRecordDto,
+  EligibilityRecordPageDto
+} from "../application/dtos/registration.dto";
+import {
+  CreateEligibilityHandler,
+  GetEligibilityHandler,
+  ListEligibilityHandler,
+  ReevaluateEligibilityHandler,
+  WaiveEligibilityHandler
+} from "../application/eligibility/handlers";
+import {
+  CreateEligibilityBodyDto,
+  ListEligibilityQueryDto,
+  ReevaluateEligibilityBodyDto,
+  WaiveEligibilityBodyDto
+} from "./dto/registration.dto";
+
+@ApiTags("compliance/eligibility")
+@ApiBearerAuth()
+@Controller("compliance/eligibility")
+@UseGuards(JwtAuthGuard, SuperAdminGuard)
+export class EligibilityController {
+  constructor(
+    private readonly listH: ListEligibilityHandler,
+    private readonly getH: GetEligibilityHandler,
+    private readonly createH: CreateEligibilityHandler,
+    private readonly reevalH: ReevaluateEligibilityHandler,
+    private readonly waiveH: WaiveEligibilityHandler
+  ) {}
+
+  @Get() list(@Query() q: ListEligibilityQueryDto): Promise<EligibilityRecordPageDto> {
+    return this.listH.execute(q);
+  }
+  @Get(":id") getOne(@Param("id") id: string): Promise<EligibilityRecordDto> {
+    return this.getH.execute({ id });
+  }
+  @Post() @ApiOperation({ summary: "Create eligibility record" })
+  create(
+    @Body() body: CreateEligibilityBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<EligibilityRecordDto> {
+    return this.createH.execute({ ...body, evaluatedByUserId: user.userId });
+  }
+  @Post(":id/reevaluate") @ApiOperation({ summary: "Re-evaluate eligibility" })
+  reevaluate(
+    @Param("id") id: string,
+    @Body() body: ReevaluateEligibilityBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<EligibilityRecordDto> {
+    return this.reevalH.execute({
+      id,
+      ruleEvaluation: body.ruleEvaluation,
+      status: body.status,
+      evaluatedByUserId: user.userId
+    });
+  }
+  @Post(":id/waive") @ApiOperation({ summary: "Waive eligibility (admin override)" })
+  waive(
+    @Param("id") id: string,
+    @Body() body: WaiveEligibilityBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<EligibilityRecordDto> {
+    return this.waiveH.execute({ id, reason: body.reason, byUserId: user.userId });
+  }
+}

@@ -1,0 +1,30 @@
+import { Module } from "@nestjs/common";
+import { AdminController } from "./interface/admin.controller";
+import {
+  DeleteFlagHandler,
+  HealthHandler,
+  ListFlagsHandler,
+  ListSettingsHandler,
+  ListSportsHandler,
+  UpdateSportHandler,
+  UpsertFlagHandler,
+  UpsertSettingHandler
+} from "./application/handlers/admin.handlers";
+import { ADMIN_REPOSITORY } from "./domain/repositories/admin.repository";
+import { DrizzleAdminRepository } from "./infrastructure/repositories/drizzle-admin.repository";
+
+@Module({
+  controllers: [AdminController],
+  providers: [
+    ListSettingsHandler,
+    UpsertSettingHandler,
+    ListFlagsHandler,
+    UpsertFlagHandler,
+    DeleteFlagHandler,
+    ListSportsHandler,
+    UpdateSportHandler,
+    HealthHandler,
+    { provide: ADMIN_REPOSITORY, useClass: DrizzleAdminRepository }
+  ]
+})
+export class AdminModule {}

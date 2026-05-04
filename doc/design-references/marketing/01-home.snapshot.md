@@ -1,0 +1,675 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - img
+    - banner [ref=e3]:
+      - link "Superaccountant" [ref=e4] [cursor=pointer]:
+        - /url: /en
+        - img [ref=e5]
+        - generic [ref=e11]: Superaccountant
+      - navigation [ref=e12]:
+        - link "Features" [ref=e13] [cursor=pointer]:
+          - /url: /en/features
+        - link "Pricing" [ref=e14] [cursor=pointer]:
+          - /url: /en/pricing
+        - link "About" [ref=e15] [cursor=pointer]:
+          - /url: /en/about
+      - generic [ref=e16]:
+        - button "Switch to Arabic" [ref=e17]:
+          - img [ref=e18]
+          - generic [ref=e22]: EN
+          - generic [ref=e23]: /
+          - generic [ref=e24]: عر
+        - button "Toggle theme" [ref=e25]:
+          - img [ref=e26]
+        - link "Sign in" [ref=e32] [cursor=pointer]:
+          - /url: "https://superaccountant-web.vercel.app\n/en/sign-in"
+        - link "Get started" [ref=e33] [cursor=pointer]:
+          - /url: "https://superaccountant-web.vercel.app\n/en/sign-in"
+    - main [ref=e34]:
+      - generic [ref=e36]:
+        - img [ref=e37]
+        - text: Beta · India + KSA
+      - heading "The agentic accounting tutor." [level=1] [ref=e40]:
+        - text: The agentic
+        - text: accounting tutor.
+      - paragraph [ref=e42]: Adaptive lessons, daily assignments, and a tutor that knows your curriculum line by line. Built for accountants in India and Saudi Arabia, in English and Arabic.
+      - generic [ref=e44]:
+        - generic [ref=e45]: 🇮🇳 Chartered Path · India
+        - generic [ref=e47]: 🇸🇦 Mu'tamad Path · Saudi Arabia
+      - generic [ref=e50]:
+        - link "Start free placement test" [ref=e52] [cursor=pointer]:
+          - /url: "https://superaccountant-web.vercel.app\n/en/sign-in"
+          - text: Start free placement test
+          - img [ref=e53]
+        - link "See how it works" [ref=e55] [cursor=pointer]:
+          - /url: /en/features
+          - text: See how it works
+          - img [ref=e56]
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]: "0"
+            - generic [ref=e63]: +
+          - paragraph [ref=e64]: Lessons
+        - generic [ref=e65]:
+          - generic [ref=e67]: "0"
+          - paragraph [ref=e68]: Test bank
+        - generic [ref=e69]:
+          - generic [ref=e71]: "0"
+          - paragraph [ref=e72]: Languages
+    - generic [ref=e74]:
+      - paragraph [ref=e75]: Built on the regulations that govern your work
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - img [ref=e79]
+            - text: GST
+          - generic [ref=e82]:
+            - img [ref=e83]
+            - text: TDS
+          - generic [ref=e86]:
+            - img [ref=e87]
+            - text: Ind AS
+          - generic [ref=e90]:
+            - img [ref=e91]
+            - text: Companies Act 2013
+          - generic [ref=e94]:
+            - img [ref=e95]
+            - text: ZATCA e-invoicing
+          - generic [ref=e98]:
+            - img [ref=e99]
+            - text: Saudi VAT
+          - generic [ref=e102]:
+            - img [ref=e103]
+            - text: Zakat
+          - generic [ref=e106]:
+            - img [ref=e107]
+            - text: IFRS
+          - generic [ref=e110]:
+            - img [ref=e111]
+            - text: Audit standards
+          - generic [ref=e114]:
+            - img [ref=e115]
+            - text: Transfer pricing
+          - generic [ref=e118]:
+            - img [ref=e119]
+            - text: GAAP
+          - generic [ref=e122]:
+            - img [ref=e123]
+            - text: Tax computation
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - img [ref=e128]
+            - text: GST
+          - generic [ref=e131]:
+            - img [ref=e132]
+            - text: TDS
+          - generic [ref=e135]:
+            - img [ref=e136]
+            - text: Ind AS
+          - generic [ref=e139]:
+            - img [ref=e140]
+            - text: Companies Act 2013
+          - generic [ref=e143]:
+            - img [ref=e144]
+            - text: ZATCA e-invoicing
+          - generic [ref=e147]:
+            - img [ref=e148]
+            - text: Saudi VAT
+          - generic [ref=e151]:
+            - img [ref=e152]
+            - text: Zakat
+          - generic [ref=e155]:
+            - img [ref=e156]
+            - text: IFRS
+          - generic [ref=e159]:
+            - img [ref=e160]
+            - text: Audit standards
+          - generic [ref=e163]:
+            - img [ref=e164]
+            - text: Transfer pricing
+          - generic [ref=e167]:
+            - img [ref=e168]
+            - text: GAAP
+          - generic [ref=e171]:
+            - img [ref=e172]
+            - text: Tax computation
+    - generic [ref=e175]:
+      - generic [ref=e176]:
+        - generic [ref=e177]:
+          - img [ref=e178]
+          - text: How it works
+        - heading "Three steps. Zero noise." [level=2] [ref=e181]
+        - paragraph [ref=e182]: We don't drop you into a course catalogue. We measure where you are, build a path, and walk you through it every day.
+      - generic [ref=e183]:
+        - generic [ref=e185]:
+          - generic [ref=e186]:
+            - generic [ref=e187]: "01"
+            - img [ref=e189]
+          - heading "Take the placement test" [level=3] [ref=e192]
+          - paragraph [ref=e193]: Adaptive 20–30 questions across your track. Calibrates your starting phase in under ten minutes.
+        - generic [ref=e195]:
+          - generic [ref=e196]:
+            - generic [ref=e197]: "02"
+            - img [ref=e199]
+          - heading "Learn one lesson per day" [level=3] [ref=e201]
+          - paragraph [ref=e202]: Watch, read, see the diagram, and answer eight practice questions. The tutor is always one keystroke away.
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - generic [ref=e206]: "03"
+            - img [ref=e208]
+          - heading "Earn a verifiable certificate" [level=3] [ref=e211]
+          - paragraph [ref=e212]: Pass the proctored grand test and ship a HMAC-signed certificate with a public verification page.
+    - generic [ref=e213]:
+      - generic [ref=e214]:
+        - generic [ref=e215]:
+          - img [ref=e216]
+          - text: 5 agents
+        - heading "Five specialized agents. Working for you." [level=2] [ref=e218]
+        - paragraph [ref=e219]: This isn't one chatbot doing everything. It's five purpose-built agents, each with its own tools and permissions, collaborating behind the scenes to move you forward.
+      - generic [ref=e220]:
+        - generic [ref=e222]:
+          - generic [ref=e224]:
+            - img [ref=e226]
+            - generic [ref=e236]:
+              - paragraph [ref=e237]: AI Tutor
+              - paragraph [ref=e238]: Your daily study partner
+          - generic [ref=e239]:
+            - paragraph [ref=e240]: Streams real-time answers grounded in your curriculum. Searches lessons, grades your written answers with rubrics, generates practice questions tuned to your gaps, and remembers what you struggled with yesterday.
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - img [ref=e243]
+                - text: search_curriculum
+              - generic [ref=e245]:
+                - img [ref=e246]
+                - text: assess_answer
+              - generic [ref=e248]:
+                - img [ref=e249]
+                - text: generate_practice
+              - generic [ref=e251]:
+                - img [ref=e252]
+                - text: record_memory
+              - generic [ref=e254]:
+                - img [ref=e255]
+                - text: recommend_next
+        - generic [ref=e258]:
+          - generic [ref=e260]:
+            - img [ref=e262]
+            - generic [ref=e265]:
+              - paragraph [ref=e266]: Placement Proctor
+              - paragraph [ref=e267]: Calibrates your starting point
+          - generic [ref=e268]:
+            - paragraph [ref=e269]: Runs your entry assessment — 20–30 adaptive questions from a 560-question bank. Estimates your skill in real time and places you in the right phase so you never waste time on what you already know.
+            - generic [ref=e270]:
+              - generic [ref=e271]:
+                - img [ref=e272]
+                - text: adaptive_question_selection
+              - generic [ref=e274]:
+                - img [ref=e275]
+                - text: skill_estimation
+              - generic [ref=e277]:
+                - img [ref=e278]
+                - text: phase_placement
+        - generic [ref=e281]:
+          - generic [ref=e283]:
+            - img [ref=e285]
+            - generic [ref=e287]:
+              - paragraph [ref=e288]: Daily Planner
+              - paragraph [ref=e289]: Builds your plan every morning
+          - generic [ref=e290]:
+            - paragraph [ref=e291]: "Wakes up at dawn and generates a personalized 3-item plan: one spaced-repetition review, one weak-area drill, and one new lesson. Each day adapts to what you got wrong yesterday."
+            - generic [ref=e292]:
+              - generic [ref=e293]:
+                - img [ref=e294]
+                - text: mastery_analysis
+              - generic [ref=e296]:
+                - img [ref=e297]
+                - text: spaced_repetition
+              - generic [ref=e299]:
+                - img [ref=e300]
+                - text: lesson_recommendation
+        - generic [ref=e303]:
+          - generic [ref=e305]:
+            - img [ref=e307]
+            - generic [ref=e309]:
+              - paragraph [ref=e310]: Grand Test Proctor
+              - paragraph [ref=e311]: Guards the final exam
+          - generic [ref=e312]:
+            - paragraph [ref=e313]: "Administers a proctored 30-question exam with a 3-hour time limit. Server-graded with deterministic scoring — the model does not grade the grand test, the rubric does. Pass mark: 70%."
+            - generic [ref=e314]:
+              - generic [ref=e315]:
+                - img [ref=e316]
+                - text: question_pool_assembly
+              - generic [ref=e318]:
+                - img [ref=e319]
+                - text: time_enforcement
+              - generic [ref=e321]:
+                - img [ref=e322]
+                - text: rubric_grading
+        - generic [ref=e325]:
+          - generic [ref=e327]:
+            - img [ref=e329]
+            - generic [ref=e332]:
+              - paragraph [ref=e333]: Certificate Issuer
+              - paragraph [ref=e334]: Signs your achievement
+          - generic [ref=e335]:
+            - paragraph [ref=e336]: Generates a bilingual PDF certificate with an HMAC-signed hash. Anyone with the link can verify it on a public page — no login, no API key. Only fires after the Grand Test Proctor confirms you passed.
+            - generic [ref=e337]:
+              - generic [ref=e338]:
+                - img [ref=e339]
+                - text: hmac_signing
+              - generic [ref=e341]:
+                - img [ref=e342]
+                - text: pdf_generation
+              - generic [ref=e344]:
+                - img [ref=e345]
+                - text: qr_verification
+              - generic [ref=e347]:
+                - img [ref=e348]
+                - text: public_page_publish
+    - generic [ref=e352]:
+      - generic [ref=e353]:
+        - generic [ref=e354]:
+          - generic [ref=e355]:
+            - img [ref=e356]
+            - text: The tutor
+          - heading "A real agent. Not a chatbot." [level=2] [ref=e366]
+          - paragraph [ref=e367]: Most "AI tutors" are just ChatGPT with a system prompt. SuperAccountant is an agent loop with tools — it can search your curriculum, grade your answer, generate practice, and remember what you struggled with.
+        - generic [ref=e368]:
+          - paragraph [ref=e369]: Tools the tutor can call
+          - generic [ref=e370]:
+            - generic [ref=e371]:
+              - img [ref=e372]
+              - generic [ref=e374]:
+                - code [ref=e375]: search_curriculum
+                - paragraph [ref=e376]: Looks up the exact lesson and cites it
+            - generic [ref=e377]:
+              - img [ref=e378]
+              - generic [ref=e380]:
+                - code [ref=e381]: assess_answer
+                - paragraph [ref=e382]: Grades scenarios with a rubric, not just MCQs
+            - generic [ref=e383]:
+              - img [ref=e384]
+              - generic [ref=e386]:
+                - code [ref=e387]: explain_concept
+                - paragraph [ref=e388]: Bilingual explanations with worked examples
+            - generic [ref=e389]:
+              - img [ref=e390]
+              - generic [ref=e392]:
+                - code [ref=e393]: generate_practice
+                - paragraph [ref=e394]: Builds new questions tuned to today's gaps
+            - generic [ref=e395]:
+              - img [ref=e396]
+              - generic [ref=e398]:
+                - code [ref=e399]: lookup_regulation
+                - paragraph [ref=e400]: GST, ZATCA, IFRS — locale-aware citations
+            - generic [ref=e401]:
+              - img [ref=e402]
+              - generic [ref=e404]:
+                - code [ref=e405]: recommend_next
+                - paragraph [ref=e406]: Picks the next lesson by your mastery curve
+      - generic [ref=e408]:
+        - generic [ref=e410]:
+          - img [ref=e412]
+          - generic [ref=e414]: AI Tutor · Live
+        - generic [ref=e416]:
+          - generic [ref=e418]: Why does ZATCA require XML invoices, not PDF?
+          - generic [ref=e419]:
+            - generic [ref=e421]:
+              - img [ref=e422]
+              - text: search_curriculum · 1 hit
+            - generic [ref=e424]:
+              - generic [ref=e425]: ZATCA Phase 2 mandates
+              - strong [ref=e426]: structured
+              - generic [ref=e427]:
+                - text: invoices because tax authorities can't audit pixels. XML lets the system validate every field — buyer VAT number, line totals, tax codes — at the moment of issuance. From
+                - emphasis [ref=e428]: "Lesson: ZATCA Phase 2 Integration"
+                - text: — see §3.1.
+    - generic [ref=e429]:
+      - generic [ref=e430]:
+        - generic [ref=e431]:
+          - img [ref=e432]
+          - text: Two tracks. One platform.
+        - heading "Curriculum that respects your jurisdiction." [level=2] [ref=e435]
+        - paragraph [ref=e436]: India and KSA accounting are different worlds. We built each track as its own bounded curriculum — not a global course with regional footnotes.
+      - generic [ref=e437]:
+        - generic [ref=e439]:
+          - generic [ref=e440]:
+            - generic [ref=e441]:
+              - generic [ref=e442]: 🇮🇳
+              - heading "Chartered Path" [level=3] [ref=e443]
+              - paragraph [ref=e444]: India
+            - generic [ref=e445]:
+              - generic [ref=e446]:
+                - generic [ref=e447]: "0"
+                - text: +
+              - paragraph [ref=e448]: lessons
+          - generic [ref=e449]:
+            - paragraph [ref=e450]: Phases
+            - generic [ref=e451]:
+              - generic [ref=e452]:
+                - generic [ref=e453]: "1"
+                - text: Foundation
+              - generic [ref=e454]:
+                - generic [ref=e455]: "2"
+                - text: GST + TDS
+              - generic [ref=e456]:
+                - generic [ref=e457]: "3"
+                - text: Ind AS + Companies Act
+              - generic [ref=e458]:
+                - generic [ref=e459]: "4"
+                - text: Audit + Capstone
+          - generic [ref=e460]:
+            - paragraph [ref=e461]: Covers
+            - list [ref=e462]:
+              - listitem [ref=e463]:
+                - img [ref=e464]
+                - text: Direct + Indirect Tax
+              - listitem [ref=e466]:
+                - img [ref=e467]
+                - text: Tally + Zoho practical
+              - listitem [ref=e469]:
+                - img [ref=e470]
+                - text: Companies Act 2013
+              - listitem [ref=e472]:
+                - img [ref=e473]
+                - text: TDS computation
+              - listitem [ref=e475]:
+                - img [ref=e476]
+                - text: Audit standards (SA)
+              - listitem [ref=e478]:
+                - img [ref=e479]
+                - text: Transfer pricing
+        - generic [ref=e482]:
+          - generic [ref=e483]:
+            - generic [ref=e484]:
+              - generic [ref=e485]: 🇸🇦
+              - heading "Mu'tamad Path" [level=3] [ref=e486]
+              - paragraph [ref=e487]: Saudi Arabia
+            - generic [ref=e488]:
+              - generic [ref=e489]:
+                - generic [ref=e490]: "0"
+                - text: +
+              - paragraph [ref=e491]: lessons
+          - generic [ref=e492]:
+            - paragraph [ref=e493]: Phases
+            - generic [ref=e494]:
+              - generic [ref=e495]:
+                - generic [ref=e496]: "1"
+                - text: Foundation
+              - generic [ref=e497]:
+                - generic [ref=e498]: "2"
+                - text: VAT + Zakat
+              - generic [ref=e499]:
+                - generic [ref=e500]: "3"
+                - text: IFRS + ZATCA
+              - generic [ref=e501]:
+                - generic [ref=e502]: "4"
+                - text: Audit + Capstone
+          - generic [ref=e503]:
+            - paragraph [ref=e504]: Covers
+            - list [ref=e505]:
+              - listitem [ref=e506]:
+                - img [ref=e507]
+                - text: ZATCA e-invoicing (Phase 1+2)
+              - listitem [ref=e509]:
+                - img [ref=e510]
+                - text: Saudi VAT computation
+              - listitem [ref=e512]:
+                - img [ref=e513]
+                - text: Zakat assessment
+              - listitem [ref=e515]:
+                - img [ref=e516]
+                - text: IFRS for SMEs
+              - listitem [ref=e518]:
+                - img [ref=e519]
+                - text: SOCPA framework
+              - listitem [ref=e521]:
+                - img [ref=e522]
+                - text: Transfer pricing (KSA)
+    - generic [ref=e525]:
+      - generic [ref=e526]:
+        - generic [ref=e527]:
+          - generic [ref=e528]:
+            - img [ref=e529]
+            - text: Bilingual
+          - heading "Arabic and English. Equal weight." [level=2] [ref=e533]
+          - paragraph [ref=e534]: Every lesson, every prompt, every diagram, every certificate ships in both languages. RTL is not a stylesheet — it is a rendering mode the agent respects end-to-end.
+          - list [ref=e535]:
+            - listitem [ref=e536]:
+              - img [ref=e537]
+              - text: AR + EN side by side, switch instantly
+            - listitem [ref=e539]:
+              - img [ref=e540]
+              - text: Tutor responds in your session language
+            - listitem [ref=e542]:
+              - img [ref=e543]
+              - text: Hijri dates available alongside Gregorian
+            - listitem [ref=e545]:
+              - img [ref=e546]
+              - text: Arabic-Indic numerals as a per-user preference
+        - generic [ref=e549]:
+          - generic [ref=e550]:
+            - generic [ref=e551]:
+              - generic [ref=e552]: EN
+              - img [ref=e553]
+            - paragraph [ref=e557]: Input VAT credit
+            - paragraph [ref=e558]: A registered taxpayer can claim credit for VAT paid on inputs used to make taxable supplies.
+          - generic [ref=e559]:
+            - generic [ref=e560]:
+              - generic [ref=e561]: AR
+              - img [ref=e562]
+            - paragraph [ref=e566]: خصم ضريبة المدخلات
+            - paragraph [ref=e567]: يحق للممول المسجل خصم ضريبة القيمة المضافة المدفوعة على المدخلات المستخدمة في التوريدات الخاضعة للضريبة.
+      - generic [ref=e568]:
+        - generic [ref=e570]:
+          - generic [ref=e571]:
+            - img [ref=e572]
+            - text: Verified certificate
+          - img [ref=e575]
+          - heading "Aisha Al-Rashid" [level=3] [ref=e578]
+          - paragraph [ref=e579]: has successfully completed the
+          - paragraph [ref=e580]: Mu'tamad Path · Saudi Arabia
+          - generic [ref=e581]:
+            - generic [ref=e582]:
+              - paragraph [ref=e583]: Score
+              - paragraph [ref=e584]: 94%
+            - generic [ref=e585]:
+              - paragraph [ref=e586]: Issued
+              - paragraph [ref=e587]: 02 Apr 2026
+          - paragraph [ref=e588]: 3f8a1c92e4b78d6a9c0f5e2b1d4a7c8f
+        - generic [ref=e589]:
+          - generic [ref=e590]:
+            - img [ref=e591]
+            - text: Certificate
+          - heading "Verifiable. Not just printable." [level=2] [ref=e594]
+          - paragraph [ref=e595]: Every certificate ships with a HMAC signature over your name, track, completion date, and score. Anyone with the link can verify it on a public page — no login, no API key.
+          - list [ref=e596]:
+            - listitem [ref=e597]:
+              - img [ref=e598]
+              - text: HMAC-signed certificate hash
+            - listitem [ref=e602]:
+              - img [ref=e603]
+              - text: Public verification page
+            - listitem [ref=e607]:
+              - img [ref=e608]
+              - text: QR code for offline verification
+            - listitem [ref=e612]:
+              - img [ref=e613]
+              - text: PDF download in EN or AR
+    - generic [ref=e617]:
+      - generic [ref=e618]:
+        - generic [ref=e619]:
+          - img [ref=e620]
+          - text: Why us
+        - heading "How we compare." [level=2] [ref=e624]
+      - table [ref=e627]:
+        - rowgroup [ref=e628]:
+          - row "SuperAccountant Traditional course ChatGPT" [ref=e629]:
+            - columnheader [ref=e630]
+            - columnheader "SuperAccountant" [ref=e631]
+            - columnheader "Traditional course" [ref=e632]
+            - columnheader "ChatGPT" [ref=e633]
+        - rowgroup [ref=e634]:
+          - row "Knows your jurisdiction" [ref=e635]:
+            - cell "Knows your jurisdiction" [ref=e636]
+            - cell [ref=e637]:
+              - img [ref=e639]
+            - cell [ref=e641]:
+              - img [ref=e643]
+            - cell [ref=e646]:
+              - img [ref=e648]
+          - row "Adaptive to your level" [ref=e651]:
+            - cell "Adaptive to your level" [ref=e652]
+            - cell [ref=e653]:
+              - img [ref=e655]
+            - cell [ref=e657]:
+              - img [ref=e659]
+            - cell [ref=e662]:
+              - img [ref=e664]
+          - row "Cites the exact lesson" [ref=e667]:
+            - cell "Cites the exact lesson" [ref=e668]
+            - cell [ref=e669]:
+              - img [ref=e671]
+            - cell [ref=e673]:
+              - img [ref=e675]
+            - cell [ref=e677]:
+              - img [ref=e679]
+          - row "Bilingual EN + AR sort of" [ref=e682]:
+            - cell "Bilingual EN + AR" [ref=e683]
+            - cell [ref=e684]:
+              - img [ref=e686]
+            - cell [ref=e688]:
+              - img [ref=e690]
+            - cell "sort of" [ref=e693]:
+              - generic [ref=e694]: sort of
+          - row "Daily plan, not a catalogue" [ref=e695]:
+            - cell "Daily plan, not a catalogue" [ref=e696]
+            - cell [ref=e697]:
+              - img [ref=e699]
+            - cell [ref=e701]:
+              - img [ref=e703]
+            - cell [ref=e706]:
+              - img [ref=e708]
+          - row "Verifiable certificate" [ref=e711]:
+            - cell "Verifiable certificate" [ref=e712]
+            - cell [ref=e713]:
+              - img [ref=e715]
+            - cell [ref=e717]:
+              - img [ref=e719]
+            - cell [ref=e721]:
+              - img [ref=e723]
+          - row "Costs less than a textbook" [ref=e726]:
+            - cell "Costs less than a textbook" [ref=e727]
+            - cell [ref=e728]:
+              - img [ref=e730]
+            - cell [ref=e732]:
+              - img [ref=e734]
+            - cell [ref=e737]:
+              - img [ref=e739]
+    - generic [ref=e742]:
+      - generic [ref=e743]:
+        - generic [ref=e744]:
+          - img [ref=e745]
+          - text: Questions
+        - heading "Frequently asked." [level=2] [ref=e748]
+      - generic [ref=e749]:
+        - group [ref=e751]:
+          - generic "Is SuperAccountant a replacement for CA / SOCPA? +" [ref=e752] [cursor=pointer]:
+            - generic [ref=e753]: Is SuperAccountant a replacement for CA / SOCPA?
+            - generic [ref=e755]: +
+        - group [ref=e757]:
+          - generic "Does the tutor actually know Indian / Saudi tax law? +" [ref=e758] [cursor=pointer]:
+            - generic [ref=e759]: Does the tutor actually know Indian / Saudi tax law?
+            - generic [ref=e761]: +
+        - group [ref=e763]:
+          - generic "How long does the program take? +" [ref=e764] [cursor=pointer]:
+            - generic [ref=e765]: How long does the program take?
+            - generic [ref=e767]: +
+        - group [ref=e769]:
+          - generic "What languages are supported? +" [ref=e770] [cursor=pointer]:
+            - generic [ref=e771]: What languages are supported?
+            - generic [ref=e773]: +
+        - group [ref=e775]:
+          - generic "How is this different from watching YouTube? +" [ref=e776] [cursor=pointer]:
+            - generic [ref=e777]: How is this different from watching YouTube?
+            - generic [ref=e779]: +
+        - group [ref=e781]:
+          - generic "Is the certificate accepted by employers? +" [ref=e782] [cursor=pointer]:
+            - generic [ref=e783]: Is the certificate accepted by employers?
+            - generic [ref=e785]: +
+    - generic [ref=e790]:
+      - generic [ref=e791]:
+        - img [ref=e792]
+        - text: Get started
+      - heading "Start with a 10-minute test." [level=2] [ref=e794]
+      - paragraph [ref=e795]: We'll place you on the right phase, generate tomorrow's plan, and the tutor will be waiting.
+      - link "Take the placement test" [ref=e798] [cursor=pointer]:
+        - /url: "https://superaccountant-web.vercel.app\n/en/sign-in"
+        - text: Take the placement test
+        - img [ref=e799]
+      - paragraph [ref=e801]: Free during beta · No credit card · Cancel anytime
+    - contentinfo [ref=e802]:
+      - generic [ref=e803]:
+        - generic [ref=e804]:
+          - generic [ref=e805]:
+            - generic [ref=e806]:
+              - img [ref=e807]
+              - generic [ref=e813]: Superaccountant
+            - paragraph [ref=e814]: The agentic accounting tutor for India and Saudi Arabia.
+          - generic [ref=e815]:
+            - paragraph [ref=e816]: Product
+            - list [ref=e817]:
+              - listitem [ref=e818]:
+                - link "Features" [ref=e819] [cursor=pointer]:
+                  - /url: /en/features
+              - listitem [ref=e820]:
+                - link "Pricing" [ref=e821] [cursor=pointer]:
+                  - /url: /en/pricing
+              - listitem [ref=e822]:
+                - link "About" [ref=e823] [cursor=pointer]:
+                  - /url: /en/about
+          - generic [ref=e824]:
+            - paragraph [ref=e825]: Learn
+            - list [ref=e826]:
+              - listitem [ref=e827]:
+                - link "India · Chartered Path" [ref=e828] [cursor=pointer]:
+                  - /url: /en/features#india
+              - listitem [ref=e829]:
+                - link "KSA · Mu'tamad Path" [ref=e830] [cursor=pointer]:
+                  - /url: /en/features#ksa
+              - listitem [ref=e831]:
+                - link "How the agent works" [ref=e832] [cursor=pointer]:
+                  - /url: /en/features#agent
+          - generic [ref=e833]:
+            - paragraph [ref=e834]: Contact
+            - list [ref=e835]:
+              - listitem [ref=e836]:
+                - link "+91 810 613 8866" [ref=e837] [cursor=pointer]:
+                  - /url: tel:+918106138866
+                  - img [ref=e838]
+                  - generic [ref=e840]: +91 810 613 8866
+              - listitem [ref=e841]:
+                - link "info@superaccountant.in" [ref=e842] [cursor=pointer]:
+                  - /url: mailto:info@superaccountant.in
+                  - img [ref=e843]
+                  - generic [ref=e846]: info@superaccountant.in
+          - generic [ref=e847]:
+            - paragraph [ref=e848]: Address
+            - generic [ref=e849]:
+              - img [ref=e850]
+              - generic [ref=e853]:
+                - generic [ref=e854]: Unit 422, 4th floor
+                - generic [ref=e855]: Downtown Mall
+                - generic [ref=e856]: Lakdikapul
+                - generic [ref=e857]: Hyderabad
+        - generic [ref=e858]:
+          - paragraph [ref=e859]: © 2026 SuperAccountant · All rights reserved
+          - generic [ref=e860]:
+            - link "Terms" [ref=e861] [cursor=pointer]:
+              - /url: /en/terms
+            - link "Privacy" [ref=e862] [cursor=pointer]:
+              - /url: /en/privacy
+            - generic [ref=e863]: ·
+            - generic [ref=e864]: EN · AR · ZATCA · GST · IFRS · Companies Act 2013
+  - alert [ref=e865]

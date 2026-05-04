@@ -1,0 +1,100 @@
+import { UserCircle2 } from "lucide-react";
+import Link from "next/link";
+import { iam } from "@/lib/api/server-api";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
+import {
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table
+} from "@/components/ui/table";
+import { CreatePersonButton } from "@/components/persons/create-person-button";
+
+export const metadata = { title: "Persons — SportsPulse" };
+
+export default async function PersonsPage() {
+  const page = await iam.listPersons({ limit: 50 }).catch(() => ({
+    items: [],
+    nextCursor: null
+  }));
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Persons"
+        description="Identity records for players, refs, coaches — including minors without auth accounts."
+        action={<CreatePersonButton />}
+      />
+
+      {page.items.length === 0 ? (
+        <EmptyState
+          icon={UserCircle2}
+          title="No persons yet"
+          description="Persons are subject identities used for registration, roster moves, and consent signatures."
+          action={<CreatePersonButton />}
+        />
+      ) : (
+        <Table>
+          <THead>
+            <TR>
+              <TH>Name</TH>
+              <TH>DOB</TH>
+              <TH>Country</TH>
+              <TH>Has account?</TH>
+              <TH>Created</TH>
+            </TR>
+          </THead>
+          <TBody>
+            {page.items.map((p) => {
+              const display =
+                p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`;
+              const age = p.dobDate
+                ? Math.floor(
+                    (Date.now() - new Date(p.dobDate).getTime()) /
+                      (365.25 * 24 * 3600 * 1000)
+                  )
+                : null;
+              return (
+                <TR key={p.id}>
+                  <TD className="font-medium">
+                    <Link
+                      href={`/persons/${p.id}`}
+                      className="block hover:underline"
+                    >
+                      {display}
+                      {p.preferredName ? (
+                        <span className="block text-xs text-muted-foreground">
+                          {p.legalFirstName} {p.legalLastName}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </TD>
+                  <TD className="text-muted-foreground">
+                    {p.dobDate ? `${p.dobDate} (age ${age})` : "—"}
+                  </TD>
+                  <TD className="text-muted-foreground">
+                    {p.countryCode ?? "—"}
+                  </TD>
+                  <TD>
+                    {p.userId ? (
+                      <Badge tone="success">linked</Badge>
+                    ) : (
+                      <Badge>none</Badge>
+                    )}
+                  </TD>
+                  <TD className="text-muted-foreground">
+                    {new Date(p.createdAt).toLocaleDateString()}
+                  </TD>
+                </TR>
+              );
+            })}
+          </TBody>
+        </Table>
+      )}
+    </div>
+  );
+}

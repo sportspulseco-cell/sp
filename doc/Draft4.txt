@@ -1,0 +1,82 @@
+	Multi-tenant org model	
+	Auth (JWT)	
+Backend	RBAC	
+	Membership roles	
+	Organization onboarding	
+
+	Login / Signup	
+Frontend	Org creation UI	
+	Role dashboard shell	
+
+	Auth flow tests	
+QA	Org isolation tests	
+	Misc tasks	
+	League	
+Backend	Division	
+	Season models	
+	Team model	
+
+	League mgmt UI	
+Frontend	Season creation UI	
+	Team mgmt UI	
+
+QA	CRUD integrity	
+	Org isolation	
+	PlayerProfile	
+Backend	Registration model	
+	Roster model	
+
+	Player onboarding	
+Frontend	Registration flow	
+	Team roster mgmt	
+
+QA	Cross-season player test	
+	Invoice	
+Backend	Stripe integration	
+
+Frontend	Payment UI	
+	Invoice history	
+
+QA	Refund flow	
+	Partial payment	
+	Venue	
+Backend	Rink	
+	IceSlot	
+	Fixture generator (OR Tools)	
+
+Frontend	IceSlot UI	
+	Fixture preview	
+
+QA	Fixture fairness tests	
+Backend	RefereeProfile	
+	GameAssignment	
+	Ref payout	
+
+Frontend	Ref availability UI	
+	Assignment UI	
+
+QA	No-show reassignment	
+	GameSession	
+Backend	GameEvent	
+	Stats worker	
+	Standings engine	
+
+Frontend	Ref scoring UI	
+	Live scoreboard UI	
+
+QA	Stat reconciliation	
+	Correction replay	
+	BracketNode	
+Backend	Playoff advancer	
+	ComplianceRecord	
+
+	Bracket UI	
+Frontend	Compliance tracker	
+
+QA	Auto advancement test	
+Backend	SaaS plans	
+	Tenant feature flags	
+
+Frontend	Plan upgrade UI	
+
+QA	Feature gating tests	

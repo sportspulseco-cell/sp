@@ -1,0 +1,42 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - img
+    - banner [ref=e3]:
+      - link "Superaccountant" [ref=e4] [cursor=pointer]:
+        - /url: /en
+        - img [ref=e5]
+        - generic [ref=e11]: Superaccountant
+      - generic [ref=e12]:
+        - button "Switch to Arabic" [ref=e13]:
+          - img [ref=e14]
+          - generic [ref=e18]: EN
+          - generic [ref=e19]: /
+          - generic [ref=e20]: عر
+        - button "Toggle theme" [ref=e21]:
+          - img [ref=e22]
+    - main [ref=e28]:
+      - generic [ref=e30]:
+        - heading "Welcome back" [level=1] [ref=e31]
+        - paragraph [ref=e32]: Sign in to continue your placement.
+        - generic [ref=e33]:
+          - button "Continue with Google" [ref=e35]:
+            - img [ref=e36]
+            - text: Continue with Google
+          - generic [ref=e43]: OR
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - generic [ref=e47]: Work email
+              - textbox "Work email" [ref=e48]:
+                - /placeholder: you@firm.com
+            - button "Send sign-in link" [ref=e49]:
+              - text: Send sign-in link
+              - img [ref=e50]
+        - paragraph [ref=e52]:
+          - text: By continuing you agree to the
+          - link "terms of use" [ref=e53] [cursor=pointer]:
+            - /url: "https://superaccountant-marketing.vercel.app\n/en/terms"
+          - text: and
+          - link "privacy policy" [ref=e54] [cursor=pointer]:
+            - /url: "https://superaccountant-marketing.vercel.app\n/en/privacy"
+          - text: .
+  - alert [ref=e55]

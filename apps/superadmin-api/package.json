@@ -1,0 +1,43 @@
+{
+  "name": "@sportspulse/superadmin-api",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Super Admin API — NestJS, DDD",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.6",
+    "@nestjs/config": "^3.2.3",
+    "@nestjs/core": "^10.4.6",
+    "@nestjs/cqrs": "^10.2.7",
+    "@nestjs/platform-fastify": "^10.4.6",
+    "@nestjs/swagger": "^7.4.2",
+    "@fastify/static": "^7.0.4",
+    "@sportspulse/auth": "workspace:*",
+    "@sportspulse/db": "workspace:*",
+    "@sportspulse/kernel": "workspace:*",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "drizzle-orm": "^0.36.4",
+    "fastify": "^4.28.1",
+    "postgres": "^3.4.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.7",
+    "@nestjs/schematics": "^10.2.3",
+    "@swc/cli": "^0.5.0",
+    "@swc/core": "^1.9.2",
+    "@types/node": "^22.9.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.6.3"
+  }
+}
