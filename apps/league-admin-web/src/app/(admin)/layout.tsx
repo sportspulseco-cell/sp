@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { iam } from "@/lib/api/server-api";
+import { NavProvider } from "@/components/layout/nav-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 
@@ -55,21 +56,23 @@ export default async function AdminLayout({
     .map((a) => a.scopeId as string);
 
   return (
-    <div className="flex min-h-screen bg-bg">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          email={profile?.email ?? user.email ?? ""}
-          displayName={profile?.display_name ?? null}
-          isSuperAdmin={profile?.is_super_admin === true}
-          manageableCount={
-            profile?.is_super_admin ? "all" : String(manageableLeagueIds.length)
-          }
-        />
-        <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
-          <div className="mx-auto max-w-container">{children}</div>
-        </main>
+    <NavProvider>
+      <div className="flex min-h-screen bg-bg">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar
+            email={profile?.email ?? user.email ?? ""}
+            displayName={profile?.display_name ?? null}
+            isSuperAdmin={profile?.is_super_admin === true}
+            manageableCount={
+              profile?.is_super_admin ? "all" : String(manageableLeagueIds.length)
+            }
+          />
+          <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+            <div className="mx-auto max-w-container">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </NavProvider>
   );
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { NavProvider } from "@/components/layout/nav-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { CommandPaletteTrigger } from "@/components/ui/command-palette";
@@ -28,18 +29,20 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-bg">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          email={profile.email ?? user.email ?? ""}
-          displayName={profile.display_name ?? null}
-        />
-        <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
-          <div className="mx-auto max-w-container">{children}</div>
-        </main>
+    <NavProvider>
+      <div className="flex min-h-screen bg-bg">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar
+            email={profile.email ?? user.email ?? ""}
+            displayName={profile.display_name ?? null}
+          />
+          <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+            <div className="mx-auto max-w-container">{children}</div>
+          </main>
+        </div>
+        <CommandPaletteTrigger />
       </div>
-      <CommandPaletteTrigger />
-    </div>
+    </NavProvider>
   );
 }
