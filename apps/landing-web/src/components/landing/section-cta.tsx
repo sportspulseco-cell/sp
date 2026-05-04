@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ShieldCheck, Trophy } from "lucide-react";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@/components/ui/reveal";
+
+const SUPERADMIN = "https://sp-superadmin.vercel.app";
+const LEAGUE_ADMIN = "https://sp-league-admin.vercel.app";
 
 export function SectionCta() {
   const [email, setEmail] = useState("");
@@ -67,7 +70,81 @@ export function SectionCta() {
             </motion.button>
           </form>
         </Reveal>
+
+        {/* Already running a league? — direct console access */}
+        <Reveal delay={0.22}>
+          <div className="mt-14 grid max-w-3xl gap-4 sm:grid-cols-2">
+            <ConsoleCard
+              icon={<ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title="Super Admin"
+              sub="Federation, orgs, persons, audit"
+              signIn={`${SUPERADMIN}/sign-in`}
+              signUp={`${SUPERADMIN}/sign-up`}
+            />
+            <ConsoleCard
+              icon={<Trophy className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title="League Admin"
+              sub="Your league: divisions, teams, games"
+              signIn={`${LEAGUE_ADMIN}/sign-in`}
+              signUp={`${LEAGUE_ADMIN}/sign-up`}
+            />
+          </div>
+        </Reveal>
       </div>
     </section>
+  );
+}
+
+function ConsoleCard({
+  icon,
+  title,
+  sub,
+  signIn,
+  signUp
+}: {
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  signIn: string;
+  signUp: string;
+}) {
+  return (
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 220, damping: 18 }}
+      className="group relative overflow-hidden rounded-2xl border border-border bg-surface-1 p-5"
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-bg-elev text-cyan">
+          {icon}
+        </span>
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          {title}
+        </p>
+      </div>
+      <p className="mt-2 text-[12px] text-fg-muted">{sub}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a
+          href={signIn}
+          target="_blank"
+          rel="noreferrer"
+          className="group/btn inline-flex items-center gap-1.5 rounded-full bg-fg px-3.5 py-1.5 font-mono text-[10px] font-medium uppercase tracking-widest text-bg transition-transform hover:scale-[1.03]"
+        >
+          Sign in
+          <ArrowUpRight
+            className="h-3 w-3 transition-transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5"
+            strokeWidth={2.25}
+          />
+        </a>
+        <a
+          href={signUp}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-bg-elev px-3.5 py-1.5 font-mono text-[10px] font-medium uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+        >
+          Sign up
+        </a>
+      </div>
+    </motion.div>
   );
 }
