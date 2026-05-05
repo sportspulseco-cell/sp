@@ -1,26 +1,42 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
+import {
+  countEffectivePermissions,
+  type PermissionString
+} from "@sportspulse/kernel";
 import { iam, orgs as orgsApi } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { PermissionTree } from "@/components/permissions/permission-tree";
+import { RoleCodePicker } from "@/components/permissions/role-code-picker";
+
+interface Form {
+  orgId: string;
+  code: string;
+  name: string;
+  description: string;
+  permissions: PermissionString[];
+}
+
+const EMPTY: Form = {
+  orgId: "",
+  code: "",
+  name: "",
+  description: "",
+  permissions: []
+};
 
 export function CreateRoleButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [orgs, setOrgs] = useState<Org[]>([]);
-  const [form, setForm] = useState({
-    orgId: "",
-    code: "",
-    name: "",
-    description: "",
-    permissions: ""
-  });
+  const [form, setForm] = useState<Form>(EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +51,22 @@ export function CreateRoleButton() {
       .catch(() => undefined);
   }, [open]);
 
+  // Code validity drives the submit button — replaces the native browser
+  // tooltip ("Please fill out this field") that was confusing users.
+  const codeValid =
+    /^[a-z][a-z0-9_]{2,40}$/.test(form.code) && !form.code.endsWith("_");
+  const nameValid = form.name.trim().length > 0;
+  const orgValid = form.orgId.length > 0;
+  const canSubmit = codeValid && nameValid && orgValid;
+
+  const effectiveCount = useMemo(
+    () => countEffectivePermissions(form.permissions),
+    [form.permissions]
+  );
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
     try {
@@ -46,18 +76,9 @@ export function CreateRoleButton() {
         name: form.name,
         description: form.description || null,
         permissions: form.permissions
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
       });
       setOpen(false);
-      setForm({
-        orgId: form.orgId,
-        code: "",
-        name: "",
-        description: "",
-        permissions: ""
-      });
+      setForm({ ...EMPTY, orgId: form.orgId });
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -99,19 +120,32 @@ export function CreateRoleButton() {
               ))}
             </Select>
           </Field>
+
           <Field
-            label="Code"
-            htmlFor="code"
-            hint="Stable identifier — lowercase_snake_case. Used in @Roles() decorators."
+            label="Role code"
+            hint="Pick from the curated list or write a custom lowercase_snake_case code. Used by @Roles() decorators on the API."
           >
-            <Input
-              id="code"
-              required
+            <RoleCodePicker
               value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-              placeholder="tournament_director"
+              onChange={(code) => setForm((f) => ({ ...f, code }))}
+              onSuggestionApply={(s) =>
+                setForm((f) => ({
+                  ...f,
+                  code: s.code,
+                  name: f.name || s.name,
+                  permissions:
+                    f.permissions.length === 0 ? [...s.defaultPermissions] : f.permissions
+                }))
+              }
             />
+            {form.code && !codeValid && (
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                Code must be lowercase letters / digits / underscores, 3–40
+                chars, can't end with `_`.
+              </p>
+            )}
           </Field>
+
           <Field label="Name" htmlFor="name">
             <Input
               id="name"
@@ -131,18 +165,14 @@ export function CreateRoleButton() {
               placeholder="Optional"
             />
           </Field>
+
           <Field
             label="Permissions"
-            htmlFor="permissions"
-            hint="Comma-separated. Use wildcards (game.*) or specific codes (game_event.write)."
+            hint={`Pick the actions this role can perform. ${effectiveCount} effective permission${effectiveCount === 1 ? "" : "s"} selected.`}
           >
-            <Input
-              id="permissions"
+            <PermissionTree
               value={form.permissions}
-              onChange={(e) =>
-                setForm({ ...form, permissions: e.target.value })
-              }
-              placeholder="game.*, suspension.issue, registration.review"
+              onChange={(permissions) => setForm((f) => ({ ...f, permissions }))}
             />
           </Field>
 
@@ -156,7 +186,7 @@ export function CreateRoleButton() {
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !canSubmit}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…

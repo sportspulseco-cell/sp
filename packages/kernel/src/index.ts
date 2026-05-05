@@ -8,3 +8,4 @@ export * from "./errors";
 export * from "./repository";
 export * from "./use-case";
 export * from "./pagination";
+export * from "./permissions";

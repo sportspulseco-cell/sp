@@ -1,0 +1,19 @@
+---
+description: Cardinal repo rule — reuse existing primitives, never build in silos
+globs:
+alwaysApply: true
+---
+
+# Reuse over silos — applies to every change in this repo
+
+Read [`CLAUDE.md`](../../CLAUDE.md) at the repo root for the full set of rules.
+
+**TL;DR for any new code:**
+
+1. Before creating a component, grep `apps/*/src/components/` for the closest existing one. Examples: `<Skeleton>`, `<Eyebrow>`, `<Section>`, `<NavProvider>`, `<IconTile>`, `<Reveal>`, `<EmptyState>`.
+2. Before creating an API endpoint, check the existing module under `apps/superadmin-api/src/modules/`.
+3. Before adding a DB table or column, check `packages/db/src/schema/` and `doc/data-model.md`.
+4. Permission strings, role codes, scope types, audit actions — all sourced from `packages/kernel`. Never inline.
+5. When in doubt, **ask which existing primitive to extend** rather than introducing a new one.
+
+The repo owner has explicitly flagged silos as the #1 source of friction. Default to "find and reuse" — silo'd reimplementations have already caused multiple skeleton sets, permission UI divergence, and SDK type duplication.

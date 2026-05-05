@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { CreateRoleButton } from "@/components/roles/create-role-button";
 import { DeleteRoleButton } from "@/components/roles/delete-role-button";
+import { PermissionBadges } from "@/components/permissions/permission-badges";
 
 export const metadata = { title: "Roles — SportsPulse" };
 
@@ -113,7 +114,7 @@ export default async function RolesPage() {
                 <TH className="w-12 text-center">#</TH>
                 <TH>Role</TH>
                 <TH>Description</TH>
-                <TH className="text-center">Permissions</TH>
+                <TH>Permissions</TH>
                 <TH />
               </TR>
             </THead>
@@ -136,10 +137,8 @@ export default async function RolesPage() {
                   <TD className="text-fg-muted">
                     {r.description ?? <span className="text-fg-muted">—</span>}
                   </TD>
-                  <TD className="text-center">
-                    <span className="font-mono text-[11px] text-fg-muted">
-                      {r.permissions.length}
-                    </span>
+                  <TD>
+                    <PermissionBadges permissions={r.permissions} />
                   </TD>
                   <TD>
                     <Badge tone="info" mono>
@@ -183,7 +182,7 @@ export default async function RolesPage() {
                 <TH>Code</TH>
                 <TH>Name</TH>
                 <TH>Org</TH>
-                <TH className="text-center">Permissions</TH>
+                <TH>Permissions</TH>
                 <TH />
               </TR>
             </THead>
@@ -199,8 +198,8 @@ export default async function RolesPage() {
                   <TD className="font-mono text-[11px] text-fg-muted">
                     {r.orgId?.slice(0, 8) ?? "—"}
                   </TD>
-                  <TD className="text-center font-mono text-[11px] text-fg-muted">
-                    {r.permissions.length}
+                  <TD>
+                    <PermissionBadges permissions={r.permissions} />
                   </TD>
                   <TD className="text-right">
                     <DeleteRoleButton id={r.id} />
