@@ -12,6 +12,7 @@ import {
   TR,
   Table
 } from "@/components/ui/table";
+import { InviteUserButton } from "@/components/users/invite-user-button";
 
 export const metadata = { title: "Users — SportsPulse" };
 
@@ -25,6 +26,7 @@ export default async function UsersPage() {
       <PageHeader
         title="Users"
         description="Authenticated user accounts across all tenants."
+        action={<InviteUserButton />}
       />
       {page.items.length === 0 ? (
         <EmptyState

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { SuperAdminGuard } from "./guards/super-admin.guard";
 import { RolesGuard } from "./guards/roles.guard";
 import { AuthorizedAccessGuard } from "./guards/authorized-access.guard";
+import { SupabaseAdminService } from "./supabase-admin.service";
 import { JWT_VERIFIER } from "./auth.tokens";
 
 export { JWT_VERIFIER };
@@ -31,14 +32,16 @@ export { JWT_VERIFIER };
     JwtAuthGuard,
     SuperAdminGuard,
     RolesGuard,
-    AuthorizedAccessGuard
+    AuthorizedAccessGuard,
+    SupabaseAdminService
   ],
   exports: [
     JWT_VERIFIER,
     JwtAuthGuard,
     SuperAdminGuard,
     RolesGuard,
-    AuthorizedAccessGuard
+    AuthorizedAccessGuard,
+    SupabaseAdminService
   ]
 })
 export class AuthModule {}

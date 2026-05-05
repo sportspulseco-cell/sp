@@ -92,6 +92,24 @@ export function createApi(f: Fetcher) {
         f<Profile>(`/iam/users/${id}/suspend`, { method: "POST" }),
       reactivateUser: (id: string) =>
         f<Profile>(`/iam/users/${id}/reactivate`, { method: "POST" }),
+      inviteUser: (body: {
+        email: string;
+        displayName?: string;
+        role?: {
+          roleCode: string;
+          scopeType: RoleScopeType;
+          scopeId?: string;
+        };
+      }) =>
+        f<{
+          userId: string;
+          email: string;
+          created: boolean;
+          assignment: RoleAssignment | null;
+        }>("/iam/users/invite", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       listPersons: (
         q: { limit?: number; cursor?: string; search?: string; countryCode?: string } = {}
       ) => f<Page<Person>>(`/iam/persons${qs(q)}`),
@@ -561,6 +579,8 @@ export function createApi(f: Fetcher) {
 
       listDivisions: (q: { leagueId?: string } = {}) =>
         f<Page<Division>>(`/league/divisions${qs(q)}`),
+      getDivision: (id: string) =>
+        f<Division>(`/league/divisions/${id}`),
       createDivision: (body: {
         leagueId: string;
         name: string;
@@ -575,6 +595,7 @@ export function createApi(f: Fetcher) {
 
       listTeams: (q: { orgId?: string; sportCode?: string } = {}) =>
         f<Page<Team>>(`/league/teams${qs(q)}`),
+      getTeam: (id: string) => f<Team>(`/league/teams/${id}`),
       createTeam: (body: {
         orgId: string;
         name: string;

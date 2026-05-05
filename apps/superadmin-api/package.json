@@ -19,6 +19,7 @@
     "@nestjs/platform-express": "^10.4.6",
     "@nestjs/swagger": "^7.4.2",
     "@sportspulse/auth": "workspace:*",
+    "@supabase/supabase-js": "^2.46.1",
     "@sportspulse/db": "workspace:*",
     "@sportspulse/kernel": "workspace:*",
     "class-transformer": "^0.5.1",

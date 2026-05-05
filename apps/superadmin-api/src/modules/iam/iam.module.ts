@@ -7,6 +7,7 @@ import { ListProfilesHandler } from "./application/queries/list-profiles.query";
 import { SuspendProfileHandler } from "./application/commands/suspend-profile.command";
 import { ReactivateProfileHandler } from "./application/commands/reactivate-profile.command";
 import { UpdateProfileHandler } from "./application/commands/update-profile.command";
+import { InviteUserHandler } from "./application/commands/invite-user.command";
 import {
   CreatePersonHandler,
   GetPersonHandler,
@@ -41,6 +42,7 @@ import { DrizzleRoleRepository } from "./infrastructure/repositories/drizzle-rol
     SuspendProfileHandler,
     ReactivateProfileHandler,
     UpdateProfileHandler,
+    InviteUserHandler,
     // Person use cases
     ListPersonsHandler,
     GetPersonHandler,

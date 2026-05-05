@@ -18,9 +18,14 @@ import { ListProfilesHandler } from "../application/queries/list-profiles.query"
 import { SuspendProfileHandler } from "../application/commands/suspend-profile.command";
 import { ReactivateProfileHandler } from "../application/commands/reactivate-profile.command";
 import { UpdateProfileHandler } from "../application/commands/update-profile.command";
+import {
+  InviteUserHandler,
+  type InviteUserResult
+} from "../application/commands/invite-user.command";
 import { ProfileDto, ProfilePageDto } from "../application/dtos/profile.dto";
 import { ListProfilesQueryDto } from "./dto/list-profiles.query-dto";
 import { UpdateProfileBodyDto } from "./dto/update-profile.body-dto";
+import { InviteUserBodyDto } from "./dto/invite-user.body-dto";
 
 @ApiTags("iam")
 @ApiBearerAuth()
@@ -32,7 +37,8 @@ export class IamController {
     private readonly listProfiles: ListProfilesHandler,
     private readonly suspendProfile: SuspendProfileHandler,
     private readonly reactivateProfile: ReactivateProfileHandler,
-    private readonly updateProfile: UpdateProfileHandler
+    private readonly updateProfile: UpdateProfileHandler,
+    private readonly inviteUser: InviteUserHandler
   ) {}
 
   // -------- self --------
@@ -81,5 +87,29 @@ export class IamController {
   @ApiOperation({ summary: "Reactivate a suspended user (super admin only)" })
   async reactivate(@Param("id") id: string): Promise<ProfileDto> {
     return this.reactivateProfile.execute({ userId: id });
+  }
+
+  @Post("users/invite")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Invite a user by email; optionally assign a role at the same time. Reused by every 'Assign admin' surface."
+  })
+  async invite(
+    @Body() body: InviteUserBodyDto,
+    @CurrentUser() principal: AuthPrincipal
+  ): Promise<InviteUserResult> {
+    return this.inviteUser.execute({
+      email: body.email,
+      displayName: body.displayName ?? null,
+      role: body.role
+        ? {
+            roleCode: body.role.roleCode,
+            scopeType: body.role.scopeType,
+            scopeId: body.role.scopeId ?? null
+          }
+        : undefined,
+      invitedByUserId: principal.userId
+    });
   }
 }

@@ -23,6 +23,7 @@ import { LinkOrgButton } from "@/components/orgs/link-org-button";
 import { UnlinkRelationButton } from "@/components/orgs/unlink-relation-button";
 import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
+import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 
 export const metadata = { title: "Organization — SportsPulse" };
 
@@ -121,48 +122,19 @@ export default async function OrgDetailPage({
 
       {/* Org-scoped role assignments */}
       <Section
-        eyebrow="Memberships"
-        title="Org-scoped role assignments"
-        description="Users with active roles scoped to this org. Org membership is modelled as a role assignment with scope_type='org'."
+        eyebrow="Admins"
+        title="Org admins + memberships"
+        description="Users with active roles scoped to this org. Every org should have at least one org_admin — assign one below or invite by email."
         icon={Users}
         tint="emerald"
       >
-        {assignments.items.length === 0 ? (
-          <Empty message="No active org-scoped assignments yet." />
-        ) : (
-          <ul className="divide-y divide-border">
-            {assignments.items.map((a) => (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-fg">
-                    <Link
-                      href={`/users/${a.userId}`}
-                      className="hover:underline"
-                    >
-                      {a.userId.slice(0, 8)}
-                    </Link>
-                    <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                      {a.role?.code ?? a.roleId.slice(0, 8)}
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-[12px] text-fg-muted">
-                    {a.role?.name ?? "—"} · since {fmtDate(a.effectiveFrom)}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-4 text-[12px] text-fg-muted">
-          Assignments are managed from the user's profile page —{" "}
-          <Link href="/users" className="underline hover:text-fg">
-            go to /users
-          </Link>{" "}
-          to grant a role.
-        </p>
+        <RoleAssignmentPanel
+          scopeType="org"
+          scopeId={org.id}
+          allowedRoleCodes={["org_admin", "registrar"]}
+          resourceLabel={org.displayName}
+          initialAssignments={assignments.items}
+        />
       </Section>
 
       {/* Org relations (hierarchy) */}
