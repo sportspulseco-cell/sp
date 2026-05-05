@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ResourcePicker } from "@/components/resources/resource-picker";
 
 /**
  * Global "Invite user" entry on /users.
@@ -161,11 +162,20 @@ export function InviteUserButton() {
                   )}
                 </Select>
               </Field>
-              {scopeType !== "platform" && (
+              {scopeType !== "platform" && scopeType !== "game" && (
                 <Field
-                  label={`${scopeType} id`}
-                  hint="Paste the resource UUID. (Pickers come on the per-resource detail page.)"
+                  label={`Pick ${scopeType === "org" ? "organization" : scopeType}`}
+                  hint={`Searchable picker — type to filter the list of ${scopeType}s.`}
                 >
+                  <ResourcePicker
+                    scopeType={scopeType}
+                    value={scopeId}
+                    onChange={setScopeId}
+                  />
+                </Field>
+              )}
+              {scopeType === "game" && (
+                <Field label="Game id" hint="Game pickers come from the game detail page.">
                   <Input
                     value={scopeId}
                     onChange={(e) => setScopeId(e.target.value)}
