@@ -9,3 +9,4 @@ export * from "./repository";
 export * from "./use-case";
 export * from "./pagination";
 export * from "./permissions";
+export * from "./forms";
