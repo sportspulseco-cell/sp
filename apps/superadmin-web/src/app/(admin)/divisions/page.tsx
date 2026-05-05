@@ -12,6 +12,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateDivisionButton } from "@/components/divisions/create-division-button";
+import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Divisions — SportsPulse" };
 
@@ -58,6 +59,7 @@ export default async function DivisionsPage({
               <TH>Gender</TH>
               <TH>Max teams</TH>
               <TH>Status</TH>
+              <TH>Admins</TH>
             </TR>
           </THead>
           <TBody>
@@ -76,6 +78,14 @@ export default async function DivisionsPage({
                 </TD>
                 <TD>
                   <Badge tone={statusTone(d.status)}>{d.status}</Badge>
+                </TD>
+                <TD>
+                  <AssignAdminCell
+                    scopeType="division"
+                    scopeId={d.id}
+                    resourceLabel={d.name}
+                    allowedRoleCodes={["division_admin"]}
+                  />
                 </TD>
               </TR>
             ))}

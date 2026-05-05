@@ -12,6 +12,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateTeamButton } from "@/components/teams/create-team-button";
+import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Teams — SportsPulse" };
 
@@ -46,6 +47,7 @@ export default async function TeamsPage() {
               <TH>Sport</TH>
               <TH>Owner org</TH>
               <TH>Status</TH>
+              <TH>Captain / admins</TH>
             </TR>
           </THead>
           <TBody>
@@ -59,6 +61,14 @@ export default async function TeamsPage() {
                 </TD>
                 <TD>
                   <Badge tone={statusTone(t.status)}>{t.status}</Badge>
+                </TD>
+                <TD>
+                  <AssignAdminCell
+                    scopeType="team"
+                    scopeId={t.id}
+                    resourceLabel={t.name}
+                    allowedRoleCodes={["team_admin", "coach"]}
+                  />
                 </TD>
               </TR>
             ))}

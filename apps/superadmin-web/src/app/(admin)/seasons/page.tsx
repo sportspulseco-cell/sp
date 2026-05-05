@@ -13,6 +13,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateSeasonButton } from "@/components/seasons/create-season-button";
+import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Seasons — SportsPulse" };
 
@@ -48,6 +49,7 @@ export default async function SeasonsPage() {
               <TH>Window</TH>
               <TH>Timezone</TH>
               <TH>Status</TH>
+              <TH>Admins</TH>
             </TR>
           </THead>
           <TBody>
@@ -70,6 +72,14 @@ export default async function SeasonsPage() {
                   <Badge tone={statusTone(s.status)}>
                     {s.status.replace(/_/g, " ")}
                   </Badge>
+                </TD>
+                <TD>
+                  <AssignAdminCell
+                    scopeType="season"
+                    scopeId={s.id}
+                    resourceLabel={s.name}
+                    allowedRoleCodes={["season_admin", "registrar"]}
+                  />
                 </TD>
               </TR>
             ))}

@@ -13,6 +13,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateLeagueButton } from "@/components/leagues/create-league-button";
+import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Leagues — SportsPulse" };
 
@@ -60,6 +61,7 @@ export default async function LeaguesPage({
               <TH>Sport</TH>
               <TH>Format</TH>
               <TH>Status</TH>
+              <TH>Admins</TH>
             </TR>
           </THead>
           <TBody>
@@ -82,6 +84,19 @@ export default async function LeaguesPage({
                   <Badge tone={statusTone(l.status)}>
                     {l.status.replace(/_/g, " ")}
                   </Badge>
+                </TD>
+                <TD>
+                  <AssignAdminCell
+                    scopeType="league"
+                    scopeId={l.id}
+                    resourceLabel={l.name}
+                    allowedRoleCodes={[
+                      "league_admin",
+                      "registrar",
+                      "referee",
+                      "scorekeeper"
+                    ]}
+                  />
                 </TD>
               </TR>
             ))}
