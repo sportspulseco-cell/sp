@@ -6,6 +6,7 @@ export * from "./game";
 export * from "./game-officials";
 export * from "./stats";
 export * from "./registration";
+export * from "./registration-v2";
 export * from "./notifications";
 export * from "./finance";
 export * from "./admin";
