@@ -4,6 +4,7 @@ import { PricingTiersController } from "./interface/pricing-tiers.controller";
 import { EmailTemplatesController } from "./interface/email-templates.controller";
 import { TeamInvitesController } from "./interface/team-invites.controller";
 import { PublicInvitesController } from "./interface/public-invites.controller";
+import { PublicRegistrationController } from "./interface/public-registration.controller";
 import { FreeAgentPoolController } from "./interface/free-agent-pool.controller";
 import { SeasonRolloverController } from "./interface/season-rollover.controller";
 
@@ -13,6 +14,7 @@ import { SeasonRolloverController } from "./interface/season-rollover.controller
     EmailTemplatesController,
     TeamInvitesController,
     PublicInvitesController,
+    PublicRegistrationController,
     FreeAgentPoolController,
     SeasonRolloverController
   ],

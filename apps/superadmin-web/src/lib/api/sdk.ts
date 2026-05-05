@@ -1001,8 +1001,55 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify({ sourceSeasonId })
         })
+    },
+
+    // Public, anonymous endpoints for the player registration funnel
+    // (Workflow 1 v2). No JWT required — the funnel runs before the
+    // visitor has an account. The Account step in the funnel binds the
+    // resulting draft submission to a real auth user.
+    publicRegistration: {
+      getSeasonContext: (seasonId: string) =>
+        f<PublicSeasonContext>(`/public/registration/seasons/${seasonId}`),
+      startSubmission: (
+        seasonId: string,
+        body: {
+          email: string;
+          fullName?: string;
+          pricingTierId?: string;
+          submissionType?:
+            | "team"
+            | "individual"
+            | "free_agent"
+            | "captain_invite";
+          answers?: Record<string, unknown>;
+        }
+      ) =>
+        f<{ id: string; status: string; resumed: boolean }>(
+          `/public/registration/seasons/${seasonId}/submissions`,
+          { method: "POST", body: JSON.stringify(body) }
+        )
     }
   };
+}
+
+// ----- public registration types -----
+import type { FormDefinition } from "@sportspulse/kernel";
+
+export interface PublicSeasonContext {
+  season: {
+    id: string;
+    name: string;
+    sportCode: string;
+    startDate: string;
+    endDate: string;
+    registrationOpensAt: string | null;
+    registrationClosesAt: string | null;
+    rosterLockAt: string | null;
+    status: string;
+  };
+  pricingTiers: PricingTier[];
+  formVersionId: string | null;
+  formDefinition: FormDefinition;
 }
 
 // ----- registration v2 types -----

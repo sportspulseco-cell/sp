@@ -5,6 +5,10 @@ const PUBLIC_PATHS = [
   "/sign-in",
   "/sign-up",
   "/auth/callback",
+  // Public registration funnel (Workflow 1 v2). Anonymous read of season +
+  // tiers + form definition; submission creates an unauthenticated draft
+  // that is bound to a user account at the Account step.
+  "/registration",
   "/_next",
   "/favicon.ico",
   "/api/health"
