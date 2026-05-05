@@ -68,3 +68,4 @@ export const finance = api.finance;
 export const admin = api.admin;
 export const crossOrgGrants = api.crossOrgGrants;
 export const dataMigration = api.dataMigration;
+export const registrationV2 = api.registrationV2;

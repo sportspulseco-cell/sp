@@ -910,8 +910,170 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body)
         })
+    },
+
+    // Registration v2 — pricing tiers, email templates, team invites,
+    // free agent pool. Backed by apps/superadmin-api/src/modules/registration-v2.
+    registrationV2: {
+      listPricingTiers: (q: { seasonId?: string } = {}) =>
+        f<PricingTier[]>(`/registration-v2/pricing-tiers${qs(q)}`),
+      getPricingTier: (id: string) =>
+        f<PricingTier>(`/registration-v2/pricing-tiers/${id}`),
+      createPricingTier: (body: PricingTierInput) =>
+        f<PricingTier>("/registration-v2/pricing-tiers", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      updatePricingTier: (id: string, body: Partial<PricingTierInput>) =>
+        f<PricingTier>(`/registration-v2/pricing-tiers/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      deletePricingTier: (id: string) =>
+        f<{ id: string }>(`/registration-v2/pricing-tiers/${id}`, {
+          method: "DELETE"
+        }),
+
+      listEmailTemplates: (q: { seasonId?: string } = {}) =>
+        f<EmailTemplate[]>(`/registration-v2/email-templates${qs(q)}`),
+      getEmailTemplate: (id: string) =>
+        f<EmailTemplate>(`/registration-v2/email-templates/${id}`),
+      createEmailTemplate: (body: EmailTemplateInput) =>
+        f<EmailTemplate>("/registration-v2/email-templates", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      updateEmailTemplate: (id: string, body: Partial<EmailTemplateInput>) =>
+        f<EmailTemplate>(`/registration-v2/email-templates/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      deleteEmailTemplate: (id: string) =>
+        f<{ id: string }>(`/registration-v2/email-templates/${id}`, {
+          method: "DELETE"
+        }),
+
+      listTeamInvites: (q: { teamId?: string; seasonId?: string; status?: string } = {}) =>
+        f<TeamInvite[]>(`/registration-v2/team-invites${qs(q)}`),
+      createTeamInvite: (body: {
+        teamId: string;
+        seasonId: string;
+        kind?: "personal" | "generic";
+        inviteeEmail?: string;
+      }) =>
+        f<TeamInvite>("/registration-v2/team-invites", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      revokeTeamInvite: (id: string) =>
+        f<TeamInvite>(`/registration-v2/team-invites/${id}/revoke`, {
+          method: "PATCH"
+        }),
+
+      rolloverSeason: (targetSeasonId: string, sourceSeasonId: string) =>
+        f<{
+          sourceSeasonId: string;
+          targetSeasonId: string;
+          copiedPricingTiers: number;
+          copiedEmailTemplates: number;
+        }>(`/registration-v2/seasons/${targetSeasonId}/rollover`, {
+          method: "POST",
+          body: JSON.stringify({ sourceSeasonId })
+        })
     }
   };
+}
+
+// ----- registration v2 types -----
+export interface PricingTier {
+  id: string;
+  seasonId: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  divisionId: string | null;
+  currency: string;
+  fullPriceCents: number;
+  isFree: boolean;
+  paymentPlanEnabled: boolean;
+  depositCents: number;
+  installmentCount: number;
+  installmentIntervalDays: number;
+  lateFeeCents: number;
+  usageLimit: number | null;
+  usageCount: number;
+  customUrlSlug: string | null;
+  isReturningTeamPricing: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PricingTierInput {
+  seasonId: string;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  divisionId?: string | null;
+  currency?: string;
+  fullPriceCents: number;
+  isFree?: boolean;
+  paymentPlanEnabled?: boolean;
+  depositCents?: number;
+  installmentCount?: number;
+  installmentIntervalDays?: number;
+  lateFeeCents?: number;
+  usageLimit?: number | null;
+  customUrlSlug?: string | null;
+  isReturningTeamPricing?: boolean;
+  isActive?: boolean;
+}
+
+export type EmailEventType =
+  | "on_payment"
+  | "on_approved"
+  | "on_rejected"
+  | "installment_reminder"
+  | "season_closing"
+  | "parental_consent"
+  | "custom";
+export type EmailTypeFilter = "all" | "team" | "individual";
+
+export interface EmailTemplate {
+  id: string;
+  seasonId: string;
+  eventType: EmailEventType;
+  registrationTypeFilter: EmailTypeFilter;
+  subject: string;
+  bodyHtml: string;
+  attachmentPath: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailTemplateInput {
+  seasonId: string;
+  eventType: EmailEventType;
+  registrationTypeFilter?: EmailTypeFilter;
+  subject: string;
+  bodyHtml: string;
+  attachmentPath?: string | null;
+  isActive?: boolean;
+}
+
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  seasonId: string;
+  inviteeEmail: string | null;
+  token: string;
+  kind: "personal" | "generic";
+  status: "pending" | "accepted" | "declined" | "expired" | "revoked";
+  expiresAt: string | null;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
 }
 
 export type Api = ReturnType<typeof createApi>;

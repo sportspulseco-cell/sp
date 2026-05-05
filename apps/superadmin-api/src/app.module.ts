@@ -7,6 +7,7 @@ import { IamModule } from "./modules/iam/iam.module";
 import { OrgManagementModule } from "./modules/org-management/org-management.module";
 import { LeagueManagementModule } from "./modules/league-management/league-management.module";
 import { RegistrationComplianceModule } from "./modules/registration-compliance/registration-compliance.module";
+import { RegistrationV2Module } from "./modules/registration-v2/registration-v2.module";
 import { RosterMembershipModule } from "./modules/roster-membership/roster-membership.module";
 import { GameOperationsModule } from "./modules/game-operations/game-operations.module";
 import { StatsModule } from "./modules/stats/stats.module";
@@ -27,6 +28,7 @@ import { DataMigrationModule } from "./modules/data-migration/data-migration.mod
     OrgManagementModule,
     LeagueManagementModule,
     RegistrationComplianceModule,
+    RegistrationV2Module,
     RosterMembershipModule,
     GameOperationsModule,
     StatsModule,
