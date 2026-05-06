@@ -46,6 +46,14 @@ export class InviteUserBodyDto {
   @IsString()
   displayName?: string;
 
+  @ApiPropertyOptional({
+    description:
+      "Optional initial password. If provided, the user is created with auto-confirmed email; the inviter relays credentials out-of-band. If omitted, a magic-link invite email is sent."
+  })
+  @IsOptional()
+  @IsString()
+  password?: string;
+
   @ApiPropertyOptional({ type: () => InviteUserRoleDto })
   @IsOptional()
   @IsObject()

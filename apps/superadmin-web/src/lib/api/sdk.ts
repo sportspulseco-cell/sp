@@ -98,9 +98,27 @@ export function createApi(f: Fetcher) {
         f<Profile>(`/iam/users/${id}/suspend`, { method: "POST" }),
       reactivateUser: (id: string) =>
         f<Profile>(`/iam/users/${id}/reactivate`, { method: "POST" }),
+      setUserPassword: (id: string, password: string) =>
+        f<{ ok: true }>(`/iam/users/${id}/set-password`, {
+          method: "POST",
+          body: JSON.stringify({ password })
+        }),
+      getRoleProfile: (id: string, code: string) =>
+        f<{ data: Record<string, unknown> }>(
+          `/iam/users/${id}/role-profile${qs({ code })}`
+        ),
+      setRoleProfile: (
+        id: string,
+        body: { roleCode: string; data: Record<string, unknown> }
+      ) =>
+        f<{ ok: true }>(`/iam/users/${id}/role-profile`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
       inviteUser: (body: {
         email: string;
         displayName?: string;
+        password?: string;
         role?: {
           roleCode: string;
           scopeType: RoleScopeType;

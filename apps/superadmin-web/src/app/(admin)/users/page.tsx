@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table";
 import { InviteUserButton } from "@/components/users/invite-user-button";
 import { ManageUserRolesCell } from "@/components/users/manage-user-roles-cell";
+import { UserTypeCell } from "@/components/users/user-type-cell";
+import { UserActionsMenu } from "@/components/users/user-actions-menu";
 
 export const metadata = { title: "Users — SportsPulse" };
 
@@ -46,6 +48,7 @@ export default async function UsersPage() {
               <TH>Type</TH>
               <TH>Roles</TH>
               <TH>Joined</TH>
+              <TH>Actions</TH>
             </TR>
           </THead>
           <TBody>
@@ -72,17 +75,19 @@ export default async function UsersPage() {
                     <Badge tone={statusTone(u.status)}>{u.status}</Badge>
                   </TD>
                   <TD className="text-muted-foreground">
-                    {u.isSuperAdmin ? (
-                      <Badge tone="primary">Super admin</Badge>
-                    ) : (
-                      "User"
-                    )}
+                    <UserTypeCell
+                      userId={u.id}
+                      isSuperAdmin={u.isSuperAdmin}
+                    />
                   </TD>
                   <TD>
                     <ManageUserRolesCell userId={u.id} display={name} />
                   </TD>
                   <TD className="text-muted-foreground">
                     {new Date(u.createdAt).toLocaleDateString()}
+                  </TD>
+                  <TD>
+                    <UserActionsMenu user={u} />
                   </TD>
                 </TR>
               );

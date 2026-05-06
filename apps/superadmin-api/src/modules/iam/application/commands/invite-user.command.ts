@@ -21,6 +21,13 @@ export interface InviteUserInput {
     scopeType: ScopeType;
     scopeId?: string | null;
   };
+  /**
+   * Optional initial password. When set, the user is created in Supabase
+   * with email auto-confirmed; the inviter is responsible for relaying
+   * the credentials. When unset, a magic-link invite email is sent
+   * instead.
+   */
+  password?: string | null;
   /** Acting principal — recorded as the granter on the assignment. */
   invitedByUserId: string;
 }
@@ -64,7 +71,8 @@ export class InviteUserHandler {
 
     const { userId, created } = await this.supabase.inviteUserByEmail({
       email,
-      displayName: input.displayName ?? null
+      displayName: input.displayName ?? null,
+      password: input.password ?? null
     });
 
     let assignment: RoleAssignmentDto | null = null;

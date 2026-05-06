@@ -22,10 +22,15 @@ import {
   InviteUserHandler,
   type InviteUserResult
 } from "../application/commands/invite-user.command";
+import { SetUserPasswordHandler } from "../application/commands/set-user-password.command";
+import { SetRoleProfileHandler } from "../application/commands/set-role-profile.command";
+import { GetRoleProfileHandler } from "../application/queries/get-role-profile.query";
 import { ProfileDto, ProfilePageDto } from "../application/dtos/profile.dto";
 import { ListProfilesQueryDto } from "./dto/list-profiles.query-dto";
 import { UpdateProfileBodyDto } from "./dto/update-profile.body-dto";
 import { InviteUserBodyDto } from "./dto/invite-user.body-dto";
+import { SetUserPasswordBodyDto } from "./dto/set-user-password.body-dto";
+import { SetRoleProfileBodyDto } from "./dto/set-role-profile.body-dto";
 
 @ApiTags("iam")
 @ApiBearerAuth()
@@ -38,7 +43,10 @@ export class IamController {
     private readonly suspendProfile: SuspendProfileHandler,
     private readonly reactivateProfile: ReactivateProfileHandler,
     private readonly updateProfile: UpdateProfileHandler,
-    private readonly inviteUser: InviteUserHandler
+    private readonly inviteUser: InviteUserHandler,
+    private readonly setUserPassword: SetUserPasswordHandler,
+    private readonly setRoleProfile: SetRoleProfileHandler,
+    private readonly getRoleProfile: GetRoleProfileHandler
   ) {}
 
   // -------- self --------
@@ -109,7 +117,56 @@ export class IamController {
             scopeId: body.role.scopeId ?? null
           }
         : undefined,
+      password: body.password ?? null,
       invitedByUserId: principal.userId
     });
+  }
+
+  @Post("users/:id/set-password")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Force-set a user's password (super admin only). Used when admin needs to share temporary credentials with the user out-of-band."
+  })
+  async setPassword(
+    @Param("id") id: string,
+    @Body() body: SetUserPasswordBodyDto
+  ): Promise<{ ok: true }> {
+    await this.setUserPassword.execute({
+      userId: id,
+      password: body.password
+    });
+    return { ok: true };
+  }
+
+  @Get("users/:id/role-profile")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Read a user's role-specific profile JSONB. Pass ?code=<roleCode>; returns {} if unset."
+  })
+  async readRoleProfile(
+    @Param("id") id: string,
+    @Query("code") code: string
+  ): Promise<{ data: Record<string, unknown> }> {
+    return this.getRoleProfile.execute({ userId: id, roleCode: code });
+  }
+
+  @Patch("users/:id/role-profile")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Update the role-specific profile JSONB stored on profiles.metadata.roleProfile.<roleCode>. Schema is defined by @sportspulse/kernel ROLE_PROFILE_SCHEMAS."
+  })
+  async putRoleProfile(
+    @Param("id") id: string,
+    @Body() body: SetRoleProfileBodyDto
+  ): Promise<{ ok: true }> {
+    await this.setRoleProfile.execute({
+      userId: id,
+      roleCode: body.roleCode,
+      data: body.data
+    });
+    return { ok: true };
   }
 }

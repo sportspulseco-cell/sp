@@ -32,6 +32,8 @@ export function InviteUserButton() {
   const [roleCode, setRoleCode] = useState<string>("org_admin");
   const [scopeType, setScopeType] = useState<ScopeType>("org");
   const [scopeId, setScopeId] = useState("");
+  const [setPwd, setSetPwd] = useState(false);
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -53,9 +55,13 @@ export function InviteUserButton() {
     setError(null);
     setFlash(null);
     try {
+      if (setPwd && password.length < 8) {
+        throw new Error("Password must be at least 8 characters.");
+      }
       const result = await iam.inviteUser({
         email: email.trim(),
         displayName: displayName.trim() || undefined,
+        password: setPwd ? password : undefined,
         role: grantRole
           ? {
               roleCode,
@@ -67,11 +73,15 @@ export function InviteUserButton() {
       });
       setFlash(
         result.created
-          ? `Invite sent to ${result.email}.`
+          ? setPwd
+            ? `Account created for ${result.email} with the password you set. Share the credentials directly.`
+            : `Invite sent to ${result.email}.`
           : `${result.email} already had an account; ${grantRole ? "role granted." : "no changes."}`
       );
       setEmail("");
       setDisplayName("");
+      setPassword("");
+      setSetPwd(false);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -112,6 +122,39 @@ export function InviteUserButton() {
               />
             </Field>
           </div>
+
+          <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-fg">
+            <input
+              type="checkbox"
+              checked={setPwd}
+              onChange={(e) => setSetPwd(e.target.checked)}
+              className="h-3.5 w-3.5 accent-accent"
+            />
+            <span>
+              <span className="font-medium">
+                Also set initial credentials.
+              </span>{" "}
+              <span className="text-fg-muted">
+                Account is auto-confirmed; you share the password directly
+                instead of sending a magic-link email.
+              </span>
+            </span>
+          </label>
+
+          {setPwd && (
+            <Field
+              label="Initial password"
+              hint="Min 8 chars. The user can change it after first sign-in."
+            >
+              <Input
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="e.g. Welcome2026!"
+                autoComplete="new-password"
+              />
+            </Field>
+          )}
 
           <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-fg">
             <input

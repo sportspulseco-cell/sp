@@ -32,11 +32,17 @@ export class SupabaseAdminService {
   /**
    * Send a Supabase-managed invite email. Returns the new auth user id and
    * a boolean `created` flag (false when the user already existed).
+   *
+   * If `password` is provided, the user is created with that password
+   * directly (auto-confirmed) instead of going through the magic-link
+   * flow. The caller is responsible for delivering the credentials to
+   * the user out-of-band — this method does not email a password.
    */
   async inviteUserByEmail(input: {
     email: string;
     displayName?: string | null;
     redirectTo?: string;
+    password?: string | null;
   }): Promise<{ userId: string; created: boolean }> {
     const c = this.get();
 
@@ -44,6 +50,25 @@ export class SupabaseAdminService {
     // error when invoked twice for the same address.
     const existing = await this.findUserByEmail(input.email);
     if (existing) return { userId: existing, created: false };
+
+    if (input.password) {
+      const { data, error } = await c.auth.admin.createUser({
+        email: input.email,
+        password: input.password,
+        email_confirm: true,
+        user_metadata: input.displayName
+          ? { display_name: input.displayName }
+          : undefined
+      });
+      if (error) {
+        this.log.warn(
+          `createUser failed for ${input.email}: ${error.message}`
+        );
+        throw new Error(error.message);
+      }
+      if (!data?.user?.id) throw new Error("Supabase createUser returned no user");
+      return { userId: data.user.id, created: true };
+    }
 
     const { data, error } = await c.auth.admin.inviteUserByEmail(input.email, {
       data: input.displayName ? { display_name: input.displayName } : undefined,
@@ -55,6 +80,19 @@ export class SupabaseAdminService {
     }
     if (!data?.user?.id) throw new Error("Supabase invite returned no user");
     return { userId: data.user.id, created: true };
+  }
+
+  /**
+   * Force-update an existing user's password. Used by the super-admin
+   * "Set password" action on /users.
+   */
+  async setUserPassword(userId: string, password: string): Promise<void> {
+    const c = this.get();
+    const { error } = await c.auth.admin.updateUserById(userId, { password });
+    if (error) {
+      this.log.warn(`setUserPassword failed for ${userId}: ${error.message}`);
+      throw new Error(error.message);
+    }
   }
 
   /**
