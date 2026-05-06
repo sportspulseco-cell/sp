@@ -45,12 +45,45 @@ const DAYS = [
   { value: "sun", label: "Sun" }
 ];
 
-const SKILL_LEVELS = [
-  { value: "beginner", label: "Beginner" },
-  { value: "recreational", label: "Recreational" },
-  { value: "intermediate", label: "Intermediate" },
-  { value: "competitive", label: "Competitive" },
-  { value: "elite", label: "Elite" }
+// Workflow 1 v2 §5.3: "Level (A/B/C/D) — self-reported skill level.
+// Affects division assignment validation." Single source of truth used
+// in player + free_agent profiles AND eligibility rules.
+const PLAYER_LEVELS = [
+  { value: "A", label: "A — Top competitive" },
+  { value: "B", label: "B — Competitive" },
+  { value: "C", label: "C — Recreational" },
+  { value: "D", label: "D — Beginner" }
+];
+
+// Spec §5.3: positions used for Goalie911 eligibility matching.
+const HOCKEY_POSITIONS = [
+  { value: "forward", label: "Forward" },
+  { value: "defense", label: "Defense" },
+  { value: "goalie", label: "Goalie" }
+];
+
+// Spec §5.4 free-agent availability: "Multi-select days of week + time
+// preferences." Decomposed into days + time-of-day buckets so captains
+// can filter the pool.
+const TIME_OF_DAY = [
+  { value: "morning", label: "Morning (before 12pm)" },
+  { value: "afternoon", label: "Afternoon (12–5pm)" },
+  { value: "evening", label: "Evening (5–9pm)" },
+  { value: "late_night", label: "Late night (after 9pm)" }
+];
+
+// Configurable per league; ships with a sensible default set.
+const GENDER_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+  { value: "self_describe", label: "Self-describe" }
+];
+
+const SHOT_HAND_OPTIONS = [
+  { value: "left", label: "Left" },
+  { value: "right", label: "Right" }
 ];
 
 export type RoleProfileSchemas = Readonly<Record<string, FormDefinition>>;
@@ -175,38 +208,169 @@ export const ROLE_PROFILE_SCHEMAS: RoleProfileSchemas = {
       })
     ]
   },
+  // Workflow 1 v2 §5.3 — Path 2B individual player. The full canonical
+  // field set the spec mandates. Fields that the spec marks "Required
+  // (if enabled)" are wired as `required: true` here; the per-season
+  // toggle that enables/disables them lives on the FormDefinition the
+  // admin configures, NOT in the kernel schema. The kernel describes
+  // the shape; the admin decides which to surface.
   player: {
     schemaVersion: 1,
     questions: [
-      q({ key: "dob", type: "date", label: "Date of birth", required: true }),
+      // --- Identity ---
+      q({
+        key: "dob",
+        type: "date",
+        label: "Date of birth",
+        required: true,
+        helpText:
+          "Drives the parental-consent flow and division age-fit check."
+      }),
+      q({
+        key: "gender",
+        type: "select",
+        label: "Gender",
+        required: true,
+        options: GENDER_OPTIONS
+      }),
       q({ key: "phone", type: "phone", label: "Phone", required: true }),
       q({
-        key: "jerseySize",
-        type: "select",
-        label: "Jersey size",
-        options: [
-          { value: "youth_s", label: "Youth S" },
-          { value: "youth_m", label: "Youth M" },
-          { value: "youth_l", label: "Youth L" },
-          { value: "adult_s", label: "Adult S" },
-          { value: "adult_m", label: "Adult M" },
-          { value: "adult_l", label: "Adult L" },
-          { value: "adult_xl", label: "Adult XL" },
-          { value: "adult_xxl", label: "Adult XXL" }
-        ]
+        key: "photoUrl",
+        type: "file_upload",
+        label: "Photo / avatar",
+        helpText: "PNG or JPG, max 2 MB. Shown on roster + player pages."
       }),
+
+      // --- Address (optional, not displayed publicly) ---
       q({
-        key: "preferredPosition",
+        key: "addressStreet",
         type: "short_text",
-        label: "Preferred position",
-        placeholder: "e.g. Forward, Goalkeeper, Midfielder"
+        label: "Street address",
+        helpText: "Optional. Stored on profile, not shown publicly."
+      }),
+      q({ key: "addressCity", type: "short_text", label: "City" }),
+      q({ key: "addressState", type: "short_text", label: "State / region" }),
+      q({ key: "addressZip", type: "short_text", label: "Postal code" }),
+
+      // --- Governing body ---
+      q({
+        key: "usaHockeyId",
+        type: "short_text",
+        label: "USA Hockey ID",
+        helpText:
+          "Alphanumeric, 6–12 chars. Format validated on submit; expiry must be in the future."
       }),
       q({
-        key: "skillLevel",
-        type: "select",
-        label: "Skill level",
-        options: SKILL_LEVELS
+        key: "usaHockeyIdExpiry",
+        type: "date",
+        label: "USA Hockey ID expiry"
       }),
+
+      // --- Emergency contact (spec marks both required when enabled) ---
+      q({
+        key: "emergencyName",
+        type: "short_text",
+        label: "Emergency contact name",
+        required: true,
+        helpText: "Person to reach in an emergency. Not shown publicly."
+      }),
+      q({
+        key: "emergencyPhone",
+        type: "phone",
+        label: "Emergency contact phone",
+        required: true
+      }),
+
+      // --- On-ice attributes ---
+      q({
+        key: "positions",
+        type: "multi_select",
+        label: "Position(s)",
+        required: true,
+        options: HOCKEY_POSITIONS,
+        helpText: "Pick all you play. Used for Goalie911 eligibility matching."
+      }),
+      q({
+        key: "shotHand",
+        type: "select",
+        label: "Shot hand",
+        options: SHOT_HAND_OPTIONS
+      }),
+      q({
+        key: "heightCm",
+        type: "number",
+        label: "Height (cm)"
+      }),
+      q({
+        key: "weightKg",
+        type: "number",
+        label: "Weight (kg)"
+      }),
+      q({
+        key: "level",
+        type: "select",
+        label: "Level",
+        required: true,
+        options: PLAYER_LEVELS,
+        helpText:
+          "Self-reported. Admin can override during eligibility review. Affects division assignment."
+      }),
+
+      // --- Sensitive ---
+      q({
+        key: "medicalNotes",
+        type: "long_text",
+        label: "Medical / allergy notes",
+        helpText:
+          "Encrypted at rest. Visible only to League Admin and Org Admin — not to captains or other players."
+      })
+    ]
+  },
+  // Free agent = a player who is not currently assigned to any team.
+  // Workflow 1 v2 §5.4 — full Path 2B player schema PLUS the three
+  // free-agent extras (ranked positions, availability, level
+  // flexibility). Fields are kept in the same order as the player
+  // schema so a player who later joins the free-agent pool keeps
+  // their data — only the new fields need to be filled.
+  free_agent: {
+    schemaVersion: 1,
+    questions: [
+      // --- Identity (same as player) ---
+      q({
+        key: "dob",
+        type: "date",
+        label: "Date of birth",
+        required: true
+      }),
+      q({
+        key: "gender",
+        type: "select",
+        label: "Gender",
+        required: true,
+        options: GENDER_OPTIONS
+      }),
+      q({ key: "phone", type: "phone", label: "Phone", required: true }),
+      q({
+        key: "photoUrl",
+        type: "file_upload",
+        label: "Photo / avatar",
+        helpText:
+          "Captains see this when browsing the free-agent pool. PNG or JPG, max 2 MB."
+      }),
+
+      // --- Governing body ---
+      q({
+        key: "usaHockeyId",
+        type: "short_text",
+        label: "USA Hockey ID"
+      }),
+      q({
+        key: "usaHockeyIdExpiry",
+        type: "date",
+        label: "USA Hockey ID expiry"
+      }),
+
+      // --- Emergency contact ---
       q({
         key: "emergencyName",
         type: "short_text",
@@ -218,29 +382,76 @@ export const ROLE_PROFILE_SCHEMAS: RoleProfileSchemas = {
         type: "phone",
         label: "Emergency contact phone",
         required: true
-      })
-    ]
-  },
-  // Free agent = a player who is not currently assigned to any team.
-  // Schema mirrors Player + fields the free-agent pool needs to surface
-  // them to captains.
-  free_agent: {
-    schemaVersion: 1,
-    questions: [
-      q({ key: "dob", type: "date", label: "Date of birth", required: true }),
-      q({ key: "phone", type: "phone", label: "Phone", required: true }),
+      }),
+
+      // --- On-ice attributes ---
       q({
-        key: "preferredPosition",
-        type: "short_text",
-        label: "Preferred position",
-        required: true
+        key: "positions",
+        type: "multi_select",
+        label: "Position(s) you can play",
+        required: true,
+        options: HOCKEY_POSITIONS
       }),
       q({
-        key: "skillLevel",
+        key: "shotHand",
         type: "select",
-        label: "Skill level",
+        label: "Shot hand",
+        options: SHOT_HAND_OPTIONS
+      }),
+      q({
+        key: "heightCm",
+        type: "number",
+        label: "Height (cm)"
+      }),
+      q({
+        key: "weightKg",
+        type: "number",
+        label: "Weight (kg)"
+      }),
+      q({
+        key: "level",
+        type: "select",
+        label: "Level",
         required: true,
-        options: SKILL_LEVELS
+        options: PLAYER_LEVELS
+      }),
+
+      // --- Free-agent extras (spec §5.4) ---
+      q({
+        key: "positionFirstChoice",
+        type: "select",
+        label: "Preferred position — 1st choice",
+        required: true,
+        options: HOCKEY_POSITIONS,
+        helpText:
+          "Captains filter the free-agent pool by 1st-choice position."
+      }),
+      q({
+        key: "positionSecondChoice",
+        type: "select",
+        label: "Preferred position — 2nd choice",
+        options: HOCKEY_POSITIONS
+      }),
+      q({
+        key: "availableDays",
+        type: "multi_select",
+        label: "Available days",
+        options: DAYS,
+        helpText: "Days you can show up. Captains filter by this."
+      }),
+      q({
+        key: "availableTimes",
+        type: "multi_select",
+        label: "Available times",
+        options: TIME_OF_DAY
+      }),
+      q({
+        key: "willingLevels",
+        type: "multi_select",
+        label: "Willing to play at level",
+        options: PLAYER_LEVELS,
+        helpText:
+          "Pick every level you'd accept — e.g. 'Prefer B, open to C' = check both."
       }),
       q({
         key: "lookingFor",
@@ -249,23 +460,14 @@ export const ROLE_PROFILE_SCHEMAS: RoleProfileSchemas = {
         placeholder:
           "e.g. weeknight games, friendly division, short commutes, willing to fill in late."
       }),
+
+      // --- Sensitive ---
       q({
-        key: "availableDays",
-        type: "multi_select",
-        label: "Available days",
-        options: DAYS
-      }),
-      q({
-        key: "emergencyName",
-        type: "short_text",
-        label: "Emergency contact name",
-        required: true
-      }),
-      q({
-        key: "emergencyPhone",
-        type: "phone",
-        label: "Emergency contact phone",
-        required: true
+        key: "medicalNotes",
+        type: "long_text",
+        label: "Medical / allergy notes",
+        helpText:
+          "Encrypted at rest. Visible only to League Admin and Org Admin."
       })
     ]
   },
