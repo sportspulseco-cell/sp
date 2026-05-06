@@ -15,6 +15,13 @@ export interface ListProfilesQuery extends PageQuery {
   search?: string; // matches email / display_name / legal_first_name / legal_last_name
   countryCode?: string;
   isSuperAdmin?: boolean;
+  /**
+   * Filter to users who hold an active assignment of this role code
+   * (e.g. "season_admin"). Used by the in-resource Assign-admin dialogs
+   * so the dropdown only shows users already qualified for that role —
+   * brand-new users come in through the invite tab instead.
+   */
+  roleCode?: string;
 }
 
 export const PROFILE_REPOSITORY = Symbol("PROFILE_REPOSITORY");

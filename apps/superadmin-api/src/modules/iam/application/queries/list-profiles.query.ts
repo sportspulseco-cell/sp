@@ -13,6 +13,7 @@ export interface ListProfilesInput {
   search?: string;
   countryCode?: string;
   isSuperAdmin?: boolean;
+  roleCode?: string;
 }
 
 @Injectable()
@@ -31,7 +32,8 @@ export class ListProfilesHandler
         status: input.status,
         search: input.search,
         countryCode: input.countryCode,
-        isSuperAdmin: input.isSuperAdmin
+        isSuperAdmin: input.isSuperAdmin,
+        roleCode: input.roleCode
       });
     return {
       items: page.items.map(ProfileDto.fromDomain),

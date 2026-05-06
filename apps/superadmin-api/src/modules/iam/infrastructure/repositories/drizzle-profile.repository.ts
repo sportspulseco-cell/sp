@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, ilike, or, sql } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -53,6 +53,29 @@ export class DrizzleProfileRepository implements ProfileRepository {
       );
     }
     if (q.cursor) conditions.push(gt(schema.profiles.id, q.cursor));
+
+    // roleCode filter: subquery to user_role_assignments INNER JOIN roles,
+    // limited to active assignments (revoked_at IS NULL).
+    if (q.roleCode) {
+      const userIdsWithRole = await this.db
+        .select({ userId: schema.userRoleAssignments.userId })
+        .from(schema.userRoleAssignments)
+        .innerJoin(
+          schema.roles,
+          eq(schema.roles.id, schema.userRoleAssignments.roleId)
+        )
+        .where(
+          and(
+            eq(schema.roles.code, q.roleCode),
+            isNull(schema.userRoleAssignments.revokedAt)
+          )
+        );
+      const ids = Array.from(new Set(userIdsWithRole.map((r) => r.userId)));
+      if (ids.length === 0) {
+        return { items: [], nextCursor: null };
+      }
+      conditions.push(inArray(schema.profiles.id, ids));
+    }
 
     const rows = await this.db
       .select()

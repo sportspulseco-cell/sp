@@ -36,4 +36,12 @@ export class ListProfilesQueryDto {
   @Transform(({ value }) => value === "true" || value === true)
   @IsBoolean()
   isSuperAdmin?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "Filter to users with an active assignment of this role code (e.g. season_admin)."
+  })
+  @IsOptional()
+  @IsString()
+  roleCode?: string;
 }

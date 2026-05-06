@@ -72,8 +72,14 @@ export function createApi(f: Fetcher) {
   return {
     iam: {
       me: () => f<Profile>("/iam/me"),
-      listUsers: (q: { limit?: number; cursor?: string; search?: string } = {}) =>
-        f<Page<Profile>>(`/iam/users${qs(q)}`),
+      listUsers: (
+        q: {
+          limit?: number;
+          cursor?: string;
+          search?: string;
+          roleCode?: string;
+        } = {}
+      ) => f<Page<Profile>>(`/iam/users${qs(q)}`),
       getUser: (id: string) => f<Profile>(`/iam/users/${id}`),
       updateUser: (
         id: string,

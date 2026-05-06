@@ -13,6 +13,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { InviteUserButton } from "@/components/users/invite-user-button";
+import { ManageUserRolesCell } from "@/components/users/manage-user-roles-cell";
 
 export const metadata = { title: "Users — SportsPulse" };
 
@@ -42,7 +43,8 @@ export default async function UsersPage() {
               <TH>Email</TH>
               <TH>Country</TH>
               <TH>Status</TH>
-              <TH>Role</TH>
+              <TH>Type</TH>
+              <TH>Roles</TH>
               <TH>Joined</TH>
             </TR>
           </THead>
@@ -75,6 +77,9 @@ export default async function UsersPage() {
                     ) : (
                       "User"
                     )}
+                  </TD>
+                  <TD>
+                    <ManageUserRolesCell userId={u.id} display={name} />
                   </TD>
                   <TD className="text-muted-foreground">
                     {new Date(u.createdAt).toLocaleDateString()}

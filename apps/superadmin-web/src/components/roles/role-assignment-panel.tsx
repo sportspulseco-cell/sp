@@ -53,6 +53,13 @@ export function RoleAssignmentPanel({
   const [results, setResults] = useState<Profile[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  // Pre-filtered list of users who already hold this role somewhere.
+  // Surfaces the common case ("re-assign an existing season_admin to
+  // this season") without a search step. If the user can't be found
+  // here, switch to All-users search or Invite-by-email.
+  const [filterToRole, setFilterToRole] = useState(true);
+  const [roleHolders, setRoleHolders] = useState<Profile[] | null>(null);
+  const [loadingHolders, setLoadingHolders] = useState(false);
 
   // Invite-by-email
   const [email, setEmail] = useState("");
@@ -62,7 +69,9 @@ export function RoleAssignmentPanel({
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
-  // Live search as the admin types.
+  // Live search as the admin types. When `filterToRole` is on, the
+  // search is constrained to users already holding the selected role —
+  // matches the prompt "show me users who are already season_admin".
   useEffect(() => {
     if (mode !== "existing") return;
     if (search.trim().length < 2) {
@@ -72,7 +81,11 @@ export function RoleAssignmentPanel({
     let cancelled = false;
     setSearching(true);
     iam
-      .listUsers({ search: search.trim(), limit: 8 })
+      .listUsers({
+        search: search.trim(),
+        limit: 8,
+        roleCode: filterToRole ? roleCode : undefined
+      })
       .then((p) => {
         if (cancelled) return;
         setResults(p.items);
@@ -84,7 +97,34 @@ export function RoleAssignmentPanel({
     return () => {
       cancelled = true;
     };
-  }, [search, mode]);
+  }, [search, mode, filterToRole, roleCode]);
+
+  // Whenever role / mode / filter toggles, refetch the pre-filtered
+  // list of role-holders so the dropdown is populated even without a
+  // search query. Cap at 50 — beyond that the admin should use search.
+  useEffect(() => {
+    if (mode !== "existing" || !filterToRole || !roleCode) {
+      setRoleHolders(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingHolders(true);
+    iam
+      .listUsers({ roleCode, limit: 50 })
+      .then((p) => {
+        if (cancelled) return;
+        setRoleHolders(p.items);
+      })
+      .catch(() => {
+        if (!cancelled) setRoleHolders([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingHolders(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, filterToRole, roleCode]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -238,11 +278,34 @@ export function RoleAssignmentPanel({
 
         {mode === "existing" ? (
           <>
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-surface-1 px-3 py-2 text-[12px] text-fg">
+              <input
+                type="checkbox"
+                checked={filterToRole}
+                onChange={(e) => {
+                  setFilterToRole(e.target.checked);
+                  setSelectedUser(null);
+                  setSearch("");
+                }}
+                className="h-3.5 w-3.5 accent-accent"
+              />
+              <span>
+                <span className="font-medium">
+                  Only show users who already have <span className="font-mono text-[11px]">{roleCode}</span>
+                </span>
+                <span className="ml-1 text-fg-muted">
+                  — turn off to search across all users.
+                </span>
+              </span>
+            </label>
+
             <Field
               label="User"
               hint={
                 selectedUser
                   ? "Selected — clear to pick another."
+                  : filterToRole
+                  ? `${roleHolders?.length ?? 0} existing ${roleCode}${(roleHolders?.length ?? 0) === 1 ? "" : "s"} below — or type to filter.`
                   : "Type a name or email; results appear below."
               }
             >
@@ -275,12 +338,62 @@ export function RoleAssignmentPanel({
                 </div>
               ) : (
                 <Input
-                  placeholder="Search by name or email…"
+                  placeholder={
+                    filterToRole
+                      ? `Filter ${roleCode}s by name or email…`
+                      : "Search by name or email…"
+                  }
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               )}
             </Field>
+            {/* Pre-filtered list of role-holders (no search needed). */}
+            {!selectedUser &&
+              filterToRole &&
+              search.trim().length < 2 && (
+                <ul className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-1">
+                  {loadingHolders && (
+                    <li className="px-3 py-3 text-[12px] text-fg-muted">
+                      Loading existing {roleCode}s…
+                    </li>
+                  )}
+                  {!loadingHolders && (roleHolders?.length ?? 0) === 0 && (
+                    <li className="px-3 py-3 text-[12px] text-fg-muted">
+                      No existing {roleCode} on the platform yet. Switch to{" "}
+                      <em>Invite by email</em>, or untick the filter to search
+                      all users.
+                    </li>
+                  )}
+                  {!loadingHolders &&
+                    (roleHolders ?? []).map((u) => (
+                      <li key={u.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedUser(u);
+                            setSearch(u.displayName ?? u.email ?? "");
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-surface-2"
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[10px] font-semibold text-fg">
+                            {(u.displayName ?? u.email ?? "?")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] text-fg">
+                              {u.displayName ?? u.email ?? u.id.slice(0, 8)}
+                            </p>
+                            <p className="truncate text-[11px] text-fg-muted">
+                              {u.email ?? u.id.slice(0, 8)}
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
             {!selectedUser && search.trim().length >= 2 && (
               <ul className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-1">
                 {searching && (
