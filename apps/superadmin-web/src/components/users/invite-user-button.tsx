@@ -4,11 +4,14 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2, Mail, Plus } from "lucide-react";
 import {
+  ROLE_PROFILE_SCHEMAS,
   SYSTEM_ROLE_BY_CODE,
   SYSTEM_ROLE_CODES,
+  type AnswerMap,
   type ScopeType
 } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
+import { FormRenderer } from "@/components/forms/form-renderer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
@@ -34,6 +37,11 @@ export function InviteUserButton() {
   const [scopeId, setScopeId] = useState("");
   const [setPwd, setSetPwd] = useState(false);
   const [password, setPassword] = useState("");
+  // Phase 1.5 — also fill the role-profile fields right here, no
+  // round-trip to the user detail page. Shown only when grantRole is
+  // on; renders ROLE_PROFILE_SCHEMAS[roleCode] inline.
+  const [setupProfile, setSetupProfile] = useState(false);
+  const [profileAnswers, setProfileAnswers] = useState<AnswerMap>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -47,9 +55,14 @@ export function InviteUserButton() {
   const [copied, setCopied] = useState(false);
 
   const roleDef = SYSTEM_ROLE_BY_CODE[roleCode];
-  // When the chosen role has a default scopeType, snap to it.
+  const profileSchema = ROLE_PROFILE_SCHEMAS[roleCode];
+  const profileHasFields = (profileSchema?.questions.length ?? 0) > 0;
+  // When the chosen role has a default scopeType, snap to it. Reset
+  // profile answers so coach-tab answers don't bleed into a player
+  // form when the admin switches roles mid-edit.
   function pickRole(code: string) {
     setRoleCode(code);
+    setProfileAnswers({});
     const def = SYSTEM_ROLE_BY_CODE[code];
     if (def) {
       setScopeType(def.scopeType);
@@ -79,6 +92,22 @@ export function InviteUserButton() {
             }
           : undefined
       });
+      // Profile setup in the same flow — only when admin opted in AND
+      // a role is being granted (the schema is keyed by role code).
+      // Failure here doesn't roll back the invite; we surface the
+      // error so the admin can retry from the user detail page.
+      if (grantRole && setupProfile && profileHasFields) {
+        try {
+          await iam.setRoleProfile(result.userId, {
+            roleCode,
+            data: profileAnswers
+          });
+        } catch (e) {
+          setError(
+            `User invited but profile save failed: ${(e as Error).message}. Edit profile from /users when ready.`
+          );
+        }
+      }
       setRenderedMessage(result.message);
       // Auto-copy on success so the admin can paste into Slack/WhatsApp
       // immediately without an extra click. Falls back gracefully if
@@ -96,6 +125,8 @@ export function InviteUserButton() {
       setDisplayName("");
       setPassword("");
       setSetPwd(false);
+      setSetupProfile(false);
+      setProfileAnswers({});
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -240,6 +271,41 @@ export function InviteUserButton() {
                   />
                 </Field>
               )}
+              <div className="sm:col-span-2 space-y-3">
+                <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-surface-1 px-3 py-2 text-[13px] text-fg">
+                  <input
+                    type="checkbox"
+                    checked={setupProfile}
+                    onChange={(e) => setSetupProfile(e.target.checked)}
+                    disabled={!profileHasFields}
+                    className="mt-0.5 h-3.5 w-3.5 accent-accent"
+                  />
+                  <span>
+                    <span className="font-medium">
+                      Also set up the {roleDef?.name ?? roleCode} profile now.
+                    </span>{" "}
+                    <span className="text-fg-muted">
+                      {profileHasFields
+                        ? "Saves you a round-trip. Skip if the user will fill it out themselves."
+                        : `No profile fields are defined for the ${roleCode} role.`}
+                    </span>
+                  </span>
+                </label>
+
+                {setupProfile && profileHasFields && profileSchema && (
+                  <div className="rounded-md border border-border bg-bg-subtle p-4">
+                    <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                      // {roleDef?.name ?? roleCode} profile
+                    </p>
+                    <FormRenderer
+                      key={roleCode}
+                      definition={profileSchema}
+                      initialAnswers={profileAnswers}
+                      onChange={setProfileAnswers}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

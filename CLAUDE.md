@@ -4,6 +4,53 @@ This file is loaded by Claude Code (and any agent that reads it) before
 acting in this repo. Read it once per session; the rules apply to every
 change.
 
+## Cardinal rule — design thinking before code
+
+> "You are not at all thinking things through. Plan out things and create
+> a proper claude rule, so that you don't do these wrong choices."
+> — repo owner, 2026-05-09
+
+**Before writing UI code, walk the flow end-to-end as the user.** State
+the entry point, every choice, every default value, every exit. If you
+can't narrate this in plain English, you don't understand the feature yet
+and your code will ship the misunderstanding.
+
+The bugs that triggered this rule:
+- "Edit role profile" on a super_admin user opened the player form
+  (because the dialog defaulted to `"player"` when no scoped role was
+  found — but super_admin status lives on `profile.isSuperAdmin`, not
+  in role assignments).
+- "Change user type" dropdown defaulted to **coach** for a super_admin
+  (alphabetic sort, no awareness of the user's actual current role).
+- "Invite user" had no path to set up the user's profile in the same
+  flow — admin had to invite, find the user, click Roles, click
+  Edit profile. Five clicks where one should do.
+
+### Concrete checklist before merging any new dialog / form / dropdown
+
+1. **Walk the flow.** Open the feature in your head. As a super_admin.
+   As a brand-new user with zero roles. As someone holding five roles.
+   If any of those experiences is broken, fix it before shipping.
+2. **Defaults must reflect context.** A dropdown shown on a super_admin
+   row defaults to super_admin. An "Edit profile" dialog opened from a
+   coach row defaults to the coach profile. Never alphabetic-first,
+   never `array[0]`.
+3. **Connected actions belong in connected dialogs.** Inviting a user
+   often means setting up their profile. Creating a team often means
+   assigning a captain. Build one flow, not two visits.
+4. **Empty states beat wrong defaults.** If the right default is
+   unclear, render an empty state with a clear next step. Never guess
+   and pick the alphabetically-first option.
+5. **Test the unhappy-path users.** super_admin with no scoped roles.
+   user with no profile. user holding 5 roles. user with revoked
+   roles. If any of these crashes or shows nonsense, you missed step 1.
+
+### When the spec gives you a field list, ship the whole list
+
+If a spec doc enumerates required fields, the kernel/schema MUST
+mirror that field set on first pass. A "thin sketch" that the spec
+author has to call out twice is wasted work.
+
 ## Cardinal rule — reuse over silos
 
 > "If you start building things in silos, then there will be huge issues."

@@ -47,10 +47,18 @@ interface ScopeOption {
 
 export function AssignRolePanel({
   userId,
-  roles
+  roles,
+  defaultRoleCode
 }: {
   userId: string;
   roles: Role[];
+  /**
+   * Pre-select this role on open. When the panel is launched from a
+   * specific user row, this MUST be the user's current primary role —
+   * defaulting to alphabetic-first ("coach" first in our catalog) is
+   * a misleading default that callers shouldn't have to think about.
+   */
+  defaultRoleCode?: string;
 }) {
   const router = useRouter();
   const sortedRoles = useMemo(
@@ -63,9 +71,23 @@ export function AssignRolePanel({
     [roles]
   );
 
-  const [roleId, setRoleId] = useState(sortedRoles[0]?.id ?? "");
+  // Resolve the initial selection. defaultRoleCode wins; otherwise we
+  // fall back to first system role rather than the alphabetic-first
+  // (which would land on "coach"). Honest empty state if `roles` is
+  // empty — useState handles that with the "" default.
+  const initialRole = useMemo(() => {
+    if (defaultRoleCode) {
+      const match = sortedRoles.find((r) => r.code === defaultRoleCode);
+      if (match) return match;
+    }
+    return sortedRoles[0];
+  }, [sortedRoles, defaultRoleCode]);
+
+  const [roleId, setRoleId] = useState(initialRole?.id ?? "");
   const [scopeType, setScopeType] = useState<RoleScopeType>(
-    sortedRoles[0] ? (ROLE_DEFAULT_SCOPE[sortedRoles[0].code] ?? "platform") : "platform"
+    initialRole
+      ? ROLE_DEFAULT_SCOPE[initialRole.code] ?? "platform"
+      : "platform"
   );
   const [scopeId, setScopeId] = useState("");
   const [scopeOptions, setScopeOptions] = useState<ScopeOption[]>([]);

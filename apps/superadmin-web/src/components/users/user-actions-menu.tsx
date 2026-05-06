@@ -14,6 +14,7 @@ import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
 import { SetPasswordDialog } from "./set-password-dialog";
 import { RoleProfileDialog } from "./role-profile-dialog";
+import { resolvePrimaryRole } from "./primary-role";
 
 /**
  * Per-row kebab menu on /users.
@@ -27,6 +28,25 @@ export function UserActionsMenu({ user }: { user: Profile }) {
   const [open, setOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  // Resolve the user's current "type" so Edit-profile opens THE form
+  // for that type (super_admin → super_admin form, coach → coach
+  // form, etc.) — never a player-fallback. Loaded once when the menu
+  // first renders so the kebab is responsive.
+  const [userType, setUserType] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    iam
+      .activeRolesForUser(user.id)
+      .then((rows) => {
+        if (cancelled) return;
+        const primary = resolvePrimaryRole(user.isSuperAdmin, rows);
+        setUserType(primary?.code ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, user.isSuperAdmin]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,6 +148,7 @@ export function UserActionsMenu({ user }: { user: Profile }) {
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
         userId={user.id}
+        userType={userType ?? ""}
       />
     </>
   );

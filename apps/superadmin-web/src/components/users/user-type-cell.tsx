@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
-import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
-import type { Role, RoleAssignment } from "@/lib/api/types";
+import type { Role } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
+import { resolvePrimaryRole } from "./primary-role";
 
 /**
  * Click-to-edit "user type" cell on /users.
@@ -30,7 +30,6 @@ export function UserTypeCell({
   isSuperAdmin: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [assignments, setAssignments] = useState<RoleAssignment[] | null>(null);
   const [roles, setRoles] = useState<Role[] | null>(null);
   const [loadingDialog, setLoadingDialog] = useState(false);
 
@@ -47,8 +46,7 @@ export function UserTypeCell({
       .activeRolesForUser(userId)
       .then((rows) => {
         if (cancelled) return;
-        const top = pickPrimary(rows);
-        setPrimary(top);
+        setPrimary(resolvePrimaryRole(isSuperAdmin, rows));
       })
       .catch(() => undefined)
       .finally(() => {
@@ -57,22 +55,17 @@ export function UserTypeCell({
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, isSuperAdmin]);
 
   useEffect(() => {
-    if (!open || (assignments !== null && roles !== null)) return;
+    if (!open || roles !== null) return;
     setLoadingDialog(true);
-    Promise.all([
-      iam.activeRolesForUser(userId),
-      iam.listRoles({ limit: 200 })
-    ])
-      .then(([as, ro]) => {
-        setAssignments(as);
-        setRoles(ro.items);
-      })
+    iam
+      .listRoles({ limit: 200 })
+      .then((ro) => setRoles(ro.items))
       .catch(() => undefined)
       .finally(() => setLoadingDialog(false));
-  }, [open, assignments, roles, userId]);
+  }, [open, roles, userId]);
 
   const label = isSuperAdmin
     ? "Super admin"
@@ -121,31 +114,16 @@ export function UserTypeCell({
           </div>
         )}
         {!loadingDialog && roles !== null && (
-          <AssignRolePanel userId={userId} roles={roles} />
+          <AssignRolePanel
+            userId={userId}
+            roles={roles}
+            // Pre-select the user's CURRENT primary role so the dropdown
+            // matches what the Type column shows.
+            defaultRoleCode={primary?.code}
+          />
         )}
       </Dialog>
     </>
   );
 }
 
-function pickPrimary(
-  rows: RoleAssignment[]
-): { code: string; name: string } | null {
-  const active = rows.filter((r) => !r.revokedAt);
-  if (active.length === 0) return null;
-  // Highest-rank wins (rank 0 = super_admin). Fall back to first row
-  // when role definition is missing (custom role).
-  const ranked = [...active].sort((a, b) => {
-    const ra = SYSTEM_ROLE_BY_CODE[a.role?.code ?? ""]?.rank ?? 999;
-    const rb = SYSTEM_ROLE_BY_CODE[b.role?.code ?? ""]?.rank ?? 999;
-    return ra - rb;
-  });
-  const top = ranked[0]!;
-  return {
-    code: top.role?.code ?? "—",
-    name:
-      top.role?.name ??
-      SYSTEM_ROLE_BY_CODE[top.role?.code ?? ""]?.name ??
-      "Custom"
-  };
-}
