@@ -1133,7 +1133,29 @@ export function createApi(f: Fetcher) {
         f<{ passed: boolean; flags: string[] }>(
           `/public/registration/submissions/${submissionId}/eligibility-check`,
           { method: "POST", body: JSON.stringify({ email }) }
-        )
+        ),
+      pay: (
+        submissionId: string,
+        body: {
+          email: string;
+          mockOutcome?: "succeeded" | "failed" | "offline";
+        }
+      ) =>
+        f<{
+          id: string;
+          status:
+            | "pending_review"
+            | "pending_payment"
+            | "pending_offline";
+          invoiceId: string | null;
+          amountCents?: number;
+          currency?: string;
+          mock: boolean;
+          declineReason?: string;
+        }>(`/public/registration/submissions/${submissionId}/pay`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
     }
   };
 }

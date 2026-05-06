@@ -19,6 +19,7 @@ type Step =
   | "tier"
   | "questions"
   | "review"
+  | "payment"
   | "done";
 
 interface WaiverDoc {
@@ -119,7 +120,7 @@ export function RegistrationFunnel({
     if ((waivers?.length ?? 0) > 0) out.push("waivers");
     if (tiers.length > 0) out.push("tier");
     if (hasQuestions) out.push("questions");
-    out.push("review", "done");
+    out.push("review", "payment", "done");
     return out;
   }, [isMinor, waivers, tiers.length, hasQuestions]);
 
@@ -190,11 +191,32 @@ export function RegistrationFunnel({
   }
 
   /**
-   * Final-step submit: nothing to do server-side — the submission
-   * already exists and is in the right state. Just bounces to Done.
+   * Review CTA — bounces to the payment step (mock Stripe).
    */
-  async function finishToDone() {
-    setStep("done");
+  async function continueToPayment() {
+    next();
+  }
+
+  async function pay(outcome: "succeeded" | "failed" | "offline") {
+    if (!submissionId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await publicRegistration.pay(submissionId, {
+        email,
+        mockOutcome: outcome
+      });
+      setSubmissionStatus(res.status);
+      if (res.status === "pending_review" || res.status === "pending_offline") {
+        setStep("done");
+      } else if (res.declineReason) {
+        setError(res.declineReason);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -350,7 +372,19 @@ export function RegistrationFunnel({
             error={error}
             submitting={submitting}
             onBack={back}
-            onSubmit={finishToDone}
+            onSubmit={continueToPayment}
+          />
+        )}
+
+        {step === "payment" && (
+          <PaymentStep
+            tier={tiers.find((t) => t.id === pricingTierId) ?? null}
+            submitting={submitting}
+            error={error}
+            onPay={() => pay("succeeded")}
+            onSimulateDecline={() => pay("failed")}
+            onPayOffline={() => pay("offline")}
+            onBack={back}
           />
         )}
 
@@ -400,6 +434,7 @@ function Stepper({
     tier: "Pricing",
     questions: "Questions",
     review: "Review",
+    payment: "Payment",
     done: "Done"
   };
   return (
@@ -1089,6 +1124,93 @@ function ReviewStep({
           ) : (
             <>Continue to payment</>
           )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentStep({
+  tier,
+  submitting,
+  error,
+  onPay,
+  onSimulateDecline,
+  onPayOffline,
+  onBack
+}: {
+  tier: PricingTier | null;
+  submitting: boolean;
+  error: string | null;
+  onPay: () => void;
+  onSimulateDecline: () => void;
+  onPayOffline: () => void;
+  onBack: () => void;
+}) {
+  const amount = tier
+    ? `${(tier.fullPriceCents / 100).toFixed(2)} ${tier.currency}`
+    : "0.00 USD";
+  const free = !tier || tier.isFree || tier.fullPriceCents === 0;
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold text-fg">Payment (mock)</h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          Stripe integration is mocked while we wire it up. Pick an outcome
+          to drive the state machine: <span className="font-mono">succeeded</span>{" "}
+          → invoice paid + admin review, <span className="font-mono">failed</span>{" "}
+          → stays in pending_payment, <span className="font-mono">offline</span>{" "}
+          → admin marks paid manually.
+        </p>
+      </div>
+
+      <dl className="divide-y divide-border rounded-lg border border-border bg-surface-1 text-sm">
+        <Row label="Tier">{tier?.name ?? "No tier selected"}</Row>
+        <Row label="Total due">
+          {free ? (
+            <span className="font-mono text-fg">Free</span>
+          ) : (
+            <span className="font-mono text-fg">{amount}</span>
+          )}
+        </Row>
+        {tier?.paymentPlanEnabled && (
+          <Row label="Payment plan">
+            <span className="font-mono text-[12px] text-fg-muted">
+              {tier.installmentCount}× installments — full-pay only in mock
+            </span>
+          </Row>
+        )}
+      </dl>
+
+      {error && (
+        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          {error}
+        </p>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Button onClick={onPay} disabled={submitting}>
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>Pay {free ? "(free)" : amount}</>
+          )}
+        </Button>
+        <Button variant="secondary" onClick={onPayOffline} disabled={submitting}>
+          Pay offline
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={onSimulateDecline}
+          disabled={submitting}
+        >
+          Simulate decline
+        </Button>
+      </div>
+
+      <div className="flex justify-start">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={submitting}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
     </div>

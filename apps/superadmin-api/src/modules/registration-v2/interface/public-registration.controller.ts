@@ -657,6 +657,173 @@ export class PublicRegistrationController {
     return { passed: flags.length === 0, flags };
   }
 
+  @Post("submissions/:id/pay")
+  @ApiOperation({
+    summary:
+      "Phase 4 (mock) — simulate Stripe charge. Creates an invoice + invoice_items row, marks invoice paid, transitions submission pending_payment → pending_review. Real Stripe integration replaces the mock branch when STRIPE_SECRET_KEY is configured."
+  })
+  async pay(
+    @Param("id") submissionId: string,
+    @Body()
+    body: {
+      email: string;
+      mockOutcome?: "succeeded" | "failed" | "offline";
+    }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body.email);
+    if (!isRegistrationState(row.status)) {
+      throw new Error("Invalid submission state");
+    }
+    if (row.status !== "pending_payment") {
+      throw new Error(
+        `Cannot pay from state=${row.status}; expected pending_payment.`
+      );
+    }
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const outcome = body.mockOutcome ?? "succeeded";
+
+    // Resolve pricing tier amount. If none picked, default to 0 — the
+    // funnel may have skipped the Tier step when the season has no
+    // active tiers.
+    let amountCents = 0;
+    let currency = "USD";
+    let tierName = "Registration fee";
+    const tierId = meta.pricingTierId as string | null | undefined;
+    if (tierId) {
+      const [tier] = await this.db
+        .select()
+        .from(schema.pricingTiers)
+        .where(eq(schema.pricingTiers.id, tierId))
+        .limit(1);
+      if (tier) {
+        amountCents = tier.fullPriceCents;
+        currency = tier.currency;
+        tierName = tier.name;
+      }
+    }
+
+    // Offline branch — no charge, admin marks paid later. Move to
+    // pending_offline; admin will toggle to pending_review.
+    if (outcome === "offline") {
+      assertValidTransition(row.status, "pending_offline");
+      await this.db
+        .update(schema.registrations)
+        .set({
+          status: "pending_offline",
+          metadata: mergeMetadata(meta, {
+            payment: { outcome: "offline", amountCents, currency }
+          }),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.registrations.id, submissionId));
+      return {
+        id: submissionId,
+        status: "pending_offline" as const,
+        invoiceId: null,
+        mock: true
+      };
+    }
+
+    if (outcome === "failed") {
+      // Spec §7.2: stay in pending_payment, surface decline message.
+      await this.db
+        .update(schema.registrations)
+        .set({
+          metadata: mergeMetadata(meta, {
+            payment: {
+              outcome: "failed",
+              attemptedAt: new Date().toISOString(),
+              reason: "Mock decline — card_declined"
+            }
+          }),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.registrations.id, submissionId));
+      return {
+        id: submissionId,
+        status: "pending_payment" as const,
+        invoiceId: null,
+        mock: true,
+        declineReason: "Your card was declined (mock)."
+      };
+    }
+
+    // Happy path: succeeded. Create invoice + line item, mark paid,
+    // transition to pending_review.
+    const invoiceNumber = `INV-${Date.now().toString().slice(-9)}`;
+    const idempotencyKey = `submission:${submissionId}`;
+
+    // Idempotency — if invoice already exists for this submission,
+    // reuse it.
+    const existing = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.idempotencyKey, idempotencyKey))
+      .limit(1);
+
+    let invoiceId: string;
+    if (existing[0]) {
+      invoiceId = existing[0].id;
+    } else {
+      const [inv] = await this.db
+        .insert(schema.invoices)
+        .values({
+          orgId: row.orgId,
+          invoiceNumber,
+          registrationId: submissionId,
+          recipientEmail: meta.email as string,
+          currency,
+          subtotalCents: amountCents,
+          totalCents: amountCents,
+          paidCents: amountCents,
+          status: "paid",
+          issuedAt: new Date(),
+          paidAt: new Date(),
+          idempotencyKey,
+          metadata: { mockStripe: true, tierId }
+        })
+        .returning();
+      invoiceId = inv!.id;
+      await this.db.insert(schema.invoiceItems).values({
+        invoiceId,
+        kind: "registration_fee",
+        description: tierName,
+        quantity: 1,
+        unitAmountCents: amountCents,
+        amountCents
+      });
+    }
+
+    assertValidTransition(row.status, "pending_review");
+    await this.db
+      .update(schema.registrations)
+      .set({
+        status: "pending_review",
+        submittedAt: new Date(),
+        metadata: mergeMetadata(meta, {
+          payment: {
+            outcome: "succeeded",
+            paidAt: new Date().toISOString(),
+            amountCents,
+            currency,
+            invoiceId,
+            mockStripe: true
+          }
+        }),
+        updatedAt: new Date()
+      })
+      .where(eq(schema.registrations.id, submissionId));
+
+    return {
+      id: submissionId,
+      status: "pending_review" as const,
+      invoiceId,
+      amountCents,
+      currency,
+      mock: true
+    };
+  }
+
   @Post("submissions/:id/cancel")
   @ApiOperation({
     summary:
