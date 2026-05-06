@@ -8,6 +8,10 @@ import {
   RoleAssignmentDto
 } from "../dtos/role.dto";
 import type { ScopeType } from "@sportspulse/kernel";
+import {
+  InviteMessageService,
+  type RenderedInviteMessage
+} from "../services/invite-message.service";
 
 export interface InviteUserInput {
   email: string;
@@ -28,6 +32,17 @@ export interface InviteUserInput {
    * instead.
    */
   password?: string | null;
+  /**
+   * Optional human label for the scope the role is granted on
+   * (e.g. "PPHL · Adult League"). Surfaced in the rendered invite
+   * message so the recipient knows which resource they're admin of.
+   */
+  scopeLabel?: string | null;
+  /**
+   * Optional display name of the inviting admin — included in the
+   * rendered message signature.
+   */
+  inviterDisplayName?: string | null;
   /** Acting principal — recorded as the granter on the assignment. */
   invitedByUserId: string;
 }
@@ -38,6 +53,12 @@ export interface InviteUserResult {
   /** True if Supabase created a new auth row, false if the email already existed. */
   created: boolean;
   assignment: RoleAssignmentDto | null;
+  /**
+   * Rendered invite message — what we (will) email via Resend, AND what
+   * the admin gets dropped onto their clipboard so they can manually
+   * paste into Slack/WhatsApp/SMS as a fallback delivery channel.
+   */
+  message: RenderedInviteMessage;
 }
 
 /**
@@ -60,7 +81,8 @@ export class InviteUserHandler {
 
   constructor(
     private readonly supabase: SupabaseAdminService,
-    @Inject(ROLE_REPOSITORY) private readonly roles: RoleRepository
+    @Inject(ROLE_REPOSITORY) private readonly roles: RoleRepository,
+    private readonly inviteMessage: InviteMessageService
   ) {}
 
   async execute(input: InviteUserInput): Promise<InviteUserResult> {
@@ -97,12 +119,30 @@ export class InviteUserHandler {
       assignment = RoleAssignmentDto.fromRow(row);
     }
 
+    const message = this.inviteMessage.render({
+      email,
+      displayName: input.displayName ?? null,
+      password: input.password ?? null,
+      role: input.role
+        ? {
+            roleCode: input.role.roleCode,
+            scopeType: input.role.scopeType,
+            scopeId: input.role.scopeId ?? null
+          }
+        : undefined,
+      scopeLabel: input.scopeLabel ?? null,
+      inviterDisplayName: input.inviterDisplayName ?? null
+    });
+
+    // TODO: dispatch through Resend once that adapter lands. For now,
+    // the rendered message is returned to the caller so the admin can
+    // paste it manually (Slack / WhatsApp / SMS).
     this.log.log(
       `invite ${created ? "sent" : "linked"} for ${email}${
         input.role ? ` with role=${input.role.roleCode} scope=${input.role.scopeType}` : ""
       }`
     );
 
-    return { userId, email, created, assignment };
+    return { userId, email, created, assignment, message };
   }
 }

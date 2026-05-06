@@ -118,6 +118,13 @@ export class IamController {
           }
         : undefined,
       password: body.password ?? null,
+      scopeLabel: body.scopeLabel ?? null,
+      // Inviter display name is best-effort: fetched from the principal's
+      // own profile so the rendered message signature reads naturally.
+      inviterDisplayName:
+        (await this.getCurrentUser
+          .execute({ userId: principal.userId })
+          .catch(() => null))?.displayName ?? null,
       invitedByUserId: principal.userId
     });
   }

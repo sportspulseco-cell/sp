@@ -60,4 +60,12 @@ export class InviteUserBodyDto {
   @ValidateNested()
   @Type(() => InviteUserRoleDto)
   role?: InviteUserRoleDto;
+
+  @ApiPropertyOptional({
+    description:
+      "Human label for the resource the role is scoped to (e.g. 'PPHL Adult League'). Surfaced in the rendered invite message."
+  })
+  @IsOptional()
+  @IsString()
+  scopeLabel?: string;
 }

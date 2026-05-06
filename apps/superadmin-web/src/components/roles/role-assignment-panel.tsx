@@ -68,6 +68,14 @@ export function RoleAssignmentPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  // Rendered invite message returned by the API after Invite-by-email
+  // mode succeeds — same clipboard fallback as <InviteUserButton>.
+  const [renderedMessage, setRenderedMessage] = useState<{
+    subject: string;
+    body: string;
+    recipient: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Live search as the admin types. When `filterToRole` is on, the
   // search is constrained to users already holding the selected role —
@@ -154,15 +162,19 @@ export function RoleAssignmentPanel({
         const result = await iam.inviteUser({
           email: email.trim(),
           displayName: displayName.trim() || undefined,
+          scopeLabel: resourceLabel,
           role: { roleCode, scopeType, scopeId }
         });
         if (result.assignment) {
           setAssignments((a) => [result.assignment as RoleAssignment, ...a]);
         }
+        setRenderedMessage(result.message);
+        const ok = await copyInviteToClipboard(result.message);
+        setCopied(ok);
         setFlash(
           result.created
-            ? `Invite sent to ${result.email}. They'll be ${roleCode} once they sign in.`
-            : `${result.email} already had an account. Role assigned immediately.`
+            ? `Invite sent to ${result.email}. Message ${ok ? "copied to clipboard" : "ready below"} — paste anywhere if email delivery is delayed.`
+            : `${result.email} already had an account. Role assigned. Message ${ok ? "copied" : "ready below"}.`
         );
         setEmail("");
         setDisplayName("");
@@ -468,6 +480,35 @@ export function RoleAssignmentPanel({
           </p>
         )}
 
+        {renderedMessage && (
+          <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
+            <div className="flex items-center justify-between">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                // Invite message · {renderedMessage.recipient}
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await copyInviteToClipboard(renderedMessage);
+                  setCopied(ok);
+                }}
+                className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-surface-1 px-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+              >
+                {copied ? "Copied" : "Copy again"}
+              </button>
+            </div>
+            <p className="text-[12px] font-medium text-fg">
+              Subject: {renderedMessage.subject}
+            </p>
+            <textarea
+              readOnly
+              value={renderedMessage.body}
+              rows={Math.min(12, renderedMessage.body.split("\n").length + 1)}
+              className="w-full resize-y rounded-md border border-border bg-surface-1 p-2 font-mono text-[11px] leading-relaxed text-fg focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus"
+            />
+          </div>
+        )}
+
         <div className="flex justify-end">
           <Button type="submit" disabled={submitDisabled}>
             {submitting ? (
@@ -512,4 +553,35 @@ function ModeChip({
       {children}
     </button>
   );
+}
+
+async function copyInviteToClipboard(m: {
+  subject: string;
+  body: string;
+  recipient: string;
+}): Promise<boolean> {
+  const text = [`To: ${m.recipient}`, `Subject: ${m.subject}`, "", m.body].join(
+    "\n"
+  );
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
 }

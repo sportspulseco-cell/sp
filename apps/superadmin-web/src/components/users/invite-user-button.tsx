@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Plus } from "lucide-react";
+import { Check, Copy, Loader2, Mail, Plus } from "lucide-react";
 import {
   SYSTEM_ROLE_BY_CODE,
   SYSTEM_ROLE_CODES,
@@ -37,6 +37,14 @@ export function InviteUserButton() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  // Rendered invite message returned by the API; copied to clipboard on
+  // success and shown in a textarea so the admin can review / re-copy.
+  const [renderedMessage, setRenderedMessage] = useState<{
+    subject: string;
+    body: string;
+    recipient: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const roleDef = SYSTEM_ROLE_BY_CODE[roleCode];
   // When the chosen role has a default scopeType, snap to it.
@@ -71,12 +79,18 @@ export function InviteUserButton() {
             }
           : undefined
       });
+      setRenderedMessage(result.message);
+      // Auto-copy on success so the admin can paste into Slack/WhatsApp
+      // immediately without an extra click. Falls back gracefully if
+      // navigator.clipboard isn't available (older browsers / iframes).
+      const clipboardCopied = await copyToClipboard(formatForClipboard(result.message));
+      setCopied(clipboardCopied);
       setFlash(
         result.created
           ? setPwd
-            ? `Account created for ${result.email} with the password you set. Share the credentials directly.`
-            : `Invite sent to ${result.email}.`
-          : `${result.email} already had an account; ${grantRole ? "role granted." : "no changes."}`
+            ? `Account created for ${result.email}. Invite message ${clipboardCopied ? "copied to clipboard" : "ready below"} — share the credentials directly.`
+            : `Invite sent to ${result.email}. Message ${clipboardCopied ? "copied to clipboard" : "ready below"} for manual delivery too.`
+          : `${result.email} already had an account; ${grantRole ? "role granted." : "no changes."} Message ${clipboardCopied ? "copied to clipboard" : "ready below"}.`
       );
       setEmail("");
       setDisplayName("");
@@ -240,6 +254,50 @@ export function InviteUserButton() {
             </p>
           )}
 
+          {renderedMessage && (
+            <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
+              <div className="flex items-center justify-between">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                  // Invite message · {renderedMessage.recipient}
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = await copyToClipboard(
+                      formatForClipboard(renderedMessage)
+                    );
+                    setCopied(ok);
+                  }}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3 w-3" strokeWidth={2} /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" strokeWidth={2} /> Copy again
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-[12px] font-medium text-fg">
+                Subject: {renderedMessage.subject}
+              </p>
+              <textarea
+                readOnly
+                value={renderedMessage.body}
+                rows={Math.min(14, renderedMessage.body.split("\n").length + 1)}
+                className="w-full resize-y rounded-md border border-border bg-surface-1 p-2 font-mono text-[11px] leading-relaxed text-fg focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus"
+              />
+              <p className="text-[11px] text-fg-muted">
+                Email delivery via Resend lands in a follow-up. For now,
+                paste the message into Slack / WhatsApp / SMS — content is
+                already on your clipboard.
+              </p>
+            </div>
+          )}
+
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Close
@@ -263,4 +321,37 @@ export function InviteUserButton() {
       </Dialog>
     </>
   );
+}
+
+function formatForClipboard(m: {
+  subject: string;
+  body: string;
+  recipient: string;
+}): string {
+  return [`To: ${m.recipient}`, `Subject: ${m.subject}`, "", m.body].join("\n");
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy path
+  }
+  // Legacy fallback for non-secure contexts. Best-effort.
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
 }

@@ -119,6 +119,7 @@ export function createApi(f: Fetcher) {
         email: string;
         displayName?: string;
         password?: string;
+        scopeLabel?: string;
         role?: {
           roleCode: string;
           scopeType: RoleScopeType;
@@ -130,6 +131,11 @@ export function createApi(f: Fetcher) {
           email: string;
           created: boolean;
           assignment: RoleAssignment | null;
+          message: {
+            subject: string;
+            body: string;
+            recipient: string;
+          };
         }>("/iam/users/invite", {
           method: "POST",
           body: JSON.stringify(body)
