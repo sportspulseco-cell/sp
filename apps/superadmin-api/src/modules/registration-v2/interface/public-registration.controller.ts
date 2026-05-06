@@ -29,6 +29,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
+import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 
 class StartSubmissionBodyDto {
@@ -95,7 +96,8 @@ export class PublicRegistrationController {
   constructor(
     private readonly v2: RegistrationV2Service,
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly supabase: SupabaseAdminService
+    private readonly supabase: SupabaseAdminService,
+    private readonly email: EmailDispatcherService
   ) {}
 
   @Get("seasons/:id")
@@ -545,21 +547,34 @@ export class PublicRegistrationController {
       .update(schema.registrations)
       .set({ metadata: meta, updatedAt: new Date() })
       .where(eq(schema.registrations.id, submissionId));
+    const subject = "Action required: please confirm your child's registration";
+    const messageBody = [
+      `A child registration on SportsPulse needs your consent before it can proceed.`,
+      ``,
+      `Confirm consent — paste this token back into the registration funnel:`,
+      token,
+      ``,
+      `If you're not expecting this email, you can ignore it.`
+    ].join("\n");
+
+    // Real Resend dispatch (or log-only fallback if RESEND_API_KEY
+    // unset). The mockConsentMessage comes back regardless so the
+    // funnel can offer a copy/paste fallback.
+    const dispatch = await this.email.send({
+      to: body.parentEmail,
+      subject,
+      body: messageBody,
+      channel: "registration.parental_consent"
+    });
+
     return {
       consentToken: token,
-      // Same mock-flow trick we use for invite messages: surface the
-      // would-be email body so the admin can paste it manually.
+      emailDelivered: dispatch.delivered,
+      emailDeliveryReason: dispatch.reason ?? null,
       mockConsentMessage: {
         to: body.parentEmail,
-        subject: "Action required: please confirm your child's registration",
-        body: [
-          `Your child started a SportsPulse registration.`,
-          ``,
-          `Confirm consent: paste this token in the funnel's consent step:`,
-          token,
-          ``,
-          `(Real email delivery wires up next pass.)`
-        ].join("\n")
+        subject,
+        body: messageBody
       }
     };
   }

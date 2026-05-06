@@ -69,3 +69,4 @@ export const admin = api.admin;
 export const crossOrgGrants = api.crossOrgGrants;
 export const dataMigration = api.dataMigration;
 export const registrationV2 = api.registrationV2;
+export const registrationV2Admin = api.registrationV2Admin;

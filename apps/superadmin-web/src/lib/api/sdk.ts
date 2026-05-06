@@ -963,6 +963,83 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Registration v2 admin review queue (Workflow 1 v2 §8).
+    // Lives alongside the legacy `registration.reviewRegistration`
+    // because the v2 actions (request_resubmission, override_flag,
+    // bulk variants) don't fit the v1 contract.
+    registrationV2Admin: {
+      listSubmissions: (
+        q: {
+          status?: string;
+          orgId?: string;
+          search?: string;
+          limit?: number;
+        } = {}
+      ) =>
+        f<{
+          items: Array<{
+            id: string;
+            status: string;
+            orgId: string;
+            createdAt: string;
+            submittedAt: string | null;
+            reviewedAt: string | null;
+            decisionReason: string | null;
+            metadata: Record<string, unknown>;
+          }>;
+        }>(`/registration-v2/admin/submissions${qs(q)}`),
+      review: (
+        id: string,
+        body: {
+          action:
+            | "approve"
+            | "reject"
+            | "request_resubmission"
+            | "override_flag";
+          reason?: string;
+          flagKey?: string;
+        }
+      ) =>
+        f<{
+          id: string;
+          status: string | null;
+          error?: string;
+          flagOverridden?: string;
+        }>(`/registration-v2/admin/submissions/${id}/review`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      bulkApprove: (ids: string[]) =>
+        f<{
+          matched: number;
+          applied: number;
+          skipped: number;
+          emailDelivered: number;
+        }>(`/registration-v2/admin/submissions/bulk-approve`, {
+          method: "POST",
+          body: JSON.stringify({ ids })
+        }),
+      bulkReject: (ids: string[], reason: string) =>
+        f<{
+          matched: number;
+          applied: number;
+          skipped: number;
+          emailDelivered: number;
+        }>(`/registration-v2/admin/submissions/bulk-reject`, {
+          method: "POST",
+          body: JSON.stringify({ ids, reason })
+        }),
+      bulkEmail: (ids: string[], subject: string, body: string) =>
+        f<{
+          matched: number;
+          delivered: number;
+          logOnly: number;
+        }>(`/registration-v2/admin/submissions/bulk-email`, {
+          method: "POST",
+          body: JSON.stringify({ ids, subject, body })
+        })
+    },
+
     // Registration v2 — pricing tiers, email templates, team invites,
     // free agent pool. Backed by apps/superadmin-api/src/modules/registration-v2.
     registrationV2: {

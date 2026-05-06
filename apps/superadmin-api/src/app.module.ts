@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 import { DatabaseModule } from "./shared/database/database.module";
 import { AuthModule } from "./shared/auth/auth.module";
+import { NotificationsModule } from "./shared/notifications/notifications.module";
 import { IamModule } from "./modules/iam/iam.module";
 import { OrgManagementModule } from "./modules/org-management/org-management.module";
 import { LeagueManagementModule } from "./modules/league-management/league-management.module";
@@ -24,6 +25,7 @@ import { DataMigrationModule } from "./modules/data-migration/data-migration.mod
     CqrsModule.forRoot(),
     DatabaseModule,
     AuthModule,
+    NotificationsModule,
     IamModule,
     OrgManagementModule,
     LeagueManagementModule,

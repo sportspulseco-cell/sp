@@ -12,6 +12,7 @@ import {
   InviteMessageService,
   type RenderedInviteMessage
 } from "../services/invite-message.service";
+import { EmailDispatcherService } from "../../../../shared/notifications/email-dispatcher.service";
 
 export interface InviteUserInput {
   email: string;
@@ -54,11 +55,15 @@ export interface InviteUserResult {
   created: boolean;
   assignment: RoleAssignmentDto | null;
   /**
-   * Rendered invite message — what we (will) email via Resend, AND what
-   * the admin gets dropped onto their clipboard so they can manually
-   * paste into Slack/WhatsApp/SMS as a fallback delivery channel.
+   * Rendered invite message — what we email via Resend AND what the
+   * admin gets dropped onto their clipboard. Kept on the result even
+   * after real delivery succeeds so the admin can re-paste anywhere.
    */
   message: RenderedInviteMessage;
+  /** True when Resend accepted the message; false in log-only mode. */
+  emailDelivered: boolean;
+  /** Reason the dispatch was log-only / failed, when not delivered. */
+  emailDeliveryReason: string | null;
 }
 
 /**
@@ -82,7 +87,8 @@ export class InviteUserHandler {
   constructor(
     private readonly supabase: SupabaseAdminService,
     @Inject(ROLE_REPOSITORY) private readonly roles: RoleRepository,
-    private readonly inviteMessage: InviteMessageService
+    private readonly inviteMessage: InviteMessageService,
+    private readonly email: EmailDispatcherService
   ) {}
 
   async execute(input: InviteUserInput): Promise<InviteUserResult> {
@@ -134,15 +140,30 @@ export class InviteUserHandler {
       inviterDisplayName: input.inviterDisplayName ?? null
     });
 
-    // TODO: dispatch through Resend once that adapter lands. For now,
-    // the rendered message is returned to the caller so the admin can
-    // paste it manually (Slack / WhatsApp / SMS).
+    // Real send via Resend. Falls back to log-only when RESEND_API_KEY
+    // is unset; the rendered message is returned in the response either
+    // way so the admin still gets the clipboard / manual-relay path.
+    const dispatch = await this.email.send({
+      to: message.recipient,
+      subject: message.subject,
+      body: message.body,
+      channel: "iam.invite"
+    });
+
     this.log.log(
       `invite ${created ? "sent" : "linked"} for ${email}${
         input.role ? ` with role=${input.role.roleCode} scope=${input.role.scopeType}` : ""
-      }`
+      } · email_delivered=${dispatch.delivered}`
     );
 
-    return { userId, email, created, assignment, message };
+    return {
+      userId,
+      email,
+      created,
+      assignment,
+      message,
+      emailDelivered: dispatch.delivered,
+      emailDeliveryReason: dispatch.reason ?? null
+    };
   }
 }

@@ -7,6 +7,7 @@ import { PublicInvitesController } from "./interface/public-invites.controller";
 import { PublicRegistrationController } from "./interface/public-registration.controller";
 import { FreeAgentPoolController } from "./interface/free-agent-pool.controller";
 import { SeasonRolloverController } from "./interface/season-rollover.controller";
+import { AdminReviewController } from "./interface/admin-review.controller";
 
 @Module({
   controllers: [
@@ -16,7 +17,8 @@ import { SeasonRolloverController } from "./interface/season-rollover.controller
     PublicInvitesController,
     PublicRegistrationController,
     FreeAgentPoolController,
-    SeasonRolloverController
+    SeasonRolloverController,
+    AdminReviewController
   ],
   providers: [RegistrationV2Service],
   exports: [RegistrationV2Service]
