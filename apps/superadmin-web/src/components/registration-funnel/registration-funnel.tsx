@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import type { AnswerMap } from "@sportspulse/kernel";
 import { publicRegistration } from "@/lib/api/public-api";
@@ -11,7 +11,25 @@ import { Field, Input } from "@/components/ui/input";
 import { FormRenderer } from "@/components/forms/form-renderer";
 
 type SubmissionType = "team" | "individual" | "free_agent" | "captain_invite";
-type Step = "path" | "account" | "tier" | "questions" | "review" | "done";
+type Step =
+  | "path"
+  | "account"
+  | "consent"
+  | "waivers"
+  | "tier"
+  | "questions"
+  | "review"
+  | "done";
+
+interface WaiverDoc {
+  documentId: string;
+  kind: string;
+  name: string;
+  description: string | null;
+  versionId: string;
+  contentHtml: string;
+  languageCode: string;
+}
 
 const PATHS: {
   value: SubmissionType;
@@ -76,6 +94,18 @@ export function RegistrationFunnel({
   // Backend-determined post-submit state. Drives the Done screen UX.
   const [submissionStatus, setSubmissionStatus] = useState<string | null>(null);
   const [isMinor, setIsMinor] = useState(false);
+  // Phase 3 — waivers + parental consent + eligibility flags.
+  const [waivers, setWaivers] = useState<WaiverDoc[] | null>(null);
+  const [requiredKinds, setRequiredKinds] = useState<string[]>([]);
+  const [signedVersionIds, setSignedVersionIds] = useState<Set<string>>(new Set());
+  const [parentEmail, setParentEmail] = useState("");
+  const [consentToken, setConsentToken] = useState("");
+  const [consentMessage, setConsentMessage] = useState<{
+    to: string;
+    subject: string;
+    body: string;
+  } | null>(null);
+  const [eligibilityFlags, setEligibilityFlags] = useState<string[] | null>(null);
 
   const tiers = useMemo(
     () => context.pricingTiers.filter((t) => t.isActive),
@@ -85,11 +115,13 @@ export function RegistrationFunnel({
 
   const stepOrder: Step[] = useMemo(() => {
     const out: Step[] = ["path", "account"];
+    if (isMinor) out.push("consent");
+    if ((waivers?.length ?? 0) > 0) out.push("waivers");
     if (tiers.length > 0) out.push("tier");
     if (hasQuestions) out.push("questions");
     out.push("review", "done");
     return out;
-  }, [tiers.length, hasQuestions]);
+  }, [isMinor, waivers, tiers.length, hasQuestions]);
 
   const currentIndex = stepOrder.indexOf(step);
   const visibleSteps = stepOrder.filter((s) => s !== "done");
@@ -103,11 +135,14 @@ export function RegistrationFunnel({
     if (i > 0) setStep(stepOrder[i - 1]!);
   }
 
-  async function submit() {
+  /**
+   * Account-step submit: creates the auth user + submission row,
+   * loads waivers for the org, kicks off the async eligibility check.
+   * From here on every step has a real submissionId to act against.
+   */
+  async function submitAccount() {
     if (!submissionType || !email.trim() || password.length < 8 || !fullName.trim()) {
-      setError(
-        "Email, full name, and password (8+ chars) are required."
-      );
+      setError("Email, full name, and password (8+ chars) are required.");
       return;
     }
     setSubmitting(true);
@@ -130,12 +165,36 @@ export function RegistrationFunnel({
       setResumed(result.resumed);
       setSubmissionStatus(result.status);
       setIsMinor(result.isMinor);
-      setStep("done");
+
+      // Load Phase 3 waivers + run eligibility in parallel — neither
+      // blocks advancing to the consent / waivers step. Eligibility
+      // flags surface on the Review screen as warnings (spec §6.3).
+      const [waiverResp] = await Promise.all([
+        publicRegistration.listWaivers(context.season.id).catch(() => null),
+        publicRegistration
+          .runEligibilityCheck(result.id, email.trim())
+          .then((r) => setEligibilityFlags(r.flags))
+          .catch(() => undefined)
+      ]);
+      if (waiverResp) {
+        setWaivers(waiverResp.documents);
+        setRequiredKinds(waiverResp.requiredKinds);
+      }
+
+      next();
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /**
+   * Final-step submit: nothing to do server-side — the submission
+   * already exists and is in the right state. Just bounces to Done.
+   */
+  async function finishToDone() {
+    setStep("done");
   }
 
   return (
@@ -171,11 +230,90 @@ export function RegistrationFunnel({
             password={password}
             phone={phone}
             dobDate={dobDate}
+            submitting={submitting}
+            error={error}
             onEmailChange={setEmail}
             onFullNameChange={setFullName}
             onPasswordChange={setPassword}
             onPhoneChange={setPhone}
             onDobChange={setDobDate}
+            onBack={back}
+            onSubmit={submitAccount}
+          />
+        )}
+
+        {step === "consent" && (
+          <ConsentStep
+            submissionId={submissionId!}
+            email={email}
+            parentEmail={parentEmail}
+            consentToken={consentToken}
+            consentMessage={consentMessage}
+            onParentEmailChange={setParentEmail}
+            onConsentTokenChange={setConsentToken}
+            onSendConsent={async () => {
+              setSubmitting(true);
+              try {
+                const res = await publicRegistration.startParentalConsent(
+                  submissionId!,
+                  { email, parentEmail }
+                );
+                setConsentToken(res.consentToken);
+                setConsentMessage(res.mockConsentMessage);
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            onConfirm={async () => {
+              setSubmitting(true);
+              try {
+                const res = await publicRegistration.confirmParentalConsent(
+                  submissionId!,
+                  { email, consentToken }
+                );
+                setSubmissionStatus(res.status);
+                next();
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            onBack={back}
+            submitting={submitting}
+            error={error}
+          />
+        )}
+
+        {step === "waivers" && waivers && (
+          <WaiversStep
+            documents={waivers}
+            requiredKinds={requiredKinds}
+            signedVersionIds={signedVersionIds}
+            fullName={fullName}
+            onSign={async (versionId, signatureName) => {
+              try {
+                const res = await publicRegistration.signWaiver(
+                  submissionId!,
+                  {
+                    email,
+                    documentVersionId: versionId,
+                    signatureName
+                  }
+                );
+                setSignedVersionIds(
+                  (prev) => new Set([...prev, versionId])
+                );
+                if (res.outstandingRequired === 0) {
+                  // Don't auto-advance — let the player click Continue
+                  // so they see the all-signed confirmation.
+                }
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
             onBack={back}
             onNext={next}
           />
@@ -208,10 +346,11 @@ export function RegistrationFunnel({
             email={email}
             fullName={fullName}
             tier={tiers.find((t) => t.id === pricingTierId) ?? null}
+            eligibilityFlags={eligibilityFlags}
             error={error}
             submitting={submitting}
             onBack={back}
-            onSubmit={submit}
+            onSubmit={finishToDone}
           />
         )}
 
@@ -256,6 +395,8 @@ function Stepper({
   const labels: Record<Step, string> = {
     path: "Path",
     account: "Account",
+    consent: "Consent",
+    waivers: "Waivers",
     tier: "Pricing",
     questions: "Questions",
     review: "Review",
@@ -350,26 +491,30 @@ function AccountStep({
   password,
   phone,
   dobDate,
+  submitting,
+  error,
   onEmailChange,
   onFullNameChange,
   onPasswordChange,
   onPhoneChange,
   onDobChange,
   onBack,
-  onNext
+  onSubmit
 }: {
   email: string;
   fullName: string;
   password: string;
   phone: string;
   dobDate: string;
+  submitting: boolean;
+  error: string | null;
   onEmailChange: (v: string) => void;
   onFullNameChange: (v: string) => void;
   onPasswordChange: (v: string) => void;
   onPhoneChange: (v: string) => void;
   onDobChange: (v: string) => void;
   onBack: () => void;
-  onNext: () => void;
+  onSubmit: () => void;
 }) {
   const emailOk = /.+@.+\..+/.test(email.trim());
   const nameOk = fullName.trim().length > 0;
@@ -436,15 +581,298 @@ function AccountStep({
         </Field>
       </div>
 
+      {error && (
+        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          {error}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={submitting}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        <Button onClick={onSubmit} disabled={!valid || submitting}>
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account…
+            </>
+          ) : (
+            <>
+              Create account <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ConsentStep({
+  submissionId,
+  email,
+  parentEmail,
+  consentToken,
+  consentMessage,
+  onParentEmailChange,
+  onConsentTokenChange,
+  onSendConsent,
+  onConfirm,
+  onBack,
+  submitting,
+  error
+}: {
+  submissionId: string;
+  email: string;
+  parentEmail: string;
+  consentToken: string;
+  consentMessage: { to: string; subject: string; body: string } | null;
+  onParentEmailChange: (v: string) => void;
+  onConsentTokenChange: (v: string) => void;
+  onSendConsent: () => void;
+  onConfirm: () => void;
+  onBack: () => void;
+  submitting: boolean;
+  error: string | null;
+}) {
+  const validParent = /.+@.+\..+/.test(parentEmail.trim());
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold text-fg">Parental consent required</h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          You're under 18, so we need a parent or guardian to confirm before
+          payment can proceed (Workflow 1 §6.2). We'll send them a consent
+          link — for the mock flow you'll see the message inline so it can
+          be relayed manually.
+        </p>
+      </div>
+
+      <Field label="Parent / guardian email">
+        <Input
+          type="email"
+          value={parentEmail}
+          onChange={(e) => onParentEmailChange(e.target.value)}
+          placeholder="parent@example.com"
+        />
+      </Field>
+
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={!validParent || submitting}
+        onClick={onSendConsent}
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending…
+          </>
+        ) : (
+          <>Send consent request</>
+        )}
+      </Button>
+
+      {consentMessage && (
+        <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            // Mock consent message · {consentMessage.to}
+          </p>
+          <p className="text-[12px] font-medium text-fg">
+            Subject: {consentMessage.subject}
+          </p>
+          <textarea
+            readOnly
+            value={consentMessage.body}
+            rows={Math.min(10, consentMessage.body.split("\n").length + 1)}
+            className="w-full resize-y rounded-md border border-border bg-surface-1 p-2 font-mono text-[11px] leading-relaxed text-fg"
+          />
+          <p className="text-[11px] text-fg-muted">
+            Until Resend is wired, paste the consent token below from the
+            message above.
+          </p>
+        </div>
+      )}
+
+      <Field
+        label="Consent token"
+        hint="From the email/in-app prompt your parent received."
+      >
+        <Input
+          value={consentToken}
+          onChange={(e) => onConsentTokenChange(e.target.value)}
+          placeholder="Paste consent token…"
+        />
+      </Field>
+
+      {error && (
+        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          {error}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={submitting}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        <Button
+          onClick={onConfirm}
+          disabled={!consentToken.trim() || submitting}
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Confirming…
+            </>
+          ) : (
+            <>Confirm consent <ArrowRight className="ml-2 h-4 w-4" /></>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function WaiversStep({
+  documents,
+  requiredKinds,
+  signedVersionIds,
+  fullName,
+  onSign,
+  onBack,
+  onNext
+}: {
+  documents: WaiverDoc[];
+  requiredKinds: string[];
+  signedVersionIds: Set<string>;
+  fullName: string;
+  onSign: (versionId: string, signatureName: string) => Promise<void>;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const requiredOutstanding = documents.filter(
+    (d) => requiredKinds.includes(d.kind) && !signedVersionIds.has(d.versionId)
+  );
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold text-fg">Sign your waivers</h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          Required ({requiredKinds.join(", ")}) waivers must be signed
+          before you can pay (Workflow 1 §6.1). Optional documents you can
+          skip — they're recorded as declined.
+        </p>
+      </div>
+
+      <ul className="space-y-3">
+        {documents.map((d) => (
+          <WaiverCard
+            key={d.documentId}
+            doc={d}
+            isRequired={requiredKinds.includes(d.kind)}
+            isSigned={signedVersionIds.has(d.versionId)}
+            fullName={fullName}
+            onSign={(name) => onSign(d.versionId, name)}
+          />
+        ))}
+      </ul>
+
       <div className="flex items-center justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button onClick={onNext} disabled={!valid}>
-          Continue <ArrowRight className="ml-2 h-4 w-4" />
+        <Button onClick={onNext} disabled={requiredOutstanding.length > 0}>
+          {requiredOutstanding.length > 0
+            ? `Sign ${requiredOutstanding.length} more required`
+            : "Continue"}
+          <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
+  );
+}
+
+function WaiverCard({
+  doc,
+  isRequired,
+  isSigned,
+  fullName,
+  onSign
+}: {
+  doc: WaiverDoc;
+  isRequired: boolean;
+  isSigned: boolean;
+  fullName: string;
+  onSign: (signatureName: string) => Promise<void>;
+}) {
+  const [scrolled, setScrolled] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [signing, setSigning] = useState(false);
+  const namesMatch =
+    typed.trim().toLowerCase() === fullName.trim().toLowerCase();
+  function onScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setScrolled(true);
+  }
+  return (
+    <li className="rounded-lg border border-border bg-surface-1 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[13px] font-semibold text-fg">{doc.name}</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            {doc.kind} {isRequired && "· required"}
+          </p>
+        </div>
+        {isSigned && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            <Check className="h-3 w-3" strokeWidth={2.25} /> Signed
+          </span>
+        )}
+      </div>
+      {!isSigned && (
+        <>
+          <div
+            onScroll={onScroll}
+            className="mt-3 max-h-48 overflow-y-auto rounded-md border border-border bg-bg-subtle p-3 text-[12px] leading-relaxed text-fg"
+            dangerouslySetInnerHTML={{ __html: doc.contentHtml }}
+          />
+          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+            <Field
+              label="Type your full legal name to sign"
+              hint={
+                scrolled
+                  ? namesMatch
+                    ? "Looks good."
+                    : "Must match your account name exactly."
+                  : "Scroll to the end of the document first."
+              }
+            >
+              <Input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                disabled={!scrolled}
+                placeholder={fullName}
+              />
+            </Field>
+            <Button
+              type="button"
+              disabled={!scrolled || !namesMatch || signing}
+              onClick={async () => {
+                setSigning(true);
+                try {
+                  await onSign(typed.trim());
+                } finally {
+                  setSigning(false);
+                }
+              }}
+            >
+              {signing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Sign"
+              )}
+            </Button>
+          </div>
+        </>
+      )}
+    </li>
   );
 }
 
@@ -582,6 +1010,7 @@ function ReviewStep({
   email,
   fullName,
   tier,
+  eligibilityFlags,
   error,
   submitting,
   onBack,
@@ -592,6 +1021,7 @@ function ReviewStep({
   email: string;
   fullName: string;
   tier: PricingTier | null;
+  eligibilityFlags: string[] | null;
   error: string | null;
   submitting: boolean;
   onBack: () => void;
@@ -624,6 +1054,23 @@ function ReviewStep({
         )}
       </dl>
 
+      {eligibilityFlags && eligibilityFlags.length > 0 && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+          <p className="font-medium">Eligibility flags raised:</p>
+          <ul className="ml-4 list-disc">
+            {eligibilityFlags.map((f) => (
+              <li key={f} className="font-mono">
+                {f}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1">
+            Per spec §6.3 these don't block payment — admin will review
+            asynchronously and may request resubmission.
+          </p>
+        </div>
+      )}
+
       {error && (
         <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
           {error}
@@ -637,10 +1084,10 @@ function ReviewStep({
         <Button onClick={onSubmit} disabled={submitting}>
           {submitting ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Continuing…
             </>
           ) : (
-            <>Submit registration</>
+            <>Continue to payment</>
           )}
         </Button>
       </div>

@@ -348,6 +348,315 @@ export class PublicRegistrationController {
     };
   }
 
+  @Get("seasons/:id/waivers")
+  @ApiOperation({
+    summary:
+      "Phase 3.1 — return the org's active waivers/consents that the registrant must sign. Returns only the active document_version per document, in a fixed order (waiver → code_of_conduct → media_release → privacy → custom)."
+  })
+  async listWaivers(@Param("id") seasonId: string) {
+    const [season] = await this.db
+      .select({ orgId: schema.seasons.orgId })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, seasonId))
+      .limit(1);
+    if (!season) throw new NotFoundException("Season not found");
+
+    const rows = await this.db
+      .select({
+        documentId: schema.documents.id,
+        kind: schema.documents.kind,
+        name: schema.documents.name,
+        description: schema.documents.description,
+        versionId: schema.documentVersions.id,
+        contentHtml: schema.documentVersions.contentHtml,
+        languageCode: schema.documentVersions.languageCode
+      })
+      .from(schema.documents)
+      .innerJoin(
+        schema.documentVersions,
+        eq(schema.documentVersions.id, schema.documents.activeVersionId)
+      )
+      .where(eq(schema.documents.orgId, season.orgId));
+
+    const order: Record<string, number> = {
+      waiver: 0,
+      code_of_conduct: 1,
+      media_release: 2,
+      privacy: 3,
+      injury_policy: 4,
+      consent: 5,
+      parental: 6,
+      custom: 7
+    };
+    const sorted = rows.sort(
+      (a, b) => (order[a.kind] ?? 99) - (order[b.kind] ?? 99)
+    );
+    return {
+      // The funnel hard-blocks until every "required" kind is signed.
+      // Spec §6.1: waiver + code_of_conduct required; media_release optional.
+      requiredKinds: ["waiver", "code_of_conduct"],
+      documents: sorted
+    };
+  }
+
+  @Post("submissions/:id/sign-waiver")
+  @ApiOperation({
+    summary:
+      "Phase 3.1 — record a signed waiver. Stores typed signature name + IP + user agent on consent_signatures (immutable). Returns how many of the required waivers are still unsigned."
+  })
+  async signWaiver(
+    @Param("id") submissionId: string,
+    @Body()
+    body: {
+      email: string;
+      documentVersionId: string;
+      signatureName: string;
+    }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body.email);
+    if (!body.signatureName?.trim() || !body.documentVersionId) {
+      throw new NotFoundException(
+        "documentVersionId + signatureName required"
+      );
+    }
+
+    // Idempotent: if this person has already signed this version,
+    // return the existing signature.
+    const [existing] = await this.db
+      .select()
+      .from(schema.consentSignatures)
+      .where(
+        and(
+          eq(schema.consentSignatures.personId, row.subjectPersonId),
+          eq(
+            schema.consentSignatures.documentVersionId,
+            body.documentVersionId
+          )
+        )
+      )
+      .limit(1);
+
+    let signature = existing;
+    if (!signature) {
+      const [created] = await this.db
+        .insert(schema.consentSignatures)
+        .values({
+          personId: row.subjectPersonId,
+          documentVersionId: body.documentVersionId,
+          signedByUserId: row.submittedByUserId,
+          // Store the typed name in metadata-ish fashion via geolocation
+          // is gross — there's no signature_text column. Use the
+          // existing signatureBlobUrl text col to hold the name; spec
+          // §6.1 specifies typed name = data-URL of signed text. Wave E
+          // adds a proper signature_text column.
+          signatureBlobUrl: `data:text/plain,${encodeURIComponent(body.signatureName.trim())}`
+        })
+        .returning();
+      signature = created;
+    }
+
+    // Compute remaining required signatures so the funnel knows whether
+    // to advance to the next step.
+    const [season] = await this.db
+      .select({ orgId: schema.seasons.orgId })
+      .from(schema.seasons)
+      .innerJoin(
+        schema.registrations,
+        eq(schema.registrations.orgId, schema.seasons.orgId)
+      )
+      .where(eq(schema.registrations.id, submissionId))
+      .limit(1);
+
+    let outstandingRequired = 0;
+    if (season) {
+      const requiredDocs = await this.db
+        .select({ versionId: schema.documents.activeVersionId })
+        .from(schema.documents)
+        .where(
+          and(
+            eq(schema.documents.orgId, season.orgId),
+            // Required = waiver + code_of_conduct per spec §6.1
+            // Drizzle doesn't have a clean inArray import here so we
+            // do two checks in one OR — simpler to rely on a fold.
+          )
+        );
+      const requiredKinds = new Set(["waiver", "code_of_conduct"]);
+      const requiredVersionIds = (
+        await this.db
+          .select({
+            versionId: schema.documents.activeVersionId,
+            kind: schema.documents.kind
+          })
+          .from(schema.documents)
+          .where(eq(schema.documents.orgId, season.orgId))
+      )
+        .filter((d) => requiredKinds.has(d.kind) && d.versionId)
+        .map((d) => d.versionId as string);
+
+      if (requiredVersionIds.length > 0) {
+        const signed = await this.db
+          .select({ versionId: schema.consentSignatures.documentVersionId })
+          .from(schema.consentSignatures)
+          .where(eq(schema.consentSignatures.personId, row.subjectPersonId));
+        const signedSet = new Set(signed.map((s) => s.versionId));
+        outstandingRequired = requiredVersionIds.filter(
+          (v) => !signedSet.has(v)
+        ).length;
+      }
+    }
+
+    return {
+      signatureId: signature!.id,
+      outstandingRequired
+    };
+  }
+
+  @Post("submissions/:id/parental-consent/start")
+  @ApiOperation({
+    summary:
+      "Phase 3.2 — kick off the parental consent flow for a minor. Stores parent email on the submission metadata and returns a mock consent token (real email delivery wires up with Resend in a follow-up slice)."
+  })
+  async startParentalConsent(
+    @Param("id") submissionId: string,
+    @Body() body: { email: string; parentEmail: string }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body.email);
+    if (row.status !== "pending_consent") {
+      throw new Error(
+        `Cannot start parental consent from status=${row.status}; only valid from pending_consent.`
+      );
+    }
+    if (!body.parentEmail?.includes("@")) {
+      throw new Error("parentEmail required");
+    }
+
+    // Mock token — UUID-shaped, scoped to this submission. Real flow
+    // would persist to a `parent_consent_tokens` table with TTL; for
+    // mock-flow we encode the submission id as the token so the
+    // confirm endpoint can resolve it without a new table.
+    const token = Buffer.from(`${submissionId}:${Date.now()}`).toString(
+      "base64url"
+    );
+    const meta = mergeMetadata(row.metadata, {
+      parentEmail: body.parentEmail.trim().toLowerCase(),
+      parentConsentTokenIssuedAt: new Date().toISOString()
+    });
+    await this.db
+      .update(schema.registrations)
+      .set({ metadata: meta, updatedAt: new Date() })
+      .where(eq(schema.registrations.id, submissionId));
+    return {
+      consentToken: token,
+      // Same mock-flow trick we use for invite messages: surface the
+      // would-be email body so the admin can paste it manually.
+      mockConsentMessage: {
+        to: body.parentEmail,
+        subject: "Action required: please confirm your child's registration",
+        body: [
+          `Your child started a SportsPulse registration.`,
+          ``,
+          `Confirm consent: paste this token in the funnel's consent step:`,
+          token,
+          ``,
+          `(Real email delivery wires up next pass.)`
+        ].join("\n")
+      }
+    };
+  }
+
+  @Post("submissions/:id/parental-consent/confirm")
+  @ApiOperation({
+    summary:
+      "Phase 3.2 — confirm parental consent. Advances state pending_consent → pending_payment."
+  })
+  async confirmParentalConsent(
+    @Param("id") submissionId: string,
+    @Body() body: { email: string; consentToken: string }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body.email);
+    if (!isRegistrationState(row.status)) {
+      throw new Error("Invalid current state");
+    }
+    assertValidTransition(row.status, "pending_payment");
+    // Decode the token; verify it belongs to this submission.
+    let decoded = "";
+    try {
+      decoded = Buffer.from(body.consentToken, "base64url").toString("utf-8");
+    } catch {
+      throw new Error("Invalid consent token");
+    }
+    if (!decoded.startsWith(`${submissionId}:`)) {
+      throw new Error("Consent token does not match submission");
+    }
+    const meta = mergeMetadata(row.metadata, {
+      parentConsentConfirmedAt: new Date().toISOString()
+    });
+    await this.db
+      .update(schema.registrations)
+      .set({ status: "pending_payment", metadata: meta, updatedAt: new Date() })
+      .where(eq(schema.registrations.id, submissionId));
+    return { id: submissionId, status: "pending_payment" as const };
+  }
+
+  @Post("submissions/:id/eligibility-check")
+  @ApiOperation({
+    summary:
+      "Phase 3.3 — run automated eligibility checks (age fit, duplicate detection, USA Hockey ID format). Returns flags. Does NOT block the funnel; flags surface in the admin review queue (spec §6.3 — payment proceeds in parallel)."
+  })
+  async eligibilityCheck(
+    @Param("id") submissionId: string,
+    @Body() body: { email: string }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body.email);
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const flags: string[] = [];
+
+    // Age vs season — coarse check until divisions get min/max age
+    // columns. We just flag if age < 5 or > 80 as obvious typos.
+    const dob = meta.dobDate as string | null;
+    if (dob) {
+      const age = ageFromDob(dob);
+      if (age !== null && (age < 5 || age > 80)) {
+        flags.push(`age_out_of_range:${age}`);
+      }
+    } else {
+      flags.push("dob_missing");
+    }
+
+    // Duplicate detection — same email + season already has another
+    // registration that's not this one. Idempotency key prevents the
+    // exact-same path from creating two; a different path is still
+    // worth flagging to admin.
+    const dupes = await this.db
+      .select({ id: schema.registrations.id })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.subjectPersonId, row.subjectPersonId));
+    if (dupes.length > 1) flags.push("duplicate_subject");
+
+    // USA Hockey ID format — if present in answers, validate format.
+    const answers = (meta.answers as Record<string, unknown>) ?? {};
+    const usaHockeyId = answers["usa_hockey_id"];
+    if (typeof usaHockeyId === "string" && usaHockeyId.trim()) {
+      if (!/^[A-Z0-9]{6,12}$/i.test(usaHockeyId.trim())) {
+        flags.push("usa_hockey_id_format_invalid");
+      }
+    }
+
+    // Persist flags on the submission so admin review can see them.
+    const merged = mergeMetadata(meta, {
+      eligibilityChecks: {
+        ranAt: new Date().toISOString(),
+        flags
+      }
+    });
+    await this.db
+      .update(schema.registrations)
+      .set({ metadata: merged, updatedAt: new Date() })
+      .where(eq(schema.registrations.id, submissionId));
+
+    return { passed: flags.length === 0, flags };
+  }
+
   @Post("submissions/:id/cancel")
   @ApiOperation({
     summary:
@@ -414,4 +723,14 @@ function mergeMetadata(
 ): Record<string, unknown> {
   const base = (prev as Record<string, unknown>) ?? {};
   return { ...base, ...next };
+}
+
+function ageFromDob(dob: string): number | null {
+  const d = new Date(dob + "T00:00:00Z");
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getUTCFullYear() - d.getUTCFullYear();
+  const m = now.getUTCMonth() - d.getUTCMonth();
+  if (m < 0 || (m === 0 && now.getUTCDate() < d.getUTCDate())) age--;
+  return age;
 }

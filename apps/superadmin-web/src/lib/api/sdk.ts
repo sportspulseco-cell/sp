@@ -1088,6 +1088,51 @@ export function createApi(f: Fetcher) {
             method: "POST",
             body: JSON.stringify({ email })
           }
+        ),
+      listWaivers: (seasonId: string) =>
+        f<{
+          requiredKinds: string[];
+          documents: Array<{
+            documentId: string;
+            kind: string;
+            name: string;
+            description: string | null;
+            versionId: string;
+            contentHtml: string;
+            languageCode: string;
+          }>;
+        }>(`/public/registration/seasons/${seasonId}/waivers`),
+      signWaiver: (
+        submissionId: string,
+        body: { email: string; documentVersionId: string; signatureName: string }
+      ) =>
+        f<{ signatureId: string; outstandingRequired: number }>(
+          `/public/registration/submissions/${submissionId}/sign-waiver`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      startParentalConsent: (
+        submissionId: string,
+        body: { email: string; parentEmail: string }
+      ) =>
+        f<{
+          consentToken: string;
+          mockConsentMessage: { to: string; subject: string; body: string };
+        }>(
+          `/public/registration/submissions/${submissionId}/parental-consent/start`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      confirmParentalConsent: (
+        submissionId: string,
+        body: { email: string; consentToken: string }
+      ) =>
+        f<{ id: string; status: "pending_payment" }>(
+          `/public/registration/submissions/${submissionId}/parental-consent/confirm`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      runEligibilityCheck: (submissionId: string, email: string) =>
+        f<{ passed: boolean; flags: string[] }>(
+          `/public/registration/submissions/${submissionId}/eligibility-check`,
+          { method: "POST", body: JSON.stringify({ email }) }
         )
     }
   };
