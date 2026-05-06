@@ -133,7 +133,13 @@ export const registrations = pgTable(
   (t) => ({
     statusCheck: check(
       "registration_status_check",
-      sql`${t.status} IN ('draft','submitted','under_review','approved','rejected','waitlisted','withdrawn')`
+      // Workflow 1 v2.0 §10 state machine + legacy v1 values kept for
+      // back-compat. Single source of truth: kernel/registration-states.ts.
+      sql`${t.status} IN (
+        'draft','pending_verification','pending_consent','pending_payment',
+        'pending_offline','pending_review','incomplete','approved','rejected','cancelled',
+        'submitted','under_review','waitlisted','withdrawn'
+      )`
     ),
     orgIdx: index("registration_org_idx").on(t.orgId),
     statusIdx: index("registration_status_idx").on(t.status),

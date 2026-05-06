@@ -64,12 +64,18 @@ export function RegistrationFunnel({
   );
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dobDate, setDobDate] = useState("");
   const [pricingTierId, setPricingTierId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [resumed, setResumed] = useState(false);
+  // Backend-determined post-submit state. Drives the Done screen UX.
+  const [submissionStatus, setSubmissionStatus] = useState<string | null>(null);
+  const [isMinor, setIsMinor] = useState(false);
 
   const tiers = useMemo(
     () => context.pricingTiers.filter((t) => t.isActive),
@@ -98,7 +104,12 @@ export function RegistrationFunnel({
   }
 
   async function submit() {
-    if (!submissionType || !email.trim()) return;
+    if (!submissionType || !email.trim() || password.length < 8 || !fullName.trim()) {
+      setError(
+        "Email, full name, and password (8+ chars) are required."
+      );
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -106,7 +117,10 @@ export function RegistrationFunnel({
         context.season.id,
         {
           email: email.trim(),
-          fullName: fullName.trim() || undefined,
+          password,
+          fullName: fullName.trim(),
+          phone: phone.trim() || undefined,
+          dobDate: dobDate || undefined,
           pricingTierId: pricingTierId ?? undefined,
           submissionType,
           answers
@@ -114,6 +128,8 @@ export function RegistrationFunnel({
       );
       setSubmissionId(result.id);
       setResumed(result.resumed);
+      setSubmissionStatus(result.status);
+      setIsMinor(result.isMinor);
       setStep("done");
     } catch (e) {
       setError((e as Error).message);
@@ -152,8 +168,14 @@ export function RegistrationFunnel({
           <AccountStep
             email={email}
             fullName={fullName}
+            password={password}
+            phone={phone}
+            dobDate={dobDate}
             onEmailChange={setEmail}
             onFullNameChange={setFullName}
+            onPasswordChange={setPassword}
+            onPhoneChange={setPhone}
+            onDobChange={setDobDate}
             onBack={back}
             onNext={next}
           />
@@ -198,6 +220,8 @@ export function RegistrationFunnel({
             email={email}
             submissionId={submissionId!}
             resumed={resumed}
+            status={submissionStatus}
+            isMinor={isMinor}
           />
         )}
       </div>
@@ -323,26 +347,42 @@ function PathStep({
 function AccountStep({
   email,
   fullName,
+  password,
+  phone,
+  dobDate,
   onEmailChange,
   onFullNameChange,
+  onPasswordChange,
+  onPhoneChange,
+  onDobChange,
   onBack,
   onNext
 }: {
   email: string;
   fullName: string;
+  password: string;
+  phone: string;
+  dobDate: string;
   onEmailChange: (v: string) => void;
   onFullNameChange: (v: string) => void;
+  onPasswordChange: (v: string) => void;
+  onPhoneChange: (v: string) => void;
+  onDobChange: (v: string) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const valid = /.+@.+\..+/.test(email.trim());
+  const emailOk = /.+@.+\..+/.test(email.trim());
+  const nameOk = fullName.trim().length > 0;
+  const pwOk = password.length >= 8;
+  const valid = emailOk && nameOk && pwOk;
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-fg">Tell us who you are</h2>
+        <h2 className="text-xl font-semibold text-fg">Create your account</h2>
         <p className="mt-1 text-sm text-fg-muted">
-          We use your email as the resume key — coming back to this link with
-          the same address picks up where you left off.
+          We'll use these credentials whenever you come back. Email is the
+          resume key — reopening this link with the same address picks up
+          your draft. DOB drives the parental-consent flow for minors.
         </p>
       </div>
 
@@ -361,6 +401,37 @@ function AccountStep({
             value={fullName}
             onChange={(e) => onFullNameChange(e.target.value)}
             placeholder="Sasha Velasquez"
+          />
+        </Field>
+        <Field
+          label="Password"
+          hint="Minimum 8 characters. You'll use this to come back later."
+        >
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => onPasswordChange(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+        <Field label="Phone (optional)">
+          <Input
+            type="tel"
+            value={phone}
+            onChange={(e) => onPhoneChange(e.target.value)}
+            placeholder="+1 555 555 0123"
+          />
+        </Field>
+        <Field
+          label="Date of birth"
+          hint="Under 18 triggers the parental consent step."
+        >
+          <Input
+            type="date"
+            value={dobDate}
+            onChange={(e) => onDobChange(e.target.value)}
           />
         </Field>
       </div>
@@ -591,33 +662,84 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function DoneStep({
   email,
   submissionId,
-  resumed
+  resumed,
+  status,
+  isMinor
 }: {
   email: string;
   submissionId: string;
   resumed: boolean;
+  status: string | null;
+  isMinor: boolean;
 }) {
+  const guidance = guidanceFor(status, isMinor);
   return (
     <div className="space-y-4 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
         <Check className="h-6 w-6" strokeWidth={2.25} />
       </div>
-      <h2 className="text-xl font-semibold text-fg">
-        {resumed ? "Welcome back" : "You're in"}
-      </h2>
+      <h2 className="text-xl font-semibold text-fg">{guidance.headline(resumed)}</h2>
       <p className="text-sm text-fg-muted">
-        {resumed
-          ? "We resumed your existing draft against this season."
-          : "We've started a draft registration against this season."}
+        {guidance.body}
         <br />
-        We'll email <span className="text-fg">{email}</span> with the next step
-        (account confirmation + payment).
+        Account email:{" "}
+        <span className="text-fg">{email}</span>
       </p>
+      {status && (
+        <p className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-1 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          state · {status}
+        </p>
+      )}
       <p className="font-mono text-[11px] text-fg-muted">
         Reference: {submissionId}
       </p>
     </div>
   );
+}
+
+function guidanceFor(
+  status: string | null,
+  isMinor: boolean
+): { headline: (resumed: boolean) => string; body: string } {
+  switch (status) {
+    case "pending_consent":
+      return {
+        headline: (r) => (r ? "Welcome back" : "Almost there"),
+        body: isMinor
+          ? "We've flagged you as under 18. Next step: parental consent — we'll send a link to your parent / guardian. (Email delivery wires up next pass; for now look for the in-app prompt.)"
+          : "We need parental consent before payment can proceed."
+      };
+    case "pending_payment":
+      return {
+        headline: (r) => (r ? "Welcome back" : "Account created"),
+        body: "Next: pay the registration fee. Payment opens in the next slice (mock Stripe)."
+      };
+    case "pending_review":
+      return {
+        headline: () => "Payment received",
+        body: "Your submission is now in admin review. You'll hear back via email."
+      };
+    case "approved":
+      return {
+        headline: () => "You're on the roster!",
+        body: "Welcome aboard. Your team / free-agent placement is live."
+      };
+    case "rejected":
+      return {
+        headline: () => "Submission not approved",
+        body: "Admin couldn't approve this submission. A refund is in flight per league policy."
+      };
+    case "cancelled":
+      return {
+        headline: () => "Cancelled",
+        body: "This submission was cancelled. You can start fresh any time."
+      };
+    default:
+      return {
+        headline: (r) => (r ? "Welcome back" : "You're in"),
+        body: "We've started a draft registration against this season."
+      };
+  }
 }
 
 function labelForPath(t: SubmissionType): string {

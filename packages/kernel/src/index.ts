@@ -11,3 +11,4 @@ export * from "./pagination";
 export * from "./permissions";
 export * from "./forms";
 export * from "./role-profiles";
+export * from "./registration-states";

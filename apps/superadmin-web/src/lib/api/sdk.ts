@@ -1044,7 +1044,10 @@ export function createApi(f: Fetcher) {
         seasonId: string,
         body: {
           email: string;
-          fullName?: string;
+          password: string;
+          fullName: string;
+          phone?: string;
+          dobDate?: string;
           pricingTierId?: string;
           submissionType?:
             | "team"
@@ -1054,9 +1057,37 @@ export function createApi(f: Fetcher) {
           answers?: Record<string, unknown>;
         }
       ) =>
-        f<{ id: string; status: string; resumed: boolean }>(
-          `/public/registration/seasons/${seasonId}/submissions`,
-          { method: "POST", body: JSON.stringify(body) }
+        f<{
+          id: string;
+          status: string;
+          resumed: boolean;
+          userId: string;
+          userCreated: boolean;
+          isMinor: boolean;
+        }>(`/public/registration/seasons/${seasonId}/submissions`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      getSubmission: (id: string, email: string) =>
+        f<{
+          id: string;
+          status: string;
+          submissionType: string;
+          pricingTierId: string | null;
+          email: string;
+          fullName: string | null;
+          phone: string | null;
+          dobDate: string | null;
+          isMinor: boolean;
+          answers: Record<string, unknown>;
+        }>(`/public/registration/submissions/${id}${qs({ email })}`),
+      cancelSubmission: (id: string, email: string) =>
+        f<{ id: string; status: "cancelled" }>(
+          `/public/registration/submissions/${id}/cancel`,
+          {
+            method: "POST",
+            body: JSON.stringify({ email })
+          }
         )
     }
   };
