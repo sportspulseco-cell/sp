@@ -153,7 +153,12 @@ export class PublicRegistrationController {
         registrationOpensAt: season.registrationOpensAt,
         registrationClosesAt: season.registrationClosesAt,
         rosterLockAt: season.rosterLockAt,
-        status: season.status
+        status: season.status,
+        // Per-season toggles from the wizard's Divisions & eligibility
+        // step. Funnel reads these to skip the free-agent path when
+        // disabled, skip parental consent when not required, etc.
+        // Schema: @sportspulse/kernel SeasonConfig.
+        config: (season.config ?? {}) as Record<string, unknown>
       },
       pricingTiers: tiers.filter((t) => t.isActive),
       formVersionId: formVersion?.id ?? null,

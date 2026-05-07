@@ -40,6 +40,14 @@ export interface PublicSeasonContext {
     registrationClosesAt: string | null;
     rosterLockAt: string | null;
     status: string;
+    /**
+     * Per-season toggles from the admin wizard's Divisions &
+     * eligibility step. Funnel reads `allowFreeAgent` (gates the
+     * free-agent path card) and `parentalConsentRequired` (skips
+     * the consent step when false even for minors). Schema lives in
+     * @sportspulse/kernel SeasonConfig. Optional for back-compat.
+     */
+    config?: Record<string, unknown>;
   };
   pricingTiers: PricingTier[];
   formVersionId: string | null;

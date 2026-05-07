@@ -1,6 +1,15 @@
 "use client";
 
-import { CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  AlertCircle,
+  ChevronRight,
+  Copy,
+  Loader2
+} from "lucide-react";
+import { leagueMgmt } from "@/lib/api/browser-api";
 import type { Season } from "@/lib/api/types";
 import type { EmailTemplate, PricingTier } from "@/lib/api/sdk";
 
@@ -49,6 +58,38 @@ export function ReviewPublishTab({
   }
 
   const canPublish = blockers.length === 0;
+  const isLive =
+    season.status === "registration_open" ||
+    season.status === "in_progress" ||
+    season.status === "playoffs";
+
+  const router = useRouter();
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+
+  // Player-facing public URLs the admin can copy + share. The funnel
+  // lives in superadmin-web at /registration/{id} AND in player-web
+  // at /register/{id} — both render the same shared funnel.
+  const publicBase =
+    process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app";
+  const adminBase =
+    process.env.NEXT_PUBLIC_SUPERADMIN_WEB_URL ??
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const playerLink = `${publicBase}/register/${season.id}`;
+  const adminPreviewLink = `${adminBase}/registration/${season.id}`;
+
+  async function publish() {
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      await leagueMgmt.changeSeasonStatus(season.id, "registration_open");
+      router.refresh();
+    } catch (e) {
+      setPublishError((e as Error).message);
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -143,25 +184,103 @@ export function ReviewPublishTab({
         </ul>
       </section>
 
+      <section className="rounded-xl border border-border bg-surface-1 p-6">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          Registration links
+        </p>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Share these with players and captains. The player link is the
+          public funnel; the admin preview lets you walk through the same
+          flow from inside superadmin-web.
+        </p>
+        <div className="mt-4 space-y-3">
+          <LinkRow label="Player registration" url={playerLink} />
+          <LinkRow label="Admin preview" url={adminPreviewLink} />
+        </div>
+      </section>
+
       <div className="flex items-center justify-between rounded-xl border border-border bg-bg-elev p-5">
         <div>
           <p className="text-[14px] font-medium tracking-tight text-fg">
-            Publish season
+            {isLive ? "Season is live" : "Publish season"}
           </p>
           <p className="mt-1 text-[12px] text-fg-muted">
-            Sets <span className="font-mono">{season.name}</span> status to{" "}
-            <span className="font-mono">registration_open</span> and activates
-            the public registration page.
+            {isLive ? (
+              <>
+                Status: <span className="font-mono">{season.status}</span>.
+                Public registration links above are live.
+              </>
+            ) : (
+              <>
+                Sets <span className="font-mono">{season.name}</span> status to{" "}
+                <span className="font-mono">registration_open</span> and
+                activates the public registration page.
+              </>
+            )}
           </p>
+          {publishError && (
+            <p className="mt-1 text-[12px] text-rose-600 dark:text-rose-400">
+              {publishError}
+            </p>
+          )}
         </div>
         <button
           type="button"
-          disabled={!canPublish}
+          disabled={!canPublish || publishing || isLive}
+          onClick={publish}
           className="inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2 font-mono text-[11px] font-medium uppercase tracking-widest text-bg disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {canPublish ? "Publish" : `Blocked (${blockers.length})`}
+          {publishing ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Publishing…
+            </>
+          ) : isLive ? (
+            "Already live"
+          ) : canPublish ? (
+            "Publish"
+          ) : (
+            `Blocked (${blockers.length})`
+          )}
         </button>
       </div>
+    </div>
+  );
+}
+
+function LinkRow({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-3 rounded-md border border-border bg-bg-subtle px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate font-mono text-[12px] text-fg">{url}</p>
+      </div>
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          } catch {
+            // Older browsers / non-secure contexts — pop a fallback prompt.
+            window.prompt("Copy this URL", url);
+          }
+        }}
+        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+      >
+        {copied ? (
+          <>
+            <CheckCircle2 className="h-3 w-3" strokeWidth={2} /> Copied
+          </>
+        ) : (
+          <>
+            <Copy className="h-3 w-3" strokeWidth={2} /> Copy
+          </>
+        )}
+      </button>
     </div>
   );
 }

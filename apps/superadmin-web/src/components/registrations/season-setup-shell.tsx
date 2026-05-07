@@ -1,11 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CalendarRange,
   CheckCircle2,
   Circle,
   CircleDollarSign,
+  ClipboardList,
+  ExternalLink,
+  Eye,
   FileText,
   Mail,
   Layers,
@@ -13,6 +17,7 @@ import {
   AlertCircle,
   type LucideIcon
 } from "lucide-react";
+import { Badge, statusTone } from "@sportspulse/ui";
 import { cn } from "@/lib/utils";
 import type { Division, Season } from "@/lib/api/types";
 import type { EmailTemplate, PricingTier } from "@/lib/api/sdk";
@@ -78,13 +83,15 @@ export function SeasonSetupShell({
   );
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <SidebarNav
-        season={season}
-        active={active}
-        onSelect={setActive}
-        completion={completion}
-      />
+    <div className="space-y-6">
+      <TopBar season={season} onPublish={() => setActive("publish")} />
+      <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <SidebarNav
+          season={season}
+          active={active}
+          onSelect={setActive}
+          completion={completion}
+        />
 
       <main className="min-w-0">
         {active === "season" && <SeasonDetailsTab season={season} />}
@@ -116,7 +123,58 @@ export function SeasonSetupShell({
             onJump={setActive}
           />
         )}
-      </main>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function TopBar({
+  season,
+  onPublish
+}: {
+  season: Season;
+  onPublish: () => void;
+}) {
+  const previewHref = `/registration/${season.id}`;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 px-5 py-3">
+      <div className="flex items-center gap-3">
+        <p className="text-[16px] font-semibold tracking-tight text-fg">
+          {season.name}
+        </p>
+        <Badge tone={statusTone(season.status)} mono>
+          {season.status.replace(/_/g, " ")}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-2">
+        <Link
+          href="/registrations"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+          title="Submissions queue"
+        >
+          <ClipboardList className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Submissions
+        </Link>
+        <Link
+          href={previewHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+          title="Open the public registration funnel in a new tab"
+        >
+          <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Preview form
+          <ExternalLink className="h-3 w-3 opacity-60" strokeWidth={1.75} />
+        </Link>
+        <button
+          type="button"
+          onClick={onPublish}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-fg px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-bg"
+        >
+          Publish
+        </button>
+      </div>
     </div>
   );
 }

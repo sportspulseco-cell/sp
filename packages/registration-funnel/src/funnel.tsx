@@ -109,15 +109,29 @@ export function RegistrationFunnel({
   );
   const hasQuestions = (context.formDefinition?.questions ?? []).length > 0;
 
+  // Per-season toggles set on the admin wizard's Divisions &
+  // eligibility step. Defaults match @sportspulse/kernel
+  // SEASON_CONFIG_DEFAULTS so unconfigured seasons keep the legacy
+  // funnel behaviour.
+  const seasonConfig = (context.season.config ?? {}) as {
+    allowFreeAgent?: boolean;
+    parentalConsentRequired?: boolean;
+  };
+  const allowFreeAgent = seasonConfig.allowFreeAgent ?? false;
+  const parentalConsentRequired = seasonConfig.parentalConsentRequired ?? true;
+
   const stepOrder: Step[] = useMemo(() => {
     const out: Step[] = ["path", "account"];
-    if (isMinor) out.push("consent");
+    // Skip parental consent entirely when the admin disabled it for
+    // this season, even if DOB indicates a minor — adult-only leagues
+    // (or test seasons) often turn it off.
+    if (isMinor && parentalConsentRequired) out.push("consent");
     if ((waivers?.length ?? 0) > 0) out.push("waivers");
     if (tiers.length > 0) out.push("tier");
     if (hasQuestions) out.push("questions");
     out.push("review", "payment", "done");
     return out;
-  }, [isMinor, waivers, tiers.length, hasQuestions]);
+  }, [isMinor, parentalConsentRequired, waivers, tiers.length, hasQuestions]);
 
   const currentIndex = stepOrder.indexOf(step);
   const visibleSteps = stepOrder.filter((s) => s !== "done");
@@ -237,6 +251,7 @@ export function RegistrationFunnel({
             value={submissionType}
             onChange={setSubmissionType}
             onNext={next}
+            allowFreeAgent={allowFreeAgent}
           />
         )}
 
@@ -464,12 +479,18 @@ function Stepper({
 function PathStep({
   value,
   onChange,
-  onNext
+  onNext,
+  allowFreeAgent
 }: {
   value: SubmissionType | null;
   onChange: (v: SubmissionType) => void;
   onNext: () => void;
+  /** Hide the free-agent card when the season has it disabled. */
+  allowFreeAgent: boolean;
 }) {
+  const visiblePaths = PATHS.filter(
+    (p) => p.value !== "free_agent" || allowFreeAgent
+  );
   return (
     <div className="space-y-5">
       <div>
@@ -481,7 +502,7 @@ function PathStep({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {PATHS.map((p) => {
+        {visiblePaths.map((p) => {
           const on = value === p.value;
           return (
             <button
