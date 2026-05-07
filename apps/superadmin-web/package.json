@@ -12,6 +12,7 @@
   "dependencies": {
     "@sportspulse/auth": "workspace:*",
     "@sportspulse/kernel": "workspace:*",
+    "@sportspulse/ui": "workspace:*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.1",
     "class-variance-authority": "^0.7.0",
