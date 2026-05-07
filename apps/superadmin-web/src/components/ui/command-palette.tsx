@@ -44,6 +44,7 @@ const ITEMS: CommandItem[] = [
   { group: "Platform", label: "Audit log", href: "/audit" },
   { group: "Platform", label: "Reports", href: "/reports" },
   { group: "Finance", label: "Invoices", href: "/finance" },
+  { group: "Finance", label: "AR Dashboard", href: "/finance/ar" },
   { group: "Finance", label: "Outstanding", href: "/finance?status=sent" },
   { group: "Finance", label: "Overdue", href: "/finance?status=overdue" },
   { group: "Admin", label: "Health", href: "/admin?tab=health" },

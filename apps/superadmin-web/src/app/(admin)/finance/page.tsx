@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  ArrowUpRight,
   CircleDollarSign,
   Clock,
   Receipt,
@@ -148,6 +149,15 @@ export default async function FinancePage({
         eyebrow="OPERATIONS"
         title="Finance"
         description="Outstanding revenue, paid invoices, fee schedules. Approving a registration spawns an invoice; payments are recorded manually for now."
+        action={
+          <Link
+            href="/finance/ar"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+          >
+            AR Dashboard
+            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Link>
+        }
       />
 
       {/* KPI tiles */}
