@@ -13,7 +13,8 @@ import {
 } from "class-validator";
 
 export class CreateSeasonBodyDto {
-  @ApiProperty() @IsUUID() orgId!: string;
+  /** Post-flip — seasons live under a league. */
+  @ApiProperty() @IsUUID() leagueId!: string;
   @ApiProperty() @IsString() @MaxLength(120) name!: string;
   @ApiProperty() @IsString() sportCode!: string;
   @ApiProperty({ description: "ISO date YYYY-MM-DD" }) @IsDateString() startDate!: string;
@@ -58,6 +59,7 @@ export class ListSeasonsQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   limit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() cursor?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() leagueId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() orgId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() sportCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;

@@ -12,7 +12,7 @@ import {
 } from "class-validator";
 
 export class CreateDivisionBodyDto {
-  @ApiProperty() @IsUUID() leagueId!: string;
+  @ApiProperty() @IsUUID() seasonId!: string;
   @ApiProperty() @IsString() @MaxLength(120) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() tier?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsUUID() ageGroupId?: string | null;
@@ -39,7 +39,7 @@ export class ListDivisionsQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   limit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() cursor?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUUID() leagueId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
 }

@@ -25,6 +25,7 @@ export class DrizzleTeamMembershipRepository
     if (q.activeOnly) cs.push(isNull(schema.teamMemberships.effectiveTo));
     if (q.cursor) cs.push(gt(schema.teamMemberships.id, q.cursor));
     if (q.leagueIdsFilter) {
+      // division → season → league after the 2026-05-09 hierarchy flip.
       const allowedTeamIds = this.db
         .select({ teamId: schema.divisionTeamEntries.teamId })
         .from(schema.divisionTeamEntries)
@@ -32,10 +33,14 @@ export class DrizzleTeamMembershipRepository
           schema.divisions,
           eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
         )
+        .innerJoin(
+          schema.seasons,
+          eq(schema.seasons.id, schema.divisions.seasonId)
+        )
         .where(
           and(
             isNull(schema.divisionTeamEntries.leftAt),
-            inArray(schema.divisions.leagueId, q.leagueIdsFilter)
+            inArray(schema.seasons.leagueId, q.leagueIdsFilter)
           )
         );
       cs.push(inArray(schema.teamMemberships.teamId, allowedTeamIds));

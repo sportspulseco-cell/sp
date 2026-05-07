@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
-import type { Season } from "@/lib/api/types";
+import type { Org } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
@@ -17,18 +17,24 @@ const FORMATS = [
   { value: "friendly", label: "Friendly" }
 ];
 
-export function CreateLeagueButton({ seasons }: { seasons: Season[] }) {
+const SPORTS = [
+  { value: "HOCKEY_ICE", label: "Ice hockey" },
+  { value: "SOCCER", label: "Soccer" },
+  { value: "BASKETBALL", label: "Basketball" }
+];
+
+export function CreateLeagueButton({ orgs }: { orgs: Org[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={seasons.length === 0}>
+      <Button onClick={() => setOpen(true)} disabled={orgs.length === 0}>
         <Plus className="mr-2 h-4 w-4" />
         New league
       </Button>
       <CreateLeagueDialog
         open={open}
         onClose={() => setOpen(false)}
-        seasons={seasons}
+        orgs={orgs}
       />
     </>
   );
@@ -37,16 +43,16 @@ export function CreateLeagueButton({ seasons }: { seasons: Season[] }) {
 function CreateLeagueDialog({
   open,
   onClose,
-  seasons
+  orgs
 }: {
   open: boolean;
   onClose: () => void;
-  seasons: Season[];
+  orgs: Org[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    seasonId: seasons[0]?.id ?? "",
-    sportCode: seasons[0]?.sportCode ?? "HOCKEY_ICE",
+    orgId: orgs[0]?.id ?? "",
+    sportCode: "HOCKEY_ICE",
     name: "",
     format: "regular" as "regular" | "tournament" | "pickup" | "friendly"
   });
@@ -77,26 +83,32 @@ function CreateLeagueDialog({
       open={open}
       onClose={onClose}
       title="Create league"
-      description="A league lives under a season and groups divisions/teams."
+      description="A league is the persistent competition (e.g. PPHL). Seasons live under it."
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Season" htmlFor="seasonId">
+        <Field label="Organization" htmlFor="orgId">
           <Select
-            id="seasonId"
+            id="orgId"
             required
-            value={form.seasonId}
-            onChange={(e) => {
-              const s = seasons.find((x) => x.id === e.target.value)!;
-              setForm((f) => ({
-                ...f,
-                seasonId: s.id,
-                sportCode: s.sportCode
-              }));
-            }}
+            value={form.orgId}
+            onChange={(e) => set("orgId", e.target.value)}
           >
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.sportCode})
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.displayName}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Sport" htmlFor="sportCode">
+          <Select
+            id="sportCode"
+            value={form.sportCode}
+            onChange={(e) => set("sportCode", e.target.value)}
+          >
+            {SPORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
               </option>
             ))}
           </Select>
@@ -107,7 +119,7 @@ function CreateLeagueDialog({
             required
             value={form.name}
             onChange={(e) => set("name", e.target.value)}
-            placeholder="PPHL Adult League"
+            placeholder="Power Play Hockey League"
           />
         </Field>
         <Field label="Format" htmlFor="format">

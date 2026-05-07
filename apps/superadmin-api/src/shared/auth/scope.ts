@@ -10,9 +10,11 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
  * empty array means the principal has zero visibility for that dimension.
  *
  * `leagueIds` and `orgIds` are projected: a league-scoped role contributes
- * its league directly *and* the org owning that league's season; an
- * org-scoped role contributes the org directly *and* every league belonging
- * to the org's seasons.
+ * its league directly *and* the org owning that league; an org-scoped role
+ * contributes the org directly *and* every league owned by the org.
+ *
+ * Updated post 2026-05-09 hierarchy flip — leagues now live directly under
+ * orgs (no season hop in between).
  */
 export interface UserScope {
   isSuperAdmin: boolean;
@@ -59,30 +61,22 @@ export async function loadUserScope(
     .filter((r) => r.scopeType === "league" && r.scopeId)
     .map((r) => r.scopeId as string);
 
-  // Project org-scoped assignments → every league in the org's seasons.
+  // Project org-scoped assignments → every league owned by the org.
   let projectedLeagueIds: string[] = [];
   if (directOrgIds.length > 0) {
     const ls = await db
       .select({ id: schema.leagues.id })
       .from(schema.leagues)
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.leagues.seasonId)
-      )
-      .where(inArray(schema.seasons.orgId, directOrgIds));
+      .where(inArray(schema.leagues.orgId, directOrgIds));
     projectedLeagueIds = ls.map((r) => r.id);
   }
 
-  // Project league-scoped assignments → the org owning each league's season.
+  // Project league-scoped assignments → the org each league belongs to.
   let projectedOrgIds: string[] = [];
   if (directLeagueIds.length > 0) {
     const os = await db
-      .selectDistinct({ orgId: schema.seasons.orgId })
+      .selectDistinct({ orgId: schema.leagues.orgId })
       .from(schema.leagues)
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.leagues.seasonId)
-      )
       .where(inArray(schema.leagues.id, directLeagueIds));
     projectedOrgIds = os.map((r) => r.orgId);
   }

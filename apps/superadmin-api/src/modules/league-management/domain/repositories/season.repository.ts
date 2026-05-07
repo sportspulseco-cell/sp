@@ -3,6 +3,9 @@ import type { Season } from "../entities/season.entity";
 import { SeasonId } from "../identifiers";
 
 export interface ListSeasonsQuery extends PageQuery {
+  /** Primary post-flip filter — seasons live under a league. */
+  leagueId?: string;
+  /** Convenience — seasons.orgId is denormalised. */
   orgId?: string;
   sportCode?: string;
   status?: string;

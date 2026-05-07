@@ -1,12 +1,12 @@
 import { AggregateRoot, DomainError } from "@sportspulse/kernel";
-import { DivisionId, LeagueId, AgeGroupId } from "../identifiers";
+import { DivisionId, SeasonId, AgeGroupId } from "../identifiers";
 
 export type GenderEligibility = "male" | "female" | "mixed" | "open";
 export type DivisionStatus = "active" | "archived";
 
 export interface DivisionSnapshot {
   id: string;
-  leagueId: string;
+  seasonId: string;
   ageGroupId: string | null;
   name: string;
   tier: string | null;
@@ -22,7 +22,7 @@ export interface DivisionSnapshot {
 export class Division extends AggregateRoot<DivisionId> {
   private constructor(
     id: DivisionId,
-    private readonly _leagueId: LeagueId,
+    private readonly _seasonId: SeasonId,
     private _ageGroupId: AgeGroupId | null,
     private _name: string,
     private _tier: string | null,
@@ -39,7 +39,7 @@ export class Division extends AggregateRoot<DivisionId> {
 
   static create(input: {
     id: DivisionId;
-    leagueId: LeagueId;
+    seasonId: SeasonId;
     name: string;
     tier?: string | null;
     ageGroupId?: AgeGroupId | null;
@@ -52,7 +52,7 @@ export class Division extends AggregateRoot<DivisionId> {
     const now = new Date();
     return new Division(
       input.id,
-      input.leagueId,
+      input.seasonId,
       input.ageGroupId ?? null,
       input.name.trim(),
       input.tier ?? null,
@@ -69,7 +69,7 @@ export class Division extends AggregateRoot<DivisionId> {
   static rehydrate(s: DivisionSnapshot): Division {
     return new Division(
       DivisionId.of(s.id),
-      LeagueId.of(s.leagueId),
+      SeasonId.of(s.seasonId),
       s.ageGroupId ? AgeGroupId.of(s.ageGroupId) : null,
       s.name,
       s.tier,
@@ -121,7 +121,7 @@ export class Division extends AggregateRoot<DivisionId> {
     this._updatedAt = new Date();
   }
 
-  get leagueId(): LeagueId { return this._leagueId; }
+  get seasonId(): SeasonId { return this._seasonId; }
   get ageGroupId(): AgeGroupId | null { return this._ageGroupId; }
   get name(): string { return this._name; }
   get tier(): string | null { return this._tier; }
@@ -136,7 +136,7 @@ export class Division extends AggregateRoot<DivisionId> {
   toSnapshot(): DivisionSnapshot {
     return {
       id: this.id.value,
-      leagueId: this._leagueId.value,
+      seasonId: this._seasonId.value,
       ageGroupId: this._ageGroupId?.value ?? null,
       name: this._name,
       tier: this._tier,

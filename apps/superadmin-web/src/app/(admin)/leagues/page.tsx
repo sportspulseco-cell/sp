@@ -1,6 +1,6 @@
 import { Trophy } from "lucide-react";
 import Link from "next/link";
-import { leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -17,47 +17,50 @@ import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Leagues — SportsPulse" };
 
+/**
+ * Post-flip hierarchy: leagues live under an org. Filterable by ?orgId=
+ * to scope a list to one organisation. The "Drill into a league" link
+ * now goes to /seasons?leagueId= since seasons are children of leagues.
+ */
 export default async function LeaguesPage({
   searchParams
 }: {
-  searchParams?: Promise<{ seasonId?: string }>;
+  searchParams?: Promise<{ orgId?: string }>;
 }) {
   const sp = await searchParams;
-  const [leaguesPage, seasonsPage] = await Promise.all([
+  const [leaguesPage, orgList] = await Promise.all([
     leagueMgmt
-      .listLeagues({ seasonId: sp?.seasonId })
+      .listLeagues({ orgId: sp?.orgId })
       .catch(() => ({ items: [] })),
-    leagueMgmt.listSeasons().catch(() => ({ items: [] }))
+    orgs.list({ limit: 100 }).catch(() => ({ items: [] }))
   ]);
-  const seasonMap = new Map(
-    seasonsPage.items.map((s) => [s.id, s.name])
-  );
+  const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Leagues"
         description={
-          sp?.seasonId
-            ? `Filtered by season ${seasonMap.get(sp.seasonId) ?? sp.seasonId.slice(0, 8)}`
-            : "Competitive containers under a season."
+          sp?.orgId
+            ? `Filtered by org ${orgMap.get(sp.orgId) ?? sp.orgId.slice(0, 8)}`
+            : "Persistent competition containers (e.g. PPHL). Each league has many seasons."
         }
-        action={<CreateLeagueButton seasons={seasonsPage.items} />}
+        action={<CreateLeagueButton orgs={orgList.items} />}
       />
 
       {leaguesPage.items.length === 0 ? (
         <EmptyState
           icon={Trophy}
           title="No leagues yet"
-          description="Create a league under any season."
-          action={<CreateLeagueButton seasons={seasonsPage.items} />}
+          description="Leagues are the top-level competition. Create one under any org."
+          action={<CreateLeagueButton orgs={orgList.items} />}
         />
       ) : (
         <Table>
           <THead>
             <TR>
               <TH>Name</TH>
-              <TH>Season</TH>
+              <TH>Org</TH>
               <TH>Sport</TH>
               <TH>Format</TH>
               <TH>Status</TH>
@@ -69,14 +72,14 @@ export default async function LeaguesPage({
               <TR key={l.id}>
                 <TD className="font-medium">
                   <Link
-                    href={`/divisions?leagueId=${l.id}`}
+                    href={`/seasons?leagueId=${l.id}`}
                     className="hover:underline"
                   >
                     {l.name}
                   </Link>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {seasonMap.get(l.seasonId) ?? l.seasonId.slice(0, 8)}
+                  {orgMap.get(l.orgId) ?? l.orgId.slice(0, 8)}
                 </TD>
                 <TD className="text-muted-foreground">{l.sportCode}</TD>
                 <TD className="text-muted-foreground">{l.format}</TD>

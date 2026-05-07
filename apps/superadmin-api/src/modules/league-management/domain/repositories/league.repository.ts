@@ -3,7 +3,8 @@ import type { League } from "../entities/league.entity";
 import { LeagueId } from "../identifiers";
 
 export interface ListLeaguesQuery extends PageQuery {
-  seasonId?: string;
+  /** Post-flip filter — leagues live under orgs. */
+  orgId?: string;
   sportCode?: string;
   status?: string;
   search?: string;

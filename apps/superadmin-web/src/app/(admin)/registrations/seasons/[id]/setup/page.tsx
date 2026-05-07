@@ -20,7 +20,7 @@ export default async function SeasonSetupPage({
   const [pricingTiers, emailTemplates, divisions] = await Promise.all([
     registrationV2.listPricingTiers({ seasonId: id }).catch(() => []),
     registrationV2.listEmailTemplates({ seasonId: id }).catch(() => []),
-    league.listDivisions({ leagueId: undefined }).catch(() => ({ items: [] }))
+    league.listDivisions({ seasonId: id }).catch(() => ({ items: [] }))
   ]);
 
   return (

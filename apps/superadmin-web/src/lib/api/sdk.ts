@@ -578,11 +578,18 @@ export function createApi(f: Fetcher) {
     },
 
     leagueMgmt: {
-      listSeasons: (q: { orgId?: string; sportCode?: string; status?: string } = {}) =>
-        f<Page<Season>>(`/league/seasons${qs(q)}`),
+      // Post-flip hierarchy (2026-05-09): Org → League → Season → Division.
+      listSeasons: (
+        q: {
+          leagueId?: string;
+          orgId?: string;
+          sportCode?: string;
+          status?: string;
+        } = {}
+      ) => f<Page<Season>>(`/league/seasons${qs(q)}`),
       getSeason: (id: string) => f<Season>(`/league/seasons/${id}`),
       createSeason: (body: {
-        orgId: string;
+        leagueId: string;
         name: string;
         sportCode: string;
         startDate: string;
@@ -596,23 +603,24 @@ export function createApi(f: Fetcher) {
           body: JSON.stringify({ status })
         }),
 
-      listLeagues: (q: { seasonId?: string; sportCode?: string; status?: string } = {}) =>
-        f<Page<League>>(`/league/leagues${qs(q)}`),
+      listLeagues: (
+        q: { orgId?: string; sportCode?: string; status?: string } = {}
+      ) => f<Page<League>>(`/league/leagues${qs(q)}`),
       getLeague: (id: string) => f<League>(`/league/leagues/${id}`),
       createLeague: (body: {
-        seasonId: string;
+        orgId: string;
         sportCode: string;
         name: string;
         format?: League["format"];
       }) =>
         f<League>("/league/leagues", { method: "POST", body: JSON.stringify(body) }),
 
-      listDivisions: (q: { leagueId?: string } = {}) =>
+      listDivisions: (q: { seasonId?: string } = {}) =>
         f<Page<Division>>(`/league/divisions${qs(q)}`),
       getDivision: (id: string) =>
         f<Division>(`/league/divisions/${id}`),
       createDivision: (body: {
-        leagueId: string;
+        seasonId: string;
         name: string;
         tier?: string | null;
         genderEligibility?: "male" | "female" | "mixed" | "open";

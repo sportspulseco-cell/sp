@@ -1,5 +1,10 @@
 import { AggregateRoot, DomainError } from "@sportspulse/kernel";
-import { LeagueId, SeasonId, GoverningBodyId, RuleSetId } from "../identifiers";
+import {
+  LeagueId,
+  OrgId,
+  GoverningBodyId,
+  RuleSetId
+} from "../identifiers";
 import {
   type LeagueStatus,
   type LeagueFormat,
@@ -9,7 +14,8 @@ import {
 
 export interface LeagueSnapshot {
   id: string;
-  seasonId: string;
+  /** Post 2026-05-09 hierarchy flip — leagues live under an org. */
+  orgId: string;
   sportCode: string;
   governingBodyId: string | null;
   ruleSetId: string | null;
@@ -21,12 +27,13 @@ export interface LeagueSnapshot {
   updatedAt: Date;
 }
 
-// Aggregate root: League. Lives under a Season; rule-set is locked once
-// registration opens.
+// Aggregate root: League. Persistent competition container under an
+// org (e.g. PPHL — Power Play Hockey League). Seasons are children
+// under it.
 export class League extends AggregateRoot<LeagueId> {
   private constructor(
     id: LeagueId,
-    private readonly _seasonId: SeasonId,
+    private readonly _orgId: OrgId,
     private readonly _sportCode: string,
     private _governingBodyId: GoverningBodyId | null,
     private _ruleSetId: RuleSetId | null,
@@ -42,7 +49,7 @@ export class League extends AggregateRoot<LeagueId> {
 
   static create(input: {
     id: LeagueId;
-    seasonId: SeasonId;
+    orgId: OrgId;
     sportCode: string;
     name: string;
     format?: LeagueFormat;
@@ -55,7 +62,7 @@ export class League extends AggregateRoot<LeagueId> {
     const now = new Date();
     return new League(
       input.id,
-      input.seasonId,
+      input.orgId,
       input.sportCode,
       input.governingBodyId ?? null,
       input.ruleSetId ?? null,
@@ -71,7 +78,7 @@ export class League extends AggregateRoot<LeagueId> {
   static rehydrate(s: LeagueSnapshot): League {
     return new League(
       LeagueId.of(s.id),
-      SeasonId.of(s.seasonId),
+      OrgId.of(s.orgId),
       s.sportCode,
       s.governingBodyId ? GoverningBodyId.of(s.governingBodyId) : null,
       s.ruleSetId ? RuleSetId.of(s.ruleSetId) : null,
@@ -126,7 +133,7 @@ export class League extends AggregateRoot<LeagueId> {
     this._updatedAt = new Date();
   }
 
-  get seasonId(): SeasonId { return this._seasonId; }
+  get orgId(): OrgId { return this._orgId; }
   get sportCode(): string { return this._sportCode; }
   get governingBodyId(): GoverningBodyId | null { return this._governingBodyId; }
   get ruleSetId(): RuleSetId | null { return this._ruleSetId; }
@@ -140,7 +147,7 @@ export class League extends AggregateRoot<LeagueId> {
   toSnapshot(): LeagueSnapshot {
     return {
       id: this.id.value,
-      seasonId: this._seasonId.value,
+      orgId: this._orgId.value,
       sportCode: this._sportCode,
       governingBodyId: this._governingBodyId?.value ?? null,
       ruleSetId: this._ruleSetId?.value ?? null,

@@ -12,7 +12,7 @@ import {
 } from "class-validator";
 
 export class CreateLeagueBodyDto {
-  @ApiProperty() @IsUUID() seasonId!: string;
+  @ApiProperty() @IsUUID() orgId!: string;
   @ApiProperty() @IsString() sportCode!: string;
   @ApiProperty() @IsString() @MaxLength(120) name!: string;
   @ApiPropertyOptional({ enum: ["regular", "tournament", "pickup", "friendly"] })
@@ -58,7 +58,7 @@ export class ListLeaguesQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   limit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() cursor?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() orgId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() sportCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;

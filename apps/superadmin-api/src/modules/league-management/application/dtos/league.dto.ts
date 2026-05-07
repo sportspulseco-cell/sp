@@ -7,7 +7,7 @@ import {
 
 export class LeagueDto {
   @ApiProperty() id!: string;
-  @ApiProperty() seasonId!: string;
+  @ApiProperty() orgId!: string;
   @ApiProperty() sportCode!: string;
   @ApiPropertyOptional({ nullable: true }) governingBodyId!: string | null;
   @ApiPropertyOptional({ nullable: true }) ruleSetId!: string | null;
@@ -21,7 +21,7 @@ export class LeagueDto {
     const x = l.toSnapshot();
     return {
       id: x.id,
-      seasonId: x.seasonId,
+      orgId: x.orgId,
       sportCode: x.sportCode,
       governingBodyId: x.governingBodyId,
       ruleSetId: x.ruleSetId,

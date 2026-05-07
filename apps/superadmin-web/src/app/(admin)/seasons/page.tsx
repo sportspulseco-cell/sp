@@ -1,6 +1,6 @@
 import { CalendarRange } from "lucide-react";
 import Link from "next/link";
-import { leagueMgmt, orgs } from "@/lib/api/server-api";
+import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -17,34 +17,47 @@ import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Seasons — SportsPulse" };
 
-export default async function SeasonsPage() {
-  const [seasons, orgList] = await Promise.all([
-    leagueMgmt.listSeasons().catch(() => ({ items: [] })),
-    orgs.list({ limit: 100 }).catch(() => ({ items: [] }))
+/**
+ * Post-flip hierarchy: seasons live under a league. Filter by ?leagueId=
+ * to scope the list to a single league.
+ */
+export default async function SeasonsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ leagueId?: string }>;
+}) {
+  const sp = await searchParams;
+  const [seasonsPage, leaguesPage] = await Promise.all([
+    leagueMgmt.listSeasons({ leagueId: sp?.leagueId }).catch(() => ({ items: [] })),
+    leagueMgmt.listLeagues().catch(() => ({ items: [] }))
   ]);
-  const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
+  const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Seasons"
-        description="Time-bounded containers under an organization. Hold leagues."
-        action={<CreateSeasonButton orgs={orgList.items} />}
+        description={
+          sp?.leagueId
+            ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? sp.leagueId.slice(0, 8)}`
+            : "Time-bounded instances of a league. Each holds divisions + registrations."
+        }
+        action={<CreateSeasonButton leagues={leaguesPage.items} />}
       />
 
-      {seasons.items.length === 0 ? (
+      {seasonsPage.items.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No seasons yet"
-          description="Create the first season for any organization on the platform."
-          action={<CreateSeasonButton orgs={orgList.items} />}
+          description="Create a season under any league. Leagues come first now (post hierarchy flip)."
+          action={<CreateSeasonButton leagues={leaguesPage.items} />}
         />
       ) : (
         <Table>
           <THead>
             <TR>
               <TH>Name</TH>
-              <TH>Org</TH>
+              <TH>League</TH>
               <TH>Sport</TH>
               <TH>Window</TH>
               <TH>Timezone</TH>
@@ -53,15 +66,18 @@ export default async function SeasonsPage() {
             </TR>
           </THead>
           <TBody>
-            {seasons.items.map((s) => (
+            {seasonsPage.items.map((s) => (
               <TR key={s.id}>
                 <TD className="font-medium">
-                  <Link href={`/leagues?seasonId=${s.id}`} className="hover:underline">
+                  <Link
+                    href={`/divisions?seasonId=${s.id}`}
+                    className="hover:underline"
+                  >
                     {s.name}
                   </Link>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {orgMap.get(s.orgId) ?? s.orgId.slice(0, 8)}
+                  {leagueMap.get(s.leagueId) ?? s.leagueId.slice(0, 8)}
                 </TD>
                 <TD className="text-muted-foreground">{s.sportCode}</TD>
                 <TD className="text-muted-foreground">

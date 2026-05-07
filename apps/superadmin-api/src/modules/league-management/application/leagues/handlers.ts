@@ -10,7 +10,7 @@ import {
   LEAGUE_REPOSITORY,
   type LeagueRepository
 } from "../../domain/repositories/league.repository";
-import { LeagueId, SeasonId, GoverningBodyId, RuleSetId } from "../../domain/identifiers";
+import { LeagueId, OrgId, GoverningBodyId, RuleSetId } from "../../domain/identifiers";
 import { League } from "../../domain/entities/league.entity";
 import {
   assertLeagueFormat,
@@ -22,7 +22,8 @@ import { LeagueDto, LeaguePageDto } from "../dtos/league.dto";
 export interface ListLeaguesInput {
   limit?: number;
   cursor?: string;
-  seasonId?: string;
+  /** Post-flip — leagues belong to an org. */
+  orgId?: string;
   sportCode?: string;
   status?: string;
   search?: string;
@@ -42,7 +43,7 @@ export class ListLeaguesHandler
     const page = await this.leagues.list({
       limit: clampLimit(input.limit),
       cursor: input.cursor,
-      seasonId: input.seasonId,
+      orgId: input.orgId,
       sportCode: input.sportCode,
       status: input.status,
       search: input.search,
@@ -72,7 +73,7 @@ export class GetLeagueHandler
 }
 
 export interface CreateLeagueInput {
-  seasonId: string;
+  orgId: string;
   sportCode: string;
   name: string;
   format?: LeagueFormat;
@@ -88,7 +89,7 @@ export class CreateLeagueHandler
   async execute(input: CreateLeagueInput): Promise<LeagueDto> {
     const league = League.create({
       id: LeagueId.of(randomUUID()),
-      seasonId: SeasonId.of(input.seasonId),
+      orgId: OrgId.of(input.orgId),
       sportCode: input.sportCode,
       name: input.name,
       format: input.format,

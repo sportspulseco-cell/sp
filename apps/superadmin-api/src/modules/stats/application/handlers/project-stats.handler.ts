@@ -53,12 +53,18 @@ export class ProjectStatsHandler
       );
     }
 
-    // Pull league context for the StatLine FKs
-    const [league] = await this.db
-      .select({ id: schema.leagues.id, seasonId: schema.leagues.seasonId })
-      .from(schema.leagues)
-      .where(eq(schema.leagues.id, game.leagueId))
-      .limit(1);
+    // Post-flip: a league has many seasons. The game's season is
+    // resolved from its division (division.seasonId). Falls back to
+    // null when the game has no division attached.
+    let resolvedSeasonId: string | null = null;
+    if (game.divisionId) {
+      const [div] = await this.db
+        .select({ seasonId: schema.divisions.seasonId })
+        .from(schema.divisions)
+        .where(eq(schema.divisions.id, game.divisionId))
+        .limit(1);
+      resolvedSeasonId = div?.seasonId ?? null;
+    }
 
     // Read events for this game in chronological order
     const events = await this.db
@@ -91,7 +97,7 @@ export class ProjectStatsHandler
         // Reducer carries last-known team; fall back to home team if missing
         teamId: p.teamId ?? game.homeTeamId,
         sportCode: game.sportCode,
-        seasonId: league?.seasonId ?? null,
+        seasonId: resolvedSeasonId,
         leagueId: game.leagueId,
         divisionId: game.divisionId,
         gpIncrement: 1,

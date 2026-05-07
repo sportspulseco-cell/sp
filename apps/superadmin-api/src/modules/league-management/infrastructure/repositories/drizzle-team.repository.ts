@@ -26,6 +26,8 @@ export class DrizzleTeamRepository implements TeamRepository {
 
   async existsInLeagues(id: TeamId, leagueIds: string[]): Promise<boolean> {
     if (leagueIds.length === 0) return false;
+    // Post-flip: divisions live under seasons, seasons under leagues.
+    // Traverse division → season → league for the scope check.
     const [row] = await this.db
       .select({ id: schema.divisionTeamEntries.id })
       .from(schema.divisionTeamEntries)
@@ -33,11 +35,15 @@ export class DrizzleTeamRepository implements TeamRepository {
         schema.divisions,
         eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
       )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
       .where(
         and(
           eq(schema.divisionTeamEntries.teamId, id.value),
           isNull(schema.divisionTeamEntries.leftAt),
-          inArray(schema.divisions.leagueId, leagueIds)
+          inArray(schema.seasons.leagueId, leagueIds)
         )
       )
       .limit(1);
@@ -59,10 +65,14 @@ export class DrizzleTeamRepository implements TeamRepository {
           schema.divisions,
           eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
         )
+        .innerJoin(
+          schema.seasons,
+          eq(schema.seasons.id, schema.divisions.seasonId)
+        )
         .where(
           and(
             isNull(schema.divisionTeamEntries.leftAt),
-            inArray(schema.divisions.leagueId, q.leagueIdsFilter)
+            inArray(schema.seasons.leagueId, q.leagueIdsFilter)
           )
         );
       cs.push(inArray(schema.teams.id, allowedTeamIds));

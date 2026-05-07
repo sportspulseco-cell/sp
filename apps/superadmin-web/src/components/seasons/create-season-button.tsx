@@ -4,35 +4,28 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
-import type { Org } from "@/lib/api/types";
+import type { League } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-const SPORTS = [
-  { code: "HOCKEY_ICE", name: "Ice Hockey" },
-  { code: "SOCCER", name: "Soccer / Football" },
-  { code: "BASKETBALL", name: "Basketball" },
-  { code: "BASEBALL", name: "Baseball" },
-  { code: "CRICKET", name: "Cricket" },
-  { code: "RUGBY_UNION", name: "Rugby Union" },
-  { code: "VOLLEYBALL", name: "Volleyball" },
-  { code: "FUTSAL", name: "Futsal" }
-];
-
-export function CreateSeasonButton({ orgs }: { orgs: Org[] }) {
+/**
+ * Post-flip: a season belongs to a LEAGUE (not directly to an org).
+ * Caller passes the league list (filtered by the org if applicable).
+ */
+export function CreateSeasonButton({ leagues }: { leagues: League[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={orgs.length === 0}>
+      <Button onClick={() => setOpen(true)} disabled={leagues.length === 0}>
         <Plus className="mr-2 h-4 w-4" />
         New season
       </Button>
       <CreateSeasonDialog
         open={open}
         onClose={() => setOpen(false)}
-        orgs={orgs}
+        leagues={leagues}
       />
     </>
   );
@@ -41,17 +34,17 @@ export function CreateSeasonButton({ orgs }: { orgs: Org[] }) {
 function CreateSeasonDialog({
   open,
   onClose,
-  orgs
+  leagues
 }: {
   open: boolean;
   onClose: () => void;
-  orgs: Org[];
+  leagues: League[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    orgId: orgs[0]?.id ?? "",
+    leagueId: leagues[0]?.id ?? "",
     name: "",
-    sportCode: "HOCKEY_ICE",
+    sportCode: leagues[0]?.sportCode ?? "HOCKEY_ICE",
     startDate: "",
     endDate: "",
     timezone: "America/New_York"
@@ -83,20 +76,24 @@ function CreateSeasonDialog({
       open={open}
       onClose={onClose}
       title="Create season"
-      description="A season is a time-bounded container — leagues, divisions, and teams live inside it."
+      description="A season is a time-bounded instance of a league — divisions and registrations live inside it."
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Organization" htmlFor="orgId">
+        <Field label="League" htmlFor="leagueId">
           <Select
-            id="orgId"
+            id="leagueId"
             required
-            value={form.orgId}
-            onChange={(e) => set("orgId", e.target.value)}
+            value={form.leagueId}
+            onChange={(e) => {
+              const l = leagues.find((x) => x.id === e.target.value);
+              set("leagueId", e.target.value);
+              if (l) set("sportCode", l.sportCode);
+            }}
           >
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.displayName} ({o.slug})
+            {leagues.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name} ({l.sportCode})
               </option>
             ))}
           </Select>
@@ -107,32 +104,16 @@ function CreateSeasonDialog({
             required
             value={form.name}
             onChange={(e) => set("name", e.target.value)}
-            placeholder="Spring 2027 Hockey"
+            placeholder="PPHL Spring 2027"
           />
         </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Sport" htmlFor="sportCode">
-            <Select
-              id="sportCode"
-              required
-              value={form.sportCode}
-              onChange={(e) => set("sportCode", e.target.value)}
-            >
-              {SPORTS.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Timezone" htmlFor="timezone">
-            <Input
-              id="timezone"
-              value={form.timezone}
-              onChange={(e) => set("timezone", e.target.value)}
-            />
-          </Field>
-        </div>
+        <Field label="Timezone" htmlFor="timezone">
+          <Input
+            id="timezone"
+            value={form.timezone}
+            onChange={(e) => set("timezone", e.target.value)}
+          />
+        </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Start date" htmlFor="startDate">
             <Input

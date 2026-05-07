@@ -11,6 +11,11 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
+import { Inject, NotFoundException } from "@nestjs/common";
+import { eq } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
@@ -41,7 +46,8 @@ export class SeasonsController {
     private readonly createH: CreateSeasonHandler,
     private readonly updateH: UpdateSeasonHandler,
     private readonly statusH: ChangeSeasonStatusHandler,
-    private readonly archiveH: ArchiveSeasonHandler
+    private readonly archiveH: ArchiveSeasonHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   @Get() @ApiOperation({ summary: "List seasons" })
@@ -55,11 +61,29 @@ export class SeasonsController {
   }
 
   @Post() @ApiOperation({ summary: "Create a season" })
-  create(
+  async create(
     @Body() body: CreateSeasonBodyDto,
     @CurrentUser() user: AuthPrincipal
   ): Promise<SeasonDto> {
-    return this.createH.execute({ ...body, createdByUserId: user.userId });
+    // Resolve the parent league's orgId so the handler can store the
+    // denormalised value on the season row. Trigger in migration 0015
+    // is the safety net but we set it explicitly here for clarity.
+    const [league] = await this.db
+      .select({ orgId: schema.leagues.orgId })
+      .from(schema.leagues)
+      .where(eq(schema.leagues.id, body.leagueId))
+      .limit(1);
+    if (!league) throw new NotFoundException("League not found");
+    return this.createH.execute({
+      leagueId: body.leagueId,
+      orgId: league.orgId,
+      name: body.name,
+      sportCode: body.sportCode,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      timezone: body.timezone,
+      createdByUserId: user.userId
+    });
   }
 
   @Patch(":id") @ApiOperation({ summary: "Update a season" })

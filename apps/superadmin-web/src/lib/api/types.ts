@@ -72,6 +72,9 @@ export type SeasonStatus =
 
 export interface Season {
   id: string;
+  /** Post-flip — seasons live under a league. */
+  leagueId: string;
+  /** Denormalised, matches league.orgId. */
   orgId: string;
   name: string;
   sportCode: string;
@@ -88,20 +91,22 @@ export interface Season {
 
 export interface League {
   id: string;
-  seasonId: string;
+  /** Post-flip — leagues live under an org. */
+  orgId: string;
   sportCode: string;
   governingBodyId: string | null;
   ruleSetId: string | null;
   name: string;
   format: "regular" | "tournament" | "pickup" | "friendly";
-  status: SeasonStatus;
+  status: "draft" | "active" | "archived";
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Division {
   id: string;
-  leagueId: string;
+  /** Post-flip — divisions live under a season. */
+  seasonId: string;
   ageGroupId: string | null;
   name: string;
   tier: string | null;

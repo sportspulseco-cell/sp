@@ -79,9 +79,8 @@ export default async function OrgDetailPage({
   ]);
 
   const orgMap = new Map(allOrgsPage.items.map((o) => [o.id, o.displayName]));
-  // Filter leagues for this org by joining via seasons.
-  const orgSeasonIds = new Set(seasonsPage.items.map((s) => s.id));
-  const orgLeagues = leaguesPage.items.filter((l) => orgSeasonIds.has(l.seasonId));
+  // Post-flip — leagues belong directly to an org.
+  const orgLeagues = leaguesPage.items.filter((l) => l.orgId === id);
 
   return (
     <div className="space-y-10">

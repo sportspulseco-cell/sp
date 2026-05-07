@@ -131,12 +131,76 @@ export const ruleSets = pgTable(
 );
 
 // =====================================================================
-// SEASONS — temporal container; lives under an org
+// LEAGUES — persistent competition container under an org.
+//
+// Hierarchy (post 2026-05-09 flip):  Org → League → Season → Division
+// Old hierarchy was Org → Season → League → Division. League used to
+// be a child of season; that was inverted. PPHL ("Power Play Hockey
+// League") is the long-running thing; "PPHL Spring 2026" is a season
+// of it.
+// =====================================================================
+export const leagues = pgTable(
+  "leagues",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    sportCode: text("sport_code")
+      .notNull()
+      .references(() => sports.code),
+    governingBodyId: uuid("governing_body_id").references(
+      () => governingBodies.id,
+      { onDelete: "set null" }
+    ),
+    ruleSetId: uuid("rule_set_id").references(() => ruleSets.id, {
+      onDelete: "set null"
+    }),
+    name: text("name").notNull(),
+    nameTranslations: jsonb("name_translations")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    format: text("format").notNull().default("regular"),
+    status: text("status").notNull().default("active"),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    formatCheck: check(
+      "league_format_check",
+      sql`${t.format} IN ('regular','tournament','pickup','friendly')`
+    ),
+    statusCheck: check(
+      "league_status_check",
+      sql`${t.status} IN ('draft','active','archived')`
+    ),
+    orgIdx: index("league_org_idx").on(t.orgId),
+    sportIdx: index("league_sport_idx").on(t.sportCode),
+    statusIdx: index("league_status_idx").on(t.status)
+  })
+);
+
+// =====================================================================
+// SEASONS — temporal container; lives under a LEAGUE.
+//
+// orgId is kept as a denormalised convenience column (matches
+// league.orgId) so filters and RLS don't need a join. Migration 0015
+// backfills + a trigger in the migration keeps it in sync.
 // =====================================================================
 export const seasons = pgTable(
   "seasons",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    leagueId: uuid("league_id")
+      .notNull()
+      .references(() => leagues.id, { onDelete: "cascade" }),
+    /** Denormalised — derivable through league.orgId. Kept for fast filters. */
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
@@ -187,65 +251,16 @@ export const seasons = pgTable(
 );
 
 // =====================================================================
-// LEAGUES — under a season, scoped to a sport, governed by a rule-set
-// =====================================================================
-export const leagues = pgTable(
-  "leagues",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    seasonId: uuid("season_id")
-      .notNull()
-      .references(() => seasons.id, { onDelete: "cascade" }),
-    sportCode: text("sport_code")
-      .notNull()
-      .references(() => sports.code),
-    governingBodyId: uuid("governing_body_id").references(
-      () => governingBodies.id,
-      { onDelete: "set null" }
-    ),
-    ruleSetId: uuid("rule_set_id").references(() => ruleSets.id, {
-      onDelete: "set null"
-    }),
-    name: text("name").notNull(),
-    nameTranslations: jsonb("name_translations")
-      .notNull()
-      .default(sql`'{}'::jsonb`),
-    format: text("format").notNull().default("regular"),
-    status: text("status").notNull().default("draft"),
-    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow()
-  },
-  (t) => ({
-    formatCheck: check(
-      "league_format_check",
-      sql`${t.format} IN ('regular','tournament','pickup','friendly')`
-    ),
-    statusCheck: check(
-      "league_status_check",
-      sql`${t.status} IN ('draft','registration_open','in_progress','playoffs','completed','archived')`
-    ),
-    seasonIdx: index("league_season_idx").on(t.seasonId),
-    sportIdx: index("league_sport_idx").on(t.sportCode),
-    statusIdx: index("league_status_idx").on(t.status)
-  })
-);
-
-// =====================================================================
-// DIVISIONS — under a league, scoped by age + tier + gender
+// DIVISIONS — under a SEASON, scoped by age + tier + gender.
+// (Was under league; flipped 2026-05-09 — migration 0015.)
 // =====================================================================
 export const divisions = pgTable(
   "divisions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    leagueId: uuid("league_id")
+    seasonId: uuid("season_id")
       .notNull()
-      .references(() => leagues.id, { onDelete: "cascade" }),
+      .references(() => seasons.id, { onDelete: "cascade" }),
     ageGroupId: uuid("age_group_id").references(() => ageGroups.id, {
       onDelete: "set null"
     }),
@@ -277,7 +292,7 @@ export const divisions = pgTable(
       "division_status_check",
       sql`${t.status} IN ('active','archived')`
     ),
-    leagueIdx: index("division_league_idx").on(t.leagueId),
+    seasonIdx: index("division_season_idx").on(t.seasonId),
     ageGroupIdx: index("division_age_group_idx").on(t.ageGroupId)
   })
 );

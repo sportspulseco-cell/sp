@@ -43,7 +43,11 @@ export default async function StatsPage({
     leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt.listTeams({}).catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt
-      .listDivisions(leagueId ? { leagueId } : {})
+      // Post-flip: divisions live under seasons. Stats page used to
+      // filter by league; for now show all divisions and the in-page
+      // filters narrow further. League-scoped views land in the
+      // dedicated league detail page.
+      .listDivisions({})
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 
@@ -204,7 +208,7 @@ async function StandingsTab({
   divisionId?: string;
   teamMap: Map<string, string>;
   leagueMap: Map<string, string>;
-  divisions: Array<{ id: string; name: string; leagueId: string }>;
+  divisions: Array<{ id: string; name: string; seasonId: string }>;
 }) {
   if (!leagueId) {
     return (
@@ -341,7 +345,7 @@ function LeaderboardsTab({
   teamMap
 }: {
   leagues: Array<{ id: string; name: string; sportCode: string }>;
-  divisions: Array<{ id: string; name: string; leagueId: string }>;
+  divisions: Array<{ id: string; name: string; seasonId: string }>;
   teamMap: Map<string, string>;
 }) {
   if (leagues.length === 0) {

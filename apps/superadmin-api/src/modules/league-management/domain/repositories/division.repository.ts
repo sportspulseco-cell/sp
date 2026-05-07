@@ -3,10 +3,14 @@ import type { Division } from "../entities/division.entity";
 import { DivisionId } from "../identifiers";
 
 export interface ListDivisionsQuery extends PageQuery {
-  leagueId?: string;
+  /** Post-flip — divisions live under seasons. */
+  seasonId?: string;
   status?: string;
   search?: string;
-  /** When set, restricts results to divisions whose leagueId is in this list. */
+  /**
+   * When set, restricts results to divisions whose ancestor LEAGUE id
+   * is in this list. The repo joins divisions → seasons → leagues.
+   */
   leagueIdsFilter?: string[];
 }
 

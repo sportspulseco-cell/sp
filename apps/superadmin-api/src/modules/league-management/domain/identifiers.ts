@@ -1,5 +1,10 @@
 import { EntityId } from "@sportspulse/kernel";
 
+export class OrgId extends EntityId<"Org"> {
+  static of(v: string): OrgId {
+    return new OrgId(v);
+  }
+}
 export class SeasonId extends EntityId<"Season"> {
   static of(v: string): SeasonId {
     return new SeasonId(v);

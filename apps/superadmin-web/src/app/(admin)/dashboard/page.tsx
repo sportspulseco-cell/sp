@@ -53,7 +53,7 @@ export default async function DashboardPage() {
   ).length;
 
   const activeLeagues = leaguesPage.items.filter(
-    (l) => l.status !== "archived" && l.status !== "completed"
+    (l) => l.status === "active" || l.status === "draft"
   ).length;
   const submittedRegs = regsPage.items.filter(
     (r) => r.status === "submitted" || r.status === "under_review"

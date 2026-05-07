@@ -4,6 +4,7 @@ import { SEASON_STATUSES } from "../../domain/value-objects/season-status.vo";
 
 export class SeasonDto {
   @ApiProperty() id!: string;
+  @ApiProperty() leagueId!: string;
   @ApiProperty() orgId!: string;
   @ApiProperty() name!: string;
   @ApiProperty() sportCode!: string;
@@ -21,6 +22,7 @@ export class SeasonDto {
     const x = s.toSnapshot();
     return {
       id: x.id,
+      leagueId: x.leagueId,
       orgId: x.orgId,
       name: x.name,
       sportCode: x.sportCode,

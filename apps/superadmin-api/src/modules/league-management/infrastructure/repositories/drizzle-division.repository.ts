@@ -26,12 +26,20 @@ export class DrizzleDivisionRepository implements DivisionRepository {
 
   async list(q: ListDivisionsQuery): Promise<Page<Division>> {
     const cs = [];
-    if (q.leagueId) cs.push(eq(schema.divisions.leagueId, q.leagueId));
+    if (q.seasonId) cs.push(eq(schema.divisions.seasonId, q.seasonId));
     if (q.status) cs.push(eq(schema.divisions.status, q.status));
     if (q.search) cs.push(ilike(schema.divisions.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.divisions.id, q.cursor));
-    if (q.leagueIdsFilter)
-      cs.push(inArray(schema.divisions.leagueId, q.leagueIdsFilter));
+    if (q.leagueIdsFilter) {
+      // Post-flip: divisions live under seasons; seasons under leagues.
+      // Filter divisions by selecting their seasons whose leagueId is
+      // in the allow-list.
+      const allowedSeasonIds = this.db
+        .select({ id: schema.seasons.id })
+        .from(schema.seasons)
+        .where(inArray(schema.seasons.leagueId, q.leagueIdsFilter));
+      cs.push(inArray(schema.divisions.seasonId, allowedSeasonIds));
+    }
 
     const rows = await this.db
       .select()
@@ -52,7 +60,7 @@ export class DrizzleDivisionRepository implements DivisionRepository {
     const x = d.toSnapshot();
     await this.db.insert(schema.divisions).values({
       id: x.id,
-      leagueId: x.leagueId,
+      seasonId: x.seasonId,
       ageGroupId: x.ageGroupId,
       name: x.name,
       tier: x.tier,
@@ -92,7 +100,7 @@ export class DrizzleDivisionRepository implements DivisionRepository {
   private toDomain(r: typeof schema.divisions.$inferSelect): Division {
     return Division.rehydrate({
       id: r.id,
-      leagueId: r.leagueId,
+      seasonId: r.seasonId,
       ageGroupId: r.ageGroupId,
       name: r.name,
       tier: r.tier,

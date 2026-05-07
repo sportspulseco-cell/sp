@@ -17,7 +17,8 @@ interface LeagueLite {
 interface DivisionLite {
   id: string;
   name: string;
-  leagueId: string;
+  /** Post-flip — divisions live under seasons. */
+  seasonId: string;
 }
 
 const METRICS: Record<string, string[]> = {
@@ -53,10 +54,11 @@ export function BuildLeaderboardForm({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Leaderboard | null>(null);
 
-  const eligibleDivisions = useMemo(
-    () => divisions.filter((d) => d.leagueId === form.leagueId),
-    [divisions, form.leagueId]
-  );
+  // Post-flip: divisions belong to seasons, seasons belong to leagues.
+  // We don't have a season filter here yet — show all divisions and
+  // let the admin pick. (League-scoped narrowing will come back when
+  // the leaderboard form learns about seasons.)
+  const eligibleDivisions = divisions;
 
   const metricOptions = METRICS[form.sportCode] ?? METRICS.__default!;
 

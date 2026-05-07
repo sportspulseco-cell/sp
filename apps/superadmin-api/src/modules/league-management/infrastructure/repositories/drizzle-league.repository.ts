@@ -26,7 +26,7 @@ export class DrizzleLeagueRepository implements LeagueRepository {
 
   async list(q: ListLeaguesQuery): Promise<Page<League>> {
     const cs = [];
-    if (q.seasonId) cs.push(eq(schema.leagues.seasonId, q.seasonId));
+    if (q.orgId) cs.push(eq(schema.leagues.orgId, q.orgId));
     if (q.sportCode) cs.push(eq(schema.leagues.sportCode, q.sportCode));
     if (q.status) cs.push(eq(schema.leagues.status, q.status));
     if (q.search) cs.push(ilike(schema.leagues.name, `%${q.search}%`));
@@ -52,7 +52,7 @@ export class DrizzleLeagueRepository implements LeagueRepository {
     const x = l.toSnapshot();
     await this.db.insert(schema.leagues).values({
       id: x.id,
-      seasonId: x.seasonId,
+      orgId: x.orgId,
       sportCode: x.sportCode,
       governingBodyId: x.governingBodyId,
       ruleSetId: x.ruleSetId,
@@ -89,7 +89,7 @@ export class DrizzleLeagueRepository implements LeagueRepository {
   private toDomain(r: typeof schema.leagues.$inferSelect): League {
     return League.rehydrate({
       id: r.id,
-      seasonId: r.seasonId,
+      orgId: r.orgId,
       sportCode: r.sportCode,
       governingBodyId: r.governingBodyId,
       ruleSetId: r.ruleSetId,

@@ -3,7 +3,7 @@ import type { Division } from "../../domain/entities/division.entity";
 
 export class DivisionDto {
   @ApiProperty() id!: string;
-  @ApiProperty() leagueId!: string;
+  @ApiProperty() seasonId!: string;
   @ApiPropertyOptional({ nullable: true }) ageGroupId!: string | null;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) tier!: string | null;
@@ -18,7 +18,7 @@ export class DivisionDto {
     const x = d.toSnapshot();
     return {
       id: x.id,
-      leagueId: x.leagueId,
+      seasonId: x.seasonId,
       ageGroupId: x.ageGroupId,
       name: x.name,
       tier: x.tier,

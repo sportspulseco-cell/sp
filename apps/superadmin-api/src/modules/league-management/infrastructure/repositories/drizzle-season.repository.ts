@@ -32,6 +32,7 @@ export class DrizzleSeasonRepository implements SeasonRepository {
 
   async list(q: ListSeasonsQuery): Promise<Page<Season>> {
     const cs = [];
+    if (q.leagueId) cs.push(eq(schema.seasons.leagueId, q.leagueId));
     if (q.orgId) cs.push(eq(schema.seasons.orgId, q.orgId));
     if (q.sportCode) cs.push(eq(schema.seasons.sportCode, q.sportCode));
     if (q.status) cs.push(eq(schema.seasons.status, q.status));
@@ -57,6 +58,7 @@ export class DrizzleSeasonRepository implements SeasonRepository {
     const x = s.toSnapshot();
     await this.db.insert(schema.seasons).values({
       id: x.id,
+      leagueId: x.leagueId,
       orgId: x.orgId,
       name: x.name,
       sportCode: x.sportCode,
@@ -101,6 +103,7 @@ export class DrizzleSeasonRepository implements SeasonRepository {
   private toDomain(r: typeof schema.seasons.$inferSelect): Season {
     return Season.rehydrate({
       id: r.id,
+      leagueId: r.leagueId,
       orgId: r.orgId,
       name: r.name,
       sportCode: r.sportCode,

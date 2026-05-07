@@ -8,6 +8,9 @@ import {
 
 export interface SeasonSnapshot {
   id: string;
+  /** Post 2026-05-09 — seasons live under a league. */
+  leagueId: string;
+  /** Denormalised, matches league.orgId. */
   orgId: string;
   name: string;
   sportCode: string;
@@ -29,6 +32,7 @@ export interface SeasonSnapshot {
 export class Season extends AggregateRoot<SeasonId> {
   private constructor(
     id: SeasonId,
+    private readonly _leagueId: string,
     private readonly _orgId: string,
     private _name: string,
     private readonly _sportCode: string,
@@ -49,6 +53,7 @@ export class Season extends AggregateRoot<SeasonId> {
 
   static create(input: {
     id: SeasonId;
+    leagueId: string;
     orgId: string;
     name: string;
     sportCode: string;
@@ -69,6 +74,7 @@ export class Season extends AggregateRoot<SeasonId> {
     const now = new Date();
     return new Season(
       input.id,
+      input.leagueId,
       input.orgId,
       input.name.trim(),
       input.sportCode,
@@ -89,6 +95,7 @@ export class Season extends AggregateRoot<SeasonId> {
   static rehydrate(s: SeasonSnapshot): Season {
     return new Season(
       SeasonId.of(s.id),
+      s.leagueId,
       s.orgId,
       s.name,
       s.sportCode,
@@ -171,6 +178,7 @@ export class Season extends AggregateRoot<SeasonId> {
 
   // ---------- accessors ----------
 
+  get leagueId(): string { return this._leagueId; }
   get orgId(): string { return this._orgId; }
   get name(): string { return this._name; }
   get sportCode(): string { return this._sportCode; }
@@ -189,6 +197,7 @@ export class Season extends AggregateRoot<SeasonId> {
   toSnapshot(): SeasonSnapshot {
     return {
       id: this.id.value,
+      leagueId: this._leagueId,
       orgId: this._orgId,
       name: this._name,
       sportCode: this._sportCode,

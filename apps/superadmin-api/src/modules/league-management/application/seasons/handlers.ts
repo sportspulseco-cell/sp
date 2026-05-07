@@ -20,6 +20,9 @@ import { SeasonDto, SeasonPageDto } from "../dtos/season.dto";
 export interface ListSeasonsInput {
   limit?: number;
   cursor?: string;
+  /** Filter by league (post-flip — primary nesting). */
+  leagueId?: string;
+  /** Convenience filter by org (denormalised on seasons). */
   orgId?: string;
   sportCode?: string;
   status?: string;
@@ -36,6 +39,7 @@ export class ListSeasonsHandler
     const page = await this.seasons.list({
       limit: clampLimit(input.limit),
       cursor: input.cursor,
+      leagueId: input.leagueId,
       orgId: input.orgId,
       sportCode: input.sportCode,
       status: input.status,
@@ -62,6 +66,13 @@ export class GetSeasonHandler implements QueryHandler<{ id: string }, SeasonDto>
 // ---------- Commands ----------
 
 export interface CreateSeasonInput {
+  /** Post-flip — seasons live under a league. orgId is derived. */
+  leagueId: string;
+  /**
+   * orgId is denormalised on seasons (matches league.orgId). The
+   * controller resolves it from the league before calling this
+   * handler so the domain entity has a consistent snapshot to insert.
+   */
   orgId: string;
   name: string;
   sportCode: string;
@@ -80,6 +91,7 @@ export class CreateSeasonHandler
   async execute(input: CreateSeasonInput): Promise<SeasonDto> {
     const season = Season.create({
       id: SeasonId.of(randomUUID()),
+      leagueId: input.leagueId,
       orgId: input.orgId,
       name: input.name,
       sportCode: input.sportCode,

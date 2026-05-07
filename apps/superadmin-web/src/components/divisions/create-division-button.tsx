@@ -4,24 +4,24 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
-import type { League } from "@/lib/api/types";
+import type { Season } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-export function CreateDivisionButton({ leagues }: { leagues: League[] }) {
+export function CreateDivisionButton({ seasons }: { seasons: Season[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={leagues.length === 0}>
+      <Button onClick={() => setOpen(true)} disabled={seasons.length === 0}>
         <Plus className="mr-2 h-4 w-4" />
         New division
       </Button>
       <CreateDivisionDialog
         open={open}
         onClose={() => setOpen(false)}
-        leagues={leagues}
+        seasons={seasons}
       />
     </>
   );
@@ -30,15 +30,15 @@ export function CreateDivisionButton({ leagues }: { leagues: League[] }) {
 function CreateDivisionDialog({
   open,
   onClose,
-  leagues
+  seasons
 }: {
   open: boolean;
   onClose: () => void;
-  leagues: League[];
+  seasons: Season[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
-    leagueId: leagues[0]?.id ?? "",
+    seasonId: seasons[0]?.id ?? "",
     name: "",
     tier: "",
     genderEligibility: "open" as "male" | "female" | "mixed" | "open",
@@ -53,7 +53,7 @@ function CreateDivisionDialog({
     setError(null);
     try {
       await leagueMgmt.createDivision({
-        leagueId: form.leagueId,
+        seasonId: form.seasonId,
         name: form.name,
         tier: form.tier || null,
         genderEligibility: form.genderEligibility,
@@ -76,14 +76,14 @@ function CreateDivisionDialog({
       description="Divisions group teams by age, tier, and gender within a league."
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="League" htmlFor="leagueId">
+        <Field label="League" htmlFor="seasonId">
           <Select
-            id="leagueId"
+            id="seasonId"
             required
-            value={form.leagueId}
-            onChange={(e) => setForm((f) => ({ ...f, leagueId: e.target.value }))}
+            value={form.seasonId}
+            onChange={(e) => setForm((f) => ({ ...f, seasonId: e.target.value }))}
           >
-            {leagues.map((l) => (
+            {seasons.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
