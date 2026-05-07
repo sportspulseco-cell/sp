@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 
 /**
- * Auth-gate + chrome wrapper for the Player app.
+ * Player app shell — sidebar + topbar + auth gate.
  * The middleware already verifies role + profile completion; this
  * layout pulls the freshly-authenticated user's profile + scope
  * to render the topbar's role / count line.
