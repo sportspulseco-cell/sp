@@ -73,6 +73,16 @@ export function createApi(f: Fetcher) {
   return {
     iam: {
       me: () => f<Profile>("/iam/me"),
+      meScope: () =>
+        f<{
+          userId: string;
+          isSuperAdmin: boolean;
+          roleCodes: string[];
+          orgIds: string[];
+          leagueIds: string[];
+          teamIds: string[];
+          personId: string | null;
+        }>("/iam/me/scope"),
       listUsers: (
         q: {
           limit?: number;

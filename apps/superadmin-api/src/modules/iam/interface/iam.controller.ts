@@ -63,6 +63,70 @@ export class IamController {
     return this.getCurrentUser.execute({ userId: principal.userId });
   }
 
+  @Get("me/scope")
+  @ApiOperation({
+    summary:
+      "Resolve the current user's role + scope summary. Used by the role-targeted apps (org-admin-web, team-admin-web, player-web) to know which org/team to render the home page against."
+  })
+  async meScope(@CurrentUser() principal: AuthPrincipal): Promise<{
+    userId: string;
+    isSuperAdmin: boolean;
+    roleCodes: string[];
+    orgIds: string[];
+    leagueIds: string[];
+    teamIds: string[];
+    personId: string | null;
+  }> {
+    // Reuses the same projection as loadUserScope but returns the raw
+    // direct assignments alongside the projected sets — the apps need
+    // both ("which team am I on?" vs "which orgs can I read?").
+    const [profile] = await this.db
+      .select({ isSuperAdmin: schema.profiles.isSuperAdmin })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, principal.userId))
+      .limit(1);
+
+    const assignments = await this.db
+      .select({
+        scopeType: schema.userRoleAssignments.scopeType,
+        scopeId: schema.userRoleAssignments.scopeId,
+        roleCode: schema.roles.code
+      })
+      .from(schema.userRoleAssignments)
+      .innerJoin(
+        schema.roles,
+        eq(schema.roles.id, schema.userRoleAssignments.roleId)
+      )
+      .where(
+        and(
+          eq(schema.userRoleAssignments.userId, principal.userId),
+          sql`${schema.userRoleAssignments.revokedAt} IS NULL`
+        )
+      );
+
+    const [person] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, principal.userId))
+      .limit(1);
+
+    return {
+      userId: principal.userId,
+      isSuperAdmin: profile?.isSuperAdmin ?? false,
+      roleCodes: Array.from(new Set(assignments.map((a) => a.roleCode))),
+      orgIds: assignments
+        .filter((a) => a.scopeType === "org" && a.scopeId)
+        .map((a) => a.scopeId as string),
+      leagueIds: assignments
+        .filter((a) => a.scopeType === "league" && a.scopeId)
+        .map((a) => a.scopeId as string),
+      teamIds: assignments
+        .filter((a) => a.scopeType === "team" && a.scopeId)
+        .map((a) => a.scopeId as string),
+      personId: person?.id ?? null
+    };
+  }
+
   // -------- super admin --------
 
   @Get("users")

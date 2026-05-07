@@ -5,21 +5,25 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 /**
  * Resolved access scope for the current principal.
  *
- * `null` for either field means *unrestricted* (super_admin or platform-scoped):
+ * `null` for any field means *unrestricted* (super_admin or platform-scoped):
  * handlers should apply no filter. A non-null array is a hard whitelist; an
  * empty array means the principal has zero visibility for that dimension.
  *
- * `leagueIds` and `orgIds` are projected: a league-scoped role contributes
- * its league directly *and* the org owning that league; an org-scoped role
- * contributes the org directly *and* every league owned by the org.
+ * Projection rules:
+ *   - org-scoped role  → that org + every league owned by it
+ *   - league-scoped    → that league + its parent org
+ *   - team-scoped      → that team + its parent org (read-only access for the
+ *                        team_admin / coach / player apps)
  *
- * Updated post 2026-05-09 hierarchy flip — leagues now live directly under
- * orgs (no season hop in between).
+ * Updated 2026-05-07 — added `teamIds` so the team-targeted apps
+ * (team-admin-web, player-web) can hit existing scoped endpoints
+ * without a full role-and-scope DSL migration.
  */
 export interface UserScope {
   isSuperAdmin: boolean;
   leagueIds: string[] | null;
   orgIds: string[] | null;
+  teamIds: string[] | null;
 }
 
 export async function loadUserScope(
@@ -33,7 +37,7 @@ export async function loadUserScope(
     .limit(1);
 
   if (profile?.isSuperAdmin) {
-    return { isSuperAdmin: true, leagueIds: null, orgIds: null };
+    return { isSuperAdmin: true, leagueIds: null, orgIds: null, teamIds: null };
   }
 
   const rows = await db
@@ -51,7 +55,7 @@ export async function loadUserScope(
 
   // Platform-scoped roles widen visibility beyond per-org/per-league filtering.
   if (rows.some((r) => r.scopeType === "platform")) {
-    return { isSuperAdmin: false, leagueIds: null, orgIds: null };
+    return { isSuperAdmin: false, leagueIds: null, orgIds: null, teamIds: null };
   }
 
   const directOrgIds = rows
@@ -59,6 +63,9 @@ export async function loadUserScope(
     .map((r) => r.scopeId as string);
   const directLeagueIds = rows
     .filter((r) => r.scopeType === "league" && r.scopeId)
+    .map((r) => r.scopeId as string);
+  const directTeamIds = rows
+    .filter((r) => r.scopeType === "team" && r.scopeId)
     .map((r) => r.scopeId as string);
 
   // Project org-scoped assignments → every league owned by the org.
@@ -72,23 +79,44 @@ export async function loadUserScope(
   }
 
   // Project league-scoped assignments → the org each league belongs to.
-  let projectedOrgIds: string[] = [];
+  let projectedOrgIdsFromLeagues: string[] = [];
   if (directLeagueIds.length > 0) {
     const os = await db
       .selectDistinct({ orgId: schema.leagues.orgId })
       .from(schema.leagues)
       .where(inArray(schema.leagues.id, directLeagueIds));
-    projectedOrgIds = os.map((r) => r.orgId);
+    projectedOrgIdsFromLeagues = os.map((r) => r.orgId);
+  }
+
+  // Project team-scoped assignments → the org owning each team. Teams sit
+  // under orgs directly (per the 2026-05-09 hierarchy flip), so a team
+  // scope grants read-only access to that org's data, scope-filtered
+  // further by `teamIds` when handlers care about per-team narrowing.
+  let projectedOrgIdsFromTeams: string[] = [];
+  if (directTeamIds.length > 0) {
+    const os = await db
+      .selectDistinct({ orgId: schema.teams.orgId })
+      .from(schema.teams)
+      .where(inArray(schema.teams.id, directTeamIds));
+    projectedOrgIdsFromTeams = os.map((r) => r.orgId);
   }
 
   const leagueIds = Array.from(
     new Set([...directLeagueIds, ...projectedLeagueIds])
   );
-  const orgIds = Array.from(new Set([...directOrgIds, ...projectedOrgIds]));
+  const orgIds = Array.from(
+    new Set([
+      ...directOrgIds,
+      ...projectedOrgIdsFromLeagues,
+      ...projectedOrgIdsFromTeams
+    ])
+  );
+  const teamIds = Array.from(new Set(directTeamIds));
 
   return {
     isSuperAdmin: false,
     leagueIds,
-    orgIds
+    orgIds,
+    teamIds
   };
 }

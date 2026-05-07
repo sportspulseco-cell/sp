@@ -42,10 +42,13 @@ export class AuthorizedAccessGuard implements CanActivate {
     }
 
     // Reads require an active assignment. `null` = unrestricted (platform); a
-    // non-null but empty array on BOTH dimensions means no active assignment.
+    // non-null but empty array on ALL three dimensions means no active
+    // assignment. Team scope counts here so team_admin / coach / player
+    // sessions on the role-targeted apps clear the gate.
     const noLeagueAccess = scope.leagueIds !== null && scope.leagueIds.length === 0;
     const noOrgAccess = scope.orgIds !== null && scope.orgIds.length === 0;
-    if (noLeagueAccess && noOrgAccess) {
+    const noTeamAccess = scope.teamIds !== null && scope.teamIds.length === 0;
+    if (noLeagueAccess && noOrgAccess && noTeamAccess) {
       throw new ForbiddenException("No active role assignment");
     }
     return true;
