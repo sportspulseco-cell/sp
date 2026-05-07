@@ -54,7 +54,15 @@ export class GamesController {
     @Query() q: ListGamesQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<GamePageDto> {
-    return this.listH.execute({ ...q, leagueIdsFilter: scope.leagueIds ?? undefined });
+    // Same team-scope bypass as rosters/teams: when the query narrows
+    // to a team the user holds directly, drop the league filter so
+    // team_admin / coach / player sessions can read their own schedule.
+    const inDirectTeamScope =
+      q.teamId && (scope.teamIds?.includes(q.teamId) ?? false);
+    return this.listH.execute({
+      ...q,
+      leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
+    });
   }
   @Get(":id") getOne(
     @Param("id") id: string,

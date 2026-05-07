@@ -45,9 +45,15 @@ export class RostersController {
     @Query() q: ListMembershipsQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<TeamMembershipPageDto> {
+    // If the request narrows to a team that's in the user's direct team
+    // scope, bypass the league filter — team-scoped users (team_admin /
+    // coach / player) typically have leagueIds=[] but explicit team
+    // access via their assignment.
+    const inDirectTeamScope =
+      q.teamId && (scope.teamIds?.includes(q.teamId) ?? false);
     return this.listMembershipsH.execute({
       ...q,
-      leagueIdsFilter: scope.leagueIds ?? undefined
+      leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
     });
   }
 

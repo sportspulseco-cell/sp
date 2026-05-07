@@ -45,13 +45,26 @@ export class TeamsController {
     @Query() q: ListTeamsQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<TeamPageDto> {
-    return this.listH.execute({ ...q, leagueIdsFilter: scope.leagueIds ?? undefined });
+    // Team-scoped users have leagueIds=[] but their team is still in
+    // direct scope — let them list it by skipping the league filter
+    // when teamIds is the only signal.
+    const filter =
+      scope.leagueIds && scope.leagueIds.length === 0 && (scope.teamIds?.length ?? 0) > 0
+        ? undefined
+        : (scope.leagueIds ?? undefined);
+    return this.listH.execute({ ...q, leagueIdsFilter: filter });
   }
   @Get(":id") getOne(
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<TeamDto> {
-    return this.getH.execute({ id, leagueIdsFilter: scope.leagueIds ?? undefined });
+    // If the team is in the user's direct team scope, bypass the
+    // league-based filter — the assignment grants access by id.
+    const inDirectTeamScope = scope.teamIds?.includes(id) ?? false;
+    return this.getH.execute({
+      id,
+      leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
+    });
   }
   @Post() create(@Body() body: CreateTeamBodyDto): Promise<TeamDto> {
     return this.createH.execute(body);
