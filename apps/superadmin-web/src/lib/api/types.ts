@@ -76,6 +76,11 @@ export interface Season {
   leagueId: string;
   /** Denormalised, matches league.orgId. */
   orgId: string;
+  /**
+   * Per-season admin toggles (migration 0016). Schema:
+   * @sportspulse/kernel SeasonConfig.
+   */
+  config?: Record<string, unknown>;
   name: string;
   sportCode: string;
   startDate: string;

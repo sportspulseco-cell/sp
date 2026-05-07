@@ -602,6 +602,26 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify({ status })
         }),
+      /**
+       * Patch a season's per-season toggles (`seasons.config` JSONB).
+       * Body keys mirror @sportspulse/kernel SeasonConfig — only the
+       * keys you pass are updated; the rest survive.
+       */
+      updateSeasonConfig: (
+        id: string,
+        body: Partial<{
+          requireUsaHockeyId: boolean;
+          allowFreeAgent: boolean;
+          parentalConsentRequired: boolean;
+          requireLiabilityWaiver: boolean;
+          maxRosterSize: number;
+          rosterLockAt: string;
+        }>
+      ) =>
+        f<{ id: string; config: Record<string, unknown> }>(
+          `/league/seasons/${id}/config`,
+          { method: "PATCH", body: JSON.stringify(body) }
+        ),
 
       listLeagues: (
         q: { orgId?: string; sportCode?: string; status?: string } = {}

@@ -106,4 +106,32 @@ export class SeasonsController {
   archive(@Param("id") id: string): Promise<SeasonDto> {
     return this.archiveH.execute({ id });
   }
+
+  @Patch(":id/config")
+  @ApiOperation({
+    summary:
+      "Patch the season's per-season toggles (config JSONB). Schema lives in @sportspulse/kernel SeasonConfig — keys: requireUsaHockeyId, allowFreeAgent, parentalConsentRequired, requireLiabilityWaiver, maxRosterSize, rosterLockAt."
+  })
+  async patchConfig(
+    @Param("id") id: string,
+    @Body() body: Record<string, unknown>
+  ): Promise<{ id: string; config: Record<string, unknown> }> {
+    // Merge with existing so unrelated keys (whatever the admin set
+    // earlier) survive a partial update.
+    const [row] = await this.db
+      .select({ config: schema.seasons.config })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, id))
+      .limit(1);
+    if (!row) throw new NotFoundException("Season not found");
+    const merged = {
+      ...((row.config as Record<string, unknown>) ?? {}),
+      ...body
+    };
+    await this.db
+      .update(schema.seasons)
+      .set({ config: merged, updatedAt: new Date() })
+      .where(eq(schema.seasons.id, id));
+    return { id, config: merged };
+  }
 }
