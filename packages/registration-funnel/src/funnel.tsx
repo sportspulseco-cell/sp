@@ -3,14 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import type { AnswerMap } from "@sportspulse/kernel";
-import { publicRegistration } from "@/lib/api/public-api";
-import type { PublicSeasonContext, PricingTier } from "@/lib/api/sdk";
-import { Button } from "@/components/ui/button";
-import { Eyebrow, Chip } from "@/components/ui/eyebrow";
-import { Field, Input } from "@/components/ui/input";
-import { FormRenderer } from "@/components/forms/form-renderer";
+import type { PublicRegistrationApi } from "./public-api";
+import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
+import { Button, Eyebrow, Chip, Field, Input } from "@sportspulse/ui";
+import { FormRenderer } from "./form-renderer";
 
-type SubmissionType = "team" | "individual" | "free_agent" | "captain_invite";
 type Step =
   | "path"
   | "account"
@@ -22,15 +19,6 @@ type Step =
   | "payment"
   | "done";
 
-interface WaiverDoc {
-  documentId: string;
-  kind: string;
-  name: string;
-  description: string | null;
-  versionId: string;
-  contentHtml: string;
-  languageCode: string;
-}
 
 const PATHS: {
   value: SubmissionType;
@@ -73,9 +61,16 @@ const PATHS: {
  * comes back via magic-link in a follow-up wave.
  */
 export function RegistrationFunnel({
-  context
+  context,
+  api
 }: {
   context: PublicSeasonContext;
+  /**
+   * Bound public-registration API client. Each consuming app builds
+   * its own via `createPublicRegistration(NEXT_PUBLIC_API_URL)` and
+   * passes it in. This package never reads `process.env` directly.
+   */
+  api: PublicRegistrationApi;
 }) {
   const [step, setStep] = useState<Step>("path");
   const [submissionType, setSubmissionType] = useState<SubmissionType | null>(
@@ -149,7 +144,7 @@ export function RegistrationFunnel({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await publicRegistration.startSubmission(
+      const result = await api.startSubmission(
         context.season.id,
         {
           email: email.trim(),
@@ -171,8 +166,8 @@ export function RegistrationFunnel({
       // blocks advancing to the consent / waivers step. Eligibility
       // flags surface on the Review screen as warnings (spec §6.3).
       const [waiverResp] = await Promise.all([
-        publicRegistration.listWaivers(context.season.id).catch(() => null),
-        publicRegistration
+        api.listWaivers(context.season.id).catch(() => null),
+        api
           .runEligibilityCheck(result.id, email.trim())
           .then((r) => setEligibilityFlags(r.flags))
           .catch(() => undefined)
@@ -202,7 +197,7 @@ export function RegistrationFunnel({
     setSubmitting(true);
     setError(null);
     try {
-      const res = await publicRegistration.pay(submissionId, {
+      const res = await api.pay(submissionId, {
         email,
         mockOutcome: outcome
       });
@@ -276,7 +271,7 @@ export function RegistrationFunnel({
             onSendConsent={async () => {
               setSubmitting(true);
               try {
-                const res = await publicRegistration.startParentalConsent(
+                const res = await api.startParentalConsent(
                   submissionId!,
                   { email, parentEmail }
                 );
@@ -291,7 +286,7 @@ export function RegistrationFunnel({
             onConfirm={async () => {
               setSubmitting(true);
               try {
-                const res = await publicRegistration.confirmParentalConsent(
+                const res = await api.confirmParentalConsent(
                   submissionId!,
                   { email, consentToken }
                 );
@@ -317,7 +312,7 @@ export function RegistrationFunnel({
             fullName={fullName}
             onSign={async (versionId, signatureName) => {
               try {
-                const res = await publicRegistration.signWaiver(
+                const res = await api.signWaiver(
                   submissionId!,
                   {
                     email,

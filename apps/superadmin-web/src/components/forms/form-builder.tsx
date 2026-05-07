@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { FormRenderer } from "./form-renderer";
+import { FormRenderer } from "@sportspulse/registration-funnel";
 
 /**
  * Reusable Form Builder.

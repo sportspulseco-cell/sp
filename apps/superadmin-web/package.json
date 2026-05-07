@@ -12,6 +12,7 @@
   "dependencies": {
     "@sportspulse/auth": "workspace:*",
     "@sportspulse/kernel": "workspace:*",
+    "@sportspulse/registration-funnel": "workspace:*",
     "@sportspulse/ui": "workspace:*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.1",

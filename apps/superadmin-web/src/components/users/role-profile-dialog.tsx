@@ -10,7 +10,7 @@ import {
 import { iam } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { FormRenderer } from "@/components/forms/form-renderer";
+import { FormRenderer } from "@sportspulse/registration-funnel";
 
 /**
  * Role-specific profile editor.

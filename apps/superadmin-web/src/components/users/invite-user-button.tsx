@@ -11,7 +11,7 @@ import {
   type ScopeType
 } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
-import { FormRenderer } from "@/components/forms/form-renderer";
+import { FormRenderer } from "@sportspulse/registration-funnel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";

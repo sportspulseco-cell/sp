@@ -7,8 +7,7 @@ import {
   type FormDefinition,
   type FormQuestion
 } from "@sportspulse/kernel";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Field, Input, Select } from "@sportspulse/ui";
 
 /**
  * Renders a `FormDefinition` to the player.

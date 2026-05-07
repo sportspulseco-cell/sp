@@ -191,6 +191,9 @@ importers:
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@sportspulse/registration-funnel':
+        specifier: workspace:*
+        version: link:../../packages/registration-funnel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -337,6 +340,9 @@ importers:
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@sportspulse/registration-funnel':
+        specifier: workspace:*
+        version: link:../../packages/registration-funnel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -506,6 +512,34 @@ importers:
 
   packages/kernel:
     devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/registration-funnel:
+    dependencies:
+      '@sportspulse/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@sportspulse/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^0.460.0
+        version: 0.460.0(react@19.2.5)
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.2.5(react@19.2.5)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.1
+        version: 18.3.7(@types/react@18.3.28)
       typescript:
         specifier: ^5.6.3
         version: 5.9.3

@@ -22,6 +22,9 @@ const PUBLIC_PATHS = [
   "/sign-in",
   "/sign-up",
   "/auth/callback",
+  // Anonymous registration funnel — anyone with the link can register
+  // before they have an account. Mirrors superadmin-web's same path.
+  "/register",
   "/_next",
   "/favicon.ico"
 ];

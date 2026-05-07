@@ -5,11 +5,13 @@ import { FunnelClient } from "./funnel-client";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 /**
- * Public registration funnel — Workflow 1 v2. Anonymous landing.
+ * Player-app registration funnel — same widget as superadmin-web's
+ * /registration/[id], imported from @sportspulse/registration-funnel
+ * so there is no duplicate logic per repo owner directive 2026-05-09
+ * ("should go hand in hand").
  *
- * The funnel client component lives in @sportspulse/registration-funnel
- * so player-web mounts the same widget — no duplicate logic per repo
- * owner directive 2026-05-09.
+ * Anonymous — middleware whitelists /register so visitors without a
+ * Supabase session can land here.
  */
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ async function getContext(seasonId: string): Promise<PublicSeasonContext | null>
   }
 }
 
-export default async function PublicRegistrationPage({
+export default async function PlayerRegisterPage({
   params
 }: {
   params: Promise<{ id: string }>;
