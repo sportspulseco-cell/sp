@@ -1,7 +1,8 @@
+import Link from "next/link";
 import {
+  ArrowUpRight,
   CalendarRange,
   ClipboardList,
-  ExternalLink,
   Trophy,
   Users,
   UsersRound,
@@ -22,9 +23,6 @@ import {
 import { gameOps, iam, leagueMgmt, roster } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
-
-const SUPERADMIN_URL =
-  process.env.NEXT_PUBLIC_SUPERADMIN_URL ?? "https://sp-superadmin.vercel.app";
 
 function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -81,11 +79,11 @@ export default async function TeamAdminHome() {
   );
 
   return (
-    <main className="mx-auto max-w-6xl space-y-10 px-6 py-12 lg:px-10">
+    <div className="space-y-10">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="space-y-2">
-          <Eyebrow>// sp-team-admin</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-tight tracking-tighter text-fg">
+          <Eyebrow>// Overview</Eyebrow>
+          <h1 className="text-[36px] font-semibold leading-tight tracking-tighter text-fg">
             {team?.name ?? "Your team"}
           </h1>
           <p className="text-[14px] text-fg-muted">
@@ -93,15 +91,13 @@ export default async function TeamAdminHome() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
-            href={`${SUPERADMIN_URL}/teams/${myTeamId}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/roster"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
           >
             Manage roster
-            <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-          </a>
+            <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+          </Link>
         </div>
       </header>
 
@@ -246,7 +242,7 @@ export default async function TeamAdminHome() {
           </Table>
         )}
       </section>
-    </main>
+    </div>
   );
 }
 

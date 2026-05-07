@@ -1,9 +1,10 @@
+import Link from "next/link";
 import {
+  ArrowUpRight,
   Building2,
   CalendarRange,
   CircleDollarSign,
   ClipboardList,
-  ExternalLink,
   Layers,
   ScrollText,
   Trophy,
@@ -31,9 +32,6 @@ import {
 } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
-
-const SUPERADMIN_URL =
-  process.env.NEXT_PUBLIC_SUPERADMIN_URL ?? "https://sp-superadmin.vercel.app";
 
 function formatMoney(cents: number, currency = "USD"): string {
   return new Intl.NumberFormat(undefined, {
@@ -107,11 +105,11 @@ export default async function OrgAdminHome() {
   ).length;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-10 px-6 py-12 lg:px-10">
+    <div className="space-y-10">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="space-y-2">
-          <Eyebrow>// sp-org-admin</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-tight tracking-tighter text-fg">
+          <Eyebrow>// Overview</Eyebrow>
+          <h1 className="text-[36px] font-semibold leading-tight tracking-tighter text-fg">
             {myOrg?.displayName ?? "Your organization"}
           </h1>
           <p className="text-[14px] text-fg-muted">
@@ -119,24 +117,20 @@ export default async function OrgAdminHome() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
-            href={`${SUPERADMIN_URL}/registrations`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/seasons"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
           >
             Manage seasons
-            <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-          </a>
-          <a
-            href={`${SUPERADMIN_URL}/finance/ar`}
-            target="_blank"
-            rel="noopener noreferrer"
+            <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+          </Link>
+          <Link
+            href="/finance"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
           >
-            AR Dashboard
-            <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-          </a>
+            Finance
+            <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+          </Link>
         </div>
       </header>
 
@@ -273,7 +267,7 @@ export default async function OrgAdminHome() {
           </Table>
         )}
       </section>
-    </main>
+    </div>
   );
 }
 

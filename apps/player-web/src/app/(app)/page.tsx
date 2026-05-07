@@ -1,8 +1,8 @@
+import Link from "next/link";
 import {
   CalendarRange,
   ClipboardList,
   Compass,
-  ExternalLink,
   ScrollText,
   ShieldCheck,
   User,
@@ -93,11 +93,11 @@ export default async function PlayerHome() {
     profile.preferredName || fullName || profile.email || "Player";
 
   return (
-    <main className="mx-auto max-w-6xl space-y-10 px-6 py-12 lg:px-10">
+    <div className="space-y-10">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="space-y-2">
-          <Eyebrow>// sp-player</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-tight tracking-tighter text-fg">
+          <Eyebrow>// Home</Eyebrow>
+          <h1 className="text-[36px] font-semibold leading-tight tracking-tighter text-fg">
             Hey {displayName.split(" ")[0]}.
           </h1>
           <p className="text-[14px] text-fg-muted">
@@ -105,20 +105,20 @@ export default async function PlayerHome() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
+          <Link
             href="/register"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
           >
             <Compass className="h-3.5 w-3.5" strokeWidth={1.75} />
             Find a team
-          </a>
-          <a
-            href="/onboarding"
+          </Link>
+          <Link
+            href="/profile"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
           >
             <User className="h-3.5 w-3.5" strokeWidth={1.75} />
             Edit profile
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -291,7 +291,7 @@ export default async function PlayerHome() {
           </Table>
         )}
       </section>
-    </main>
+    </div>
   );
 }
 
