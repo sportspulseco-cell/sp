@@ -6,6 +6,7 @@
 // Both render their fields via the shared <FormRenderer>.
 export { RegistrationFunnel } from "./funnel";
 export { OnboardingFunnel, type OnboardingApi } from "./onboarding-funnel";
+export { SignUpFunnel, type SignUpFunnelApi } from "./sign-up-funnel";
 export { FormRenderer } from "./form-renderer";
 export {
   createPublicRegistration,

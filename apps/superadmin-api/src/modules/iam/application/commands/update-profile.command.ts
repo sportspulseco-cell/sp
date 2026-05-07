@@ -15,6 +15,7 @@ export interface UpdateProfileInput {
   displayName?: string | null;
   locale?: string;
   timezone?: string;
+  countryCode?: string | null;
 }
 
 @Injectable()
@@ -35,6 +36,8 @@ export class UpdateProfileHandler
       displayName: input.displayName
     });
     if (input.locale) profile.setLocale(input.locale, input.timezone);
+    if (input.countryCode !== undefined)
+      profile.setCountryCode(input.countryCode);
     await this.profiles.save(profile);
     return ProfileDto.fromDomain(profile);
   }

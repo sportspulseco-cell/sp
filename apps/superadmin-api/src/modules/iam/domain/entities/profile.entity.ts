@@ -104,6 +104,14 @@ export class Profile extends AggregateRoot<UserId> {
     this._updatedAt = new Date();
   }
 
+  setCountryCode(code: string | null): void {
+    if (code !== null && code.length !== 2) {
+      throw new DomainError("INVALID_COUNTRY", "Country code must be ISO-3166-1 alpha-2");
+    }
+    this._countryCode = code === null ? null : code.toUpperCase();
+    this._updatedAt = new Date();
+  }
+
   promoteToSuperAdmin(): void {
     this._isSuperAdmin = true;
     this._updatedAt = new Date();

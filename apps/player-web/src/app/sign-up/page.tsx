@@ -1,7 +1,7 @@
 import { SignUpClient } from "./sign-up-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Sign up — SportsPulse League Admin" };
+export const metadata = { title: "Sign up — SportsPulse Player" };
 
 export default function SignUpPage() {
   return <SignUpClient />;

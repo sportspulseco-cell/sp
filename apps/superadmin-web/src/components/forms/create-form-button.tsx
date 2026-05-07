@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import {
@@ -9,8 +9,8 @@ import {
   SYSTEM_ROLES,
   type FormPurpose
 } from "@sportspulse/kernel";
-import { registration } from "@/lib/api/browser-api";
-import type { Org } from "@/lib/api/types";
+import { leagueMgmt, registration } from "@/lib/api/browser-api";
+import type { Division, League, Org, Season } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
@@ -46,6 +46,9 @@ function CreateFormDialog({
   const [form, setForm] = useState({
     orgId: orgs[0]?.id ?? "",
     scope: "org" as "org" | "league" | "division",
+    leagueId: "" as string,
+    seasonId: "" as string,
+    divisionId: "" as string,
     purpose: "season_registration" as FormPurpose,
     appliesToRoles: [] as string[],
     name: "",
@@ -53,6 +56,59 @@ function CreateFormDialog({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Cascading scopes — leagues come from the picked org, seasons from
+  // the picked league, divisions from the picked season. Each dropdown
+  // refetches as the parent changes, so the UI never offers a child
+  // value that doesn't actually belong to the parent.
+  const [leagues, setLeagues] = useState<League[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+
+  useEffect(() => {
+    if (!form.orgId || form.scope === "org") return;
+    let cancelled = false;
+    leagueMgmt
+      .listLeagues({ orgId: form.orgId })
+      .then((page) => {
+        if (cancelled) return;
+        setLeagues(page.items);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [form.orgId, form.scope]);
+
+  useEffect(() => {
+    if (!form.leagueId || form.scope !== "division") return;
+    let cancelled = false;
+    leagueMgmt
+      .listSeasons({ leagueId: form.leagueId })
+      .then((page) => {
+        if (cancelled) return;
+        setSeasons(page.items);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [form.leagueId, form.scope]);
+
+  useEffect(() => {
+    if (!form.seasonId || form.scope !== "division") return;
+    let cancelled = false;
+    leagueMgmt
+      .listDivisions({ seasonId: form.seasonId })
+      .then((page) => {
+        if (cancelled) return;
+        setDivisions(page.items);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [form.seasonId, form.scope]);
 
   // Order role codes by their canonical rank — same ordering admins
   // see in the role picker, so the multi-select feels familiar.
@@ -81,9 +137,20 @@ function CreateFormDialog({
     setLoading(true);
     setError(null);
     try {
+      // Resolve scopeId from the cascading pickers. The API rejects
+      // create when scope != org without one — that's the bug we're
+      // fixing here.
+      let scopeId: string | undefined;
+      if (form.scope === "league") scopeId = form.leagueId || undefined;
+      if (form.scope === "division") scopeId = form.divisionId || undefined;
+      if (form.scope !== "org" && !scopeId) {
+        const what = form.scope === "league" ? "league" : "division";
+        throw new Error(`Pick a ${what} for the form's scope before saving.`);
+      }
       await registration.createForm({
         orgId: form.orgId,
         scope: form.scope,
+        scopeId: scopeId ?? null,
         name: form.name,
         description: form.description || null,
         purpose: form.purpose,
@@ -125,7 +192,15 @@ function CreateFormDialog({
             id="scope"
             value={form.scope}
             onChange={(e) =>
-              setForm({ ...form, scope: e.target.value as typeof form.scope })
+              setForm({
+                ...form,
+                scope: e.target.value as typeof form.scope,
+                // Reset child selections when scope changes — they're
+                // only valid relative to the scope they were picked under.
+                leagueId: "",
+                seasonId: "",
+                divisionId: ""
+              })
             }
           >
             <option value="org">Org-wide</option>
@@ -133,6 +208,75 @@ function CreateFormDialog({
             <option value="division">Division-specific</option>
           </Select>
         </Field>
+
+        {(form.scope === "league" || form.scope === "division") && (
+          <Field label="League" htmlFor="leagueId">
+            <Select
+              id="leagueId"
+              required
+              value={form.leagueId}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  leagueId: e.target.value,
+                  seasonId: "",
+                  divisionId: ""
+                })
+              }
+            >
+              <option value="">Select a league…</option>
+              {leagues.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {form.scope === "division" && form.leagueId && (
+          <Field label="Season" htmlFor="seasonId">
+            <Select
+              id="seasonId"
+              required
+              value={form.seasonId}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  seasonId: e.target.value,
+                  divisionId: ""
+                })
+              }
+            >
+              <option value="">Select a season…</option>
+              {seasons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {form.scope === "division" && form.seasonId && (
+          <Field label="Division" htmlFor="divisionId">
+            <Select
+              id="divisionId"
+              required
+              value={form.divisionId}
+              onChange={(e) =>
+                setForm({ ...form, divisionId: e.target.value })
+              }
+            >
+              <option value="">Select a division…</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         <Field
           label="Purpose"
           htmlFor="purpose"

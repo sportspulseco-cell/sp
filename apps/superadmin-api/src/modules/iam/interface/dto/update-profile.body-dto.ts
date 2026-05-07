@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { IsOptional, IsString, Length, MaxLength } from "class-validator";
 
 export class UpdateProfileBodyDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120)
@@ -19,4 +19,8 @@ export class UpdateProfileBodyDto {
 
   @ApiPropertyOptional() @IsOptional() @IsString()
   timezone?: string;
+
+  /** ISO 3166-1 alpha-2 (e.g. US, CA, GB). */
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(2, 2)
+  countryCode?: string | null;
 }

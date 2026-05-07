@@ -73,6 +73,19 @@ export function createApi(f: Fetcher) {
   return {
     iam: {
       me: () => f<Profile>("/iam/me"),
+      patchMe: (body: {
+        legalFirstName?: string | null;
+        legalLastName?: string | null;
+        preferredName?: string | null;
+        displayName?: string | null;
+        countryCode?: string | null;
+        locale?: string;
+        timezone?: string;
+      }) =>
+        f<Profile>("/iam/me", {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
       meScope: () =>
         f<{
           userId: string;

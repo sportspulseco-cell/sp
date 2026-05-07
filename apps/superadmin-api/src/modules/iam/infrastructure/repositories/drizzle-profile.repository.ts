@@ -102,6 +102,7 @@ export class DrizzleProfileRepository implements ProfileRepository {
         legalLastName: s.legalLastName,
         preferredName: s.preferredName,
         displayName: s.displayName,
+        countryCode: s.countryCode,
         locale: s.locale,
         timezone: s.timezone,
         status: s.status,

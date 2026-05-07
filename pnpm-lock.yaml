@@ -72,6 +72,9 @@ importers:
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@sportspulse/registration-funnel':
+        specifier: workspace:*
+        version: link:../../packages/registration-funnel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../../packages/ui

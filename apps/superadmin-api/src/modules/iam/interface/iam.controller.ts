@@ -63,6 +63,18 @@ export class IamController {
     return this.getCurrentUser.execute({ userId: principal.userId });
   }
 
+  @Patch("me")
+  @ApiOperation({
+    summary:
+      "Patch the current user's own profile. Used by the sign-up funnel + role-targeted apps so a freshly-created user can fill in their identity fields without admin help."
+  })
+  async patchMe(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: UpdateProfileBodyDto
+  ): Promise<ProfileDto> {
+    return this.updateProfile.execute({ userId: principal.userId, ...body });
+  }
+
   @Get("me/scope")
   @ApiOperation({
     summary:
