@@ -16,6 +16,7 @@ export class NotificationDto {
   @ApiProperty() attemptCount!: number;
   @ApiPropertyOptional({ nullable: true }) lastError!: string | null;
   @ApiPropertyOptional({ nullable: true }) sentAt!: string | null;
+  @ApiPropertyOptional({ nullable: true }) readAt!: string | null;
   @ApiPropertyOptional({ nullable: true }) sourceEvent!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
@@ -36,6 +37,7 @@ export class NotificationDto {
       attemptCount: r.attemptCount,
       lastError: r.lastError,
       sentAt: r.sentAt?.toISOString() ?? null,
+      readAt: r.readAt?.toISOString() ?? null,
       sourceEvent: r.sourceEvent,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString()

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -127,6 +127,39 @@ export class DrizzleNotificationRepository
     return rows.map((r) => this.toRow(r));
   }
 
+  async markRead(id: string, personId: string): Promise<NotificationRow | null> {
+    // Idempotent — only sets read_at if recipient matches AND it's not
+    // already read. Returns null when the notification doesn't exist
+    // or doesn't belong to this person (caller decides whether to 404).
+    const [row] = await this.db
+      .update(schema.notifications)
+      .set({ readAt: sql`COALESCE(read_at, NOW())`, updatedAt: sql`NOW()` })
+      .where(
+        and(
+          eq(schema.notifications.id, id),
+          eq(schema.notifications.recipientPersonId, personId)
+        )
+      )
+      .returning();
+    return row ? this.toRow(row) : null;
+  }
+
+  async markAllReadForPerson(
+    personId: string
+  ): Promise<{ updated: number }> {
+    const rows = await this.db
+      .update(schema.notifications)
+      .set({ readAt: sql`NOW()`, updatedAt: sql`NOW()` })
+      .where(
+        and(
+          eq(schema.notifications.recipientPersonId, personId),
+          isNull(schema.notifications.readAt)
+        )
+      )
+      .returning({ id: schema.notifications.id });
+    return { updated: rows.length };
+  }
+
   private toRow(r: typeof schema.notifications.$inferSelect): NotificationRow {
     return {
       id: r.id,
@@ -143,6 +176,7 @@ export class DrizzleNotificationRepository
       attemptCount: r.attemptCount,
       lastError: r.lastError,
       sentAt: r.sentAt,
+      readAt: r.readAt,
       sourceEvent: r.sourceEvent,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt

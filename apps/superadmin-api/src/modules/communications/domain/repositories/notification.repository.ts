@@ -24,6 +24,8 @@ export interface NotificationRow {
   attemptCount: number;
   lastError: string | null;
   sentAt: Date | null;
+  /** When the recipient marked it read in their app. NULL = unread. */
+  readAt: Date | null;
   sourceEvent: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -63,6 +65,10 @@ export interface NotificationRepository {
   ): Promise<NotificationRow>;
   incrementAttempt(id: string): Promise<void>;
   recentForPerson(personId: string, limit?: number): Promise<NotificationRow[]>;
+  /** Mark a single notification as read for the given person. */
+  markRead(id: string, personId: string): Promise<NotificationRow | null>;
+  /** Bulk-mark every unread notification for the person as read. */
+  markAllReadForPerson(personId: string): Promise<{ updated: number }>;
 }
 
 export const NOTIFICATION_REPOSITORY = Symbol("NOTIFICATION_REPOSITORY");

@@ -78,6 +78,12 @@ export const notifications = pgTable(
     attemptCount: integer("attempt_count").notNull().default(0),
     lastError: text("last_error"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    /**
+     * When the recipient (player / captain / admin) marked this read in
+     * their app. NULL = unread. Used by the in-app notification list to
+     * render the unread blue dot + the topbar's bell badge count.
+     */
+    readAt: timestamp("read_at", { withTimezone: true }),
     /** Cause / source — `registration.approved`, `manual`, etc. */
     sourceEvent: text("source_event"),
     createdAt: timestamp("created_at", { withTimezone: true })

@@ -24,6 +24,7 @@ import type {
   FeeSchedule,
   FormPurpose,
   FormVersion,
+  FreeAgentPoolEntry,
   Invoice,
   InvoiceStatus,
   Payment,
@@ -510,6 +511,14 @@ export function createApi(f: Fetcher) {
     },
 
     communications: {
+      myUnreadCount: () =>
+        f<{ unread: number }>("/notifications/me/unread-count"),
+      markRead: (id: string) =>
+        f<Notification>(`/notifications/${id}/read`, { method: "POST" }),
+      markAllRead: () =>
+        f<{ updated: number }>("/notifications/me/read-all", {
+          method: "POST"
+        }),
       listNotifications: (
         q: {
           limit?: number;
@@ -1207,6 +1216,32 @@ export function createApi(f: Fetcher) {
         f<TeamInvite>(`/registration-v2/team-invites/${id}/revoke`, {
           method: "PATCH"
         }),
+
+      // Free-agent pool — captains read + place; players upsert their
+      // own entry to advertise themselves between seasons. The pool
+      // table is the Path 2C marketplace from registration-v2 schema.
+      listFreeAgentPool: (q: { seasonId?: string } = {}) =>
+        f<FreeAgentPoolEntry[]>(
+          `/registration-v2/free-agent-pool${qs(q)}`
+        ),
+      upsertFreeAgentEntry: (body: {
+        playerPersonId: string;
+        seasonId: string;
+        positions: string[];
+        availability?: Record<string, unknown>;
+        levelPrimary: "A" | "B" | "C" | "D";
+        levelFlexibility?: string[];
+        note?: string;
+      }) =>
+        f<FreeAgentPoolEntry>("/registration-v2/free-agent-pool", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      placeFreeAgent: (id: string, body: { teamId: string }) =>
+        f<FreeAgentPoolEntry>(
+          `/registration-v2/free-agent-pool/${id}/place`,
+          { method: "PATCH", body: JSON.stringify(body) }
+        ),
 
       rolloverSeason: (targetSeasonId: string, sourceSeasonId: string) =>
         f<{

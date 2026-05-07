@@ -763,7 +763,29 @@ export interface Notification {
   attemptCount: number;
   lastError: string | null;
   sentAt: string | null;
+  /** When the recipient marked it read in their app. NULL = unread. */
+  readAt: string | null;
   sourceEvent: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ----- Free Agent Pool -----
+
+export interface FreeAgentPoolEntry {
+  id: string;
+  playerPersonId: string;
+  seasonId: string;
+  positions: string[];
+  availability: Record<string, unknown>;
+  levelPrimary: string;
+  levelFlexibility: string[] | null;
+  note: string | null;
+  noShowRate: string | null;
+  status: "active" | "placed" | "withdrawn";
+  placedTeamId: string | null;
+  placedAt: string | null;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
