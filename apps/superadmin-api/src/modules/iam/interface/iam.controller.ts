@@ -122,19 +122,29 @@ export class IamController {
       .where(eq(schema.persons.userId, principal.userId))
       .limit(1);
 
+    // Dedupe per scope dimension — a user holding multiple roles on
+    // the same team (e.g. team_admin + coach) should count as one team
+    // for UI purposes ("· 1 team", not "· 2 teams").
+    const dedupe = (xs: string[]) => Array.from(new Set(xs));
     return {
       userId: principal.userId,
       isSuperAdmin: profile?.isSuperAdmin ?? false,
-      roleCodes: Array.from(new Set(assignments.map((a) => a.roleCode))),
-      orgIds: assignments
-        .filter((a) => a.scopeType === "org" && a.scopeId)
-        .map((a) => a.scopeId as string),
-      leagueIds: assignments
-        .filter((a) => a.scopeType === "league" && a.scopeId)
-        .map((a) => a.scopeId as string),
-      teamIds: assignments
-        .filter((a) => a.scopeType === "team" && a.scopeId)
-        .map((a) => a.scopeId as string),
+      roleCodes: dedupe(assignments.map((a) => a.roleCode)),
+      orgIds: dedupe(
+        assignments
+          .filter((a) => a.scopeType === "org" && a.scopeId)
+          .map((a) => a.scopeId as string)
+      ),
+      leagueIds: dedupe(
+        assignments
+          .filter((a) => a.scopeType === "league" && a.scopeId)
+          .map((a) => a.scopeId as string)
+      ),
+      teamIds: dedupe(
+        assignments
+          .filter((a) => a.scopeType === "team" && a.scopeId)
+          .map((a) => a.scopeId as string)
+      ),
       personId: person?.id ?? null
     };
   }
