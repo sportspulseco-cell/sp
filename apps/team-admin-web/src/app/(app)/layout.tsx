@@ -25,19 +25,26 @@ export default async function AppLayout({
   const profile = await iam.me().catch(() => null);
   const scope = await iam.meScope().catch(() => null);
 
+  const isCaptain = scope?.roleCodes.includes("captain") ?? false;
+  const primaryRole = scope?.roleCodes.includes("team_admin")
+    ? "team_admin"
+    : isCaptain
+      ? "captain"
+      : "coach";
   const roleLine = profile && scope
-    ? `team_admin · ${scope.teamIds.length} teams`
+    ? `${primaryRole} · ${scope.teamIds.length} team${scope.teamIds.length === 1 ? "" : "s"}`
     : "loading…";
 
   return (
     <NavProvider>
       <div className="flex min-h-screen bg-bg">
-        <Sidebar />
+        <Sidebar isCaptain={isCaptain} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             email={profile?.email ?? user.email ?? ""}
             displayName={profile?.displayName ?? null}
             roleLine={roleLine}
+            isCaptain={isCaptain}
           />
           <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
             <div className="mx-auto max-w-6xl">{children}</div>

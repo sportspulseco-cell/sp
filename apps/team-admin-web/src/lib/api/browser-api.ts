@@ -50,3 +50,7 @@ const api = createApi(apiFetch);
 // Re-export the SDK namespaces this app actually uses. Add more as
 // the app grows. Same pattern as superadmin-web/league-admin-web.
 export const iam = api.iam;
+export const leagueMgmt = api.leagueMgmt;
+export const roster = api.roster;
+export const registrationV2 = api.registrationV2;
+export const communications = api.communications;

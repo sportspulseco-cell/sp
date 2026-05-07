@@ -13,3 +13,7 @@ export const registration = api.registration;
 export const roster = api.roster;
 export const gameOps = api.gameOps;
 export const finance = api.finance;
+export const communications = api.communications;
+export const stats = api.stats;
+export const compliance = api.compliance;
+export const registrationV2 = api.registrationV2;

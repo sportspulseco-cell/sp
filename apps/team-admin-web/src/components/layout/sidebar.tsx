@@ -8,6 +8,8 @@ import {
   LayoutDashboard,
   ListChecks,
   Mail,
+  Settings,
+  Star,
   Users,
   UsersRound,
   X,
@@ -22,17 +24,37 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-const NAV: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/roster", label: "Roster", icon: Users },
-  { href: "/schedule", label: "Schedule", icon: CalendarRange },
-  { href: "/lineups", label: "Lineups", icon: ListChecks },
-  { href: "/stats", label: "Stats", icon: BarChart3 },
-  { href: "/comms", label: "Communications", icon: Mail }
+interface NavSection {
+  label?: string;
+  items: NavItem[];
+}
+
+const BASE_NAV: NavSection[] = [
+  {
+    items: [
+      { href: "/", label: "Overview", icon: LayoutDashboard },
+      { href: "/roster", label: "Roster", icon: Users },
+      { href: "/schedule", label: "Schedule", icon: CalendarRange },
+      { href: "/lineups", label: "Lineups", icon: ListChecks },
+      { href: "/stats", label: "Stats", icon: BarChart3 },
+      { href: "/comms", label: "Communications", icon: Mail }
+    ]
+  }
 ];
 
-export function Sidebar() {
+const CAPTAIN_NAV: NavSection = {
+  label: "// Captain console",
+  items: [
+    { href: "/captain/team", label: "Manage team", icon: Settings },
+    { href: "/captain/roster", label: "Manage roster", icon: Users },
+    { href: "/captain/invites", label: "Invites", icon: Mail },
+    { href: "/captain/free-agents", label: "Free agents", icon: Star }
+  ]
+};
+
+export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
   const { open, setOpen } = useNav();
+  const sections = isCaptain ? [...BASE_NAV, CAPTAIN_NAV] : BASE_NAV;
 
   return (
     <>
@@ -40,7 +62,9 @@ export function Sidebar() {
       <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
         <SidebarBrand />
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
-          <NavGroup items={NAV} />
+          {sections.map((s, i) => (
+            <NavGroup key={i} section={s} />
+          ))}
         </nav>
         <SidebarFooter />
       </aside>
@@ -73,7 +97,9 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
-          <NavGroup items={NAV} />
+          {sections.map((s, i) => (
+            <NavGroup key={i} section={s} />
+          ))}
         </nav>
         <SidebarFooter />
       </aside>
@@ -111,40 +137,47 @@ function SidebarFooter() {
   );
 }
 
-function NavGroup({ items }: { items: NavItem[] }) {
+function NavGroup({ section }: { section: NavSection }) {
   const pathname = usePathname();
   const { setOpen } = useNav();
   return (
-    <ul className="space-y-0.5">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active =
-          pathname === item.href ||
-          (item.href !== "/" && pathname.startsWith(`${item.href}/`));
-        return (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "group flex h-8 items-center gap-2.5 rounded-md px-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-surface-2 text-fg"
-                  : "text-fg-muted hover:bg-surface-2 hover:text-fg"
-              )}
-            >
-              <Icon
+    <div className="mb-3">
+      {section.label ? (
+        <p className="px-2 pb-1.5 pt-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          {section.label}
+        </p>
+      ) : null}
+      <ul className="space-y-0.5">
+        {section.items.map((item) => {
+          const Icon = item.icon;
+          const active =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                onClick={() => setOpen(false)}
                 className={cn(
-                  "h-4 w-4 shrink-0",
-                  active ? "text-fg" : "text-fg-muted group-hover:text-fg"
+                  "group flex h-8 items-center gap-2.5 rounded-md px-2 text-sm font-medium transition-colors",
+                  active
+                    ? "border-l-2 border-accent bg-surface-2 text-fg"
+                    : "border-l-2 border-transparent text-fg-muted hover:bg-surface-2 hover:text-fg"
                 )}
-                strokeWidth={1.75}
-              />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+              >
+                <Icon
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    active ? "text-fg" : "text-fg-muted group-hover:text-fg"
+                  )}
+                  strokeWidth={1.75}
+                />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   TR,
   Table
 } from "@/components/ui/table";
+import { PromoteCaptainButton } from "@/components/teams/promote-captain-button";
 
 export const metadata = { title: "Teams — League Admin" };
 
@@ -24,7 +25,7 @@ export default async function TeamsPage() {
       <PageHeader
         eyebrow="LEAGUE"
         title="Teams"
-        description="Teams across your leagues."
+        description="Teams across your leagues. Promote any rostered player to captain — they keep their player role and gain captain powers (roster, invites, team profile, free agents)."
       />
       {page.items.length === 0 ? (
         <EmptyState icon={Network} title="No teams" description="No teams visible." />
@@ -36,6 +37,7 @@ export default async function TeamsPage() {
               <TH>Short</TH>
               <TH>Sport</TH>
               <TH>Status</TH>
+              <TH className="text-right">Actions</TH>
             </TR>
           </THead>
           <TBody>
@@ -50,6 +52,9 @@ export default async function TeamsPage() {
                   <Badge tone={statusTone(t.status)} mono>
                     {t.status}
                   </Badge>
+                </TD>
+                <TD className="text-right">
+                  <PromoteCaptainButton teamId={t.id} />
                 </TD>
               </TR>
             ))}
