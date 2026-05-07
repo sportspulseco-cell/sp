@@ -55,11 +55,14 @@ export function Dialog({
       />
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-lg border border-border bg-surface-1 shadow-md",
+          // Cap the dialog at viewport height and let the body scroll —
+          // tall forms (cascading scope pickers, role checklists) were
+          // pushing submit buttons off-screen with no scrollbar before.
+          "relative flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-lg border border-border bg-surface-1 shadow-md",
           widths[size]
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-4">
           <div className="space-y-1">
             <h2
               id="dialog-title"
@@ -79,7 +82,7 @@ export function Dialog({
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto p-6 scrollbar-thin">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6 scrollbar-thin">
           {children}
         </div>
       </div>
