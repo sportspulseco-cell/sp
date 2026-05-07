@@ -55,13 +55,14 @@ export function Dialog({
       />
       <div
         className={cn(
-          // Cap the dialog at viewport height and let the body scroll —
-          // tall forms (cascading scope pickers, role checklists) were
-          // pushing submit buttons off-screen with no scrollbar before.
-          // Tailwind arbitrary values need underscores around the
-          // calc() operator, otherwise the CSS comes out as
-          // `calc(100vh-2rem)` which the browser rejects.
-          "relative flex max-h-[calc(100vh_-_2rem)] w-full flex-col overflow-hidden rounded-lg border border-border bg-surface-1 shadow-md",
+          // Cap the dialog at the parent's content area (100vh - p-4)
+          // and let the body scroll — tall forms (cascading scope
+          // pickers, role checklists) were pushing submit buttons off
+          // screen before. `max-h-full` works because the parent is a
+          // flex container at 100vh. Avoid arbitrary calc() values
+          // here — Tailwind doesn't scan this package by default in
+          // every consumer app, so stock utility classes only.
+          "relative flex max-h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-surface-1 shadow-md",
           widths[size]
         )}
       >
