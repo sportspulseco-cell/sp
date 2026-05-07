@@ -137,9 +137,9 @@ doc/
 | API | `sp-api` | https://sp-api-one.vercel.app |
 | Super-admin | `sp-superadmin` | https://sp-superadmin.vercel.app |
 | League-admin | `sp-league-admin` | https://sp-league-admin.vercel.app |
-| Org-admin | `sp-org-admin` | (created 2026-05-09 — first deploy pending) |
-| Player | `sp-player` | (created 2026-05-09 — first deploy pending) |
-| Team-admin | `sp-team-admin` | (created 2026-05-09 — first deploy pending) |
+| Org-admin | `sp-org-admin` | https://sp-org-admin.vercel.app |
+| Player | `sp-player` | https://sp-player-red.vercel.app (sp-player.vercel.app was taken externally) |
+| Team-admin | `sp-team-admin` | https://sp-team-admin.vercel.app |
 | Landing | `sp-landing` | https://sp-landing-seven.vercel.app |
 
 All Vercel projects live under team `sportspulseco-cells-projects`.
