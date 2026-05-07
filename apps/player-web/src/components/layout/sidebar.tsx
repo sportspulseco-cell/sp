@@ -9,9 +9,13 @@ import {
   Compass,
   CreditCard,
   LayoutDashboard,
+  Mail,
+  Settings,
   ShieldCheck,
   ShoppingBag,
+  Star,
   User,
+  Users,
   UsersRound,
   Video,
   X,
@@ -38,12 +42,15 @@ interface NavSection {
  *   - "My game" — Schedule, Stats, Video
  *   - "My team" — Team, Team store
  *   - "My account" — Payments, Compliance, Notifications
- * Find-a-team / profile / registrations live alongside the home links;
- * the funnel-y stuff (registrations / find a team) lives under "My
- * account" in spirit but the spec doesn't list them — keep them in
- * the top group so first-time users discover them quickly.
+ *   - "Captain console" — only when scope.roleCodes includes 'captain'
+ *   - "Discover" — Find a team, Profile
+ *
+ * The captain section is the dual-role surface: a player who's also
+ * been elected captain of their team gets four extra pages here for
+ * roster / invites / free-agent / team-profile management. Hidden
+ * for non-captains.
  */
-const NAV_SECTIONS: NavSection[] = [
+const BASE_NAV: NavSection[] = [
   {
     items: [
       { href: "/", label: "Home", icon: LayoutDashboard }
@@ -71,18 +78,32 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/compliance", label: "Compliance", icon: ShieldCheck },
       { href: "/notifications", label: "Notifications", icon: Bell }
     ]
-  },
-  {
-    label: "// Discover",
-    items: [
-      { href: "/register", label: "Find a team", icon: Compass },
-      { href: "/profile", label: "Profile", icon: User }
-    ]
   }
 ];
 
-export function Sidebar() {
+const CAPTAIN_NAV: NavSection = {
+  label: "// Captain console",
+  items: [
+    { href: "/captain/team", label: "Manage team", icon: Settings },
+    { href: "/captain/roster", label: "Manage roster", icon: Users },
+    { href: "/captain/invites", label: "Invites", icon: Mail },
+    { href: "/captain/free-agents", label: "Free agents", icon: Star }
+  ]
+};
+
+const DISCOVER_NAV: NavSection = {
+  label: "// Discover",
+  items: [
+    { href: "/register", label: "Find a team", icon: Compass },
+    { href: "/profile", label: "Profile", icon: User }
+  ]
+};
+
+export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
   const { open, setOpen } = useNav();
+  const sections = isCaptain
+    ? [...BASE_NAV, CAPTAIN_NAV, DISCOVER_NAV]
+    : [...BASE_NAV, DISCOVER_NAV];
 
   return (
     <>
@@ -90,7 +111,7 @@ export function Sidebar() {
       <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
         <SidebarBrand />
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
-          {NAV_SECTIONS.map((section, i) => (
+          {sections.map((section, i) => (
             <NavGroup key={i} section={section} />
           ))}
         </nav>
@@ -125,7 +146,7 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
-          {NAV_SECTIONS.map((section, i) => (
+          {sections.map((section, i) => (
             <NavGroup key={i} section={section} />
           ))}
         </nav>

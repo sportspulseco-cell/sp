@@ -164,9 +164,30 @@ async function main() {
         orgId: null,
         code: "team_admin",
         name: "Team Admin",
-        description: "Manages roster + lineups for one team.",
+        description:
+          "League/club-installed manager for one team. Handles paperwork, fees, and league communications.",
         isSystem: true,
         permissions: ["team.*", "roster.write"]
+      },
+      {
+        orgId: null,
+        code: "captain",
+        name: "Captain",
+        description:
+          "Rostered player elected to lead the team. Admin powers over roster + invites + lineups; appears in roster + stats as a player.",
+        isSystem: true,
+        permissions: [
+          "team.read",
+          "team.write",
+          "roster.read",
+          "roster.write",
+          "lineup.write",
+          "invite.issue",
+          "invite.revoke",
+          "free_agent.read",
+          "free_agent.claim",
+          "self.read"
+        ]
       },
       {
         orgId: null,

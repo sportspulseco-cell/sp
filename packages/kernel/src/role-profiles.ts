@@ -143,12 +143,28 @@ export const ROLE_PROFILE_SCHEMAS: RoleProfileSchemas = {
   team_admin: {
     schemaVersion: 1,
     questions: [
+      q({ key: "phone", type: "phone", label: "Phone", required: true })
+    ]
+  },
+  captain: {
+    schemaVersion: 1,
+    questions: [
       q({ key: "phone", type: "phone", label: "Phone", required: true }),
       q({
-        key: "isCaptain",
-        type: "checkbox",
-        label: "I'm also the team captain",
-        helpText: "Captains can submit lineups and accept invites."
+        key: "yearsCaptaining",
+        type: "number",
+        label: "Years as captain",
+        helpText: "Hockey, soccer, rugby — count any sport."
+      }),
+      q({
+        key: "preferredCommsChannel",
+        type: "select",
+        label: "Preferred way to reach you on game day",
+        options: [
+          { value: "sms", label: "SMS" },
+          { value: "email", label: "Email" },
+          { value: "in_app", label: "In-app push" }
+        ]
       })
     ]
   },

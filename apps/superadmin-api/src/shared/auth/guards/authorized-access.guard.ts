@@ -5,8 +5,10 @@ import {
   Inject,
   Injectable
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import type { Database } from "@sportspulse/db";
 import { DRIZZLE } from "../../database/database.tokens";
+import { ALLOW_SCOPED_WRITE_KEY } from "../decorators/allow-scoped-write.decorator";
 import { loadUserScope } from "../scope";
 
 /**
@@ -21,7 +23,10 @@ import { loadUserScope } from "../scope";
  */
 @Injectable()
 export class AuthorizedAccessGuard implements CanActivate {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly reflector: Reflector
+  ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest();
@@ -35,9 +40,13 @@ export class AuthorizedAccessGuard implements CanActivate {
 
     const method = (req.method ?? "").toUpperCase();
     const isRead = method === "GET" || method === "HEAD" || method === "OPTIONS";
-    if (!isRead) {
+    const allowScopedWrite = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_SCOPED_WRITE_KEY,
+      [ctx.getHandler(), ctx.getClass()]
+    );
+    if (!isRead && !allowScopedWrite) {
       throw new ForbiddenException(
-        "Write operations require super_admin (or a scoped @Roles() decorator on the controller)"
+        "Write operations require super_admin (or a @AllowScopedWrite() handler that does its own row-level check)"
       );
     }
 

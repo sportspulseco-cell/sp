@@ -123,6 +123,15 @@ export class RegistrationV2Service {
 
   // ================= TEAM INVITES =================
 
+  async getTeamInvite(id: string) {
+    const [row] = await this.db
+      .select()
+      .from(schema.teamInvites)
+      .where(eq(schema.teamInvites.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
   async listTeamInvites(opts: {
     teamId?: string;
     seasonId?: string;

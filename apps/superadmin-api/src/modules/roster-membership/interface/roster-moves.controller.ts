@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -11,7 +12,10 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { RosterMoveDto, RosterMovePageDto } from "../application/dtos/roster.dto";
 import {
   AddPlayerHandler,
@@ -48,19 +52,27 @@ export class RosterMovesController {
     return this.getH.execute({ id });
   }
 
-  @Post("add") @ApiOperation({ summary: "Add player to team roster" })
+  @Post("add")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Add player to team roster" })
   add(
     @Body() body: MoveBodyDto,
-    @CurrentUser() user: AuthPrincipal
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
   ): Promise<RosterMoveDto> {
+    assertCanWriteTeam(scope, body.teamId);
     return this.addH.execute({ ...body, createdByUserId: user.userId });
   }
 
-  @Post("drop") @ApiOperation({ summary: "Drop player from team roster" })
+  @Post("drop")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Drop player from team roster" })
   drop(
     @Body() body: MoveBodyDto,
-    @CurrentUser() user: AuthPrincipal
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
   ): Promise<RosterMoveDto> {
+    assertCanWriteTeam(scope, body.teamId);
     return this.dropH.execute({ ...body, createdByUserId: user.userId });
   }
 
@@ -86,5 +98,17 @@ export class RosterMovesController {
     @CurrentUser() user: AuthPrincipal
   ): Promise<RosterMoveDto> {
     return this.senddownH.execute({ ...body, createdByUserId: user.userId });
+  }
+}
+
+function assertCanWriteTeam(scope: UserScopeType, teamId: string): void {
+  // League/org/super admins always pass. Captains + team_admins pass
+  // only when the move targets a team in their direct teamIds.
+  const allowed =
+    scope.isSuperAdmin ||
+    scope.leagueIds === null ||
+    (scope.teamIds?.includes(teamId) ?? false);
+  if (!allowed) {
+    throw new ForbiddenException("Cannot write roster moves for this team");
   }
 }

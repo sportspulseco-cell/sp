@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -12,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { TeamDto, TeamPageDto } from "../application/dtos/team.dto";
@@ -69,13 +71,29 @@ export class TeamsController {
   @Post() create(@Body() body: CreateTeamBodyDto): Promise<TeamDto> {
     return this.createH.execute(body);
   }
-  @Patch(":id") update(
+  @Patch(":id")
+  @AllowScopedWrite()
+  update(
     @Param("id") id: string,
-    @Body() body: UpdateTeamBodyDto
+    @Body() body: UpdateTeamBodyDto,
+    @UserScope() scope: UserScopeType
   ): Promise<TeamDto> {
+    // Team profile updates: league/org/super admins always pass.
+    // Team-scoped users (team_admin, captain) pass only if the team
+    // is in their direct teamIds — this is the dual-role hand-off
+    // captains use to edit their own team's name, colors, logo.
+    const allowed =
+      scope.isSuperAdmin ||
+      scope.leagueIds === null ||
+      (scope.teamIds?.includes(id) ?? false);
+    if (!allowed) throw new ForbiddenException("Cannot edit this team");
     return this.updateH.execute({ id, ...body });
   }
   @Delete(":id") dissolve(@Param("id") id: string): Promise<TeamDto> {
+    // Dissolve stays super_admin-only — captains shouldn't blow
+    // away their own team. AuthorizedAccessGuard already enforces
+    // super_admin for non-bypass writes via the controller-level
+    // guard, so no extra check needed here.
     return this.dissolveH.execute({ id });
   }
 }

@@ -706,7 +706,20 @@ export function createApi(f: Fetcher) {
         sportCode: string;
         shortName?: string | null;
       }) =>
-        f<Team>("/league/teams", { method: "POST", body: JSON.stringify(body) })
+        f<Team>("/league/teams", { method: "POST", body: JSON.stringify(body) }),
+      updateTeam: (
+        id: string,
+        body: {
+          name?: string;
+          shortName?: string | null;
+          logoUrl?: string | null;
+          colors?: Record<string, unknown>;
+        }
+      ) =>
+        f<Team>(`/league/teams/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        })
     },
 
     registration: {

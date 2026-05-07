@@ -1,18 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, Menu, ShieldCheck } from "lucide-react";
+import { LogOut, Menu, ShieldCheck, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useNav } from "./nav-context";
 
 export function TopBar({
   email,
   displayName,
-  roleLine
+  roleLine,
+  isCaptain
 }: {
   email: string;
   displayName: string | null;
   roleLine: string;
+  isCaptain?: boolean;
 }) {
   const router = useRouter();
   const { setOpen } = useNav();
@@ -41,6 +43,15 @@ export function TopBar({
           <ShieldCheck className="h-3 w-3 shrink-0" strokeWidth={1.75} />
           <span className="truncate">{roleLine}</span>
         </div>
+        {isCaptain ? (
+          <span
+            title="You hold the captain role for your team"
+            className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300"
+          >
+            <Star className="h-3 w-3" strokeWidth={2} />
+            Captain
+          </span>
+        ) : null}
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">

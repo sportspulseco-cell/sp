@@ -320,17 +320,43 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
   {
     code: "team_admin",
     name: "Team Admin",
-    description: "Manages roster + lineups for one team.",
+    description:
+      "League/club-installed manager for one team. Handles paperwork, fees, and league communications. Not necessarily on the roster.",
     scopeType: "team",
     rank: 5,
     defaultPermissions: ["team.*", "roster.write"]
+  },
+  {
+    // Captains are a *player + extra responsibility* dual role: they
+    // hold a team_memberships row (so they show up on the roster +
+    // accumulate stats) AND administrative powers over their team.
+    // Distinct from team_admin (which is administrative-only and may
+    // not be a player). League admin or team admin grants this.
+    code: "captain",
+    name: "Captain",
+    description:
+      "Rostered player elected to lead the team. Admin powers over their own team's roster, profile, and invites — same as team_admin in scope, but the captain is themselves a player on the roster.",
+    scopeType: "team",
+    rank: 6,
+    defaultPermissions: [
+      "team.read",
+      "team.write",
+      "roster.read",
+      "roster.write",
+      "lineup.write",
+      "invite.issue",
+      "invite.revoke",
+      "free_agent.read",
+      "free_agent.claim",
+      "self.read"
+    ]
   },
   {
     code: "coach",
     name: "Coach",
     description: "Reads roster, manages lineups, requests roster moves.",
     scopeType: "team",
-    rank: 6,
+    rank: 7,
     defaultPermissions: ["team.read", "roster.read", "lineup.write"]
   },
   {
@@ -338,7 +364,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     name: "Registrar",
     description: "Reviews registrations + signs documents on behalf.",
     scopeType: "league",
-    rank: 7,
+    rank: 8,
     defaultPermissions: ["registration.review", "document.sign"]
   },
   {
@@ -346,7 +372,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     name: "Referee",
     description: "Officiates games — append events, issue suspensions.",
     scopeType: "league",
-    rank: 8,
+    rank: 9,
     defaultPermissions: ["game.read", "game_event.write", "suspension.issue"]
   },
   {
@@ -354,7 +380,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     name: "Scorekeeper",
     description: "Records scores + events during games.",
     scopeType: "league",
-    rank: 9,
+    rank: 10,
     defaultPermissions: ["game.read", "game_event.write", "score.write"]
   },
   {
@@ -362,7 +388,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     name: "Player",
     description: "Reads own data and schedule.",
     scopeType: "team",
-    rank: 10,
+    rank: 11,
     defaultPermissions: ["self.read"]
   },
   {
@@ -370,7 +396,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     name: "Parent / Guardian",
     description: "Manages dependants, signs consents.",
     scopeType: "platform",
-    rank: 11,
+    rank: 12,
     defaultPermissions: ["dependant.read", "dependant.register", "document.sign"]
   },
   {
@@ -378,7 +404,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     name: "Spectator",
     description: "Public read-only access to schedules + standings.",
     scopeType: "platform",
-    rank: 12,
+    rank: 13,
     defaultPermissions: ["public.read"]
   }
 ];
