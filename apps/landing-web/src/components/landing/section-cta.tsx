@@ -2,12 +2,23 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRight, ShieldCheck, Trophy } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  ShieldCheck,
+  Trophy,
+  User,
+  UsersRound
+} from "lucide-react";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@/components/ui/reveal";
 
 const SUPERADMIN = "https://sp-superadmin.vercel.app";
 const LEAGUE_ADMIN = "https://sp-league-admin.vercel.app";
+const ORG_ADMIN = "https://sp-org-admin.vercel.app";
+const TEAM_ADMIN = "https://sp-team-admin.vercel.app";
+// sp-player.vercel.app was held externally — Vercel auto-assigned -red.
+const PLAYER = "https://sp-player-red.vercel.app";
 
 export function SectionCta() {
   const [email, setEmail] = useState("");
@@ -71,9 +82,11 @@ export function SectionCta() {
           </form>
         </Reveal>
 
-        {/* Already running a league? — direct console access */}
+        {/* Already running a league? — direct console access. Five
+            role-targeted apps each have their own sign-in landing per
+            repo owner directive 2026-05-09. */}
         <Reveal delay={0.22}>
-          <div className="mt-14 grid max-w-3xl gap-4 sm:grid-cols-2">
+          <div className="mt-14 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ConsoleCard
               icon={<ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} />}
               title="Super Admin"
@@ -82,11 +95,32 @@ export function SectionCta() {
               signUp={`${SUPERADMIN}/sign-up`}
             />
             <ConsoleCard
+              icon={<Building2 className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title="Org Admin"
+              sub="One organization: leagues, seasons, billing"
+              signIn={`${ORG_ADMIN}/sign-in`}
+              signUp={`${ORG_ADMIN}/sign-up`}
+            />
+            <ConsoleCard
               icon={<Trophy className="h-3.5 w-3.5" strokeWidth={2.25} />}
               title="League Admin"
               sub="Your league: divisions, teams, games"
               signIn={`${LEAGUE_ADMIN}/sign-in`}
               signUp={`${LEAGUE_ADMIN}/sign-up`}
+            />
+            <ConsoleCard
+              icon={<UsersRound className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title="Team Admin / Coach"
+              sub="Roster, lineups, team comms"
+              signIn={`${TEAM_ADMIN}/sign-in`}
+              signUp={`${TEAM_ADMIN}/sign-up`}
+            />
+            <ConsoleCard
+              icon={<User className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title="Player / Free Agent"
+              sub="Register, sign waivers, find a team"
+              signIn={`${PLAYER}/sign-in`}
+              signUp={`${PLAYER}/sign-up`}
             />
           </div>
         </Reveal>

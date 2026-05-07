@@ -17,6 +17,10 @@ const LINKS = [
 
 const SUPERADMIN = "https://sp-superadmin.vercel.app";
 const LEAGUE_ADMIN = "https://sp-league-admin.vercel.app";
+const ORG_ADMIN = "https://sp-org-admin.vercel.app";
+const TEAM_ADMIN = "https://sp-team-admin.vercel.app";
+// sp-player.vercel.app was held externally — Vercel auto-assigned -red.
+const PLAYER = "https://sp-player-red.vercel.app";
 
 const ACCESS = [
   {
@@ -26,10 +30,28 @@ const ACCESS = [
     signUp: `${SUPERADMIN}/sign-up`
   },
   {
+    title: "Org Admin",
+    sub: "One organization: leagues, seasons, billing",
+    signIn: `${ORG_ADMIN}/sign-in`,
+    signUp: `${ORG_ADMIN}/sign-up`
+  },
+  {
     title: "League Admin",
     sub: "One league: divisions, teams, games",
     signIn: `${LEAGUE_ADMIN}/sign-in`,
     signUp: `${LEAGUE_ADMIN}/sign-up`
+  },
+  {
+    title: "Team Admin / Coach",
+    sub: "Roster, lineups, team comms",
+    signIn: `${TEAM_ADMIN}/sign-in`,
+    signUp: `${TEAM_ADMIN}/sign-up`
+  },
+  {
+    title: "Player / Free Agent",
+    sub: "Register, sign waivers, find a team",
+    signIn: `${PLAYER}/sign-in`,
+    signUp: `${PLAYER}/sign-up`
   }
 ];
 
@@ -124,7 +146,7 @@ export function Nav() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
                   transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute right-0 top-[calc(100%+8px)] z-50 w-[320px] overflow-hidden rounded-xl border border-border bg-bg-elev shadow-xl shadow-black/40"
+                  className="absolute right-0 top-[calc(100%+8px)] z-50 w-[320px] max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-border bg-bg-elev shadow-xl shadow-black/40"
                   role="menu"
                 >
                   <div className="border-b border-border px-4 py-2.5">
