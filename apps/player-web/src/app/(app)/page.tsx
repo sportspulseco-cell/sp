@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
