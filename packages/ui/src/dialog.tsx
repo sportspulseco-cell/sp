@@ -58,7 +58,10 @@ export function Dialog({
           // Cap the dialog at viewport height and let the body scroll —
           // tall forms (cascading scope pickers, role checklists) were
           // pushing submit buttons off-screen with no scrollbar before.
-          "relative flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-lg border border-border bg-surface-1 shadow-md",
+          // Tailwind arbitrary values need underscores around the
+          // calc() operator, otherwise the CSS comes out as
+          // `calc(100vh-2rem)` which the browser rejects.
+          "relative flex max-h-[calc(100vh_-_2rem)] w-full flex-col overflow-hidden rounded-lg border border-border bg-surface-1 shadow-md",
           widths[size]
         )}
       >
