@@ -19,6 +19,7 @@ import {
   RoleDto,
   RolePageDto
 } from "../dtos/role.dto";
+import { SupabaseAdminService } from "../../../../shared/auth/supabase-admin.service";
 
 @Injectable()
 export class ListRolesHandler {
@@ -100,20 +101,51 @@ export class ListAssignmentsHandler {
 
 @Injectable()
 export class AssignRoleHandler {
-  constructor(@Inject(ROLE_REPOSITORY) private readonly repo: RoleRepository) {}
+  constructor(
+    @Inject(ROLE_REPOSITORY) private readonly repo: RoleRepository,
+    private readonly supabase: SupabaseAdminService
+  ) {}
   async execute(input: AssignRoleInput): Promise<RoleAssignmentDto> {
     // Validate role exists and matches scope sanity-check (org-scoped roles
     // shouldn't be assigned at platform scope, etc.).
     const role = await this.repo.findRole(input.roleId);
     if (!role) throw new NotFoundError("Role", input.roleId);
     const row = await this.repo.assignRole(input);
+    // Mirror the user's active role codes into the Supabase JWT
+    // app_metadata so per-app middleware can role-gate without an
+    // API roundtrip on every page load.
+    await this.refreshUserRoleCodes(input.userId);
     return RoleAssignmentDto.fromRow(row);
+  }
+
+  private async refreshUserRoleCodes(userId: string): Promise<void> {
+    try {
+      const rows = await this.repo.activeAssignmentsForUser(userId);
+      const codes = Array.from(
+        new Set(
+          rows
+            .map((r) => r.role?.code)
+            .filter((c): c is string => typeof c === "string")
+        )
+      );
+      await this.supabase.setRoleCodes(userId, codes);
+    } catch (e) {
+      // Don't fail the assign if metadata sync stumbles — assignments
+      // are the source of truth, metadata is an optimisation.
+      console.warn(
+        `[AssignRoleHandler] role_codes sync failed for user=${userId}:`,
+        (e as Error).message
+      );
+    }
   }
 }
 
 @Injectable()
 export class RevokeAssignmentHandler {
-  constructor(@Inject(ROLE_REPOSITORY) private readonly repo: RoleRepository) {}
+  constructor(
+    @Inject(ROLE_REPOSITORY) private readonly repo: RoleRepository,
+    private readonly supabase: SupabaseAdminService
+  ) {}
   async execute(input: {
     id: string;
     revokedByUserId?: string | null;
@@ -124,6 +156,26 @@ export class RevokeAssignmentHandler {
       input.id,
       input.revokedByUserId
     );
+    // Same JWT-mirror as AssignRole — pull the now-current set after
+    // the revoke and push to Supabase.
+    try {
+      const remaining = await this.repo.activeAssignmentsForUser(
+        existing.userId
+      );
+      const codes = Array.from(
+        new Set(
+          remaining
+            .map((r) => r.role?.code)
+            .filter((c): c is string => typeof c === "string")
+        )
+      );
+      await this.supabase.setRoleCodes(existing.userId, codes);
+    } catch (e) {
+      console.warn(
+        `[RevokeAssignmentHandler] role_codes sync failed for user=${existing.userId}:`,
+        (e as Error).message
+      );
+    }
     return RoleAssignmentDto.fromRow(row);
   }
 }

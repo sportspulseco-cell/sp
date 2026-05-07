@@ -96,6 +96,43 @@ export class SupabaseAdminService {
   }
 
   /**
+   * Mirror a user's active role codes into Supabase JWT
+   * `app_metadata.role_codes`. Called by every IAM mutation that
+   * changes which roles a user holds (assignRole, revokeAssignment,
+   * inviteUser-with-role). Each app's middleware reads this metadata
+   * via `@sportspulse/auth/web` requireRole helper — saves a per-
+   * request roundtrip to the API on every page load.
+   *
+   * Token holders need a refresh (sign-out / sign-in or Supabase's
+   * automatic refresh interval) for the new metadata to land in their
+   * JWT. Acceptable for our flow: admin grants role, user signs in,
+   * fresh JWT carries the new code.
+   */
+  async setRoleCodes(userId: string, roleCodes: string[]): Promise<void> {
+    const c = this.get();
+    // Read current app_metadata so we don't clobber unrelated keys.
+    const { data: cur, error: readErr } = await c.auth.admin.getUserById(userId);
+    if (readErr) {
+      this.log.warn(
+        `setRoleCodes read failed for ${userId}: ${readErr.message}`
+      );
+      throw new Error(readErr.message);
+    }
+    const existing = (cur.user?.app_metadata ?? {}) as Record<string, unknown>;
+    const merged = {
+      ...existing,
+      role_codes: Array.from(new Set(roleCodes))
+    };
+    const { error } = await c.auth.admin.updateUserById(userId, {
+      app_metadata: merged
+    });
+    if (error) {
+      this.log.warn(`setRoleCodes failed for ${userId}: ${error.message}`);
+      throw new Error(error.message);
+    }
+  }
+
+  /**
    * Best-effort lookup by email. Pages through up to 1000 users — fine for
    * an MVP, replace with a server-side filter once we wire up the admin API
    * v2 listUsers (currently no `email` filter).

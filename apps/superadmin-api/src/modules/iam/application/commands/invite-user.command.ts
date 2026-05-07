@@ -122,6 +122,24 @@ export class InviteUserHandler {
             : (input.role.scopeId ?? null),
         grantedByUserId: input.invitedByUserId
       });
+      // Mirror role codes into Supabase JWT app_metadata so the
+      // role-gate middleware in each web app can authorise without
+      // a per-request API roundtrip.
+      try {
+        const active = await this.roles.activeAssignmentsForUser(userId);
+        const codes = Array.from(
+          new Set(
+            active
+              .map((r) => r.role?.code)
+              .filter((c): c is string => typeof c === "string")
+          )
+        );
+        await this.supabase.setRoleCodes(userId, codes);
+      } catch (e) {
+        this.log.warn(
+          `[InviteUser] role_codes sync failed for user=${userId}: ${(e as Error).message}`
+        );
+      }
       assignment = RoleAssignmentDto.fromRow(row);
     }
 
