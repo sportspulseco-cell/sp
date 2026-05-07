@@ -41,6 +41,23 @@ export const registrationForms = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     description: text("description"),
+    /**
+     * What this form is used for. Source of truth: @sportspulse/kernel
+     * FORM_PURPOSES. Drives lookups from the funnel (season_registration),
+     * role-profile editor (role_profile), free-agent flow
+     * (team_application), and any future flow (custom).
+     */
+    purpose: text("purpose").notNull().default("season_registration"),
+    /**
+     * Role codes the form's questions apply to (e.g. ['player'] or
+     * ['coach','team_admin']). Empty array = applies to all roles in
+     * scope. Used by the role-profile editor to pick the right form
+     * for the user's primary role.
+     */
+    appliesToRoles: text("applies_to_roles")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     activeVersionId: uuid("active_version_id"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -55,8 +72,16 @@ export const registrationForms = pgTable(
       "form_scope_check",
       sql`${t.scope} IN ('org','league','division')`
     ),
+    purposeCheck: check(
+      "registration_forms_purpose_check",
+      sql`${t.purpose} IN ('season_registration','role_profile','team_application','custom')`
+    ),
     orgIdx: index("form_org_idx").on(t.orgId),
-    scopeIdx: index("form_scope_idx").on(t.scope, t.scopeId)
+    scopeIdx: index("form_scope_idx").on(t.scope, t.scopeId),
+    purposeIdx: index("registration_forms_purpose_idx").on(t.purpose)
+    // applies_to_roles GIN index lives in migration 0016 — Drizzle
+    // doesn't have first-class GIN support yet. Querying via && or
+    // ANY works whether the index is here in code or only in the DB.
   })
 );
 

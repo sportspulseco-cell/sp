@@ -222,6 +222,20 @@ export const seasons = pgTable(
     rosterLockAt: timestamp("roster_lock_at", { withTimezone: true }),
     timezone: text("timezone").notNull().default("UTC"),
     status: text("status").notNull().default("draft"),
+    /**
+     * Per-season admin toggles. Source of truth for the schema is
+     * `SeasonConfig` in @sportspulse/kernel. Expected keys:
+     *   - requireUsaHockeyId       (bool)
+     *   - allowFreeAgent           (bool)
+     *   - parentalConsentRequired  (bool)
+     *   - requireLiabilityWaiver   (bool)
+     *   - maxRosterSize            (int)
+     *   - rosterLockAt             (ISO timestamp string)
+     * Defaults to {} so legacy rows keep their previously hard-coded
+     * behaviour until an admin saves the wizard's "Divisions &
+     * eligibility" step.
+     */
+    config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
