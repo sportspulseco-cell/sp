@@ -137,7 +137,18 @@ doc/
 | API | `sp-api` | https://sp-api-one.vercel.app |
 | Super-admin | `sp-superadmin` | https://sp-superadmin.vercel.app |
 | League-admin | `sp-league-admin` | https://sp-league-admin.vercel.app |
+| Org-admin | `sp-org-admin` | (created 2026-05-09 — first deploy pending) |
+| Player | `sp-player` | (created 2026-05-09 — first deploy pending) |
+| Team-admin | `sp-team-admin` | (created 2026-05-09 — first deploy pending) |
 | Landing | `sp-landing` | https://sp-landing-seven.vercel.app |
+
+All Vercel projects live under team `sportspulseco-cells-projects`.
+
+The three role-targeted apps (`org-admin-web`, `player-web`,
+`team-admin-web`) each have **their own sign-in landing** (separate
+Supabase session per app, per repo owner directive 2026-05-09) and
+**their own role-gate middleware**. UI primitives come from
+`@sportspulse/ui` — no per-app silos.
 
 All four are linked to GitHub `main`. Pushes auto-deploy. Do not edit env
 vars directly via the dashboard for changes a teammate also needs — adjust
