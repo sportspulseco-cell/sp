@@ -1,7 +1,6 @@
 import {
   CalendarRange,
   Clock,
-  Download,
   MapPin
 } from "lucide-react";
 import {
@@ -15,8 +14,9 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
-import { gameOps, iam } from "@/lib/api/server-api";
+import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { ICalExportButton } from "./ical-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -80,11 +80,16 @@ export default async function SchedulePage({
   const scope = await iam.meScope().catch(() => null);
   const myTeamId = scope?.teamIds[0] ?? null;
 
-  const gamesPage = myTeamId
-    ? await gameOps
-        .listGames({ teamId: myTeamId, limit: 100 })
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  const [gamesPage, team] = await Promise.all([
+    myTeamId
+      ? gameOps
+          .listGames({ teamId: myTeamId, limit: 100 })
+          .catch(() => ({ items: [], nextCursor: null }))
+      : Promise.resolve({ items: [], nextCursor: null }),
+    myTeamId
+      ? leagueMgmt.getTeam(myTeamId).catch(() => null)
+      : Promise.resolve(null)
+  ]);
 
   const all: Game[] = gamesPage.items;
   const now = Date.now();
@@ -139,15 +144,10 @@ export default async function SchedulePage({
             </a>
           ))}
         </div>
-        <button
-          type="button"
-          disabled
-          title="iCal export — coming soon"
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted opacity-60"
-        >
-          <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
-          Add to calendar
-        </button>
+        <ICalExportButton
+          games={list}
+          teamLabel={team?.name ?? "My team"}
+        />
       </div>
 
       {list.length === 0 ? (

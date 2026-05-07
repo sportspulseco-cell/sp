@@ -53,3 +53,4 @@ export const iam = api.iam;
 export const leagueMgmt = api.leagueMgmt;
 export const roster = api.roster;
 export const registrationV2 = api.registrationV2;
+export const communications = api.communications;

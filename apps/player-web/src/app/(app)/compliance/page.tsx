@@ -1,7 +1,10 @@
+import Link from "next/link";
 import {
   AlertCircle,
+  ArrowRight,
   Check,
-  ShieldCheck
+  ShieldCheck,
+  Upload
 } from "lucide-react";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import type { EligibilityRecord } from "@sportspulse/api-client";
@@ -171,6 +174,29 @@ export default async function CompliancePage() {
                     · Last evaluated {fmtDate(rec.evaluatedAt)}
                   </p>
                 </div>
+                {/* Per-rule action — for blocking statuses, the player
+                    can resubmit via the onboarding wizard which holds
+                    the role-profile + waiver flow. Per-rule upload
+                    endpoints (USA Hockey ID, signed waivers) ship in
+                    a follow-up; for now we route to the wizard. */}
+                {rec.status === "ineligible" || rec.status === "expired" ? (
+                  <Link
+                    href="/onboarding"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
+                  >
+                    <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Take action
+                    <ArrowRight className="h-3 w-3" strokeWidth={2} />
+                  </Link>
+                ) : rec.status === "pending" ? (
+                  <Link
+                    href="/onboarding"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                  >
+                    Resubmit
+                    <ArrowRight className="h-3 w-3" strokeWidth={2} />
+                  </Link>
+                ) : null}
               </li>
             );
           })}

@@ -31,7 +31,13 @@ function num(s: StatLine, key: string): number {
   return typeof v === "number" ? v : 0;
 }
 
-export default async function StatsPage() {
+export default async function StatsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ seasonId?: string }>;
+}) {
+  const sp = await searchParams;
+  const seasonFilter = sp?.seasonId;
   const scope = await iam.meScope().catch(() => null);
   const personId = scope?.personId ?? null;
   const myTeamId = scope?.teamIds[0] ?? null;
@@ -53,12 +59,11 @@ export default async function StatsPage() {
     );
   }
 
-  // Pull stat lines for this player. seasonId filter would scope to
-  // the current season — left wide here so the page works before the
-  // season-selector ships.
-  const [linesPage, gamesPage] = await Promise.all([
+  // Pull every stat line for this player, derive the distinct
+  // seasonIds for the selector, then narrow if a filter is applied.
+  const [allLinesPage, gamesPage] = await Promise.all([
     stats
-      .listLines({ personId, limit: 100 })
+      .listLines({ personId, limit: 200 })
       .catch(() => ({ items: [], nextCursor: null })),
     myTeamId
       ? gameOps
@@ -67,7 +72,17 @@ export default async function StatsPage() {
       : Promise.resolve({ items: [], nextCursor: null })
   ]);
 
-  const lines: StatLine[] = linesPage.items;
+  const allLines: StatLine[] = allLinesPage.items;
+  const seasonIds = Array.from(
+    new Set(
+      allLines
+        .map((s) => s.seasonId)
+        .filter((id): id is string => id != null)
+    )
+  );
+  const lines: StatLine[] = seasonFilter
+    ? allLines.filter((s) => s.seasonId === seasonFilter)
+    : allLines;
   const games: Game[] = gamesPage.items;
   const gameById = new Map<string, Game>(games.map((g: Game) => [g.id, g]));
 
@@ -104,8 +119,43 @@ export default async function StatsPage() {
       <PageHeader
         eyebrow="// Stats"
         title="Stats"
-        description="Season totals and game-by-game log. Per-season selector + ranks vs. division leader land in a follow-up."
+        description="Season totals and game-by-game log. Switch seasons via the selector below — totals + log re-aggregate on the fly."
       />
+
+      {seasonIds.length > 1 ? (
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            // Season
+          </span>
+          <div className="inline-flex flex-wrap gap-1.5">
+            <a
+              href="/stats"
+              className={
+                "inline-flex h-8 items-center rounded-md border px-3 font-mono text-[10px] uppercase tracking-widest " +
+                (!seasonFilter
+                  ? "border-fg bg-fg text-bg"
+                  : "border-border bg-bg-subtle text-fg-muted hover:border-fg-muted hover:text-fg")
+              }
+            >
+              All seasons
+            </a>
+            {seasonIds.map((sid) => (
+              <a
+                key={sid}
+                href={`/stats?seasonId=${sid}`}
+                className={
+                  "inline-flex h-8 items-center rounded-md border px-3 font-mono text-[10px] uppercase tracking-widest " +
+                  (seasonFilter === sid
+                    ? "border-fg bg-fg text-bg"
+                    : "border-border bg-bg-subtle text-fg-muted hover:border-fg-muted hover:text-fg")
+                }
+              >
+                {sid.slice(0, 8)}
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {lines.length === 0 ? (
         <EmptyState

@@ -32,6 +32,7 @@ import {
   registration,
   roster
 } from "@/lib/api/server-api";
+import { RegistrationStateBanner } from "./registration-state-banner";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -236,6 +237,10 @@ export default async function PlayerHome() {
           </Link>
         </div>
       </header>
+
+      {/* Workflow 5 §3 — registration state banner above the hero so the
+          player knows whether they're new / returning / mid-funnel. */}
+      <RegistrationStateBanner registrations={regPage.items} />
 
       {/* Next-game hero — full width, brand blue. Highest-priority element
           on the dashboard per Workflow 5 §3.2. */}
