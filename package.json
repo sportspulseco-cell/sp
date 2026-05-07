@@ -14,9 +14,13 @@
     "db:seed": "pnpm --filter @sportspulse/db seed",
     "db:studio": "pnpm --filter @sportspulse/db studio",
     "api:dev": "pnpm --filter @sportspulse/superadmin-api start:dev",
-    "web:dev": "pnpm --filter @sportspulse/superadmin-web dev"
+    "web:dev": "pnpm --filter @sportspulse/superadmin-web dev",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install --with-deps chromium"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@types/node": "^22.9.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"

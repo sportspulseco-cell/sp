@@ -1,0 +1,53 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Vercel takes a couple minutes to deploy after a push; this job runs
+# against the live production aliases. If you want to gate merges on
+# preview-deployment URLs instead, swap E2E_TARGET to a per-PR URL.
+jobs:
+  playwright:
+    name: Playwright (production aliases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm test:e2e:install
+
+      - name: Wait for Vercel deploy to land
+        # Push events trigger Vercel; give it 90s to finish before
+        # we hit the live URLs. PR events use preview deployments
+        # which finish similarly fast.
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Run Playwright tests
+        env:
+          E2E_TARGET: prod
+          CI: "1"
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
