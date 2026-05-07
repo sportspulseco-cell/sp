@@ -96,6 +96,29 @@ export class SupabaseAdminService {
   }
 
   /**
+   * Flip `app_metadata.profile_complete = true` (or false) so the
+   * per-app middleware knows whether to redirect first-time sign-ins
+   * to /onboarding. Merges with existing metadata so other keys (e.g.
+   * role_codes) survive.
+   */
+  async setProfileComplete(userId: string, complete: boolean): Promise<void> {
+    const c = this.get();
+    const { data: cur, error: readErr } = await c.auth.admin.getUserById(userId);
+    if (readErr) throw new Error(readErr.message);
+    const existing = (cur.user?.app_metadata ?? {}) as Record<string, unknown>;
+    const merged = { ...existing, profile_complete: complete };
+    const { error } = await c.auth.admin.updateUserById(userId, {
+      app_metadata: merged
+    });
+    if (error) {
+      this.log.warn(
+        `setProfileComplete failed for ${userId}: ${error.message}`
+      );
+      throw new Error(error.message);
+    }
+  }
+
+  /**
    * Mirror a user's active role codes into Supabase JWT
    * `app_metadata.role_codes`. Called by every IAM mutation that
    * changes which roles a user holds (assignRole, revokeAssignment,

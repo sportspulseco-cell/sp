@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsObject, IsString, Matches } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsBoolean, IsObject, IsOptional, IsString, Matches } from "class-validator";
 
 export class SetRoleProfileBodyDto {
   @ApiProperty({ example: "season_admin" })
@@ -13,4 +13,12 @@ export class SetRoleProfileBodyDto {
   @ApiProperty({ description: "Free-form JSON keyed by question key." })
   @IsObject()
   data!: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description:
+      "If true, also flip auth.users.app_metadata.profile_complete = true. Used by the onboarding wizard's final Finish action."
+  })
+  @IsOptional()
+  @IsBoolean()
+  complete?: boolean;
 }

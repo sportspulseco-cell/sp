@@ -66,6 +66,9 @@ importers:
 
   apps/league-admin-web:
     dependencies:
+      '@sportspulse/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -124,12 +127,18 @@ importers:
 
   apps/org-admin-web:
     dependencies:
+      '@sportspulse/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@sportspulse/registration-funnel':
+        specifier: workspace:*
+        version: link:../../packages/registration-funnel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -185,6 +194,9 @@ importers:
 
   apps/player-web:
     dependencies:
+      '@sportspulse/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -334,6 +346,9 @@ importers:
 
   apps/superadmin-web:
     dependencies:
+      '@sportspulse/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -407,12 +422,18 @@ importers:
 
   apps/team-admin-web:
     dependencies:
+      '@sportspulse/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@sportspulse/registration-funnel':
+        specifier: workspace:*
+        version: link:../../packages/registration-funnel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -462,6 +483,16 @@ importers:
       tailwindcss:
         specifier: ^3.4.14
         version: 3.4.19(tsx@4.21.0)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/api-client:
+    dependencies:
+      '@sportspulse/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+    devDependencies:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3

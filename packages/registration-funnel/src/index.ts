@@ -1,7 +1,11 @@
 // Public surface of @sportspulse/registration-funnel.
-// One client component (the multi-step funnel), one factory for the
-// anonymous public API, and the shape types both apps need.
+//
+// Two multi-step flows that share the same wizard look-and-feel:
+//   - <RegistrationFunnel>  — anonymous public season sign-up
+//   - <OnboardingFunnel>    — post-signin role profile setup
+// Both render their fields via the shared <FormRenderer>.
 export { RegistrationFunnel } from "./funnel";
+export { OnboardingFunnel, type OnboardingApi } from "./onboarding-funnel";
 export { FormRenderer } from "./form-renderer";
 export {
   createPublicRegistration,

@@ -178,7 +178,8 @@ export class IamController {
     await this.setRoleProfile.execute({
       userId: id,
       roleCode: body.roleCode,
-      data: body.data
+      data: body.data,
+      complete: body.complete
     });
     return { ok: true };
   }

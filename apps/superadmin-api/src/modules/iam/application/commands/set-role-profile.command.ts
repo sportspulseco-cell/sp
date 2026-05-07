@@ -3,12 +3,19 @@ import { eq, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
+import { SupabaseAdminService } from "../../../../shared/auth/supabase-admin.service";
 
 export interface SetRoleProfileInput {
   userId: string;
   /** e.g. "season_admin", "player", "free_agent" — keyed under metadata.roleProfile */
   roleCode: string;
   data: Record<string, unknown>;
+  /**
+   * When true, also flip `auth.users.app_metadata.profile_complete = true`
+   * so per-app middleware stops bouncing this user to /onboarding.
+   * Used by the onboarding wizard's Finish action.
+   */
+  complete?: boolean;
 }
 
 /**
@@ -26,7 +33,10 @@ export interface SetRoleProfileInput {
 export class SetRoleProfileHandler {
   private readonly log = new Logger(SetRoleProfileHandler.name);
 
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly supabase: SupabaseAdminService
+  ) {}
 
   async execute(input: SetRoleProfileInput): Promise<void> {
     if (!/^[a-z][a-z0-9_]{2,40}$/.test(input.roleCode)) {
@@ -47,5 +57,18 @@ export class SetRoleProfileHandler {
     this.log.log(
       `roleProfile updated for user=${input.userId} role=${input.roleCode}`
     );
+
+    // Onboarding finish: flip the JWT flag so middleware stops
+    // redirecting. Failure here is non-fatal — the profile data
+    // landed; the flag will get set on the next save.
+    if (input.complete) {
+      try {
+        await this.supabase.setProfileComplete(input.userId, true);
+      } catch (e) {
+        this.log.warn(
+          `setProfileComplete failed for user=${input.userId}: ${(e as Error).message}`
+        );
+      }
+    }
   }
 }

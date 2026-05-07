@@ -2,7 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: process.cwd() + "/../..",
-  transpilePackages: ["@sportspulse/auth", "@sportspulse/ui"]
+  transpilePackages: [
+    "@sportspulse/registration-funnel",
+    "@sportspulse/api-client","@sportspulse/auth", "@sportspulse/ui"]
 };
 
 export default nextConfig;
