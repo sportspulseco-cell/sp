@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
+import {
+  FORM_PURPOSES,
+  FORM_PURPOSE_LABELS,
+  SYSTEM_ROLES,
+  type FormPurpose
+} from "@sportspulse/kernel";
 import { registration } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
@@ -40,11 +46,35 @@ function CreateFormDialog({
   const [form, setForm] = useState({
     orgId: orgs[0]?.id ?? "",
     scope: "org" as "org" | "league" | "division",
+    purpose: "season_registration" as FormPurpose,
+    appliesToRoles: [] as string[],
     name: "",
     description: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Order role codes by their canonical rank — same ordering admins
+  // see in the role picker, so the multi-select feels familiar.
+  const roleOptions = useMemo(
+    () =>
+      [...SYSTEM_ROLES]
+        .sort((a, b) => a.rank - b.rank)
+        .map((r) => ({ code: r.code, name: r.name })),
+    []
+  );
+
+  function toggleRole(code: string) {
+    setForm((f) => {
+      const has = f.appliesToRoles.includes(code);
+      return {
+        ...f,
+        appliesToRoles: has
+          ? f.appliesToRoles.filter((c) => c !== code)
+          : [...f.appliesToRoles, code]
+      };
+    });
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -55,7 +85,9 @@ function CreateFormDialog({
         orgId: form.orgId,
         scope: form.scope,
         name: form.name,
-        description: form.description || null
+        description: form.description || null,
+        purpose: form.purpose,
+        appliesToRoles: form.appliesToRoles
       });
       onClose();
       router.refresh();
@@ -100,6 +132,49 @@ function CreateFormDialog({
             <option value="league">League-specific</option>
             <option value="division">Division-specific</option>
           </Select>
+        </Field>
+        <Field
+          label="Purpose"
+          htmlFor="purpose"
+          hint="Where this form is used. Season-registration forms power the public funnel; role-profile forms back the per-role onboarding wizard; team-application is the free-agent flow."
+        >
+          <Select
+            id="purpose"
+            value={form.purpose}
+            onChange={(e) =>
+              setForm({ ...form, purpose: e.target.value as FormPurpose })
+            }
+          >
+            {FORM_PURPOSES.map((p) => (
+              <option key={p} value={p}>
+                {FORM_PURPOSE_LABELS[p]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          label="Applies to roles"
+          hint="Empty = applies to every role in scope. Pick one or more codes when the form should only render for specific roles (e.g. role-profile forms targeting `coach`)."
+        >
+          <div className="grid grid-cols-2 gap-1.5 rounded-md border border-border bg-bg-subtle p-2 sm:grid-cols-3">
+            {roleOptions.map((r) => {
+              const checked = form.appliesToRoles.includes(r.code);
+              return (
+                <label
+                  key={r.code}
+                  className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[12px] text-fg hover:bg-surface-2"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 accent-fg"
+                    checked={checked}
+                    onChange={() => toggleRole(r.code)}
+                  />
+                  <span className="truncate">{r.name}</span>
+                </label>
+              );
+            })}
+          </div>
         </Field>
         <Field label="Name" htmlFor="name">
           <Input

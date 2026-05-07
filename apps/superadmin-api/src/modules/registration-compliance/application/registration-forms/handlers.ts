@@ -4,6 +4,7 @@ import {
   clampLimit,
   NotFoundError,
   type CommandHandler,
+  type FormPurpose,
   type QueryHandler
 } from "@sportspulse/kernel";
 import {
@@ -30,6 +31,8 @@ export interface ListFormsInput {
   orgId?: string;
   scope?: string;
   scopeId?: string;
+  purpose?: FormPurpose;
+  role?: string;
   search?: string;
 }
 
@@ -48,6 +51,8 @@ export class ListFormsHandler
       orgId: input.orgId,
       scope: input.scope,
       scopeId: input.scopeId,
+      purpose: input.purpose,
+      role: input.role,
       search: input.search
     });
     return {
@@ -78,6 +83,8 @@ export interface CreateFormInput {
   scopeId?: string | null;
   name: string;
   description?: string | null;
+  purpose?: FormPurpose;
+  appliesToRoles?: string[];
 }
 
 @Injectable()
@@ -95,7 +102,9 @@ export class CreateFormHandler
       scope: input.scope,
       scopeId: input.scopeId,
       name: input.name,
-      description: input.description
+      description: input.description,
+      purpose: input.purpose,
+      appliesToRoles: input.appliesToRoles
     });
     await this.forms.insert(form);
     return RegistrationFormDto.fromDomain(form);
@@ -106,6 +115,8 @@ export interface UpdateFormInput {
   id: string;
   name?: string;
   description?: string | null;
+  purpose?: FormPurpose;
+  appliesToRoles?: string[];
 }
 
 @Injectable()
@@ -120,6 +131,9 @@ export class UpdateFormHandler
     const form = await this.forms.findById(RegistrationFormId.of(input.id));
     if (!form) throw new NotFoundError("RegistrationForm", input.id);
     if (input.name !== undefined) form.rename(input.name, input.description);
+    if (input.purpose !== undefined) form.setPurpose(input.purpose);
+    if (input.appliesToRoles !== undefined)
+      form.setAppliesToRoles(input.appliesToRoles);
     await this.forms.save(form);
     return RegistrationFormDto.fromDomain(form);
   }

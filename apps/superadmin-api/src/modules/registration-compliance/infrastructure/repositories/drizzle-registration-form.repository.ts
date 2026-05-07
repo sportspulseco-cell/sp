@@ -1,8 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, ilike, sql, desc } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import type { Page } from "@sportspulse/kernel";
+import type { FormPurpose, Page } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import { RegistrationForm } from "../../domain/entities/registration-form.entity";
 import {
@@ -35,6 +35,17 @@ export class DrizzleRegistrationFormRepository
     if (q.orgId) cs.push(eq(schema.registrationForms.orgId, q.orgId));
     if (q.scope) cs.push(eq(schema.registrationForms.scope, q.scope));
     if (q.scopeId) cs.push(eq(schema.registrationForms.scopeId, q.scopeId));
+    if (q.purpose) cs.push(eq(schema.registrationForms.purpose, q.purpose));
+    if (q.role) {
+      // role match = `applies_to_roles @> ARRAY[role]` OR empty array
+      // (which means "applies to every role in scope").
+      cs.push(
+        or(
+          sql`${schema.registrationForms.appliesToRoles} @> ARRAY[${q.role}]::text[]`,
+          sql`array_length(${schema.registrationForms.appliesToRoles}, 1) IS NULL`
+        )!
+      );
+    }
     if (q.search)
       cs.push(ilike(schema.registrationForms.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.registrationForms.id, q.cursor));
@@ -63,6 +74,8 @@ export class DrizzleRegistrationFormRepository
       scopeId: x.scopeId,
       name: x.name,
       description: x.description,
+      purpose: x.purpose,
+      appliesToRoles: x.appliesToRoles,
       activeVersionId: x.activeVersionId
     });
   }
@@ -74,6 +87,8 @@ export class DrizzleRegistrationFormRepository
       .set({
         name: x.name,
         description: x.description,
+        purpose: x.purpose,
+        appliesToRoles: x.appliesToRoles,
         activeVersionId: x.activeVersionId,
         updatedAt: sql`NOW()`
       })
@@ -136,6 +151,8 @@ export class DrizzleRegistrationFormRepository
       scopeId: r.scopeId,
       name: r.name,
       description: r.description,
+      purpose: r.purpose as FormPurpose,
+      appliesToRoles: r.appliesToRoles ?? [],
       activeVersionId: r.activeVersionId,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt

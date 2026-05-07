@@ -22,6 +22,7 @@ import type {
   EligibilityRecord,
   EligibilityStatus,
   FeeSchedule,
+  FormPurpose,
   FormVersion,
   Invoice,
   InvoiceStatus,
@@ -686,8 +687,16 @@ export function createApi(f: Fetcher) {
     },
 
     registration: {
-      listForms: (q: { orgId?: string; search?: string } = {}) =>
-        f<Page<RegistrationForm>>(`/registration/forms${qs(q)}`),
+      listForms: (
+        q: {
+          orgId?: string;
+          scope?: string;
+          scopeId?: string;
+          purpose?: FormPurpose;
+          role?: string;
+          search?: string;
+        } = {}
+      ) => f<Page<RegistrationForm>>(`/registration/forms${qs(q)}`),
       getForm: (id: string) => f<RegistrationForm>(`/registration/forms/${id}`),
       createForm: (body: {
         orgId: string;
@@ -695,9 +704,24 @@ export function createApi(f: Fetcher) {
         scopeId?: string | null;
         name: string;
         description?: string | null;
+        purpose?: FormPurpose;
+        appliesToRoles?: string[];
       }) =>
         f<RegistrationForm>("/registration/forms", {
           method: "POST",
+          body: JSON.stringify(body)
+        }),
+      updateForm: (
+        id: string,
+        body: {
+          name?: string;
+          description?: string | null;
+          purpose?: FormPurpose;
+          appliesToRoles?: string[];
+        }
+      ) =>
+        f<RegistrationForm>(`/registration/forms/${id}`, {
+          method: "PATCH",
           body: JSON.stringify(body)
         }),
       listFormVersions: (formId: string) =>

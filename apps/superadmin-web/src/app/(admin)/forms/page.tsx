@@ -1,5 +1,6 @@
 import { FileSignature } from "lucide-react";
 import Link from "next/link";
+import { FORM_PURPOSE_LABELS, SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
 import { orgs, registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -45,6 +46,8 @@ export default async function FormsPage() {
             <TR>
               <TH>Name</TH>
               <TH>Org</TH>
+              <TH>Purpose</TH>
+              <TH>Applies to</TH>
               <TH>Scope</TH>
               <TH>Active version</TH>
               <TH>Updated</TH>
@@ -65,6 +68,20 @@ export default async function FormsPage() {
                 </TD>
                 <TD className="text-fg-muted">
                   {orgMap.get(f.orgId) ?? f.orgId.slice(0, 8)}
+                </TD>
+                <TD>
+                  <Badge mono tone={f.purpose === "season_registration" ? "neutral" : "info"}>
+                    {FORM_PURPOSE_LABELS[f.purpose] ?? f.purpose}
+                  </Badge>
+                </TD>
+                <TD className="text-[12px] text-fg-muted">
+                  {f.appliesToRoles.length === 0 ? (
+                    <span className="italic text-fg-muted">All roles</span>
+                  ) : (
+                    f.appliesToRoles
+                      .map((c) => SYSTEM_ROLE_BY_CODE[c]?.name ?? c)
+                      .join(", ")
+                  )}
                 </TD>
                 <TD>
                   <Badge mono>{f.scope}</Badge>

@@ -16,6 +16,7 @@ import {
   Min,
   ValidateNested
 } from "class-validator";
+import { FORM_PURPOSES, type FormPurpose } from "@sportspulse/kernel";
 
 // ---------- Forms ----------
 
@@ -27,11 +28,23 @@ export class CreateFormBodyDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() scopeId?: string | null;
   @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(160) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string | null;
+  @ApiPropertyOptional({ enum: FORM_PURPOSES })
+  @IsOptional() @IsIn(FORM_PURPOSES as ReadonlyArray<string>)
+  purpose?: FormPurpose;
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  appliesToRoles?: string[];
 }
 
 export class UpdateFormBodyDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(160) name?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string | null;
+  @ApiPropertyOptional({ enum: FORM_PURPOSES })
+  @IsOptional() @IsIn(FORM_PURPOSES as ReadonlyArray<string>)
+  purpose?: FormPurpose;
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  appliesToRoles?: string[];
 }
 
 export class CreateFormVersionBodyDto {
@@ -46,6 +59,10 @@ export class ListFormsQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() orgId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() scope?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() scopeId?: string;
+  @ApiPropertyOptional({ enum: FORM_PURPOSES })
+  @IsOptional() @IsIn(FORM_PURPOSES as ReadonlyArray<string>)
+  purpose?: FormPurpose;
+  @ApiPropertyOptional() @IsOptional() @IsString() role?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
 }
 

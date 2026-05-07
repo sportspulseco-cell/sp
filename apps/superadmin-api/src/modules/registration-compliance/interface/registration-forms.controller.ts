@@ -48,19 +48,42 @@ export class RegistrationFormsController {
   ) {}
 
   @Get() list(@Query() q: ListFormsQueryDto): Promise<RegistrationFormPageDto> {
-    return this.listH.execute(q);
+    return this.listH.execute({
+      limit: q.limit,
+      cursor: q.cursor,
+      orgId: q.orgId,
+      scope: q.scope,
+      scopeId: q.scopeId,
+      purpose: q.purpose,
+      role: q.role,
+      search: q.search
+    });
   }
   @Get(":id") getOne(@Param("id") id: string): Promise<RegistrationFormDto> {
     return this.getH.execute({ id });
   }
   @Post() create(@Body() body: CreateFormBodyDto): Promise<RegistrationFormDto> {
-    return this.createH.execute(body);
+    return this.createH.execute({
+      orgId: body.orgId,
+      scope: body.scope,
+      scopeId: body.scopeId,
+      name: body.name,
+      description: body.description,
+      purpose: body.purpose,
+      appliesToRoles: body.appliesToRoles
+    });
   }
   @Patch(":id") update(
     @Param("id") id: string,
     @Body() body: UpdateFormBodyDto
   ): Promise<RegistrationFormDto> {
-    return this.updateH.execute({ id, ...body });
+    return this.updateH.execute({
+      id,
+      name: body.name,
+      description: body.description,
+      purpose: body.purpose,
+      appliesToRoles: body.appliesToRoles
+    });
   }
 
   @Get(":id/versions") @ApiOperation({ summary: "List versions of a form" })

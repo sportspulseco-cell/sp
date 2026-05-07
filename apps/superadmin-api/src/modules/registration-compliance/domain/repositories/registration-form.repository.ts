@@ -1,4 +1,4 @@
-import type { Page, PageQuery } from "@sportspulse/kernel";
+import type { FormPurpose, Page, PageQuery } from "@sportspulse/kernel";
 import type { RegistrationForm } from "../entities/registration-form.entity";
 import { RegistrationFormId, RegistrationFormVersionId } from "../identifiers";
 
@@ -6,6 +6,14 @@ export interface ListRegistrationFormsQuery extends PageQuery {
   orgId?: string;
   scope?: string;
   scopeId?: string;
+  /** Optional filter — narrow listing to a single form purpose. */
+  purpose?: FormPurpose;
+  /**
+   * Optional filter — return forms whose appliesToRoles array contains
+   * this role code (or forms with an empty appliesToRoles list, which
+   * means "applies to all roles in scope").
+   */
+  role?: string;
   search?: string;
 }
 

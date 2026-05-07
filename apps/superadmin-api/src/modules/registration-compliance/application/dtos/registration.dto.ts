@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { FORM_PURPOSES, type FormPurpose } from "@sportspulse/kernel";
 import type { RegistrationForm } from "../../domain/entities/registration-form.entity";
 import type { Registration } from "../../domain/entities/registration.entity";
 import type { EligibilityRecord } from "../../domain/entities/eligibility-record.entity";
@@ -16,6 +17,8 @@ export class RegistrationFormDto {
   @ApiPropertyOptional({ nullable: true }) scopeId!: string | null;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
+  @ApiProperty({ enum: FORM_PURPOSES }) purpose!: FormPurpose;
+  @ApiProperty({ type: [String] }) appliesToRoles!: string[];
   @ApiPropertyOptional({ nullable: true }) activeVersionId!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
@@ -29,6 +32,8 @@ export class RegistrationFormDto {
       scopeId: x.scopeId,
       name: x.name,
       description: x.description,
+      purpose: x.purpose,
+      appliesToRoles: x.appliesToRoles,
       activeVersionId: x.activeVersionId,
       createdAt: x.createdAt.toISOString(),
       updatedAt: x.updatedAt.toISOString()

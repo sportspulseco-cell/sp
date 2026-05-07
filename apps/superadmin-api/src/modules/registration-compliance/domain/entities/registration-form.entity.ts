@@ -1,4 +1,5 @@
 import { AggregateRoot, DomainError } from "@sportspulse/kernel";
+import type { FormPurpose } from "@sportspulse/kernel";
 import { RegistrationFormId } from "../identifiers";
 
 export type FormScope = "org" | "league" | "division";
@@ -10,6 +11,18 @@ export interface RegistrationFormSnapshot {
   scopeId: string | null;
   name: string;
   description: string | null;
+  /**
+   * What the form is for. Source of truth: @sportspulse/kernel
+   * FORM_PURPOSES (registration_forms.purpose CHECK constraint
+   * mirrors that list).
+   */
+  purpose: FormPurpose;
+  /**
+   * Role codes this form applies to. Empty = applies to all roles in
+   * scope. Used by the role-profile editor + onboarding wizard to pick
+   * the right form for the user's primary role.
+   */
+  appliesToRoles: string[];
   activeVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +38,8 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
     private _scopeId: string | null,
     private _name: string,
     private _description: string | null,
+    private _purpose: FormPurpose,
+    private _appliesToRoles: string[],
     private _activeVersionId: string | null,
     private readonly _createdAt: Date,
     private _updatedAt: Date
@@ -39,6 +54,8 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
     scopeId?: string | null;
     name: string;
     description?: string | null;
+    purpose?: FormPurpose;
+    appliesToRoles?: string[];
   }): RegistrationForm {
     if (!input.name?.trim()) {
       throw new DomainError("INVALID_FORM_NAME", "Form name required");
@@ -57,6 +74,8 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
       input.scopeId ?? null,
       input.name.trim(),
       input.description ?? null,
+      input.purpose ?? "season_registration",
+      input.appliesToRoles ?? [],
       null,
       now,
       now
@@ -71,6 +90,8 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
       s.scopeId,
       s.name,
       s.description,
+      s.purpose,
+      s.appliesToRoles ?? [],
       s.activeVersionId,
       s.createdAt,
       s.updatedAt
@@ -89,6 +110,16 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
     this._touch();
   }
 
+  setPurpose(purpose: FormPurpose): void {
+    this._purpose = purpose;
+    this._touch();
+  }
+
+  setAppliesToRoles(roles: string[]): void {
+    this._appliesToRoles = Array.from(new Set(roles));
+    this._touch();
+  }
+
   private _touch(): void {
     this._updatedAt = new Date();
   }
@@ -98,6 +129,8 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
   get scopeId(): string | null { return this._scopeId; }
   get name(): string { return this._name; }
   get description(): string | null { return this._description; }
+  get purpose(): FormPurpose { return this._purpose; }
+  get appliesToRoles(): string[] { return this._appliesToRoles; }
   get activeVersionId(): string | null { return this._activeVersionId; }
   get createdAt(): Date { return this._createdAt; }
   get updatedAt(): Date { return this._updatedAt; }
@@ -110,6 +143,8 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
       scopeId: this._scopeId,
       name: this._name,
       description: this._description,
+      purpose: this._purpose,
+      appliesToRoles: this._appliesToRoles,
       activeVersionId: this._activeVersionId,
       createdAt: this._createdAt,
       updatedAt: this._updatedAt

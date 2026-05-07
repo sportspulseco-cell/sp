@@ -160,6 +160,17 @@ export interface Registration {
   updatedAt: string;
 }
 
+/**
+ * Mirror of FormPurpose in @sportspulse/kernel. Re-declared here so the
+ * SDK package stays runtime-zero-dep — the source of truth lives in
+ * `packages/kernel/src/form-purposes.ts` (and the DB CHECK constraint).
+ */
+export type FormPurpose =
+  | "season_registration"
+  | "role_profile"
+  | "team_application"
+  | "custom";
+
 export interface RegistrationForm {
   id: string;
   orgId: string;
@@ -167,6 +178,17 @@ export interface RegistrationForm {
   scopeId: string | null;
   name: string;
   description: string | null;
+  /**
+   * What flow the form serves. Drives where the form-builder UI surfaces
+   * it and which queries pick it up (funnel vs role-profile editor).
+   */
+  purpose: FormPurpose;
+  /**
+   * Role codes this form applies to. Empty = applies to every role in
+   * scope. Form-builder UI surfaces a multi-select against
+   * SYSTEM_ROLE_CODES from @sportspulse/kernel.
+   */
+  appliesToRoles: string[];
   activeVersionId: string | null;
   createdAt: string;
   updatedAt: string;

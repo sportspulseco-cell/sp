@@ -150,6 +150,12 @@ export interface Registration {
   updatedAt: string;
 }
 
+export type FormPurpose =
+  | "season_registration"
+  | "role_profile"
+  | "team_application"
+  | "custom";
+
 export interface RegistrationForm {
   id: string;
   orgId: string;
@@ -157,6 +163,8 @@ export interface RegistrationForm {
   scopeId: string | null;
   name: string;
   description: string | null;
+  purpose: FormPurpose;
+  appliesToRoles: string[];
   activeVersionId: string | null;
   createdAt: string;
   updatedAt: string;
