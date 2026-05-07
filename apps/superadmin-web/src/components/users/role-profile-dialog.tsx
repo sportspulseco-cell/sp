@@ -5,7 +5,8 @@ import { Loader2 } from "lucide-react";
 import {
   ROLE_PROFILE_SCHEMAS,
   SYSTEM_ROLE_BY_CODE,
-  type AnswerMap
+  type AnswerMap,
+  type FormDefinition
 } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
@@ -52,19 +53,42 @@ export function RoleProfileDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  // Slice 4 — form-builder unification. The form rendered for a role
+  // can come from two sources:
+  //   - admin: a registration_forms row with purpose='role_profile'
+  //     tagged with this role code
+  //   - kernel-default: ROLE_PROFILE_SCHEMAS in @sportspulse/kernel
+  // We try admin first, fall back to the kernel default.
+  const [adminSchema, setAdminSchema] = useState<FormDefinition | null>(null);
+  const [schemaSource, setSchemaSource] = useState<"admin" | "kernel-default">(
+    "kernel-default"
+  );
 
-  // Load saved answers whenever the dialog opens or the user type
-  // changes (e.g. admin switched the user's type then reopened).
+  // Load saved answers + admin schema whenever the dialog opens or
+  // the user type changes (e.g. admin switched the user's type then
+  // reopened).
   useEffect(() => {
     if (!open || !userType) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
-    iam
-      .getRoleProfile(userId, userType)
-      .then((res) => {
+    Promise.all([
+      iam.getRoleProfile(userId, userType),
+      iam.getRoleProfileForm(userType).catch(() => ({
+        source: "kernel-default" as const,
+        schema: null,
+        formVersionId: null
+      }))
+    ])
+      .then(([profile, form]) => {
         if (cancelled) return;
-        setAnswers(res.data ?? {});
+        setAnswers(profile.data ?? {});
+        setSchemaSource(form.source);
+        setAdminSchema(
+          form.source === "admin" && form.schema
+            ? (form.schema as unknown as FormDefinition)
+            : null
+        );
       })
       .catch((e) => {
         if (cancelled) return;
@@ -98,8 +122,9 @@ export function RoleProfileDialog({
   }
 
   const roleDef = userType ? SYSTEM_ROLE_BY_CODE[userType] : undefined;
-  const definition = userType
-    ? ROLE_PROFILE_SCHEMAS[userType] ?? {
+  const definition: FormDefinition = userType
+    ? adminSchema ??
+      ROLE_PROFILE_SCHEMAS[userType] ?? {
         schemaVersion: 1 as const,
         questions: []
       }
@@ -131,6 +156,12 @@ export function RoleProfileDialog({
         </div>
       ) : (
         <div className="space-y-4">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            // schema source ·{" "}
+            {schemaSource === "admin"
+              ? "admin-configured form"
+              : "kernel default (admin can override via the registration setup wizard)"}
+          </p>
           {definition.questions.length === 0 ? (
             <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-6 text-center text-[13px] text-fg-muted">
               No profile fields are defined for the{" "}

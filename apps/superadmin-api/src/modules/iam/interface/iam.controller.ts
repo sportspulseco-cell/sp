@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -9,7 +10,11 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { and, desc, eq, sql } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
@@ -46,7 +51,8 @@ export class IamController {
     private readonly inviteUser: InviteUserHandler,
     private readonly setUserPassword: SetUserPasswordHandler,
     private readonly setRoleProfile: SetRoleProfileHandler,
-    private readonly getRoleProfile: GetRoleProfileHandler
+    private readonly getRoleProfile: GetRoleProfileHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   // -------- self --------
@@ -175,5 +181,51 @@ export class IamController {
       data: body.data
     });
     return { ok: true };
+  }
+
+  @Get("role-profile-form")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Resolve the role-profile FormDefinition for a given role code. Looks up registration_forms with purpose=role_profile + applies_to_roles containing the code. Returns { source: 'admin' | 'kernel-default', schema, formVersionId? }; the caller (RoleProfileDialog) falls through to ROLE_PROFILE_SCHEMAS in @sportspulse/kernel when source is 'kernel-default'."
+  })
+  async getRoleProfileForm(@Query("code") code: string): Promise<{
+    source: "admin" | "kernel-default";
+    schema: Record<string, unknown> | null;
+    formVersionId: string | null;
+  }> {
+    if (!code) return { source: "kernel-default", schema: null, formVersionId: null };
+    const [row] = await this.db
+      .select({
+        schema: schema.registrationFormVersions.schema,
+        formVersionId: schema.registrationFormVersions.id
+      })
+      .from(schema.registrationFormVersions)
+      .innerJoin(
+        schema.registrationForms,
+        eq(
+          schema.registrationForms.id,
+          schema.registrationFormVersions.formId
+        )
+      )
+      .where(
+        and(
+          eq(schema.registrationFormVersions.locked, true),
+          eq(schema.registrationForms.purpose, "role_profile"),
+          // applies_to_roles is a text[] column — uses && (overlap) so
+          // a form tagged ['player','free_agent'] matches either code.
+          sql`${schema.registrationForms.appliesToRoles} && ARRAY[${code}]::text[]`
+        )
+      )
+      .orderBy(desc(schema.registrationFormVersions.publishedAt))
+      .limit(1);
+    if (row) {
+      return {
+        source: "admin",
+        schema: row.schema as Record<string, unknown>,
+        formVersionId: row.formVersionId
+      };
+    }
+    return { source: "kernel-default", schema: null, formVersionId: null };
   }
 }

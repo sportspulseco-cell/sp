@@ -133,7 +133,12 @@ export class PublicRegistrationController {
       .where(
         and(
           eq(schema.registrationFormVersions.locked, true),
-          eq(schema.registrationForms.scope, "league")
+          eq(schema.registrationForms.scope, "league"),
+          // Post-slice-4: form-builder unification. Forms are tagged
+          // with a `purpose` and the funnel pulls the
+          // season_registration one. Older rows without a purpose
+          // default to season_registration in the column default.
+          eq(schema.registrationForms.purpose, "season_registration")
         )
       )
       .limit(1);

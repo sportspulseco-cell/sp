@@ -115,6 +115,18 @@ export function createApi(f: Fetcher) {
           method: "PATCH",
           body: JSON.stringify(body)
         }),
+      /**
+       * Resolve the role-profile FormDefinition for a given role.
+       * Returns `source: 'admin'` with the admin-configured schema if
+       * one exists, else `source: 'kernel-default'` and the caller
+       * falls through to ROLE_PROFILE_SCHEMAS from @sportspulse/kernel.
+       */
+      getRoleProfileForm: (code: string) =>
+        f<{
+          source: "admin" | "kernel-default";
+          schema: Record<string, unknown> | null;
+          formVersionId: string | null;
+        }>(`/iam/role-profile-form${qs({ code })}`),
       inviteUser: (body: {
         email: string;
         displayName?: string;
