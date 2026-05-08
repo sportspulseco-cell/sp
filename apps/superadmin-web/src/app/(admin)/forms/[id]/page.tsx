@@ -1,9 +1,10 @@
-import { ArrowLeft, FileSignature } from "lucide-react";
+import { ArrowLeft, FileSignature, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { registration } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { IconTile } from "@/components/ui/icon-tile";
 import { PublishVersionButton } from "@/components/forms/publish-version-button";
 
@@ -77,11 +78,26 @@ export default async function FormDetailPage({
               · publishing supersedes the previous active one
             </p>
           </div>
+          <Link href={`/forms/${form.id}/versions/new`}>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" strokeWidth={1.75} />
+              Create version
+            </Button>
+          </Link>
         </header>
         {versions.length === 0 ? (
-          <p className="px-6 py-12 text-center text-sm text-fg-muted">
-            No versions yet. Publish a schema to activate the form.
-          </p>
+          <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+            <p className="text-sm text-fg-muted">
+              No versions yet. Walk through the 5-step setup to publish your
+              first schema.
+            </p>
+            <Link href={`/forms/${form.id}/versions/new`}>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" strokeWidth={1.75} />
+                Create first version
+              </Button>
+            </Link>
+          </div>
         ) : (
           <ul className="divide-y divide-border">
             {versions.map((v) => {
