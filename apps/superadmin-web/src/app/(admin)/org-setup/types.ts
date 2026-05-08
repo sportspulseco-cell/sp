@@ -27,6 +27,13 @@ export type SeriesFormat =
   | "best_of_7";
 export type BracketType = "single_elim" | "double_elim" | "round_robin";
 export type HomeIceRule = "higher_seed_first" | "alternating" | "neutral";
+/** Sudden death = first goal wins, no time limit. Shootout = skip OT, go to penalty shots. */
+export type OvertimeRule =
+  | "none"
+  | "sudden_death"
+  | "shootout"
+  | "5_min"
+  | "10_min";
 export type TiebreakerCode =
   | "wins"
   | "head_to_head"
@@ -62,10 +69,13 @@ export interface GameRules {
   numberOfPeriods: number;
   periodLengthMin: number;
   clockType: ClockType;
-  overtimeLengthMin: number;
+  overtimeRule: OvertimeRule;
   bodyChecking: BodyChecking;
   minStartersToStart: number;
-  maxPostGamePlayers: number;
+  /** Subs/backups borrowed from another team for a single game. */
+  maxGuestPlayersPerGame: number;
+  /** Cap on permanent roster size for the season. */
+  maxRosterSize: number;
 }
 
 export interface PlayoffConfig {
@@ -134,10 +144,11 @@ export function emptyDivision(uid: string): DivisionDraft {
       numberOfPeriods: 3,
       periodLengthMin: 20,
       clockType: "stopped",
-      overtimeLengthMin: 5,
+      overtimeRule: "5_min",
       bodyChecking: "not_permitted_penalty",
       minStartersToStart: 6,
-      maxPostGamePlayers: 20
+      maxGuestPlayersPerGame: 4,
+      maxRosterSize: 20
     },
     tiebreakers: [...DEFAULT_TIEBREAKERS],
     playoffConfig: {

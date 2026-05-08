@@ -11,6 +11,7 @@ import {
   type DivisionDraft,
   type Gender,
   type HomeIceRule,
+  type OvertimeRule,
   type SeriesFormat,
   type Tier,
   type TiebreakerCode
@@ -41,6 +42,14 @@ const BODY_CHECKING: { value: BodyChecking; label: string }[] = [
   { value: "permitted", label: "Permitted" },
   { value: "not_permitted_penalty", label: "Not permitted — penalty" },
   { value: "not_permitted_no_penalty", label: "Not permitted — no penalty" }
+];
+
+const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
+  { value: "none", label: "None — score is final" },
+  { value: "sudden_death", label: "Sudden death (first goal wins)" },
+  { value: "shootout", label: "Penalty shootout (skip OT)" },
+  { value: "5_min", label: "5 min overtime period" },
+  { value: "10_min", label: "10 min overtime period" }
 ];
 
 const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
@@ -239,43 +248,45 @@ function IdentityBlock({
       </Field>
 
       <Field
-        label="Age range"
-        schemaTag="divisions.ageRangeMin → max"
-        hint="Min/max age in years (e.g. 18 / 99 for adult, 13 / 14 for U15). Leave both blank for an open division."
+        label="Min age"
+        schemaTag="divisions.ageRangeMin"
+        hint="Youngest player allowed (years). Leave blank for no minimum."
       >
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={0}
-            max={120}
-            value={division.ageRangeMin ?? ""}
-            onChange={(e) =>
-              onPatch({
-                ageRangeMin:
-                  e.target.value === "" ? null : parseInt(e.target.value, 10)
-              })
-            }
-            placeholder="Min"
-            className="input"
-            aria-label="Minimum age"
-          />
-          <span className="font-mono text-[12px] text-fg-muted">→</span>
-          <input
-            type="number"
-            min={0}
-            max={120}
-            value={division.ageRangeMax ?? ""}
-            onChange={(e) =>
-              onPatch({
-                ageRangeMax:
-                  e.target.value === "" ? null : parseInt(e.target.value, 10)
-              })
-            }
-            placeholder="Max"
-            className="input"
-            aria-label="Maximum age"
-          />
-        </div>
+        <input
+          type="number"
+          min={0}
+          max={120}
+          value={division.ageRangeMin ?? ""}
+          onChange={(e) =>
+            onPatch({
+              ageRangeMin:
+                e.target.value === "" ? null : parseInt(e.target.value, 10)
+            })
+          }
+          placeholder="e.g. 18"
+          className="input"
+        />
+      </Field>
+
+      <Field
+        label="Max age"
+        schemaTag="divisions.ageRangeMax"
+        hint="Oldest player allowed (years). Leave blank for no maximum."
+      >
+        <input
+          type="number"
+          min={0}
+          max={120}
+          value={division.ageRangeMax ?? ""}
+          onChange={(e) =>
+            onPatch({
+              ageRangeMax:
+                e.target.value === "" ? null : parseInt(e.target.value, 10)
+            })
+          }
+          placeholder="e.g. 99"
+          className="input"
+        />
       </Field>
 
       <Field
@@ -426,24 +437,25 @@ function GameRulesBlock({
         </Field>
 
         <Field
-          label="Overtime length (min)"
-          hint='What happens if the game is tied after regulation. None means score is final. Sudden death = first goal wins. Set to 0 to disable.'
+          label="Overtime"
+          required
+          hint="What happens if the game is tied after regulation. Sudden death = first goal wins. Shootout skips OT and goes straight to penalty shots."
         >
-          <input
-            type="number"
-            min={0}
-            max={30}
-            value={r.overtimeLengthMin}
+          <select
+            value={r.overtimeRule}
             onChange={(e) =>
               onPatch({
-                gameRules: {
-                  ...r,
-                  overtimeLengthMin: Math.max(0, parseInt(e.target.value) || 0)
-                }
+                gameRules: { ...r, overtimeRule: e.target.value as OvertimeRule }
               })
             }
             className="input"
-          />
+          >
+            {OVERTIME_RULES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field
@@ -469,19 +481,43 @@ function GameRulesBlock({
         </Field>
 
         <Field
-          label="Max post-game players"
-          hint="Players borrowed from another team (subs/backup). Limits per game to a preset standing."
+          label="Max guest players per game"
+          hint="Subs / backups borrowed from another team for a single game. Capped per game so teams can't stack with ringers."
         >
           <input
             type="number"
             min={0}
             max={50}
-            value={r.maxPostGamePlayers}
+            value={r.maxGuestPlayersPerGame}
             onChange={(e) =>
               onPatch({
                 gameRules: {
                   ...r,
-                  maxPostGamePlayers: Math.max(0, parseInt(e.target.value) || 20)
+                  maxGuestPlayersPerGame: Math.max(
+                    0,
+                    parseInt(e.target.value) || 4
+                  )
+                }
+              })
+            }
+            className="input"
+          />
+        </Field>
+
+        <Field
+          label="Max roster size"
+          hint="Cap on permanent roster size for the season. Hockey leagues typically allow 18–25; lacrosse can go higher."
+        >
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={r.maxRosterSize}
+            onChange={(e) =>
+              onPatch({
+                gameRules: {
+                  ...r,
+                  maxRosterSize: Math.max(1, parseInt(e.target.value) || 20)
                 }
               })
             }
