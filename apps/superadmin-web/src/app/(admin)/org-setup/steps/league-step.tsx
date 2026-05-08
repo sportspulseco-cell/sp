@@ -178,8 +178,7 @@ export function LeagueStep({
           <Field
             label="Governing body"
             schemaTag="leagues.governingBodyId"
-            required
-            hint="Links to the governing_bodies table. Drives ID verification rules and SafeSport requirements for all seasons in this league."
+            hint="Links to the governing_bodies table. Drives ID verification rules and SafeSport requirements for all seasons in this league. Leave blank if your league isn't sanctioned by one."
           >
             <select
               value={draft.governingBodyId ?? ""}
@@ -187,11 +186,8 @@ export function LeagueStep({
                 onChange({ governingBodyId: e.target.value || null })
               }
               className="input"
-              required
             >
-              <option value="" disabled>
-                Pick a governing body…
-              </option>
+              <option value="">None — unsanctioned</option>
               {filteredBodies.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}

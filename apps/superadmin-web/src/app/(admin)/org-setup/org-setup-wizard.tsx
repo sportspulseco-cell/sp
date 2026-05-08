@@ -130,7 +130,6 @@ export function OrgSetupWizard({
         state.league.slug.trim().length > 0 &&
         !!state.league.sportCode &&
         !!state.league.format &&
-        !!state.league.governingBodyId &&
         !!state.league.timezone,
       3:
         state.season.name.trim().length > 0 &&
