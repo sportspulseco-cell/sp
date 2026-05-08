@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -25,12 +25,20 @@ import {
 } from "@sportspulse/kernel";
 import { FormRenderer } from "@sportspulse/registration-funnel";
 import type { RegistrationForm } from "@/lib/api/types";
-import { registration } from "@/lib/api/browser-api";
+import type {
+  Division,
+  EmailTemplate,
+  PricingTier,
+  Season
+} from "@/lib/api/sdk";
+import { leagueMgmt, registration, registrationV2 } from "@/lib/api/browser-api";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FormBuilder } from "@/components/forms/form-builder";
+import { PricingTab } from "@/components/registrations/tabs/pricing-tab";
+import { EmailTemplatesTab } from "@/components/registrations/tabs/email-templates-tab";
 
 /**
  * Multi-step wizard for creating + publishing a new registration_form_version.
@@ -50,7 +58,13 @@ import { FormBuilder } from "@/components/forms/form-builder";
  *                      Save-as-draft skips the publish step.
  */
 
-type StepKey = "info" | "fields" | "eligibility" | "notifications" | "review";
+type StepKey =
+  | "info"
+  | "fields"
+  | "eligibility"
+  | "pricing"
+  | "notifications"
+  | "review";
 
 interface StepDef {
   id: StepKey;
@@ -83,15 +97,22 @@ const STEPS: StepDef[] = [
     icon: Layers
   },
   {
-    id: "notifications",
+    id: "pricing",
     index: 4,
+    title: "Pricing",
+    subtitle: "Tiers + payment plans (per season)",
+    icon: CircleDollarSign
+  },
+  {
+    id: "notifications",
+    index: 5,
     title: "Notifications",
     subtitle: "Confirmation + reminder emails",
     icon: Mail
   },
   {
     id: "review",
-    index: 5,
+    index: 6,
     title: "Review & publish",
     subtitle: "Preview + go live",
     icon: Send
@@ -138,6 +159,7 @@ export function VersionWizard({
         form.appliesToRoles.length > 0 || form.scope === "org"
           ? "done"
           : "warning",
+      pricing: "idle",
       notifications: "idle",
       review: valid && schema.questions.length > 0 ? "done" : "idle"
     }),
@@ -209,7 +231,8 @@ export function VersionWizard({
             />
           )}
           {active === "eligibility" && <EligibilityStep form={form} />}
-          {active === "notifications" && <NotificationsStep />}
+          {active === "pricing" && <PricingStep form={form} />}
+          {active === "notifications" && <NotificationsStep form={form} />}
           {active === "review" && (
             <ReviewStep
               form={form}
@@ -333,7 +356,7 @@ function Sidebar({
           // Version setup
         </p>
         <p className="mt-1 text-[12px] text-fg-muted">
-          5 steps · publish when ready
+          6 steps · publish when ready
         </p>
       </div>
       <ul className="space-y-1">
@@ -508,34 +531,236 @@ function EligibilityStep({ form }: { form: RegistrationForm }) {
   );
 }
 
-function NotificationsStep() {
+/**
+ * Season-keyed steps (Pricing + Notifications) are gated by a season
+ * picker because pricing_tiers and email_templates are keyed per-season,
+ * not per-form. A single form runs across many seasons (each with its
+ * own tiers / templates), so we render an empty state until the admin
+ * picks which season they're configuring.
+ */
+function useSeasonsForForm(form: RegistrationForm) {
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    leagueMgmt
+      .listSeasons({ orgId: form.orgId })
+      .then((page) => {
+        if (!alive) return;
+        const items = (page.items ?? []).slice().sort((a, b) =>
+          (b.startDate ?? "").localeCompare(a.startDate ?? "")
+        );
+        setSeasons(items);
+      })
+      .catch((e) => {
+        if (alive) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [form.orgId]);
+
+  return { seasons, loading, error };
+}
+
+function SeasonPicker({
+  seasons,
+  loading,
+  selectedId,
+  onSelect
+}: {
+  seasons: Season[];
+  loading: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-bg-subtle p-4">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        // Season context
+      </p>
+      <p className="mt-1 mb-3 text-[12px] text-fg-muted">
+        These tiers / templates are keyed per season, not per form. Pick the
+        season you're configuring — the editor below loads its data and
+        edits apply across every form used in that season.
+      </p>
+      {loading ? (
+        <div className="flex items-center gap-2 text-[12px] text-fg-muted">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading seasons…
+        </div>
+      ) : seasons.length === 0 ? (
+        <p className="text-[12px] text-fg-muted">
+          No seasons exist for this org yet.{" "}
+          <Link href="/seasons" className="underline">
+            Create one
+          </Link>{" "}
+          to wire pricing + emails.
+        </p>
+      ) : (
+        <select
+          value={selectedId ?? ""}
+          onChange={(e) => onSelect(e.target.value)}
+          className="h-9 w-full max-w-sm rounded-md border border-border bg-surface-1 px-3 text-[13px] text-fg"
+        >
+          <option value="" disabled>
+            Pick a season…
+          </option>
+          {seasons.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} · {s.startDate?.slice(0, 10) ?? "—"}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
+function PricingStep({ form }: { form: RegistrationForm }) {
+  const { seasons, loading } = useSeasonsForForm(form);
+  const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [tiers, setTiers] = useState<PricingTier[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  // Auto-pick the most recent season once loaded.
+  useEffect(() => {
+    const first = seasons[0];
+    if (!seasonId && first) setSeasonId(first.id);
+  }, [seasons, seasonId]);
+
+  useEffect(() => {
+    if (!seasonId) return;
+    let alive = true;
+    setDataLoading(true);
+    setDataError(null);
+    Promise.all([
+      registrationV2.listPricingTiers({ seasonId }),
+      leagueMgmt.listDivisions({ seasonId })
+    ])
+      .then(([t, d]) => {
+        if (!alive) return;
+        setTiers(t);
+        setDivisions(d.items ?? []);
+      })
+      .catch((e) => {
+        if (alive) setDataError((e as Error).message);
+      })
+      .finally(() => {
+        if (alive) setDataLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [seasonId]);
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
+      <Eyebrow>// Pricing</Eyebrow>
+      <SeasonPicker
+        seasons={seasons}
+        loading={loading}
+        selectedId={seasonId}
+        onSelect={setSeasonId}
+      />
+      {dataError ? (
+        <div className="rounded-md bg-rose-500/10 px-4 py-3 text-[12px] text-rose-700 dark:text-rose-300">
+          {dataError}
+        </div>
+      ) : null}
+      {seasonId ? (
+        dataLoading ? (
+          <div className="flex items-center gap-2 text-[12px] text-fg-muted">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading tiers…
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-bg-subtle p-5">
+            <PricingTab
+              seasonId={seasonId}
+              divisions={divisions}
+              tiers={tiers}
+              onTiersChange={setTiers}
+            />
+          </div>
+        )
+      ) : null}
+    </section>
+  );
+}
+
+function NotificationsStep({ form }: { form: RegistrationForm }) {
+  const { seasons, loading } = useSeasonsForForm(form);
+  const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const first = seasons[0];
+    if (!seasonId && first) setSeasonId(first.id);
+  }, [seasons, seasonId]);
+
+  useEffect(() => {
+    if (!seasonId) return;
+    let alive = true;
+    setDataLoading(true);
+    setDataError(null);
+    registrationV2
+      .listEmailTemplates({ seasonId })
+      .then((t) => {
+        if (alive) setTemplates(t);
+      })
+      .catch((e) => {
+        if (alive) setDataError((e as Error).message);
+      })
+      .finally(() => {
+        if (alive) setDataLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [seasonId]);
+
   return (
     <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
       <Eyebrow>// Notifications</Eyebrow>
-      <p className="text-[13px] text-fg-muted">
-        Confirmation + reminder emails fire from the season's email-template
-        catalog. Edit those templates on the Communications page; the form
-        version itself doesn't carry per-form copy yet.
-      </p>
-      <Link
-        href="/communications/templates"
-        className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-accent hover:underline"
-      >
-        Open notification templates →
-      </Link>
-      <div className="flex items-start gap-3 rounded-md bg-blue-500/10 px-4 py-3 text-[12px] text-blue-700 dark:text-blue-300">
-        <CircleDollarSign
-          className="mt-0.5 h-3.5 w-3.5 shrink-0"
-          strokeWidth={2}
-        />
-        <span>
-          Pricing tiers + payment reminders also live in the season setup —{" "}
-          <Link href="/registrations" className="underline">
-            open the season manager
-          </Link>{" "}
-          to wire those.
-        </span>
-      </div>
+      <SeasonPicker
+        seasons={seasons}
+        loading={loading}
+        selectedId={seasonId}
+        onSelect={setSeasonId}
+      />
+      {dataError ? (
+        <div className="rounded-md bg-rose-500/10 px-4 py-3 text-[12px] text-rose-700 dark:text-rose-300">
+          {dataError}
+        </div>
+      ) : null}
+      {seasonId ? (
+        dataLoading ? (
+          <div className="flex items-center gap-2 text-[12px] text-fg-muted">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading templates…
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-bg-subtle p-5">
+            <EmailTemplatesTab
+              seasonId={seasonId}
+              templates={templates}
+              onTemplatesChange={setTemplates}
+            />
+          </div>
+        )
+      ) : null}
     </section>
   );
 }
