@@ -227,6 +227,19 @@ export interface ConsentSignature {
   revokedReason: string | null;
 }
 
+export interface IdentityVerification {
+  id: string;
+  personId: string;
+  governingBodyId: string;
+  externalId: string;
+  /** pending | verified | mismatch | expired */
+  status: string;
+  /** api | document_upload | self_attest */
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RosterMove {
   id: string;
   teamId: string;

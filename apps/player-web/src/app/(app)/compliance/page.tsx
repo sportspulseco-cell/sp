@@ -10,6 +10,7 @@ import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import type { EligibilityRecord } from "@sportspulse/api-client";
 import { compliance, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { UsaHockeyIdForm } from "./usa-hockey-id-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -87,11 +88,14 @@ export default async function CompliancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="// Compliance"
-        title="Compliance"
-        description="Status of every eligibility requirement, waiver, and document on file."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          eyebrow="// Compliance"
+          title="Compliance"
+          description="Status of every eligibility requirement, waiver, and document on file."
+        />
+        <UsaHockeyIdForm />
+      </div>
 
       {/* Overall banner */}
       {blocking.length > 0 ? (

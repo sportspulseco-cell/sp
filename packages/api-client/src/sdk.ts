@@ -21,6 +21,7 @@ import type {
   DocumentVersion,
   EligibilityRecord,
   EligibilityStatus,
+  IdentityVerification,
   FeeSchedule,
   FormPurpose,
   FormVersion,
@@ -368,6 +369,18 @@ export function createApi(f: Fetcher) {
       signaturesByPerson: (personId: string) =>
         f<ConsentSignature[]>(
           `/compliance/documents/signatures/by-person/${personId}`
+        ),
+
+      // Self-service — players self-attest their governing-body IDs.
+      // Format-validated server-side; recorded as source=self_attest +
+      // status=pending so an admin can verify or expire later.
+      submitMyIdentityVerification: (body: {
+        governingBodyCode: string;
+        externalId: string;
+      }) =>
+        f<IdentityVerification>(
+          "/compliance/self/identity-verifications",
+          { method: "POST", body: JSON.stringify(body) }
         )
     },
 
