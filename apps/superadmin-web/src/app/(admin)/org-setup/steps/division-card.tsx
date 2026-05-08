@@ -240,8 +240,48 @@ function IdentityBlock({
 
       <Field
         label="Age range"
-        schemaTag="divisions.ageRangeMin → max, ageGroup"
-        hint='Pick "Custom age group" to set min/max manually, or use a governing-body age group code.'
+        schemaTag="divisions.ageRangeMin → max"
+        hint="Min/max age in years (e.g. 18 / 99 for adult, 13 / 14 for U15). Leave both blank for an open division."
+      >
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            max={120}
+            value={division.ageRangeMin ?? ""}
+            onChange={(e) =>
+              onPatch({
+                ageRangeMin:
+                  e.target.value === "" ? null : parseInt(e.target.value, 10)
+              })
+            }
+            placeholder="Min"
+            className="input"
+            aria-label="Minimum age"
+          />
+          <span className="font-mono text-[12px] text-fg-muted">→</span>
+          <input
+            type="number"
+            min={0}
+            max={120}
+            value={division.ageRangeMax ?? ""}
+            onChange={(e) =>
+              onPatch({
+                ageRangeMax:
+                  e.target.value === "" ? null : parseInt(e.target.value, 10)
+              })
+            }
+            placeholder="Max"
+            className="input"
+            aria-label="Maximum age"
+          />
+        </div>
+      </Field>
+
+      <Field
+        label="Age group label"
+        schemaTag="divisions.ageGroup (display)"
+        hint='Friendly label shown on registration pages — e.g. "18+ adult", "U15", "Open age".'
       >
         <input
           type="text"
@@ -249,7 +289,7 @@ function IdentityBlock({
           onChange={(e) =>
             onPatch({ ageGroupLabel: e.target.value.slice(0, 60) })
           }
-          placeholder="Custom age group"
+          placeholder="e.g. 18+ adult"
           className="input"
         />
       </Field>
