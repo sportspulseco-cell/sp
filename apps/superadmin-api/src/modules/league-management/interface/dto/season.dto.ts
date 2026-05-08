@@ -20,6 +20,12 @@ export class CreateSeasonBodyDto {
   @ApiProperty({ description: "ISO date YYYY-MM-DD" }) @IsDateString() startDate!: string;
   @ApiProperty({ description: "ISO date YYYY-MM-DD" }) @IsDateString() endDate!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() timezone?: string;
+  @ApiPropertyOptional({ description: "ISO timestamp" })
+  @IsOptional() @IsDateString() registrationOpensAt?: string | null;
+  @ApiPropertyOptional({ description: "ISO timestamp" })
+  @IsOptional() @IsDateString() registrationClosesAt?: string | null;
+  @ApiPropertyOptional({ description: "ISO timestamp" })
+  @IsOptional() @IsDateString() rosterLockAt?: string | null;
 }
 
 export class UpdateSeasonBodyDto {

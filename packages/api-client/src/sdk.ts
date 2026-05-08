@@ -19,8 +19,10 @@ import type {
   Document,
   DocumentKind,
   DocumentVersion,
+  AgeGroup,
   EligibilityRecord,
   EligibilityStatus,
+  GoverningBody,
   IdentityVerification,
   FeeSchedule,
   FormPurpose,
@@ -663,6 +665,9 @@ export function createApi(f: Fetcher) {
         startDate: string;
         endDate: string;
         timezone?: string;
+        registrationOpensAt?: string | null;
+        registrationClosesAt?: string | null;
+        rosterLockAt?: string | null;
       }) =>
         f<Season>("/league/seasons", { method: "POST", body: JSON.stringify(body) }),
       changeSeasonStatus: (id: string, status: string) =>
@@ -700,8 +705,37 @@ export function createApi(f: Fetcher) {
         sportCode: string;
         name: string;
         format?: League["format"];
+        governingBodyId?: string | null;
+        ruleSetId?: string | null;
+        /** JSONB — wizard stores slug, branding, privacy here. */
+        metadata?: Record<string, unknown>;
       }) =>
         f<League>("/league/leagues", { method: "POST", body: JSON.stringify(body) }),
+      updateLeague: (
+        id: string,
+        body: {
+          name?: string;
+          format?: League["format"];
+          governingBodyId?: string | null;
+          ruleSetId?: string | null;
+          metadata?: Record<string, unknown>;
+        }
+      ) =>
+        f<League>(`/league/leagues/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      changeLeagueStatus: (id: string, status: string) =>
+        f<League>(`/league/leagues/${id}/status`, {
+          method: "POST",
+          body: JSON.stringify({ status })
+        }),
+
+      // Reference data — feeds the org-setup wizard's dropdowns.
+      listGoverningBodies: (q: { sportCode?: string } = {}) =>
+        f<GoverningBody[]>(`/league/governing-bodies${qs(q)}`),
+      listAgeGroups: (q: { governingBodyId?: string } = {}) =>
+        f<AgeGroup[]>(`/league/age-groups${qs(q)}`),
 
       listDivisions: (q: { seasonId?: string } = {}) =>
         f<Page<Division>>(`/league/divisions${qs(q)}`),
@@ -711,8 +745,13 @@ export function createApi(f: Fetcher) {
         seasonId: string;
         name: string;
         tier?: string | null;
+        ageGroupId?: string | null;
         genderEligibility?: "male" | "female" | "mixed" | "open";
         maxTeams?: number | null;
+        /** JSONB — game rules: periods, periodLength, clockType, etc. */
+        ruleSetOverrides?: Record<string, unknown>;
+        /** JSONB — playoff config: enabled, spots, dates, seriesFormat, bracketType, homeIceRule. */
+        playoffConfig?: Record<string, unknown>;
       }) =>
         f<Division>("/league/divisions", {
           method: "POST",

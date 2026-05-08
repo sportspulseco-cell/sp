@@ -5,6 +5,7 @@ import { SeasonsController } from "./interface/seasons.controller";
 import { LeaguesController } from "./interface/leagues.controller";
 import { DivisionsController } from "./interface/divisions.controller";
 import { TeamsController } from "./interface/teams.controller";
+import { LeagueReferenceController } from "./interface/reference.controller";
 
 // Application — handlers
 import {
@@ -54,7 +55,8 @@ import { DrizzleTeamRepository } from "./infrastructure/repositories/drizzle-tea
     SeasonsController,
     LeaguesController,
     DivisionsController,
-    TeamsController
+    TeamsController,
+    LeagueReferenceController
   ],
   providers: [
     // Application

@@ -55,6 +55,7 @@ export class League extends AggregateRoot<LeagueId> {
     format?: LeagueFormat;
     governingBodyId?: GoverningBodyId | null;
     ruleSetId?: RuleSetId | null;
+    metadata?: Record<string, unknown>;
   }): League {
     if (!input.name?.trim()) {
       throw new DomainError("INVALID_LEAGUE_NAME", "League name required");
@@ -69,10 +70,20 @@ export class League extends AggregateRoot<LeagueId> {
       input.name.trim(),
       input.format ?? "regular",
       "draft",
-      {},
+      input.metadata ?? {},
       now,
       now
     );
+  }
+
+  setMetadata(metadata: Record<string, unknown>): void {
+    this._metadata = metadata;
+    this._touch();
+  }
+
+  patchMetadata(patch: Record<string, unknown>): void {
+    this._metadata = { ...this._metadata, ...patch };
+    this._touch();
   }
 
   static rehydrate(s: LeagueSnapshot): League {

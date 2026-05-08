@@ -62,6 +62,28 @@ export interface Org {
   updatedAt: string;
 }
 
+export interface GoverningBody {
+  id: string;
+  code: string;
+  name: string;
+  sportCode: string;
+  countryCode: string | null;
+  /** international | national | regional | state | local */
+  scope: string;
+  parentId: string | null;
+}
+
+export interface AgeGroup {
+  id: string;
+  governingBodyId: string;
+  code: string;
+  label: string;
+  birthYearMin: number | null;
+  birthYearMax: number | null;
+  /** male | female | mixed | open */
+  genderEligibility: string;
+}
+
 export type SeasonStatus =
   | "draft"
   | "registration_open"

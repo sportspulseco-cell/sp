@@ -82,6 +82,9 @@ export class SeasonsController {
       startDate: body.startDate,
       endDate: body.endDate,
       timezone: body.timezone,
+      registrationOpensAt: body.registrationOpensAt,
+      registrationClosesAt: body.registrationClosesAt,
+      rosterLockAt: body.rosterLockAt,
       createdByUserId: user.userId
     });
   }

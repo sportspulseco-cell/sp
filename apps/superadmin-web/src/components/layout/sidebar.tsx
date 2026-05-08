@@ -18,6 +18,7 @@ import {
   FileSignature,
   ShieldCheck,
   Activity,
+  Wand2,
   BarChart3,
   CircleDot,
   Wallet,
@@ -50,6 +51,9 @@ const PLATFORM_NAV: NavItem[] = [
 ];
 
 const PROJECT_NAV: NavItem[] = [
+  { section: "Setup" },
+  { href: "/org-setup", label: "Org setup", icon: Wand2 },
+
   { section: "League" },
   { href: "/seasons", label: "Seasons", icon: CalendarRange },
   { href: "/leagues", label: "Leagues", icon: Trophy },

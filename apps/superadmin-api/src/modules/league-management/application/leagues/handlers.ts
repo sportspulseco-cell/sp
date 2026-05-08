@@ -79,6 +79,7 @@ export interface CreateLeagueInput {
   format?: LeagueFormat;
   governingBodyId?: string | null;
   ruleSetId?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -96,7 +97,8 @@ export class CreateLeagueHandler
       governingBodyId: input.governingBodyId
         ? GoverningBodyId.of(input.governingBodyId)
         : null,
-      ruleSetId: input.ruleSetId ? RuleSetId.of(input.ruleSetId) : null
+      ruleSetId: input.ruleSetId ? RuleSetId.of(input.ruleSetId) : null,
+      metadata: input.metadata
     });
     await this.leagues.insert(league);
     return LeagueDto.fromDomain(league);
@@ -109,6 +111,7 @@ export interface UpdateLeagueInput {
   format?: string;
   governingBodyId?: string | null;
   ruleSetId?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -129,6 +132,7 @@ export class UpdateLeagueHandler
     if (input.ruleSetId !== undefined) {
       league.setRuleSet(input.ruleSetId ? RuleSetId.of(input.ruleSetId) : null);
     }
+    if (input.metadata !== undefined) league.patchMetadata(input.metadata);
     await this.leagues.save(league);
     return LeagueDto.fromDomain(league);
   }

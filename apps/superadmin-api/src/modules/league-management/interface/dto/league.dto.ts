@@ -3,6 +3,7 @@ import { Type } from "class-transformer";
 import {
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -20,6 +21,8 @@ export class CreateLeagueBodyDto {
   format?: "regular" | "tournament" | "pickup" | "friendly";
   @ApiPropertyOptional() @IsOptional() @IsUUID() governingBodyId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsUUID() ruleSetId?: string | null;
+  /** JSONB — wizard stores slug, branding (logo, primaryColor), privacy here. */
+  @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;
 }
 
 export class UpdateLeagueBodyDto {
@@ -29,6 +32,7 @@ export class UpdateLeagueBodyDto {
   format?: string;
   @ApiPropertyOptional() @IsOptional() governingBodyId?: string | null;
   @ApiPropertyOptional() @IsOptional() ruleSetId?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;
 }
 
 export class ChangeLeagueStatusBodyDto {

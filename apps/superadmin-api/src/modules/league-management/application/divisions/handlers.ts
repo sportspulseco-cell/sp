@@ -78,6 +78,8 @@ export interface CreateDivisionInput {
   ageGroupId?: string | null;
   genderEligibility?: GenderEligibility;
   maxTeams?: number | null;
+  ruleSetOverrides?: Record<string, unknown>;
+  playoffConfig?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -93,7 +95,9 @@ export class CreateDivisionHandler
       tier: input.tier,
       ageGroupId: input.ageGroupId ? AgeGroupId.of(input.ageGroupId) : null,
       genderEligibility: input.genderEligibility,
-      maxTeams: input.maxTeams
+      maxTeams: input.maxTeams,
+      ruleSetOverrides: input.ruleSetOverrides,
+      playoffConfig: input.playoffConfig
     });
     await this.divisions.insert(division);
     return DivisionDto.fromDomain(division);
@@ -107,6 +111,8 @@ export interface UpdateDivisionInput {
   ageGroupId?: string | null;
   genderEligibility?: GenderEligibility;
   maxTeams?: number | null;
+  ruleSetOverrides?: Record<string, unknown>;
+  playoffConfig?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -124,6 +130,8 @@ export class UpdateDivisionHandler
     }
     if (input.genderEligibility !== undefined) d.setGenderEligibility(input.genderEligibility);
     if (input.maxTeams !== undefined) d.setMaxTeams(input.maxTeams);
+    if (input.ruleSetOverrides !== undefined) d.setRuleSetOverrides(input.ruleSetOverrides);
+    if (input.playoffConfig !== undefined) d.setPlayoffConfig(input.playoffConfig);
     await this.divisions.save(d);
     return DivisionDto.fromDomain(d);
   }

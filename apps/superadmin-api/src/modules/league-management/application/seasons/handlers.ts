@@ -79,6 +79,9 @@ export interface CreateSeasonInput {
   startDate: string;
   endDate: string;
   timezone?: string;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
+  rosterLockAt?: string | null;
   createdByUserId?: string | null;
 }
 
@@ -100,6 +103,20 @@ export class CreateSeasonHandler
       timezone: input.timezone,
       createdByUserId: input.createdByUserId ?? null
     });
+    if (
+      input.registrationOpensAt !== undefined ||
+      input.registrationClosesAt !== undefined
+    ) {
+      season.setRegistrationWindow(
+        input.registrationOpensAt ? new Date(input.registrationOpensAt) : null,
+        input.registrationClosesAt ? new Date(input.registrationClosesAt) : null
+      );
+    }
+    if (input.rosterLockAt !== undefined) {
+      season.setRosterLock(
+        input.rosterLockAt ? new Date(input.rosterLockAt) : null
+      );
+    }
     await this.seasons.insert(season);
     return SeasonDto.fromDomain(season);
   }

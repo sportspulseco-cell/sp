@@ -45,6 +45,10 @@ export class Division extends AggregateRoot<DivisionId> {
     ageGroupId?: AgeGroupId | null;
     genderEligibility?: GenderEligibility;
     maxTeams?: number | null;
+    /** JSONB — game rules: periods, periodLength, clockType, etc. */
+    ruleSetOverrides?: Record<string, unknown>;
+    /** JSONB — playoff config: enabled, spots, dates, seriesFormat, bracketType, homeIceRule. */
+    playoffConfig?: Record<string, unknown>;
   }): Division {
     if (!input.name?.trim()) {
       throw new DomainError("INVALID_DIVISION_NAME", "Required");
@@ -57,13 +61,23 @@ export class Division extends AggregateRoot<DivisionId> {
       input.name.trim(),
       input.tier ?? null,
       input.genderEligibility ?? "open",
-      {},
+      input.ruleSetOverrides ?? {},
       input.maxTeams ?? null,
-      {},
+      input.playoffConfig ?? {},
       "active",
       now,
       now
     );
+  }
+
+  setRuleSetOverrides(o: Record<string, unknown>): void {
+    this._ruleSetOverrides = o;
+    this._touch();
+  }
+
+  setPlayoffConfig(c: Record<string, unknown>): void {
+    this._playoffConfig = c;
+    this._touch();
   }
 
   static rehydrate(s: DivisionSnapshot): Division {

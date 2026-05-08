@@ -3,6 +3,7 @@ import { Type } from "class-transformer";
 import {
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -21,6 +22,10 @@ export class CreateDivisionBodyDto {
   genderEligibility?: "male" | "female" | "mixed" | "open";
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(2)
   maxTeams?: number | null;
+  /** JSONB — game rules: periods, periodLength, clockType, etc. */
+  @ApiPropertyOptional() @IsOptional() @IsObject() ruleSetOverrides?: Record<string, unknown>;
+  /** JSONB — playoff config: enabled, spots, dates, seriesFormat, bracketType, homeIceRule. */
+  @ApiPropertyOptional() @IsOptional() @IsObject() playoffConfig?: Record<string, unknown>;
 }
 
 export class UpdateDivisionBodyDto {
@@ -32,6 +37,8 @@ export class UpdateDivisionBodyDto {
   genderEligibility?: "male" | "female" | "mixed" | "open";
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(2)
   maxTeams?: number | null;
+  @ApiPropertyOptional() @IsOptional() @IsObject() ruleSetOverrides?: Record<string, unknown>;
+  @ApiPropertyOptional() @IsOptional() @IsObject() playoffConfig?: Record<string, unknown>;
 }
 
 export class ListDivisionsQueryDto {
