@@ -1,10 +1,9 @@
-import { test, expect, E2E_URLS } from "./fixtures";
+import { test, expect, E2E_URLS } from "../fixtures";
 
 /**
- * Multi-step sign-up funnel renders on every app.
- * We don't run the full account-creation E2E here (that would
- * pollute the auth.users table) — just verify the funnel's first
- * step is reachable and the stepper is present.
+ * Multi-step sign-up funnel renders on every app. We don't run the
+ * full account-creation E2E here (would pollute auth.users) — just
+ * verify the funnel reaches step 2 (email/password fields).
  */
 const APPS: Array<{ name: string; url: string; copy: string }> = [
   { name: "Super Admin", url: E2E_URLS.superadmin, copy: "Super Admin" },
@@ -21,7 +20,6 @@ for (const app of APPS) {
     await expect(
       page.getByText(new RegExp(`Join SportsPulse — ${app.copy}`, "i"))
     ).toBeVisible();
-    // The "Get started" CTA scrolls into step 2.
     await page.getByRole("button", { name: /Get started/i }).click();
     await expect(page.getByText(/Step 2 of 4/i)).toBeVisible();
     await expect(page.getByLabel(/Work email/i)).toBeVisible();
