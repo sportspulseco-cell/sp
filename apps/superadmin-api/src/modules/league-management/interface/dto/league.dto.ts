@@ -36,24 +36,8 @@ export class UpdateLeagueBodyDto {
 }
 
 export class ChangeLeagueStatusBodyDto {
-  @ApiProperty({
-    enum: [
-      "draft",
-      "registration_open",
-      "in_progress",
-      "playoffs",
-      "completed",
-      "archived"
-    ]
-  })
-  @IsIn([
-    "draft",
-    "registration_open",
-    "in_progress",
-    "playoffs",
-    "completed",
-    "archived"
-  ])
+  @ApiProperty({ enum: ["draft", "active", "archived"] })
+  @IsIn(["draft", "active", "archived"])
   status!: string;
 }
 

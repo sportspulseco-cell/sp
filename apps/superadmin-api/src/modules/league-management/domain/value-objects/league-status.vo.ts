@@ -1,13 +1,12 @@
 import { DomainError } from "@sportspulse/kernel";
 
-export const LEAGUE_STATUSES = [
-  "draft",
-  "registration_open",
-  "in_progress",
-  "playoffs",
-  "completed",
-  "archived"
-] as const;
+/**
+ * Mirrors the DB CHECK constraint `league_status_check` —
+ * leagues are coarser than seasons (draft / active / archived). The
+ * fine-grained registration_open/in_progress/playoffs lifecycle lives
+ * on `seasons.status`, not the league.
+ */
+export const LEAGUE_STATUSES = ["draft", "active", "archived"] as const;
 export type LeagueStatus = (typeof LEAGUE_STATUSES)[number];
 
 export const LEAGUE_FORMATS = [
