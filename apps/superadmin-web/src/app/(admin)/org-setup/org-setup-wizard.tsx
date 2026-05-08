@@ -36,11 +36,14 @@ const STEP_NEXT_LABEL: Record<WizardStep, string> = {
   4: "Publish"
 };
 
-function defaultLeagueDraft(): LeagueDraft {
+function defaultLeagueDraft(firstSportCode: string): LeagueDraft {
   return {
     name: "",
     slug: "",
-    sportCode: "ice_hockey",
+    // Pre-select whatever the seeded sports table actually has — using a
+    // hard-coded "ice_hockey" would FK-fail on insert because the seed
+    // uses HOCKEY_ICE. Empty string falls through to "pick a sport".
+    sportCode: firstSportCode,
     format: "regular",
     governingBodyId: null,
     timezone: "America/New_York",
@@ -73,7 +76,7 @@ export function OrgSetupWizard({
   const [state, setState] = useState<WizardState>(() => ({
     step: 1,
     orgId: null,
-    league: defaultLeagueDraft(),
+    league: defaultLeagueDraft(sports[0]?.code ?? ""),
     season: defaultSeasonDraft(),
     divisions: [emptyDivision(crypto.randomUUID())]
   }));

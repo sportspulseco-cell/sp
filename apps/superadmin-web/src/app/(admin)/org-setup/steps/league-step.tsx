@@ -144,9 +144,12 @@ export function LeagueStep({
               value={draft.sportCode}
               onChange={(e) => onChange({ sportCode: e.target.value, governingBodyId: null })}
               className="input"
+              required
             >
-              {sports.length === 0 ? (
-                <option value="ice_hockey">Ice hockey</option>
+              {draft.sportCode === "" ? (
+                <option value="" disabled>
+                  Pick a sport…
+                </option>
               ) : null}
               {sports.map((s) => (
                 <option key={s.code} value={s.code}>
