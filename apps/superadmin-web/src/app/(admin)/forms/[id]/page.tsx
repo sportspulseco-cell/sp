@@ -1,143 +1,216 @@
-import { ArrowLeft, FileSignature, Plus } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { registration } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { IconTile } from "@/components/ui/icon-tile";
-import { PublishVersionButton } from "@/components/forms/publish-version-button";
+import type { Division, PricingTier, EmailTemplate } from "@sportspulse/api-client";
+import {
+  league,
+  leagueMgmt,
+  orgs,
+  registration,
+  registrationV2
+} from "@/lib/api/server-api";
+import { RegistrationSetupShell, type SectionKey, type SectionState } from "./setup-shell";
+import { SeasonSection } from "./sections/season-section";
+import { PricingSection } from "./sections/pricing-section";
+import { DivisionsSection } from "./sections/divisions-section";
+import { FormBuilderSection } from "./sections/form-builder-section";
+import { EmailTemplatesSection } from "./sections/email-templates-section";
+import { ReviewSection } from "./sections/review-section";
+import { SubmissionsSection } from "./sections/submissions-section";
 
-export const metadata = { title: "Form — SportsPulse" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const metadata = { title: "Registration setup — SportsPulse" };
 
-function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
+const VALID_SECTIONS: SectionKey[] = [
+  "season",
+  "pricing",
+  "divisions",
+  "form_builder",
+  "email_templates",
+  "review",
+  "submissions"
+];
 
-export default async function FormDetailPage({
-  params
+export default async function FormSetupPage({
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const sectionParam = (sp.section ?? "season") as SectionKey;
+  const active = VALID_SECTIONS.includes(sectionParam) ? sectionParam : "season";
+
   const form = await registration.getForm(id).catch(() => null);
   if (!form) notFound();
 
-  const versions = await registration.listFormVersions(id).catch(() => []);
+  // Resolve season + org context for the chrome.
+  const [season, org] = await Promise.all([
+    form.seasonId
+      ? leagueMgmt.getSeason(form.seasonId).catch(() => null)
+      : Promise.resolve(null),
+    orgs.get(form.orgId).catch(() => null)
+  ]);
+
+  // Pull the data needed to compute section status pills + Submissions count.
+  const seasonId = form.seasonId;
+  const [tiers, divisionsPage, templates, registrationsPage, versions] =
+    await Promise.all([
+      seasonId
+        ? registrationV2.listPricingTiers({ seasonId }).catch(
+            () => [] as PricingTier[]
+          )
+        : Promise.resolve([] as PricingTier[]),
+      seasonId
+        ? league.listDivisions({ seasonId }).catch(() => ({
+            items: [] as Division[],
+            nextCursor: null
+          }))
+        : Promise.resolve({ items: [] as Division[], nextCursor: null }),
+      seasonId
+        ? registrationV2.listEmailTemplates({ seasonId }).catch(
+            () => [] as EmailTemplate[]
+          )
+        : Promise.resolve([] as EmailTemplate[]),
+      registration
+        .listRegistrations({ orgId: form.orgId })
+        .catch(() => ({ items: [], nextCursor: null })),
+      registration.listFormVersions(id).catch(() => [])
+    ]);
+
+  const tierAssignments =
+    tiers.length > 0
+      ? await registrationV2
+          .tierDivisionsByTiers(tiers.map((t) => t.id))
+          .catch(() => ({}) as Record<string, string[]>)
+      : ({} as Record<string, string[]>);
+
+  // Aggregate division IDs that are NOT covered by any tier — surfaces
+  // as the "BHL 1 has no pricing tier assigned" warning in the mockup.
+  const coveredDivisionIds = new Set<string>();
+  for (const ids of Object.values(tierAssignments)) {
+    for (const did of ids) coveredDivisionIds.add(did);
+  }
+  const uncoveredDivisions = divisionsPage.items.filter(
+    (d) => !coveredDivisionIds.has(d.id)
+  );
+
+  const seasonDone =
+    !!seasonId &&
+    !!season?.name &&
+    !!season?.startDate &&
+    !!season?.endDate &&
+    !!season?.registrationOpensAt;
+  const pricingDone = tiers.length > 0;
+  const divisionsIssue = uncoveredDivisions.length;
+  const formBuilderDone = (versions.length ?? 0) > 0 && !!form.activeVersionId;
+  const emailTemplatesDone = templates.length > 0;
+
+  const sections: SectionState[] = [
+    {
+      key: "season",
+      index: 1,
+      label: "Season setup",
+      status: seasonDone ? "done" : "idle"
+    },
+    {
+      key: "pricing",
+      index: 2,
+      label: "Pricing",
+      status: pricingDone ? "done" : "idle"
+    },
+    {
+      key: "divisions",
+      index: 3,
+      label: "Divisions",
+      status:
+        divisionsIssue > 0
+          ? "issue"
+          : divisionsPage.items.length > 0
+            ? "done"
+            : "idle",
+      issueCount: divisionsIssue
+    },
+    {
+      key: "form_builder",
+      index: 4,
+      label: "Form builder",
+      status: formBuilderDone ? "done" : "idle"
+    },
+    {
+      key: "email_templates",
+      index: 5,
+      label: "Email templates",
+      status: emailTemplatesDone ? "done" : "idle"
+    },
+    {
+      key: "review",
+      index: 6,
+      label: "Review & publish",
+      status: "idle"
+    }
+  ];
+
+  const orgName = org?.displayName ?? org?.legalName ?? "Organization";
 
   return (
-    <div className="space-y-8">
-      <Link
-        href="/forms"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All forms
-      </Link>
-
-      <header className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={FileSignature} tint="violet" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>FORM · {form.id.slice(0, 8)}</Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {form.name}
-          </h1>
-          {form.description ? (
-            <p className="text-[14px] text-fg-muted">{form.description}</p>
-          ) : null}
-          <div className="flex items-center gap-2 pt-2">
-            <Badge mono>{form.scope}</Badge>
-            {form.activeVersionId ? (
-              <Badge tone="success" mono>
-                ACTIVE · v
-                {versions.find((v) => v.id === form.activeVersionId)
-                  ?.versionNumber ?? "?"}
-              </Badge>
-            ) : (
-              <Badge tone="warning" mono>
-                NO ACTIVE VERSION
-              </Badge>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <section className="rounded-xl border border-border bg-surface-1">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div>
-            <Eyebrow>Versions</Eyebrow>
-            <p className="mt-1 text-[13px] text-fg-muted">
-              {versions.length} {versions.length === 1 ? "version" : "versions"}{" "}
-              · publishing supersedes the previous active one
-            </p>
-          </div>
-          <Link href={`/forms/${form.id}/versions/new`}>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" strokeWidth={1.75} />
-              Create version
-            </Button>
-          </Link>
-        </header>
-        {versions.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <p className="text-sm text-fg-muted">
-              No versions yet. Walk through the 5-step setup to publish your
-              first schema.
-            </p>
-            <Link href={`/forms/${form.id}/versions/new`}>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" strokeWidth={1.75} />
-                Create first version
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {versions.map((v) => {
-              const isActive = v.id === form.activeVersionId;
-              return (
-                <li
-                  key={v.id}
-                  className="flex items-center gap-4 px-6 py-4"
-                >
-                  <span className="font-mono text-[14px] font-semibold tabular-nums text-fg">
-                    v{v.versionNumber}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-fg">
-                      {v.publishedAt ? (
-                        <span>Published {fmt(v.publishedAt)}</span>
-                      ) : (
-                        <span className="text-fg-muted">Draft</span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                      {Object.keys(v.schema ?? {}).length} top-level keys ·{" "}
-                      {v.locked ? "locked" : "editable"}
-                    </p>
-                  </div>
-                  {isActive ? (
-                    <Badge tone="success" mono>
-                      ACTIVE
-                    </Badge>
-                  ) : v.publishedAt ? (
-                    <Badge mono>SUPERSEDED</Badge>
-                  ) : (
-                    <PublishVersionButton formId={form.id} versionId={v.id} />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-    </div>
+    <RegistrationSetupShell
+      formId={form.id}
+      formName={form.name}
+      seasonName={season?.name ?? null}
+      orgName={orgName}
+      active={active}
+      sections={sections}
+      submissionsCount={registrationsPage.items.length}
+      draft={!form.activeVersionId}
+      searchParams={sp}
+    >
+      {active === "season" ? (
+        <SeasonSection form={form} season={season} />
+      ) : null}
+      {active === "pricing" ? (
+        <PricingSection
+          form={form}
+          season={season}
+          tiers={tiers}
+          divisions={divisionsPage.items}
+        />
+      ) : null}
+      {active === "divisions" ? (
+        <DivisionsSection
+          form={form}
+          season={season}
+          tiers={tiers}
+          divisions={divisionsPage.items}
+          tierAssignments={tierAssignments}
+        />
+      ) : null}
+      {active === "form_builder" ? (
+        <FormBuilderSection form={form} versions={versions} />
+      ) : null}
+      {active === "email_templates" ? (
+        <EmailTemplatesSection
+          form={form}
+          season={season}
+          templates={templates}
+        />
+      ) : null}
+      {active === "review" ? (
+        <ReviewSection
+          form={form}
+          season={season}
+          tiers={tiers}
+          divisions={divisionsPage.items}
+          tierAssignments={tierAssignments}
+          templates={templates}
+          versions={versions}
+          uncoveredDivisions={uncoveredDivisions}
+        />
+      ) : null}
+      {active === "submissions" ? (
+        <SubmissionsSection form={form} divisions={divisionsPage.items} />
+      ) : null}
+    </RegistrationSetupShell>
   );
 }
