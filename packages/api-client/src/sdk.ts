@@ -832,6 +832,9 @@ export function createApi(f: Fetcher) {
           allowFreeAgent: boolean;
           parentalConsentRequired: boolean;
           requireLiabilityWaiver: boolean;
+          requireCodeOfConduct: boolean;
+          liabilityWaiverContent: string;
+          codeOfConductContent: string;
           maxRosterSize: number;
           rosterLockAt: string;
         }>

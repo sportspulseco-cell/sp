@@ -50,6 +50,9 @@ export function DivisionsClient({
     rosterLockAt?: string;
     requireUsaHockeyId?: boolean;
     requireLiabilityWaiver?: boolean;
+    requireCodeOfConduct?: boolean;
+    liabilityWaiverContent?: string;
+    codeOfConductContent?: string;
     allowFreeAgent?: boolean;
     parentalConsentRequired?: boolean;
   };
@@ -64,6 +67,15 @@ export function DivisionsClient({
   );
   const [requireLiabilityWaiver, setRequireLiabilityWaiver] = useState(
     initialConfig.requireLiabilityWaiver ?? true
+  );
+  const [requireCodeOfConduct, setRequireCodeOfConduct] = useState(
+    initialConfig.requireCodeOfConduct ?? true
+  );
+  const [liabilityWaiverContent, setLiabilityWaiverContent] = useState(
+    initialConfig.liabilityWaiverContent ?? ""
+  );
+  const [codeOfConductContent, setCodeOfConductContent] = useState(
+    initialConfig.codeOfConductContent ?? ""
   );
   const [allowFreeAgent, setAllowFreeAgent] = useState(
     initialConfig.allowFreeAgent ?? true
@@ -116,6 +128,9 @@ export function DivisionsClient({
           : undefined,
         requireUsaHockeyId,
         requireLiabilityWaiver,
+        requireCodeOfConduct,
+        liabilityWaiverContent: liabilityWaiverContent.trim(),
+        codeOfConductContent: codeOfConductContent.trim(),
         allowFreeAgent,
         parentalConsentRequired: parentalConsent
       });
@@ -259,6 +274,31 @@ export function DivisionsClient({
           checked={requireLiabilityWaiver}
           onChange={setRequireLiabilityWaiver}
         />
+        {requireLiabilityWaiver ? (
+          <DocBodyField
+            label="Liability waiver text"
+            schemaTag="seasons.config.liabilityWaiverContent"
+            placeholder="Paste the liability waiver text here. The registrant scrolls to the end then types their full legal name to sign…"
+            value={liabilityWaiverContent}
+            onChange={setLiabilityWaiverContent}
+          />
+        ) : null}
+        <ToggleRow
+          label="Require code of conduct"
+          hint="Hard block — registrant must check the acknowledgment"
+          schemaTag="seasons.config.requireCodeOfConduct"
+          checked={requireCodeOfConduct}
+          onChange={setRequireCodeOfConduct}
+        />
+        {requireCodeOfConduct ? (
+          <DocBodyField
+            label="Code of conduct text"
+            schemaTag="seasons.config.codeOfConductContent"
+            placeholder="Paste the code of conduct text. The registrant sees this above the agreement checkbox in Phase 3…"
+            value={codeOfConductContent}
+            onChange={setCodeOfConductContent}
+          />
+        ) : null}
         <ToggleRow
           label="Allow free agent registration"
           hint="Players can join a pool and wait for a captain invite"
@@ -343,6 +383,50 @@ function ToggleRow({
           )}
         />
       </button>
+    </div>
+  );
+}
+
+/**
+ * Multi-line body editor for the liability-waiver and code-of-conduct
+ * documents. Sits indented under the matching require-* toggle so the
+ * relationship reads top-to-bottom: enable → author the body. Empty
+ * value falls back to the canned text in the funnel.
+ */
+function DocBodyField({
+  label,
+  schemaTag,
+  placeholder,
+  value,
+  onChange
+}: {
+  label: string;
+  schemaTag: string;
+  placeholder: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <div className="ml-4 border-l-2 border-border/60 pl-4 -mt-1 pb-1">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          {label}
+        </label>
+        <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
+          {schemaTag}
+        </span>
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={5}
+        placeholder={placeholder}
+        className="mt-1.5 w-full resize-y rounded-md border border-border bg-bg-subtle p-3 text-[13px] leading-relaxed text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none"
+      />
+      <p className="mt-1 text-[11px] text-fg-muted">
+        Paste your existing legal text — file uploads land in a future
+        wave. Empty falls back to the SportsPulse default.
+      </p>
     </div>
   );
 }

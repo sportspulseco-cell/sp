@@ -137,17 +137,6 @@ export function RegistrationFunnel({
   );
   const hasQuestions = (context.formDefinition?.questions ?? []).length > 0;
 
-  // Inline waivers configured on the form. Source of truth — if any
-  // toggle is enabled, those cards render in Phase 3 (and we skip the
-  // legacy org-documents fetch). Falls back to the documents API when
-  // the form pre-dates this field.
-  const formWaivers = context.formDefinition?.waivers ?? null;
-  const hasInlineWaivers =
-    !!formWaivers &&
-    (formWaivers.liabilityWaiver.enabled ||
-      formWaivers.codeOfConduct.enabled ||
-      formWaivers.photoRelease.enabled);
-
   // Per-season toggles set on the admin wizard's Divisions &
   // eligibility step. Defaults match @sportspulse/kernel
   // SEASON_CONFIG_DEFAULTS so unconfigured seasons keep the legacy
@@ -155,9 +144,61 @@ export function RegistrationFunnel({
   const seasonConfig = (context.season.config ?? {}) as {
     allowFreeAgent?: boolean;
     parentalConsentRequired?: boolean;
+    requireLiabilityWaiver?: boolean;
+    requireCodeOfConduct?: boolean;
+    liabilityWaiverContent?: string;
+    codeOfConductContent?: string;
   };
   const allowFreeAgent = seasonConfig.allowFreeAgent ?? false;
   const parentalConsentRequired = seasonConfig.parentalConsentRequired ?? true;
+
+  // Per repo owner directive (2026-05-09), season.config is the
+  // canonical source for waiver toggles + body text — admins manage
+  // them on the Divisions & eligibility step. The form's
+  // `formDefinition.waivers` is kept as a secondary fallback for
+  // older drafts that pre-date the season.config columns.
+  const formWaivers: FormWaiversConfig | null = useMemo(() => {
+    const requireLiability = seasonConfig.requireLiabilityWaiver ?? null;
+    const requireCoC = seasonConfig.requireCodeOfConduct ?? null;
+    const liabilityBody = seasonConfig.liabilityWaiverContent ?? "";
+    const cocBody = seasonConfig.codeOfConductContent ?? "";
+    const seasonHasWaiverConfig =
+      requireLiability !== null ||
+      requireCoC !== null ||
+      liabilityBody.length > 0 ||
+      cocBody.length > 0;
+    if (seasonHasWaiverConfig) {
+      return {
+        liabilityWaiver: {
+          enabled: requireLiability ?? true,
+          content: liabilityBody
+        },
+        codeOfConduct: {
+          enabled: requireCoC ?? true,
+          content: cocBody
+        },
+        // Photo release isn't in season.config yet — fall through to
+        // form.waivers if present, else default off.
+        photoRelease:
+          context.formDefinition?.waivers?.photoRelease ?? {
+            enabled: false,
+            content: ""
+          }
+      };
+    }
+    return context.formDefinition?.waivers ?? null;
+  }, [
+    seasonConfig.requireLiabilityWaiver,
+    seasonConfig.requireCodeOfConduct,
+    seasonConfig.liabilityWaiverContent,
+    seasonConfig.codeOfConductContent,
+    context.formDefinition?.waivers
+  ]);
+  const hasInlineWaivers =
+    !!formWaivers &&
+    (formWaivers.liabilityWaiver.enabled ||
+      formWaivers.codeOfConduct.enabled ||
+      formWaivers.photoRelease.enabled);
 
   const stepOrder: Step[] = useMemo(() => {
     const out: Step[] = ["path", "account"];

@@ -48,6 +48,29 @@ export interface SeasonConfig {
   requireLiabilityWaiver?: boolean;
 
   /**
+   * If true, the code-of-conduct checkbox is a hard block on Phase 3.
+   * The checkbox text comes from `codeOfConductContent` below.
+   * Default: true.
+   */
+  requireCodeOfConduct?: boolean;
+
+  /**
+   * Body text the registrant sees in the Phase 3 liability-waiver
+   * card. Plain text or lightweight markdown — admins paste from
+   * their existing legal doc rather than uploading. Empty string
+   * falls back to the canned default in the funnel.
+   * Default: "" (use canned).
+   */
+  liabilityWaiverContent?: string;
+
+  /**
+   * Body text for the code-of-conduct acknowledgment. Same shape as
+   * `liabilityWaiverContent`.
+   * Default: "" (use canned).
+   */
+  codeOfConductContent?: string;
+
+  /**
    * Hard cap on team rosters. Used by team-creation + roster-add
    * flows to refuse the (N+1)th player.
    * Default: undefined (no cap enforced).
@@ -65,13 +88,18 @@ export interface SeasonConfig {
 export const SEASON_CONFIG_DEFAULTS: Required<
   Pick<
     SeasonConfig,
-    "requireUsaHockeyId" | "allowFreeAgent" | "parentalConsentRequired" | "requireLiabilityWaiver"
+    | "requireUsaHockeyId"
+    | "allowFreeAgent"
+    | "parentalConsentRequired"
+    | "requireLiabilityWaiver"
+    | "requireCodeOfConduct"
   >
 > = {
   requireUsaHockeyId: false,
   allowFreeAgent: false,
   parentalConsentRequired: true,
-  requireLiabilityWaiver: true
+  requireLiabilityWaiver: true,
+  requireCodeOfConduct: true
 };
 
 /**
@@ -84,10 +112,20 @@ export function resolveSeasonConfig(
 ): Required<
   Pick<
     SeasonConfig,
-    "requireUsaHockeyId" | "allowFreeAgent" | "parentalConsentRequired" | "requireLiabilityWaiver"
+    | "requireUsaHockeyId"
+    | "allowFreeAgent"
+    | "parentalConsentRequired"
+    | "requireLiabilityWaiver"
+    | "requireCodeOfConduct"
   >
 > &
-  Pick<SeasonConfig, "maxRosterSize" | "rosterLockAt"> {
+  Pick<
+    SeasonConfig,
+    | "maxRosterSize"
+    | "rosterLockAt"
+    | "liabilityWaiverContent"
+    | "codeOfConductContent"
+  > {
   return {
     ...SEASON_CONFIG_DEFAULTS,
     ...(raw ?? {})
