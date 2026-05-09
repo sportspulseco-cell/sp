@@ -1,161 +1,139 @@
 import Link from "next/link";
-import { ExternalLink, FileSignature, Wand2 } from "lucide-react";
+import { ExternalLink, FileSignature } from "lucide-react";
+import type { PublicSeasonContext } from "@sportspulse/registration-funnel";
 import { PageHeader } from "@/components/layout/page-header";
 import { ReviewQueue } from "@/components/registrations/review-queue";
-import { leagueMgmt, registration } from "@/lib/api/server-api";
-import { TestWizardLauncher } from "./test-wizard-launcher";
+import { registration } from "@/lib/api/server-api";
+import { FunnelClient } from "../../registration/[id]/funnel-client";
 
 export const metadata = { title: "Registrations — SportsPulse" };
 export const dynamic = "force-dynamic";
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+
+async function getContext(seasonId: string): Promise<PublicSeasonContext | null> {
+  try {
+    const res = await fetch(
+      `${API}/public/registration/seasons/${seasonId}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as PublicSeasonContext;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Phase 5 admin review queue + a "Test wizard" launcher panel so an
- * admin can hop straight into the multistep funnel without bouncing
- * through /forms — answering the user's "I want to test it from here"
- * directive.
+ * /registrations has TWO integral parts (per repo owner directive):
+ *   1. The submissions list (admin review queue) at the top.
+ *   2. The actual multistep wizard inline below — schema comes from
+ *      a /forms-configured form bound to a season. NOT a launcher,
+ *      NOT a link out — the wizard renders right here.
  *
- * - If any form has a seasonId set, surface those rows with an
- *   "Open wizard" link.
- * - If none do, the launcher lists every season in scope. Clicking
- *   "Test wizard" creates a stub registration form bound to that
- *   season (if missing) and opens /registration/<seasonId>.
+ * The wizard's Phase 2 (Details) renders the questions configured
+ * via /forms/[id] Form-builder, so the source of truth stays /forms.
  *
- * Schema source of truth stays /forms — this is just an entry point.
+ * If multiple season-bound forms exist, we pick the most-recently-
+ * updated one. The header surfaces a deep-link to /forms/[id] for
+ * editing + an "Open in new tab" of the public /registration/<id>.
  */
 export default async function RegistrationsPage() {
-  const [formsPage, seasonsPage] = await Promise.all([
-    registration
-      .listForms({ purpose: "season_registration" })
-      .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listSeasons({}).catch(() => ({ items: [], nextCursor: null }))
-  ]);
+  const formsPage = await registration
+    .listForms({ purpose: "season_registration" })
+    .catch(() => ({ items: [], nextCursor: null }));
 
+  // Pick the freshest season-bound form to render the wizard against.
   const seasonForms = formsPage.items
     .filter((f) => !!f.seasonId)
-    .slice(0, 6);
-  const formsBySeasonId = new Map(
-    formsPage.items.filter((f) => !!f.seasonId).map((f) => [f.seasonId!, f])
-  );
-
-  // Seasons sorted newest first; show every season in scope so admins
-  // can pick whichever to test against.
-  const seasons = (seasonsPage.items ?? [])
-    .slice()
-    .sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? ""))
-    .slice(0, 12);
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const activeForm = seasonForms[0] ?? null;
+  const ctx = activeForm?.seasonId
+    ? await getContext(activeForm.seasonId)
+    : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Registrations"
-        description="Player + team submissions across all orgs. Test the multistep wizard for any season directly below — schema comes from /forms."
+        description="Player + team submissions across all orgs. The multistep wizard renders inline below — its schema comes from /forms."
       />
 
-      {seasonForms.length > 0 ? (
-        <section className="rounded-xl border border-border bg-surface-1 p-4">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // Live registration wizards
-          </p>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            Open the multistep wizard for any season-bound form. The schema
-            comes straight from /forms — same source of truth as the /users
-            invite profile flow.
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {seasonForms.map((f) => (
-              <li
-                key={f.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-bg-subtle px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <Link
-                    href={`/forms/${f.id}`}
-                    className="text-[13px] font-medium text-fg hover:underline"
-                  >
-                    {f.name}
-                  </Link>
-                  <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    {f.activeVersionId ? "Live · v active" : "Draft"}
-                  </p>
-                </div>
-                <Link
-                  href={`/registration/${f.seasonId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-blue-500/40 bg-blue-500/10 px-2.5 font-mono text-[10px] uppercase tracking-widest text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
-                >
-                  <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-                  Open wizard
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <ReviewQueue />
 
       {/*
-       * Test-wizard launcher: every season in scope appears here.
-       * Clicking the button auto-creates a stub form for that season
-       * if one doesn't exist yet, then opens the wizard. No need to
-       * bounce through /forms.
+       * The wizard is an integral part of /registrations — not a
+       * separate /registration/<id> route. It reads schema from the
+       * /forms-configured form bound to a season.
        */}
-      {seasons.length > 0 ? (
-        <section className="rounded-xl border border-border bg-surface-1 p-4">
-          <div className="flex items-center gap-2">
-            <Wand2 className="h-4 w-4 text-fg-muted" strokeWidth={1.75} />
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              // Test the wizard
+      <section className="space-y-3">
+        <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <p className="text-[18px] font-semibold tracking-tight text-fg">
+              Player registration wizard
+            </p>
+            <p className="mt-1 text-[12px] text-fg-muted">
+              {ctx
+                ? `Rendering against ${ctx.season.name} · schema from /forms`
+                : "No season-bound form yet — configure one in /forms below"}
             </p>
           </div>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            Pick a season to launch the 6-phase wizard against it. We'll
-            auto-create a stub form bound to the season if one doesn't exist
-            yet, so you don't need to set up /forms first.
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {seasons.map((s) => {
-              const existing = formsBySeasonId.get(s.id);
-              return (
-                <TestWizardLauncher
-                  key={s.id}
-                  season={{
-                    id: s.id,
-                    name: s.name,
-                    orgId: s.orgId,
-                    startDate: s.startDate,
-                    endDate: s.endDate,
-                    status: s.status
-                  }}
-                  existingFormId={existing?.id ?? null}
-                />
-              );
-            })}
-          </ul>
-        </section>
-      ) : (
-        <section className="rounded-xl border border-dashed border-border bg-bg-subtle p-6">
-          <div className="flex items-start gap-3">
-            <FileSignature
-              className="mt-1 h-5 w-5 shrink-0 text-fg-muted"
-              strokeWidth={1.75}
-            />
-            <div className="space-y-1">
-              <p className="text-[14px] font-medium text-fg">
-                No seasons in scope yet
-              </p>
-              <p className="text-[12px] text-fg-muted">
-                Create a season via{" "}
-                <Link href="/org-setup" className="underline">
-                  /org-setup
-                </Link>{" "}
-                — then come back here to launch the wizard.
-              </p>
+          {activeForm ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/forms/${activeForm.id}`}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+              >
+                <FileSignature className="h-3.5 w-3.5" strokeWidth={1.75} />
+                Edit form in /forms
+              </Link>
+              {activeForm.seasonId ? (
+                <Link
+                  href={`/registration/${activeForm.seasonId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-500/40 bg-blue-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Open in new tab
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </header>
+
+        {ctx ? (
+          <div className="rounded-xl border border-border bg-bg-subtle">
+            <FunnelClient context={ctx} />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-bg-subtle p-6">
+            <div className="flex items-start gap-3">
+              <FileSignature
+                className="mt-1 h-5 w-5 shrink-0 text-fg-muted"
+                strokeWidth={1.75}
+              />
+              <div className="space-y-1">
+                <p className="text-[14px] font-medium text-fg">
+                  No registration form configured yet
+                </p>
+                <p className="text-[12px] text-fg-muted">
+                  Run{" "}
+                  <code className="font-mono">
+                    pnpm --filter @sportspulse/db seed:registration-form-demo
+                  </code>{" "}
+                  to seed the demo Player registration form, OR head to{" "}
+                  <Link href="/forms" className="underline">
+                    /forms
+                  </Link>{" "}
+                  → create a form → bind it to a season in the Season setup
+                  section.
+                </p>
+              </div>
             </div>
           </div>
-        </section>
-      )}
-
-      <ReviewQueue />
+        )}
+      </section>
     </div>
   );
 }

@@ -32,6 +32,7 @@
     "introspect": "drizzle-kit introspect",
     "seed": "tsx src/seed/index.ts",
     "seed:payments-demo": "tsx src/seed/payments-demo.ts",
+    "seed:registration-form-demo": "tsx src/seed/registration-form-demo.ts",
     "check": "drizzle-kit check",
     "drop": "drizzle-kit drop"
   },
