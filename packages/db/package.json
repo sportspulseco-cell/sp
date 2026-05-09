@@ -31,6 +31,7 @@
     "studio": "drizzle-kit studio",
     "introspect": "drizzle-kit introspect",
     "seed": "tsx src/seed/index.ts",
+    "seed:payments-demo": "tsx src/seed/payments-demo.ts",
     "check": "drizzle-kit check",
     "drop": "drizzle-kit drop"
   },
