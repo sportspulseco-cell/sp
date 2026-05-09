@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import type { AnswerMap } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
-import { Button, Eyebrow, Chip, Field, Input } from "@sportspulse/ui";
+import { Button, Chip, Field, Input } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 
 type Step =
@@ -24,30 +24,36 @@ const PATHS: {
   value: SubmissionType;
   title: string;
   blurb: string;
+  icon: string;
+  iconBg: string;
 }[] = [
   {
     value: "team",
     title: "Register a team",
-    blurb:
-      "I'm a captain or team manager bringing a full roster. I'll invite the rest after I'm in."
+    blurb: "I am a captain registering my team for this season",
+    icon: "🛡️",
+    iconBg: "bg-blue-500/15"
   },
   {
     value: "individual",
-    title: "Register as an individual",
-    blurb:
-      "I'm signing up to play and I'll either join an existing team or get placed."
+    title: "Register as a player",
+    blurb: "I am registering myself individually",
+    icon: "🏒",
+    iconBg: "bg-emerald-500/15"
   },
   {
     value: "free_agent",
-    title: "Join the free-agent pool",
-    blurb:
-      "I don't have a team yet — put me in the pool and let captains pick me up."
+    title: "Free agent",
+    blurb: "I want to play but don't have a team yet",
+    icon: "👤",
+    iconBg: "bg-amber-500/15"
   },
   {
     value: "captain_invite",
-    title: "I have a captain's invite",
-    blurb:
-      "A captain sent me a link. I'll paste my invite token in the next step."
+    title: "Captain invite",
+    blurb: "I received an invite link from my captain",
+    icon: "✉️",
+    iconBg: "bg-violet-500/15"
   }
 ];
 
@@ -132,9 +138,6 @@ export function RegistrationFunnel({
     out.push("review", "payment", "done");
     return out;
   }, [isMinor, parentalConsentRequired, waivers, tiers.length, hasQuestions]);
-
-  const currentIndex = stepOrder.indexOf(step);
-  const visibleSteps = stepOrder.filter((s) => s !== "done");
 
   function next() {
     const i = stepOrder.indexOf(step);
@@ -228,22 +231,26 @@ export function RegistrationFunnel({
     }
   }
 
+  const activePhase = phaseFor(step);
+  const phaseHeading = phaseHeadingFor(step);
+
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <header className="mb-8 space-y-3">
-        <Eyebrow>// Registration · {context.season.sportCode}</Eyebrow>
-        <h1 className="text-[34px] font-semibold tracking-tighter text-fg">
-          {context.season.name}
+    <div className="mx-auto max-w-3xl px-6 py-10">
+      <PhaseStepper activePhase={activePhase} />
+
+      <header className="mt-8 space-y-1">
+        <h1 className="text-[28px] font-semibold tracking-tight text-fg">
+          {phaseHeading.title}
         </h1>
-        <p className="text-sm text-fg-muted">
-          {fmtDate(context.season.startDate)} — {fmtDate(context.season.endDate)}
-          {context.season.registrationClosesAt
-            ? ` · Registration closes ${fmtDate(context.season.registrationClosesAt)}`
-            : ""}
+        <p className="text-[12px] text-fg-muted">
+          {phaseHeading.subtitle ??
+            `${context.season.name}${
+              context.season.registrationClosesAt
+                ? ` · Registration closes ${fmtDate(context.season.registrationClosesAt)}`
+                : ""
+            }`}
         </p>
       </header>
-
-      <Stepper steps={visibleSteps} currentIndex={currentIndex} />
 
       <div className="mt-8 rounded-xl border border-border bg-surface-1 p-6">
         {step === "path" && (
@@ -405,6 +412,8 @@ export function RegistrationFunnel({
             resumed={resumed}
             status={submissionStatus}
             isMinor={isMinor}
+            context={context}
+            submissionType={submissionType}
           />
         )}
       </div>
@@ -429,46 +438,103 @@ function fmtDate(s: string) {
   }
 }
 
-function Stepper({
-  steps,
-  currentIndex
-}: {
-  steps: Step[];
-  currentIndex: number;
-}) {
-  const labels: Record<Step, string> = {
-    path: "Path",
-    account: "Account",
-    consent: "Consent",
-    waivers: "Waivers",
-    tier: "Pricing",
-    questions: "Questions",
-    review: "Review",
-    payment: "Payment",
-    done: "Done"
-  };
+/**
+ * 6-phase stepper that maps the engine's 9 internal states onto the
+ * mockup's coarser phases:
+ *
+ *   1 Path         ← path
+ *   2 Account      ← account
+ *   3 Details      ← tier + questions
+ *   4 Compliance   ← consent + waivers
+ *   5 Payment      ← review + payment
+ *   ⋯ Confirmation ← done
+ *
+ * Numbered circles + label-below layout, with a connector line that
+ * turns green when crossed (matches the mockup chrome).
+ */
+type Phase = 1 | 2 | 3 | 4 | 5 | 6;
+
+const PHASE_LABELS: Record<Phase, string> = {
+  1: "Path",
+  2: "Account",
+  3: "Details",
+  4: "Compliance",
+  5: "Payment",
+  6: "Confirmation"
+};
+
+function phaseFor(step: Step): Phase {
+  switch (step) {
+    case "path":
+      return 1;
+    case "account":
+      return 2;
+    case "tier":
+    case "questions":
+      return 3;
+    case "consent":
+    case "waivers":
+      return 4;
+    case "review":
+    case "payment":
+      return 5;
+    case "done":
+      return 6;
+  }
+}
+
+function PhaseStepper({ activePhase }: { activePhase: Phase }) {
+  const phases: Phase[] = [1, 2, 3, 4, 5, 6];
   return (
-    <ol className="flex flex-wrap items-center gap-2">
-      {steps.map((s, i) => {
-        const done = i < currentIndex;
-        const current = i === currentIndex;
+    <ol className="flex w-full items-center gap-2 sm:gap-3">
+      {phases.map((p, i) => {
+        const isActive = p === activePhase;
+        const isDone = p < activePhase;
+        const isFuture = p > activePhase;
+        const isLast = p === 6;
         return (
-          <li key={s} className="flex items-center gap-2">
-            <span
-              className={
-                current
-                  ? "inline-flex h-6 items-center gap-1.5 rounded-full bg-accent px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-accent-fg"
-                  : done
-                  ? "inline-flex h-6 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-fg"
-                  : "inline-flex h-6 items-center gap-1.5 rounded-full border border-border bg-surface-1 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-fg-muted"
-              }
-            >
-              {done ? <Check className="h-3 w-3" strokeWidth={2} /> : <span>{i + 1}</span>}
-              {labels[s]}
-            </span>
-            {i < steps.length - 1 && (
-              <span aria-hidden className="h-px w-4 bg-border" />
-            )}
+          <li key={p} className="flex flex-1 items-center gap-2 sm:gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <span
+                className={
+                  isActive
+                    ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-accent bg-accent font-mono text-[12px] font-medium text-bg"
+                    : isDone
+                      ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-500 text-white"
+                      : "flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-bg-subtle font-mono text-[12px] font-medium text-fg-muted"
+                }
+              >
+                {isDone ? (
+                  <Check className="h-4 w-4" strokeWidth={2.5} />
+                ) : isLast ? (
+                  <span aria-hidden>⋯</span>
+                ) : (
+                  <span className="tabular-nums">{p}</span>
+                )}
+              </span>
+              <span
+                className={
+                  isActive
+                    ? "hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-widest text-fg sm:inline"
+                    : isDone
+                      ? "hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-widest text-emerald-600 dark:text-emerald-400 sm:inline"
+                      : "hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-widest text-fg-muted sm:inline"
+                }
+              >
+                {PHASE_LABELS[p]}
+              </span>
+            </div>
+            {i < phases.length - 1 ? (
+              <div className="h-px flex-1 self-start mt-4 bg-border">
+                <div
+                  className={
+                    p < activePhase
+                      ? "h-full bg-emerald-500"
+                      : "h-full bg-transparent"
+                  }
+                />
+              </div>
+            ) : null}
           </li>
         );
       })}
@@ -493,43 +559,57 @@ function PathStep({
   );
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-fg">How are you signing up?</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Pick the path that fits — you can change it later by reopening this
-          link with the same email.
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <h2 className="text-[14px] font-semibold tracking-tight text-fg">
+          How are you registering?
+        </h2>
+        <p className="mt-0.5 text-[12px] text-fg-muted">
+          Choose the path that applies to you
         </p>
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {visiblePaths.map((p) => {
-          const on = value === p.value;
-          return (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => onChange(p.value)}
-              className={
-                on
-                  ? "rounded-lg border border-accent bg-accent/5 p-4 text-left ring-2 ring-accent/30 transition-colors"
-                  : "rounded-lg border border-border bg-surface-1 p-4 text-left transition-colors hover:border-fg-muted"
-              }
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-fg">{p.title}</p>
-                {on && <Check className="h-4 w-4 text-accent" strokeWidth={2.25} />}
-              </div>
-              <p className="mt-1 text-[12px] leading-relaxed text-fg-muted">
-                {p.blurb}
-              </p>
-            </button>
-          );
-        })}
-      </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {visiblePaths.map((p) => {
+            const on = value === p.value;
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => onChange(p.value)}
+                className={
+                  on
+                    ? "flex items-start gap-3 rounded-lg border border-accent bg-accent/5 p-4 text-left ring-2 ring-accent/30 transition-colors"
+                    : "flex items-start gap-3 rounded-lg border border-border bg-bg-subtle p-4 text-left transition-colors hover:border-fg-muted"
+                }
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[18px] ${p.iconBg}`}
+                  aria-hidden
+                >
+                  {p.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold text-fg">
+                    {p.title}
+                  </span>
+                  <span className="mt-1 block text-[12px] text-fg-muted">
+                    {p.blurb}
+                  </span>
+                </span>
+                {on ? (
+                  <Check
+                    className="h-4 w-4 shrink-0 text-accent"
+                    strokeWidth={2.25}
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="flex justify-end">
         <Button onClick={onNext} disabled={!value}>
-          Continue <ArrowRight className="ml-2 h-4 w-4" />
+          Next: Account <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -1249,36 +1329,163 @@ function DoneStep({
   submissionId,
   resumed,
   status,
-  isMinor
+  isMinor,
+  context,
+  submissionType
 }: {
   email: string;
   submissionId: string;
   resumed: boolean;
   status: string | null;
   isMinor: boolean;
+  context: PublicSeasonContext;
+  submissionType: SubmissionType | null;
 }) {
   const guidance = guidanceFor(status, isMinor);
+  // Build a humane reference number — e.g. "PPHL-2025-NH-08841" from
+  // the season's initials + year + a slice of the submission id.
+  const seasonAbbrev = context.season.name
+    .split(/\s+/)
+    .map((w) => w[0]?.toUpperCase())
+    .filter(Boolean)
+    .join("")
+    .slice(0, 4);
+  const yearPart = (context.season.startDate ?? "").slice(0, 4);
+  const refNumber = `${seasonAbbrev || "REG"}-${yearPart}-${submissionId.slice(0, 8).toUpperCase()}`;
+
+  // Split-pay link for team captains — shareable URL their roster
+  // members hit to pay their own share. Empty for non-team paths.
+  const splitPayLink =
+    submissionType === "team"
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/registration/${context.season.id}/player?team=${submissionId.slice(0, 8)}`
+      : null;
+
   return (
-    <div className="space-y-4 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-        <Check className="h-6 w-6" strokeWidth={2.25} />
-      </div>
-      <h2 className="text-xl font-semibold text-fg">{guidance.headline(resumed)}</h2>
-      <p className="text-sm text-fg-muted">
-        {guidance.body}
-        <br />
-        Account email:{" "}
-        <span className="text-fg">{email}</span>
-      </p>
-      {status && (
-        <p className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-1 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          state · {status}
+    <div className="space-y-5">
+      <section className="rounded-xl border border-border bg-surface-1 p-6">
+        <div className="flex flex-col items-center gap-3 border-b border-border pb-5 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <Check className="h-7 w-7" strokeWidth={2.25} />
+          </div>
+          <p className="text-[18px] font-semibold tracking-tight text-fg">
+            {guidance.headline(resumed)}
+          </p>
+          <p className="font-mono text-[11px] uppercase tracking-widest text-fg-muted">
+            {guidance.body}
+          </p>
+          <div className="rounded-md border border-border bg-bg-subtle px-4 py-2">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              Reference number
+            </p>
+            <p className="font-mono text-[14px] tabular-nums text-fg">
+              {refNumber}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-[12px] text-fg-muted">
+          A confirmation email has been sent to <span className="text-fg">{email}</span>{" "}
+          with your receipt and next steps.
         </p>
-      )}
-      <p className="font-mono text-[11px] text-fg-muted">
-        Reference: {submissionId}
-      </p>
+
+        <dl className="mt-4 space-y-2">
+          <DetailRow label="Season" value={context.season.name} />
+          {submissionType ? (
+            <DetailRow label="Path" value={labelForPath(submissionType)} />
+          ) : null}
+          {status ? (
+            <DetailRow label="Status" value={status.replace(/_/g, " ")} />
+          ) : null}
+        </dl>
+      </section>
+
+      {splitPayLink ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              Share player invite link
+            </p>
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+              Split pay enabled
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] text-fg-muted">
+            Send this link to your players. Each player completes their own
+            payment share independently.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="flex-1 truncate rounded-md border border-border bg-bg-subtle px-3 py-2 font-mono text-[11px] text-blue-600 dark:text-blue-300">
+              {splitPayLink}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText(splitPayLink).catch(() => undefined);
+                }
+              }}
+              className="inline-flex h-9 items-center rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+            >
+              Copy
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          What happens next?
+        </p>
+        <ol className="mt-3 space-y-2.5">
+          <NextStep
+            n={1}
+            title="Admin eligibility review"
+            body="League admin reviews your documents. You will be notified within 2 business days."
+          />
+          <NextStep
+            n={2}
+            title="Approval confirmation"
+            body="Once approved, you'll appear on the team roster and schedule."
+          />
+          <NextStep
+            n={3}
+            title={`Season begins ${fmtDate(context.season.startDate)}`}
+            body="Your schedule and game notifications will be active."
+          />
+        </ol>
+      </section>
     </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <dt className="text-[12px] text-fg-muted">{label}</dt>
+      <dd className="font-mono text-[12px] tabular-nums text-fg">{value}</dd>
+    </div>
+  );
+}
+
+function NextStep({
+  n,
+  title,
+  body
+}: {
+  n: number;
+  title: string;
+  body: string;
+}) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bg-subtle font-mono text-[11px] tabular-nums text-fg-muted">
+        {n}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-fg">{title}</p>
+        <p className="mt-0.5 text-[12px] text-fg-muted">{body}</p>
+      </div>
+    </li>
   );
 }
 
@@ -1329,4 +1536,50 @@ function guidanceFor(
 
 function labelForPath(t: SubmissionType): string {
   return PATHS.find((p) => p.value === t)?.title ?? t;
+}
+
+/**
+ * Per-step header (mockup's two-line block under the stepper).
+ * The subtitle is null when the funnel should fall back to the
+ * default "<season> · Registration closes <date>" line.
+ */
+function phaseHeadingFor(step: Step): {
+  title: string;
+  subtitle: string | null;
+} {
+  switch (step) {
+    case "path":
+      return {
+        title: "Player registration",
+        subtitle: null
+      };
+    case "account":
+      return {
+        title: "Create your account",
+        subtitle: "Phase 1 — Account creation & authentication"
+      };
+    case "tier":
+    case "questions":
+      return {
+        title: "Your details",
+        subtitle: "Phase 2 — Player & team information"
+      };
+    case "consent":
+    case "waivers":
+      return {
+        title: "Compliance & waivers",
+        subtitle: "Phase 3 — Documents, eligibility checks, and digital signatures"
+      };
+    case "review":
+    case "payment":
+      return {
+        title: "Payment",
+        subtitle: "Phase 4 — Invoice & payment selection"
+      };
+    case "done":
+      return {
+        title: "Registration submitted",
+        subtitle: "Phase 6 — Confirmation & activation"
+      };
+  }
 }
