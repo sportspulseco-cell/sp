@@ -210,30 +210,59 @@ export class PublicRegistrationController {
     // retroactively when dob is later entered.
     const isMinor = body.dobDate ? computeIsMinor(body.dobDate) : false;
 
-    // Find-or-create the persons row. Email goes into externalIds so
-    // we can resume by email later.
-    const existingPersonRow = await this.db
-      .select()
+    // Find-or-create the persons row.
+    //
+    // Lookup priority:
+    //   1. By auth user_id — strongest link, set on every previous
+    //      registration this user has done.
+    //   2. By legal name — a fallback for the very first registration.
+    //
+    // Whichever path we take, ensure the row ends up with userId set,
+    // otherwise iam.meScope returns null personId and the player
+    // dashboard renders "Finish onboarding first".
+    let personId: string | undefined;
+    const [byUser] = await this.db
+      .select({ id: schema.persons.id })
       .from(schema.persons)
-      .where(
-        and(
-          eq(schema.persons.legalFirstName, firstName(body.fullName)),
-          eq(schema.persons.legalLastName, lastName(body.fullName))
-        )
-      )
+      .where(eq(schema.persons.userId, userId))
       .limit(1);
-    let personId = existingPersonRow[0]?.id;
-    if (!personId) {
-      const [person] = await this.db
-        .insert(schema.persons)
-        .values({
-          legalFirstName: firstName(body.fullName),
-          legalLastName: lastName(body.fullName),
-          dobDate: body.dobDate ?? null,
-          externalIds: { email, supabaseUserId: userId }
-        })
-        .returning();
-      personId = person!.id;
+    if (byUser) {
+      personId = byUser.id;
+    } else {
+      const existingPersonRow = await this.db
+        .select({ id: schema.persons.id, userId: schema.persons.userId })
+        .from(schema.persons)
+        .where(
+          and(
+            eq(schema.persons.legalFirstName, firstName(body.fullName)),
+            eq(schema.persons.legalLastName, lastName(body.fullName))
+          )
+        )
+        .limit(1);
+      if (existingPersonRow[0]) {
+        personId = existingPersonRow[0].id;
+        // Adopt this name-matched row only when it isn't already
+        // claimed by a different auth user — otherwise we'd silently
+        // hijack someone else's profile.
+        if (!existingPersonRow[0].userId) {
+          await this.db
+            .update(schema.persons)
+            .set({ userId, updatedAt: new Date() })
+            .where(eq(schema.persons.id, personId));
+        }
+      } else {
+        const [person] = await this.db
+          .insert(schema.persons)
+          .values({
+            userId,
+            legalFirstName: firstName(body.fullName),
+            legalLastName: lastName(body.fullName),
+            dobDate: body.dobDate ?? null,
+            externalIds: { email, supabaseUserId: userId }
+          })
+          .returning({ id: schema.persons.id });
+        personId = person!.id;
+      }
     }
 
     // Need a form_version for the FK. Pick the first active one. Wave E
@@ -371,28 +400,47 @@ export class PublicRegistrationController {
     const submissionType = body.submissionType ?? "individual";
     const idempotencyKey = `${email}|${seasonId}|${submissionType}`;
 
-    // Find-or-create person row (same logic as startSubmission).
-    const existingPersonRow = await this.db
-      .select()
+    // Find-or-create person row — same priority as startSubmission:
+    // by userId first, then by name (and back-fill userId if missing).
+    let personId: string | undefined;
+    const [byUser] = await this.db
+      .select({ id: schema.persons.id })
       .from(schema.persons)
-      .where(
-        and(
-          eq(schema.persons.legalFirstName, firstName(fullName)),
-          eq(schema.persons.legalLastName, lastName(fullName))
-        )
-      )
+      .where(eq(schema.persons.userId, userId))
       .limit(1);
-    let personId = existingPersonRow[0]?.id;
-    if (!personId) {
-      const [person] = await this.db
-        .insert(schema.persons)
-        .values({
-          legalFirstName: firstName(fullName),
-          legalLastName: lastName(fullName),
-          externalIds: { email, supabaseUserId: userId }
-        })
-        .returning();
-      personId = person!.id;
+    if (byUser) {
+      personId = byUser.id;
+    } else {
+      const existingPersonRow = await this.db
+        .select({ id: schema.persons.id, userId: schema.persons.userId })
+        .from(schema.persons)
+        .where(
+          and(
+            eq(schema.persons.legalFirstName, firstName(fullName)),
+            eq(schema.persons.legalLastName, lastName(fullName))
+          )
+        )
+        .limit(1);
+      if (existingPersonRow[0]) {
+        personId = existingPersonRow[0].id;
+        if (!existingPersonRow[0].userId) {
+          await this.db
+            .update(schema.persons)
+            .set({ userId, updatedAt: new Date() })
+            .where(eq(schema.persons.id, personId));
+        }
+      } else {
+        const [person] = await this.db
+          .insert(schema.persons)
+          .values({
+            userId,
+            legalFirstName: firstName(fullName),
+            legalLastName: lastName(fullName),
+            externalIds: { email, supabaseUserId: userId }
+          })
+          .returning({ id: schema.persons.id });
+        personId = person!.id;
+      }
     }
 
     const [anyVersion] = await this.db

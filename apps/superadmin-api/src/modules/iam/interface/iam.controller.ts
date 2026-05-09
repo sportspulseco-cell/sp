@@ -116,11 +116,36 @@ export class IamController {
         )
       );
 
-    const [person] = await this.db
+    let [person] = await this.db
       .select({ id: schema.persons.id })
       .from(schema.persons)
       .where(eq(schema.persons.userId, principal.userId))
       .limit(1);
+
+    // Heal-on-read for legacy registrations: the public funnel used to
+    // create persons with `externalIds.supabaseUserId` set but
+    // `persons.userId` left null, which left the player dashboard
+    // stuck on "Finish onboarding first". If we find such a row,
+    // claim it for this user now so future reads are direct.
+    if (!person) {
+      const [orphan] = await this.db
+        .select({ id: schema.persons.id })
+        .from(schema.persons)
+        .where(
+          and(
+            sql`${schema.persons.userId} IS NULL`,
+            sql`${schema.persons.externalIds}->>'supabaseUserId' = ${principal.userId}`
+          )
+        )
+        .limit(1);
+      if (orphan) {
+        await this.db
+          .update(schema.persons)
+          .set({ userId: principal.userId, updatedAt: new Date() })
+          .where(eq(schema.persons.id, orphan.id));
+        person = { id: orphan.id };
+      }
+    }
 
     // Dedupe per scope dimension — a user holding multiple roles on
     // the same team (e.g. team_admin + coach) should count as one team

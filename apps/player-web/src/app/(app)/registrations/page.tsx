@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, ScrollText, ShieldAlert } from "lucide-react";
+import { ArrowRight, ScrollText } from "lucide-react";
 import { Badge, EmptyState } from "@sportspulse/ui";
 import type { Registration } from "@sportspulse/api-client";
-import { iam, registration } from "@/lib/api/server-api";
+import { registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,15 @@ const STATUS_TONE: Record<
   approved: "success",
   rejected: "danger",
   waitlisted: "info",
-  withdrawn: "neutral"
+  withdrawn: "neutral",
+  // Registration v2 states.
+  pending_verification: "warning",
+  pending_consent: "warning",
+  pending_payment: "warning",
+  pending_offline: "warning",
+  pending_review: "warning",
+  incomplete: "neutral",
+  cancelled: "neutral"
 };
 
 function fmtDate(iso: string): string {
@@ -37,6 +45,7 @@ function statusCopy(status: Registration["status"]): string {
     case "submitted":
       return "Submitted. Admin will review shortly.";
     case "under_review":
+    case "pending_review":
       return "An admin is currently reviewing.";
     case "approved":
       return "Approved — you're cleared for the season.";
@@ -46,31 +55,31 @@ function statusCopy(status: Registration["status"]): string {
       return "Waitlisted — admin will reach out if a spot opens.";
     case "withdrawn":
       return "Withdrawn.";
+    case "pending_verification":
+      return "Verify your email to continue.";
+    case "pending_consent":
+      return "Awaiting parental consent.";
+    case "pending_payment":
+      return "Payment outstanding — finish checkout to submit.";
+    case "pending_offline":
+      return "Offline payment pending — admin will mark received.";
+    case "incomplete":
+      return "Resume the funnel to fill missing details.";
+    case "cancelled":
+      return "Cancelled.";
     default:
       return "";
   }
 }
 
 export default async function MyRegistrationsPage() {
-  const scope = await iam.meScope().catch(() => null);
-  const personId = scope?.personId ?? null;
-
-  if (!personId) {
-    return (
-      <div className="space-y-6">
-        <PageHeader eyebrow="// MY REGISTRATIONS" title="My registrations" />
-        <EmptyState
-          icon={ShieldAlert}
-          title="Finish onboarding first"
-          description="We need a person record linked to your account before showing your registrations."
-        />
-      </div>
-    );
-  }
-
+  // Self-scoped endpoint — handles the persons.userId lookup AND the
+  // legacy-orphan back-fill server-side, so we don't have to gate on
+  // meScope's personId here. Returns an empty list (not an error) when
+  // the user has zero linked registrations.
   const page = await registration
-    .listRegistrations({ subjectPersonId: personId })
-    .catch(() => ({ items: [] as Registration[], nextCursor: null }));
+    .listMyRegistrations()
+    .catch(() => ({ items: [] as Registration[] }));
 
   const items: Registration[] = page.items ?? [];
   const sorted = items.slice().sort((a, b) => {

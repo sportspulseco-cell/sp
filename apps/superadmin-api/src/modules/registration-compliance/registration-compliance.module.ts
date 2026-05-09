@@ -7,6 +7,7 @@ import { RegistrationsController } from "./interface/registrations.controller";
 import { EligibilityController } from "./interface/eligibility.controller";
 import { DocumentsController } from "./interface/documents.controller";
 import { SelfComplianceController } from "./interface/self-compliance.controller";
+import { SelfRegistrationsController } from "./interface/self-registrations.controller";
 
 import {
   ListFormsHandler,
@@ -61,7 +62,8 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
     RegistrationsController,
     EligibilityController,
     DocumentsController,
-    SelfComplianceController
+    SelfComplianceController,
+    SelfRegistrationsController
   ],
   providers: [
     // Forms

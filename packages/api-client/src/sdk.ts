@@ -990,6 +990,14 @@ export function createApi(f: Fetcher) {
       listRegistrations: (
         q: { orgId?: string; status?: string; subjectPersonId?: string } = {}
       ) => f<Page<Registration>>(`/registration/registrations${qs(q)}`),
+      /**
+       * Self-scoped variant — returns only the caller's own
+       * registrations. Backed by /registration/self/registrations,
+       * which is JwtAuthGuard'd (no SuperAdminGuard) so player-web
+       * users can hit it without scope errors.
+       */
+      listMyRegistrations: () =>
+        f<{ items: Registration[] }>(`/registration/self/registrations`),
       reviewRegistration: (
         id: string,
         body: { action: "approve" | "reject" | "waitlist" | "start_review"; reason?: string }
