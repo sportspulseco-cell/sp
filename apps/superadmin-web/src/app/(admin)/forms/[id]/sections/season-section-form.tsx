@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@sportspulse/ui";
@@ -14,21 +14,24 @@ const REGISTRATION_TYPES: { value: string; label: string }[] = [
   { value: "team_and_individual", label: "Team + individual (mixed)" }
 ];
 
-function isoToDate(iso: string | null | undefined): string {
-  if (!iso) return "";
-  return iso.slice(0, 10);
-}
-function dateToIso(d: string): string | null {
-  if (!d) return null;
-  return new Date(d + "T00:00:00").toISOString();
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
 }
 
 /**
- * Season setup section — Roll-over card on top, "Season details" form
- * below. Saves via:
- *   - registration.updateForm (binds form.seasonId on rollover/create)
- *   - leagueMgmt.updateSeason (name + dates + reg windows)
- *   - patches form metadata.registrationType
+ * Season setup section — picks an EXISTING season from /org-setup and
+ * binds it to this form. Per repo owner directive: seasons aren't
+ * created here, they're created in /org-setup. Selecting a season
+ * auto-populates the read-only summary below; the rest of the wizard
+ * (Pricing, Divisions, Email templates) keys off this seasonId.
+ *
+ * Top "Rollover" card stays as a fast path for spawning a NEW season
+ * from a prior one (calls leagueMgmt.createSeason then binds).
  */
 export function SeasonSectionForm({
   form,
@@ -40,47 +43,67 @@ export function SeasonSectionForm({
   priorSeasons: Season[];
 }) {
   const router = useRouter();
-  const [name, setName] = useState(season?.name ?? "");
+  const [seasonId, setSeasonId] = useState<string>(form.seasonId ?? "");
   const [registrationType, setRegistrationType] = useState<string>(
     typeof form.description === "string" ? form.description : "team_captain_led"
   );
-  const [startDate, setStartDate] = useState(isoToDate(season?.startDate));
-  const [endDate, setEndDate] = useState(isoToDate(season?.endDate));
-  const [registrationOpensAt, setRegistrationOpensAt] = useState(
-    isoToDate(season?.registrationOpensAt)
-  );
-  const [registrationClosesAt, setRegistrationClosesAt] = useState(
-    isoToDate(season?.registrationClosesAt)
-  );
-  const [busy, setBusy] = useState<"none" | "save" | "rollover">("none");
+  const [allSeasons, setAllSeasons] = useState<Season[]>([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(true);
+  const [busy, setBusy] = useState<"none" | "bind" | "rollover" | "type">("none");
   const [rolloverId, setRolloverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  // Pull every season in the org so the dropdown can show all options.
+  useEffect(() => {
+    let alive = true;
+    leagueMgmt
+      .listSeasons({ orgId: form.orgId })
+      .then((page) => {
+        if (!alive) return;
+        const items = (page.items ?? []).slice().sort((a, b) =>
+          (b.startDate ?? "").localeCompare(a.startDate ?? "")
+        );
+        setAllSeasons(items);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (alive) setSeasonsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [form.orgId]);
+
+  // Find the currently-selected season's full record so the read-only
+  // panel shows fresh data even before router.refresh kicks in.
+  const selectedSeason =
+    allSeasons.find((s) => s.id === seasonId) ?? season ?? null;
+
+  async function bindSeason(nextSeasonId: string) {
     setError(null);
     setSaved(false);
-    if (!season) {
-      setError(
-        "This form has no season bound yet. Use a rollover above or open the form from a season's setup page so seasonId is set."
-      );
-      return;
-    }
-    setBusy("save");
+    setBusy("bind");
     try {
-      await leagueMgmt.updateSeason(season.id, {
-        name: name.trim(),
-        startDate,
-        endDate,
-        registrationOpensAt: dateToIso(registrationOpensAt),
-        registrationClosesAt: dateToIso(registrationClosesAt)
-      });
-      // Description is repurposed as the registration type label here —
-      // there's no top-level column for it on registration_forms today.
       await registration.updateForm(form.id, {
-        description: registrationType
+        seasonId: nextSeasonId || null
       });
+      setSeasonId(nextSeasonId);
+      setSaved(true);
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy("none");
+    }
+  }
+
+  async function saveRegistrationType() {
+    setError(null);
+    setSaved(false);
+    setBusy("type");
+    try {
+      await registration.updateForm(form.id, { description: registrationType });
       setSaved(true);
       router.refresh();
     } catch (err) {
@@ -95,11 +118,6 @@ export function SeasonSectionForm({
     setBusy("rollover");
     setRolloverId(prior.id);
     try {
-      // Server-side rollover endpoint copies pricing + divisions +
-      // questions + waivers (everything except dates).
-      // Clone the prior season's structure into a NEW season + bind it
-      // to this form. We stub that via two calls: create a new season
-      // shell + wire form.seasonId to it.
       const created = await leagueMgmt.createSeason({
         leagueId: prior.leagueId,
         name: `${prior.name} (rollover)`,
@@ -112,6 +130,8 @@ export function SeasonSectionForm({
         rosterLockAt: prior.rosterLockAt
       });
       await registration.updateForm(form.id, { seasonId: created.id });
+      setSeasonId(created.id);
+      setAllSeasons((prev) => [created, ...prev]);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -122,10 +142,10 @@ export function SeasonSectionForm({
   }
 
   return (
-    <form onSubmit={save} className="space-y-6">
+    <div className="space-y-6">
       <SectionHeader
         title="Season setup"
-        subtitle="Basic info, rollover, and confirmation email"
+        subtitle="Pick the season this registration runs against — created via Org setup"
       />
 
       {/* Rollover card */}
@@ -140,8 +160,8 @@ export function SeasonSectionForm({
         </div>
         {priorSeasons.length === 0 ? (
           <p className="text-[12px] text-fg-muted">
-            No prior seasons in this org yet. Skip to "Season details" below to
-            start from scratch.
+            No prior seasons in this org yet. Create one in Org setup, or pick
+            an existing one in the dropdown below.
           </p>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">
@@ -172,102 +192,136 @@ export function SeasonSectionForm({
             ))}
           </ul>
         )}
-        <p className="text-center text-[12px] text-fg-muted">
-          or start from scratch below
-        </p>
       </section>
 
-      {/* Season details card */}
+      {/* Season picker */}
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
         <p className="text-[14px] font-semibold tracking-tight text-fg">
           Season details
         </p>
 
         <Field
-          label="Season name"
-          schemaTag="seasons.name"
+          label="Season"
+          schemaTag="registration_forms.season_id → seasons"
           required
+          hint="Seasons are created in Org setup. Pick one to bind this registration form to it; the rest of the wizard reads its config from the seasons table."
         >
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value.slice(0, 120))}
-            maxLength={120}
-            placeholder="e.g. NH Fall 2025"
-            className="input"
-            required
-          />
+          {seasonsLoading ? (
+            <div className="flex items-center gap-2 text-[12px] text-fg-muted">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading seasons…
+            </div>
+          ) : allSeasons.length === 0 ? (
+            <p className="text-[12px] text-fg-muted">
+              No seasons in this org yet.{" "}
+              <a href="/org-setup" className="underline">
+                Create one in Org setup
+              </a>
+              .
+            </p>
+          ) : (
+            <select
+              value={seasonId}
+              onChange={(e) => bindSeason(e.target.value)}
+              disabled={busy !== "none"}
+              className="input"
+              required
+            >
+              <option value="" disabled>
+                Pick a season…
+              </option>
+              {allSeasons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} · {s.startDate} → {s.endDate}
+                </option>
+              ))}
+            </select>
+          )}
         </Field>
+
+        {/* Auto-populated read-only summary */}
+        {selectedSeason ? (
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 rounded-md border border-border bg-bg-subtle p-4">
+            <ReadOnly label="Season name" tag="seasons.name">
+              {selectedSeason.name}
+            </ReadOnly>
+            <ReadOnly label="Sport" tag="seasons.sport_code" mono>
+              {selectedSeason.sportCode}
+            </ReadOnly>
+            <ReadOnly label="Time zone" tag="seasons.timezone" mono>
+              {selectedSeason.timezone}
+            </ReadOnly>
+            <ReadOnly label="Season start" tag="seasons.start_date" mono>
+              {fmtDate(selectedSeason.startDate)}
+            </ReadOnly>
+            <ReadOnly label="Season end" tag="seasons.end_date" mono>
+              {fmtDate(selectedSeason.endDate)}
+            </ReadOnly>
+            <ReadOnly label="Status" tag="seasons.status" mono>
+              {selectedSeason.status.replace(/_/g, " ")}
+            </ReadOnly>
+            <ReadOnly
+              label="Registration opens"
+              tag="seasons.registration_opens_at"
+              mono
+            >
+              {fmtDate(selectedSeason.registrationOpensAt)}
+            </ReadOnly>
+            <ReadOnly
+              label="Registration closes"
+              tag="seasons.registration_closes_at"
+              mono
+            >
+              {fmtDate(selectedSeason.registrationClosesAt)}
+            </ReadOnly>
+            <ReadOnly label="Roster lock" tag="seasons.roster_lock_at" mono>
+              {fmtDate(selectedSeason.rosterLockAt)}
+            </ReadOnly>
+          </dl>
+        ) : null}
+
+        {selectedSeason ? (
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            Need to change these dates?{" "}
+            <a href="/org-setup" className="underline">
+              Edit in Org setup →
+            </a>
+          </p>
+        ) : null}
 
         <Field
           label="Registration type"
           schemaTag="registration_forms.description (typed)"
           required
         >
-          <select
-            value={registrationType}
-            onChange={(e) => setRegistrationType(e.target.value)}
-            className="input"
-          >
-            {REGISTRATION_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={registrationType}
+              onChange={(e) => setRegistrationType(e.target.value)}
+              className="input"
+            >
+              {REGISTRATION_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={saveRegistrationType}
+              disabled={busy !== "none"}
+            >
+              {busy === "type" ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              <span className="font-mono text-[10px] uppercase tracking-widest">
+                Save
+              </span>
+            </Button>
+          </div>
         </Field>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Season start" schemaTag="seasons.start_date" required>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input"
-              required
-            />
-          </Field>
-          <Field label="Season end" schemaTag="seasons.end_date" required>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              min={startDate || undefined}
-              className="input"
-              required
-            />
-          </Field>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Registration opens"
-            schemaTag="seasons.registration_opens_at"
-            required
-          >
-            <input
-              type="date"
-              value={registrationOpensAt}
-              onChange={(e) => setRegistrationOpensAt(e.target.value)}
-              className="input"
-              required
-            />
-          </Field>
-          <Field
-            label="Registration closes"
-            schemaTag="seasons.registration_closes_at"
-            required
-          >
-            <input
-              type="date"
-              value={registrationClosesAt}
-              onChange={(e) => setRegistrationClosesAt(e.target.value)}
-              min={registrationOpensAt || undefined}
-              className="input"
-              required
-            />
-          </Field>
-        </div>
 
         {error ? (
           <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
@@ -276,35 +330,26 @@ export function SeasonSectionForm({
         ) : null}
         {saved ? (
           <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
-            Season saved.
+            Saved.
           </p>
         ) : null}
-
-        <div className="flex items-center justify-end border-t border-border pt-4">
-          <Button type="submit" disabled={busy !== "none"}>
-            {busy === "save" ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : null}
-            <span className="font-mono text-[10px] uppercase tracking-widest">
-              Save season details
-            </span>
-          </Button>
-        </div>
       </section>
 
       <FieldStyle />
-    </form>
+    </div>
   );
 }
 
 function Field({
   label,
   schemaTag,
+  hint,
   required,
   children
 }: {
   label: string;
   schemaTag?: string;
+  hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
@@ -322,6 +367,41 @@ function Field({
         ) : null}
       </div>
       {children}
+      {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
+    </div>
+  );
+}
+
+function ReadOnly({
+  label,
+  tag,
+  mono,
+  children
+}: {
+  label: string;
+  tag?: string;
+  mono?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          {label}
+        </dt>
+        {tag ? (
+          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
+            {tag}
+          </span>
+        ) : null}
+      </div>
+      <dd
+        className={
+          mono ? "mt-1 font-mono text-[12px] text-fg" : "mt-1 text-[13px] text-fg"
+        }
+      >
+        {children}
+      </dd>
     </div>
   );
 }

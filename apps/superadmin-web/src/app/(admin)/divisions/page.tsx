@@ -1,4 +1,5 @@
-import { Layers } from "lucide-react";
+import { Layers, Wand2 } from "lucide-react";
+import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -11,7 +12,6 @@ import {
   TR,
   Table
 } from "@/components/ui/table";
-import { CreateDivisionButton } from "@/components/divisions/create-division-button";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Division, Season } from "@/lib/api/types";
 
@@ -66,22 +66,28 @@ export default async function DivisionsPage({
     ? `Filtered by season ${seasonMap.get(sp.seasonId)?.name ?? sp.seasonId.slice(0, 8)}`
     : sp?.leagueId
     ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? sp.leagueId.slice(0, 8)}`
-    : "Age + tier + gender groupings within a season.";
+    : "Age + tier + gender groupings within a season. Click a row to inspect; create new divisions via Org setup.";
+
+  const orgSetupCta = (
+    <Link
+      href="/org-setup"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+    >
+      <Wand2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+      New division → Org setup
+    </Link>
+  );
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Divisions"
-        description={filterLabel}
-        action={<CreateDivisionButton seasons={seasonsPage.items} />}
-      />
+      <PageHeader title="Divisions" description={filterLabel} action={orgSetupCta} />
 
       {divs.items.length === 0 ? (
         <EmptyState
           icon={Layers}
           title="No divisions yet"
-          description="Divisions group teams by age, tier, and gender within a season."
-          action={<CreateDivisionButton seasons={seasonsPage.items} />}
+          description="New divisions are created via the 4-phase Org setup wizard's Divisions step."
+          action={orgSetupCta}
         />
       ) : (
         <Table>
@@ -101,7 +107,11 @@ export default async function DivisionsPage({
               const s = seasonMap.get(d.seasonId);
               return (
                 <TR key={d.id}>
-                  <TD className="font-medium">{d.name}</TD>
+                  <TD className="font-medium">
+                    <Link href={`/divisions/${d.id}`} className="hover:underline">
+                      {d.name}
+                    </Link>
+                  </TD>
                   <TD className="text-muted-foreground">
                     {s?.name ?? d.seasonId.slice(0, 8)}
                   </TD>

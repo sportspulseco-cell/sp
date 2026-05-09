@@ -1,4 +1,4 @@
-import { Trophy } from "lucide-react";
+import { Trophy, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -12,15 +12,14 @@ import {
   TR,
   Table
 } from "@/components/ui/table";
-import { CreateLeagueButton } from "@/components/leagues/create-league-button";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Leagues — SportsPulse" };
 
 /**
- * Post-flip hierarchy: leagues live under an org. Filterable by ?orgId=
- * to scope a list to one organisation. The "Drill into a league" link
- * now goes to /seasons?leagueId= since seasons are children of leagues.
+ * View-only listing — creation lives exclusively in /org-setup so the
+ * 4-phase wizard stays the single source of truth (per repo owner
+ * directive). Click a row → /leagues/[id] for full league info.
  */
 export default async function LeaguesPage({
   searchParams
@@ -36,6 +35,16 @@ export default async function LeaguesPage({
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
+  const orgSetupCta = (
+    <Link
+      href="/org-setup"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+    >
+      <Wand2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+      New league → Org setup
+    </Link>
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -43,17 +52,17 @@ export default async function LeaguesPage({
         description={
           sp?.orgId
             ? `Filtered by org ${orgMap.get(sp.orgId) ?? sp.orgId.slice(0, 8)}`
-            : "Persistent competition containers (e.g. PPHL). Each league has many seasons."
+            : "Persistent competition containers. Click a row to inspect; create new leagues via Org setup."
         }
-        action={<CreateLeagueButton orgs={orgList.items} />}
+        action={orgSetupCta}
       />
 
       {leaguesPage.items.length === 0 ? (
         <EmptyState
           icon={Trophy}
           title="No leagues yet"
-          description="Leagues are the top-level competition. Create one under any org."
-          action={<CreateLeagueButton orgs={orgList.items} />}
+          description="New leagues are created via the 4-phase Org setup wizard."
+          action={orgSetupCta}
         />
       ) : (
         <Table>
@@ -72,7 +81,7 @@ export default async function LeaguesPage({
               <TR key={l.id}>
                 <TD className="font-medium">
                   <Link
-                    href={`/seasons?leagueId=${l.id}`}
+                    href={`/leagues/${l.id}`}
                     className="hover:underline"
                   >
                     {l.name}

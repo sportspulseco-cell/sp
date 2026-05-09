@@ -126,6 +126,14 @@ export interface League {
   name: string;
   format: "regular" | "tournament" | "pickup" | "friendly";
   status: "draft" | "active" | "archived";
+  /**
+   * Free-form JSONB. Conventional keys written by /org-setup wizard:
+   *   - slug: URL-safe identifier
+   *   - branding: { logoUrl, primaryColor }
+   *   - privacy: "public" | "unlisted" | "private"
+   *   - timezone: IANA TZ string
+   */
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -139,6 +147,18 @@ export interface Division {
   tier: string | null;
   genderEligibility: "male" | "female" | "mixed" | "open";
   maxTeams: number | null;
+  /**
+   * JSONB — game rules + tiebreakers + ageRange written by /org-setup
+   * Phase 3. Conventional shape:
+   *   { gameRules: GameRules, tiebreakers: TiebreakerCode[], ageRange: { min, max, label } }
+   */
+  ruleSetOverrides?: Record<string, unknown>;
+  /**
+   * JSONB — playoff config written by /org-setup Phase 3:
+   *   { enabled, playoffSpots, startDate, endDate, seriesFormat,
+   *     bracketType, homeIceRule }
+   */
+  playoffConfig?: Record<string, unknown>;
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;

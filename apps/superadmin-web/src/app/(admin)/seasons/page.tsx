@@ -1,4 +1,4 @@
-import { CalendarRange } from "lucide-react";
+import { CalendarRange, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -12,14 +12,14 @@ import {
   TR,
   Table
 } from "@/components/ui/table";
-import { CreateSeasonButton } from "@/components/seasons/create-season-button";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Seasons — SportsPulse" };
 
 /**
- * Post-flip hierarchy: seasons live under a league. Filter by ?leagueId=
- * to scope the list to a single league.
+ * View-only listing — creation lives exclusively in /org-setup so the
+ * 4-phase wizard stays the single source of truth (per repo owner
+ * directive, 2026-05-09). Click a row → /seasons/[id] for full info.
  */
 export default async function SeasonsPage({
   searchParams
@@ -33,6 +33,16 @@ export default async function SeasonsPage({
   ]);
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
 
+  const orgSetupCta = (
+    <Link
+      href="/org-setup"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+    >
+      <Wand2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+      New season → Org setup
+    </Link>
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -40,17 +50,17 @@ export default async function SeasonsPage({
         description={
           sp?.leagueId
             ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? sp.leagueId.slice(0, 8)}`
-            : "Time-bounded instances of a league. Each holds divisions + registrations."
+            : "Time-bounded instances of a league. Click a row to inspect; create new seasons via Org setup."
         }
-        action={<CreateSeasonButton leagues={leaguesPage.items} />}
+        action={orgSetupCta}
       />
 
       {seasonsPage.items.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No seasons yet"
-          description="Create a season under any league. Leagues come first now (post hierarchy flip)."
-          action={<CreateSeasonButton leagues={leaguesPage.items} />}
+          description="New seasons are created via the 4-phase Org setup wizard."
+          action={orgSetupCta}
         />
       ) : (
         <Table>
@@ -70,7 +80,7 @@ export default async function SeasonsPage({
               <TR key={s.id}>
                 <TD className="font-medium">
                   <Link
-                    href={`/divisions?seasonId=${s.id}`}
+                    href={`/seasons/${s.id}`}
                     className="hover:underline"
                   >
                     {s.name}
