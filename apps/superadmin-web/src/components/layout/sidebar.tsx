@@ -72,6 +72,7 @@ const PROJECT_NAV: NavItem[] = [
   { href: "/game-events", label: "Game events", icon: Activity },
   { href: "/stats", label: "Stats", icon: BarChart3 },
   { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/payments", label: "Payment & invoicing", icon: Wallet },
   { href: "/communications", label: "Communications", icon: MessageSquare },
   { href: "/reports", label: "Reports", icon: FileBarChart },
   { href: "/data-migration", label: "Data Migration", icon: Database }
