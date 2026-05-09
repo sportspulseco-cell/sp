@@ -100,6 +100,17 @@ export function RegistrationFunnel({
   const [dobDate, setDobDate] = useState("");
   const [pricingTierId, setPricingTierId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<AnswerMap>({});
+  // Phase 2 team-info card state (only shown when path=team).
+  // Sent to the backend via the answers map under reserved keys at
+  // payment time — future iteration moves this to a dedicated table.
+  const [teamName, setTeamName] = useState("");
+  const [teamDivision, setTeamDivision] = useState("");
+  const [teamColor, setTeamColor] = useState("#3B82F6");
+  // Phase 3 compliance toggles (mockup cards: code of conduct,
+  // photo / media release). Stored on the answers map under reserved
+  // keys at submit time.
+  const [codeOfConductAccepted, setCodeOfConductAccepted] = useState(false);
+  const [photoReleaseAccepted, setPhotoReleaseAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
@@ -345,16 +356,18 @@ export function RegistrationFunnel({
             requiredKinds={requiredKinds}
             signedVersionIds={signedVersionIds}
             fullName={fullName}
+            eligibilityFlags={eligibilityFlags}
+            codeOfConductAccepted={codeOfConductAccepted}
+            photoReleaseAccepted={photoReleaseAccepted}
+            onCodeOfConductChange={setCodeOfConductAccepted}
+            onPhotoReleaseChange={setPhotoReleaseAccepted}
             onSign={async (versionId, signatureName) => {
               try {
-                const res = await api.signWaiver(
-                  submissionId!,
-                  {
-                    email,
-                    documentVersionId: versionId,
-                    signatureName
-                  }
-                );
+                const res = await api.signWaiver(submissionId!, {
+                  email,
+                  documentVersionId: versionId,
+                  signatureName
+                });
                 setSignedVersionIds(
                   (prev) => new Set([...prev, versionId])
                 );
@@ -386,6 +399,13 @@ export function RegistrationFunnel({
             definition={context.formDefinition}
             initialAnswers={answers}
             onChange={setAnswers}
+            submissionType={submissionType}
+            teamName={teamName}
+            teamDivision={teamDivision}
+            teamColor={teamColor}
+            onTeamNameChange={setTeamName}
+            onTeamDivisionChange={setTeamDivision}
+            onTeamColorChange={setTeamColor}
             onBack={back}
             onNext={next}
           />
@@ -477,17 +497,22 @@ const PHASE_LABELS: Record<Phase, string> = {
 };
 
 function phaseFor(step: Step): Phase {
+  // Mockup mapping: 1 Path · 2 Account · 3 Details · 4 Compliance ·
+  // 5 Payment · 6 Confirmation. tier picker lives inside Payment in
+  // the mockup (the invoice + payment-option card composes both); we
+  // keep tier as a separate inner state for back-compat but pin it to
+  // Phase 5 in the stepper.
   switch (step) {
     case "path":
       return 1;
     case "account":
       return 2;
-    case "tier":
     case "questions":
       return 3;
     case "consent":
     case "waivers":
       return 4;
+    case "tier":
     case "review":
     case "payment":
       return 5;
@@ -941,11 +966,28 @@ function ConsentStep({
   );
 }
 
+/**
+ * Phase 3 (Compliance & waivers). Mockup-aligned 4-card layout:
+ *   1. Automated eligibility checks — hardcoded 5-row panel where each
+ *      row's status is derived from `eligibilityFlags` (failed flag →
+ *      amber `!`, otherwise green ✓).
+ *   2. Liability waiver — sign-in-name signature collected per-doc.
+ *   3. Code of conduct — single required toggle.
+ *   4. Photo / media release — optional toggle.
+ *
+ * Continue is gated on: all required waivers signed AND code of conduct
+ * accepted. Photo release is optional.
+ */
 function WaiversStep({
   documents,
   requiredKinds,
   signedVersionIds,
   fullName,
+  eligibilityFlags,
+  codeOfConductAccepted,
+  photoReleaseAccepted,
+  onCodeOfConductChange,
+  onPhotoReleaseChange,
   onSign,
   onBack,
   onNext
@@ -954,6 +996,11 @@ function WaiversStep({
   requiredKinds: string[];
   signedVersionIds: Set<string>;
   fullName: string;
+  eligibilityFlags: string[] | null;
+  codeOfConductAccepted: boolean;
+  photoReleaseAccepted: boolean;
+  onCodeOfConductChange: (v: boolean) => void;
+  onPhotoReleaseChange: (v: boolean) => void;
   onSign: (versionId: string, signatureName: string) => Promise<void>;
   onBack: () => void;
   onNext: () => void;
@@ -961,42 +1008,213 @@ function WaiversStep({
   const requiredOutstanding = documents.filter(
     (d) => requiredKinds.includes(d.kind) && !signedVersionIds.has(d.versionId)
   );
+  const flags = eligibilityFlags ?? [];
+  const checks = [
+    {
+      label: "Age / division fit",
+      flagKey: "age_division_mismatch",
+      okBody: "You're within the allowed age range for this division.",
+      warnBody: "Age may not match the configured division range. Admin will review."
+    },
+    {
+      label: "No duplicate account",
+      flagKey: "duplicate_subject",
+      okBody: "No existing profile with matching name + DOB found.",
+      warnBody: "Possible duplicate found — admin will review manually."
+    },
+    {
+      label: "USA Hockey ID format",
+      flagKey: "usa_hockey_id_format_invalid",
+      okBody: "Format valid.",
+      warnBody: "USA Hockey ID format is invalid (6–12 alphanumeric)."
+    },
+    {
+      label: "USA Hockey ID — governing body verification",
+      flagKey: "usa_hockey_id_unverified",
+      okBody: "Verified against USA Hockey roster.",
+      warnBody:
+        "API verification pending. Admin will review manually. You may continue."
+    },
+    {
+      label: "Level / division match",
+      flagKey: "level_division_mismatch",
+      okBody: "Level within allowed range for this division.",
+      warnBody: "Self-reported level may not match division — admin will review."
+    }
+  ];
+
+  const continueDisabled =
+    requiredOutstanding.length > 0 || !codeOfConductAccepted;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-fg">Sign your waivers</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Required ({requiredKinds.join(", ")}) waivers must be signed
-          before you can pay (Workflow 1 §6.1). Optional documents you can
-          skip — they're recorded as declined.
+      {/* Card 1 — eligibility checks */}
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          Automated eligibility checks
         </p>
-      </div>
+        <ul className="mt-4 divide-y divide-border">
+          {checks.map((c) => {
+            const failed = flags.includes(c.flagKey);
+            return (
+              <li
+                key={c.flagKey}
+                className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span
+                  className={
+                    failed
+                      ? "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                      : "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                  }
+                >
+                  {failed ? "!" : <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-fg">{c.label}</p>
+                  <p className="mt-0.5 text-[12px] text-fg-muted">
+                    {failed ? c.warnBody : c.okBody}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
-      <ul className="space-y-3">
-        {documents.map((d) => (
-          <WaiverCard
-            key={d.documentId}
-            doc={d}
-            isRequired={requiredKinds.includes(d.kind)}
-            isSigned={signedVersionIds.has(d.versionId)}
-            fullName={fullName}
-            onSign={(name) => onSign(d.versionId, name)}
+      {/* Card 2 — Liability waiver(s) */}
+      {documents.length > 0 ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              {documents.length === 1
+                ? "Liability waiver"
+                : `Required documents (${documents.length})`}
+            </p>
+            {requiredOutstanding.length > 0 ? (
+              <span className="rounded-full bg-rose-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+                Not signed
+              </span>
+            ) : (
+              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                Signed
+              </span>
+            )}
+          </div>
+          <ul className="mt-4 space-y-3">
+            {documents.map((d) => (
+              <WaiverCard
+                key={d.documentId}
+                doc={d}
+                isRequired={requiredKinds.includes(d.kind)}
+                isSigned={signedVersionIds.has(d.versionId)}
+                fullName={fullName}
+                onSign={(name) => onSign(d.versionId, name)}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Card 3 — Code of conduct */}
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Code of conduct
+          </p>
+        </div>
+        <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-fg">
+              I agree to abide by the league code of conduct
+            </p>
+            <p className="mt-0.5 text-[12px] text-fg-muted">
+              Required — acknowledgment must be confirmed before proceeding
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={codeOfConductAccepted}
+            onChange={onCodeOfConductChange}
+            label="Code of conduct"
           />
-        ))}
-      </ul>
+        </label>
+      </section>
+
+      {/* Card 4 — Photo / media release */}
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Photo / media release
+          </p>
+          <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Optional
+          </span>
+        </div>
+        <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-fg">
+              I consent to the league using my photo and likeness in league
+              media
+            </p>
+            <p className="mt-0.5 text-[12px] text-fg-muted">
+              Optional — you can decline without affecting your registration
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={photoReleaseAccepted}
+            onChange={onPhotoReleaseChange}
+            label="Photo / media release"
+          />
+        </label>
+      </section>
 
       <div className="flex items-center justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button onClick={onNext} disabled={requiredOutstanding.length > 0}>
+        <Button onClick={onNext} disabled={continueDisabled}>
           {requiredOutstanding.length > 0
             ? `Sign ${requiredOutstanding.length} more required`
-            : "Continue"}
+            : !codeOfConductAccepted
+              ? "Accept code of conduct"
+              : "Next: Payment"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
+  );
+}
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  label
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={
+        checked
+          ? "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-blue-500 transition-colors"
+          : "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-fg-muted/30 transition-colors"
+      }
+    >
+      <span
+        className={
+          checked
+            ? "inline-block h-5 w-5 translate-x-5 rounded-full bg-white shadow transition-transform"
+            : "inline-block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform"
+        }
+      />
+    </button>
   );
 }
 
@@ -1174,41 +1392,117 @@ function TierStep({
   );
 }
 
+/**
+ * Phase 2 (Details). Renders the mockup's two-card layout:
+ *
+ *   - Team information card — only when path=team. Captures team name,
+ *     division, primary colour. Per the architectural directive
+ *     ('/forms is the source of truth') the player-details fields below
+ *     come entirely from the form's active version via FormRenderer —
+ *     the mockup's specific fields (DOB, gender, position, USA Hockey ID,
+ *     emergency contact, medical notes) are what one well-configured
+ *     form produces, not hardcoded in the funnel.
+ */
 function QuestionsStep({
   definition,
   initialAnswers,
   onChange,
+  submissionType,
+  teamName,
+  teamDivision,
+  teamColor,
+  onTeamNameChange,
+  onTeamDivisionChange,
+  onTeamColorChange,
   onBack,
   onNext
 }: {
   definition: PublicSeasonContext["formDefinition"];
   initialAnswers: AnswerMap;
   onChange: (next: AnswerMap) => void;
+  submissionType: SubmissionType | null;
+  teamName: string;
+  teamDivision: string;
+  teamColor: string;
+  onTeamNameChange: (v: string) => void;
+  onTeamDivisionChange: (v: string) => void;
+  onTeamColorChange: (v: string) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
+  const showTeamCard = submissionType === "team";
+  const teamValid =
+    !showTeamCard ||
+    (teamName.trim().length > 0 && teamDivision.trim().length > 0);
+
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-fg">A few quick questions</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          The league set these — answers are saved against the question key,
-          so they stick even if labels are reworded later.
-        </p>
-      </div>
+      {showTeamCard ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              Team information
+            </p>
+            <span className="rounded-full bg-blue-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-blue-700 dark:text-blue-300">
+              Team reg
+            </span>
+          </div>
+          <div className="mt-4">
+            <Field label="Team name *">
+              <Input
+                value={teamName}
+                onChange={(e) => onTeamNameChange(e.target.value)}
+                placeholder="Unique within your division for this season"
+                required
+              />
+            </Field>
+          </div>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field label="Division *">
+              <Input
+                value={teamDivision}
+                onChange={(e) => onTeamDivisionChange(e.target.value)}
+                placeholder="e.g. AHL"
+                required
+              />
+            </Field>
+            <Field label="Team colour">
+              <input
+                type="color"
+                value={teamColor}
+                onChange={(e) => onTeamColorChange(e.target.value)}
+                className="h-10 w-full cursor-pointer rounded-md border border-border bg-surface-1 p-1"
+                aria-label="Team primary colour"
+              />
+            </Field>
+          </div>
+        </section>
+      ) : null}
 
-      <FormRenderer
-        definition={definition}
-        initialAnswers={initialAnswers}
-        onChange={onChange}
-      />
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          Player details
+        </p>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Answers are saved against the question key — labels can be reworded
+          in /forms without losing data. Configure these fields from the
+          Form builder section in /forms/[id].
+        </p>
+        <div className="mt-4">
+          <FormRenderer
+            definition={definition}
+            initialAnswers={initialAnswers}
+            onChange={onChange}
+          />
+        </div>
+      </section>
 
       <div className="flex items-center justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button onClick={onNext}>
-          Continue <ArrowRight className="ml-2 h-4 w-4" />
+        <Button onClick={onNext} disabled={!teamValid}>
+          Next: Compliance <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -1306,6 +1600,19 @@ function ReviewStep({
   );
 }
 
+/**
+ * Phase 4 (Payment). Three-card mockup layout:
+ *   1. Your invoice — line items (registration fee + optional discount)
+ *      + Total due + discount-code input.
+ *   2. Choose a payment option — Full / Payment plan / Offline. The
+ *      payment plan card paints the deposit + N installments timeline
+ *      when the tier has paymentPlanEnabled.
+ *   3. Card details — Stripe-style card / expiry / CVC inputs. Real
+ *      tokenisation is a separate ticket; the inputs are presentational
+ *      until the Stripe Elements integration ships.
+ *
+ * Footer: ← Back · Step 5 of 6 · Pay $X →
+ */
 function PaymentStep({
   tier,
   submitting,
@@ -1323,73 +1630,258 @@ function PaymentStep({
   onPayOffline: () => void;
   onBack: () => void;
 }) {
-  const amount = tier
-    ? `${(tier.fullPriceCents / 100).toFixed(2)} ${tier.currency}`
-    : "0.00 USD";
+  const [option, setOption] = useState<"full" | "plan" | "offline">(
+    tier?.paymentPlanEnabled ? "plan" : "full"
+  );
+  const [discountCode, setDiscountCode] = useState("");
+  const [appliedDiscountPct, setAppliedDiscountPct] = useState(0);
+
   const free = !tier || tier.isFree || tier.fullPriceCents === 0;
+  const currency = tier?.currency ?? "USD";
+  const fullPriceCents = tier?.fullPriceCents ?? 0;
+  const discountCents = Math.round(fullPriceCents * (appliedDiscountPct / 100));
+  const totalCents = fullPriceCents - discountCents;
+  const depositCents = tier?.depositCents ?? 0;
+  const installmentCount = tier?.installmentCount ?? 0;
+  const installmentAmountCents =
+    installmentCount > 0
+      ? Math.round((totalCents - depositCents) / installmentCount)
+      : 0;
+  const intervalDays = tier?.installmentIntervalDays ?? 30;
+
+  const fmt = (cents: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency
+    }).format(cents / 100);
+
+  function applyDiscount() {
+    // Visual stub — real coupon resolution lands when the discount-code
+    // table ships. For now treat any non-empty code as 10% off so the
+    // UI demonstrates the line-item math.
+    if (discountCode.trim().length === 0) {
+      setAppliedDiscountPct(0);
+    } else {
+      setAppliedDiscountPct(10);
+    }
+  }
+
+  // What actually fires on the primary CTA — pick handler by option.
+  function handlePay() {
+    if (option === "offline") onPayOffline();
+    else onPay();
+  }
+
+  const ctaAmount =
+    option === "plan" && depositCents > 0 ? depositCents : totalCents;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-fg">Payment (mock)</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Stripe integration is mocked while we wire it up. Pick an outcome
-          to drive the state machine: <span className="font-mono">succeeded</span>{" "}
-          → invoice paid + admin review, <span className="font-mono">failed</span>{" "}
-          → stays in pending_payment, <span className="font-mono">offline</span>{" "}
-          → admin marks paid manually.
+      {/* Card 1 — Invoice */}
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          Your invoice
         </p>
-      </div>
+        <table className="mt-4 w-full">
+          <tbody className="divide-y divide-border">
+            <tr>
+              <td className="py-2 pr-3 text-[13px] text-fg">
+                {tier?.name ?? "Registration fee"}
+              </td>
+              <td className="py-2 text-right font-mono text-[13px] tabular-nums text-fg">
+                {fmt(fullPriceCents)}
+              </td>
+            </tr>
+            {appliedDiscountPct > 0 ? (
+              <tr>
+                <td className="py-2 pr-3 text-[13px] text-fg-muted">
+                  Discount code {discountCode.toUpperCase()} ({appliedDiscountPct}%)
+                </td>
+                <td className="py-2 text-right font-mono text-[13px] tabular-nums text-emerald-700 dark:text-emerald-400">
+                  -{fmt(discountCents)}
+                </td>
+              </tr>
+            ) : null}
+            <tr className="border-t-2 border-border">
+              <td className="py-2 pr-3 text-[13px] font-medium text-fg">
+                Total due
+              </td>
+              <td className="py-2 text-right font-mono text-[14px] font-semibold tabular-nums text-fg">
+                {free ? "Free" : fmt(totalCents)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-      <dl className="divide-y divide-border rounded-lg border border-border bg-surface-1 text-sm">
-        <Row label="Tier">{tier?.name ?? "No tier selected"}</Row>
-        <Row label="Total due">
-          {free ? (
-            <span className="font-mono text-fg">Free</span>
-          ) : (
-            <span className="font-mono text-fg">{amount}</span>
-          )}
-        </Row>
-        {tier?.paymentPlanEnabled && (
-          <Row label="Payment plan">
-            <span className="font-mono text-[12px] text-fg-muted">
-              {tier.installmentCount}× installments — full-pay only in mock
-            </span>
-          </Row>
-        )}
-      </dl>
+        <div className="mt-4">
+          <Field label="Discount code">
+            <div className="flex gap-2">
+              <Input
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                placeholder="EARLYBIRD10"
+              />
+              <Button type="button" variant="secondary" onClick={applyDiscount}>
+                Apply
+              </Button>
+            </div>
+          </Field>
+        </div>
+      </section>
 
-      {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+      {/* Card 2 — Payment options */}
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          Choose a payment option
+        </p>
+        <ul className="mt-4 space-y-3">
+          <PaymentOption
+            active={option === "full"}
+            onSelect={() => setOption("full")}
+            title={`Full payment — ${fmt(totalCents)} today`}
+            body="Single charge. No further payments."
+          />
+          {tier?.paymentPlanEnabled ? (
+            <PaymentOption
+              active={option === "plan"}
+              onSelect={() => setOption("plan")}
+              title={`Payment plan — ${fmt(depositCents)} deposit today`}
+              body={`then ${installmentCount} installment${installmentCount === 1 ? "" : "s"} of ${fmt(installmentAmountCents)} every ${intervalDays} days`}
+              extra={
+                <ul className="mt-3 space-y-1.5 text-[12px]">
+                  <li className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="text-fg-muted">
+                      Today (deposit) — {fmt(depositCents)}
+                    </span>
+                  </li>
+                  {Array.from({ length: installmentCount }).map((_, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-blue-500" />
+                      <span className="text-fg-muted">
+                        Installment {i + 1} — {fmt(installmentAmountCents)}
+                      </span>
+                    </li>
+                  ))}
+                  <li className="flex items-center justify-between border-t border-border pt-2 mt-2">
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                      Total collected
+                    </span>
+                    <span className="font-mono text-[12px] tabular-nums text-fg">
+                      {fmt(totalCents)}
+                    </span>
+                  </li>
+                </ul>
+              }
+            />
+          ) : null}
+          <PaymentOption
+            active={option === "offline"}
+            onSelect={() => setOption("offline")}
+            title="Offline / manual payment"
+            body="Cash, cheque, or e-transfer. Admin marks you as paid when received."
+          />
+        </ul>
+      </section>
+
+      {/* Card 3 — Card details (visual; Stripe Elements lands later) */}
+      {option !== "offline" ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Card details
+          </p>
+          <div className="mt-4 grid gap-4">
+            <Field label="Card number">
+              <Input placeholder="1234 5678 9012 3456" autoComplete="cc-number" />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Expiry">
+                <Input placeholder="MM / YY" autoComplete="cc-exp" />
+              </Field>
+              <Field label="CVC">
+                <Input placeholder="123" autoComplete="cc-csc" />
+              </Field>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-fg-muted">
+            Card data will be tokenised by Stripe in your browser — SportsPulse
+            never sees your card number.
+          </p>
+        </section>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
           {error}
         </p>
-      )}
+      ) : null}
 
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Button onClick={onPay} disabled={submitting}>
-          {submitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <>Pay {free ? "(free)" : amount}</>
-          )}
-        </Button>
-        <Button variant="secondary" onClick={onPayOffline} disabled={submitting}>
-          Pay offline
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button
+          type="button"
           variant="ghost"
-          onClick={onSimulateDecline}
+          onClick={onBack}
           disabled={submitting}
         >
-          Simulate decline
-        </Button>
-      </div>
-
-      <div className="flex justify-start">
-        <Button type="button" variant="ghost" onClick={onBack} disabled={submitting}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSimulateDecline}
+            disabled={submitting}
+            className="rounded-md border border-border bg-bg-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg disabled:opacity-50"
+            title="Dev affordance — simulate Stripe declining the charge so the state machine moves to pending_payment."
+          >
+            Simulate decline
+          </button>
+          <Button onClick={handlePay} disabled={submitting}>
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                {option === "offline"
+                  ? "Submit for offline payment"
+                  : `Pay ${fmt(ctaAmount)}`}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
+  );
+}
+
+function PaymentOption({
+  active,
+  onSelect,
+  title,
+  body,
+  extra
+}: {
+  active: boolean;
+  onSelect: () => void;
+  title: string;
+  body: string;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className={
+          active
+            ? "block w-full rounded-lg border border-blue-500 bg-blue-500/5 p-4 text-left ring-2 ring-blue-500/30"
+            : "block w-full rounded-lg border border-border bg-bg-subtle p-4 text-left transition-colors hover:border-fg-muted"
+        }
+      >
+        <p className="text-[13px] font-semibold text-fg">{title}</p>
+        <p className="mt-0.5 text-[12px] text-fg-muted">{body}</p>
+        {active && extra ? extra : null}
+      </button>
+    </li>
   );
 }
 
@@ -1629,16 +2121,12 @@ function phaseHeadingFor(step: Step): {
 } {
   switch (step) {
     case "path":
-      return {
-        title: "Player registration",
-        subtitle: null
-      };
+      return { title: "Player registration", subtitle: null };
     case "account":
       return {
         title: "Create your account",
         subtitle: "Phase 1 — Account creation & authentication"
       };
-    case "tier":
     case "questions":
       return {
         title: "Your details",
@@ -1648,8 +2136,10 @@ function phaseHeadingFor(step: Step): {
     case "waivers":
       return {
         title: "Compliance & waivers",
-        subtitle: "Phase 3 — Documents, eligibility checks, and digital signatures"
+        subtitle:
+          "Phase 3 — Documents, eligibility checks, and digital signatures"
       };
+    case "tier":
     case "review":
     case "payment":
       return {
