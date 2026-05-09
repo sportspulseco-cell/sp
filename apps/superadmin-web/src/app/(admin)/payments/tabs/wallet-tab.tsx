@@ -46,35 +46,29 @@ export async function WalletTab({
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-600 to-blue-700 p-6 text-white">
-        <div className="flex items-baseline justify-between gap-4">
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-widest text-blue-100">
-              SportsPulse wallet balance
-            </p>
-            <p className="mt-1 text-[36px] font-semibold tabular-nums">
-              {fmtMoney(balance, currency)}
-            </p>
-          </div>
-          <div className="text-right text-blue-100">
-            <p className="font-mono text-[11px] uppercase tracking-widest">
-              Player
-            </p>
-            <p className="mt-0.5 font-mono text-[12px]">{playerLabel}</p>
-            <p className="mt-2 font-mono text-[11px] uppercase tracking-widest">
-              {expires ? `Expires ${fmtDate(expires)}` : "Never expires"}
-            </p>
+      {/* Continuous balance + ledger card — matches the mockup's layout
+          where entries fall directly under the dark blue balance header
+          inside a single rounded container. */}
+      <section className="overflow-hidden rounded-xl border border-border bg-surface-1">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 text-white">
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-widest text-blue-100">
+                SportsPulse wallet balance
+              </p>
+              <p className="mt-1 text-[36px] font-semibold tabular-nums">
+                {fmtMoney(balance, currency)}
+              </p>
+            </div>
+            <div className="text-right text-blue-100">
+              <p className="font-mono text-[12px]">{playerLabel}</p>
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-widest">
+                {expires ? `Expires ${fmtDate(expires)}` : "Never expires"}
+              </p>
+            </div>
           </div>
         </div>
-      </section>
-
-      {ledger.length > 0 ? (
-        <section className="rounded-xl border border-border bg-surface-1">
-          <header className="border-b border-border px-5 py-3">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              // wallet_ledger
-            </p>
-          </header>
+        {ledger.length > 0 ? (
           <ul className="divide-y divide-border">
             {ledger.map((e) => {
               const isCredit = e.amountCents > 0;
@@ -90,10 +84,9 @@ export async function WalletTab({
                     <p className="font-mono text-[11px] text-fg-muted">
                       {e.reason}
                       {e.relatedInvoiceId
-                        ? ` · invoice ${e.relatedInvoiceId.slice(0, 8)}`
+                        ? ` · Applied to ${e.relatedInvoiceId.slice(0, 8)}`
                         : ""}
-                    </p>
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                      {" · "}
                       {fmtDate(e.createdAt)}
                     </p>
                   </div>
@@ -111,8 +104,12 @@ export async function WalletTab({
               );
             })}
           </ul>
-        </section>
-      ) : null}
+        ) : (
+          <p className="px-5 py-6 text-center text-[12px] text-fg-muted">
+            No ledger entries yet — issue a credit below to seed the audit log.
+          </p>
+        )}
+      </section>
 
       <WalletForm
         personId={personId}

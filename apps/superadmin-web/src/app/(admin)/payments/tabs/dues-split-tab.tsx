@@ -60,33 +60,36 @@ export async function DuesSplitTab({
   return (
     <div className="space-y-6">
       <section className="rounded-xl border border-border bg-surface-1 p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              Team total
-            </p>
-            <p className="text-[18px] font-semibold tracking-tight text-fg">
-              {team?.name ?? "Team"}
-            </p>
-          </div>
-          <p className="font-mono text-[24px] font-semibold tabular-nums text-fg">
+        <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Team total · {team?.name ?? "Team"}
+          </p>
+          <p className="font-mono text-[20px] font-semibold tabular-nums text-fg">
             {fmtMoney(total, currency)}
           </p>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Metric
-            label="Collected"
-            value={fmtMoney(collected, currency)}
-            sub={`${paidCount} player${paidCount === 1 ? "" : "s"}`}
-            tone="success"
-          />
-          <Metric
-            label="Outstanding"
-            value={fmtMoney(outstanding, currency)}
-            sub={`${unpaidCount} player${unpaidCount === 1 ? "" : "s"}`}
-            tone="danger"
-          />
+
+        <div className="mt-4 space-y-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-[13px] text-emerald-700 dark:text-emerald-400">
+              Collected
+            </span>
+            <span className="font-mono text-[13px] tabular-nums text-emerald-700 dark:text-emerald-400">
+              {fmtMoney(collected, currency)} ({paidCount} player
+              {paidCount === 1 ? "" : "s"})
+            </span>
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-[13px] text-rose-700 dark:text-rose-400">
+              Outstanding
+            </span>
+            <span className="font-mono text-[13px] tabular-nums text-rose-700 dark:text-rose-400">
+              {fmtMoney(outstanding, currency)} ({unpaidCount} player
+              {unpaidCount === 1 ? "" : "s"})
+            </span>
+          </div>
         </div>
+
         <div className="mt-4">
           <div className="h-2 w-full overflow-hidden rounded-full bg-bg-subtle">
             <div
@@ -120,30 +123,3 @@ export async function DuesSplitTab({
   );
 }
 
-function Metric({
-  label,
-  value,
-  sub,
-  tone
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  tone: "success" | "danger";
-}) {
-  const valueClass =
-    tone === "success"
-      ? "text-emerald-700 dark:text-emerald-300"
-      : "text-rose-700 dark:text-rose-300";
-  return (
-    <div className="rounded-md border border-border bg-bg-subtle p-3">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        {label}
-      </p>
-      <p className={`mt-1 text-[18px] font-semibold tracking-tight ${valueClass}`}>
-        {value}
-      </p>
-      <p className="font-mono text-[11px] text-fg-muted">{sub}</p>
-    </div>
-  );
-}

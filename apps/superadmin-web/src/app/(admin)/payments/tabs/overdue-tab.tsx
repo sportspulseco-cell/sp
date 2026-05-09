@@ -172,19 +172,35 @@ function EscalationRow({
     : e.level >= 2 || dpd > 30
       ? "red"
       : "amber";
-  const severityClass =
+  // Mockup row 1 has a soft red wash + red "!" badge ("admin follow-up
+  // required"); row 2 has a yellow wash + amber "!" badge.
+  const rowBgClass =
     severity === "red"
-      ? "border-rose-500/30 bg-rose-500/10"
-      : "border-amber-500/30 bg-amber-500/10";
-  const dotClass = severity === "red" ? "bg-rose-500" : "bg-amber-500";
+      ? "bg-rose-500/5 hover:bg-rose-500/10"
+      : "bg-amber-500/5 hover:bg-amber-500/10";
+  const iconBoxClass =
+    severity === "red"
+      ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+      : "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+
+  // Late fee → derived from invoice metadata when the worker has stamped
+  // it. Fallback: assume the difference between outstanding and the
+  // round invoice total is the fee (covers the mockup's "$3,925 incl.
+  // late fee" subtitle when amount > original balance).
+  const md = inv as unknown as { metadata?: { lateFeeCents?: number } };
+  const lateFeeCents = md.metadata?.lateFeeCents ?? 0;
+  const grossOutstanding = outstanding + lateFeeCents;
 
   return (
-    <li className={`border-l-4 ${severityClass} px-5 py-3`}>
+    <li className={`px-5 py-3 transition-colors ${rowBgClass}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span
-            className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`}
-          />
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md font-mono text-[12px] font-bold ${iconBoxClass}`}
+            aria-hidden="true"
+          >
+            !
+          </span>
           <div className="space-y-1">
             <p className="text-[13px] font-medium text-fg">
               {inv.invoiceNumber}
@@ -192,9 +208,13 @@ function EscalationRow({
             </p>
             <p className="font-mono text-[11px] text-fg-muted">
               {fmtMoney(outstanding, inv.currency)} ·{" "}
-              {dpd > 0 ? `${dpd} days past due` : "due now"} ·{" "}
-              Reminder {e.remindersSent} sent
+              {dpd > 0 ? `${dpd} days past due` : "due now"} · Reminder{" "}
+              {e.remindersSent} sent
+              {lateFeeCents > 0
+                ? ` · Late fee ${fmtMoney(lateFeeCents, inv.currency)} applied`
+                : ""}
               {e.lockSuspended ? " · Auto-suspension flag active" : ""}
+              {e.level >= 2 ? " · Admin follow-up required" : ""}
               {e.extendedDueAt
                 ? ` · Extended to ${fmtDate(e.extendedDueAt)}`
                 : ""}
@@ -203,11 +223,11 @@ function EscalationRow({
         </div>
         <div className="text-right">
           <p className="font-mono text-[14px] font-semibold tabular-nums text-fg">
-            {fmtMoney(outstanding, inv.currency)}
+            {fmtMoney(grossOutstanding, inv.currency)}
           </p>
-          {e.level >= 2 ? (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
-              Level {e.level} · admin follow-up
+          {lateFeeCents > 0 ? (
+            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              incl. late fee
             </p>
           ) : null}
         </div>

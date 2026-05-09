@@ -192,14 +192,24 @@ export async function PlayerInvoiceTab({
           <p className="text-[16px] font-semibold tracking-tight text-fg">
             Pay next installment
           </p>
-          <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-blue-800 dark:text-blue-200">
-            <p className="text-[13px] font-medium">
-              {nextDue.label} due {fmtDate(nextDue.dueAt)}
-            </p>
-            <p className="mt-1 text-[12px] opacity-80">
-              {fmtMoney(nextDue.amountCents, invoice.currency)} will be
-              auto-charged to your card on file.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-blue-800 dark:text-blue-200">
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium">
+                {nextDue.label} due {fmtDate(nextDue.dueAt)}
+              </p>
+              <p className="mt-1 text-[12px] opacity-80">
+                {fmtMoney(nextDue.amountCents, invoice.currency)} will be
+                auto-charged to your card on file.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled
+              title="Stripe Checkout integration ships separately — see doc/deferred-integrations.md #1"
+              className="inline-flex h-9 items-center rounded-md bg-blue-600 px-4 font-mono text-[11px] uppercase tracking-widest text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              Pay now
+            </button>
           </div>
           {cardOnFile ? (
             <p className="font-mono text-[11px] text-fg-muted">
@@ -373,7 +383,9 @@ function statusTone(
   status: string
 ): "success" | "warning" | "danger" | "info" | "neutral" {
   if (status === "paid") return "success";
-  if (status === "partial" || status === "sent") return "warning";
+  // Mockup shows the "Partial" pill in soft blue rather than amber.
+  if (status === "partial") return "info";
+  if (status === "sent") return "warning";
   if (status === "overdue") return "danger";
   if (status === "void") return "neutral";
   return "info";
