@@ -7,6 +7,8 @@ import { Badge, Button } from "@sportspulse/ui";
 import type { TeamInvoiceSplitWithPerson } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/browser-api";
 import { fmtMoney, fullName, initials } from "../lib/format";
+import { DEMO_MODE, mockCoverOutstandingPreview } from "../lib/mock-data";
+import { DemoBadge } from "../lib/demo-badge";
 
 /**
  * Per-player payment tracker. Mirrors the mockup's list:
@@ -93,12 +95,24 @@ export function DuesSplitClient({
             type="button"
             variant="ghost"
             size="sm"
-            disabled
-            title="Coming soon — requires admin-funded coverage flow"
+            disabled={!DEMO_MODE}
+            title={
+              DEMO_MODE
+                ? "Demo flow — preview the coverage amount + player count without writing anything"
+                : "Coming soon — requires admin-funded coverage flow (see doc/deferred-integrations.md)"
+            }
+            onClick={() => {
+              if (!DEMO_MODE) return;
+              const preview = mockCoverOutstandingPreview(splits);
+              window.alert(
+                `Demo preview\n\nWould cover ${fmtMoney(preview.coveredCents, currency)} across ${preview.players} player${preview.players === 1 ? "" : "s"}.\n\nWiring requires the admin-funded coverage spec — see doc/deferred-integrations.md.`
+              );
+            }}
           >
             <span className="font-mono text-[10px] uppercase tracking-widest">
               Cover outstanding
             </span>
+            {DEMO_MODE ? <DemoBadge label="demo" /> : null}
           </Button>
         </div>
       </header>

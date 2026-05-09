@@ -4,6 +4,12 @@ import { Badge, EmptyState } from "@sportspulse/ui";
 import type { Invoice, Payment } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/server-api";
 import { fmtMoney, fmtDate } from "../lib/format";
+import {
+  DEMO_MODE,
+  mockCardOnFile,
+  mockUpcomingFromInvoice
+} from "../lib/mock-data";
+import { DemoBadge } from "../lib/demo-badge";
 
 /**
  * Player invoice tab — pixel-matches the mockup's two-card layout:
@@ -50,7 +56,9 @@ export async function PlayerInvoiceTab({
   }
 
   const items = invoice.items ?? [];
-  const cardOnFile = readCardOnFile(invoice, payments);
+  const realCard = readCardOnFile(invoice, payments);
+  const cardOnFile = realCard ?? (DEMO_MODE ? mockCardOnFile() : null);
+  const cardIsMock = !realCard && cardOnFile !== null;
   const wallet = invoice.recipientPersonId
     ? await finance
         .getWallet({
@@ -62,7 +70,14 @@ export async function PlayerInvoiceTab({
     : null;
 
   const successfulPayments = payments.filter((p) => p.status === "succeeded");
-  const upcoming = readUpcomingFromMetadata(invoice);
+  const realUpcoming = readUpcomingFromMetadata(invoice);
+  const upcoming =
+    realUpcoming.length > 0
+      ? realUpcoming
+      : DEMO_MODE
+        ? mockUpcomingFromInvoice(invoice)
+        : [];
+  const upcomingIsMock = realUpcoming.length === 0 && upcoming.length > 0;
   const nextDue = upcoming.find((u) => u.status === "upcoming");
 
   return (
@@ -131,6 +146,7 @@ export async function PlayerInvoiceTab({
         <div className="mt-6 space-y-3">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Payment timeline
+            {upcomingIsMock ? <DemoBadge label="demo upcoming" /> : null}
           </p>
           <ul className="space-y-2">
             {successfulPayments.map((p) => (
@@ -191,6 +207,7 @@ export async function PlayerInvoiceTab({
               {cardOnFile.expMonth && cardOnFile.expYear
                 ? ` · Expires ${String(cardOnFile.expMonth).padStart(2, "0")}/${String(cardOnFile.expYear).slice(-2)}`
                 : ""}
+              {cardIsMock ? <DemoBadge label="demo card" /> : null}
             </p>
           ) : (
             <p className="font-mono text-[11px] text-fg-muted">

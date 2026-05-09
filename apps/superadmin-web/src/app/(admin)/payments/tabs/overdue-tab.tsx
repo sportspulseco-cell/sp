@@ -6,6 +6,8 @@ import type {
 } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/server-api";
 import { fmtMoney, fmtDate, daysPastDue, fmtRelative } from "../lib/format";
+import { DEMO_MODE, mockQbSyncStatus } from "../lib/mock-data";
+import { DemoBadge } from "../lib/demo-badge";
 import { OverdueRowActions } from "./overdue-row-actions";
 
 /**
@@ -17,7 +19,7 @@ import { OverdueRowActions } from "./overdue-row-actions";
  * finance.recordPayment under the hood.
  */
 export async function OverdueTab({ orgId }: { orgId: string }) {
-  const [escalations, qbStatus] = await Promise.all([
+  const [escalations, realQb] = await Promise.all([
     finance
       .listEscalations({ orgId })
       .catch(() => [] as InvoiceEscalationWithInvoice[]),
@@ -30,6 +32,15 @@ export async function OverdueTab({ orgId }: { orgId: string }) {
       })
     )
   ]);
+  // Mockup-data fallback for the QB section. Removable once the
+  // Intuit OAuth + sync worker lands — see doc/deferred-integrations.md.
+  const qbStatus =
+    realQb.recentEvents.length > 0
+      ? realQb
+      : DEMO_MODE
+        ? mockQbSyncStatus(orgId)
+        : realQb;
+  const qbIsMock = DEMO_MODE && realQb.recentEvents.length === 0;
 
   return (
     <div className="space-y-6">
@@ -71,6 +82,7 @@ export async function OverdueTab({ orgId }: { orgId: string }) {
           <div>
             <p className="text-[14px] font-semibold tracking-tight text-fg">
               QuickBooks sync status
+              {qbIsMock ? <DemoBadge label="demo" /> : null}
             </p>
             <div className="mt-1 flex items-center gap-2">
               <span

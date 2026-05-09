@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import { fmtRelative } from "./lib/format";
+import { DemoBadge } from "./lib/demo-badge";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "ar", label: "AR dashboard" },
@@ -34,6 +35,7 @@ export function PaymentsHeader({
   orgName,
   seasonName,
   qbStatus,
+  qbIsMock,
   searchParams
 }: {
   active: TabKey;
@@ -44,6 +46,7 @@ export function PaymentsHeader({
     lastSyncAt: string | null;
     errorCount24h: number;
   } | null;
+  qbIsMock?: boolean;
   searchParams: Record<string, string | undefined>;
 }) {
   const qbTone =
@@ -99,6 +102,7 @@ export function PaymentsHeader({
               }`}
             />
             {qbLabel}
+            {qbIsMock ? <DemoBadge label="demo" /> : null}
           </span>
           <button
             type="button"

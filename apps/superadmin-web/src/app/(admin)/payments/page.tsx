@@ -3,6 +3,7 @@ import { Wallet } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { finance, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PaymentsHeader, type TabKey } from "./payments-header";
+import { DEMO_MODE, mockQbSyncStatus } from "./lib/mock-data";
 import { ArDashboardTab } from "./tabs/ar-dashboard-tab";
 import { PlayerInvoiceTab } from "./tabs/player-invoice-tab";
 import { DuesSplitTab } from "./tabs/dues-split-tab";
@@ -58,10 +59,20 @@ export default async function PaymentsPage({
 
   const activeOrgId = resolvedOrg.id;
   const seasonId = sp.seasonId ?? null;
-  const [season, qbStatus] = await Promise.all([
+  const [season, realQbStatus] = await Promise.all([
     seasonId ? leagueMgmt.getSeason(seasonId).catch(() => null) : null,
     finance.qbSyncStatus(activeOrgId).catch(() => null)
   ]);
+  // Fall back to mock QB status when the worker hasn't logged anything
+  // yet — see doc/deferred-integrations.md.
+  const qbStatus =
+    realQbStatus && realQbStatus.recentEvents.length > 0
+      ? realQbStatus
+      : DEMO_MODE
+        ? mockQbSyncStatus(activeOrgId)
+        : realQbStatus;
+  const qbIsMock =
+    DEMO_MODE && (!realQbStatus || realQbStatus.recentEvents.length === 0);
 
   return (
     <div className="space-y-8">
@@ -70,6 +81,7 @@ export default async function PaymentsPage({
         orgName={resolvedOrg.displayName ?? resolvedOrg.legalName}
         seasonName={season?.name ?? null}
         qbStatus={qbStatus}
+        qbIsMock={qbIsMock}
         searchParams={sp}
       />
 
