@@ -118,6 +118,34 @@ export const pricingTiers = pgTable(
 );
 
 // =====================================================================
+// PRICING_TIER_DIVISIONS — N:M between pricing_tiers and divisions.
+// Mockup's "Assign divisions to pricing tier" checkbox grid writes
+// here. The legacy 1:1 pricing_tiers.division_id stays for back-compat
+// (set to first checked division) but new callers should read this
+// table for the full assignment set.
+// =====================================================================
+export const pricingTierDivisions = pgTable(
+  "pricing_tier_divisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pricingTierId: uuid("pricing_tier_id")
+      .notNull()
+      .references(() => pricingTiers.id, { onDelete: "cascade" }),
+    divisionId: uuid("division_id")
+      .notNull()
+      .references(() => divisions.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    uniq: uniqueIndex("ptd_tier_division_uniq").on(t.pricingTierId, t.divisionId),
+    tierIdx: index("ptd_tier_idx").on(t.pricingTierId),
+    divisionIdx: index("ptd_division_idx").on(t.divisionId)
+  })
+);
+
+// =====================================================================
 // INSTALLMENT_SCHEDULES — per-invoice plan timeline
 // Generated when a registrant selects Option B at checkout. Each row is
 // scheduled as a Stripe PaymentIntent with future confirmation.

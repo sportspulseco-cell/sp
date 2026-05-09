@@ -12,9 +12,10 @@ import {
 export class RegistrationFormDto {
   @ApiProperty() id!: string;
   @ApiProperty() orgId!: string;
-  @ApiProperty({ enum: ["org", "league", "division"] })
-  scope!: "org" | "league" | "division";
+  @ApiProperty({ enum: ["org", "league", "division", "season"] })
+  scope!: "org" | "league" | "division" | "season";
   @ApiPropertyOptional({ nullable: true }) scopeId!: string | null;
+  @ApiPropertyOptional({ nullable: true }) seasonId!: string | null;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
   @ApiProperty({ enum: FORM_PURPOSES }) purpose!: FormPurpose;
@@ -30,6 +31,7 @@ export class RegistrationFormDto {
       orgId: x.orgId,
       scope: x.scope,
       scopeId: x.scopeId,
+      seasonId: x.seasonId,
       name: x.name,
       description: x.description,
       purpose: x.purpose,

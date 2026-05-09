@@ -170,7 +170,15 @@ export interface Registration {
     | "approved"
     | "rejected"
     | "waitlisted"
-    | "withdrawn";
+    | "withdrawn"
+    // v2 states (migration 0014):
+    | "pending_verification"
+    | "pending_consent"
+    | "pending_payment"
+    | "pending_offline"
+    | "pending_review"
+    | "incomplete"
+    | "cancelled";
   leagueId: string | null;
   divisionId: string | null;
   teamId: string | null;
@@ -196,8 +204,10 @@ export type FormPurpose =
 export interface RegistrationForm {
   id: string;
   orgId: string;
-  scope: "org" | "league" | "division";
+  scope: "org" | "league" | "division" | "season";
   scopeId: string | null;
+  /** Season this form is the registration shell for. */
+  seasonId: string | null;
   name: string;
   description: string | null;
   /**

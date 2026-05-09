@@ -22,10 +22,12 @@ import { FORM_PURPOSES, type FormPurpose } from "@sportspulse/kernel";
 
 export class CreateFormBodyDto {
   @ApiProperty() @IsUUID() orgId!: string;
-  @ApiProperty({ enum: ["org", "league", "division"] })
-  @IsIn(["org", "league", "division"])
-  scope!: "org" | "league" | "division";
+  @ApiProperty({ enum: ["org", "league", "division", "season"] })
+  @IsIn(["org", "league", "division", "season"])
+  scope!: "org" | "league" | "division" | "season";
   @ApiPropertyOptional() @IsOptional() @IsUUID() scopeId?: string | null;
+  /** Season this form is the registration shell for. */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string | null;
   @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(160) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string | null;
   @ApiPropertyOptional({ enum: FORM_PURPOSES })
@@ -39,6 +41,7 @@ export class CreateFormBodyDto {
 export class UpdateFormBodyDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(160) name?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string | null;
   @ApiPropertyOptional({ enum: FORM_PURPOSES })
   @IsOptional() @IsIn(FORM_PURPOSES as ReadonlyArray<string>)
   purpose?: FormPurpose;

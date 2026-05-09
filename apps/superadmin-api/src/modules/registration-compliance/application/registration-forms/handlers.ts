@@ -81,6 +81,7 @@ export interface CreateFormInput {
   orgId: string;
   scope: FormScope;
   scopeId?: string | null;
+  seasonId?: string | null;
   name: string;
   description?: string | null;
   purpose?: FormPurpose;
@@ -101,6 +102,7 @@ export class CreateFormHandler
       orgId: input.orgId,
       scope: input.scope,
       scopeId: input.scopeId,
+      seasonId: input.seasonId,
       name: input.name,
       description: input.description,
       purpose: input.purpose,
@@ -115,6 +117,7 @@ export interface UpdateFormInput {
   id: string;
   name?: string;
   description?: string | null;
+  seasonId?: string | null;
   purpose?: FormPurpose;
   appliesToRoles?: string[];
 }
@@ -134,6 +137,7 @@ export class UpdateFormHandler
     if (input.purpose !== undefined) form.setPurpose(input.purpose);
     if (input.appliesToRoles !== undefined)
       form.setAppliesToRoles(input.appliesToRoles);
+    if (input.seasonId !== undefined) form.setSeasonId(input.seasonId);
     await this.forms.save(form);
     return RegistrationFormDto.fromDomain(form);
   }

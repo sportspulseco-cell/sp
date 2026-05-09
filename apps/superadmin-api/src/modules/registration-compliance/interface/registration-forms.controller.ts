@@ -67,6 +67,7 @@ export class RegistrationFormsController {
       orgId: body.orgId,
       scope: body.scope,
       scopeId: body.scopeId,
+      seasonId: body.seasonId,
       name: body.name,
       description: body.description,
       purpose: body.purpose,
@@ -81,6 +82,7 @@ export class RegistrationFormsController {
       id,
       name: body.name,
       description: body.description,
+      seasonId: body.seasonId,
       purpose: body.purpose,
       appliesToRoles: body.appliesToRoles
     });

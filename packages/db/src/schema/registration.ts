@@ -58,6 +58,16 @@ export const registrationForms = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /**
+     * When set, the form is the registration shell for this season.
+     * Drives the 6-section "Registration setup" wizard at /forms/[id]
+     * — pricing tiers, divisions assignment, email templates all key
+     * off this seasonId. Nullable so org / league / division-scoped
+     * forms (role profiles, team applications, etc.) keep working.
+     */
+    seasonId: uuid("season_id").references(() => seasons.id, {
+      onDelete: "set null"
+    }),
     activeVersionId: uuid("active_version_id"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -70,7 +80,7 @@ export const registrationForms = pgTable(
   (t) => ({
     scopeCheck: check(
       "form_scope_check",
-      sql`${t.scope} IN ('org','league','division')`
+      sql`${t.scope} IN ('org','league','division','season')`
     ),
     purposeCheck: check(
       "registration_forms_purpose_check",
@@ -78,6 +88,7 @@ export const registrationForms = pgTable(
     ),
     orgIdx: index("form_org_idx").on(t.orgId),
     scopeIdx: index("form_scope_idx").on(t.scope, t.scopeId),
+    seasonIdx: index("form_season_idx").on(t.seasonId),
     purposeIdx: index("registration_forms_purpose_idx").on(t.purpose)
     // applies_to_roles GIN index lives in migration 0016 — Drizzle
     // doesn't have first-class GIN support yet. Querying via && or

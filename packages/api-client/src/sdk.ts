@@ -804,6 +804,22 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify({ status })
         }),
+      updateSeason: (
+        id: string,
+        body: {
+          name?: string;
+          startDate?: string;
+          endDate?: string;
+          timezone?: string;
+          registrationOpensAt?: string | null;
+          registrationClosesAt?: string | null;
+          rosterLockAt?: string | null;
+        }
+      ) =>
+        f<Season>(`/league/seasons/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
       /**
        * Patch a season's per-season toggles (`seasons.config` JSONB).
        * Body keys mirror @sportspulse/kernel SeasonConfig — only the
@@ -926,8 +942,9 @@ export function createApi(f: Fetcher) {
       getForm: (id: string) => f<RegistrationForm>(`/registration/forms/${id}`),
       createForm: (body: {
         orgId: string;
-        scope: "org" | "league" | "division";
+        scope: "org" | "league" | "division" | "season";
         scopeId?: string | null;
+        seasonId?: string | null;
         name: string;
         description?: string | null;
         purpose?: FormPurpose;
@@ -942,6 +959,7 @@ export function createApi(f: Fetcher) {
         body: {
           name?: string;
           description?: string | null;
+          seasonId?: string | null;
           purpose?: FormPurpose;
           appliesToRoles?: string[];
         }
@@ -1361,6 +1379,22 @@ export function createApi(f: Fetcher) {
         f<{ id: string }>(`/registration-v2/pricing-tiers/${id}`, {
           method: "DELETE"
         }),
+
+      // N:M tier ↔ division assignments (Registration setup wizard's
+      // "Assign divisions to pricing tier" checkbox grid).
+      listTierDivisions: (tierId: string) =>
+        f<Array<{ id: string; pricingTierId: string; divisionId: string; createdAt: string }>>(
+          `/registration-v2/pricing-tier-divisions/${tierId}`
+        ),
+      replaceTierDivisions: (tierId: string, divisionIds: string[]) =>
+        f<Array<{ id: string; pricingTierId: string; divisionId: string; createdAt: string }>>(
+          `/registration-v2/pricing-tier-divisions/${tierId}`,
+          { method: "PUT", body: JSON.stringify({ divisionIds }) }
+        ),
+      tierDivisionsByTiers: (tierIds: string[]) =>
+        f<Record<string, string[]>>(
+          `/registration-v2/pricing-tier-divisions${qs({ ids: tierIds.join(",") })}`
+        ),
 
       listEmailTemplates: (q: { seasonId?: string } = {}) =>
         f<EmailTemplate[]>(`/registration-v2/email-templates${qs(q)}`),

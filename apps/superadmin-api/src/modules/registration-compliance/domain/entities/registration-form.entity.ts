@@ -2,13 +2,15 @@ import { AggregateRoot, DomainError } from "@sportspulse/kernel";
 import type { FormPurpose } from "@sportspulse/kernel";
 import { RegistrationFormId } from "../identifiers";
 
-export type FormScope = "org" | "league" | "division";
+export type FormScope = "org" | "league" | "division" | "season";
 
 export interface RegistrationFormSnapshot {
   id: string;
   orgId: string;
   scope: FormScope;
   scopeId: string | null;
+  /** Season this form is the registration shell for (nullable). */
+  seasonId: string | null;
   name: string;
   description: string | null;
   /**
@@ -36,6 +38,7 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
     private readonly _orgId: string,
     private readonly _scope: FormScope,
     private _scopeId: string | null,
+    private _seasonId: string | null,
     private _name: string,
     private _description: string | null,
     private _purpose: FormPurpose,
@@ -52,6 +55,7 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
     orgId: string;
     scope: FormScope;
     scopeId?: string | null;
+    seasonId?: string | null;
     name: string;
     description?: string | null;
     purpose?: FormPurpose;
@@ -72,6 +76,7 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
       input.orgId,
       input.scope,
       input.scopeId ?? null,
+      input.seasonId ?? null,
       input.name.trim(),
       input.description ?? null,
       input.purpose ?? "season_registration",
@@ -88,6 +93,7 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
       s.orgId,
       s.scope,
       s.scopeId,
+      s.seasonId,
       s.name,
       s.description,
       s.purpose,
@@ -120,6 +126,11 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
     this._touch();
   }
 
+  setSeasonId(seasonId: string | null): void {
+    this._seasonId = seasonId;
+    this._touch();
+  }
+
   private _touch(): void {
     this._updatedAt = new Date();
   }
@@ -127,6 +138,7 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
   get orgId(): string { return this._orgId; }
   get scope(): FormScope { return this._scope; }
   get scopeId(): string | null { return this._scopeId; }
+  get seasonId(): string | null { return this._seasonId; }
   get name(): string { return this._name; }
   get description(): string | null { return this._description; }
   get purpose(): FormPurpose { return this._purpose; }
@@ -141,6 +153,7 @@ export class RegistrationForm extends AggregateRoot<RegistrationFormId> {
       orgId: this._orgId,
       scope: this._scope,
       scopeId: this._scopeId,
+      seasonId: this._seasonId,
       name: this._name,
       description: this._description,
       purpose: this._purpose,

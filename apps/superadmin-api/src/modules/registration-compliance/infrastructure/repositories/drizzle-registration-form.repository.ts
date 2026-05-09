@@ -72,6 +72,7 @@ export class DrizzleRegistrationFormRepository
       orgId: x.orgId,
       scope: x.scope,
       scopeId: x.scopeId,
+      seasonId: x.seasonId,
       name: x.name,
       description: x.description,
       purpose: x.purpose,
@@ -87,6 +88,7 @@ export class DrizzleRegistrationFormRepository
       .set({
         name: x.name,
         description: x.description,
+        seasonId: x.seasonId,
         purpose: x.purpose,
         appliesToRoles: x.appliesToRoles,
         activeVersionId: x.activeVersionId,
@@ -149,6 +151,7 @@ export class DrizzleRegistrationFormRepository
       orgId: r.orgId,
       scope: r.scope as never,
       scopeId: r.scopeId,
+      seasonId: r.seasonId,
       name: r.name,
       description: r.description,
       purpose: r.purpose as FormPurpose,
