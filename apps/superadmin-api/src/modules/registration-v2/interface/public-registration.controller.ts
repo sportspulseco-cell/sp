@@ -19,7 +19,7 @@ import {
   Matches,
   MinLength
 } from "class-validator";
-import { eq, and } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   assertValidTransition,
   isRegistrationState,
@@ -133,7 +133,13 @@ export class PublicRegistrationController {
       .where(
         and(
           eq(schema.registrationFormVersions.locked, true),
-          eq(schema.registrationForms.scope, "league"),
+          // Match a form bound to this season (preferred), or any
+          // legacy league-scoped season_registration form. Both
+          // patterns coexist — the /forms wizard now writes scope=
+          // 'season' + seasonId, while older rows are scope='league'.
+          // We OR them together rather than requiring league-only,
+          // so seeded data + new wizard output both render.
+          sql`(${schema.registrationForms.seasonId} = ${id} OR ${schema.registrationForms.scope} = 'league')`,
           // Post-slice-4: form-builder unification. Forms are tagged
           // with a `purpose` and the funnel pulls the
           // season_registration one. Older rows without a purpose
@@ -141,6 +147,7 @@ export class PublicRegistrationController {
           eq(schema.registrationForms.purpose, "season_registration")
         )
       )
+      .orderBy(desc(schema.registrationFormVersions.publishedAt))
       .limit(1);
 
     return {
