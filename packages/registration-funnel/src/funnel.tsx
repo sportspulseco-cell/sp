@@ -83,7 +83,18 @@ export function RegistrationFunnel({
     null
   );
   const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  /** Composed from firstName + lastName at submit time. Kept in
+   * state so legacy callers (single-line "Sasha Velasquez" inputs
+   * in older entry points) still work. */
+  const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+  const setFullName = (v: string) => {
+    const parts = v.trim().split(/\s+/);
+    setFirstName(parts[0] ?? "");
+    setLastName(parts.slice(1).join(" "));
+  };
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [dobDate, setDobDate] = useState("");
@@ -265,17 +276,19 @@ export function RegistrationFunnel({
         {step === "account" && (
           <AccountStep
             email={email}
-            fullName={fullName}
+            firstName={firstName}
+            lastName={lastName}
             password={password}
+            confirmPassword={confirmPassword}
             phone={phone}
-            dobDate={dobDate}
             submitting={submitting}
             error={error}
             onEmailChange={setEmail}
-            onFullNameChange={setFullName}
+            onFirstNameChange={setFirstName}
+            onLastNameChange={setLastName}
             onPasswordChange={setPassword}
+            onConfirmPasswordChange={setConfirmPassword}
             onPhoneChange={setPhone}
-            onDobChange={setDobDate}
             onBack={back}
             onSubmit={submitAccount}
           />
@@ -616,120 +629,187 @@ function PathStep({
   );
 }
 
+/**
+ * Mockup-aligned Phase 1 chrome:
+ *   - "New to SportsPulse?" card (First / Last name, Email, Phone,
+ *     Password + Confirm password)
+ *   - "Already have an account?" card (Email + Password — same submit
+ *     handler; the API matches the existing draft by email)
+ *
+ * DOB is captured on Phase 2 (Details) per the mockup, so the parental-
+ * consent decision is deferred until the eligibility re-check at the
+ * end of Phase 2.
+ */
 function AccountStep({
   email,
-  fullName,
+  firstName,
+  lastName,
   password,
+  confirmPassword,
   phone,
-  dobDate,
   submitting,
   error,
   onEmailChange,
-  onFullNameChange,
+  onFirstNameChange,
+  onLastNameChange,
   onPasswordChange,
+  onConfirmPasswordChange,
   onPhoneChange,
-  onDobChange,
   onBack,
   onSubmit
 }: {
   email: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   password: string;
+  confirmPassword: string;
   phone: string;
-  dobDate: string;
   submitting: boolean;
   error: string | null;
   onEmailChange: (v: string) => void;
-  onFullNameChange: (v: string) => void;
+  onFirstNameChange: (v: string) => void;
+  onLastNameChange: (v: string) => void;
   onPasswordChange: (v: string) => void;
+  onConfirmPasswordChange: (v: string) => void;
   onPhoneChange: (v: string) => void;
-  onDobChange: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
   const emailOk = /.+@.+\..+/.test(email.trim());
-  const nameOk = fullName.trim().length > 0;
+  const nameOk = firstName.trim().length > 0 && lastName.trim().length > 0;
   const pwOk = password.length >= 8;
-  const valid = emailOk && nameOk && pwOk;
+  const pwMatches = password === confirmPassword;
+  const valid = emailOk && nameOk && pwOk && pwMatches;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-fg">Create your account</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          We'll use these credentials whenever you come back. Email is the
-          resume key — reopening this link with the same address picks up
-          your draft. DOB drives the parental-consent flow for minors.
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          New to SportsPulse?
         </p>
-      </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="First name *">
+            <Input
+              value={firstName}
+              onChange={(e) => onFirstNameChange(e.target.value)}
+              placeholder="Johnny"
+              required
+            />
+          </Field>
+          <Field label="Last name *">
+            <Input
+              value={lastName}
+              onChange={(e) => onLastNameChange(e.target.value)}
+              placeholder="Kula"
+              required
+            />
+          </Field>
+        </div>
+        <div className="mt-3 grid gap-4">
+          <Field label="Email address *">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => onEmailChange(e.target.value)}
+              placeholder="johnny@pphl.com"
+              required
+            />
+          </Field>
+          <Field label="Phone number" hint="Optional — used for SMS reminders">
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => onPhoneChange(e.target.value)}
+              placeholder="+1 (617) 555-0100"
+            />
+          </Field>
+        </div>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field label="Password *">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => onPasswordChange(e.target.value)}
+              placeholder="Min 8 chars"
+              autoComplete="new-password"
+              required
+            />
+          </Field>
+          <Field label="Confirm password *">
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => onConfirmPasswordChange(e.target.value)}
+              placeholder="Repeat password"
+              autoComplete="new-password"
+              required
+            />
+          </Field>
+        </div>
+        <p className="mt-4 text-[12px] text-fg-muted">
+          A verification email will be sent. Your registration session is
+          preserved — you can verify in another tab and return here.
+        </p>
+      </section>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Email">
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
-            placeholder="captain@example.com"
-            required
-          />
-        </Field>
-        <Field label="Full name">
-          <Input
-            value={fullName}
-            onChange={(e) => onFullNameChange(e.target.value)}
-            placeholder="Sasha Velasquez"
-          />
-        </Field>
-        <Field
-          label="Password"
-          hint="Minimum 8 characters. You'll use this to come back later."
-        >
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => onPasswordChange(e.target.value)}
-            placeholder="••••••••"
-            autoComplete="new-password"
-            required
-          />
-        </Field>
-        <Field label="Phone (optional)">
-          <Input
-            type="tel"
-            value={phone}
-            onChange={(e) => onPhoneChange(e.target.value)}
-            placeholder="+1 555 555 0123"
-          />
-        </Field>
-        <Field
-          label="Date of birth"
-          hint="Under 18 triggers the parental consent step."
-        >
-          <Input
-            type="date"
-            value={dobDate}
-            onChange={(e) => onDobChange(e.target.value)}
-          />
-        </Field>
-      </div>
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">
+          Already have an account?
+        </p>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Sign in with the same email to resume any draft from this season.
+          Filling in below auto-resolves to your existing profile.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field label="Email">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => onEmailChange(e.target.value)}
+              placeholder="your@email.com"
+            />
+          </Field>
+          <Field label="Password">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => onPasswordChange(e.target.value)}
+              placeholder="Your password"
+              autoComplete="current-password"
+            />
+          </Field>
+        </div>
+      </section>
 
-      {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+      {error ? (
+        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
           {error}
         </p>
-      )}
+      ) : null}
+      {!pwMatches && confirmPassword.length > 0 ? (
+        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+          Passwords don't match.
+        </p>
+      ) : null}
 
       <div className="flex items-center justify-between">
-        <Button type="button" variant="ghost" onClick={onBack} disabled={submitting}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onBack}
+          disabled={submitting}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <Button onClick={onSubmit} disabled={!valid || submitting}>
           {submitting ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating
+              account…
             </>
           ) : (
             <>
-              Create account <ArrowRight className="ml-2 h-4 w-4" />
+              Next: Details <ArrowRight className="ml-2 h-4 w-4" />
             </>
           )}
         </Button>
