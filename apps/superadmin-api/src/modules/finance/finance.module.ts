@@ -1,5 +1,10 @@
 import { Module } from "@nestjs/common";
 import { FinanceController } from "./interface/finance.controller";
+import { FinanceSplitsController } from "./interface/splits.controller";
+import { FinanceRefundsController } from "./interface/refunds.controller";
+import { FinanceWalletController } from "./interface/wallet.controller";
+import { FinanceEscalationsController } from "./interface/escalations.controller";
+import { FinanceQuickbooksSyncController } from "./interface/quickbooks-sync.controller";
 import { FinanceService } from "./application/finance.service";
 import {
   GetInvoiceHandler,
@@ -19,7 +24,14 @@ import { FINANCE_REPOSITORY } from "./domain/repositories/finance.repository";
 import { DrizzleFinanceRepository } from "./infrastructure/repositories/drizzle-finance.repository";
 
 @Module({
-  controllers: [FinanceController],
+  controllers: [
+    FinanceController,
+    FinanceSplitsController,
+    FinanceRefundsController,
+    FinanceWalletController,
+    FinanceEscalationsController,
+    FinanceQuickbooksSyncController
+  ],
   providers: [
     FinanceService,
     ListFeeSchedulesHandler,

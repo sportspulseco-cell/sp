@@ -9,6 +9,7 @@ export * from "./registration";
 export * from "./registration-v2";
 export * from "./notifications";
 export * from "./finance";
+export * from "./finance-extensions";
 export * from "./admin";
 export * from "./migrations";
 export * from "./audit";

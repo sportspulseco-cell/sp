@@ -262,6 +262,143 @@ export interface IdentityVerification {
   updatedAt: string;
 }
 
+// ----- Finance extensions (Payment & Invoicing tabs) -----
+
+export interface TeamInvoiceSplit {
+  id: string;
+  invoiceId: string;
+  teamId: string;
+  playerPersonId: string;
+  allocatedCents: number;
+  collectedCents: number;
+  /** pending | partial | paid | overdue */
+  status: string;
+  lastReminderAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamInvoiceSplitWithPerson extends TeamInvoiceSplit {
+  player: {
+    id: string;
+    legalFirstName: string;
+    legalLastName: string;
+    preferredName: string | null;
+  };
+  isCaptain: boolean;
+}
+
+export type RefundType =
+  | "full_original"
+  | "partial_original"
+  | "wallet_credit"
+  | "adjustment";
+
+export interface Refund {
+  id: string;
+  orgId: string;
+  invoiceId: string;
+  paymentId: string | null;
+  refundType: RefundType;
+  amountCents: number;
+  currency: string;
+  reason: string;
+  issuedByUserId: string | null;
+  processorRefundId: string | null;
+  /** pending | succeeded | failed | cancelled */
+  status: string;
+  processedAt: string | null;
+  lastErrorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletAccount {
+  id: string;
+  personId: string;
+  orgId: string;
+  currency: string;
+  balanceCents: number;
+  expiresAt: string | null;
+  frozen: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WalletLedgerEntryType =
+  | "credit_issued"
+  | "credit_applied"
+  | "credit_expired"
+  | "adjustment";
+
+export interface WalletLedgerEntry {
+  id: string;
+  walletId: string;
+  entryType: WalletLedgerEntryType;
+  amountCents: number;
+  relatedInvoiceId: string | null;
+  relatedRefundId: string | null;
+  reason: string;
+  issuedByUserId: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface InvoiceEscalation {
+  id: string;
+  invoiceId: string;
+  level: 1 | 2 | 3;
+  remindersSent: number;
+  lastReminderAt: string | null;
+  nextReminderAt: string | null;
+  lockSuspended: boolean;
+  flagWaivedAt: string | null;
+  flagWaivedByUserId: string | null;
+  extendedDueAt: string | null;
+  lastActionAt: string | null;
+  lastActionByUserId: string | null;
+  /** mark_paid | message | extend | suppress | waive_flag */
+  lastActionKind: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceEscalationWithInvoice extends InvoiceEscalation {
+  invoice: {
+    id: string;
+    invoiceNumber: string;
+    totalCents: number;
+    paidCents: number;
+    currency: string;
+    dueAt: string | null;
+    recipientPersonId: string | null;
+  };
+}
+
+export interface QuickbooksSyncLog {
+  id: string;
+  orgId: string;
+  /** invoice | payment | refund | credit_memo */
+  entityType: string;
+  entityId: string;
+  qbId: string | null;
+  /** create | update | delete */
+  action: string;
+  /** queued | syncing | succeeded | failed */
+  status: string;
+  summary: string | null;
+  errorMessage: string | null;
+  attemptedAt: string;
+  createdAt: string;
+}
+
+export interface QuickbooksSyncStatus {
+  connected: boolean;
+  lastSyncAt: string | null;
+  errorCount24h: number;
+  recentEvents: QuickbooksSyncLog[];
+}
+
 export interface RosterMove {
   id: string;
   teamId: string;
@@ -738,6 +875,13 @@ export interface Invoice {
   paidAt: string | null;
   notes: string | null;
   items: InvoiceItem[];
+  /**
+   * Free-form JSONB. Conventional keys:
+   *   - cardOnFile: { brand, last4, expMonth, expYear } (Stripe webhook)
+   *   - upcoming: Array<{ label, dueAt, amountCents, status }>
+   *     (materialised from installment_schedules by the worker)
+   */
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -754,6 +898,8 @@ export interface Payment {
   externalProviderId: string | null;
   recordedByUserId: string | null;
   notes: string | null;
+  /** Stripe payment-intent payload, card details, etc. */
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 

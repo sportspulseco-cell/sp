@@ -24,6 +24,16 @@ import type {
   EligibilityStatus,
   GoverningBody,
   IdentityVerification,
+  InvoiceEscalation,
+  InvoiceEscalationWithInvoice,
+  QuickbooksSyncLog,
+  QuickbooksSyncStatus,
+  Refund,
+  RefundType,
+  TeamInvoiceSplit,
+  TeamInvoiceSplitWithPerson,
+  WalletAccount,
+  WalletLedgerEntry,
   FeeSchedule,
   FormPurpose,
   FormVersion,
@@ -522,7 +532,126 @@ export function createApi(f: Fetcher) {
         f<Payment>(`/finance/invoices/${invoiceId}/payments`, {
           method: "POST",
           body: JSON.stringify(body)
-        })
+        }),
+
+      // ----- Dues split (per-player share of a team invoice) -----
+      listSplits: (
+        q: { invoiceId?: string; teamId?: string; playerPersonId?: string }
+      ) =>
+        f<TeamInvoiceSplitWithPerson[]>(`/finance/splits${qs(q)}`),
+      createSplit: (body: {
+        invoiceId: string;
+        teamId: string;
+        playerPersonId: string;
+        allocatedCents: number;
+      }) =>
+        f<TeamInvoiceSplit>(`/finance/splits`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      createSplitsBatchEqual: (body: {
+        invoiceId: string;
+        teamId: string;
+        playerPersonIds: string[];
+      }) =>
+        f<TeamInvoiceSplit[]>(`/finance/splits/batch-equal`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      patchSplit: (
+        id: string,
+        body: {
+          collectedCents?: number;
+          allocatedCents?: number;
+          status?: "pending" | "partial" | "paid" | "overdue";
+        }
+      ) =>
+        f<TeamInvoiceSplit>(`/finance/splits/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      remindSplit: (id: string) =>
+        f<TeamInvoiceSplit>(`/finance/splits/${id}/remind`, { method: "POST" }),
+
+      // ----- Refunds -----
+      listRefunds: (
+        q: { invoiceId?: string; orgId?: string; status?: string } = {}
+      ) => f<Refund[]>(`/finance/refunds${qs(q)}`),
+      issueRefund: (body: {
+        invoiceId: string;
+        paymentId?: string | null;
+        refundType: RefundType;
+        amountCents: number;
+        reason: string;
+      }) =>
+        f<Refund>(`/finance/refunds`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+
+      // ----- Wallet -----
+      getWallet: (q: { personId: string; orgId: string; currency?: string }) =>
+        f<WalletAccount | null>(`/finance/wallet${qs(q)}`),
+      walletLedger: (walletId: string) =>
+        f<WalletLedgerEntry[]>(`/finance/wallet/${walletId}/ledger`),
+      issueWalletCredit: (body: {
+        personId: string;
+        orgId: string;
+        amountCents: number;
+        currency?: string;
+        expiresAt?: string | null;
+        reason: string;
+      }) =>
+        f<{ wallet: WalletAccount; entry: WalletLedgerEntry }>(
+          `/finance/wallet/issue-credit`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      freezeWallet: (walletId: string) =>
+        f<WalletAccount>(`/finance/wallet/${walletId}/freeze`, { method: "POST" }),
+      unfreezeWallet: (walletId: string) =>
+        f<WalletAccount>(`/finance/wallet/${walletId}/unfreeze`, { method: "POST" }),
+
+      // ----- Overdue escalations -----
+      listEscalations: (q: { orgId?: string; lockSuspended?: boolean } = {}) =>
+        f<InvoiceEscalationWithInvoice[]>(`/finance/escalations${qs(q)}`),
+      patchEscalation: (
+        id: string,
+        body: {
+          level?: 1 | 2 | 3;
+          lockSuspended?: boolean;
+          extendedDueAt?: string | null;
+          lastActionKind?:
+            | "mark_paid"
+            | "message"
+            | "extend"
+            | "suppress"
+            | "waive_flag";
+        }
+      ) =>
+        f<InvoiceEscalation>(`/finance/escalations/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      ensureEscalation: (invoiceId: string) =>
+        f<InvoiceEscalation>(`/finance/escalations/ensure`, {
+          method: "POST",
+          body: JSON.stringify({ invoiceId })
+        }),
+
+      // ----- QuickBooks sync (read-only display + worker append) -----
+      listQbSync: (
+        q: {
+          orgId?: string;
+          entityType?: string;
+          entityId?: string;
+          status?: string;
+          limit?: number;
+        } = {}
+      ) => f<QuickbooksSyncLog[]>(`/finance/quickbooks-sync${qs(q)}`),
+      qbSyncStatus: (orgId: string) =>
+        f<QuickbooksSyncStatus>(
+          `/finance/quickbooks-sync/status${qs({ orgId })}`
+        )
     },
 
     communications: {
