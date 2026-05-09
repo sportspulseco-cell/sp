@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2, Mail, Plus } from "lucide-react";
 import {
@@ -8,6 +8,7 @@ import {
   SYSTEM_ROLE_BY_CODE,
   SYSTEM_ROLE_CODES,
   type AnswerMap,
+  type FormDefinition,
   type ScopeType
 } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
@@ -55,7 +56,15 @@ export function InviteUserButton() {
   const [copied, setCopied] = useState(false);
 
   const roleDef = SYSTEM_ROLE_BY_CODE[roleCode];
-  const profileSchema = ROLE_PROFILE_SCHEMAS[roleCode];
+  // Source-of-truth flow: prefer the admin-built role_profile form
+  // from /forms, fall back to the kernel-default schema. Set on role
+  // change via getRoleProfileForm(roleCode).
+  const [profileSchema, setProfileSchema] = useState<FormDefinition | null>(
+    () => ROLE_PROFILE_SCHEMAS[roleCode] ?? null
+  );
+  const [profileSource, setProfileSource] = useState<"admin" | "kernel-default">(
+    "kernel-default"
+  );
   const profileHasFields = (profileSchema?.questions.length ?? 0) > 0;
   // When the chosen role has a default scopeType, snap to it. Reset
   // profile answers so coach-tab answers don't bleed into a player
@@ -69,6 +78,35 @@ export function InviteUserButton() {
       setScopeId("");
     }
   }
+
+  // Fetch the admin-built role profile form whenever the role changes.
+  // /forms is the source of truth — falls through to ROLE_PROFILE_SCHEMAS
+  // when no admin form exists for this role.
+  useEffect(() => {
+    let alive = true;
+    iam
+      .getRoleProfileForm(roleCode)
+      .then((res) => {
+        if (!alive) return;
+        const fromAdmin = res.source === "admin" && res.schema;
+        if (fromAdmin) {
+          setProfileSchema(res.schema as unknown as FormDefinition);
+          setProfileSource("admin");
+        } else {
+          setProfileSchema(ROLE_PROFILE_SCHEMAS[roleCode] ?? null);
+          setProfileSource("kernel-default");
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setProfileSchema(ROLE_PROFILE_SCHEMAS[roleCode] ?? null);
+          setProfileSource("kernel-default");
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [roleCode]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -294,9 +332,27 @@ export function InviteUserButton() {
 
                 {setupProfile && profileHasFields && profileSchema && (
                   <div className="rounded-md border border-border bg-bg-subtle p-4">
-                    <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                      // {roleDef?.name ?? roleCode} profile
-                    </p>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                        // {roleDef?.name ?? roleCode} profile
+                      </p>
+                      <span
+                        title={
+                          profileSource === "admin"
+                            ? "Schema comes from a role_profile form configured in /forms"
+                            : "No admin form configured — using the kernel-default schema. Build one in /forms to override."
+                        }
+                        className={
+                          profileSource === "admin"
+                            ? "rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300"
+                            : "rounded-full bg-fg-muted/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-fg-muted"
+                        }
+                      >
+                        {profileSource === "admin"
+                          ? "Source: /forms"
+                          : "Source: kernel default"}
+                      </span>
+                    </div>
                     <FormRenderer
                       key={roleCode}
                       definition={profileSchema}

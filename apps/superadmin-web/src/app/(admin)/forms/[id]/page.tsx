@@ -159,6 +159,7 @@ export default async function FormSetupPage({
       formId={form.id}
       formName={form.name}
       seasonName={season?.name ?? null}
+      seasonId={season?.id ?? null}
       orgName={orgName}
       active={active}
       sections={sections}

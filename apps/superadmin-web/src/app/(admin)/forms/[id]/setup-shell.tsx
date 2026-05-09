@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { Check, AlertCircle, Eye, MoreHorizontal } from "lucide-react";
+import {
+  Check,
+  AlertCircle,
+  ExternalLink,
+  Eye,
+  MoreHorizontal
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -45,6 +51,7 @@ export function RegistrationSetupShell({
   formId,
   formName,
   seasonName,
+  seasonId,
   orgName,
   active,
   sections,
@@ -56,6 +63,8 @@ export function RegistrationSetupShell({
   formId: string;
   formName: string;
   seasonName: string | null;
+  /** When set, enables the "Preview registration funnel" link */
+  seasonId: string | null;
   orgName: string;
   active: SectionKey;
   sections: SectionState[];
@@ -103,6 +112,17 @@ export function RegistrationSetupShell({
             <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
             Preview form
           </Link>
+          {seasonId ? (
+            <Link
+              href={`/registration/${seasonId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-500/40 bg-blue-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-blue-700 hover:bg-blue-500/15 dark:text-blue-300"
+            >
+              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Live wizard
+            </Link>
+          ) : null}
           <Link
             href={`/forms/${formId}?section=review`}
             className="inline-flex h-8 items-center gap-1.5 rounded-md bg-fg px-3 font-mono text-[10px] uppercase tracking-widest text-bg hover:bg-fg-muted"

@@ -1,6 +1,11 @@
 import { FileSignature } from "lucide-react";
 import Link from "next/link";
-import { FORM_PURPOSE_LABELS, SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
+import {
+  FORM_PURPOSE_LABELS,
+  FORM_PURPOSES,
+  SYSTEM_ROLE_BY_CODE,
+  type FormPurpose
+} from "@sportspulse/kernel";
 import { orgs, registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,30 +19,88 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateFormButton } from "@/components/forms/create-form-button";
+import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Registration forms — SportsPulse" };
+export const metadata = { title: "Forms — SportsPulse" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default async function FormsPage() {
-  const [forms, orgList] = await Promise.all([
+/**
+ * Source-of-truth list for every form schema in the system —
+ * registration funnels, role-profile forms (used by /users invite),
+ * team-application forms, and admin-built custom forms. Filter chips
+ * narrow the view to one purpose; counts are computed server-side
+ * across the unfiltered set.
+ */
+export default async function FormsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ purpose?: string }>;
+}) {
+  const sp = await searchParams;
+  const filterPurpose =
+    sp?.purpose && (FORM_PURPOSES as ReadonlyArray<string>).includes(sp.purpose)
+      ? (sp.purpose as FormPurpose)
+      : null;
+
+  const [allForms, orgList] = await Promise.all([
     registration.listForms().catch(() => ({ items: [], nextCursor: null })),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
+  const filtered = filterPurpose
+    ? allForms.items.filter((f) => f.purpose === filterPurpose)
+    : allForms.items;
+
+  // Per-purpose counts for the filter chips.
+  const counts = FORM_PURPOSES.reduce<Record<string, number>>((acc, p) => {
+    acc[p] = allForms.items.filter((f) => f.purpose === p).length;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="COMPLIANCE"
-        title="Registration forms"
-        description="Versioned forms used for player + team registration. Each form has zero-or-more versions; only the published one is active."
+        title="Forms"
+        description="Source of truth for every form in the system — season registrations (used by /registration), role profiles (used by /users invite), team applications, and custom forms. Each form has zero-or-more versions; only the published one is active."
         action={<CreateFormButton orgs={orgList.items} />}
       />
 
-      {forms.items.length === 0 ? (
+      <nav className="flex flex-wrap gap-2 border-b border-border pb-3">
+        <FilterChip
+          label="All"
+          count={allForms.items.length}
+          active={!filterPurpose}
+          href="/forms"
+        />
+        {FORM_PURPOSES.map((p) => (
+          <FilterChip
+            key={p}
+            label={FORM_PURPOSE_LABELS[p]}
+            count={counts[p] ?? 0}
+            active={filterPurpose === p}
+            href={`/forms?purpose=${p}`}
+          />
+        ))}
+      </nav>
+
+      {filtered.length === 0 ? (
         <EmptyState
           icon={FileSignature}
-          title="No forms yet"
-          description="Create the first registration form for any organization."
+          title={
+            filterPurpose
+              ? `No ${FORM_PURPOSE_LABELS[filterPurpose]} forms yet`
+              : "No forms yet"
+          }
+          description={
+            filterPurpose === "role_profile"
+              ? "Role-profile forms are surfaced when admins invite a user — the new user fills it out at first sign-in."
+              : filterPurpose === "season_registration"
+                ? "Season-registration forms drive the /registration multistep wizard. Pick or create one to begin."
+                : "Create the first form for any organization."
+          }
           action={<CreateFormButton orgs={orgList.items} />}
         />
       ) : (
@@ -54,7 +117,7 @@ export default async function FormsPage() {
             </TR>
           </THead>
           <TBody>
-            {forms.items.map((f) => (
+            {filtered.map((f) => (
               <TR key={f.id}>
                 <TD className="font-medium">
                   <Link href={`/forms/${f.id}`} className="hover:underline">
@@ -70,7 +133,10 @@ export default async function FormsPage() {
                   {orgMap.get(f.orgId) ?? f.orgId.slice(0, 8)}
                 </TD>
                 <TD>
-                  <Badge mono tone={f.purpose === "season_registration" ? "neutral" : "info"}>
+                  <Badge
+                    mono
+                    tone={purposeTone(f.purpose)}
+                  >
                     {FORM_PURPOSE_LABELS[f.purpose] ?? f.purpose}
                   </Badge>
                 </TD>
@@ -107,4 +173,47 @@ export default async function FormsPage() {
       )}
     </div>
   );
+}
+
+function FilterChip({
+  label,
+  count,
+  active,
+  href
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-full border px-3 font-mono text-[10px] uppercase tracking-widest transition-colors",
+        active
+          ? "border-accent bg-accent/10 text-accent"
+          : "border-border bg-bg-subtle text-fg-muted hover:border-fg-muted hover:text-fg"
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-[9px] tabular-nums",
+          active ? "bg-accent/15 text-accent" : "bg-fg-muted/15 text-fg-muted"
+        )}
+      >
+        {count}
+      </span>
+    </Link>
+  );
+}
+
+function purposeTone(
+  p: string
+): "info" | "success" | "warning" | "neutral" {
+  if (p === "season_registration") return "info";
+  if (p === "role_profile") return "success";
+  if (p === "team_application") return "warning";
+  return "neutral";
 }
