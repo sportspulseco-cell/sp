@@ -64,6 +64,24 @@ export interface PublicRegistrationApi {
     userCreated: boolean;
     isMinor: boolean;
   }>;
+  /**
+   * Alt sign-in path for the funnel's "Already have an account?" card.
+   * Looks up the existing user by email and find-or-creates the
+   * registration row keyed on (email, season, submissionType).
+   * Errors when no auth user exists for that email.
+   */
+  resumeSubmission(
+    seasonId: string,
+    body: { email: string; submissionType?: SubmissionType }
+  ): Promise<{
+    id: string;
+    status: string;
+    resumed: boolean;
+    userId: string;
+    userCreated: false;
+    isMinor: boolean;
+    fullName: string;
+  }>;
   getSubmission(
     id: string,
     email: string
@@ -131,6 +149,11 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
       f<PublicSeasonContext>(`/public/registration/seasons/${id}`),
     startSubmission: (id, body) =>
       f(`/public/registration/seasons/${id}/submissions`, {
+        method: "POST",
+        body: JSON.stringify(body)
+      }),
+    resumeSubmission: (id, body) =>
+      f(`/public/registration/seasons/${id}/resume`, {
         method: "POST",
         body: JSON.stringify(body)
       }),

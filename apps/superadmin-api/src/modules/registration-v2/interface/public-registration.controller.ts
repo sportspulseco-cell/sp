@@ -332,6 +332,129 @@ export class PublicRegistrationController {
     };
   }
 
+  @Post("seasons/:id/resume")
+  @ApiOperation({
+    summary:
+      "Phase 1 alt-path — resume an existing account. Looks up the Supabase user by email, find-or-creates the persons + registrations rows, and returns the same shape as POST /seasons/:id/submissions. Used by the funnel's 'Already have an account?' Sign-in card so returning visitors don't have to re-enter first/last name."
+  })
+  async resumeSubmission(
+    @Param("id") seasonId: string,
+    @Body()
+    body: {
+      email: string;
+      submissionType?:
+        | "team"
+        | "individual"
+        | "free_agent"
+        | "captain_invite";
+    }
+  ) {
+    const [season] = await this.db
+      .select({ id: schema.seasons.id, orgId: schema.seasons.orgId })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, seasonId))
+      .limit(1);
+    if (!season) throw new NotFoundException("Season not found");
+
+    const email = (body.email ?? "").trim().toLowerCase();
+    if (!email) throw new NotFoundException("email required");
+
+    const detail = await this.supabase.findUserDetailByEmail(email);
+    if (!detail) {
+      throw new NotFoundException(
+        "No account found for that email. Use the form above to create one."
+      );
+    }
+    const userId = detail.userId;
+    const fullName = detail.displayName?.trim() || email.split("@")[0]!;
+
+    const submissionType = body.submissionType ?? "individual";
+    const idempotencyKey = `${email}|${seasonId}|${submissionType}`;
+
+    // Find-or-create person row (same logic as startSubmission).
+    const existingPersonRow = await this.db
+      .select()
+      .from(schema.persons)
+      .where(
+        and(
+          eq(schema.persons.legalFirstName, firstName(fullName)),
+          eq(schema.persons.legalLastName, lastName(fullName))
+        )
+      )
+      .limit(1);
+    let personId = existingPersonRow[0]?.id;
+    if (!personId) {
+      const [person] = await this.db
+        .insert(schema.persons)
+        .values({
+          legalFirstName: firstName(fullName),
+          legalLastName: lastName(fullName),
+          externalIds: { email, supabaseUserId: userId }
+        })
+        .returning();
+      personId = person!.id;
+    }
+
+    const [anyVersion] = await this.db
+      .select()
+      .from(schema.registrationFormVersions)
+      .limit(1);
+    if (!anyVersion) {
+      throw new NotFoundException(
+        "No registration form is configured. Admin must create a form before opening registration."
+      );
+    }
+
+    const [existing] = await this.db
+      .select()
+      .from(schema.registrations)
+      .where(eq(schema.registrations.idempotencyKey, idempotencyKey))
+      .limit(1);
+    if (existing) {
+      return {
+        id: existing.id,
+        status: existing.status,
+        resumed: true,
+        userId,
+        userCreated: false,
+        isMinor: false,
+        fullName
+      };
+    }
+
+    const [reg] = await this.db
+      .insert(schema.registrations)
+      .values({
+        idempotencyKey,
+        orgId: season.orgId,
+        formVersionId: anyVersion.id,
+        submittedByUserId: userId,
+        subjectPersonId: personId!,
+        status: "pending_payment" as RegistrationState,
+        metadata: {
+          submissionType,
+          pricingTierId: null,
+          email,
+          fullName,
+          phone: null,
+          dobDate: null,
+          answers: {},
+          isMinor: false
+        }
+      })
+      .returning();
+
+    return {
+      id: reg!.id,
+      status: reg!.status,
+      resumed: false,
+      userId,
+      userCreated: false,
+      isMinor: false,
+      fullName
+    };
+  }
+
   @Get("submissions/:id")
   @ApiOperation({
     summary:

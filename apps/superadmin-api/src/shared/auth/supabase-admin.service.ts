@@ -161,6 +161,20 @@ export class SupabaseAdminService {
    * v2 listUsers (currently no `email` filter).
    */
   private async findUserByEmail(email: string): Promise<string | null> {
+    const detail = await this.findUserDetailByEmail(email);
+    return detail?.userId ?? null;
+  }
+
+  /**
+   * Public variant of {@link findUserByEmail} that also returns the
+   * user's display_name from auth metadata. Used by the public
+   * "Sign in & resume" flow on the registration funnel — the funnel
+   * needs the existing displayName to skip re-collecting first/last
+   * name.
+   */
+  async findUserDetailByEmail(
+    email: string
+  ): Promise<{ userId: string; displayName: string | null } | null> {
     const c = this.get();
     let page = 1;
     while (page <= 10) {
@@ -172,7 +186,15 @@ export class SupabaseAdminService {
       const match = data.users.find(
         (u) => u.email?.toLowerCase() === email.toLowerCase()
       );
-      if (match) return match.id;
+      if (match) {
+        const meta = (match.user_metadata ?? {}) as {
+          display_name?: string;
+        };
+        return {
+          userId: match.id,
+          displayName: meta.display_name ?? null
+        };
+      }
       if (data.users.length < 100) return null;
       page++;
     }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
-import type { AnswerMap } from "@sportspulse/kernel";
+import type { AnswerMap, FormWaiversConfig } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
 import { Button, Chip, Field, Input } from "@sportspulse/ui";
@@ -137,6 +137,17 @@ export function RegistrationFunnel({
   );
   const hasQuestions = (context.formDefinition?.questions ?? []).length > 0;
 
+  // Inline waivers configured on the form. Source of truth — if any
+  // toggle is enabled, those cards render in Phase 3 (and we skip the
+  // legacy org-documents fetch). Falls back to the documents API when
+  // the form pre-dates this field.
+  const formWaivers = context.formDefinition?.waivers ?? null;
+  const hasInlineWaivers =
+    !!formWaivers &&
+    (formWaivers.liabilityWaiver.enabled ||
+      formWaivers.codeOfConduct.enabled ||
+      formWaivers.photoRelease.enabled);
+
   // Per-season toggles set on the admin wizard's Divisions &
   // eligibility step. Defaults match @sportspulse/kernel
   // SEASON_CONFIG_DEFAULTS so unconfigured seasons keep the legacy
@@ -154,12 +165,19 @@ export function RegistrationFunnel({
     // this season, even if DOB indicates a minor — adult-only leagues
     // (or test seasons) often turn it off.
     if (isMinor && parentalConsentRequired) out.push("consent");
-    if ((waivers?.length ?? 0) > 0) out.push("waivers");
+    if (hasInlineWaivers || (waivers?.length ?? 0) > 0) out.push("waivers");
     if (tiers.length > 0) out.push("tier");
     if (hasQuestions) out.push("questions");
     out.push("review", "payment", "done");
     return out;
-  }, [isMinor, parentalConsentRequired, waivers, tiers.length, hasQuestions]);
+  }, [
+    isMinor,
+    parentalConsentRequired,
+    waivers,
+    tiers.length,
+    hasQuestions,
+    hasInlineWaivers
+  ]);
 
   function next() {
     const i = stepOrder.indexOf(step);
@@ -204,6 +222,59 @@ export function RegistrationFunnel({
       // Load Phase 3 waivers + run eligibility in parallel — neither
       // blocks advancing to the consent / waivers step. Eligibility
       // flags surface on the Review screen as warnings (spec §6.3).
+      const [waiverResp] = await Promise.all([
+        api.listWaivers(context.season.id).catch(() => null),
+        api
+          .runEligibilityCheck(result.id, email.trim())
+          .then((r) => setEligibilityFlags(r.flags))
+          .catch(() => undefined)
+      ]);
+      if (waiverResp) {
+        setWaivers(waiverResp.documents);
+        setRequiredKinds(waiverResp.requiredKinds);
+      }
+
+      next();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /**
+   * Sign-in path for the AccountStep "Already have an account?" card.
+   * Calls the resume endpoint, which validates the email exists and
+   * pulls the user's stored displayName so we don't have to re-collect
+   * first / last name.
+   *
+   * NOTE: this demo flow does not currently password-verify (the
+   * service-role admin client can't `signInWithPassword`). Production
+   * needs an anon-key client for true credential validation. See
+   * doc/deferred-integrations.md.
+   */
+  async function submitSignIn() {
+    if (!email.trim()) {
+      setError("Enter the email you used to sign up.");
+      return;
+    }
+    if (!submissionType) {
+      setError("Pick a registration path before signing in.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await api.resumeSubmission(context.season.id, {
+        email: email.trim(),
+        submissionType
+      });
+      setSubmissionId(result.id);
+      setResumed(result.resumed);
+      setSubmissionStatus(result.status);
+      setIsMinor(result.isMinor);
+      setFullName(result.fullName);
+
       const [waiverResp] = await Promise.all([
         api.listWaivers(context.season.id).catch(() => null),
         api
@@ -302,6 +373,7 @@ export function RegistrationFunnel({
             onPhoneChange={setPhone}
             onBack={back}
             onSubmit={submitAccount}
+            onSignIn={submitSignIn}
           />
         )}
 
@@ -350,18 +422,28 @@ export function RegistrationFunnel({
           />
         )}
 
-        {step === "waivers" && waivers && (
+        {step === "waivers" && (
           <WaiversStep
-            documents={waivers}
+            documents={waivers ?? []}
             requiredKinds={requiredKinds}
             signedVersionIds={signedVersionIds}
             fullName={fullName}
             eligibilityFlags={eligibilityFlags}
+            formWaivers={formWaivers}
             codeOfConductAccepted={codeOfConductAccepted}
             photoReleaseAccepted={photoReleaseAccepted}
             onCodeOfConductChange={setCodeOfConductAccepted}
             onPhotoReleaseChange={setPhotoReleaseAccepted}
             onSign={async (versionId, signatureName) => {
+              // Inline (form-defined) waivers carry a synthetic id —
+              // no backend round-trip; just track sign locally so the
+              // funnel can advance.
+              if (versionId.startsWith("form:")) {
+                setSignedVersionIds(
+                  (prev) => new Set([...prev, versionId])
+                );
+                return;
+              }
               try {
                 const res = await api.signWaiver(submissionId!, {
                   email,
@@ -681,7 +763,8 @@ function AccountStep({
   onConfirmPasswordChange,
   onPhoneChange,
   onBack,
-  onSubmit
+  onSubmit,
+  onSignIn
 }: {
   email: string;
   firstName: string;
@@ -699,12 +782,20 @@ function AccountStep({
   onPhoneChange: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
+  onSignIn: () => void;
 }) {
+  // Independent state for the sign-in card so it doesn't entangle
+  // with the create-account inputs above (filling the existing email
+  // shouldn't auto-populate the New form fields).
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+
   const emailOk = /.+@.+\..+/.test(email.trim());
   const nameOk = firstName.trim().length > 0 && lastName.trim().length > 0;
   const pwOk = password.length >= 8;
   const pwMatches = password === confirmPassword;
   const valid = emailOk && nameOk && pwOk && pwMatches;
+  const signInEmailOk = /.+@.+\..+/.test(signInEmail.trim());
 
   return (
     <div className="space-y-5">
@@ -783,26 +874,49 @@ function AccountStep({
         </p>
         <p className="mt-1 text-[12px] text-fg-muted">
           Sign in with the same email to resume any draft from this season.
-          Filling in below auto-resolves to your existing profile.
+          Your existing profile loads automatically.
         </p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label="Email">
             <Input
               type="email"
-              value={email}
-              onChange={(e) => onEmailChange(e.target.value)}
+              value={signInEmail}
+              onChange={(e) => setSignInEmail(e.target.value)}
               placeholder="your@email.com"
+              autoComplete="email"
             />
           </Field>
           <Field label="Password">
             <Input
               type="password"
-              value={password}
-              onChange={(e) => onPasswordChange(e.target.value)}
+              value={signInPassword}
+              onChange={(e) => setSignInPassword(e.target.value)}
               placeholder="Your password"
               autoComplete="current-password"
             />
           </Field>
+        </div>
+        <div className="mt-3 flex items-center justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!signInEmailOk || submitting}
+            onClick={() => {
+              // Hand the email up to the parent so the resume call uses it.
+              onEmailChange(signInEmail.trim());
+              onSignIn();
+            }}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…
+              </>
+            ) : (
+              <>
+                Sign in & continue <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
         </div>
       </section>
 
@@ -984,6 +1098,7 @@ function WaiversStep({
   signedVersionIds,
   fullName,
   eligibilityFlags,
+  formWaivers,
   codeOfConductAccepted,
   photoReleaseAccepted,
   onCodeOfConductChange,
@@ -997,6 +1112,7 @@ function WaiversStep({
   signedVersionIds: Set<string>;
   fullName: string;
   eligibilityFlags: string[] | null;
+  formWaivers: FormWaiversConfig | null;
   codeOfConductAccepted: boolean;
   photoReleaseAccepted: boolean;
   onCodeOfConductChange: (v: boolean) => void;
@@ -1005,8 +1121,48 @@ function WaiversStep({
   onBack: () => void;
   onNext: () => void;
 }) {
-  const requiredOutstanding = documents.filter(
-    (d) => requiredKinds.includes(d.kind) && !signedVersionIds.has(d.versionId)
+  // Synthesise a WaiverDoc for the form-configured liability waiver
+  // when enabled. Synthetic versionId carries the `form:` prefix so
+  // the parent's onSign handler skips the backend round-trip.
+  const inlineLiability: WaiverDoc | null =
+    formWaivers?.liabilityWaiver.enabled
+      ? {
+          documentId: "form:liability",
+          versionId: "form:liability:v1",
+          kind: "waiver",
+          name: "Liability waiver",
+          description: null,
+          contentHtml: formWaivers.liabilityWaiver.content,
+          languageCode: "en"
+        }
+      : null;
+
+  // When inline waivers are configured, ignore the org-documents list
+  // entirely — the form is the source of truth. requiredKinds gets
+  // recomputed from the toggles.
+  const usingInline = !!formWaivers;
+  const effectiveDocuments: WaiverDoc[] = usingInline
+    ? inlineLiability
+      ? [inlineLiability]
+      : []
+    : documents;
+  const effectiveRequiredKinds: string[] = usingInline
+    ? inlineLiability
+      ? ["waiver"]
+      : []
+    : requiredKinds;
+  const codeOfConductRequired = usingInline
+    ? !!formWaivers?.codeOfConduct.enabled
+    : true;
+  const showCodeOfConduct = codeOfConductRequired;
+  const showPhotoRelease = usingInline
+    ? !!formWaivers?.photoRelease.enabled
+    : true;
+
+  const requiredOutstanding = effectiveDocuments.filter(
+    (d) =>
+      effectiveRequiredKinds.includes(d.kind) &&
+      !signedVersionIds.has(d.versionId)
   );
   const flags = eligibilityFlags ?? [];
   const checks = [
@@ -1044,7 +1200,8 @@ function WaiversStep({
   ];
 
   const continueDisabled =
-    requiredOutstanding.length > 0 || !codeOfConductAccepted;
+    requiredOutstanding.length > 0 ||
+    (codeOfConductRequired && !codeOfConductAccepted);
 
   return (
     <div className="space-y-5">
@@ -1083,13 +1240,13 @@ function WaiversStep({
       </section>
 
       {/* Card 2 — Liability waiver(s) */}
-      {documents.length > 0 ? (
+      {effectiveDocuments.length > 0 ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-[14px] font-semibold tracking-tight text-fg">
-              {documents.length === 1
+              {effectiveDocuments.length === 1
                 ? "Liability waiver"
-                : `Required documents (${documents.length})`}
+                : `Required documents (${effectiveDocuments.length})`}
             </p>
             {requiredOutstanding.length > 0 ? (
               <span className="rounded-full bg-rose-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
@@ -1102,11 +1259,11 @@ function WaiversStep({
             )}
           </div>
           <ul className="mt-4 space-y-3">
-            {documents.map((d) => (
+            {effectiveDocuments.map((d) => (
               <WaiverCard
                 key={d.documentId}
                 doc={d}
-                isRequired={requiredKinds.includes(d.kind)}
+                isRequired={effectiveRequiredKinds.includes(d.kind)}
                 isSigned={signedVersionIds.has(d.versionId)}
                 fullName={fullName}
                 onSign={(name) => onSign(d.versionId, name)}
@@ -1116,57 +1273,62 @@ function WaiversStep({
         </section>
       ) : null}
 
-      {/* Card 3 — Code of conduct */}
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-[14px] font-semibold tracking-tight text-fg">
-            Code of conduct
-          </p>
-        </div>
-        <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-fg">
-              I agree to abide by the league code of conduct
-            </p>
-            <p className="mt-0.5 text-[12px] text-fg-muted">
-              Required — acknowledgment must be confirmed before proceeding
+      {/* Card 3 — Code of conduct (rendered only when enabled in the form) */}
+      {showCodeOfConduct ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              Code of conduct
             </p>
           </div>
-          <ToggleSwitch
-            checked={codeOfConductAccepted}
-            onChange={onCodeOfConductChange}
-            label="Code of conduct"
-          />
-        </label>
-      </section>
+          <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-fg">
+                {formWaivers?.codeOfConduct.content?.trim() ||
+                  "I agree to abide by the league code of conduct"}
+              </p>
+              <p className="mt-0.5 text-[12px] text-fg-muted">
+                Required — acknowledgment must be confirmed before proceeding
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={codeOfConductAccepted}
+              onChange={onCodeOfConductChange}
+              label="Code of conduct"
+            />
+          </label>
+        </section>
+      ) : null}
 
-      {/* Card 4 — Photo / media release */}
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-[14px] font-semibold tracking-tight text-fg">
-            Photo / media release
-          </p>
-          <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-            Optional
-          </span>
-        </div>
-        <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-fg">
-              I consent to the league using my photo and likeness in league
-              media
+      {/* Card 4 — Photo / media release (rendered only when enabled) */}
+      {showPhotoRelease ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              Photo / media release
             </p>
-            <p className="mt-0.5 text-[12px] text-fg-muted">
-              Optional — you can decline without affecting your registration
-            </p>
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+              Optional
+            </span>
           </div>
-          <ToggleSwitch
-            checked={photoReleaseAccepted}
-            onChange={onPhotoReleaseChange}
-            label="Photo / media release"
-          />
-        </label>
-      </section>
+          <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-fg">
+                {formWaivers?.photoRelease.content?.trim() ||
+                  "I consent to the league using my photo and likeness in league media"}
+              </p>
+              <p className="mt-0.5 text-[12px] text-fg-muted">
+                Optional — you can decline without affecting your registration
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={photoReleaseAccepted}
+              onChange={onPhotoReleaseChange}
+              label="Photo / media release"
+            />
+          </label>
+        </section>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>
@@ -1175,7 +1337,7 @@ function WaiversStep({
         <Button onClick={onNext} disabled={continueDisabled}>
           {requiredOutstanding.length > 0
             ? `Sign ${requiredOutstanding.length} more required`
-            : !codeOfConductAccepted
+            : codeOfConductRequired && !codeOfConductAccepted
               ? "Accept code of conduct"
               : "Next: Payment"}
           <ArrowRight className="ml-2 h-4 w-4" />
@@ -1234,8 +1396,17 @@ function WaiverCard({
   const [scrolled, setScrolled] = useState(false);
   const [typed, setTyped] = useState("");
   const [signing, setSigning] = useState(false);
+  const docRef = useRef<HTMLDivElement | null>(null);
   const namesMatch =
     typed.trim().toLowerCase() === fullName.trim().toLowerCase();
+  // Auto-mark "scrolled to end" when the document is short enough to
+  // fit without scrolling — otherwise the Sign button stays disabled
+  // forever with no way to satisfy the gate (the bug from the screenshot).
+  useEffect(() => {
+    const el = docRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight + 8) setScrolled(true);
+  }, [doc.contentHtml]);
   function onScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setScrolled(true);
@@ -1258,8 +1429,9 @@ function WaiverCard({
       {!isSigned && (
         <>
           <div
+            ref={docRef}
             onScroll={onScroll}
-            className="mt-3 max-h-48 overflow-y-auto rounded-md border border-border bg-bg-subtle p-3 text-[12px] leading-relaxed text-fg"
+            className="mt-3 max-h-48 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-bg-subtle p-3 text-[12px] leading-relaxed text-fg"
             dangerouslySetInnerHTML={{ __html: doc.contentHtml }}
           />
           <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">

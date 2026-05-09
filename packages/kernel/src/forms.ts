@@ -122,15 +122,70 @@ export interface FormQuestion {
   isActive: boolean;
 }
 
+/**
+ * Inline waiver / consent doc carried on the form. Lets admins author
+ * the body text directly in the Form Builder rather than maintaining
+ * a separate org-documents catalogue. Funnel reads these in Phase 3
+ * (Compliance & waivers) when the toggle is `enabled`.
+ */
+export interface WaiverDocConfig {
+  /** When false, the funnel hides the card entirely. */
+  enabled: boolean;
+  /** Player-facing body text. Plain text or lightweight markdown. */
+  content: string;
+}
+
+export interface FormWaiversConfig {
+  /** Liability waiver — typed-signature required when enabled. */
+  liabilityWaiver: WaiverDocConfig;
+  /**
+   * Code of conduct — single checkbox acknowledgment. Required when
+   * enabled (the funnel blocks Continue until checked).
+   */
+  codeOfConduct: WaiverDocConfig;
+  /**
+   * Photo / media release — toggle, never blocks the player. The
+   * `content` field describes the consent text shown above the toggle.
+   */
+  photoRelease: WaiverDocConfig;
+}
+
 export interface FormDefinition {
   /** Schema version — bump when the shape evolves. */
   schemaVersion: 1;
   questions: FormQuestion[];
+  /**
+   * Waivers / docs configured inline on the form. Optional for
+   * back-compat with v1 schemas — funnel falls back to the org
+   * documents API when this is missing.
+   */
+  waivers?: FormWaiversConfig;
+}
+
+/** Default waivers config — what the Form Builder seeds for a new form. */
+export function defaultWaiversConfig(): FormWaiversConfig {
+  return {
+    liabilityWaiver: {
+      enabled: true,
+      content:
+        "I acknowledge the inherent risks of participating in this sport and release the league, its officers, employees, and volunteers from liability for any injury sustained during participation."
+    },
+    codeOfConduct: {
+      enabled: true,
+      content:
+        "I agree to abide by the league code of conduct, including respectful behavior toward players, coaches, officials, and spectators at all league events."
+    },
+    photoRelease: {
+      enabled: false,
+      content:
+        "I consent to the league using my photo and likeness in league media, including websites, social media, and promotional materials."
+    }
+  };
 }
 
 /** Empty form factory — used as the seed when first opening the Form Builder. */
 export function emptyFormDefinition(): FormDefinition {
-  return { schemaVersion: 1, questions: [] };
+  return { schemaVersion: 1, questions: [], waivers: defaultWaiversConfig() };
 }
 
 /** Generate a stable, lowercase_snake key from a free-form label. */

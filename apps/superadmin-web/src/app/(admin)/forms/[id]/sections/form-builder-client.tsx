@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Plus, Send } from "lucide-react";
 import { Button } from "@sportspulse/ui";
 import {
+  defaultWaiversConfig,
   emptyFormDefinition,
   validateFormDefinition,
-  type FormDefinition
+  type FormDefinition,
+  type FormWaiversConfig,
+  type WaiverDocConfig
 } from "@sportspulse/kernel";
 import { registration } from "@/lib/api/browser-api";
 import { FormBuilder } from "@/components/forms/form-builder";
@@ -41,10 +44,31 @@ export function FormBuilderClient({
   const router = useRouter();
   const [schema, setSchema] = useState<FormDefinition>(() => {
     if (initialSchema && typeof initialSchema === "object" && "questions" in initialSchema) {
-      return initialSchema as unknown as FormDefinition;
+      const seed = initialSchema as unknown as FormDefinition;
+      // Back-fill waivers for older v1 drafts that pre-date the field.
+      if (!seed.waivers) {
+        return { ...seed, waivers: defaultWaiversConfig() };
+      }
+      return seed;
     }
     return emptyFormDefinition();
   });
+  const waivers = schema.waivers ?? defaultWaiversConfig();
+  function patchWaiver(
+    key: keyof FormWaiversConfig,
+    patch: Partial<WaiverDocConfig>
+  ) {
+    setSchema((s) => {
+      const current = s.waivers ?? defaultWaiversConfig();
+      return {
+        ...s,
+        waivers: {
+          ...current,
+          [key]: { ...current[key], ...patch }
+        }
+      };
+    });
+  }
   const [editing, setEditing] = useState(!isLocked);
   const [autosaveStatus, setAutosaveStatus] =
     useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
@@ -208,6 +232,46 @@ export function FormBuilderClient({
         ) : null}
       </section>
 
+      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
+        <div>
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Waivers & documents
+          </p>
+          <p className="mt-1 text-[12px] text-fg-muted">
+            Compliance docs shown in Phase 3 of the registration funnel.
+            Toggle off to hide a card. Edit the body text directly — the
+            content saves with the rest of the form draft.
+          </p>
+        </div>
+
+        <WaiverEditor
+          title="Liability waiver"
+          subtitle="Digital signature required — registration blocked if skipped"
+          requiredHint="Required when enabled"
+          editing={editing}
+          config={waivers.liabilityWaiver}
+          onChange={(p) => patchWaiver("liabilityWaiver", p)}
+        />
+
+        <WaiverEditor
+          title="Code of conduct"
+          subtitle="Checkbox acknowledgment required"
+          requiredHint="Required when enabled"
+          editing={editing}
+          config={waivers.codeOfConduct}
+          onChange={(p) => patchWaiver("codeOfConduct", p)}
+        />
+
+        <WaiverEditor
+          title="Photo / media release"
+          subtitle="Optional — player can decline without blocking"
+          requiredHint="Always optional"
+          editing={editing}
+          config={waivers.photoRelease}
+          onChange={(p) => patchWaiver("photoRelease", p)}
+        />
+      </section>
+
       {error ? (
         <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
           {error}
@@ -288,5 +352,80 @@ function AutosaveBadge({
       <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
       Save failed
     </span>
+  );
+}
+
+/**
+ * One row in the Waivers & documents section. Header has the title +
+ * subtitle + an enable toggle on the right; body has the text the
+ * player will see in Phase 3 of the funnel. When disabled, the body
+ * collapses (still in state, just hidden) so admins can re-enable
+ * without losing what they wrote.
+ */
+function WaiverEditor({
+  title,
+  subtitle,
+  requiredHint,
+  editing,
+  config,
+  onChange
+}: {
+  title: string;
+  subtitle: string;
+  requiredHint: string;
+  editing: boolean;
+  config: WaiverDocConfig;
+  onChange: (patch: Partial<WaiverDocConfig>) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-bg-subtle p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold text-fg">{title}</p>
+          <p className="mt-0.5 text-[12px] text-fg-muted">{subtitle}</p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            {requiredHint}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={config.enabled}
+          aria-label={`Enable ${title}`}
+          disabled={!editing}
+          onClick={() => onChange({ enabled: !config.enabled })}
+          className={
+            config.enabled
+              ? "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-blue-500 transition-colors disabled:opacity-50"
+              : "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-fg-muted/30 transition-colors disabled:opacity-50"
+          }
+        >
+          <span
+            className={
+              config.enabled
+                ? "inline-block h-5 w-5 translate-x-5 rounded-full bg-white shadow transition-transform"
+                : "inline-block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform"
+            }
+          />
+        </button>
+      </div>
+      {config.enabled ? (
+        <div className="mt-3">
+          <label className="block">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              Document body — shown to the player
+            </span>
+            <textarea
+              value={config.content}
+              onChange={(e) => onChange({ content: e.target.value })}
+              disabled={!editing}
+              rows={4}
+              placeholder="Paste the document text here…"
+              className="mt-1.5 w-full resize-y rounded-md border border-border bg-surface-1 p-3 text-[13px] leading-relaxed text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none disabled:opacity-60"
+            />
+          </label>
+        </div>
+      ) : null}
+    </div>
   );
 }
