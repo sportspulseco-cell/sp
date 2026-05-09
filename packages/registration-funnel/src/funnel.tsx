@@ -737,11 +737,11 @@ function PathStep({
 }
 
 /**
- * Mockup-aligned Phase 1 chrome:
- *   - "New to SportsPulse?" card (First / Last name, Email, Phone,
- *     Password + Confirm password)
- *   - "Already have an account?" card (Email + Password — same submit
- *     handler; the API matches the existing draft by email)
+ * Mockup-aligned Phase 1 chrome — sign-in primary, create-account
+ * secondary. The default tab is **Sign in** since most repeat traffic
+ * is returning players resuming a draft. Tab toggle at the top swaps
+ * between the two flows; only one form is visible at a time so admins
+ * never misfile credentials in the wrong section.
  *
  * DOB is captured on Phase 2 (Details) per the mockup, so the parental-
  * consent decision is deferred until the eligibility re-check at the
@@ -784,9 +784,10 @@ function AccountStep({
   onSubmit: () => void;
   onSignIn: () => void;
 }) {
-  // Independent state for the sign-in card so it doesn't entangle
-  // with the create-account inputs above (filling the existing email
-  // shouldn't auto-populate the New form fields).
+  const [mode, setMode] = useState<"sign_in" | "create">("sign_in");
+  // Independent state for the sign-in tab so it doesn't entangle with
+  // the create-account inputs (filling sign-in email shouldn't pre-fill
+  // the create form, and vice versa).
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
 
@@ -799,133 +800,203 @@ function AccountStep({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <p className="text-[14px] font-semibold tracking-tight text-fg">
-          New to SportsPulse?
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="First name *">
-            <Input
-              value={firstName}
-              onChange={(e) => onFirstNameChange(e.target.value)}
-              placeholder="Johnny"
-              required
-            />
-          </Field>
-          <Field label="Last name *">
-            <Input
-              value={lastName}
-              onChange={(e) => onLastNameChange(e.target.value)}
-              placeholder="Kula"
-              required
-            />
-          </Field>
-        </div>
-        <div className="mt-3 grid gap-4">
-          <Field label="Email address *">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => onEmailChange(e.target.value)}
-              placeholder="johnny@pphl.com"
-              required
-            />
-          </Field>
-          <Field label="Phone number" hint="Optional — used for SMS reminders">
-            <Input
-              type="tel"
-              value={phone}
-              onChange={(e) => onPhoneChange(e.target.value)}
-              placeholder="+1 (617) 555-0100"
-            />
-          </Field>
-        </div>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <Field label="Password *">
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => onPasswordChange(e.target.value)}
-              placeholder="Min 8 chars"
-              autoComplete="new-password"
-              required
-            />
-          </Field>
-          <Field label="Confirm password *">
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => onConfirmPasswordChange(e.target.value)}
-              placeholder="Repeat password"
-              autoComplete="new-password"
-              required
-            />
-          </Field>
-        </div>
-        <p className="mt-4 text-[12px] text-fg-muted">
-          A verification email will be sent. Your registration session is
-          preserved — you can verify in another tab and return here.
-        </p>
-      </section>
+      {/* Tab toggle — sign-in is the default tab since most visitors
+          land here from a saved link to resume their draft. */}
+      <div
+        role="tablist"
+        aria-label="Account mode"
+        className="inline-flex rounded-lg border border-border bg-bg-subtle p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "sign_in"}
+          onClick={() => setMode("sign_in")}
+          className={
+            mode === "sign_in"
+              ? "rounded-md bg-surface-1 px-4 py-1.5 text-[13px] font-medium text-fg shadow-sm"
+              : "rounded-md px-4 py-1.5 text-[13px] font-medium text-fg-muted hover:text-fg"
+          }
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "create"}
+          onClick={() => setMode("create")}
+          className={
+            mode === "create"
+              ? "rounded-md bg-surface-1 px-4 py-1.5 text-[13px] font-medium text-fg shadow-sm"
+              : "rounded-md px-4 py-1.5 text-[13px] font-medium text-fg-muted hover:text-fg"
+          }
+        >
+          Create account
+        </button>
+      </div>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <p className="text-[14px] font-semibold tracking-tight text-fg">
-          Already have an account?
-        </p>
-        <p className="mt-1 text-[12px] text-fg-muted">
-          Sign in with the same email to resume any draft from this season.
-          Your existing profile loads automatically.
-        </p>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <Field label="Email">
-            <Input
-              type="email"
-              value={signInEmail}
-              onChange={(e) => setSignInEmail(e.target.value)}
-              placeholder="your@email.com"
-              autoComplete="email"
-            />
-          </Field>
-          <Field label="Password">
-            <Input
-              type="password"
-              value={signInPassword}
-              onChange={(e) => setSignInPassword(e.target.value)}
-              placeholder="Your password"
-              autoComplete="current-password"
-            />
-          </Field>
-        </div>
-        <div className="mt-3 flex items-center justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={!signInEmailOk || submitting}
-            onClick={() => {
-              // Hand the email up to the parent so the resume call uses it.
-              onEmailChange(signInEmail.trim());
-              onSignIn();
-            }}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…
-              </>
-            ) : (
-              <>
-                Sign in & continue <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </div>
-      </section>
+      {mode === "sign_in" ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Sign in to continue
+          </p>
+          <p className="mt-1 text-[12px] text-fg-muted">
+            Use the same email you used last time. Your profile and any
+            draft from this season load automatically.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Email *">
+              <Input
+                type="email"
+                value={signInEmail}
+                onChange={(e) => setSignInEmail(e.target.value)}
+                placeholder="your@email.com"
+                autoComplete="email"
+                required
+              />
+            </Field>
+            <Field label="Password *">
+              <Input
+                type="password"
+                value={signInPassword}
+                onChange={(e) => setSignInPassword(e.target.value)}
+                placeholder="Your password"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setMode("create")}
+              className="text-[12px] text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+            >
+              New to SportsPulse? Create an account →
+            </button>
+            <Button
+              type="button"
+              disabled={!signInEmailOk || submitting}
+              onClick={() => {
+                // Hand the email up to the parent so the resume call uses it.
+                onEmailChange(signInEmail.trim());
+                onSignIn();
+              }}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…
+                </>
+              ) : (
+                <>
+                  Sign in & continue <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Create your account
+          </p>
+          <p className="mt-1 text-[12px] text-fg-muted">
+            We'll use these details for league communications and roster
+            entries.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="First name *">
+              <Input
+                value={firstName}
+                onChange={(e) => onFirstNameChange(e.target.value)}
+                placeholder="Johnny"
+                required
+              />
+            </Field>
+            <Field label="Last name *">
+              <Input
+                value={lastName}
+                onChange={(e) => onLastNameChange(e.target.value)}
+                placeholder="Kula"
+                required
+              />
+            </Field>
+          </div>
+          <div className="mt-3 grid gap-4">
+            <Field label="Email address *">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => onEmailChange(e.target.value)}
+                placeholder="johnny@pphl.com"
+                required
+              />
+            </Field>
+            <Field label="Phone number" hint="Optional — used for SMS reminders">
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => onPhoneChange(e.target.value)}
+                placeholder="+1 (617) 555-0100"
+              />
+            </Field>
+          </div>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field label="Password *">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => onPasswordChange(e.target.value)}
+                placeholder="Min 8 chars"
+                autoComplete="new-password"
+                required
+              />
+            </Field>
+            <Field label="Confirm password *">
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => onConfirmPasswordChange(e.target.value)}
+                placeholder="Repeat password"
+                autoComplete="new-password"
+                required
+              />
+            </Field>
+          </div>
+          <p className="mt-4 text-[12px] text-fg-muted">
+            A verification email will be sent. Your registration session is
+            preserved — you can verify in another tab and return here.
+          </p>
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setMode("sign_in")}
+              className="text-[12px] text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+            >
+              ← Already have an account? Sign in
+            </button>
+            <Button onClick={onSubmit} disabled={!valid || submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating
+                  account…
+                </>
+              ) : (
+                <>
+                  Next: Details <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        </section>
+      )}
 
       {error ? (
         <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
           {error}
         </p>
       ) : null}
-      {!pwMatches && confirmPassword.length > 0 ? (
+      {mode === "create" && !pwMatches && confirmPassword.length > 0 ? (
         <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
           Passwords don't match.
         </p>
