@@ -98,6 +98,12 @@ const config: Config = {
         ekg: {
           "0%": { transform: "translateY(0)" },
           "100%": { transform: "translateY(-50%)" }
+        },
+        // Diagonal shimmer for skeleton placeholders — translates a soft
+        // accent gradient across the element so loading states feel alive.
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(200%)" }
         }
       },
       animation: {
@@ -106,7 +112,8 @@ const config: Config = {
         scan: "scan 3.2s ease-in-out infinite",
         "pulse-slow": "pulse-slow 2.8s ease-in-out infinite",
         "pulse-dot": "pulse-dot 1.8s ease-out infinite",
-        ekg: "ekg 6s linear infinite"
+        ekg: "ekg 6s linear infinite",
+        shimmer: "shimmer 1.8s ease-in-out infinite"
       }
     }
   },

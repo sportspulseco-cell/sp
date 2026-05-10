@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Loader2, Send } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@sportspulse/ui";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import { admin, leagueMgmt } from "@/lib/api/browser-api";
+import { LiveDot } from "@/components/motion/kinetic";
 import {
   DEFAULT_TIEBREAKERS,
   emptyDivision,
@@ -27,6 +29,20 @@ const STEP_LABELS: Record<WizardStep, string> = {
   2: "League",
   3: "Season",
   4: "Divisions"
+};
+
+const STEP_HEADLINES: Record<WizardStep, string> = {
+  1: "Pick the organisation.",
+  2: "Frame the league.",
+  3: "Open the season.",
+  4: "Carve the divisions."
+};
+
+const STEP_SUBTITLES: Record<WizardStep, string> = {
+  1: "Every league nests under exactly one organisation. Pick the tenant this whole setup belongs to.",
+  2: "Sport, format, governing body, branding, privacy. The league frame everything else hangs from.",
+  3: "Dates, registration window, roster lock. The clock that drives the rest of the year.",
+  4: "Skill tiers, age ranges, gender eligibility, rule overrides. Every team plays inside one of these."
 };
 
 const STEP_NEXT_LABEL: Record<WizardStep, string> = {
@@ -239,6 +255,53 @@ export function OrgSetupWizard({
 
   return (
     <div className="space-y-8">
+      {/* Chapter header — editorial mono eyebrow + display headline that
+          cycles per step. Mirrors the other admin surfaces. */}
+      <header className="relative pb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted"
+        >
+          <LiveDot tone="accent" />
+          <span className="text-fg/80">// org · setup</span>
+          <span className="text-fg-subtle">·</span>
+          <span>chapter {String(state.step).padStart(2, "0")} / 04</span>
+        </motion.div>
+        <motion.h1
+          key={state.step}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.55,
+            delay: 0.05,
+            ease: [0.22, 1, 0.36, 1]
+          }}
+          className="mt-3 max-w-[24ch] text-balance font-sans text-[clamp(32px,4.4vw,56px)] font-semibold leading-[0.96] tracking-tighter text-fg"
+        >
+          {STEP_HEADLINES[state.step]}
+        </motion.h1>
+        <motion.p
+          key={`sub-${state.step}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.55,
+            delay: 0.1,
+            ease: [0.22, 1, 0.36, 1]
+          }}
+          className="mt-3 max-w-2xl text-[14px] leading-relaxed text-fg-muted"
+        >
+          {STEP_SUBTITLES[state.step]}
+        </motion.p>
+        {/* Chapter rule — accent stub + hairline */}
+        <div className="absolute inset-x-0 bottom-0 flex items-center">
+          <span className="h-px w-6 bg-[--accent]" />
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      </header>
+
       <ProgressBar
         step={state.step}
         labels={STEP_LABELS}
@@ -252,42 +315,49 @@ export function OrgSetupWizard({
         </p>
       ) : null}
 
-      {state.step === 1 ? (
-        <OrgStep
-          orgs={orgs}
-          selectedId={state.orgId}
-          onSelect={(id) => setState((s) => ({ ...s, orgId: id }))}
-        />
-      ) : null}
-      {state.step === 2 ? (
-        <LeagueStep
-          draft={state.league}
-          org={currentOrg}
-          sports={sports}
-          governingBodies={governingBodies}
-          onChange={patchLeague}
-        />
-      ) : null}
-      {state.step === 3 ? (
-        <SeasonStep
-          draft={state.season}
-          leagueName={state.league.name}
-          onChange={patchSeason}
-        />
-      ) : null}
-      {state.step === 4 ? (
-        <DivisionsStep
-          divisions={state.divisions}
-          summary={{
-            league: state.league,
-            season: state.season,
-            org: currentOrg
-          }}
-          onPatch={patchDivision}
-          onAdd={addDivision}
-          onRemove={removeDivision}
-        />
-      ) : null}
+      <motion.div
+        key={`step-${state.step}`}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {state.step === 1 ? (
+          <OrgStep
+            orgs={orgs}
+            selectedId={state.orgId}
+            onSelect={(id) => setState((s) => ({ ...s, orgId: id }))}
+          />
+        ) : null}
+        {state.step === 2 ? (
+          <LeagueStep
+            draft={state.league}
+            org={currentOrg}
+            sports={sports}
+            governingBodies={governingBodies}
+            onChange={patchLeague}
+          />
+        ) : null}
+        {state.step === 3 ? (
+          <SeasonStep
+            draft={state.season}
+            leagueName={state.league.name}
+            onChange={patchSeason}
+          />
+        ) : null}
+        {state.step === 4 ? (
+          <DivisionsStep
+            divisions={state.divisions}
+            summary={{
+              league: state.league,
+              season: state.season,
+              org: currentOrg
+            }}
+            onPatch={patchDivision}
+            onAdd={addDivision}
+            onRemove={removeDivision}
+          />
+        ) : null}
+      </motion.div>
 
       <Footer
         step={state.step}
