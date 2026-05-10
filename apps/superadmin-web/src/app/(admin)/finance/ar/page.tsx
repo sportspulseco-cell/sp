@@ -156,7 +156,7 @@ export default async function ARDashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="OPERATIONS · ACCOUNTS RECEIVABLE"
+        eyebrow="accounts receivable"
         title="AR Dashboard"
         description="Outstanding receivables binned by age. Aged buckets, top debtors, and the integration surface for refunds, credits, wallets, and QuickBooks sync."
         action={

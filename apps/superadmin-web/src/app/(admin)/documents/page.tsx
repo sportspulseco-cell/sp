@@ -1,7 +1,8 @@
-import { FileSignature } from "lucide-react";
+import { FileSignature, CheckCircle2, Layers, Building2 } from "lucide-react";
 import Link from "next/link";
 import { compliance, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,13 +26,31 @@ export default async function DocumentsPage() {
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
+  const total = docs.items.length;
+  const published = docs.items.filter((d) => d.activeVersionId).length;
+  const kinds = new Set(docs.items.map((d) => d.kind)).size;
+  const orgsCovered = new Set(docs.items.map((d) => d.orgId)).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="COMPLIANCE"
+        eyebrow="compliance"
         title="Documents"
         description="Versioned waivers, consents, codes of conduct, parental forms. Each document has an active version that everyone signs against."
         action={<CreateDocumentButton orgs={orgList.items} />}
+      />
+      <KineticStrip
+        cards={[
+          { label: "Total docs", value: total, icon: FileSignature, tone: "idle" },
+          {
+            label: "Published",
+            value: published,
+            icon: CheckCircle2,
+            tone: published > 0 ? "ok" : "idle"
+          },
+          { label: "Distinct kinds", value: kinds, icon: Layers, tone: "info" },
+          { label: "Orgs covered", value: orgsCovered, icon: Building2, tone: "idle" }
+        ]}
       />
 
       {docs.items.length === 0 ? (

@@ -1,6 +1,7 @@
-import { Network } from "lucide-react";
+import { Network, Building2, Layers, Trophy } from "lucide-react";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
 import {
@@ -23,12 +24,36 @@ export default async function TeamsPage() {
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
+  const total = teams.items.length;
+  const active = teams.items.filter((t) => t.status === "active").length;
+  const orgsCovered = new Set(teams.items.map((t) => t.orgId)).size;
+  const sports = new Set(teams.items.map((t) => t.sportCode)).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
+        eyebrow="rosters"
         title="Teams"
         description="Owned by clubs/orgs. Enter divisions via DivisionTeamEntry."
         action={<CreateTeamButton orgs={orgList.items} />}
+      />
+      <KineticStrip
+        cards={[
+          { label: "Total teams", value: total, icon: Network, tone: "idle" },
+          {
+            label: "Active",
+            value: active,
+            icon: Trophy,
+            tone: active > 0 ? "ok" : "idle"
+          },
+          {
+            label: "Owner orgs",
+            value: orgsCovered,
+            icon: Building2,
+            tone: "info"
+          },
+          { label: "Sports", value: sports, icon: Layers, tone: "idle" }
+        ]}
       />
 
       {teams.items.length === 0 ? (

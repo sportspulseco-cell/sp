@@ -41,7 +41,7 @@ export default async function TemplatesPage() {
       </Link>
 
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="templates"
         title="Notification templates"
         description="Per (org, code, channel, locale) — the source of subjects + body. Code-level defaults live in the catalog; UI rows here override per-org."
         action={<UpsertTemplateButton />}

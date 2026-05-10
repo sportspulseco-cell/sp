@@ -1,4 +1,4 @@
-import { FileSignature } from "lucide-react";
+import { FileSignature, CheckCircle2, FileQuestion, Layers } from "lucide-react";
 import Link from "next/link";
 import {
   FORM_PURPOSE_LABELS,
@@ -8,6 +8,7 @@ import {
 } from "@sportspulse/kernel";
 import { orgs, registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -59,13 +60,45 @@ export default async function FormsPage({
     return acc;
   }, {});
 
+  const total = allForms.items.length;
+  const published = allForms.items.filter((f) => f.activeVersionId).length;
+  const drafts = total - published;
+  const orgsCovered = new Set(allForms.items.map((f) => f.orgId)).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="COMPLIANCE"
+        eyebrow="compliance"
         title="Forms"
         description="Source of truth for every form in the system — season registrations (used by /registration), role profiles (used by /users invite), team applications, and custom forms. Each form has zero-or-more versions; only the published one is active."
         action={<CreateFormButton orgs={orgList.items} />}
+      />
+      <KineticStrip
+        cards={[
+          { label: "Total forms", value: total, icon: FileSignature, tone: "idle" },
+          {
+            label: "Published",
+            value: published,
+            icon: CheckCircle2,
+            tone: published > 0 ? "ok" : "idle",
+            hint:
+              total > 0
+                ? `${Math.round((published / total) * 100)}% live`
+                : undefined
+          },
+          {
+            label: "Drafts",
+            value: drafts,
+            icon: FileQuestion,
+            tone: drafts > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Orgs covered",
+            value: orgsCovered,
+            icon: Layers,
+            tone: "info"
+          }
+        ]}
       />
 
       <nav className="flex flex-wrap gap-2 border-b border-border pb-3">

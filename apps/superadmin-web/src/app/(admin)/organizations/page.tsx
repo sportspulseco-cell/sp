@@ -1,7 +1,8 @@
-import { Building2 } from "lucide-react";
+import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Badge, statusTone } from "@/components/ui/badge";
 import {
   EmptyRow,
@@ -26,12 +27,52 @@ export default async function OrganizationsPage({
     .list({ search: sp?.search, limit: 50 })
     .catch(() => ({ items: [], nextCursor: null }));
 
+  const total = page.items.length;
+  const active = page.items.filter((o) => o.status === "active").length;
+  const suspended = page.items.filter((o) => o.status === "suspended").length;
+  const countries = new Set(
+    page.items.map((o) => o.countryCode).filter(Boolean)
+  ).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
+        eyebrow="tenancy"
         title="Organizations"
         description="Tenants on the platform — clubs, federations, leagues, schools."
         action={<CreateOrgButton />}
+      />
+      <KineticStrip
+        cards={[
+          {
+            label: "Total tenants",
+            value: total,
+            icon: Building2,
+            tone: "idle"
+          },
+          {
+            label: "Active",
+            value: active,
+            icon: Layers,
+            tone: active > 0 ? "ok" : "idle",
+            hint:
+              total > 0
+                ? `${Math.round((active / total) * 100)}% live`
+                : undefined
+          },
+          {
+            label: "Suspended",
+            value: suspended,
+            icon: ShieldAlert,
+            tone: suspended > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Countries",
+            value: countries,
+            icon: Globe2,
+            tone: "info"
+          }
+        ]}
       />
 
       {page.items.length === 0 ? (

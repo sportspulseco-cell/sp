@@ -1,7 +1,8 @@
-import { ListChecks } from "lucide-react";
+import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -59,10 +60,17 @@ export default async function RostersPage({
     seasonsPage.items.map((s) => [s.id, s.name])
   );
 
+  const total = memberships.items.length;
+  const active = memberships.items.filter(
+    (m) => m.currentStatus === "active"
+  ).length;
+  const teamsCovered = new Set(memberships.items.map((m) => m.teamId)).size;
+  const peopleCovered = new Set(memberships.items.map((m) => m.personId)).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="ROSTER"
+        eyebrow="roster"
         title="Memberships"
         description={
           activeOnly
@@ -76,6 +84,35 @@ export default async function RostersPage({
             seasons={seasonsPage.items}
           />
         }
+      />
+
+      <KineticStrip
+        cards={[
+          {
+            label: "Memberships",
+            value: total,
+            icon: ListChecks,
+            tone: "idle"
+          },
+          {
+            label: "Active",
+            value: active,
+            icon: Activity,
+            tone: active > 0 ? "ok" : "idle"
+          },
+          {
+            label: "Teams covered",
+            value: teamsCovered,
+            icon: Network,
+            tone: "info"
+          },
+          {
+            label: "Distinct players",
+            value: peopleCovered,
+            icon: Users,
+            tone: "idle"
+          }
+        ]}
       />
 
       {/* Filter pills */}

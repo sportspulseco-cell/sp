@@ -11,39 +11,61 @@ type Tone =
   | "accent";
 
 const TONES: Record<Tone, string> = {
-  neutral: "bg-surface-2 text-fg-muted border border-border",
-  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  info: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  neutral: "bg-bg-subtle text-fg-muted border border-border",
+  success: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  warning: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  danger: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
+  info: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
   primary: "bg-fg text-bg",
-  accent: "bg-[var(--accent-soft)] text-accent"
+  accent: "bg-[var(--accent-soft)] text-[--accent]"
+};
+
+const DOT_TONES: Record<Tone, string> = {
+  neutral: "bg-fg-muted",
+  success: "bg-emerald-500",
+  warning: "bg-amber-500",
+  danger: "bg-rose-500",
+  info: "bg-blue-500",
+  primary: "bg-bg",
+  accent: "bg-[--accent]"
 };
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;
   /** Mono uppercase label style (LOCKED, ROADMAP, BETA…) */
   mono?: boolean;
+  /** Render a tone-coloured dot inside the badge — pairs with mono. */
+  dot?: boolean;
 }
 
 export function Badge({
   tone = "neutral",
   mono,
+  dot,
   className,
+  children,
   ...rest
 }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center rounded-md px-2",
+        "inline-flex h-5 items-center gap-1.5 rounded-md px-2",
         mono
-          ? "font-mono text-[10px] font-medium uppercase tracking-wide"
+          ? "font-mono text-[10px] font-medium uppercase tracking-[0.18em]"
           : "text-[11px] font-medium tracking-tight",
         TONES[tone],
         className
       )}
       {...rest}
-    />
+    >
+      {dot ? (
+        <span
+          aria-hidden
+          className={cn("h-1.5 w-1.5 rounded-full", DOT_TONES[tone])}
+        />
+      ) : null}
+      {children}
+    </span>
   );
 }
 

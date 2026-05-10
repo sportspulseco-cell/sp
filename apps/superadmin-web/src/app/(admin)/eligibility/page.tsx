@@ -1,7 +1,8 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -81,7 +82,7 @@ export default async function EligibilityPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="COMPLIANCE"
+        eyebrow="compliance"
         title="Eligibility"
         description="Per-person, per-season eligibility decisions. Records snapshot rule evaluation at the time of registration; admins can re-evaluate or waive."
         action={
@@ -92,29 +93,34 @@ export default async function EligibilityPage({
         }
       />
 
-      {/* Status overview */}
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {(
-          [
-            { label: "Eligible", value: counts.eligible, status: "eligible" as const },
-            { label: "Pending", value: counts.pending, status: "pending" as const },
-            { label: "Ineligible", value: counts.ineligible, status: "ineligible" as const },
-            { label: "Waived", value: counts.waived, status: "waived" as const }
-          ] as const
-        ).map(({ label, value, status: s }) => (
-          <Link
-            key={s}
-            href={`/eligibility?status=${s}`}
-            className="group block rounded-xl border border-border bg-surface-1 p-5 transition-colors duration-fast ease-ease hover:border-border-strong"
-          >
-            <div className="flex items-center justify-between">
-              <Eyebrow>{label}</Eyebrow>
-              <IconTile icon={ShieldCheck} tint={tintFor(s)} size="sm" />
-            </div>
-            <StatNumber value={value} size="md" className="mt-5" />
-          </Link>
-        ))}
-      </section>
+      <KineticStrip
+        cards={[
+          {
+            label: "Eligible",
+            value: counts.eligible,
+            icon: ShieldCheck,
+            tone: "ok"
+          },
+          {
+            label: "Pending",
+            value: counts.pending,
+            icon: Clock,
+            tone: counts.pending > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Ineligible",
+            value: counts.ineligible,
+            icon: ShieldOff,
+            tone: counts.ineligible > 0 ? "live" : "idle"
+          },
+          {
+            label: "Waived",
+            value: counts.waived,
+            icon: ShieldAlert,
+            tone: "info"
+          }
+        ]}
+      />
 
       {/* Status filter pills */}
       <div className="flex flex-wrap items-center gap-1.5">

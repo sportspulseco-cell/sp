@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { finance, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
@@ -106,53 +107,16 @@ export default async function FinancePage({
     overdue: allInvoices.filter((i) => i.status === "overdue").length
   };
 
-  const KPIs: Array<{
-    label: string;
-    value: string;
-    hint: string;
-    icon: typeof CircleDollarSign;
-    tint: Tint;
-  }> = [
-    {
-      label: "Outstanding",
-      value: formatMoney(primaryTotals.outstandingCents, primaryCurrency),
-      hint: `${counts.sent + counts.partial} active invoices`,
-      icon: Wallet,
-      tint: "blue"
-    },
-    {
-      label: "Collected",
-      value: formatMoney(primaryTotals.paidCents, primaryCurrency),
-      hint: `${counts.paid} paid in full`,
-      icon: CircleDollarSign,
-      tint: "emerald"
-    },
-    {
-      label: "Overdue",
-      value: formatMoney(primaryTotals.overdueCents, primaryCurrency),
-      hint: `${counts.overdue} past due`,
-      icon: AlertCircle,
-      tint: "rose"
-    },
-    {
-      label: "Drafts",
-      value: String(counts.draft),
-      hint: "Not yet sent",
-      icon: Clock,
-      tint: "amber"
-    }
-  ];
-
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="ledger"
         title="Finance"
         description="Outstanding revenue, paid invoices, fee schedules. Approving a registration spawns an invoice; payments are recorded manually for now."
         action={
           <Link
             href="/finance/ar"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted hover:border-fg-muted hover:text-fg"
           >
             AR Dashboard
             <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -160,24 +124,39 @@ export default async function FinancePage({
         }
       />
 
-      {/* KPI tiles */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {KPIs.map(({ label, value, hint, icon: Icon, tint }) => (
-          <div
-            key={label}
-            className="rounded-xl border border-border bg-surface-1 p-5"
-          >
-            <div className="flex items-center justify-between">
-              <Eyebrow>{label}</Eyebrow>
-              <IconTile icon={Icon} tint={tint} size="sm" />
-            </div>
-            <p className="mt-5 font-mono text-[28px] font-semibold tabular-nums tracking-tight text-fg">
-              {value}
-            </p>
-            <p className="mt-1 text-[12px] text-fg-muted">{hint}</p>
-          </div>
-        ))}
-      </section>
+      {/* Money KPIs — keep currency-formatted values as strings */}
+      <KineticStrip
+        cards={[
+          {
+            label: "Outstanding",
+            value: formatMoney(primaryTotals.outstandingCents, primaryCurrency),
+            icon: Wallet,
+            tone: primaryTotals.outstandingCents > 0 ? "info" : "idle",
+            hint: `${counts.sent + counts.partial} active invoices`
+          },
+          {
+            label: "Collected",
+            value: formatMoney(primaryTotals.paidCents, primaryCurrency),
+            icon: CircleDollarSign,
+            tone: primaryTotals.paidCents > 0 ? "ok" : "idle",
+            hint: `${counts.paid} paid in full`
+          },
+          {
+            label: "Overdue",
+            value: formatMoney(primaryTotals.overdueCents, primaryCurrency),
+            icon: AlertCircle,
+            tone: primaryTotals.overdueCents > 0 ? "live" : "idle",
+            hint: `${counts.overdue} past due`
+          },
+          {
+            label: "Drafts",
+            value: counts.draft,
+            icon: Clock,
+            tone: counts.draft > 0 ? "warn" : "idle",
+            hint: "Not yet sent"
+          }
+        ]}
+      />
 
       {/* Status filter pills */}
       <div className="flex flex-wrap items-center gap-1.5">

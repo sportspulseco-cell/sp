@@ -1,7 +1,8 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Sparkles, Layers } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -59,10 +60,32 @@ export default async function RolesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="IAM"
+        eyebrow="iam"
         title="Roles"
         description="System roles cascade top-down — super_admin inherits everything below it. Custom roles attach to a single org and live alongside the system catalog."
         action={<CreateRoleButton />}
+      />
+      <KineticStrip
+        cards={[
+          {
+            label: "System roles",
+            value: systemRoles.length,
+            icon: ShieldCheck,
+            tone: "info"
+          },
+          {
+            label: "Custom roles",
+            value: customRoles.length,
+            icon: Sparkles,
+            tone: customRoles.length > 0 ? "ok" : "idle"
+          },
+          {
+            label: "Total roles",
+            value: page.items.length,
+            icon: Layers,
+            tone: "idle"
+          }
+        ]}
       />
 
       {/* Hierarchy explainer */}

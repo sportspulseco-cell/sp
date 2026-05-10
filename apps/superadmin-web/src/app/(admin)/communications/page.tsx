@@ -1,7 +1,8 @@
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
 import { communications } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
@@ -89,7 +90,7 @@ export default async function CommunicationsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="outbound"
         title="Communications"
         description="Outbox of every notification queued by the platform — registration decisions, game finalizations, suspensions, and admin sends."
         action={
@@ -105,29 +106,34 @@ export default async function CommunicationsPage({
         }
       />
 
-      {/* Status overview row */}
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {(
-          [
-            { label: "Queued", value: counts.queued, status: "queued" as const },
-            { label: "Sending", value: counts.sending, status: "sending" as const },
-            { label: "Sent", value: counts.sent, status: "sent" as const },
-            { label: "Failed", value: counts.failed, status: "failed" as const }
-          ] as const
-        ).map(({ label, value, status: s }) => (
-          <Link
-            key={s}
-            href={`/communications?status=${s}`}
-            className="group block rounded-xl border border-border bg-surface-1 p-5 transition-colors duration-fast ease-ease hover:border-border-strong"
-          >
-            <div className="flex items-center justify-between">
-              <Eyebrow>{label}</Eyebrow>
-              <IconTile icon={MessageSquare} tint={tintForStatus(s)} size="sm" />
-            </div>
-            <StatNumber value={value} size="md" className="mt-5" />
-          </Link>
-        ))}
-      </section>
+      <KineticStrip
+        cards={[
+          {
+            label: "Queued",
+            value: counts.queued,
+            icon: Inbox,
+            tone: counts.queued > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Sending",
+            value: counts.sending,
+            icon: Send,
+            tone: counts.sending > 0 ? "live" : "idle"
+          },
+          {
+            label: "Sent",
+            value: counts.sent,
+            icon: MessageSquare,
+            tone: "ok"
+          },
+          {
+            label: "Failed",
+            value: counts.failed,
+            icon: AlertCircle,
+            tone: counts.failed > 0 ? "live" : "idle"
+          }
+        ]}
+      />
 
       {/* Status filter strip */}
       <div className="flex flex-wrap items-center gap-1.5">

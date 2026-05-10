@@ -59,7 +59,7 @@ export default async function StatsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="ANALYTICS"
+        eyebrow="analytics"
         title="Stats"
         description="Player lines, league standings, and leaderboards — projected from append-only event logs."
       />

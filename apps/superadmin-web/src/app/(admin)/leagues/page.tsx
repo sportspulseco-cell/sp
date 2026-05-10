@@ -1,7 +1,8 @@
-import { Trophy, Wand2 } from "lucide-react";
+import { Trophy, Wand2, Network, Archive, Layers } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
 import {
@@ -45,9 +46,17 @@ export default async function LeaguesPage({
     </Link>
   );
 
+  const active = leaguesPage.items.filter((l) => l.status === "active").length;
+  const draft = leaguesPage.items.filter((l) => l.status === "draft").length;
+  const archived = leaguesPage.items.filter(
+    (l) => l.status === "archived"
+  ).length;
+  const sportsCount = new Set(leaguesPage.items.map((l) => l.sportCode)).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
+        eyebrow="competition"
         title="Leagues"
         description={
           sp?.orgId
@@ -55,6 +64,34 @@ export default async function LeaguesPage({
             : "Persistent competition containers. Click a row to inspect; create new leagues via Org setup."
         }
         action={orgSetupCta}
+      />
+      <KineticStrip
+        cards={[
+          {
+            label: "Active",
+            value: active,
+            icon: Trophy,
+            tone: active > 0 ? "ok" : "idle"
+          },
+          {
+            label: "Draft",
+            value: draft,
+            icon: Network,
+            tone: draft > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Archived",
+            value: archived,
+            icon: Archive,
+            tone: "idle"
+          },
+          {
+            label: "Sports",
+            value: sportsCount,
+            icon: Layers,
+            tone: "info"
+          }
+        ]}
       />
 
       {leaguesPage.items.length === 0 ? (

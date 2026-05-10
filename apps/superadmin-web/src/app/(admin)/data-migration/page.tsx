@@ -1,7 +1,8 @@
-import { Database, Upload } from "lucide-react";
+import { Database, Upload, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { dataMigration, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -62,12 +63,40 @@ export default async function DataMigrationPage() {
     orgs.list({ limit: 200 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
+  const total = jobs.items.length;
+  const succeeded = jobs.items.filter((j) => j.status === "succeeded").length;
+  const running = jobs.items.filter((j) => j.status === "running").length;
+  const failed = jobs.items.filter((j) => j.status === "failed").length;
+
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="ingest"
         title="Data Migration"
         description="Bulk-import CSV data — persons, teams, registrations. Each row maps to a domain write; failures are recorded per-row, never silently dropped."
+      />
+      <KineticStrip
+        cards={[
+          { label: "Total jobs", value: total, icon: Database, tone: "idle" },
+          {
+            label: "Running now",
+            value: running,
+            icon: Activity,
+            tone: running > 0 ? "live" : "idle"
+          },
+          {
+            label: "Succeeded",
+            value: succeeded,
+            icon: Upload,
+            tone: "ok"
+          },
+          {
+            label: "Failed",
+            value: failed,
+            icon: AlertCircle,
+            tone: failed > 0 ? "warn" : "idle"
+          }
+        ]}
       />
 
       {/* Importer card */}

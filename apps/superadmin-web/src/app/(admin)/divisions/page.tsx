@@ -1,7 +1,8 @@
-import { Layers, Wand2 } from "lucide-react";
+import { Layers, Wand2, Network, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
 import {
@@ -78,9 +79,37 @@ export default async function DivisionsPage({
     </Link>
   );
 
+  const total = divs.items.length;
+  const tiers = new Set(divs.items.map((d) => d.tier).filter(Boolean)).size;
+  const totalSlots = divs.items.reduce((acc, d) => acc + (d.maxTeams ?? 0), 0);
+  const seasonsCovered = new Set(divs.items.map((d) => d.seasonId)).size;
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="Divisions" description={filterLabel} action={orgSetupCta} />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="brackets"
+        title="Divisions"
+        description={filterLabel}
+        action={orgSetupCta}
+      />
+      <KineticStrip
+        cards={[
+          { label: "Total divisions", value: total, icon: Layers, tone: "idle" },
+          { label: "Distinct tiers", value: tiers, icon: Network, tone: "info" },
+          {
+            label: "Roster capacity",
+            value: totalSlots,
+            icon: Users,
+            tone: "idle",
+            hint: "sum of maxTeams across all divisions"
+          },
+          {
+            label: "Seasons",
+            value: seasonsCovered,
+            tone: "idle"
+          }
+        ]}
+      />
 
       {divs.items.length === 0 ? (
         <EmptyState

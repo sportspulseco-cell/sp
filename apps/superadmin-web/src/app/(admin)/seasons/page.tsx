@@ -1,7 +1,8 @@
-import { CalendarRange, Wand2 } from "lucide-react";
+import { CalendarRange, Wand2, Trophy, CircleDot, Archive } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
 import {
@@ -43,9 +44,21 @@ export default async function SeasonsPage({
     </Link>
   );
 
+  const inProgress = seasonsPage.items.filter(
+    (s) => s.status === "in_progress" || s.status === "playoffs"
+  ).length;
+  const open = seasonsPage.items.filter(
+    (s) => s.status === "registration_open"
+  ).length;
+  const drafts = seasonsPage.items.filter((s) => s.status === "draft").length;
+  const archived = seasonsPage.items.filter(
+    (s) => s.status === "archived" || s.status === "completed"
+  ).length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
+        eyebrow="lifecycle"
         title="Seasons"
         description={
           sp?.leagueId
@@ -53,6 +66,34 @@ export default async function SeasonsPage({
             : "Time-bounded instances of a league. Click a row to inspect; create new seasons via Org setup."
         }
         action={orgSetupCta}
+      />
+      <KineticStrip
+        cards={[
+          {
+            label: "In progress",
+            value: inProgress,
+            icon: CircleDot,
+            tone: inProgress > 0 ? "ok" : "idle"
+          },
+          {
+            label: "Registration open",
+            value: open,
+            icon: Trophy,
+            tone: open > 0 ? "info" : "idle"
+          },
+          {
+            label: "Drafts",
+            value: drafts,
+            icon: CalendarRange,
+            tone: drafts > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Archived / done",
+            value: archived,
+            icon: Archive,
+            tone: "idle"
+          }
+        ]}
       />
 
       {seasonsPage.items.length === 0 ? (

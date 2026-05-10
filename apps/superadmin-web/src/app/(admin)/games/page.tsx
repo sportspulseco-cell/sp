@@ -1,7 +1,8 @@
-import { CalendarRange } from "lucide-react";
+import { CalendarRange, CircleDot, Flag, Clock } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   TBody,
@@ -62,10 +63,19 @@ export default async function GamesPage({
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
   );
 
+  const live = gamesPage.items.filter((g) => g.status === "in_play").length;
+  const scheduled = gamesPage.items.filter(
+    (g) => g.status === "scheduled"
+  ).length;
+  const completed = gamesPage.items.filter(
+    (g) => g.status === "completed"
+  ).length;
+  const total = gamesPage.items.length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="operations"
         title="Games"
         description="Live and scheduled fixtures across every league. Append events, apply scores, finalize."
         action={
@@ -74,6 +84,34 @@ export default async function GamesPage({
             teams={teamsPage.items}
           />
         }
+      />
+      <KineticStrip
+        cards={[
+          {
+            label: "Live now",
+            value: live,
+            icon: CircleDot,
+            tone: live > 0 ? "live" : "idle"
+          },
+          {
+            label: "Scheduled",
+            value: scheduled,
+            icon: Clock,
+            tone: scheduled > 0 ? "info" : "idle"
+          },
+          {
+            label: "Final",
+            value: completed,
+            icon: Flag,
+            tone: "ok"
+          },
+          {
+            label: "Total tracked",
+            value: total,
+            icon: CalendarRange,
+            tone: "idle"
+          }
+        ]}
       />
 
       {/* Status filter strip */}

@@ -1,7 +1,8 @@
-import { Users } from "lucide-react";
+import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
 import {
@@ -24,12 +25,42 @@ export default async function UsersPage() {
     .listUsers({ limit: 50 })
     .catch(() => ({ items: [], nextCursor: null }));
 
+  const total = page.items.length;
+  const active = page.items.filter((u) => u.status === "active").length;
+  const suspended = page.items.filter((u) => u.status === "suspended").length;
+  const superAdmins = page.items.filter((u) => u.isSuperAdmin).length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
+        eyebrow="directory"
         title="Users"
         description="Authenticated user accounts across all tenants."
         action={<InviteUserButton />}
+      />
+      <KineticStrip
+        cards={[
+          { label: "Total users", value: total, icon: Users, tone: "idle" },
+          {
+            label: "Active",
+            value: active,
+            tone: active > 0 ? "ok" : "idle",
+            hint: total > 0 ? `${Math.round((active / total) * 100)}% of total` : undefined,
+            icon: UserCircle2
+          },
+          {
+            label: "Suspended",
+            value: suspended,
+            tone: suspended > 0 ? "warn" : "idle",
+            icon: Mail
+          },
+          {
+            label: "Super admins",
+            value: superAdmins,
+            tone: "info",
+            icon: ShieldCheck
+          }
+        ]}
       />
       {page.items.length === 0 ? (
         <EmptyState

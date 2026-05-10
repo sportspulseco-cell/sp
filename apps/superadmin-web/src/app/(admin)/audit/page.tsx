@@ -1,7 +1,9 @@
-import { ScrollText } from "lucide-react";
+import { ScrollText, Activity, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { audit } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
+import { MarqueeRail } from "@/components/motion/kinetic";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 
@@ -52,13 +54,67 @@ export default async function AuditPage({
     audit.facets().catch(() => ({ actions: [], resourceTypes: [] }))
   ]);
 
+  const total = page.items.length;
+  const distinctActors = new Set(
+    page.items.map((e) => e.actorUserId).filter(Boolean)
+  ).size;
+  const last24h = page.items.filter(
+    (e) => Date.now() - new Date(e.tsUtc).getTime() < 24 * 3600 * 1000
+  ).length;
+  const distinctResources = new Set(page.items.map((e) => e.resourceType)).size;
+
+  // Recent events for the marquee rail
+  const marqueeItems = page.items.slice(0, 12).map((e) => ({
+    key: e.id,
+    node: (
+      <span className="inline-flex items-center gap-2">
+        <span className="font-mono">{e.action}</span>
+        <span className="text-fg-subtle">·</span>
+        <span>{e.resourceType}</span>
+        {e.resourceId ? (
+          <>
+            <span className="text-fg-subtle">·</span>
+            <span className="font-mono">{e.resourceId.slice(0, 8)}</span>
+          </>
+        ) : null}
+      </span>
+    )
+  }));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="PLATFORM"
+        eyebrow="trail"
         title="Audit"
         description="Append-only ledger of every state change on the platform — actor, resource, before/after, IP, and request id."
       />
+      <KineticStrip
+        cards={[
+          { label: "Recent events", value: total, icon: ScrollText, tone: "idle" },
+          {
+            label: "Last 24h",
+            value: last24h,
+            icon: Activity,
+            tone: last24h > 0 ? "live" : "idle"
+          },
+          {
+            label: "Distinct actors",
+            value: distinctActors,
+            icon: Users,
+            tone: "info"
+          },
+          {
+            label: "Resource types",
+            value: distinctResources,
+            icon: Layers,
+            tone: "idle"
+          }
+        ]}
+      />
+
+      {marqueeItems.length > 0 ? (
+        <MarqueeRail items={marqueeItems} className="-mx-2 rounded-xl" />
+      ) : null}
 
       {/* Facet filters */}
       <div className="space-y-3 rounded-xl border border-border bg-surface-1 p-4">

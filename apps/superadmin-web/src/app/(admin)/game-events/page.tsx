@@ -1,7 +1,8 @@
-import { Activity } from "lucide-react";
+import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -71,12 +72,37 @@ export default async function GameEventsPage({
     new Set(page.items.map((e) => e.eventType))
   ).sort();
 
+  const total = page.items.length;
+  const goals = page.items.filter((e) => e.eventType.includes("goal")).length;
+  const penalties = page.items.filter(
+    (e) => e.eventType.includes("penalty") || e.eventType.includes("card")
+  ).length;
+  const distinctGames = new Set(page.items.map((e) => e.gameId)).size;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="OPERATIONS"
+        eyebrow="play-by-play"
         title="Game events"
         description="Append-only event log across every game. Each row is immutable; corrections create new events with a back-pointer."
+      />
+      <KineticStrip
+        cards={[
+          { label: "Recent events", value: total, icon: Activity, tone: "idle" },
+          { label: "Goals", value: goals, icon: CircleDot, tone: "ok" },
+          {
+            label: "Penalties",
+            value: penalties,
+            icon: Clock,
+            tone: penalties > 0 ? "warn" : "idle"
+          },
+          {
+            label: "Distinct games",
+            value: distinctGames,
+            icon: Layers,
+            tone: "info"
+          }
+        ]}
       />
 
       {/* Type filter pills */}
