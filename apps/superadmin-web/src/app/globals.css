@@ -149,6 +149,44 @@
     background-size: 16px 16px;
   }
 
+  /* Editorial line grid — port of landing-web's bg-grid, light-mode tuned.
+     Pair with .mask-fade-edges for the soft hero backdrop. */
+  .bg-grid-light {
+    background-image:
+      linear-gradient(to right, rgba(10, 10, 10, 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(10, 10, 10, 0.045) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Soft accent + cyan radial glow used behind hero headlines.
+     Light-mode variant — lower alpha than the landing dark version. */
+  .bg-radial-fade-light {
+    background:
+      radial-gradient(ellipse at center top, rgba(99, 91, 255, 0.12), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(34, 211, 238, 0.08), transparent 50%);
+  }
+
+  /* Soft mask that fades the grid out at the corners. */
+  .mask-fade-edges {
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Diagonal sheen swept across an element — used as a hero card accent. */
+  .sheen {
+    background:
+      linear-gradient(
+        115deg,
+        transparent 30%,
+        rgba(99, 91, 255, 0.08) 50%,
+        transparent 70%
+      );
+  }
+
   /* Scrollbar */
   .scrollbar-thin {
     scrollbar-width: thin;
