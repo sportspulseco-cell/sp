@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -27,19 +28,20 @@ import {
   Settings2,
   Database,
   ChevronsUpDown,
-  Check,
   X,
   type LucideIcon
 } from "lucide-react";
+import { LiveDot } from "@/components/motion/kinetic";
 import { useNav } from "./nav-context";
 
 type NavItem =
   | { href: string; label: string; icon: LucideIcon }
   | { section: string };
 
-// Two-tier nav (Vercel pattern): Platform-level above, Project-level below.
-// Section labels are 11px uppercase fg-muted; active item is a quiet
-// surface-2 fill — no left bar, no accent stripe.
+// Two-tier nav: Platform-level above, Project-level below.
+// Section labels are mono "// section" with wide letter-spacing —
+// editorial DNA from the landing site. Active items get an animated
+// accent rail that slides between routes via framer-motion layoutId.
 const PLATFORM_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/organizations", label: "Organizations", icon: Building2 },
@@ -84,13 +86,13 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop — sticky rail */}
-      <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
         <div className="border-b border-border px-3 py-3">
           <WorkspaceSwitcher />
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
+        <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
           <NavGroup items={PLATFORM_NAV} />
-          <div className="my-2 mx-2 h-px bg-border" />
+          <div className="my-3 mx-2 h-px bg-border" />
           <NavGroup items={PROJECT_NAV} />
         </nav>
         <SidebarFooter />
@@ -102,7 +104,9 @@ export function Sidebar() {
         onClick={() => setOpen(false)}
         className={cn(
           "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-out lg:hidden",
-          open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+          open
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
         )}
       />
       <aside
@@ -125,9 +129,9 @@ export function Sidebar() {
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
+        <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
           <NavGroup items={PLATFORM_NAV} />
-          <div className="my-2 mx-2 h-px bg-border" />
+          <div className="my-3 mx-2 h-px bg-border" />
           <NavGroup items={PROJECT_NAV} />
         </nav>
         <SidebarFooter />
@@ -139,19 +143,18 @@ export function Sidebar() {
 function SidebarFooter() {
   return (
     <div className="border-t border-border px-4 py-3">
-      <div className="flex items-center justify-between text-[11px] text-fg-muted">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/50" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+          <LiveDot tone="success" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+            all systems · normal
           </span>
-          <span>All systems normal</span>
         </div>
         <Link
-          href="https://github.com/anthropics/claude-code"
-          className="hover:text-fg"
+          href="/audit"
+          className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle transition-colors hover:text-fg"
         >
-          Docs
+          v2
         </Link>
       </div>
     </div>
@@ -162,15 +165,16 @@ function NavGroup({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   const { setOpen } = useNav();
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-px">
       {items.map((item, idx) => {
         if ("section" in item) {
           return (
             <li
               key={`s-${idx}`}
-              className="mt-4 px-2 pb-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-fg-muted first:mt-0"
+              className="mt-5 flex items-center gap-1.5 px-3 pb-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-fg-subtle first:mt-0"
             >
-              {item.section}
+              <span className="text-fg-subtle/70">//</span>
+              <span>{item.section}</span>
             </li>
           );
         }
@@ -183,20 +187,48 @@ function NavGroup({ items }: { items: NavItem[] }) {
               href={item.href}
               onClick={() => setOpen(false)}
               className={cn(
-                "group flex h-8 items-center gap-2.5 rounded-md px-2 text-sm font-medium transition-colors duration-fast ease-ease",
+                "group relative flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] font-medium transition-colors duration-fast ease-ease",
                 active
-                  ? "bg-surface-2 text-fg"
+                  ? "text-fg"
                   : "text-fg-muted hover:bg-surface-2 hover:text-fg"
               )}
             >
+              {/* Sliding accent rail — single element shared via layoutId
+                  so it animates between active routes as you navigate. */}
+              {active ? (
+                <motion.span
+                  layoutId="sidebar-active"
+                  aria-hidden
+                  className="absolute inset-0 rounded-md bg-[--accent]/10 ring-1 ring-inset ring-[--accent]/20"
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 32
+                  }}
+                />
+              ) : null}
+              {active ? (
+                <motion.span
+                  layoutId="sidebar-active-bar"
+                  aria-hidden
+                  className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[--accent]"
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 32
+                  }}
+                />
+              ) : null}
               <Icon
                 className={cn(
-                  "h-4 w-4 shrink-0",
-                  active ? "text-fg" : "text-fg-muted group-hover:text-fg"
+                  "relative h-4 w-4 shrink-0",
+                  active
+                    ? "text-[--accent]"
+                    : "text-fg-muted group-hover:text-fg"
                 )}
                 strokeWidth={1.75}
               />
-              <span className="truncate">{item.label}</span>
+              <span className="relative truncate">{item.label}</span>
             </Link>
           </li>
         );
@@ -209,9 +241,9 @@ function WorkspaceSwitcher() {
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-fast ease-ease hover:bg-surface-2"
+      className="group flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors duration-fast ease-ease hover:bg-surface-2"
     >
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-fg text-bg">
+      <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-fg text-bg">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -223,12 +255,22 @@ function WorkspaceSwitcher() {
           <path d="m12 14 4-4" />
           <path d="M3.34 19a10 10 0 1 1 17.32 0" />
         </svg>
+        {/* Subtle accent halo on hover */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-[--accent]/0 transition-all duration-200 group-hover:ring-[--accent]/40"
+        />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="truncate text-sm font-medium text-fg">SportsPulse</p>
-        <p className="truncate text-[11px] text-fg-muted">Platform admin</p>
+        <p className="truncate text-[13px] font-semibold text-fg">SportsPulse</p>
+        <p className="truncate font-mono text-[9px] uppercase tracking-[0.22em] text-fg-muted">
+          platform · admin
+        </p>
       </div>
-      <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
+      <ChevronsUpDown
+        className="h-3.5 w-3.5 shrink-0 text-fg-muted transition-colors group-hover:text-fg"
+        strokeWidth={1.75}
+      />
     </button>
   );
 }

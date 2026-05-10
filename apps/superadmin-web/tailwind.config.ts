@@ -68,6 +68,45 @@ const config: Config = {
       },
       maxWidth: {
         container: "1200px"
+      },
+      keyframes: {
+        // Endless horizontal marquee — duplicate the rail content and
+        // translate -50% so the loop is seamless. Port of landing-web.
+        ticker: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" }
+        },
+        // Sweeping diagonal sheen across a card. Use behind a content
+        // layer with overflow-hidden.
+        scan: {
+          "0%, 100%": { transform: "translateX(-100%)", opacity: "0" },
+          "20%": { opacity: "1" },
+          "80%": { opacity: "1" },
+          "100%": { transform: "translateX(100%)", opacity: "0" }
+        },
+        // Slow breathing for accent halos behind hero content.
+        "pulse-slow": {
+          "0%, 100%": { opacity: "0.45" },
+          "50%": { opacity: "1" }
+        },
+        // Live dot: ringed pulse expanding outward, fades each cycle.
+        "pulse-dot": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(99, 91, 255, 0.55)" },
+          "50%": { boxShadow: "0 0 0 8px rgba(99, 91, 255, 0)" }
+        },
+        // Vertical EKG-style scroll — tall thin bar drifts up then loops.
+        ekg: {
+          "0%": { transform: "translateY(0)" },
+          "100%": { transform: "translateY(-50%)" }
+        }
+      },
+      animation: {
+        ticker: "ticker 40s linear infinite",
+        "ticker-fast": "ticker 22s linear infinite",
+        scan: "scan 3.2s ease-in-out infinite",
+        "pulse-slow": "pulse-slow 2.8s ease-in-out infinite",
+        "pulse-dot": "pulse-dot 1.8s ease-out infinite",
+        ekg: "ekg 6s linear infinite"
       }
     }
   },
