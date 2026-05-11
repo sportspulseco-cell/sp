@@ -25,7 +25,8 @@ import {
   BuildLeaderboardHandler,
   ListLinesForGameHandler,
   ListStandingsHandler,
-  ListStatLinesHandler
+  ListStatLinesHandler,
+  TeamStandingHandler
 } from "../application/handlers/queries";
 import {
   BuildLeaderboardBodyDto,
@@ -46,7 +47,8 @@ export class StatsController {
     private readonly projectH: ProjectStatsHandler,
     private readonly recomputeH: RecomputeStandingsHandler,
     private readonly listStandingsH: ListStandingsHandler,
-    private readonly leaderboardH: BuildLeaderboardHandler
+    private readonly leaderboardH: BuildLeaderboardHandler,
+    private readonly teamStandingH: TeamStandingHandler
   ) {}
 
   // ---------- Stat lines ----------
@@ -95,6 +97,20 @@ export class StatsController {
     @Body() body: RecomputeStandingsBodyDto
   ) {
     return this.recomputeH.execute({ leagueId, ...body });
+  }
+
+  // ---------- Team standings row (Workflow 7C dashboard helper) ----------
+  @Get("team/:teamId")
+  @ApiOperation({
+    summary:
+      "Returns one team's standings row plus rank within the supplied league/division. Used by the captain dashboard's off-season + in-season metric cards."
+  })
+  teamStanding(
+    @Param("teamId") teamId: string,
+    @Query("leagueId") leagueId: string,
+    @Query("divisionId") divisionId?: string
+  ) {
+    return this.teamStandingH.execute({ teamId, leagueId, divisionId });
   }
 
   // ---------- Leaderboards ----------

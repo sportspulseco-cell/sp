@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarRange, MapPin, Pencil, Trophy } from "lucide-react";
 import { Eyebrow } from "@sportspulse/ui";
+import { leagueMgmt, stats } from "@/lib/api/server-api";
 import { Countdown } from "./countdown";
 import type { DashboardState, DashboardTeam } from "./shared-types";
 
@@ -11,13 +12,35 @@ import type { DashboardState, DashboardTeam } from "./shared-types";
  * metrics, and an editable team profile card. The full-width green
  * banner + pulsing sidebar item are NOT rendered in this mode.
  */
-export function OffSeasonView({
+export async function OffSeasonView({
   team,
   state
 }: {
   team: DashboardTeam;
   state: DashboardState;
 }) {
+  // Best-effort: pull the most recent completed season for this team's
+  // org and read the team's standings row from it.
+  const seasonsPage = await leagueMgmt
+    .listSeasons({ orgId: team.orgId, status: "completed" })
+    .catch(() => ({ items: [], nextCursor: null }));
+  const lastSeason = seasonsPage.items[0] ?? null;
+  const standing = lastSeason
+    ? await stats
+        .teamStanding(team.id, { leagueId: lastSeason.leagueId })
+        .catch(() => null)
+    : null;
+  const row = standing?.team ?? null;
+  const recordLabel = row
+    ? `W ${row.w} L ${row.l}${row.otl ? ` OTL ${row.otl}` : row.t ? ` T ${row.t}` : ""}`
+    : "—";
+  const standingLabel =
+    standing?.rankInDivision != null
+      ? `${ordinal(standing.rankInDivision)} of ${standing.teamCountInDivision}`
+      : "—";
+  const goalsLabel = row ? `For: ${row.gf}  Against: ${row.ga}` : "—";
+  const nextRegistrationOpensAt = null; // TODO: surface from next draft season
+
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0C447C] to-[#185FA5] px-8 py-10 text-white">
@@ -26,17 +49,18 @@ export function OffSeasonView({
           {team.name}
         </h1>
         <p className="mt-1 text-sm text-white/80">
-          {state.seasonName ?? "Most recent season"} — completed
+          {lastSeason?.name ?? state.seasonName ?? "Most recent season"} —
+          completed
         </p>
         <div className="mt-5">
-          <Countdown targetIso={null} />
+          <Countdown targetIso={nextRegistrationOpensAt} />
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <MetricCard label="Final standing" value="—" />
-        <MetricCard label="Record" value="—" />
-        <MetricCard label="Goals" value="—" />
+        <MetricCard label="Final standing" value={standingLabel} />
+        <MetricCard label="Record" value={recordLabel} />
+        <MetricCard label="Goals" value={goalsLabel} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -84,6 +108,12 @@ export function OffSeasonView({
       </section>
     </div>
   );
+}
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {

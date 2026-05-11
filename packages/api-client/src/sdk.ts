@@ -1290,6 +1290,15 @@ export function createApi(f: Fetcher) {
         }),
       standings: (leagueId: string, divisionId?: string) =>
         f<Standing[]>(`/stats/standings/${leagueId}${qs({ divisionId })}`),
+      teamStanding: (
+        teamId: string,
+        q: { leagueId: string; divisionId?: string }
+      ) =>
+        f<{
+          team: Standing | null;
+          rankInDivision: number | null;
+          teamCountInDivision: number;
+        }>(`/stats/team/${teamId}${qs(q)}`),
       recomputeStandings: (
         leagueId: string,
         body: { ppw?: number; ppl?: number; ppt?: number; ppotl?: number } = {}

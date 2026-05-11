@@ -6,7 +6,8 @@ import {
   BuildLeaderboardHandler,
   ListLinesForGameHandler,
   ListStandingsHandler,
-  ListStatLinesHandler
+  ListStatLinesHandler,
+  TeamStandingHandler
 } from "./application/handlers/queries";
 import { STATS_REPOSITORY } from "./domain/repositories/stats.repository";
 import { DrizzleStatsRepository } from "./infrastructure/repositories/drizzle-stats.repository";
@@ -20,6 +21,7 @@ import { DrizzleStatsRepository } from "./infrastructure/repositories/drizzle-st
     ListStatLinesHandler,
     ListLinesForGameHandler,
     ListStandingsHandler,
+    TeamStandingHandler,
     { provide: STATS_REPOSITORY, useClass: DrizzleStatsRepository }
   ]
 })

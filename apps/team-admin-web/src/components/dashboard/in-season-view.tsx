@@ -7,7 +7,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { Badge, Eyebrow } from "@sportspulse/ui";
-import { gameOps, roster } from "@/lib/api/server-api";
+import { gameOps, roster, stats } from "@/lib/api/server-api";
 import type { DashboardState, DashboardTeam } from "./shared-types";
 
 /**
@@ -25,17 +25,32 @@ export async function InSeasonView({
   state: DashboardState;
 }) {
   // Best-effort data pulls — UI degrades gracefully if any fail.
-  const [upcoming, memberships] = await Promise.all([
+  const [upcoming, memberships, standing] = await Promise.all([
     gameOps
       .listGames({ teamId: team.id, status: "scheduled", limit: 1 })
       .catch(() => ({ items: [], nextCursor: null })),
     roster
       .listMemberships({ teamId: team.id, activeOnly: true })
-      .catch(() => ({ items: [], nextCursor: null }))
+      .catch(() => ({ items: [], nextCursor: null })),
+    state.leagueId
+      ? stats
+          .teamStanding(team.id, { leagueId: state.leagueId })
+          .catch(() => null)
+      : Promise.resolve(null)
   ]);
 
   const nextGame = upcoming.items[0] ?? null;
   const activeCount = memberships.items.length;
+  const standingRow = standing?.team ?? null;
+  const recordLabel = standingRow
+    ? `${standingRow.w}-${standingRow.l}${standingRow.otl ? `-${standingRow.otl}` : ""}`
+    : "—";
+  const standLabel =
+    standing?.rankInDivision != null
+      ? `${standing.rankInDivision} / ${standing.teamCountInDivision}`
+      : "—";
+  const gfLabel = standingRow ? String(standingRow.gf) : "—";
+  const gaLabel = standingRow ? String(standingRow.ga) : "—";
 
   return (
     <div className="space-y-6">
@@ -76,11 +91,12 @@ export async function InSeasonView({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <MetricCard label="Active roster" value={activeCount} />
-        <MetricCard label="Standing" value="—" />
-        <MetricCard label="GF" value="—" />
-        <MetricCard label="GA" value="—" />
+        <MetricCard label="Record (W-L-OTL)" value={recordLabel} />
+        <MetricCard label="Standing" value={standLabel} />
+        <MetricCard label="GF" value={gfLabel} />
+        <MetricCard label="GA" value={gaLabel} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -71,6 +71,47 @@ export class ListStandingsHandler
   }
 }
 
+/**
+ * Workflow 7C dashboard helper — one team's standings row plus the
+ * standing rank within the supplied league/division. Returns null
+ * if no standings row has been derived yet for the team.
+ */
+@Injectable()
+export class TeamStandingHandler
+  implements
+    QueryHandler<
+      { teamId: string; leagueId: string; divisionId?: string },
+      {
+        team: StandingDto | null;
+        rankInDivision: number | null;
+        teamCountInDivision: number;
+      }
+    >
+{
+  constructor(
+    @Inject(STATS_REPOSITORY) private readonly stats: StatsRepository
+  ) {}
+  async execute(input: {
+    teamId: string;
+    leagueId: string;
+    divisionId?: string;
+  }) {
+    const rows = await this.stats.listStandings(
+      input.leagueId,
+      input.divisionId
+    );
+    const sorted = rows
+      .map(StandingDto.fromRow)
+      .sort((a, b) => b.points - a.points || b.gd - a.gd);
+    const idx = sorted.findIndex((r) => r.teamId === input.teamId);
+    return {
+      team: idx >= 0 ? sorted[idx]! : null,
+      rankInDivision: idx >= 0 ? idx + 1 : null,
+      teamCountInDivision: sorted.length
+    };
+  }
+}
+
 export interface BuildLeaderboardInput {
   scopeType: "platform" | "org" | "league" | "division";
   scopeId?: string | null;
