@@ -17,11 +17,19 @@ export default async function SeasonSetupPage({
   const season = await league.getSeason(id).catch(() => null);
   if (!season) notFound();
 
-  const [pricingTiers, emailTemplates, divisions] = await Promise.all([
-    registrationV2.listPricingTiers({ seasonId: id }).catch(() => []),
-    registrationV2.listEmailTemplates({ seasonId: id }).catch(() => []),
-    league.listDivisions({ seasonId: id }).catch(() => ({ items: [] }))
-  ]);
+  // Sibling seasons in the same league — drive the TopBar switcher so
+  // the admin can change which season they're configuring without
+  // bouncing back to /seasons. (Tester feedback: "the seasons have
+  // already been created in org setup. It should just be a drop-down.")
+  const [pricingTiers, emailTemplates, divisions, sameLeagueSeasons] =
+    await Promise.all([
+      registrationV2.listPricingTiers({ seasonId: id }).catch(() => []),
+      registrationV2.listEmailTemplates({ seasonId: id }).catch(() => []),
+      league.listDivisions({ seasonId: id }).catch(() => ({ items: [] })),
+      league
+        .listSeasons({ leagueId: season.leagueId })
+        .catch(() => ({ items: [], nextCursor: null }))
+    ]);
 
   return (
     <SeasonSetupShell
@@ -29,6 +37,13 @@ export default async function SeasonSetupPage({
       initialPricingTiers={pricingTiers}
       initialEmailTemplates={emailTemplates}
       divisions={divisions.items ?? []}
+      availableSeasons={sameLeagueSeasons.items.map((s) => ({
+        id: s.id,
+        name: s.name,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        status: s.status
+      }))}
     />
   );
 }

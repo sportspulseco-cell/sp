@@ -171,3 +171,110 @@ vars directly via the dashboard for changes a teammate also needs — adjust
 
 - The global `AuditInterceptor` records every successful 2xx mutation. **Do not** add per-handler audit emits unless you need richer before/after diffs.
 - Action labels follow `<resource>.<verb>` (`leagues.create`, `games.finalize`, etc.). Keep this convention.
+
+## Cardinal rule — test like the testers test
+
+> The repo owner records audio transcripts where they walk a real
+> user flow end-to-end, on the deployed apps, signed in as the role
+> being tested. Half-baked tests miss every bug they've reported.
+
+Past bugs the testers caught that scripted unit tests + visual
+QA missed:
+- Registration funnel visited phases 1 → 2 → 4 → 5 → 3 → 6 because the
+  inner `stepOrder` placed `questions` after `tier`; the **stepper
+  rendered the numbers correctly** but the runtime order was wrong.
+- Player completes the public registration funnel, sees the "admin
+  will review" success screen, but the admin's ReviewQueue defaults
+  to `pending_review` only — `pending_offline` rows were invisible.
+- Player can log into the player dashboard but there's **no
+  discoverable path** to any published form. Forms got published; no
+  surface listed them for the player.
+- Registration setup wizard step 1 forced the admin to **type the
+  season name as free text** instead of picking from the seasons
+  already created in org-setup. Downstream steps depend on the
+  season; the typo silos them.
+- A field renamed in code from `maxGuestPlayersPerGame` to **"max
+  post-game players"** — domain term drift that the form-builder
+  audience caught in seconds.
+- Number fields shipped where the spec called for a **dropdown of
+  enumerated options** (e.g. overtime length: sudden death | shootout
+  | 5 min | 10 min) — bare `<input type="number">` is wrong.
+
+### The 9 testing rules (each ties back to a real reported bug)
+
+1. **Walk every flow end-to-end, signed in as the actual role.** Not
+   as super_admin shortcut. The captain dashboard bugs only show when
+   you're logged in as the captain. The player discovery bug only
+   shows when logged in as the player.
+2. **Cross-surface verification is mandatory.** When admin A creates
+   a thing, navigate to player B's app and verify it surfaces there.
+   When player C submits, navigate to admin D's queue and verify the
+   row appears. **Never trust the success screen** — verify at the
+   destination.
+3. **Numbered stepper UIs must visit phases in the same order they
+   display.** If the stepper shows `1 → 2 → 3 → 4 → 5 → 6`, the
+   runtime must call setStep in that exact order. Test by opening
+   devtools and watching the stepper highlight transitions.
+4. **Pre-existing entities are dropdowns, never free-text inputs.**
+   Seasons are created in org-setup → every season picker downstream
+   is a dropdown of those rows, never a `<input type="text">`.
+   Auto-populate dependent fields the moment the user picks.
+5. **Labels must match the canonical domain term.** If the schema
+   field is `maxGuestPlayersPerGame`, the UI label says "Max guest
+   players per game" — verbatim. Don't paraphrase. Don't shorten.
+   Drift here is silent-but-wrong.
+6. **Spec field lists are contracts.** If a spec enumerates 7 fields,
+   the form ships all 7 on first pass. A "thin sketch" missing 2 of
+   them is wasted work — the tester will catch it immediately.
+7. **Enum fields render as dropdowns of the enum, not free input.**
+   Overtime length is "sudden death | shootout | 5 min | 10 min" —
+   not a bare `type="number"`. Status, role, tier, gender, channel —
+   all the same.
+8. **Cross-step linkage:** if step N depends on step N-1, the picker
+   in step N-1 must drive the data in step N. Don't make the user
+   re-type. Don't make the user re-search.
+9. **Test the unhappy paths every tester finds first.** Returning
+   user who already has an account. Minor whose DOB triggers
+   parental consent. Captain with no team. Player with no
+   registration. Form that has no waivers configured. These are not
+   edge cases — they are the first thing a tester hits.
+
+### Playwright smoke-test recipe (when an MCP browser is available)
+
+For every feature with a visible user-facing flow:
+
+1. Navigate to the entry point as an unauthenticated visitor first
+   (catches missing public surfaces — bug #3 above).
+2. Sign in as the role being tested. Take a snapshot at the dashboard
+   home — verify the entries the role should see exist.
+3. Walk the happy path click-by-click. After each click, take a
+   snapshot and assert the visible state matches the next expected
+   step (catches stepper out-of-order — bug #1 above).
+4. After the terminal action (submit, save, publish, approve), sign
+   out and sign back in as the role on the **receiving side**.
+   Navigate to that role's queue page. Assert the row appeared
+   (catches invisible submissions — bug #2 above).
+5. Run the same flow with a returning user and a minor user.
+6. Diff every label and dropdown option against the canonical spec
+   list (catches bugs #4, #5, #6, #7 above).
+
+When real Playwright isn't available, use `chrome-devtools` MCP the
+same way: `navigate_page` → `take_snapshot` → `click` → repeat.
+
+### Bug log format
+
+For every smoke test, write a bug log entry per finding:
+
+```
+[BUG-N] <feature> · <severity: blocker | major | minor>
+  Surface: <admin / captain / player / public>
+  Repro:
+    1. ...
+    2. ...
+  Expected: ...
+  Actual: ...
+  File: <path:line where the fix likely lands>
+```
+
+Resolve each entry in the same commit or open a follow-up referencing
+the bug id.

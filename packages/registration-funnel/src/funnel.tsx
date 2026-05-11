@@ -2409,37 +2409,42 @@ function phaseHeadingFor(step: Step): {
   title: string;
   subtitle: string | null;
 } {
+  // Inner subtitle numbering MUST match the outer PhaseStepper:
+  // 1 Path · 2 Account · 3 Details · 4 Compliance · 5 Payment · 6 Confirmation.
+  // The previous offset-by-one numbering (Account = "Phase 1", etc.)
+  // is the same class of bug as the misordered stepOrder fix in this
+  // file — the inner UI must agree with the outer stepper.
   switch (step) {
     case "path":
       return { title: "Player registration", subtitle: null };
     case "account":
       return {
         title: "Create your account",
-        subtitle: "Phase 1 — Account creation & authentication"
+        subtitle: "Step 2 — Account creation & authentication"
       };
     case "questions":
       return {
         title: "Your details",
-        subtitle: "Phase 2 — Player & team information"
+        subtitle: "Step 3 — Player & team information"
       };
     case "consent":
     case "waivers":
       return {
         title: "Compliance & waivers",
         subtitle:
-          "Phase 3 — Documents, eligibility checks, and digital signatures"
+          "Step 4 — Documents, eligibility checks, and digital signatures"
       };
     case "tier":
     case "review":
     case "payment":
       return {
         title: "Payment",
-        subtitle: "Phase 4 — Invoice & payment selection"
+        subtitle: "Step 5 — Invoice & payment selection"
       };
     case "done":
       return {
         title: "Registration submitted",
-        subtitle: "Phase 6 — Confirmation & activation"
+        subtitle: "Step 6 — Confirmation & activation"
       };
   }
 }

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CalendarRange,
   CheckCircle2,
@@ -47,16 +48,26 @@ const TABS: TabDef[] = [
   { id: "publish", index: 6, title: "Review & Publish", subtitle: "Validation + go-live", icon: Send }
 ];
 
+type AvailableSeason = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+};
+
 export function SeasonSetupShell({
   season,
   initialPricingTiers,
   initialEmailTemplates,
-  divisions
+  divisions,
+  availableSeasons = []
 }: {
   season: Season;
   initialPricingTiers: PricingTier[];
   initialEmailTemplates: EmailTemplate[];
   divisions: Division[];
+  availableSeasons?: AvailableSeason[];
 }) {
   const [active, setActive] = useState<string>("season");
   const [pricingTiers, setPricingTiers] =
@@ -84,7 +95,11 @@ export function SeasonSetupShell({
 
   return (
     <div className="space-y-6">
-      <TopBar season={season} onPublish={() => setActive("publish")} />
+      <TopBar
+        season={season}
+        availableSeasons={availableSeasons}
+        onPublish={() => setActive("publish")}
+      />
       <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
         <SidebarNav
           season={season}
@@ -131,18 +146,48 @@ export function SeasonSetupShell({
 
 function TopBar({
   season,
+  availableSeasons,
   onPublish
 }: {
   season: Season;
+  availableSeasons: AvailableSeason[];
   onPublish: () => void;
 }) {
+  const router = useRouter();
   const previewHref = `/registration/${season.id}`;
+  // Use a dropdown when at least 2 seasons exist in the same league;
+  // single-season leagues just show the name (no point picking).
+  const showPicker = availableSeasons.length > 1;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 px-5 py-3">
       <div className="flex items-center gap-3">
-        <p className="text-[16px] font-semibold tracking-tight text-fg">
-          {season.name}
-        </p>
+        {showPicker ? (
+          <label className="flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              Season
+            </span>
+            <select
+              value={season.id}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next && next !== season.id) {
+                  router.push(`/registrations/seasons/${next}/setup`);
+                }
+              }}
+              className="rounded-md border border-border bg-surface-1 px-2 py-1 text-[14px] font-semibold tracking-tight text-fg focus:border-accent focus:outline-none"
+            >
+              {availableSeasons.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="text-[16px] font-semibold tracking-tight text-fg">
+            {season.name}
+          </p>
+        )}
         <Badge tone={statusTone(season.status)} mono>
           {season.status.replace(/_/g, " ")}
         </Badge>
