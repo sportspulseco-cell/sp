@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CommunicationsModule } from "../communications/communications.module";
 import { CaptainController } from "./interface/captain.controller";
 
 /**
@@ -12,6 +13,7 @@ import { CaptainController } from "./interface/captain.controller";
  * through the same paths so they can preview the captain UI.
  */
 @Module({
+  imports: [CommunicationsModule],
   controllers: [CaptainController]
 })
 export class CaptainModule {}

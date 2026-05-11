@@ -1682,7 +1682,49 @@ export function createApi(f: Fetcher) {
               installmentIntervalDays: number;
             } | null;
           }>;
-        }>(`/captain/divisions${qs({ seasonId })}`)
+        }>(`/captain/divisions${qs({ seasonId })}`),
+      /**
+       * Workflow 7A § 4.4 — atomic 8-write submit. Throws on validation
+       * or transaction failure; nothing is created on the back end.
+       */
+      register: (body: {
+        teamId: string;
+        divisionId: string;
+        splitMode: "even" | "custom";
+        playerSplits: Array<{
+          personId?: string;
+          email?: string;
+          amountCents: number;
+        }>;
+      }) =>
+        f<{
+          divisionTeamEntryId: string;
+          entryStatus: string;
+          masterInvoiceId: string;
+          subInvoiceCount: number;
+          inviteCount: number;
+        }>(`/captain/register`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      /** Poll while entryStatus = 'applied'. Returns 0..100 pct. */
+      registerStatus: (dteId: string) =>
+        f<{
+          entryStatus: string;
+          collectedCents: number;
+          thresholdCents: number;
+          pct: number;
+        }>(`/captain/register/status${qs({ dteId })}`),
+      /** Manual / webhook-driven watcher trigger. Idempotent. */
+      recomputeThreshold: (dteId: string) =>
+        f<{
+          entryStatus: string;
+          collectedCents: number;
+          thresholdCents: number;
+          transitioned: boolean;
+        }>(`/captain/register/${dteId}/recompute-threshold`, {
+          method: "POST"
+        })
     }
   };
 }

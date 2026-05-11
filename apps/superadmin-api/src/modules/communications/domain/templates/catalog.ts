@@ -16,7 +16,14 @@ export const TEMPLATE_CODES = [
   "suspension.issued",
   "suspension.lifted",
   "roster.added",
-  "roster.dropped"
+  "roster.dropped",
+  // Workflow 7A · captain rollover
+  "TEAM_INVITE_NEW",
+  "TEAM_INVITE_RETURNING",
+  "SUB_INVOICE_SENT",
+  "TEAM_CONFIRMED",
+  "CAPTAIN_ASSIGNED",
+  "TEAM_CREATED"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];

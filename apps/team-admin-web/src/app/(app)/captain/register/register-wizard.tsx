@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Check,
+  Loader2,
   Mail,
   Pencil,
   Plus,
+  Send,
+  Sparkles,
   Trophy,
   UserCheck,
   Users,
@@ -15,7 +19,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
-import { leagueMgmt } from "@/lib/api/browser-api";
+import { captain, leagueMgmt } from "@/lib/api/browser-api";
 
 type StepIndex = 1 | 2 | 3 | 4;
 
@@ -124,6 +128,37 @@ export function RegisterWizard({
   const maxRoster = 25;
   const rosterCount = invitedEmails.length;
   const step3Valid = rosterCount > 0;
+
+  // ----- step 4 state ------------------------------------------------
+  const [splitMode, setSplitMode] = useState<"even" | "custom">("even");
+  // Map invited-email-id → cents. Defaults to even split.
+  const [customCents, setCustomCents] = useState<Record<string, number>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submittedDte, setSubmittedDte] = useState<string | null>(null);
+
+  const totalFeeCents = division?.pricing?.fullPriceCents ?? 0;
+  // Derive per-player cents based on the split mode.
+  const splits = useMemo(() => {
+    if (!division || invitedEmails.length === 0) return [];
+    if (splitMode === "even") {
+      const per = Math.floor(totalFeeCents / invitedEmails.length);
+      const remainder = totalFeeCents - per * invitedEmails.length;
+      return invitedEmails.map((p, i) => ({
+        id: p.id,
+        email: p.email,
+        amountCents: per + (i === 0 ? remainder : 0)
+      }));
+    }
+    return invitedEmails.map((p) => ({
+      id: p.id,
+      email: p.email,
+      amountCents: customCents[p.id] ?? 0
+    }));
+  }, [splitMode, invitedEmails, customCents, division, totalFeeCents]);
+  const allocatedCents = splits.reduce((acc, s) => acc + s.amountCents, 0);
+  const remainingCents = totalFeeCents - allocatedCents;
+  const balanced = remainingCents === 0 && allocatedCents > 0;
 
   function addEmail() {
     const e = emailDraft.trim().toLowerCase();
@@ -366,10 +401,10 @@ export function RegisterWizard({
             </StepCard>
           ) : null}
 
-          {step === 4 ? (
+          {step === 4 && !submittedDte ? (
             <StepCard
-              title="Dues split"
-              subtitle="Sprint 4 lands here — atomic 8-write submit, dues-split toggle, and the confirmation-threshold watcher."
+              title="Split team dues"
+              subtitle="Choose how the fee splits across invited players. The Submit button stays disabled until the total balances to the exact team fee."
             >
               <SummaryBlock
                 team={team}
@@ -377,20 +412,215 @@ export function RegisterWizard({
                 invites={invitedEmails}
                 thresholdCents={thresholdCents}
               />
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
-                The split editor + submit transaction land in the next
-                push. For now this step is read-only — review and use
-                Back to fix anything.
+
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+                  split mode
+                </p>
+                <div className="inline-flex rounded-md border border-border bg-bg-subtle p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSplitMode("even")}
+                    className={
+                      splitMode === "even"
+                        ? "rounded px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] bg-fg text-bg"
+                        : "rounded px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted hover:text-fg"
+                    }
+                  >
+                    Even split
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Initialise custom amounts from the current even split
+                      // so users see a sensible starting point.
+                      setCustomCents(() => {
+                        const seed: Record<string, number> = {};
+                        for (const s of splits) seed[s.id] = s.amountCents;
+                        return seed;
+                      });
+                      setSplitMode("custom");
+                    }}
+                    className={
+                      splitMode === "custom"
+                        ? "rounded px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] bg-fg text-bg"
+                        : "rounded px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted hover:text-fg"
+                    }
+                  >
+                    Custom amounts
+                  </button>
+                </div>
               </div>
+
+              <ul className="space-y-1.5">
+                {splits.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-subtle px-3 py-2"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Mail
+                        className="h-3.5 w-3.5 shrink-0 text-fg-muted"
+                        strokeWidth={1.75}
+                      />
+                      <span className="truncate text-[13px] text-fg">
+                        {s.email}
+                      </span>
+                    </span>
+                    {splitMode === "even" ? (
+                      <span className="font-mono text-[13px] tabular-nums text-fg">
+                        ${(s.amountCents / 100).toFixed(2)}
+                      </span>
+                    ) : (
+                      <div className="relative w-32">
+                        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[11px] text-fg-muted">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={(s.amountCents / 100).toFixed(2)}
+                          onChange={(e) =>
+                            setCustomCents((prev) => ({
+                              ...prev,
+                              [s.id]: Math.max(
+                                0,
+                                Math.round(parseFloat(e.target.value || "0") * 100)
+                              )
+                            }))
+                          }
+                          className="pl-5 text-right font-mono text-[12px] tabular-nums"
+                        />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Running total bar */}
+              <div className="rounded-lg border border-border bg-surface-1 px-3 py-2">
+                <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+                  <span>
+                    allocated{" "}
+                    <span className="text-fg">
+                      ${(allocatedCents / 100).toFixed(2)}
+                    </span>{" "}
+                    / ${(totalFeeCents / 100).toFixed(2)}
+                  </span>
+                  <span
+                    className={
+                      balanced
+                        ? "text-emerald-700"
+                        : remainingCents < 0
+                          ? "text-rose-700"
+                          : "text-amber-700"
+                    }
+                  >
+                    {balanced
+                      ? "balanced"
+                      : remainingCents < 0
+                        ? `over by $${(Math.abs(remainingCents) / 100).toFixed(2)}`
+                        : `remaining $${(remainingCents / 100).toFixed(2)}`}
+                  </span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
+                  <div
+                    className={
+                      balanced
+                        ? "h-full bg-emerald-500 transition-all"
+                        : remainingCents < 0
+                          ? "h-full bg-rose-500 transition-all"
+                          : "h-full bg-amber-500 transition-all"
+                    }
+                    style={{
+                      width: `${Math.min(100, totalFeeCents > 0 ? (allocatedCents / totalFeeCents) * 100 : 0)}%`
+                    }}
+                  />
+                </div>
+              </div>
+
+              {thresholdCents > 0 ? (
+                <p className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-[12px] text-fg-muted">
+                  Your team confirms once{" "}
+                  <span className="font-mono text-fg">
+                    ${(thresholdCents / 100).toFixed(2)}
+                  </span>{" "}
+                  in deposits is collected. The progress bar appears once
+                  you submit.
+                </p>
+              ) : (
+                <p className="rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+                  Threshold is $0 — your team auto-confirms the moment you
+                  submit. No deposit collection needed first.
+                </p>
+              )}
+
+              {submitError ? (
+                <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+                  <AlertCircle
+                    className="mr-1 inline h-3.5 w-3.5 align-text-bottom"
+                    strokeWidth={1.75}
+                  />
+                  {submitError}
+                </p>
+              ) : null}
             </StepCard>
           ) : null}
 
-          <Footer
-            step={step}
-            canAdvance={stepGates[step]}
-            onBack={goBack}
-            onNext={goNext}
-          />
+          {step === 4 && submittedDte ? (
+            <StepCard
+              title="Submitted"
+              subtitle="Your registration is in flight. Watch confirmation progress below — it polls every 10 seconds."
+            >
+              <ConfirmationProgress dteId={submittedDte} teamName={team.name} />
+            </StepCard>
+          ) : null}
+
+          {!submittedDte ? (
+            <Footer
+              step={step}
+              canAdvance={stepGates[step]}
+              submitting={submitting}
+              balanced={balanced}
+              onBack={goBack}
+              onNext={goNext}
+              onSubmit={async () => {
+                if (!division || !balanced) return;
+                setSubmitting(true);
+                setSubmitError(null);
+                try {
+                  const result = await captain.register({
+                    teamId: team.id,
+                    divisionId: division.id,
+                    splitMode,
+                    playerSplits: splits.map((s) => ({
+                      email: s.email,
+                      amountCents: s.amountCents
+                    }))
+                  });
+                  setSubmittedDte(result.divisionTeamEntryId);
+                } catch (err) {
+                  const e = err as Error;
+                  // Pull the validation message out of "API 4XX: <json>"
+                  const match = /API \d+: (.+)$/.exec(e.message);
+                  if (match) {
+                    try {
+                      const parsed = JSON.parse(match[1]!);
+                      setSubmitError(
+                        parsed?.message ?? parsed?.error ?? e.message
+                      );
+                    } catch {
+                      setSubmitError(match[1]!);
+                    }
+                  } else {
+                    setSubmitError(e.message);
+                  }
+                  setSubmitting(false);
+                }
+              }}
+            />
+          ) : null}
         </main>
       </div>
     </div>
@@ -767,13 +997,19 @@ function Row({
 function Footer({
   step,
   canAdvance,
+  submitting,
+  balanced,
   onBack,
-  onNext
+  onNext,
+  onSubmit
 }: {
   step: StepIndex;
   canAdvance: boolean;
+  submitting: boolean;
+  balanced: boolean;
   onBack: () => void;
   onNext: () => void;
+  onSubmit: () => void;
 }) {
   return (
     <footer className="flex items-center justify-between gap-3 border-t border-border pt-4">
@@ -781,7 +1017,7 @@ function Footer({
         type="button"
         variant="ghost"
         onClick={onBack}
-        disabled={step === 1}
+        disabled={step === 1 || submitting}
       >
         <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
         <span className="font-mono text-[10px] uppercase tracking-[0.18em]">
@@ -799,12 +1035,142 @@ function Footer({
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
         </Button>
       ) : (
-        <Button type="button" disabled>
+        <Button
+          type="button"
+          onClick={onSubmit}
+          disabled={!balanced || submitting}
+        >
+          {submitting ? (
+            <Loader2
+              className="mr-1.5 h-3.5 w-3.5 animate-spin"
+              strokeWidth={1.75}
+            />
+          ) : (
+            <Send className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+          )}
           <span className="font-mono text-[10px] uppercase tracking-[0.18em]">
-            Submit · sprint 4
+            Submit registration
           </span>
         </Button>
       )}
     </footer>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * Post-submit confirmation progress
+ * -------------------------------------------------------------------------*/
+
+function ConfirmationProgress({
+  dteId,
+  teamName
+}: {
+  dteId: string;
+  teamName: string;
+}) {
+  const [status, setStatus] = useState<{
+    entryStatus: string;
+    collectedCents: number;
+    thresholdCents: number;
+    pct: number;
+  } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const stoppedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function tick() {
+      if (cancelled) return;
+      try {
+        const s = await captain.registerStatus(dteId);
+        if (cancelled) return;
+        setStatus(s);
+        if (s.entryStatus === "confirmed") {
+          stoppedRef.current = true;
+          return;
+        }
+      } catch (e) {
+        if (!cancelled) setErr((e as Error).message);
+      }
+      if (!stoppedRef.current) setTimeout(tick, 10_000);
+    }
+    tick();
+    return () => {
+      cancelled = true;
+      stoppedRef.current = true;
+    };
+  }, [dteId]);
+
+  if (!status && !err) {
+    return (
+      <p className="flex items-center gap-2 text-[12px] text-fg-muted">
+        <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.75} />
+        Loading status…
+      </p>
+    );
+  }
+  if (err) {
+    return (
+      <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        {err}
+      </p>
+    );
+  }
+  if (!status) return null;
+
+  const confirmed = status.entryStatus === "confirmed";
+  const autoConfirm = status.thresholdCents === 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-bg-subtle px-4 py-3">
+        {confirmed ? (
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <Check className="h-4 w-4" strokeWidth={2.5} />
+          </span>
+        ) : (
+          <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-700">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500/30" />
+            <Sparkles className="relative h-4 w-4" strokeWidth={2} />
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="text-[14px] font-medium text-fg">
+            {confirmed
+              ? `${teamName} is confirmed for the season`
+              : autoConfirm
+                ? "Auto-confirming…"
+                : `Collecting deposits — ${status.pct}%`}
+          </p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+            status · {status.entryStatus}
+          </p>
+        </div>
+      </div>
+
+      {!confirmed && !autoConfirm ? (
+        <div>
+          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+            <span>
+              ${(status.collectedCents / 100).toFixed(2)} /{" "}
+              ${(status.thresholdCents / 100).toFixed(2)} collected
+            </span>
+            <span>{status.pct}%</span>
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-700"
+              style={{ width: `${status.pct}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <p className="text-[12px] text-fg-muted">
+        Players will receive their personal invite emails shortly. As
+        each one pays their deposit, this bar fills in real time. We'll
+        notify you the moment you cross the confirmation threshold.
+      </p>
+    </div>
   );
 }

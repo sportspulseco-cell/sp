@@ -93,6 +93,15 @@ export const invoices = pgTable(
     paidCents: integer("paid_cents").notNull().default(0),
     /** draft | sent | paid | partial | overdue | void */
     status: text("status").notNull().default("draft"),
+    /**
+     * Workflow 7A invoice discriminator.
+     *   standard    — legacy / single-recipient invoice
+     *   team_dues   — master invoice for one division_team_entries
+     *   sub_invoice — per-player slice of a team_dues master (has parentInvoiceId)
+     */
+    invoiceType: text("invoice_type").notNull().default("standard"),
+    /** When invoiceType='sub_invoice', this points to the master. */
+    parentInvoiceId: uuid("parent_invoice_id"),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
     dueAt: timestamp("due_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
@@ -118,7 +127,13 @@ export const invoices = pgTable(
     statusCheck: check(
       "invoice_status_check",
       sql`${t.status} IN ('draft','sent','paid','partial','overdue','void')`
-    )
+    ),
+    typeCheck: check(
+      "invoices_type_check",
+      sql`${t.invoiceType} IN ('standard','team_dues','sub_invoice')`
+    ),
+    parentIdx: index("invoices_parent_idx").on(t.parentInvoiceId),
+    typeIdx: index("invoices_type_idx").on(t.invoiceType)
   })
 );
 
