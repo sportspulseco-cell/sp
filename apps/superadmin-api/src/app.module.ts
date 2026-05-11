@@ -18,6 +18,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { DataMigrationModule } from "./modules/data-migration/data-migration.module";
+import { CaptainModule } from "./modules/captain/captain.module";
 
 @Module({
   imports: [
@@ -39,7 +40,8 @@ import { DataMigrationModule } from "./modules/data-migration/data-migration.mod
     ReportsModule,
     FinanceModule,
     AdminModule,
-    DataMigrationModule
+    DataMigrationModule,
+    CaptainModule
   ]
 })
 export class AppModule {}

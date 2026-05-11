@@ -9,6 +9,7 @@ import {
   ListChecks,
   Mail,
   Settings,
+  Sparkles,
   Star,
   Users,
   UsersRound,
@@ -52,7 +53,18 @@ const CAPTAIN_NAV: NavSection = {
   ]
 };
 
-export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
+export function Sidebar({
+  isCaptain = false,
+  registrationOpen = false
+}: {
+  isCaptain?: boolean;
+  /**
+   * Workflow 7A flag — when true, the sidebar renders a pulsing
+   * "Register the team" CTA at the very top. Pairs with the
+   * RegistrationBanner; both come from the same dashboard-state mode.
+   */
+  registrationOpen?: boolean;
+}) {
   const { open, setOpen } = useNav();
   const sections = isCaptain ? [...BASE_NAV, CAPTAIN_NAV] : BASE_NAV;
 
@@ -61,6 +73,7 @@ export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
       {/* Desktop — sticky rail */}
       <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
         <SidebarBrand />
+        {registrationOpen ? <RegistrationCta /> : null}
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
           {sections.map((s, i) => (
             <NavGroup key={i} section={s} />
@@ -96,6 +109,7 @@ export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
+        {registrationOpen ? <RegistrationCta /> : null}
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
           {sections.map((s, i) => (
             <NavGroup key={i} section={s} />
@@ -104,6 +118,39 @@ export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
         <SidebarFooter />
       </aside>
     </>
+  );
+}
+
+/**
+ * Pulsing "Register the team" CTA. Renders at the top of the sidebar
+ * whenever the layout receives `registrationOpen=true`. The dot ping
+ * + emerald background match the RegistrationBanner so users see the
+ * same signal in both spots simultaneously.
+ */
+function RegistrationCta() {
+  const { setOpen } = useNav();
+  return (
+    <div className="border-b border-border p-2">
+      <Link
+        href="/captain/register"
+        onClick={() => setOpen(false)}
+        className="group relative flex items-center gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2.5 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/[0.12]"
+      >
+        <span className="relative inline-flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+            <Sparkles className="h-2.5 w-2.5" strokeWidth={2} />
+            season open
+          </p>
+          <p className="mt-0.5 truncate text-[12px] font-medium text-fg">
+            Register the team
+          </p>
+        </div>
+      </Link>
+    </div>
   );
 }
 

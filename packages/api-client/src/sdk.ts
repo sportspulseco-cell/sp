@@ -1626,6 +1626,63 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body)
         })
+    },
+
+    // Workflow 7A · captain console (team-admin-web rollover wizard).
+    captain: {
+      /**
+       * Returns the team's current registration mode. `registration_open`
+       * = the green pulsing banner + sidebar item should render.
+       */
+      dashboardState: (teamId: string) =>
+        f<{
+          mode:
+            | "off_season"
+            | "registration_open"
+            | "applied"
+            | "in_season"
+            | "post_season";
+          teamId: string;
+          seasonId: string | null;
+          leagueId: string | null;
+          seasonName: string | null;
+          leagueName: string | null;
+          divisionTeamEntryId: string | null;
+          entryStatus: string | null;
+          registrationClosesAt: string | null;
+          collectedCents: number;
+          thresholdCents: number;
+        }>(`/captain/dashboard-state${qs({ teamId })}`),
+      /**
+       * Divisions for a season, with their pricing tier and a live
+       * team-count. Powers wizard step 2.
+       */
+      listDivisions: (seasonId: string) =>
+        f<{
+          season: {
+            id: string;
+            name: string;
+            registrationClosesAt: string | null;
+          };
+          items: Array<{
+            id: string;
+            name: string;
+            tier: string | null;
+            genderEligibility: string;
+            maxTeams: number | null;
+            currentTeamCount: number;
+            pricing: {
+              tierId: string;
+              name: string;
+              currency: string;
+              fullPriceCents: number;
+              paymentPlanEnabled: boolean;
+              depositCents: number;
+              installmentCount: number;
+              installmentIntervalDays: number;
+            } | null;
+          }>;
+        }>(`/captain/divisions${qs({ seasonId })}`)
     }
   };
 }
