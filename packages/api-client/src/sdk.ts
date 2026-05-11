@@ -1900,10 +1900,105 @@ export function createApi(f: Fetcher) {
           f<{ attendance: unknown }>(`/captain/roster/${teamId}/guest`, {
             method: "POST",
             body: JSON.stringify(body)
-          })
+          }),
+        // Workflow 7B · Case 6 — three-actor transfer flow.
+        transfers: {
+          initiate: (
+            fromTeamId: string,
+            body: { personId: string; toTeamId: string; reason: string }
+          ) =>
+            f<{ transfer: TransferRequest }>(
+              `/league/teams/${fromTeamId}/transfer`,
+              { method: "POST", body: JSON.stringify(body) }
+            ),
+          accept: (transferId: string) =>
+            f<{ transfer: TransferRequest }>(
+              `/league/teams/transfer/${transferId}/accept`,
+              { method: "POST" }
+            ),
+          cancel: (transferId: string) =>
+            f<{ transfer: TransferRequest }>(
+              `/league/teams/transfer/${transferId}/cancel`,
+              { method: "POST" }
+            ),
+          captainReject: (transferId: string, reason: string) =>
+            f<{ transfer: TransferRequest }>(
+              `/league/teams/transfer/${transferId}/captain-reject`,
+              { method: "POST", body: JSON.stringify({ reason }) }
+            ),
+          listIncoming: (teamId: string) =>
+            f<{ items: TransferRequest[] }>(
+              `/captain/transfers/incoming/${teamId}`
+            ),
+          listOutgoing: (teamId: string) =>
+            f<{ items: TransferRequest[] }>(
+              `/captain/transfers/outgoing/${teamId}`
+            )
+        }
       }
+    },
+
+    adminTransfers: {
+      list: (q: { status?: string; orgId?: string } = {}) =>
+        f<{ items: TransferRequest[] }>(`/league/admin/transfers${qs(q)}`),
+      approve: (transferId: string) =>
+        f<{
+          transfer: TransferRequest;
+          destinationInvoiceId: string | null;
+        }>(`/league/teams/transfer/${transferId}/approve`, { method: "POST" }),
+      reject: (transferId: string, reason: string) =>
+        f<{ transfer: TransferRequest }>(
+          `/league/teams/transfer/${transferId}/reject`,
+          { method: "POST", body: JSON.stringify({ reason }) }
+        ),
+      rejectDivisionEntry: (entryId: string, reason: string) =>
+        f<{ entryId: string; status: "rejected" }>(
+          `/league/division-team-entries/${entryId}/reject`,
+          { method: "POST", body: JSON.stringify({ reason }) }
+        ),
+      noShowReport: (q: { lastSeasonId: string; newSeasonId: string }) =>
+        f<{
+          items: Array<{
+            teamId: string;
+            teamName: string;
+            lastDivisionId: string;
+            lastDivisionName: string;
+            captainEmail: string | null;
+            captainName: string | null;
+          }>;
+        }>(`/league/reports/no-show${qs(q)}`)
     }
   };
+}
+
+// ----- transfer request type -----
+export interface TransferRequest {
+  id: string;
+  orgId: string;
+  seasonId: string;
+  personId: string;
+  fromTeamId: string;
+  toTeamId: string;
+  status:
+    | "pending_destination"
+    | "pending_admin"
+    | "approved"
+    | "rejected"
+    | "cancelled";
+  reason: string | null;
+  initiatedByUserId: string | null;
+  initiatedAt: string;
+  acceptedByUserId: string | null;
+  acceptedAt: string | null;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  rejectedByUserId: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  destinationInvoiceId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ----- public registration types -----

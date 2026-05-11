@@ -104,6 +104,53 @@ export const DIVISION_RULES_DEFAULTS: Required<
   guestPlayerSeasonLimit: 5
 };
 
+// =====================================================================
+// TRANSFER STATE MACHINE — must match transfer_requests.status check
+// =====================================================================
+export const TRANSFER_STATES = [
+  /** Source captain initiated; destination captain has not yet acted. */
+  "pending_destination",
+  /** Destination captain accepted; awaiting league admin approval. */
+  "pending_admin",
+  /** Admin approved; roster_moves drop+add written, invoices adjusted. */
+  "approved",
+  /** Rejected by admin or source captain. */
+  "rejected",
+  /** Cancelled by source captain before destination acted. */
+  "cancelled"
+] as const;
+export type TransferState = (typeof TRANSFER_STATES)[number];
+
+export const TRANSFER_TRANSITIONS: Record<
+  TransferState,
+  ReadonlyArray<TransferState>
+> = {
+  pending_destination: ["pending_admin", "rejected", "cancelled"],
+  pending_admin: ["approved", "rejected"],
+  approved: [],
+  rejected: [],
+  cancelled: []
+};
+
+export function isTransferState(v: unknown): v is TransferState {
+  return (
+    typeof v === "string" &&
+    (TRANSFER_STATES as ReadonlyArray<string>).includes(v)
+  );
+}
+
+export function assertValidTransferTransition(
+  from: TransferState,
+  to: TransferState
+): void {
+  const allowed = TRANSFER_TRANSITIONS[from];
+  if (!allowed.includes(to)) {
+    throw new Error(
+      `Illegal transfer transition: ${from} → ${to}. Allowed: ${allowed.length === 0 ? "(terminal)" : allowed.join(", ")}.`
+    );
+  }
+}
+
 /**
  * Resolve a stored `divisions.rule_set_overrides` JSONB blob into a
  * fully-defaulted object. Use this everywhere a rule is consulted.

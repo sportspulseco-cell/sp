@@ -14,7 +14,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -367,9 +367,17 @@ export class TeamsController {
       );
     }
 
+    // Resolve the team's current season + the persons.id for the
+    // new captain so the roster_moves audit rows have full context.
+    const previousCaptainUserId = await this.loadCurrentCaptainUserId(teamId);
+    const currentSeasonId = await this.loadActiveSeasonId(teamId);
+    const newCaptainPersonId = await this.loadPersonIdForUser(userId);
+    const previousCaptainPersonId = previousCaptainUserId
+      ? await this.loadPersonIdForUser(previousCaptainUserId)
+      : null;
+
     await this.db.transaction(async (tx) => {
-      // 1. Revoke any active captain on this team. There should be at
-      //    most one, but loop-safe in case of historic anomalies.
+      // 1. Revoke any active captain on this team.
       await tx
         .update(schema.userRoleAssignments)
         .set({ revokedAt: new Date() })
@@ -395,6 +403,74 @@ export class TeamsController {
         .update(schema.teams)
         .set({ captainUserId: userId, updatedAt: new Date() })
         .where(eq(schema.teams.id, teamId));
+
+      // 4. Workflow 7B · Case 8 — append-only audit on roster_moves.
+      //    Skip when no current season is on file (team in off-season).
+      if (currentSeasonId && newCaptainPersonId) {
+        if (previousCaptainPersonId) {
+          await tx.insert(schema.rosterMoves).values({
+            teamId,
+            personId: previousCaptainPersonId,
+            seasonId: currentSeasonId,
+            moveType: "captain_revoke",
+            membershipType: "primary",
+            effectiveAt: new Date(),
+            metadata: { previousCaptainUserId }
+          });
+        }
+        await tx.insert(schema.rosterMoves).values({
+          teamId,
+          personId: newCaptainPersonId,
+          seasonId: currentSeasonId,
+          moveType: "captain_assign",
+          membershipType: "primary",
+          effectiveAt: new Date(),
+          metadata: { previousCaptainUserId, newCaptainUserId: userId }
+        });
+      }
     });
+  }
+
+  private async loadCurrentCaptainUserId(
+    teamId: string
+  ): Promise<string | null> {
+    const [t] = await this.db
+      .select({ captainUserId: schema.teams.captainUserId })
+      .from(schema.teams)
+      .where(eq(schema.teams.id, teamId))
+      .limit(1);
+    return t?.captainUserId ?? null;
+  }
+
+  private async loadActiveSeasonId(teamId: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ seasonId: schema.divisions.seasonId })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .where(
+        and(
+          eq(schema.divisionTeamEntries.teamId, teamId),
+          inArray(schema.divisionTeamEntries.entryStatus, [
+            "applied",
+            "accepted",
+            "confirmed"
+          ])
+        )
+      )
+      .orderBy(sql`${schema.divisions.createdAt} DESC`)
+      .limit(1);
+    return rows[0]?.seasonId ?? null;
+  }
+
+  private async loadPersonIdForUser(userId: string): Promise<string | null> {
+    const [p] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, userId))
+      .limit(1);
+    return p?.id ?? null;
   }
 }

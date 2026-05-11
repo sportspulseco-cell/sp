@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ArrowRightLeft,
   Check,
   Clock,
   Lock,
@@ -29,6 +30,7 @@ import { captain } from "@/lib/api/browser-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { AddPlayerModal } from "./add-player-modal";
 import { DropPlayerModal } from "./drop-player-modal";
+import { InitiateTransferModal } from "./initiate-transfer-modal";
 
 type RosterPayload = Awaited<ReturnType<typeof captain.roster.list>>;
 type MembershipRow = RosterPayload["memberships"][number];
@@ -53,6 +55,9 @@ export function RosterScreen({
   const [tab, setTab] = useState<TabKey>("active");
   const [addOpen, setAddOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState<MembershipRow | null>(null);
+  const [transferTarget, setTransferTarget] = useState<MembershipRow | null>(
+    null
+  );
   const [flash, setFlash] = useState<string | null>(null);
 
   async function refresh() {
@@ -170,6 +175,7 @@ export function RosterScreen({
           memberships={memberships}
           isLocked={isLocked}
           onDrop={(m) => setDropTarget(m)}
+          onTransfer={(m) => setTransferTarget(m)}
         />
       )}
       {tab === "pending" && (
@@ -243,6 +249,17 @@ export function RosterScreen({
           await refresh();
         }}
       />
+      <InitiateTransferModal
+        target={transferTarget}
+        fromTeamId={teamId}
+        seasonId={data?.season?.id ?? null}
+        onClose={() => setTransferTarget(null)}
+        onInitiated={async (msg) => {
+          setTransferTarget(null);
+          setFlash(msg);
+          await refresh();
+        }}
+      />
     </div>
   );
 }
@@ -250,11 +267,13 @@ export function RosterScreen({
 function ActiveRosterTable({
   memberships,
   isLocked,
-  onDrop
+  onDrop,
+  onTransfer
 }: {
   memberships: MembershipRow[];
   isLocked: boolean;
   onDrop: (m: MembershipRow) => void;
+  onTransfer: (m: MembershipRow) => void;
 }) {
   if (memberships.length === 0) {
     return (
@@ -328,14 +347,24 @@ function ActiveRosterTable({
                       locked
                     </span>
                   ) : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDrop(m)}
-                    >
-                      <UserMinus className="mr-1 h-3.5 w-3.5" /> Drop
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onTransfer(m)}
+                      >
+                        <ArrowRightLeft className="mr-1 h-3.5 w-3.5" /> Transfer
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDrop(m)}
+                      >
+                        <UserMinus className="mr-1 h-3.5 w-3.5" /> Drop
+                      </Button>
+                    </div>
                   )}
                 </TD>
               </TR>

@@ -21,5 +21,6 @@ export const crossOrgGrants = api.crossOrgGrants;
 export const dataMigration = api.dataMigration;
 export const registrationV2 = api.registrationV2;
 export const registrationV2Admin = api.registrationV2Admin;
+export const adminTransfers = api.adminTransfers;
 // Alias for cleaner read in season-setup pages.
 export const league = api.leagueMgmt;

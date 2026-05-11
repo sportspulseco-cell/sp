@@ -2,6 +2,7 @@ export * from "./reference";
 export * from "./iam";
 export * from "./league";
 export * from "./roster";
+export * from "./transfers";
 export * from "./game";
 export * from "./game-officials";
 export * from "./stats";
