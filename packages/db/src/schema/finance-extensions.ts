@@ -36,7 +36,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { authUsers } from "./auth";
 import { orgs, persons } from "./iam";
-import { teams } from "./league";
+import { seasons, teams } from "./league";
+import { rosterMoves } from "./roster";
 import { invoices, payments } from "./finance";
 
 // =====================================================================
@@ -396,5 +397,76 @@ export const quickbooksSyncLogs = pgTable(
       "qb_sync_status_check",
       sql`${t.status} IN ('queued','syncing','succeeded','failed')`
     )
+  })
+);
+
+// =====================================================================
+// REFUND_ASSESSMENTS — Workflow 7B drop refund review queue.
+// When a captain drops a player who has paid, this row is created so
+// a league admin reviews the case and decides full / partial / no
+// refund. On admin decision a `refunds` row is issued (or status →
+// resolved_no_refund). Distinct from `refunds`: that table is the
+// processor-side issuance event; this is the human-decision queue.
+// =====================================================================
+export const refundAssessments = pgTable(
+  "refund_assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => persons.id, { onDelete: "cascade" }),
+    /** Originating roster_moves row (drop / trade_out / etc). */
+    sourceMoveId: uuid("source_move_id").references(() => rosterMoves.id, {
+      onDelete: "set null"
+    }),
+    /** drop | transfer | division_rejected | admin_action */
+    sourceEvent: text("source_event").notNull().default("drop"),
+    /** The invoice this assessment is against (usually a sub-invoice). */
+    invoiceId: uuid("invoice_id").references(() => invoices.id, {
+      onDelete: "set null"
+    }),
+    paidCents: integer("paid_cents").notNull().default(0),
+    currency: text("currency").notNull().default("USD"),
+    /** pending | resolved_refund | resolved_no_refund | void */
+    status: text("status").notNull().default("pending"),
+    decisionNotes: text("decision_notes"),
+    refundAmountCents: integer("refund_amount_cents").notNull().default(0),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedByUserId: uuid("resolved_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" }
+    ),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    statusCheck: check(
+      "refund_assessment_status_check",
+      sql`${t.status} IN ('pending','resolved_refund','resolved_no_refund','void')`
+    ),
+    sourceCheck: check(
+      "refund_assessment_source_check",
+      sql`${t.sourceEvent} IN ('drop','transfer','division_rejected','admin_action')`
+    ),
+    statusIdx: index("refund_assessments_status_idx").on(
+      t.status,
+      t.createdAt
+    ),
+    teamIdx: index("refund_assessments_team_idx").on(t.teamId, t.seasonId),
+    orgIdx: index("refund_assessments_org_idx").on(t.orgId, t.status)
   })
 );

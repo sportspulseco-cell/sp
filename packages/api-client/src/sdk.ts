@@ -300,6 +300,43 @@ export function createApi(f: Fetcher) {
     },
 
     compliance: {
+      // Workflow 7B · pre-add roster eligibility precheck (non-blocking).
+      precheck: (q: {
+        personId: string;
+        divisionId: string;
+        teamId: string;
+      }) =>
+        f<{
+          rosterSizeCheck: {
+            currentCount: number;
+            maxAllowed: number;
+            wouldExceed: boolean;
+          };
+          ageCheck:
+            | { status: "eligible"; ageYears: number }
+            | {
+                status: "out_of_range";
+                ageYears: number;
+                minYears?: number;
+                maxYears?: number;
+              }
+            | { status: "unknown" };
+          genderCheck:
+            | { status: "eligible" }
+            | {
+                status: "warning";
+                divisionEligibility: string;
+                personGender: string;
+              };
+          playoffWarning: {
+            gamesPlayed: number;
+            gamesRemaining: number;
+            minRequired: number;
+            willBePlayoffEligible: boolean;
+            message: string | null;
+          };
+        }>(`/compliance/eligibility/precheck${qs(q)}`),
+
       // Eligibility
       listEligibility: (
         q: {
@@ -1747,7 +1784,124 @@ export function createApi(f: Fetcher) {
           transitioned: boolean;
         }>(`/captain/register/${dteId}/recompute-threshold`, {
           method: "POST"
-        })
+        }),
+
+      // ---------------------------------------------------------------
+      // Workflow 7B · roster management
+      // ---------------------------------------------------------------
+      roster: {
+        list: (teamId: string, seasonId?: string) =>
+          f<{
+            team: { id: string; name: string };
+            season: {
+              id: string;
+              name: string;
+              rosterLockAt: string | null;
+            } | null;
+            division: {
+              id: string;
+              name: string;
+              tier: string | null;
+            } | null;
+            rules: {
+              maxRosterSize: number;
+              minGamesForPlayoffs: number;
+              maxGuestPlayersPerGame: number;
+              guestPlayerSeasonLimit: number;
+              ageMinYears?: number;
+              ageMaxYears?: number;
+            };
+            memberships: Array<{
+              id: string;
+              personId: string;
+              membershipType: string;
+              currentStatus: string;
+              effectiveFrom: string;
+              jerseyNumber: number | null;
+              positionCode: string | null;
+              personFirstName: string | null;
+              personLastName: string | null;
+              personEmail: string | null;
+              personDob: string | null;
+            }>;
+            invites: Array<{
+              id: string;
+              email: string | null;
+              status: string;
+              expiresAt: string | null;
+              sendCount: number;
+              extensionCount: number;
+              lastSentAt: string | null;
+              createdAt: string;
+            }>;
+            rosterLockAt: string | null;
+            isLocked: boolean;
+          }>(`/captain/roster/${teamId}${qs({ seasonId })}`),
+        add: (
+          teamId: string,
+          body: {
+            seasonId: string;
+            personId: string;
+            jerseyNumber?: number;
+            positionCode?: string;
+          }
+        ) =>
+          f<{ move: unknown; membership: unknown }>(
+            `/captain/roster/${teamId}/add`,
+            { method: "POST", body: JSON.stringify(body) }
+          ),
+        drop: (
+          teamId: string,
+          body: { seasonId: string; personId: string; reason: string }
+        ) =>
+          f<{
+            move: unknown;
+            refundAssessment: { id: string; status: string } | null;
+            voidedInvoiceId: string | null;
+          }>(`/captain/roster/${teamId}/drop`, {
+            method: "POST",
+            body: JSON.stringify(body)
+          }),
+        invite: (
+          teamId: string,
+          body: { seasonId: string; email: string; splitAmountCents?: number }
+        ) =>
+          f<{
+            invite: {
+              id: string;
+              token: string;
+              expiresAt: string | null;
+              inviteeEmail: string | null;
+            };
+          }>(`/captain/roster/${teamId}/invite`, {
+            method: "POST",
+            body: JSON.stringify(body)
+          }),
+        remind: (teamId: string, inviteId: string) =>
+          f<{
+            invite: {
+              id: string;
+              status: string;
+              expiresAt: string | null;
+              extensionCount: number;
+            };
+          }>(`/captain/roster/${teamId}/remind/${inviteId}`, {
+            method: "POST"
+          }),
+        guest: (
+          teamId: string,
+          body: {
+            seasonId: string;
+            gameId: string;
+            personId?: string;
+            guestName?: string;
+          }
+        ) =>
+          f<{ attendance: unknown }>(`/captain/roster/${teamId}/guest`, {
+            method: "POST",
+            body: JSON.stringify(body)
+          })
+      }
     }
   };
 }

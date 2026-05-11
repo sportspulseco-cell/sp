@@ -52,7 +52,7 @@ export const rosterMoves = pgTable(
   (t) => ({
     moveTypeCheck: check(
       "roster_move_type_check",
-      sql`${t.moveType} IN ('add','drop','trade_in','trade_out','call_up','send_down','release','reinstate')`
+      sql`${t.moveType} IN ('add','drop','trade_in','trade_out','call_up','send_down','release','reinstate','guest_add','guest_remove','captain_assign','captain_revoke')`
     ),
     membershipTypeCheck: check(
       "roster_membership_type_check",

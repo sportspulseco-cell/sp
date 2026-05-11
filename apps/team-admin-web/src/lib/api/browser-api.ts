@@ -55,3 +55,4 @@ export const roster = api.roster;
 export const registrationV2 = api.registrationV2;
 export const communications = api.communications;
 export const captain = api.captain;
+export const compliance = api.compliance;

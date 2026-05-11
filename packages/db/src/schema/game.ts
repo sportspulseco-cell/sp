@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   pgTable,
   uuid,
   text,
@@ -158,6 +159,12 @@ export const gameAttendance = pgTable(
     jerseyNumberUsed: smallint("jersey_number_used"),
     positionPlayed: text("position_played"),
     minutesPlayed: integer("minutes_played"),
+    /** Workflow 7B · Case 7 — substitute / call-up for one game only. */
+    isGuest: boolean("is_guest").notNull().default(false),
+    /** When guesting, the player's primary team (for tracking). */
+    guestHomeTeamId: uuid("guest_home_team_id").references(() => teams.id, {
+      onDelete: "set null"
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

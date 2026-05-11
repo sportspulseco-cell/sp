@@ -23,7 +23,17 @@ export const TEMPLATE_CODES = [
   "SUB_INVOICE_SENT",
   "TEAM_CONFIRMED",
   "CAPTAIN_ASSIGNED",
-  "TEAM_CREATED"
+  "TEAM_CREATED",
+  // Workflow 7B · roster management
+  "INVITE_REMINDER_1",
+  "INVITE_REMINDER_2",
+  "INVITE_EXPIRED_CAPTAIN",
+  "DROP_CONFIRMED",
+  "REFUND_ASSESSMENT_REQUIRED",
+  "TRANSFER_REQUEST",
+  "TRANSFER_REJECTED",
+  "CAPTAIN_REVOKED",
+  "DIVISION_APPLICATION_REJECTED"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
@@ -115,6 +125,152 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     body:
       "Hi {{personName}},\n\nYou've been removed from {{teamName}}{{reasonClause}}.",
     variables: ["personName", "teamName", "reasonClause"]
+  },
+  // -----------------------------------------------------------------
+  // Workflow 7A · captain rollover defaults
+  // -----------------------------------------------------------------
+  {
+    code: "TEAM_INVITE_NEW",
+    channel: "email",
+    subject: "{{teamName}} is registering — your spot is reserved",
+    body:
+      "You've been invited to join {{teamName}} for the upcoming season.\n\n" +
+      "Click to register and pay your share: {{token}}\n\n" +
+      "This invite expires {{expiresAt}}.",
+    variables: ["teamName", "token", "expiresAt"]
+  },
+  {
+    code: "TEAM_INVITE_RETURNING",
+    channel: "email",
+    subject: "Welcome back — {{teamName}} is registering",
+    body:
+      "Hi! {{teamName}} is registering again and has reserved your spot. " +
+      "Most of your details are pre-filled — confirm and pay your deposit here: {{token}}\n\n" +
+      "This invite expires {{expiresAt}}.",
+    variables: ["teamName", "token", "expiresAt"]
+  },
+  {
+    code: "SUB_INVOICE_SENT",
+    channel: "email",
+    subject: "Your {{teamName}} dues invoice is ready",
+    body:
+      "Your share of the {{teamName}} season dues is {{amount}}. " +
+      "Pay your deposit to confirm your spot: {{token}}",
+    variables: ["teamName", "amount", "token"]
+  },
+  {
+    code: "TEAM_CONFIRMED",
+    channel: "email",
+    subject: "{{teamName}} is confirmed for the season",
+    body:
+      "Great news — {{teamName}} has reached the confirmation threshold. " +
+      "The team is officially confirmed for the upcoming season.",
+    variables: ["teamName"]
+  },
+  {
+    code: "CAPTAIN_ASSIGNED",
+    channel: "email",
+    subject: "You're the captain of {{teamName}}",
+    body:
+      "An admin has assigned you as captain of {{teamName}}. " +
+      "Head to your dashboard to manage rollover and roster.",
+    variables: ["teamName"]
+  },
+  {
+    code: "TEAM_CREATED",
+    channel: "email",
+    subject: "{{teamName}} created",
+    body:
+      "{{teamName}} has been created in {{leagueName}}. {{captainName}} is the assigned captain.",
+    variables: ["teamName", "leagueName", "captainName"]
+  },
+  // -----------------------------------------------------------------
+  // Workflow 7B · roster management
+  // -----------------------------------------------------------------
+  {
+    code: "INVITE_REMINDER_1",
+    channel: "email",
+    subject: "Reminder — your spot on {{teamName}}",
+    body:
+      "Just a reminder: {{teamName}} is holding your spot. " +
+      "Complete your registration here before {{expiresAt}}: {{token}}",
+    variables: ["teamName", "token", "expiresAt"]
+  },
+  {
+    code: "INVITE_REMINDER_2",
+    channel: "email",
+    subject: "Second reminder — your {{teamName}} spot expires soon",
+    body:
+      "Your spot on {{teamName}} expires {{expiresAt}}. " +
+      "If you still want to play, finish registration now: {{token}}",
+    variables: ["teamName", "token", "expiresAt"]
+  },
+  {
+    code: "INVITE_EXPIRED_CAPTAIN",
+    channel: "email",
+    subject: "Invite expired — {{playerName}}",
+    body:
+      "The invite for {{playerName}} on {{teamName}} has expired. " +
+      "They have not been added to your roster. " +
+      "You can extend the invite or invite someone else.",
+    variables: ["teamName", "playerName"]
+  },
+  {
+    code: "DROP_CONFIRMED",
+    channel: "email",
+    subject: "You've been removed from {{teamName}}",
+    body:
+      "You've been removed from the {{teamName}} roster.\n\n" +
+      "Reason: {{reason}}\n\n" +
+      "If you'd paid into the team dues, the league admin will assess any " +
+      "refund and notify you separately.",
+    variables: ["teamName", "reason"]
+  },
+  {
+    code: "REFUND_ASSESSMENT_REQUIRED",
+    channel: "email",
+    subject: "Refund assessment required",
+    body:
+      "A player drop on {{teamName}} requires a refund assessment. " +
+      "Review and decide here: /admin/refunds/{{refundAssessmentId}}",
+    variables: ["teamName", "refundAssessmentId"]
+  },
+  {
+    code: "TRANSFER_REQUEST",
+    channel: "email",
+    subject: "Trade request — {{playerName}}",
+    body:
+      "{{sourceTeam}} has offered {{playerName}} to your team. " +
+      "Accept or decline here: /captain/transfers/{{transferId}}",
+    variables: ["sourceTeam", "playerName", "transferId"]
+  },
+  {
+    code: "TRANSFER_REJECTED",
+    channel: "email",
+    subject: "Trade rejected — {{playerName}}",
+    body:
+      "The proposed trade of {{playerName}} has been rejected.\n\n" +
+      "Reason: {{reason}}",
+    variables: ["playerName", "reason"]
+  },
+  {
+    code: "CAPTAIN_REVOKED",
+    channel: "email",
+    subject: "Captain role revoked — {{teamName}}",
+    body:
+      "Your captain role on {{teamName}} has been revoked by a league admin. " +
+      "You retain access to your historical data.",
+    variables: ["teamName"]
+  },
+  {
+    code: "DIVISION_APPLICATION_REJECTED",
+    channel: "email",
+    subject: "{{teamName}} application — not accepted in {{divisionName}}",
+    body:
+      "Your application to enter {{teamName}} in {{divisionName}} was not accepted.\n\n" +
+      "Reason: {{reason}}\n\n" +
+      "You can re-apply to a different division at any time.",
+    variables: ["teamName", "divisionName", "reason"]
   }
 ];
 

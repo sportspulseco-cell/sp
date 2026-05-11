@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { CommunicationsModule } from "../communications/communications.module";
 import { CaptainController } from "./interface/captain.controller";
+import { CaptainRosterController } from "./interface/captain-roster.controller";
+import { ComplianceController } from "./interface/compliance.controller";
 
 /**
  * Workflow 7A Phase 2 · captain console endpoints.
@@ -14,6 +16,10 @@ import { CaptainController } from "./interface/captain.controller";
  */
 @Module({
   imports: [CommunicationsModule],
-  controllers: [CaptainController]
+  controllers: [
+    CaptainController,
+    CaptainRosterController,
+    ComplianceController
+  ]
 })
 export class CaptainModule {}

@@ -273,6 +273,8 @@ export const teamInvites = pgTable(
     /** Last sent — used to throttle resend. */
     lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
     sendCount: integer("send_count").notNull().default(1),
+    /** Workflow 7B · Case 3 — captain may extend an invite ≤ 2x. */
+    extensionCount: integer("extension_count").notNull().default(0),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -291,7 +293,7 @@ export const teamInvites = pgTable(
     ),
     statusCheck: check(
       "team_invite_status_check",
-      sql`${t.status} IN ('pending','accepted','declined','expired','revoked')`
+      sql`${t.status} IN ('pending','accepted','declined','expired','revoked','extended')`
     )
   })
 );
