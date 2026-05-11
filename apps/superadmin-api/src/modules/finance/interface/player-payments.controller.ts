@@ -19,6 +19,10 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import {
+  PAYMENT_PROCESSOR,
+  type PaymentProcessor
+} from "../../../shared/payments/payment-processor";
 
 class PayInvoiceBodyDto {
   /** Amount to apply from wallet, in cents. 0 or unset = card-only. */
@@ -58,7 +62,10 @@ class RetryInstallmentBodyDto {
 @Controller("finance")
 @UseGuards(JwtAuthGuard)
 export class PlayerPaymentsController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
+  ) {}
 
   // -------------------------------------------------------------------
   // GET /finance/me/wallet
@@ -271,15 +278,23 @@ export class PlayerPaymentsController {
         });
       }
 
-      // 2. Card portion (if any). Mock outcome for now.
+      // 2. Card portion (if any) — routed through the PaymentProcessor
+      //    seam. Mock impl today; real Stripe swap is one provider
+      //    change in finance.module.ts.
       if (card > 0) {
-        const outcome = body.mockOutcome ?? "succeeded";
-        if (outcome === "failed") {
-          // Card failure — rollback any wallet movement done above by
-          // throwing so the transaction unwinds. Player can retry.
+        const charge = await this.processor.charge({
+          amountCents: card,
+          currency,
+          description: `Invoice ${locked.invoiceNumber}`,
+          mockOutcome: body.mockOutcome
+        });
+        if (charge.status !== "succeeded") {
+          // Throw to unwind the transaction (wallet rolls back).
           throw new ConflictException({
             error: "card_declined",
-            message: "Your card was declined (mock). Update your card and try again."
+            message:
+              charge.failureMessage ??
+              "Your card was declined. Update your card and try again."
           });
         }
         await tx.insert(schema.payments).values({
@@ -289,8 +304,8 @@ export class PlayerPaymentsController {
           status: "succeeded",
           amountCents: card,
           currency,
-          externalProviderId: `mock:pi_${Date.now()}_${invoiceId.slice(0, 8)}`,
-          metadata: { mock: true, source: "card" }
+          externalProviderId: charge.intentId,
+          metadata: { source: "card" }
         });
       }
 
@@ -359,16 +374,22 @@ export class PlayerPaymentsController {
         throw new ForbiddenException("Not your installment");
       }
 
-      const outcome = body.mockOutcome ?? "succeeded";
       const nextAttempt = (ins.attemptCount ?? 0) + 1;
 
-      if (outcome === "failed") {
+      const charge = await this.processor.charge({
+        amountCents: ins.amountCents,
+        currency: inv.currency,
+        description: `Installment ${ins.installmentNumber} retry`,
+        mockOutcome: body.mockOutcome
+      });
+
+      if (charge.status !== "succeeded") {
         await tx
           .update(schema.installmentSchedules)
           .set({
             status: "failed",
             attemptCount: nextAttempt,
-            lastErrorMessage: "card_declined (mock retry)",
+            lastErrorMessage: charge.failureMessage ?? "Card declined",
             updatedAt: new Date()
           })
           .where(eq(schema.installmentSchedules.id, installmentId));
@@ -399,8 +420,8 @@ export class PlayerPaymentsController {
         status: "succeeded",
         amountCents: ins.amountCents,
         currency: inv.currency,
-        externalProviderId: `mock:pi_retry_${Date.now()}_${installmentId.slice(0, 8)}`,
-        metadata: { installmentId, mock: true, retry: true }
+        externalProviderId: charge.intentId,
+        metadata: { installmentId, retry: true }
       });
 
       const newPaid = (inv.paidCents ?? 0) + ins.amountCents;

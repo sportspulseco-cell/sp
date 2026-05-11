@@ -48,7 +48,15 @@ export const TEMPLATE_CODES = [
   "TEAM_REGISTRATION_APPLIED_CONFIRMATION",
   "TEAM_REGISTRATION_APPROVED",
   "TEAM_REGISTRATION_REJECTED",
-  "TEAM_REGISTRATION_WITHDRAWN"
+  "TEAM_REGISTRATION_WITHDRAWN",
+  // Payments & Invoicing
+  "INVOICE_OVERDUE_STAGE_1",
+  "INVOICE_OVERDUE_STAGE_2",
+  "INVOICE_OVERDUE_STAGE_3",
+  "INVOICE_OVERDUE_STAGE_4",
+  "INVOICE_MANUAL_REMIND",
+  "SUB_INVOICE_REMINDER",
+  "DUES_COVERED_BY_CAPTAIN"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
@@ -416,6 +424,65 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "{{teamName}} has withdrawn their pending application. " +
       "No further action is needed.",
     variables: ["teamName", "entryId"]
+  },
+  // -----------------------------------------------------------------
+  // Payments & Invoicing — Phases 3, 5, 6
+  // -----------------------------------------------------------------
+  {
+    code: "INVOICE_OVERDUE_STAGE_1",
+    channel: "email",
+    subject: "Friendly reminder — invoice past due",
+    body:
+      "Your invoice is past due by 1+ days. Please complete payment to keep things running smoothly.",
+    variables: []
+  },
+  {
+    code: "INVOICE_OVERDUE_STAGE_2",
+    channel: "email",
+    subject: "Reminder — invoice 7+ days overdue",
+    body:
+      "Your invoice is overdue by 7+ days. Please pay promptly to avoid further action.",
+    variables: []
+  },
+  {
+    code: "INVOICE_OVERDUE_STAGE_3",
+    channel: "email",
+    subject: "Urgent — invoice 14+ days overdue",
+    body:
+      "Your invoice is now 14+ days overdue. Continued non-payment may affect your eligibility.",
+    variables: []
+  },
+  {
+    code: "INVOICE_OVERDUE_STAGE_4",
+    channel: "email",
+    subject: "FINAL NOTICE — invoice 21+ days overdue",
+    body:
+      "Your invoice is more than 21 days overdue. An admin has been notified.",
+    variables: []
+  },
+  {
+    code: "INVOICE_MANUAL_REMIND",
+    channel: "email",
+    subject: "Payment reminder",
+    body:
+      "A reminder from your league: please complete payment on your outstanding invoice.",
+    variables: []
+  },
+  {
+    code: "SUB_INVOICE_REMINDER",
+    channel: "email",
+    subject: "Your team dues are outstanding",
+    body:
+      "Your share of the team dues is still outstanding. Pay now to confirm your spot.",
+    variables: []
+  },
+  {
+    code: "DUES_COVERED_BY_CAPTAIN",
+    channel: "email",
+    subject: "Your captain covered your dues",
+    body:
+      "Good news — your team captain has paid your outstanding dues. You owe $0.",
+    variables: ["teamName"]
   }
 ];
 

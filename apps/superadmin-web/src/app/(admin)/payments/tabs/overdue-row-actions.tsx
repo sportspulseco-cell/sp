@@ -48,17 +48,34 @@ export function OverdueRowActions({
           return;
         }
         const iso = new Date(next + "T23:59:59").toISOString();
+        const reason = window.prompt("Reason for extension (optional):") ?? "";
+        await finance.extendDueDate(inv.id, { newDueAt: iso, reason });
         await finance.patchEscalation(escalation.id, {
           extendedDueAt: iso,
           lastActionKind: "extend"
         });
-      } else if (kind === "waive_flag" || kind === "suppress") {
+      } else if (kind === "waive_flag") {
+        const reason = window.prompt(
+          "Reason for waiving the late fee (min 10 chars):"
+        );
+        if (!reason || reason.trim().length < 10) {
+          setError("Need a reason of at least 10 characters.");
+          setBusy(null);
+          return;
+        }
+        await finance.waiveLateFee(inv.id, reason.trim());
         await finance.patchEscalation(escalation.id, {
           lockSuspended: false,
-          lastActionKind: kind
+          lastActionKind: "waive_flag"
+        });
+      } else if (kind === "suppress") {
+        await finance.patchEscalation(escalation.id, {
+          lockSuspended: false,
+          lastActionKind: "suppress"
         });
       } else {
-        // message
+        // message — fire an out-of-schedule manual reminder.
+        await finance.manualRemind(inv.id, "email");
         await finance.patchEscalation(escalation.id, {
           lastActionKind: "message"
         });

@@ -568,6 +568,130 @@ export function createApi(f: Fetcher) {
           body: JSON.stringify(body)
         }),
 
+      // Admin AR actions (Phase 6)
+      waiveLateFee: (invoiceId: string, reason: string) =>
+        f<{ invoiceId: string; waivedCents: number; newTotalCents: number }>(
+          `/finance/invoices/${invoiceId}/waive-late-fee`,
+          { method: "POST", body: JSON.stringify({ reason }) }
+        ),
+      extendDueDate: (
+        invoiceId: string,
+        body: { newDueAt: string; reason?: string }
+      ) =>
+        f<{ invoiceId: string; dueAt: string; status: string }>(
+          `/finance/invoices/${invoiceId}/extend-due-date`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      manualRemind: (
+        invoiceId: string,
+        channel: "email" | "sms" | "in_app" = "email"
+      ) =>
+        f<{ invoiceId: string; channel: string; status: "queued" }>(
+          `/finance/invoices/${invoiceId}/remind`,
+          { method: "POST", body: JSON.stringify({ channel }) }
+        ),
+
+      // Admin refunds (Phase 4)
+      refundSplit: (
+        invoiceId: string,
+        body: {
+          cardAmountCents: number;
+          walletAmountCents: number;
+          reason: string;
+          currency?: string;
+        }
+      ) =>
+        f<{
+          invoiceId: string;
+          cardRefundId: string | null;
+          walletLedgerId: string | null;
+          cardAmountCents: number;
+          walletAmountCents: number;
+        }>(`/finance/invoices/${invoiceId}/refund-split`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      issueWalletCreditForPerson: (
+        personId: string,
+        body: {
+          amountCents: number;
+          reason: string;
+          expiresAt?: string;
+          currency?: string;
+        }
+      ) =>
+        f<{
+          walletId: string;
+          ledgerId: string;
+          newBalanceCents: number;
+        }>(`/finance/persons/${personId}/wallet-credit`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+
+      // QuickBooks (Phase 7)
+      qbQueue: () =>
+        f<{
+          items: Array<{
+            id: string;
+            orgId: string;
+            entityType: string;
+            entityId: string;
+            qbId: string | null;
+            action: string;
+            status: string;
+            summary: string | null;
+            errorMessage: string | null;
+            attemptedAt: string;
+            metadata: Record<string, unknown>;
+          }>;
+        }>(`/finance/qb/queue`),
+      qbRetry: (eventId: string, clearForceFail = true) =>
+        f<{ eventId: string; status: "queued" }>(
+          `/finance/qb/retry/${eventId}`,
+          { method: "POST", body: JSON.stringify({ clearForceFail }) }
+        ),
+
+      // Captain dues (Phase 3)
+      captainDuesBreakdown: (teamId: string) =>
+        f<{
+          teamId: string;
+          masterInvoiceId: string | null;
+          totalCents: number;
+          collectedCents: number;
+          subInvoices: Array<{
+            id: string;
+            invoiceNumber: string;
+            recipientPersonId: string | null;
+            recipientEmail: string | null;
+            totalCents: number;
+            paidCents: number;
+            status: string;
+            currency: string;
+            playerName: string | null;
+          }>;
+          teamName?: string;
+        }>(`/captain/dues/${teamId}`),
+      captainDuesRemindAll: (teamId: string) =>
+        f<{ teamId: string; queued: number }>(
+          `/captain/dues/${teamId}/remind-all`,
+          { method: "POST" }
+        ),
+      captainDuesCoverOutstanding: (
+        teamId: string,
+        body: { mockOutcome?: "succeeded" | "failed" } = {}
+      ) =>
+        f<{
+          teamId: string;
+          charged: number;
+          covered: number;
+          chargeId?: string;
+          message?: string;
+        }>(`/captain/dues/${teamId}/cover-outstanding`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+
       // Fee schedules
       listFeeSchedules: (
         q: {
