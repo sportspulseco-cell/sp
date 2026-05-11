@@ -686,6 +686,35 @@ export class CaptainRosterController {
       throw new ForbiddenException("This game is not on your team's schedule");
     }
 
+    // Workflow 7C §4.1 — playoff eligibility guard. Only enforced on
+    // playoff games, and only when we have a registered personId
+    // (walk-in guests are accepted; admin discretion).
+    if (game.gameType === "playoff" && body.personId) {
+      const [er] = await this.db
+        .select({ ruleEvaluation: schema.eligibilityRecords.ruleEvaluation })
+        .from(schema.eligibilityRecords)
+        .where(
+          and(
+            eq(schema.eligibilityRecords.personId, body.personId),
+            eq(schema.eligibilityRecords.seasonId, season.id)
+          )
+        )
+        .limit(1);
+      const playoff =
+        (er?.ruleEvaluation as Record<string, unknown> | undefined)?.[
+          "playoffEligibility"
+        ] as Record<string, unknown> | undefined;
+      if (playoff && playoff.status === "ineligible") {
+        throw new ConflictException({
+          error: "playoff_ineligible",
+          message:
+            "Player is not eligible for playoff games in this season.",
+          personId: body.personId,
+          reason: playoff
+        });
+      }
+    }
+
     const division = await this.loadCurrentDivision(teamId, season.id);
     const rules = resolveDivisionRules(
       (division?.ruleSetOverrides as Record<string, unknown>) ?? null

@@ -5,9 +5,11 @@ import {
   Param,
   Post,
   Query,
+  UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { isHardBlockCheck } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
@@ -69,12 +71,29 @@ export class EligibilityController {
       evaluatedByUserId: user.userId
     });
   }
-  @Post(":id/waive") @ApiOperation({ summary: "Waive eligibility (admin override)" })
+  @Post(":id/waive")
+  @ApiOperation({
+    summary:
+      "Waive a soft block / admin flag (Workflow 7C §5.1). Hard-block check types (ageRestriction, genderEligibility, rosterSize) are rejected with 422 per ARCH 3 — they cannot be waived."
+  })
   waive(
     @Param("id") id: string,
     @Body() body: WaiveEligibilityBodyDto,
     @CurrentUser() user: AuthPrincipal
   ): Promise<EligibilityRecordDto> {
-    return this.waiveH.execute({ id, reason: body.reason, byUserId: user.userId });
+    if (body.checkType && isHardBlockCheck(body.checkType)) {
+      throw new UnprocessableEntityException({
+        error: "hard_block_not_waivable",
+        message:
+          "Age, gender, and roster-size eligibility checks cannot be waived.",
+        checkType: body.checkType
+      });
+    }
+    return this.waiveH.execute({
+      id,
+      reason: body.reason,
+      checkType: body.checkType,
+      byUserId: user.userId
+    });
   }
 }

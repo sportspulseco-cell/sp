@@ -33,7 +33,16 @@ export const TEMPLATE_CODES = [
   "TRANSFER_REQUEST",
   "TRANSFER_REJECTED",
   "CAPTAIN_REVOKED",
-  "DIVISION_APPLICATION_REJECTED"
+  "DIVISION_APPLICATION_REJECTED",
+  // Workflow 7C · compliance + eligibility
+  "ELIGIBILITY_WAIVED",
+  "USA_HOCKEY_EXPIRING_SOON",
+  "USA_HOCKEY_EXPIRED",
+  "USA_HOCKEY_EXPIRED_CAPTAIN",
+  "COMPLIANCE_SWEEP_COMPLETE",
+  "PLAYOFF_INELIGIBLE",
+  "DUPLICATE_ID_FLAGGED",
+  "REGISTRATION_UNDER_REVIEW"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
@@ -271,6 +280,86 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "Reason: {{reason}}\n\n" +
       "You can re-apply to a different division at any time.",
     variables: ["teamName", "divisionName", "reason"]
+  },
+  // -----------------------------------------------------------------
+  // Workflow 7C · compliance + eligibility
+  // -----------------------------------------------------------------
+  {
+    code: "ELIGIBILITY_WAIVED",
+    channel: "email",
+    subject: "An eligibility check was waived for your registration",
+    body:
+      "A league admin waived an eligibility check on your registration.\n\n" +
+      "Reason: {{reason}}\n\n" +
+      "You're cleared to proceed to payment.",
+    variables: ["reason"]
+  },
+  {
+    code: "USA_HOCKEY_EXPIRING_SOON",
+    channel: "email",
+    subject: "Your USA Hockey membership expires soon",
+    body:
+      "Heads up — your USA Hockey membership expires {{expiresAt}}. " +
+      "Renew at usahockey.com to stay eligible through the rest of the season.",
+    variables: ["expiresAt"]
+  },
+  {
+    code: "USA_HOCKEY_EXPIRED",
+    channel: "email",
+    subject: "Your USA Hockey membership has expired",
+    body:
+      "Your USA Hockey membership expired on {{expiresAt}}. " +
+      "Renew at usahockey.com to remain eligible to play.",
+    variables: ["expiresAt"]
+  },
+  {
+    code: "USA_HOCKEY_EXPIRED_CAPTAIN",
+    channel: "email",
+    subject: "USA Hockey expired — {{playerName}}",
+    body:
+      "Heads up — {{playerName}} on {{teamName}} has an expired USA Hockey " +
+      "membership (expired {{expiresAt}}). Please follow up with them to renew.",
+    variables: ["playerName", "teamName", "expiresAt"]
+  },
+  {
+    code: "COMPLIANCE_SWEEP_COMPLETE",
+    channel: "email",
+    subject: "Compliance sweep complete",
+    body:
+      "The compliance sweep for season {{seasonId}} is complete.\n\n" +
+      "Expiring USA Hockey: {{expiring}}\n" +
+      "Already expired: {{expired}}\n" +
+      "Sweep run at: {{sweepRunAt}}",
+    variables: ["seasonId", "expiring", "expired", "sweepRunAt"]
+  },
+  {
+    code: "PLAYOFF_INELIGIBLE",
+    channel: "email",
+    subject: "Playoff eligibility update",
+    body:
+      "Based on the playoff eligibility sweep, you don't currently meet the " +
+      "requirements to appear in playoff lineups.\n\n" +
+      "Failed checks: {{failedChecks}}\n\n" +
+      "If you believe this is in error, contact your league admin.",
+    variables: ["failedChecks"]
+  },
+  {
+    code: "DUPLICATE_ID_FLAGGED",
+    channel: "email",
+    subject: "Your registration is under review",
+    body:
+      "The membership ID you provided is associated with another registration " +
+      "this season. A league admin will review and notify you within 48 hours.",
+    variables: []
+  },
+  {
+    code: "REGISTRATION_UNDER_REVIEW",
+    channel: "email",
+    subject: "Your registration is under review",
+    body:
+      "Your registration is under review by a league admin. " +
+      "We'll notify you within 48 hours.",
+    variables: []
   }
 ];
 

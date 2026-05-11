@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { WaiveEligibilityButton } from "@/components/eligibility/waive-eligibility-button";
 import { CreateEligibilityButton } from "@/components/eligibility/create-eligibility-button";
+import { ComplianceSweepBar } from "@/components/eligibility/compliance-sweep-bar";
 import type { EligibilityStatus } from "@/lib/api/types";
 
 export const metadata = { title: "Eligibility — SportsPulse" };
@@ -91,6 +92,11 @@ export default async function EligibilityPage({
             seasons={seasonsPage.items}
           />
         }
+      />
+
+      <ComplianceSweepBar
+        seasons={seasonsPage.items.map((s) => ({ id: s.id, name: s.name }))}
+        initialSeasonId={seasonsPage.items[0]?.id ?? null}
       />
 
       <KineticStrip

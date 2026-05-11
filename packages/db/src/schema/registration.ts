@@ -325,6 +325,11 @@ export const eligibilityRecords = pgTable(
       .default(sql`'{}'::jsonb`),
     status: text("status").notNull().default("pending"),
     waiverReason: text("waiver_reason"),
+    waivedAt: timestamp("waived_at", { withTimezone: true }),
+    waivedByUserId: uuid("waived_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" }
+    ),
     effectiveFrom: timestamp("effective_from", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -346,11 +351,14 @@ export const eligibilityRecords = pgTable(
   (t) => ({
     statusCheck: check(
       "eligibility_status_check",
-      sql`${t.status} IN ('pending','eligible','ineligible','expired','waived')`
+      sql`${t.status} IN ('pending','eligible','ineligible','expiring','expired','flagged','waived')`
     ),
     personIdx: index("eligibility_person_idx").on(t.personId),
     seasonIdx: index("eligibility_season_idx").on(t.seasonId),
-    statusIdx: index("eligibility_status_idx").on(t.status)
+    statusIdx: index("eligibility_status_idx").on(t.status),
+    personSeasonUniq: uniqueIndex("eligibility_records_person_season_uniq")
+      .on(t.personId, t.seasonId)
+      .where(sql`${t.seasonId} IS NOT NULL`)
   })
 );
 

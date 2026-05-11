@@ -129,6 +129,7 @@ export interface WaiveEligibilityInput {
   id: string;
   reason: string;
   byUserId: string;
+  checkType?: string;
 }
 
 @Injectable()
@@ -142,7 +143,7 @@ export class WaiveEligibilityHandler
   async execute(input: WaiveEligibilityInput): Promise<EligibilityRecordDto> {
     const rec = await this.records.findById(EligibilityRecordId.of(input.id));
     if (!rec) throw new NotFoundError("EligibilityRecord", input.id);
-    rec.waive(input.reason, input.byUserId);
+    rec.waive(input.reason, input.byUserId, input.checkType);
     await this.records.save(rec);
     return EligibilityRecordDto.fromDomain(rec);
   }

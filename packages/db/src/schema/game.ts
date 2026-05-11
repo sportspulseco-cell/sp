@@ -49,6 +49,9 @@ export const games = pgTable(
     venueName: text("venue_name"),
     surfaceLabel: text("surface_label"),
     status: text("status").notNull().default("scheduled"),
+    /** Workflow 7C — regular | playoff | exhibition. Drives the playoff
+     *  attendance eligibility guard in §4.1. */
+    gameType: text("game_type").notNull().default("regular"),
     homeScore: smallint("home_score").notNull().default(0),
     awayScore: smallint("away_score").notNull().default(0),
     period: smallint("period").notNull().default(0),
@@ -69,6 +72,10 @@ export const games = pgTable(
     statusCheck: check(
       "game_status_check",
       sql`${t.status} IN ('scheduled','in_play','completed','postponed','cancelled','forfeited')`
+    ),
+    gameTypeCheck: check(
+      "game_type_check",
+      sql`${t.gameType} IN ('regular','playoff','exhibition')`
     ),
     notSelf: check(
       "game_not_self",

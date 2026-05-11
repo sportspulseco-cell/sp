@@ -16,3 +16,4 @@ export * from "./form-purposes";
 export * from "./season-config";
 export * from "./governing-body-ids";
 export * from "./roster-rules";
+export * from "./compliance";

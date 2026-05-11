@@ -97,9 +97,25 @@ export class EligibilityRecord extends AggregateRoot<EligibilityRecordId> {
     this._touch();
   }
 
-  waive(reason: string, byUserId: string): void {
+  waive(reason: string, byUserId: string, checkType?: string): void {
     if (!reason?.trim()) {
       throw new DomainError("WAIVER_REASON_REQUIRED", "Reason required");
+    }
+    if (checkType) {
+      // Patch ruleEvaluation: mark the specific check as adminWaived.
+      const existing =
+        (this._ruleEvaluation[checkType] as Record<string, unknown>) ?? {};
+      this._ruleEvaluation = {
+        ...this._ruleEvaluation,
+        [checkType]: {
+          ...existing,
+          status: existing.status === "blocked" ? "blocked" : "verified",
+          adminWaived: true,
+          waiveReason: reason,
+          waivedByUserId: byUserId,
+          waivedAt: new Date().toISOString()
+        }
+      };
     }
     this._status = "waived";
     this._waiverReason = reason;

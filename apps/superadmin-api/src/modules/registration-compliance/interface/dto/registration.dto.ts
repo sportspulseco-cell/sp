@@ -135,6 +135,13 @@ export class ReevaluateEligibilityBodyDto {
 
 export class WaiveEligibilityBodyDto {
   @ApiProperty() @IsString() @IsNotEmpty() reason!: string;
+  /**
+   * Optional — when present, only this check is waived inside
+   * ruleEvaluation. When absent, the entire record is set to waived.
+   * Hard-block checks (ageRestriction, genderEligibility, rosterSize)
+   * are rejected at the controller per Workflow 7C ARCH 3.
+   */
+  @ApiPropertyOptional() @IsOptional() @IsString() checkType?: string;
 }
 
 export class ListEligibilityQueryDto {

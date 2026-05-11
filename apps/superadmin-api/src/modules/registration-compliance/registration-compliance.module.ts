@@ -5,6 +5,7 @@ import { FinanceModule } from "../finance/finance.module";
 import { RegistrationFormsController } from "./interface/registration-forms.controller";
 import { RegistrationsController } from "./interface/registrations.controller";
 import { EligibilityController } from "./interface/eligibility.controller";
+import { ComplianceSweepsController } from "./interface/compliance-sweeps.controller";
 import { DocumentsController } from "./interface/documents.controller";
 import { SelfComplianceController } from "./interface/self-compliance.controller";
 import { SelfRegistrationsController } from "./interface/self-registrations.controller";
@@ -61,6 +62,7 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
     RegistrationFormsController,
     RegistrationsController,
     EligibilityController,
+    ComplianceSweepsController,
     DocumentsController,
     SelfComplianceController,
     SelfRegistrationsController

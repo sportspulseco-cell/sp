@@ -367,11 +367,54 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body)
         }),
-      waiveEligibility: (id: string, reason: string) =>
+      waiveEligibility: (id: string, reason: string, checkType?: string) =>
         f<EligibilityRecord>(`/compliance/eligibility/${id}/waive`, {
           method: "POST",
-          body: JSON.stringify({ reason })
+          body: JSON.stringify({ reason, checkType })
         }),
+
+      // Workflow 7C — admin sweeps + summary + duplicate-ID panel.
+      runSeasonSweep: (seasonId: string) =>
+        f<{ seasonId: string; evaluated: number; flagged: number }>(
+          `/compliance/eligibility/season/${seasonId}/sweep`,
+          { method: "POST" }
+        ),
+      runLockSweep: (seasonId: string) =>
+        f<{ seasonId: string; expiring: number; expired: number }>(
+          `/compliance/eligibility/season/${seasonId}/lock-sweep`,
+          { method: "POST" }
+        ),
+      runPlayoffSweep: (seasonId: string) =>
+        f<{
+          totalPlayers: number;
+          eligible: number;
+          ineligible: number;
+          breakdown: Array<{
+            personId: string;
+            teamId: string;
+            status: "eligible" | "ineligible";
+            failed: string[];
+          }>;
+        }>(`/compliance/eligibility/season/${seasonId}/playoff-sweep`, {
+          method: "POST"
+        }),
+      seasonSummary: (seasonId: string) =>
+        f<{
+          seasonId: string;
+          counts: Record<string, number>;
+        }>(`/compliance/eligibility/season/${seasonId}/summary`),
+      listDuplicates: (seasonId: string) =>
+        f<{
+          groups: Array<{
+            governingBodyId: string;
+            externalId: string;
+            players: Array<{
+              personId: string;
+              firstName: string | null;
+              lastName: string | null;
+            }>;
+          }>;
+        }>(`/compliance/eligibility/season/${seasonId}/duplicates`),
 
       // Documents
       listDocuments: (
