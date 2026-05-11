@@ -2,15 +2,17 @@ import {
   Body,
   ConflictException,
   Controller,
+  Get,
   Inject,
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsString, MinLength } from "class-validator";
-import { and, eq } from "drizzle-orm";
+import { IsOptional, IsString, IsUUID, MinLength } from "class-validator";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { ROSTER_DROP_REASON_MIN_CHARS } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -23,6 +25,11 @@ import { NotificationService } from "../../communications/application/notificati
 
 class RejectBodyDto {
   @IsString() @MinLength(ROSTER_DROP_REASON_MIN_CHARS) reason!: string;
+}
+
+class ListDteQueryDto {
+  @IsOptional() @IsString() status?: string;
+  @IsOptional() @IsUUID() orgId?: string;
 }
 
 /**
@@ -42,6 +49,61 @@ export class DivisionEntriesAdminController {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notify: NotificationService
   ) {}
+
+  @Get()
+  @ApiOperation({
+    summary:
+      "Admin list of division team entries. Defaults to status=applied (the pending-decision queue)."
+  })
+  async list(@Query() q: ListDteQueryDto) {
+    const statusList = q.status
+      ? q.status.split(",").map((s) => s.trim()).filter(Boolean)
+      : ["applied"];
+    const rows = await this.db
+      .select({
+        id: schema.divisionTeamEntries.id,
+        entryStatus: schema.divisionTeamEntries.entryStatus,
+        invoiceId: schema.divisionTeamEntries.invoiceId,
+        collectedCents: schema.divisionTeamEntries.collectedCents,
+        thresholdCents:
+          schema.divisionTeamEntries.confirmationThresholdCents,
+        teamId: schema.teams.id,
+        teamName: schema.teams.name,
+        divisionId: schema.divisions.id,
+        divisionName: schema.divisions.name,
+        seasonId: schema.divisions.seasonId,
+        seasonName: schema.seasons.name,
+        orgId: schema.teams.orgId,
+        createdAt: schema.divisionTeamEntries.createdAt
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.divisionTeamEntries.teamId)
+      )
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .where(
+        and(
+          inArray(schema.divisionTeamEntries.entryStatus, statusList),
+          q.orgId ? eq(schema.teams.orgId, q.orgId) : sql`true`
+        )
+      )
+      .orderBy(desc(schema.divisionTeamEntries.createdAt))
+      .limit(100);
+    return {
+      items: rows.map((r) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString()
+      }))
+    };
+  }
 
   @Post(":id/reject")
   @ApiOperation({

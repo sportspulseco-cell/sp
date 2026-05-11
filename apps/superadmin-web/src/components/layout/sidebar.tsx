@@ -65,7 +65,9 @@ const PROJECT_NAV: NavItem[] = [
 
   { section: "Compliance" },
   { href: "/registrations", label: "Registrations", icon: ClipboardList },
+  { href: "/division-applications", label: "Division apps", icon: ClipboardList },
   { href: "/transfers", label: "Transfers", icon: ShieldCheck },
+  { href: "/no-show-report", label: "No-show report", icon: ClipboardList },
   { href: "/forms", label: "Forms", icon: FileSignature },
   { href: "/documents", label: "Documents", icon: FileSignature },
   { href: "/eligibility", label: "Eligibility", icon: ShieldCheck },

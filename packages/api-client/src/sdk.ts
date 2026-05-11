@@ -1951,6 +1951,26 @@ export function createApi(f: Fetcher) {
           `/league/teams/transfer/${transferId}/reject`,
           { method: "POST", body: JSON.stringify({ reason }) }
         ),
+      listDivisionEntries: (
+        q: { status?: string; orgId?: string } = {}
+      ) =>
+        f<{
+          items: Array<{
+            id: string;
+            entryStatus: string;
+            invoiceId: string | null;
+            collectedCents: number;
+            thresholdCents: number;
+            teamId: string;
+            teamName: string;
+            divisionId: string;
+            divisionName: string;
+            seasonId: string;
+            seasonName: string;
+            orgId: string;
+            createdAt: string;
+          }>;
+        }>(`/league/division-team-entries${qs(q)}`),
       rejectDivisionEntry: (entryId: string, reason: string) =>
         f<{ entryId: string; status: "rejected" }>(
           `/league/division-team-entries/${entryId}/reject`,

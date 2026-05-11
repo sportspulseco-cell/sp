@@ -182,6 +182,12 @@ export class AdminTransfersController {
           )
         )
         .limit(1);
+
+      // Capture pricing context so we can carry it to the destination.
+      let sourceAllocatedCents = 0;
+      let sourcePaidCents = 0;
+      let sourceCurrency = "USD";
+
       if (fromDte?.invoiceId) {
         const [sub] = await tx
           .select()
@@ -195,6 +201,9 @@ export class AdminTransfersController {
           )
           .limit(1);
         if (sub) {
+          sourceAllocatedCents = sub.totalCents;
+          sourcePaidCents = sub.paidCents;
+          sourceCurrency = sub.currency;
           if (sub.paidCents > 0) {
             await tx.insert(schema.refundAssessments).values({
               orgId: tr.orgId,
@@ -218,11 +227,10 @@ export class AdminTransfersController {
         }
       }
 
-      // 6. Destination sub-invoice. Mirror the captain wizard's
-      //    pattern — find the destination team's master invoice and
-      //    fan out a new sub-invoice for this player. Defer pricing
-      //    detail to a follow-up; create a $0 placeholder so the
-      //    player has an invoice to pay against.
+      // 6. Destination sub-invoice. Carry the source's unpaid balance —
+      //    "you owed X on team A and paid Y; you owe X-Y on team B."
+      //    The refund_assessments row above handles the case where the
+      //    player overpaid relative to time-on-roster.
       const [toDte] = await tx
         .select({
           masterInvoiceId: schema.divisionTeamEntries.invoiceId,
@@ -243,21 +251,30 @@ export class AdminTransfersController {
 
       let destinationInvoiceId: string | null = null;
       if (toDte?.masterInvoiceId) {
+        const destinationAmount = Math.max(
+          0,
+          sourceAllocatedCents - sourcePaidCents
+        );
         const invRows = await tx
           .insert(schema.invoices)
           .values({
             orgId: tr.orgId,
             invoiceNumber: `INV-T-${Date.now().toString().slice(-9)}`,
             recipientPersonId: tr.personId,
-            currency: "USD",
-            subtotalCents: 0,
-            totalCents: 0,
-            status: "draft",
+            currency: sourceCurrency,
+            subtotalCents: destinationAmount,
+            totalCents: destinationAmount,
+            status: destinationAmount === 0 ? "paid" : "draft",
             invoiceType: "sub_invoice",
             parentInvoiceId: toDte.masterInvoiceId,
             issuedAt: new Date(),
             idempotencyKey: `transfer-sub-${tr.id}`,
-            metadata: { transferId: tr.id }
+            metadata: {
+              transferId: tr.id,
+              carriedFromTeamId: tr.fromTeamId,
+              sourceAllocatedCents,
+              sourcePaidCents
+            }
           })
           .returning({ id: schema.invoices.id });
         destinationInvoiceId = invRows[0]?.id ?? null;
