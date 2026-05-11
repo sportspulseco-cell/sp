@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CalendarRange,
+  CircleDollarSign,
   LayoutDashboard,
   ListChecks,
   Mail,
   Settings,
+  ShieldCheck,
   Sparkles,
   Star,
   Users,
@@ -49,7 +51,9 @@ const CAPTAIN_NAV: NavSection = {
     { href: "/captain/team", label: "Manage team", icon: Settings },
     { href: "/captain/roster", label: "Manage roster", icon: Users },
     { href: "/captain/invites", label: "Invites", icon: Mail },
-    { href: "/captain/free-agents", label: "Free agents", icon: Star }
+    { href: "/captain/free-agents", label: "Free agents", icon: Star },
+    { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
+    { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck }
   ]
 };
 

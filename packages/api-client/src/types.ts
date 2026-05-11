@@ -258,7 +258,9 @@ export type EligibilityStatus =
   | "pending"
   | "eligible"
   | "ineligible"
+  | "expiring"
   | "expired"
+  | "flagged"
   | "waived";
 
 export interface EligibilityRecord {

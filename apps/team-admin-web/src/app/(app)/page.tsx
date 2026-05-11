@@ -1,291 +1,88 @@
-import Link from "next/link";
-import {
-  ArrowUpRight,
-  CalendarRange,
-  ClipboardList,
-  Trophy,
-  Users,
-  UsersRound,
-  type LucideIcon
-} from "lucide-react";
-import {
-  Badge,
-  Eyebrow,
-  EmptyState,
-  IconTile,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
-import { gameOps, iam, leagueMgmt, roster } from "@/lib/api/server-api";
+import { Star, Users } from "lucide-react";
+import { EmptyState } from "@sportspulse/ui";
+import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
+import { PageHeader } from "@/components/layout/page-header";
+import { OffSeasonView } from "@/components/dashboard/off-season-view";
+import { RegistrationOpenView } from "@/components/dashboard/registration-open-view";
+import { InSeasonView } from "@/components/dashboard/in-season-view";
+import { PostSeasonView } from "@/components/dashboard/post-season-view";
 
 export const dynamic = "force-dynamic";
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
+/**
+ * Workflow 7C §6 — Captain dashboard with 4 seasonal modes.
+ *
+ * Single URL. The mode is fetched once via /captain/dashboard-state
+ * on every load and the rendered tree switches accordingly. The
+ * shell (top bar + sidebar) is kept stable in (app)/layout.tsx.
+ */
 export default async function TeamAdminHome() {
   const scope = await iam.meScope().catch(() => null);
   const myTeamId = scope?.teamIds[0] ?? null;
+  const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 
   if (!scope || !myTeamId) {
     return (
-      <ShellWithoutTeam
-        message={
-          scope
-            ? "Your account isn't on a team roster yet. Ask your league admin to add you to a team as team_admin or coach."
-            : "We couldn't load your account. Try signing out and back in."
-        }
+      <div className="space-y-6">
+        <PageHeader eyebrow="// Team admin" title="Your team" />
+        <EmptyState
+          icon={Users}
+          title="No team in scope"
+          description={
+            scope
+              ? "Your account isn't on a team roster yet. Ask your league admin to add you to a team."
+              : "We couldn't load your account. Try signing out and back in."
+          }
+        />
+      </div>
+    );
+  }
+
+  if (!isCaptain) {
+    // Non-captain team-admin / coach — show a lightweight overview only.
+    const team = await leagueMgmt.getTeam(myTeamId).catch(() => null);
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="// Team admin"
+          title={team?.name ?? "Your team"}
+          description="Access roster, schedule, and stats from the sidebar."
+        />
+        <EmptyState
+          icon={Star}
+          title="Captain dashboard hidden"
+          description="The 4-mode captain dashboard renders for users holding the captain role on this team."
+        />
+      </div>
+    );
+  }
+
+  const [team, state] = await Promise.all([
+    leagueMgmt.getTeam(myTeamId).catch(() => null),
+    captain.dashboardState(myTeamId).catch(() => null)
+  ]);
+
+  if (!team || !state) {
+    return (
+      <EmptyState
+        icon={Star}
+        title="Couldn't load your dashboard"
+        description="Try refreshing. If the problem persists, contact your league admin."
       />
     );
   }
 
-  const team = await leagueMgmt.getTeam(myTeamId).catch(() => null);
-
-  const [membershipsPage, movesPage, gamesPage] = await Promise.all([
-    roster
-      .listMemberships({ teamId: myTeamId, activeOnly: true })
-      .catch(() => ({ items: [], nextCursor: null })),
-    roster
-      .listMoves({ teamId: myTeamId })
-      .catch(() => ({ items: [], nextCursor: null })),
-    gameOps
-      .listGames({ teamId: myTeamId, limit: 10 })
-      .catch(() => ({ items: [], nextCursor: null }))
-  ]);
-
-  const now = Date.now();
-  const upcoming = gamesPage.items
-    .filter((g) => new Date(g.scheduledStartTsUtc).getTime() >= now)
-    .sort(
-      (a, b) =>
-        new Date(a.scheduledStartTsUtc).getTime() -
-        new Date(b.scheduledStartTsUtc).getTime()
-    );
-  const nextGame = upcoming[0];
-
-  const activeRoster = membershipsPage.items.filter(
-    (m) => m.currentStatus === "active"
-  );
-
-  return (
-    <div className="space-y-10">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
-        <div className="space-y-2">
-          <Eyebrow>// Overview</Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-tight tracking-tighter text-fg">
-            {team?.name ?? "Your team"}
-          </h1>
-          <p className="text-[14px] text-fg-muted">
-            Roster, lineups, and what's next on the schedule.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/roster"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
-          >
-            Manage roster
-            <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-          </Link>
-        </div>
-      </header>
-
-      {/* KPI tiles */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon={Users}
-          label="Active roster"
-          value={String(activeRoster.length)}
-          hint={`${membershipsPage.items.length} memberships total`}
-          tint="blue"
-        />
-        <Kpi
-          icon={CalendarRange}
-          label="Upcoming games"
-          value={String(upcoming.length)}
-          hint={
-            nextGame
-              ? `Next: ${fmtDateTime(nextGame.scheduledStartTsUtc)}`
-              : "Nothing scheduled"
-          }
-          tint="violet"
-        />
-        <Kpi
-          icon={ClipboardList}
-          label="Roster moves"
-          value={String(movesPage.items.length)}
-          hint="Adds / drops on file"
-          tint="amber"
-        />
-        <Kpi
-          icon={Trophy}
-          label="Sport"
-          value={(team?.sportCode ?? "—").toUpperCase()}
-          hint={team?.shortName ?? team?.name ?? ""}
-          tint="emerald"
-        />
-      </section>
-
-      {/* Roster */}
-      <section className="rounded-xl border border-border bg-surface-1">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div>
-            <Eyebrow>Roster</Eyebrow>
-            <p className="mt-1 text-[13px] text-fg-muted">
-              Active memberships on {team?.name ?? "this team"}.
-            </p>
-          </div>
-          <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-            {activeRoster.length} active
-          </span>
-        </header>
-        {activeRoster.length === 0 ? (
-          <EmptyState
-            icon={UsersRound}
-            title="Empty roster"
-            description="Once players are added to this team, they'll show up here. Add players from the SportsPulse super-admin console."
-          />
-        ) : (
-          <Table>
-            <THead>
-              <TR>
-                <TH>Person</TH>
-                <TH>#</TH>
-                <TH>Position</TH>
-                <TH>Type</TH>
-                <TH>Effective from</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {activeRoster.map((m) => (
-                <TR key={m.id}>
-                  <TD className="font-mono text-[11px] text-fg-muted">
-                    {m.personId.slice(0, 8)}
-                  </TD>
-                  <TD className="font-mono tabular-nums text-fg">
-                    {m.jerseyNumber ?? "—"}
-                  </TD>
-                  <TD className="text-fg-muted">{m.positionCode ?? "—"}</TD>
-                  <TD>
-                    <Badge mono tone="neutral">
-                      {m.membershipType}
-                    </Badge>
-                  </TD>
-                  <TD className="text-[12px] text-fg-muted">
-                    {new Date(m.effectiveFrom).toLocaleDateString()}
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
-        )}
-      </section>
-
-      {/* Schedule */}
-      <section className="rounded-xl border border-border bg-surface-1">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div>
-            <Eyebrow>Upcoming games</Eyebrow>
-            <p className="mt-1 text-[13px] text-fg-muted">
-              The next 10 scheduled games for this team.
-            </p>
-          </div>
-        </header>
-        {upcoming.length === 0 ? (
-          <EmptyState
-            icon={CalendarRange}
-            title="No games scheduled"
-            description="Once a season is in progress, games will appear here as they're scheduled."
-          />
-        ) : (
-          <Table>
-            <THead>
-              <TR>
-                <TH>When</TH>
-                <TH>Opponent</TH>
-                <TH>Venue</TH>
-                <TH>Status</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {upcoming.slice(0, 10).map((g) => {
-                const isHome = g.homeTeamId === myTeamId;
-                const oppId = isHome ? g.awayTeamId : g.homeTeamId;
-                return (
-                  <TR key={g.id}>
-                    <TD className="text-fg">{fmtDateTime(g.scheduledStartTsUtc)}</TD>
-                    <TD className="font-mono text-[11px] text-fg-muted">
-                      {isHome ? "vs " : "@ "}
-                      {oppId.slice(0, 8)}
-                    </TD>
-                    <TD className="text-fg-muted">{g.venueName ?? "—"}</TD>
-                    <TD>
-                      <Badge mono tone={g.status === "scheduled" ? "info" : "neutral"}>
-                        {g.status.replace(/_/g, " ")}
-                      </Badge>
-                    </TD>
-                  </TR>
-                );
-              })}
-            </TBody>
-          </Table>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function Kpi({
-  icon,
-  label,
-  value,
-  hint,
-  tint
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint: string;
-  tint: "blue" | "violet" | "amber" | "rose" | "emerald" | "cyan" | "neutral";
-}) {
-  const Icon = icon;
-  return (
-    <div className="rounded-xl border border-border bg-surface-1 p-5">
-      <div className="flex items-center justify-between">
-        <Eyebrow>{label}</Eyebrow>
-        <IconTile icon={Icon} tint={tint} size="sm" />
-      </div>
-      <p className="mt-5 font-mono text-[28px] font-semibold tabular-nums tracking-tight text-fg">
-        {value}
-      </p>
-      <p className="mt-1 truncate text-[12px] text-fg-muted">{hint}</p>
-    </div>
-  );
-}
-
-function ShellWithoutTeam({ message }: { message: string }) {
-  return (
-    <main className="mx-auto max-w-3xl space-y-6 px-6 py-16">
-      <Eyebrow>// sp-team-admin</Eyebrow>
-      <h1 className="text-[36px] font-semibold tracking-tighter text-fg">
-        Team Admin
-      </h1>
-      <EmptyState
-        icon={UsersRound}
-        title="No team yet"
-        description={message}
-      />
-    </main>
-  );
+  switch (state.mode) {
+    case "off_season":
+      return <OffSeasonView team={team} state={state} />;
+    case "registration_open":
+      return <RegistrationOpenView team={team} state={state} />;
+    case "applied":
+    case "in_season":
+      return <InSeasonView team={team} state={state} />;
+    case "post_season":
+      return <PostSeasonView team={team} state={state} />;
+    default:
+      return <OffSeasonView team={team} state={state} />;
+  }
 }
