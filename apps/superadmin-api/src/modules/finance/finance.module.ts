@@ -5,6 +5,7 @@ import { FinanceRefundsController } from "./interface/refunds.controller";
 import { FinanceWalletController } from "./interface/wallet.controller";
 import { FinanceEscalationsController } from "./interface/escalations.controller";
 import { FinanceQuickbooksSyncController } from "./interface/quickbooks-sync.controller";
+import { PlayerPaymentsController } from "./interface/player-payments.controller";
 import { FinanceService } from "./application/finance.service";
 import {
   GetInvoiceHandler,
@@ -30,7 +31,8 @@ import { DrizzleFinanceRepository } from "./infrastructure/repositories/drizzle-
     FinanceRefundsController,
     FinanceWalletController,
     FinanceEscalationsController,
-    FinanceQuickbooksSyncController
+    FinanceQuickbooksSyncController,
+    PlayerPaymentsController
   ],
   providers: [
     FinanceService,

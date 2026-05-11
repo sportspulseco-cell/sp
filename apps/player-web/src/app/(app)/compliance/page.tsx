@@ -52,6 +52,17 @@ const STATUS_COPY: Record<
     label: "Expired",
     tone: "danger",
     description: "Renew this requirement to continue playing."
+  },
+  expiring: {
+    label: "Expiring soon",
+    tone: "warning",
+    description: "Renew before the season ends to stay eligible."
+  },
+  flagged: {
+    label: "Under review",
+    tone: "warning",
+    description:
+      "Flagged for admin review (e.g. duplicate ID). They'll resolve and notify you."
   }
 };
 

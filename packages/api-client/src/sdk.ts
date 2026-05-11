@@ -495,6 +495,79 @@ export function createApi(f: Fetcher) {
     },
 
     finance: {
+      // Player self-service (Payments & Invoicing — combined pay +
+      // installment retry). All mock-card now; swap for real Stripe
+      // when @stripe/stripe-node lands.
+      myWallet: () =>
+        f<{
+          accounts: Array<{
+            id: string;
+            orgId: string;
+            currency: string;
+            balanceCents: number;
+            frozen: boolean;
+            expiresAt: string | null;
+          }>;
+        }>(`/finance/me/wallet`),
+      myInvoices: () =>
+        f<{
+          items: Array<{
+            id: string;
+            orgId: string;
+            invoiceNumber: string;
+            invoiceType: string;
+            currency: string;
+            totalCents: number;
+            paidCents: number;
+            status: string;
+            dueAt: string | null;
+            issuedAt: string | null;
+            installments: Array<{
+              id: string;
+              installmentNumber: number;
+              amountCents: number;
+              dueDate: string | null;
+              status: string;
+              attemptCount: number;
+              lastError: string | null;
+            }>;
+          }>;
+        }>(`/finance/me/invoices`),
+      payInvoice: (
+        invoiceId: string,
+        body: {
+          walletAmountCents?: number;
+          cardAmountCents?: number;
+          mockOutcome?: "succeeded" | "failed";
+        }
+      ) =>
+        f<{
+          invoiceId: string;
+          status: string;
+          paidCents: number;
+          totalCents: number;
+          walletApplied: number;
+          cardCharged: number;
+        }>(`/finance/invoices/${invoiceId}/pay`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      retryInstallment: (
+        installmentId: string,
+        body: { mockOutcome?: "succeeded" | "failed" } = {}
+      ) =>
+        f<{
+          installmentId: string;
+          status: "succeeded" | "failed";
+          attemptCount: number;
+          invoiceStatus?: string;
+          invoicePaidCents?: number;
+          message?: string;
+        }>(`/finance/installments/${installmentId}/retry`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+
       // Fee schedules
       listFeeSchedules: (
         q: {
