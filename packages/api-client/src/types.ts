@@ -172,6 +172,14 @@ export interface Team {
   sportCode: string;
   logoUrl: string | null;
   status: "active" | "dissolved";
+  /** Workflow 7A — denormalised current captain. */
+  captainUserId: string | null;
+  /** Workflow 7A — cents needed to auto-confirm a division entry. */
+  confirmationThresholdCents: number;
+  /** Stored under teams.externalIds.homeRink. */
+  homeRink: string | null;
+  /** { primary?, secondary? } hex strings. */
+  colors: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

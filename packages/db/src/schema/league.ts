@@ -333,6 +333,16 @@ export const teams = pgTable(
       .references(() => sports.code),
     externalIds: jsonb("external_ids").notNull().default(sql`'{}'::jsonb`),
     status: text("status").notNull().default("active"),
+    // Captain assignment — denormalised fast-lookup for the captain
+    // dashboard gate. Source of truth for who holds the seat is still
+    // user_role_assignments(roleCode=captain, scopeType=team). Kept in
+    // sync via the POST /league/teams/:id/captain transaction.
+    captainUserId: uuid("captain_user_id"),
+    // Minimum deposit dollar amount (cents) for a division entry to
+    // auto-confirm. 0 = confirm on entry. Per Workflow 7A ARCH 3.
+    confirmationThresholdCents: integer("confirmation_threshold_cents")
+      .notNull()
+      .default(0),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -347,7 +357,8 @@ export const teams = pgTable(
       sql`${t.status} IN ('active','dissolved')`
     ),
     orgIdx: index("team_org_idx").on(t.orgId),
-    sportIdx: index("team_sport_idx").on(t.sportCode)
+    sportIdx: index("team_sport_idx").on(t.sportCode),
+    captainIdx: index("teams_captain_user_id_idx").on(t.captainUserId)
   })
 );
 
@@ -371,6 +382,25 @@ export const divisionTeamEntries = pgTable(
       .defaultNow(),
     leftAt: timestamp("left_at", { withTimezone: true }),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    // Master invoice for this team's seasonal participation
+    // (invoiceType: team_dues). Sub-invoices fan out per player via
+    // parentInvoiceId. Set at rollover-submit time (Workflow 7A § 4.4).
+    invoiceId: uuid("invoice_id"),
+    // Snapshot of teams.confirmationThresholdCents at entry time —
+    // protects this DTE from later team-level threshold edits.
+    confirmationThresholdCents: integer("confirmation_threshold_cents")
+      .notNull()
+      .default(0),
+    // Running total of succeeded deposit payments. Updated by the
+    // payment.succeeded webhook; when it crosses the threshold the
+    // entry transitions applied → confirmed.
+    collectedCents: integer("collected_cents").notNull().default(0),
+    // Audit snapshot of who was invited at submit time:
+    // { invitedPersonIds: string[], invitedEmails: string[], invitedAt }.
+    // Not the live roster.
+    rosterSnapshot: jsonb("roster_snapshot")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -378,13 +408,17 @@ export const divisionTeamEntries = pgTable(
   (t) => ({
     statusCheck: check(
       "dte_entry_status_check",
-      sql`${t.entryStatus} IN ('applied','accepted','withdrawn','disqualified')`
+      sql`${t.entryStatus} IN ('applied','accepted','confirmed','withdrawn','disqualified','rejected')`
     ),
-    uniqDivisionTeam: uniqueIndex("dte_division_team_uniq").on(
-      t.divisionId,
-      t.teamId
-    ),
+    // Partial unique — a withdrawn or rejected entry should not block
+    // a later re-apply.
+    uniqDivisionTeamActive: uniqueIndex("dte_team_division_active_uniq")
+      .on(t.teamId, t.divisionId)
+      .where(
+        sql`entry_status NOT IN ('withdrawn', 'rejected', 'disqualified')`
+      ),
     divisionIdx: index("dte_division_idx").on(t.divisionId),
-    teamIdx: index("dte_team_idx").on(t.teamId)
+    teamIdx: index("dte_team_idx").on(t.teamId),
+    invoiceIdx: index("dte_invoice_idx").on(t.invoiceId)
   })
 );

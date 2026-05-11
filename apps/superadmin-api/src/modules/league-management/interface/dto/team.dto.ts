@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -18,6 +19,14 @@ export class CreateTeamBodyDto {
   shortName?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() logoUrl?: string | null;
   @ApiPropertyOptional() @IsOptional() colors?: Record<string, unknown>;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120)
+  homeRink?: string | null;
+  /** Optional initial captain — creates team + captain role in one tx. */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() captainUserId?: string;
+  /** Minimum deposit cents to flip a division entry to confirmed. 0 = auto. */
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0)
+  confirmationThresholdCents?: number;
 }
 
 export class UpdateTeamBodyDto {
@@ -25,6 +34,21 @@ export class UpdateTeamBodyDto {
   @ApiPropertyOptional() @IsOptional() shortName?: string | null;
   @ApiPropertyOptional() @IsOptional() logoUrl?: string | null;
   @ApiPropertyOptional() @IsOptional() colors?: Record<string, unknown>;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120)
+  homeRink?: string | null;
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0)
+  confirmationThresholdCents?: number;
+}
+
+export class AssignCaptainBodyDto {
+  @ApiProperty() @IsUUID() userId!: string;
+}
+
+export class SetTeamStatusBodyDto {
+  @ApiProperty({ enum: ["active", "dissolved"] })
+  @IsString() @IsIn(["active", "dissolved"])
+  status!: "active" | "dissolved";
 }
 
 export class ListTeamsQueryDto {

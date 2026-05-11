@@ -1,4 +1,5 @@
-import { Network, Building2, Layers, Trophy } from "lucide-react";
+import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
+import Link from "next/link";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
@@ -12,7 +13,6 @@ import {
   TR,
   Table
 } from "@/components/ui/table";
-import { CreateTeamButton } from "@/components/teams/create-team-button";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
 export const metadata = { title: "Teams — SportsPulse" };
@@ -35,7 +35,15 @@ export default async function TeamsPage() {
         eyebrow="rosters"
         title="Teams"
         description="Owned by clubs/orgs. Enter divisions via DivisionTeamEntry."
-        action={<CreateTeamButton orgs={orgList.items} />}
+        action={
+          <Link
+            href="/teams/new"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02]"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            New team
+          </Link>
+        }
       />
       <KineticStrip
         cards={[
@@ -61,7 +69,15 @@ export default async function TeamsPage() {
           icon={Network}
           title="No teams yet"
           description="Teams are owned by an organization and enter divisions for play."
-          action={<CreateTeamButton orgs={orgList.items} />}
+          action={
+          <Link
+            href="/teams/new"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02]"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            New team
+          </Link>
+        }
         />
       ) : (
         <Table>

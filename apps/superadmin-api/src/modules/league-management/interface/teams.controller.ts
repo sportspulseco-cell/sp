@@ -1,9 +1,12 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   ForbiddenException,
   Get,
+  Inject,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -11,6 +14,10 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
@@ -25,8 +32,10 @@ import {
   DissolveTeamHandler
 } from "../application/teams/handlers";
 import {
+  AssignCaptainBodyDto,
   CreateTeamBodyDto,
   ListTeamsQueryDto,
+  SetTeamStatusBodyDto,
   UpdateTeamBodyDto
 } from "./dto/team.dto";
 
@@ -40,60 +49,352 @@ export class TeamsController {
     private readonly getH: GetTeamHandler,
     private readonly createH: CreateTeamHandler,
     private readonly updateH: UpdateTeamHandler,
-    private readonly dissolveH: DissolveTeamHandler
+    private readonly dissolveH: DissolveTeamHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  @Get() list(
+  @Get() async list(
     @Query() q: ListTeamsQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<TeamPageDto> {
-    // Team-scoped users have leagueIds=[] but their team is still in
-    // direct scope — let them list it by skipping the league filter
-    // when teamIds is the only signal.
     const filter =
       scope.leagueIds && scope.leagueIds.length === 0 && (scope.teamIds?.length ?? 0) > 0
         ? undefined
         : (scope.leagueIds ?? undefined);
-    return this.listH.execute({ ...q, leagueIdsFilter: filter });
+    const page = await this.listH.execute({ ...q, leagueIdsFilter: filter });
+    if (page.items.length === 0) return page;
+    const ids = page.items.map((t) => t.id);
+    const lifecycle = await this.loadLifecycle(ids);
+    return {
+      ...page,
+      items: page.items.map((t) => this.mergeLifecycle(t, lifecycle.get(t.id)))
+    };
   }
-  @Get(":id") getOne(
+
+  @Get(":id") async getOne(
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<TeamDto> {
-    // If the team is in the user's direct team scope, bypass the
-    // league-based filter — the assignment grants access by id.
     const inDirectTeamScope = scope.teamIds?.includes(id) ?? false;
-    return this.getH.execute({
+    const dto = await this.getH.execute({
       id,
       leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
     });
+    return this.enrichWithLifecycle(dto);
   }
-  @Post() create(@Body() body: CreateTeamBodyDto): Promise<TeamDto> {
-    return this.createH.execute(body);
+
+  @Post()
+  @ApiOperation({
+    summary:
+      "Create a persistent org-level team (Workflow 7A Phase 1). Returns 422 with `existingTeamId` if a team with the same name already exists in this org. When `captainUserId` is provided, the team + captain role assignment + teams.captainUserId all land in one transaction."
+  })
+  async create(@Body() body: CreateTeamBodyDto): Promise<TeamDto> {
+    // ARCH 2: only super_admin / org_admin can create teams. The
+    // controller-level AuthorizedAccessGuard already enforces that
+    // mutations require non-scoped access — captains are blocked here.
+
+    // Duplicate-name guard. Case-insensitive per org. Returns 422 with
+    // the existing team's id so the UI can deep-link to it.
+    const duplicate = await this.db
+      .select({ id: schema.teams.id })
+      .from(schema.teams)
+      .where(
+        and(
+          eq(schema.teams.orgId, body.orgId),
+          sql`lower(${schema.teams.name}) = lower(${body.name})`,
+          isNull(schema.teams.deletedAt)
+        )
+      )
+      .limit(1);
+    if (duplicate[0]) {
+      throw new ConflictException({
+        message: "A team with this name already exists in this organisation.",
+        errors: [
+          {
+            field: "name",
+            message:
+              "A team with this name already exists in this organisation.",
+            existingTeamId: duplicate[0].id
+          }
+        ]
+      });
+    }
+
+    // Create the core team via the existing handler — keeps domain
+    // invariants intact (id format, name trim, status default).
+    const team = await this.createH.execute({
+      orgId: body.orgId,
+      name: body.name,
+      sportCode: body.sportCode,
+      shortName: body.shortName,
+      logoUrl: body.logoUrl,
+      colors: body.colors
+    });
+
+    // Workflow-7A extensions (home rink + confirmation threshold) plus
+    // the optional initial captain. Done as a follow-up Drizzle write
+    // so the core handler stays unchanged.
+    if (
+      body.homeRink !== undefined ||
+      body.confirmationThresholdCents !== undefined
+    ) {
+      await this.db
+        .update(schema.teams)
+        .set({
+          ...(body.homeRink !== undefined
+            ? {
+                externalIds: sql`jsonb_set(${schema.teams.externalIds}, '{homeRink}', to_jsonb(${body.homeRink}::text))`
+              }
+            : {}),
+          ...(body.confirmationThresholdCents !== undefined
+            ? { confirmationThresholdCents: body.confirmationThresholdCents }
+            : {}),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.teams.id, team.id));
+    }
+
+    if (body.captainUserId) {
+      await this.assignCaptainTx(team.id, body.captainUserId);
+    }
+
+    // Re-fetch so the returned DTO reflects the captain + threshold.
+    const dto = await this.getH.execute({ id: team.id });
+    return this.enrichWithLifecycle(dto);
   }
+
   @Patch(":id")
   @AllowScopedWrite()
-  update(
+  async update(
     @Param("id") id: string,
     @Body() body: UpdateTeamBodyDto,
     @UserScope() scope: UserScopeType
   ): Promise<TeamDto> {
-    // Team profile updates: league/org/super admins always pass.
-    // Team-scoped users (team_admin, captain) pass only if the team
-    // is in their direct teamIds — this is the dual-role hand-off
-    // captains use to edit their own team's name, colors, logo.
     const allowed =
       scope.isSuperAdmin ||
       scope.leagueIds === null ||
       (scope.teamIds?.includes(id) ?? false);
     if (!allowed) throw new ForbiddenException("Cannot edit this team");
-    return this.updateH.execute({ id, ...body });
+
+    // Core fields go through the domain handler. Captain-scoped users
+    // (captain / team_admin) get their team-profile edits via this
+    // path — same dual-role pattern as before.
+    await this.updateH.execute({
+      id,
+      name: body.name,
+      shortName: body.shortName,
+      logoUrl: body.logoUrl,
+      colors: body.colors
+    });
+
+    // Workflow-7A extensions. Only super/org admins get to move the
+    // threshold — captains can edit branding but not billing knobs.
+    if (
+      body.homeRink !== undefined ||
+      body.confirmationThresholdCents !== undefined
+    ) {
+      const canEditAdminFields =
+        scope.isSuperAdmin || scope.leagueIds === null;
+      if (!canEditAdminFields && body.confirmationThresholdCents !== undefined) {
+        throw new ForbiddenException(
+          "Only org/league admins can change the confirmation threshold."
+        );
+      }
+      await this.db
+        .update(schema.teams)
+        .set({
+          ...(body.homeRink !== undefined
+            ? {
+                externalIds: sql`jsonb_set(${schema.teams.externalIds}, '{homeRink}', to_jsonb(${body.homeRink}::text))`
+              }
+            : {}),
+          ...(body.confirmationThresholdCents !== undefined
+            ? { confirmationThresholdCents: body.confirmationThresholdCents }
+            : {}),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.teams.id, id));
+    }
+
+    const dto = await this.getH.execute({ id });
+    return this.enrichWithLifecycle(dto);
   }
+
   @Delete(":id") dissolve(@Param("id") id: string): Promise<TeamDto> {
-    // Dissolve stays super_admin-only — captains shouldn't blow
-    // away their own team. AuthorizedAccessGuard already enforces
-    // super_admin for non-bypass writes via the controller-level
-    // guard, so no extra check needed here.
     return this.dissolveH.execute({ id });
+  }
+
+  // -------------------------------------------------------------------
+  // Workflow 7A · Phase 1 — captain assignment + status transition
+  // -------------------------------------------------------------------
+
+  @Post(":id/captain")
+  @ApiOperation({
+    summary:
+      "Assign / rotate the team captain. Two-write transaction: revoke the previous captain's role row, insert a new one, and update teams.captainUserId. Guard: super_admin / org_admin only (captains can't promote themselves)."
+  })
+  async assignCaptain(
+    @Param("id") teamId: string,
+    @Body() body: AssignCaptainBodyDto
+  ): Promise<TeamDto> {
+    const [team] = await this.db
+      .select({ id: schema.teams.id })
+      .from(schema.teams)
+      .where(eq(schema.teams.id, teamId))
+      .limit(1);
+    if (!team) throw new NotFoundException("Team not found");
+    await this.assignCaptainTx(teamId, body.userId);
+    const dto = await this.getH.execute({ id: teamId });
+    return this.enrichWithLifecycle(dto);
+  }
+
+  @Patch(":id/status")
+  @ApiOperation({
+    summary:
+      "Set the team's lifecycle status (active | dissolved). Dissolved teams cannot accept new division_team_entries."
+  })
+  async setStatus(
+    @Param("id") teamId: string,
+    @Body() body: SetTeamStatusBodyDto
+  ): Promise<TeamDto> {
+    const result = await this.db
+      .update(schema.teams)
+      .set({ status: body.status, updatedAt: new Date() })
+      .where(eq(schema.teams.id, teamId))
+      .returning({ id: schema.teams.id });
+    if (!result[0]) throw new NotFoundException("Team not found");
+    const dto = await this.getH.execute({ id: teamId });
+    return this.enrichWithLifecycle(dto);
+  }
+
+  // -------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------
+
+  /**
+   * Load workflow-7A fields (captainUserId, confirmationThresholdCents,
+   * homeRink, colors) for a batch of team ids. Returned as a map so the
+   * caller can splice them into the domain DTOs that the handler emits.
+   */
+  private async loadLifecycle(teamIds: string[]): Promise<
+    Map<
+      string,
+      {
+        captainUserId: string | null;
+        confirmationThresholdCents: number;
+        homeRink: string | null;
+        colors: Record<string, unknown>;
+      }
+    >
+  > {
+    if (teamIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({
+        id: schema.teams.id,
+        captainUserId: schema.teams.captainUserId,
+        confirmationThresholdCents: schema.teams.confirmationThresholdCents,
+        externalIds: schema.teams.externalIds,
+        colors: schema.teams.colors
+      })
+      .from(schema.teams)
+      .where(sql`${schema.teams.id} = ANY(${teamIds}::uuid[])`);
+    const out = new Map<
+      string,
+      {
+        captainUserId: string | null;
+        confirmationThresholdCents: number;
+        homeRink: string | null;
+        colors: Record<string, unknown>;
+      }
+    >();
+    for (const r of rows) {
+      const external = (r.externalIds as Record<string, unknown>) ?? {};
+      out.set(r.id, {
+        captainUserId: r.captainUserId ?? null,
+        confirmationThresholdCents: r.confirmationThresholdCents ?? 0,
+        homeRink: (external.homeRink as string | null | undefined) ?? null,
+        colors: (r.colors as Record<string, unknown>) ?? {}
+      });
+    }
+    return out;
+  }
+
+  private mergeLifecycle(
+    dto: TeamDto,
+    extras:
+      | {
+          captainUserId: string | null;
+          confirmationThresholdCents: number;
+          homeRink: string | null;
+          colors: Record<string, unknown>;
+        }
+      | undefined
+  ): TeamDto {
+    if (!extras) return dto;
+    return {
+      ...dto,
+      captainUserId: extras.captainUserId,
+      confirmationThresholdCents: extras.confirmationThresholdCents,
+      homeRink: extras.homeRink,
+      colors: extras.colors
+    };
+  }
+
+  private async enrichWithLifecycle(dto: TeamDto): Promise<TeamDto> {
+    const map = await this.loadLifecycle([dto.id]);
+    return this.mergeLifecycle(dto, map.get(dto.id));
+  }
+
+  /**
+   * Captain assignment transaction. Three writes:
+   *   1. Revoke any current captain role row for this team (set
+   *      revokedAt = now), so the audit trail keeps every reign.
+   *   2. Insert a new user_role_assignments row for the new captain.
+   *   3. Update teams.captainUserId (denormalised fast lookup).
+   *
+   * If any step throws, Drizzle's transaction wrapper rolls back.
+   */
+  private async assignCaptainTx(teamId: string, userId: string): Promise<void> {
+    // Resolve the captain role id (system role catalog).
+    const [captainRole] = await this.db
+      .select({ id: schema.roles.id })
+      .from(schema.roles)
+      .where(eq(schema.roles.code, "captain"))
+      .limit(1);
+    if (!captainRole) {
+      throw new NotFoundException(
+        "captain role not seeded — run pnpm --filter @sportspulse/db seed first"
+      );
+    }
+
+    await this.db.transaction(async (tx) => {
+      // 1. Revoke any active captain on this team. There should be at
+      //    most one, but loop-safe in case of historic anomalies.
+      await tx
+        .update(schema.userRoleAssignments)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(schema.userRoleAssignments.roleId, captainRole.id),
+            eq(schema.userRoleAssignments.scopeType, "team"),
+            eq(schema.userRoleAssignments.scopeId, teamId),
+            isNull(schema.userRoleAssignments.revokedAt)
+          )
+        );
+
+      // 2. Grant the new captain. effectiveFrom defaults to now().
+      await tx.insert(schema.userRoleAssignments).values({
+        userId,
+        roleId: captainRole.id,
+        scopeType: "team",
+        scopeId: teamId
+      });
+
+      // 3. Denormalised pointer on teams.
+      await tx
+        .update(schema.teams)
+        .set({ captainUserId: userId, updatedAt: new Date() })
+        .where(eq(schema.teams.id, teamId));
+    });
   }
 }

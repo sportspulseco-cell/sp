@@ -906,14 +906,22 @@ export function createApi(f: Fetcher) {
           body: JSON.stringify(body)
         }),
 
-      listTeams: (q: { orgId?: string; sportCode?: string } = {}) =>
-        f<Page<Team>>(`/league/teams${qs(q)}`),
+      listTeams: (
+        q: { orgId?: string; sportCode?: string; status?: string; search?: string } = {}
+      ) => f<Page<Team>>(`/league/teams${qs(q)}`),
       getTeam: (id: string) => f<Team>(`/league/teams/${id}`),
       createTeam: (body: {
         orgId: string;
         name: string;
         sportCode: string;
         shortName?: string | null;
+        logoUrl?: string | null;
+        colors?: Record<string, unknown>;
+        homeRink?: string | null;
+        /** Optional initial captain — team + role assigned in one tx. */
+        captainUserId?: string;
+        /** Minimum deposit cents to flip a DTE to confirmed. 0 = auto. */
+        confirmationThresholdCents?: number;
       }) =>
         f<Team>("/league/teams", { method: "POST", body: JSON.stringify(body) }),
       updateTeam: (
@@ -923,11 +931,25 @@ export function createApi(f: Fetcher) {
           shortName?: string | null;
           logoUrl?: string | null;
           colors?: Record<string, unknown>;
+          homeRink?: string | null;
+          confirmationThresholdCents?: number;
         }
       ) =>
         f<Team>(`/league/teams/${id}`, {
           method: "PATCH",
           body: JSON.stringify(body)
+        }),
+      /** Assign / rotate the team captain (Workflow 7A Phase 1). */
+      assignTeamCaptain: (teamId: string, body: { userId: string }) =>
+        f<Team>(`/league/teams/${teamId}/captain`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      /** Lifecycle status change — only super/org admin should call. */
+      setTeamStatus: (teamId: string, status: "active" | "dissolved") =>
+        f<Team>(`/league/teams/${teamId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status })
         })
     },
 
