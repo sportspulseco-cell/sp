@@ -9,6 +9,7 @@ import {
   Mail,
   RotateCcw,
   ShieldAlert,
+  Wallet,
   X
 } from "lucide-react";
 import {
@@ -49,10 +50,19 @@ interface Submission {
  * registrationV2Admin endpoints — same kernel state machine guards
  * the API enforces, so the UX surfaces only valid actions per state.
  */
+/**
+ * Special filter value bundling every state that needs an admin
+ * decision: `pending_review` (paid online) + `pending_offline`
+ * (player claims they paid offline; admin verifies). This is the
+ * default so offline-pay submissions don't go invisible.
+ */
+const NEEDS_DECISION = "__needs_decision__" as const;
+type StatusFilterValue = RegistrationState | "" | typeof NEEDS_DECISION;
+
 export function ReviewQueue() {
   const router = useRouter();
-  const [statusFilter, setStatusFilter] = useState<RegistrationState | "">(
-    "pending_review"
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(
+    NEEDS_DECISION
   );
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<Submission[]>([]);
@@ -72,7 +82,14 @@ export function ReviewQueue() {
     setError(null);
     try {
       const res = await registrationV2Admin.listSubmissions({
-        status: statusFilter || undefined,
+        status:
+          statusFilter && statusFilter !== NEEDS_DECISION
+            ? statusFilter
+            : undefined,
+        statuses:
+          statusFilter === NEEDS_DECISION
+            ? "pending_review,pending_offline"
+            : undefined,
         search: search.trim() || undefined,
         limit: 100
       });
@@ -113,7 +130,7 @@ export function ReviewQueue() {
     try {
       const res = await registrationV2Admin.bulkApprove([...selected]);
       setFlash(
-        `Approved ${res.applied}/${res.matched} (skipped ${res.skipped} not in pending_review). Email delivered to ${res.emailDelivered}.`
+        `Approved ${res.applied}/${res.matched} (skipped ${res.skipped} not awaiting decision). Email delivered to ${res.emailDelivered}.`
       );
       router.refresh();
       await refresh();
@@ -135,9 +152,10 @@ export function ReviewQueue() {
           <Select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value as RegistrationState | "")
+              setStatusFilter(e.target.value as StatusFilterValue)
             }
           >
+            <option value={NEEDS_DECISION}>Needs decision (review + offline)</option>
             <option value="">All</option>
             {REGISTRATION_STATES.map((s) => (
               <option key={s} value={s}>
@@ -330,6 +348,7 @@ function Row({
   const meta = row.metadata as Record<string, unknown>;
   const elig = (meta.eligibilityChecks as { flags?: string[] } | undefined) ?? {};
   const flags = elig.flags ?? [];
+  const isOffline = row.status === "pending_offline";
   return (
     <TR>
       <TD>
@@ -350,9 +369,20 @@ function Row({
         </span>
       </TD>
       <TD>
-        <Badge tone={statusTone(row.status)}>
-          {row.status.replace(/_/g, " ")}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={statusTone(row.status)}>
+            {row.status.replace(/_/g, " ")}
+          </Badge>
+          {isOffline && (
+            <span
+              title="Player chose offline payment — verify receipt before approving."
+              className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-300"
+            >
+              <Wallet className="h-2.5 w-2.5" />
+              paid offline · verify
+            </span>
+          )}
+        </div>
       </TD>
       <TD>
         {flags.length === 0 ? (
@@ -494,6 +524,10 @@ function ReviewDialog({
   const flags = elig.flags ?? [];
   const flagOverrides = ((meta.flagOverrides as Record<string, unknown>) ??
     {}) as Record<string, unknown>;
+  const payment =
+    (meta.payment as { outcome?: string; amountCents?: number; currency?: string } | undefined) ??
+    undefined;
+  const isOffline = submission.status === "pending_offline";
 
   async function apply(
     action: "approve" | "reject" | "request_resubmission" | "override_flag"
@@ -523,6 +557,21 @@ function ReviewDialog({
       size="lg"
     >
       <div className="space-y-4">
+        {isOffline && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-800 dark:text-amber-200">
+            <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Offline payment claimed</p>
+              <p className="text-amber-700/90 dark:text-amber-200/80">
+                The player chose offline payment
+                {payment?.amountCents
+                  ? ` (${(payment.amountCents / 100).toFixed(2)} ${payment.currency ?? "USD"})`
+                  : ""}
+                . Verify receipt before approving — approving from here marks the registration final.
+              </p>
+            </div>
+          </div>
+        )}
         <dl className="divide-y divide-border rounded-md border border-border bg-surface-1 text-sm">
           <Row2 label="Email">{meta.email as string}</Row2>
           <Row2 label="Path">{(meta.submissionType as string) ?? "—"}</Row2>

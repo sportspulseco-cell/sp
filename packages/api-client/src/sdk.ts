@@ -1322,6 +1322,7 @@ export function createApi(f: Fetcher) {
       listSubmissions: (
         q: {
           status?: string;
+          statuses?: string;
           orgId?: string;
           search?: string;
           limit?: number;

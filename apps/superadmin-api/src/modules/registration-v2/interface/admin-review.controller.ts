@@ -27,6 +27,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import {
   REGISTRATION_STATES,
   assertValidTransition,
+  canTransition,
   isRegistrationState,
   type RegistrationState
 } from "@sportspulse/kernel";
@@ -85,6 +86,16 @@ class ListSubmissionsQueryDto {
   @IsString()
   status?: RegistrationState;
 
+  /**
+   * Comma-separated list of states. When present, takes precedence over
+   * `status`. Drives the "needs decision" default in the admin review
+   * queue (pending_review,pending_offline).
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  statuses?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
@@ -130,7 +141,13 @@ export class AdminReviewController {
   })
   async list(@Query() q: ListSubmissionsQueryDto) {
     const conditions = [];
-    if (q.status && isRegistrationState(q.status)) {
+    const statusList = (q.statuses ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s): s is RegistrationState => isRegistrationState(s));
+    if (statusList.length > 0) {
+      conditions.push(inArray(schema.registrations.status, statusList));
+    } else if (q.status && isRegistrationState(q.status)) {
       conditions.push(eq(schema.registrations.status, q.status));
     }
     if (q.orgId) {
@@ -291,7 +308,7 @@ export class AdminReviewController {
   @Post("submissions/bulk-approve")
   @ApiOperation({
     summary:
-      "Approve many submissions at once. Skips rows not in pending_review (returns count)."
+      "Approve many submissions at once. Accepts rows in pending_review or pending_offline; skips others."
   })
   async bulkApprove(
     @Body() body: BulkIdsDto,
@@ -313,7 +330,7 @@ export class AdminReviewController {
   @Post("submissions/bulk-reject")
   @ApiOperation({
     summary:
-      "Reject many submissions with a single shared reason. Skips rows not in pending_review."
+      "Reject many submissions with a single shared reason. Accepts rows in pending_review or pending_offline; skips others."
   })
   async bulkReject(
     @Body() body: BulkRejectBodyDto,
@@ -381,11 +398,17 @@ export class AdminReviewController {
     let skipped = 0;
     let emailDelivered = 0;
     for (const r of rows) {
-      if (r.status !== "pending_review") {
+      // Bulk approve/reject accepts any state that legally transitions
+      // to the target — currently pending_review + pending_offline.
+      if (!isRegistrationState(r.status)) {
         skipped++;
         continue;
       }
-      assertValidTransition("pending_review", target);
+      if (!canTransition(r.status, target)) {
+        skipped++;
+        continue;
+      }
+      assertValidTransition(r.status, target);
       await this.db
         .update(schema.registrations)
         .set({

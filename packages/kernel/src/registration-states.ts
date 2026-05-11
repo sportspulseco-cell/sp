@@ -76,7 +76,10 @@ export const REGISTRATION_TRANSITIONS: Record<
   pending_verification: ["pending_consent", "pending_payment", "cancelled"],
   pending_consent: ["pending_payment", "cancelled"],
   pending_payment: ["pending_review", "pending_offline", "cancelled"],
-  pending_offline: ["pending_review", "cancelled"],
+  // Admin verifying an offline payment can either mark it received (→
+  // pending_review for separate eligibility review) OR approve/reject
+  // directly when the registration itself is the only thing pending.
+  pending_offline: ["pending_review", "approved", "rejected", "cancelled"],
   pending_review: ["approved", "rejected", "incomplete"],
   incomplete: ["pending_review", "cancelled"],
   approved: [],
