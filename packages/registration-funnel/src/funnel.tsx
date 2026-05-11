@@ -201,14 +201,20 @@ export function RegistrationFunnel({
       formWaivers.photoRelease.enabled);
 
   const stepOrder: Step[] = useMemo(() => {
+    // Order must match the PhaseStepper labels (1 Path · 2 Account ·
+    // 3 Details · 4 Compliance · 5 Payment · 6 Confirmation). The
+    // inner `questions` step IS the Details phase, so it must run
+    // before consent / waivers (Compliance) and before tier / review
+    // / payment (Payment). Earlier versions had questions after tier,
+    // which made the stepper jump 4 → 5 → 3.
     const out: Step[] = ["path", "account"];
+    if (hasQuestions) out.push("questions");
     // Skip parental consent entirely when the admin disabled it for
     // this season, even if DOB indicates a minor — adult-only leagues
     // (or test seasons) often turn it off.
     if (isMinor && parentalConsentRequired) out.push("consent");
     if (hasInlineWaivers || (waivers?.length ?? 0) > 0) out.push("waivers");
     if (tiers.length > 0) out.push("tier");
-    if (hasQuestions) out.push("questions");
     out.push("review", "payment", "done");
     return out;
   }, [
