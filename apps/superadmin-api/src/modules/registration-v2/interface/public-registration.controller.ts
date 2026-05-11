@@ -100,6 +100,105 @@ export class PublicRegistrationController {
     private readonly email: EmailDispatcherService
   ) {}
 
+  @Get("open")
+  @ApiOperation({
+    summary:
+      "List every season whose registration window is currently open AND has a published season_registration form. Powers the player-web 'Open registrations' discovery list — a player needs to find the season id before they can hit /register/:id. Anonymous; no auth required."
+  })
+  async listOpenRegistrations(): Promise<{
+    items: Array<{
+      seasonId: string;
+      seasonName: string;
+      sportCode: string;
+      leagueId: string;
+      leagueName: string;
+      orgId: string;
+      orgName: string;
+      formId: string;
+      formName: string;
+      registrationOpensAt: string | null;
+      registrationClosesAt: string | null;
+    }>;
+  }> {
+    const now = new Date();
+    const rows = await this.db
+      .select({
+        seasonId: schema.seasons.id,
+        seasonName: schema.seasons.name,
+        sportCode: schema.seasons.sportCode,
+        registrationOpensAt: schema.seasons.registrationOpensAt,
+        registrationClosesAt: schema.seasons.registrationClosesAt,
+        leagueId: schema.leagues.id,
+        leagueName: schema.leagues.name,
+        orgId: schema.orgs.id,
+        orgName: schema.orgs.displayName,
+        formId: schema.registrationForms.id,
+        formName: schema.registrationForms.name
+      })
+      .from(schema.seasons)
+      .innerJoin(
+        schema.leagues,
+        eq(schema.leagues.id, schema.seasons.leagueId)
+      )
+      .innerJoin(schema.orgs, eq(schema.orgs.id, schema.leagues.orgId))
+      .innerJoin(
+        schema.registrationForms,
+        and(
+          eq(
+            schema.registrationForms.purpose,
+            "season_registration"
+          ),
+          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR ${schema.registrationForms.scope} = 'league')`,
+          sql`${schema.registrationForms.activeVersionId} IS NOT NULL`,
+          sql`${schema.registrationForms.deletedAt} IS NULL`
+        )
+      )
+      .where(
+        and(
+          sql`${schema.seasons.registrationOpensAt} <= ${now}`,
+          sql`${schema.seasons.registrationClosesAt} >= ${now}`,
+          sql`${schema.seasons.status} IN ('draft','registration_open')`
+        )
+      )
+      .orderBy(schema.seasons.registrationClosesAt);
+
+    // Deduplicate by seasonId — if both a season-bound form and a
+    // league-scope form match, the season-bound one wins (it appears
+    // first in the join).
+    const seen = new Set<string>();
+    const items: Array<{
+      seasonId: string;
+      seasonName: string;
+      sportCode: string;
+      leagueId: string;
+      leagueName: string;
+      orgId: string;
+      orgName: string;
+      formId: string;
+      formName: string;
+      registrationOpensAt: string | null;
+      registrationClosesAt: string | null;
+    }> = [];
+    for (const r of rows) {
+      if (seen.has(r.seasonId)) continue;
+      seen.add(r.seasonId);
+      items.push({
+        seasonId: r.seasonId,
+        seasonName: r.seasonName,
+        sportCode: r.sportCode,
+        leagueId: r.leagueId,
+        leagueName: r.leagueName,
+        orgId: r.orgId,
+        orgName: r.orgName,
+        formId: r.formId,
+        formName: r.formName,
+        registrationOpensAt: r.registrationOpensAt?.toISOString() ?? null,
+        registrationClosesAt: r.registrationClosesAt?.toISOString() ?? null
+      });
+    }
+    return { items };
+  }
+
   @Get("seasons/:id")
   @ApiOperation({
     summary:

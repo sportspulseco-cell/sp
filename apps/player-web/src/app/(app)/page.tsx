@@ -115,6 +115,12 @@ export default async function PlayerHome() {
     ? await leagueMgmt.getTeam(myTeamId).catch(() => null)
     : null;
 
+  // Open public registrations — independent of the player's scope; any
+  // signed-in user can see what's accepting registrations right now.
+  // Fetched here so the home page can surface a discovery card when
+  // anything is open (the user reported this gap explicitly).
+  const openRegs = await fetchOpenRegistrations();
+
   // Single batch — Home view fetches everything in parallel.
   const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage] =
     await Promise.all([
@@ -241,6 +247,11 @@ export default async function PlayerHome() {
       {/* Workflow 5 §3 — registration state banner above the hero so the
           player knows whether they're new / returning / mid-funnel. */}
       <RegistrationStateBanner registrations={regPage.items} />
+
+      {/* Open public registrations — leagues currently accepting
+          signups. Added to close the discovery gap: a /forms-published
+          registration link used to be invisible to a signed-in player. */}
+      <OpenRegistrationsPanel items={openRegs} />
 
       {/* Next-game hero — full width, brand blue. Highest-priority element
           on the dashboard per Workflow 5 §3.2. */}
@@ -758,5 +769,109 @@ function Kpi({
       </p>
       <p className="mt-1 truncate text-[12px] text-fg-muted">{hint}</p>
     </div>
+  );
+}
+
+/* ----------------- open public registrations panel ----------------- */
+
+interface OpenRegistration {
+  seasonId: string;
+  seasonName: string;
+  sportCode: string;
+  leagueId: string;
+  leagueName: string;
+  orgId: string;
+  orgName: string;
+  formId: string;
+  formName: string;
+  registrationOpensAt: string | null;
+  registrationClosesAt: string | null;
+}
+
+async function fetchOpenRegistrations(): Promise<OpenRegistration[]> {
+  const API =
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+  try {
+    const res = await fetch(`${API}/public/registration/open`, {
+      cache: "no-store"
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { items: OpenRegistration[] };
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function relClosesCopy(iso: string | null): string | null {
+  if (!iso) return null;
+  const days = Math.ceil(
+    (new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+  );
+  if (days < 0) return "closed";
+  if (days === 0) return "closes today";
+  if (days === 1) return "closes tomorrow";
+  return `closes in ${days} days`;
+}
+
+function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
+  if (items.length === 0) return null;
+  const headline =
+    items.length === 1
+      ? "A league is accepting registrations"
+      : `${items.length} leagues are accepting registrations`;
+  return (
+    <section className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span>// open · for signup</span>
+          </p>
+          <h2 className="mt-1.5 text-[18px] font-semibold tracking-tight text-fg">
+            {headline}
+          </h2>
+        </div>
+        <Link
+          href="/register"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white hover:bg-emerald-700"
+        >
+          See all
+          <ArrowRight className="h-3 w-3" strokeWidth={2} />
+        </Link>
+      </div>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.slice(0, 3).map((r) => (
+          <li key={r.seasonId}>
+            <Link
+              href={`/register/${r.seasonId}`}
+              className="group flex h-full flex-col gap-2 rounded-lg border border-border bg-bg p-4 hover:border-emerald-500/50"
+            >
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+                {r.orgName}
+                <span className="text-fg-subtle"> · </span>
+                {r.leagueName}
+              </p>
+              <p className="truncate text-[14px] font-semibold tracking-tight text-fg">
+                {r.seasonName}
+              </p>
+              <div className="mt-auto flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
+                  <CalendarRange className="h-3 w-3" strokeWidth={1.75} />
+                  {relClosesCopy(r.registrationClosesAt) ?? "open"}
+                </span>
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-700">
+                  Sign up{" "}
+                  <ArrowRight className="h-3 w-3" strokeWidth={2} />
+                </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

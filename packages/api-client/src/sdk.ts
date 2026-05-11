@@ -1508,6 +1508,28 @@ export function createApi(f: Fetcher) {
     // visitor has an account. The Account step in the funnel binds the
     // resulting draft submission to a real auth user.
     publicRegistration: {
+      /**
+       * List every season currently open for public registration that
+       * also has a published form attached. Drives the player-web
+       * discovery list at /register so players can find a season to
+       * sign up for without needing a captain's invite URL.
+       */
+      listOpen: () =>
+        f<{
+          items: Array<{
+            seasonId: string;
+            seasonName: string;
+            sportCode: string;
+            leagueId: string;
+            leagueName: string;
+            orgId: string;
+            orgName: string;
+            formId: string;
+            formName: string;
+            registrationOpensAt: string | null;
+            registrationClosesAt: string | null;
+          }>;
+        }>(`/public/registration/open`),
       getSeasonContext: (seasonId: string) =>
         f<PublicSeasonContext>(`/public/registration/seasons/${seasonId}`),
       startSubmission: (
