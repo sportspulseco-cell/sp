@@ -93,7 +93,7 @@ export class NoShowReportController {
             lastName: schema.profiles.legalLastName
           })
           .from(schema.profiles)
-          .where(sql`${schema.profiles.id} = ANY(${captainUserIds}::uuid[])`)
+          .where(inArray(schema.profiles.id, captainUserIds))
       : [];
     const byUser = new Map(
       captainProfiles.map((p) => [p.userId, p])

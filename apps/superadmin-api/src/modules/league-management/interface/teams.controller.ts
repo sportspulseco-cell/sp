@@ -297,7 +297,7 @@ export class TeamsController {
         colors: schema.teams.colors
       })
       .from(schema.teams)
-      .where(sql`${schema.teams.id} = ANY(${teamIds}::uuid[])`);
+      .where(inArray(schema.teams.id, teamIds));
     const out = new Map<
       string,
       {
