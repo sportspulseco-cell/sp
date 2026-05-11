@@ -408,7 +408,7 @@ export const divisionTeamEntries = pgTable(
   (t) => ({
     statusCheck: check(
       "dte_entry_status_check",
-      sql`${t.entryStatus} IN ('applied','accepted','confirmed','withdrawn','disqualified','rejected')`
+      sql`${t.entryStatus} IN ('pending_approval','applied','accepted','confirmed','withdrawn','disqualified','rejected')`
     ),
     // Partial unique — a withdrawn or rejected entry should not block
     // a later re-apply.

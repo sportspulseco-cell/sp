@@ -1,28 +1,35 @@
 import Link from "next/link";
-import { ArrowRight, ShieldAlert, Sparkles } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import {
+  ArrowRight,
+  CalendarRange,
+  CheckCircle2,
+  Clock,
+  ShieldAlert,
+  Sparkles,
+  Trophy,
+  XCircle
+} from "lucide-react";
+import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
-import { RegisterWizard } from "./register-wizard";
+import { WithdrawButton } from "./withdraw-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Register the team — SportsPulse" };
+export const metadata = { title: "Register your team — SportsPulse" };
 
 /**
- * Workflow 7A Phase 2 entry · /captain/register
+ * Captain register approval-gate (Implementation Brief — Team
+ * Registration via Admin Approval).
  *
- * Gates the rollover wizard on three things:
- *   1. caller is a captain on at least one team (scope check)
- *   2. that team's dashboard-state is `registration_open` (a season's
- *      registration window is currently open in the team's org), or
- *      `applied` (continue an already-submitted entry)
- *   3. divisions exist on the open season — otherwise the league
- *      admin hasn't finished /org-setup yet and there's nothing to
- *      apply for.
+ * Always visible in the captain sidebar. Three states:
+ *   1. Pending application — show status + withdraw link
+ *   2. Approved application — show "Continue setup" link to wizard
+ *   3. Rejected — show reason + "Apply to a different division" CTA
+ *   4. No active application — show list of open seasons
  *
- * Each gate failure renders a contextual EmptyState rather than
- * silently 404-ing, so the captain knows exactly what's missing.
+ * The four-step rollover wizard ONLY mounts at
+ * /captain/register/setup/[entryId] after status='applied'.
  */
 export default async function CaptainRegisterPage() {
   const scope = await iam.meScope().catch(() => null);
@@ -32,131 +39,217 @@ export default async function CaptainRegisterPage() {
   if (!isCaptain || !teamId) {
     return (
       <div className="space-y-6">
-        <PageHeader
-          eyebrow="// captain console"
-          title="Register the team"
-        />
+        <PageHeader eyebrow="// captain console" title="Register your team" />
         <EmptyState
           icon={ShieldAlert}
           title="Captain role required"
-          description="Only the team's elected captain can run the season rollover. Ask your league admin to assign you the captain role."
+          description="Only the team's captain can register the team. Ask your league admin to assign the captain role."
         />
       </div>
     );
   }
 
-  const [team, state] = await Promise.all([
-    leagueMgmt.getTeam(teamId).catch(() => null),
-    captain.dashboardState(teamId).catch(() => null)
+  const team = await leagueMgmt.getTeam(teamId).catch(() => null);
+  const teamName = team?.name ?? "Your team";
+
+  const [openSeasons, applications] = await Promise.all([
+    captain.openSeasons(teamId).catch(() => ({ items: [] })),
+    captain.myApplications(teamId).catch(() => ({ items: [] }))
   ]);
 
-  if (!team || !state) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="// captain console"
-          title="Register the team"
-        />
-        <EmptyState
-          icon={ShieldAlert}
-          title="Couldn't load your team"
-          description="Something went wrong loading the team record. Refresh and try again — if it persists, contact your league admin."
-        />
-      </div>
-    );
-  }
+  const activeApp = applications.items.find(
+    (a) =>
+      a.entryStatus === "pending_approval" ||
+      a.entryStatus === "applied" ||
+      a.entryStatus === "accepted" ||
+      a.entryStatus === "confirmed"
+  );
+  const lastRejection = applications.items.find(
+    (a) => a.entryStatus === "rejected"
+  );
 
-  // Already applied — surface a "watch progress" stub. Step 4 + the
-  // confirmation watcher land in Sprint 4, so for now we just point
-  // the captain back to their team page.
-  if (state.mode === "applied" || state.mode === "in_season") {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="// captain console"
-          title="You're already registered"
-          description={`${team.name} is signed up for ${state.seasonName ?? "this season"}. Watch confirmation progress on your team dashboard.`}
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="// captain console"
+        title="Register your team"
+        description="Apply to a division to register the team. After admin approval, you'll set up roster + dues."
+      />
+
+      {activeApp ? (
+        <ActiveApplicationCard
+          teamName={teamName}
+          app={activeApp}
         />
-        <div className="rounded-xl border border-border bg-bg-subtle p-6 text-[13px] text-fg-muted">
-          <p>
-            Status:{" "}
-            <span className="font-mono text-fg">
-              {state.entryStatus ?? "pending"}
-            </span>
+      ) : (
+        <>
+          {lastRejection && (
+            <RejectionCard
+              teamName={teamName}
+              app={lastRejection}
+            />
+          )}
+
+          {openSeasons.items.length === 0 ? (
+            <EmptyState
+              icon={Sparkles}
+              title="No open registrations"
+              description="No seasons are currently open for registration in your org. We'll surface them here the moment your league admin opens a window."
+            />
+          ) : (
+            <section className="space-y-3">
+              <Eyebrow>// open seasons</Eyebrow>
+              <ul className="grid gap-3 md:grid-cols-2">
+                {openSeasons.items.map((s) => (
+                  <li key={s.seasonId}>
+                    <Link
+                      href={`/captain/register/${s.seasonId}`}
+                      className="group flex h-full flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5 hover:border-accent"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
+                            {s.leagueName}
+                          </p>
+                          <p className="mt-1 truncate text-[16px] font-semibold tracking-tight text-fg">
+                            {s.seasonName}
+                          </p>
+                        </div>
+                        <Trophy
+                          className="h-5 w-5 shrink-0 text-fg-muted group-hover:text-accent"
+                          strokeWidth={1.5}
+                        />
+                      </div>
+                      <div className="mt-auto flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
+                          <CalendarRange className="h-3 w-3" strokeWidth={1.75} />
+                          closes{" "}
+                          {s.registrationClosesAt
+                            ? new Date(s.registrationClosesAt).toLocaleDateString()
+                            : "—"}
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
+                          {s.availableDivisions} division
+                          {s.availableDivisions === 1 ? "" : "s"}
+                          <ArrowRight className="h-3 w-3" strokeWidth={2} />
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ActiveApplicationCard({
+  teamName,
+  app
+}: {
+  teamName: string;
+  app: {
+    id: string;
+    entryStatus: string;
+    createdAt: string;
+    divisionName: string;
+    seasonName: string;
+    leagueName: string;
+  };
+}) {
+  const isPending = app.entryStatus === "pending_approval";
+  const isApproved =
+    app.entryStatus === "applied" ||
+    app.entryStatus === "accepted" ||
+    app.entryStatus === "confirmed";
+
+  return (
+    <section
+      className={`rounded-2xl border p-6 ${
+        isPending
+          ? "border-amber-400/40 bg-amber-50 dark:border-amber-700/40 dark:bg-amber-950/30"
+          : "border-emerald-400/40 bg-emerald-50 dark:border-emerald-700/40 dark:bg-emerald-950/30"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {isPending ? (
+          <Clock className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
+        ) : (
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700 dark:text-emerald-300" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            {app.leagueName} · {app.seasonName}
           </p>
-          <p className="mt-1">
-            Threshold:{" "}
-            <span className="font-mono text-fg">
-              ${(state.thresholdCents / 100).toFixed(2)}
-            </span>{" "}
-            · Collected:{" "}
-            <span className="font-mono text-fg">
-              ${(state.collectedCents / 100).toFixed(2)}
-            </span>
+          <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-fg">
+            {isPending
+              ? "Application pending review"
+              : `${teamName} is approved`}
+          </h2>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            {isPending
+              ? `Submitted to ${app.divisionName} on ${new Date(app.createdAt).toLocaleDateString()}. The league admin will review and notify you.`
+              : `You're cleared to set up your roster and dues for ${app.divisionName}.`}
           </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Badge tone={isPending ? "warning" : "success"} mono>
+              {app.entryStatus.replace(/_/g, " ")}
+            </Badge>
+            {isPending && <WithdrawButton entryId={app.id} />}
+            {isApproved && (
+              <Link
+                href={`/captain/register/setup/${app.id}`}
+                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                Continue setup <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RejectionCard({
+  teamName: _teamName,
+  app
+}: {
+  teamName: string;
+  app: {
+    seasonId: string;
+    seasonName: string;
+    divisionName: string;
+    metadata: Record<string, unknown>;
+  };
+}) {
+  const reason = (app.metadata as { rejectionReason?: string })?.rejectionReason;
+  return (
+    <section className="rounded-xl border border-rose-400/40 bg-rose-50 p-5 dark:border-rose-700/40 dark:bg-rose-950/30">
+      <div className="flex items-start gap-3">
+        <XCircle className="h-5 w-5 shrink-0 text-rose-700 dark:text-rose-300" />
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            {app.seasonName}
+          </p>
+          <p className="mt-1 text-[15px] font-medium text-fg">
+            Your application for {app.divisionName} was not approved.
+          </p>
+          {reason && (
+            <p className="mt-1 text-[13px] text-fg-muted">Reason: {reason}</p>
+          )}
           <Link
-            href="/captain/team"
-            className="mt-4 inline-flex h-9 items-center gap-2 rounded-full bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02]"
+            href={`/captain/register/${app.seasonId}`}
+            className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline"
           >
-            Open team dashboard
-            <ArrowRight className="h-3 w-3" strokeWidth={2} />
+            Apply to a different division <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </div>
-    );
-  }
-
-  if (state.mode !== "registration_open" || !state.seasonId) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="// captain console"
-          title="Registration isn't open"
-          description="No season in your league has its registration window open right now. We'll surface the green banner here automatically when it does."
-        />
-        <EmptyState
-          icon={Sparkles}
-          title="Off-season"
-          description="The next opening will appear at the top of every page as a green pulsing banner the moment registration opens."
-        />
-      </div>
-    );
-  }
-
-  // Open season + divisions. Hand off to the client wizard.
-  const divsResp = await captain.listDivisions(state.seasonId).catch(() => null);
-  if (!divsResp || divsResp.items.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="// captain console"
-          title="Almost ready"
-          description={`Registration for ${state.seasonName} is open, but the league admin hasn't configured divisions yet. We'll let you know the moment they do.`}
-        />
-        <EmptyState
-          icon={Sparkles}
-          title="Waiting on league setup"
-          description="A division must exist before you can register. Hold tight — your league admin is on it."
-        />
-      </div>
-    );
-  }
-
-  // Make sure the team-creation date pre-dates the season's start, etc.
-  // For Sprint 3 we trust the league admin's setup and just go.
-  // If a user landed here via the banner, redirect to step 1 with the
-  // wizard already mounted.
-  return (
-    <RegisterWizard
-      team={team}
-      season={{
-        id: state.seasonId,
-        name: state.seasonName ?? "Season",
-        registrationClosesAt: state.registrationClosesAt
-      }}
-      league={{ id: state.leagueId ?? "", name: state.leagueName ?? "" }}
-      divisions={divsResp.items}
-      thresholdCents={state.thresholdCents}
-    />
+    </section>
   );
 }

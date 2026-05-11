@@ -1838,6 +1838,52 @@ export function createApi(f: Fetcher) {
           method: "POST"
         }),
 
+      // Approval gate — captain applies, admin reviews, on approval
+      // the existing rollover wizard unlocks.
+      openSeasons: (teamId: string) =>
+        f<{
+          items: Array<{
+            seasonId: string;
+            seasonName: string;
+            leagueId: string;
+            leagueName: string;
+            registrationOpensAt: string | null;
+            registrationClosesAt: string | null;
+            availableDivisions: number;
+          }>;
+        }>(`/captain/open-seasons${qs({ teamId })}`),
+      myApplications: (teamId: string) =>
+        f<{
+          items: Array<{
+            id: string;
+            entryStatus: string;
+            createdAt: string;
+            metadata: Record<string, unknown>;
+            divisionId: string;
+            divisionName: string;
+            seasonId: string;
+            seasonName: string;
+            leagueName: string;
+          }>;
+        }>(`/captain/applications${qs({ teamId })}`),
+      applyToSeason: (body: {
+        teamId: string;
+        seasonId: string;
+        divisionId: string;
+      }) =>
+        f<{ entry: { id: string; entryStatus: string } }>(
+          `/captain/register/apply`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      withdrawApplication: (divisionTeamEntryId: string) =>
+        f<{ entryId: string; status: "withdrawn" }>(
+          `/captain/register/withdraw`,
+          {
+            method: "POST",
+            body: JSON.stringify({ divisionTeamEntryId })
+          }
+        ),
+
       // ---------------------------------------------------------------
       // Workflow 7B · roster management
       // ---------------------------------------------------------------
@@ -2028,6 +2074,32 @@ export function createApi(f: Fetcher) {
           `/league/division-team-entries/${entryId}/reject`,
           { method: "POST", body: JSON.stringify({ reason }) }
         ),
+      // Approval gate — admin review.
+      listApplications: (seasonId: string) =>
+        f<{
+          items: Array<{
+            id: string;
+            entryStatus: string;
+            createdAt: string;
+            teamId: string;
+            teamName: string;
+            teamOrgId: string;
+            captainUserId: string | null;
+            divisionId: string;
+            divisionName: string;
+          }>;
+        }>(`/admin/seasons/${seasonId}/applications`),
+      approveApplication: (entryId: string) =>
+        f<{ entryId: string; status: "applied" }>(
+          `/admin/division-team-entries/${entryId}/approve`,
+          { method: "POST" }
+        ),
+      rejectApplication: (entryId: string, reason: string) =>
+        f<{ entryId: string; status: "rejected" }>(
+          `/admin/division-team-entries/${entryId}/reject`,
+          { method: "POST", body: JSON.stringify({ reason }) }
+        ),
+
       noShowReport: (q: { lastSeasonId: string; newSeasonId: string }) =>
         f<{
           items: Array<{

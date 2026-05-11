@@ -20,6 +20,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { DataMigrationModule } from "./modules/data-migration/data-migration.module";
 import { CaptainModule } from "./modules/captain/captain.module";
 import { TransfersModule } from "./modules/transfers/transfers.module";
+import { TeamApplicationsModule } from "./modules/team-applications/team-applications.module";
 
 @Module({
   imports: [
@@ -43,7 +44,8 @@ import { TransfersModule } from "./modules/transfers/transfers.module";
     AdminModule,
     DataMigrationModule,
     CaptainModule,
-    TransfersModule
+    TransfersModule,
+    TeamApplicationsModule
   ]
 })
 export class AppModule {}

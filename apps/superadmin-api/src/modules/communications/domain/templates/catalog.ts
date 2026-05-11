@@ -42,7 +42,13 @@ export const TEMPLATE_CODES = [
   "COMPLIANCE_SWEEP_COMPLETE",
   "PLAYOFF_INELIGIBLE",
   "DUPLICATE_ID_FLAGGED",
-  "REGISTRATION_UNDER_REVIEW"
+  "REGISTRATION_UNDER_REVIEW",
+  // Approval-gate (Team Registration via Admin Approval brief)
+  "TEAM_REGISTRATION_APPLIED",
+  "TEAM_REGISTRATION_APPLIED_CONFIRMATION",
+  "TEAM_REGISTRATION_APPROVED",
+  "TEAM_REGISTRATION_REJECTED",
+  "TEAM_REGISTRATION_WITHDRAWN"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
@@ -360,6 +366,56 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "Your registration is under review by a league admin. " +
       "We'll notify you within 48 hours.",
     variables: []
+  },
+  // -----------------------------------------------------------------
+  // Approval-gate (Team Registration via Admin Approval brief)
+  // -----------------------------------------------------------------
+  {
+    code: "TEAM_REGISTRATION_APPLIED",
+    channel: "email",
+    subject: "{{teamName}} applied — {{divisionName}}",
+    body:
+      "{{teamName}} has applied to register for {{divisionName}} in {{seasonName}}.\n\n" +
+      "Review and approve or deny this application: /seasons/{{entryId}}/applications",
+    variables: ["teamName", "divisionName", "seasonName", "entryId"]
+  },
+  {
+    code: "TEAM_REGISTRATION_APPLIED_CONFIRMATION",
+    channel: "email",
+    subject: "Application submitted — {{divisionName}}",
+    body:
+      "Your application for {{divisionName}} in {{seasonName}} has been submitted.\n\n" +
+      "You will be notified once the league admin reviews it.",
+    variables: ["divisionName", "seasonName"]
+  },
+  {
+    code: "TEAM_REGISTRATION_APPROVED",
+    channel: "email",
+    subject: "{{teamName}} approved for {{divisionName}}",
+    body:
+      "Your team {{teamName}} has been approved for {{divisionName}} in {{seasonName}}.\n\n" +
+      "Complete your registration — invite your players and set up dues:\n" +
+      "/captain/register/setup/{{entryId}}",
+    variables: ["teamName", "divisionName", "seasonName", "entryId"]
+  },
+  {
+    code: "TEAM_REGISTRATION_REJECTED",
+    channel: "email",
+    subject: "{{teamName}} — application not approved",
+    body:
+      "Your application for {{divisionName}} in {{seasonName}} was not approved.\n\n" +
+      "Reason: {{reason}}\n\n" +
+      "You can apply to a different division at any time.",
+    variables: ["teamName", "divisionName", "seasonName", "reason"]
+  },
+  {
+    code: "TEAM_REGISTRATION_WITHDRAWN",
+    channel: "email",
+    subject: "Application withdrawn — {{teamName}}",
+    body:
+      "{{teamName}} has withdrawn their pending application. " +
+      "No further action is needed.",
+    variables: ["teamName", "entryId"]
   }
 ];
 
