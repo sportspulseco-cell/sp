@@ -77,23 +77,23 @@ export default async function DataMigrationPage() {
       />
       <KineticStrip
         cards={[
-          { label: "Total jobs", value: total, icon: Database, tone: "idle" },
+          { label: "Total jobs", value: total, icon: <Database className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Running now",
             value: running,
-            icon: Activity,
+            icon: <Activity className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: running > 0 ? "live" : "idle"
           },
           {
             label: "Succeeded",
             value: succeeded,
-            icon: Upload,
+            icon: <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "ok"
           },
           {
             label: "Failed",
             value: failed,
-            icon: AlertCircle,
+            icon: <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: failed > 0 ? "warn" : "idle"
           }
         ]}

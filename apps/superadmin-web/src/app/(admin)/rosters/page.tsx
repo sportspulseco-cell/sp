@@ -91,25 +91,25 @@ export default async function RostersPage({
           {
             label: "Memberships",
             value: total,
-            icon: ListChecks,
+            icon: <ListChecks className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           },
           {
             label: "Active",
             value: active,
-            icon: Activity,
+            icon: <Activity className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: active > 0 ? "ok" : "idle"
           },
           {
             label: "Teams covered",
             value: teamsCovered,
-            icon: Network,
+            icon: <Network className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           },
           {
             label: "Distinct players",
             value: peopleCovered,
-            icon: Users,
+            icon: <Users className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           }
         ]}

@@ -40,25 +40,25 @@ export default async function UsersPage() {
       />
       <KineticStrip
         cards={[
-          { label: "Total users", value: total, icon: Users, tone: "idle" },
+          { label: "Total users", value: total, icon: <Users className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Active",
             value: active,
             tone: active > 0 ? "ok" : "idle",
             hint: total > 0 ? `${Math.round((active / total) * 100)}% of total` : undefined,
-            icon: UserCircle2
+            icon: <UserCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           },
           {
             label: "Suspended",
             value: suspended,
             tone: suspended > 0 ? "warn" : "idle",
-            icon: Mail
+            icon: <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
           },
           {
             label: "Super admins",
             value: superAdmins,
             tone: "info",
-            icon: ShieldCheck
+            icon: <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
           }
         ]}
       />

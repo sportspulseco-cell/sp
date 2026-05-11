@@ -90,25 +90,25 @@ export default async function GamesPage({
           {
             label: "Live now",
             value: live,
-            icon: CircleDot,
+            icon: <CircleDot className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: live > 0 ? "live" : "idle"
           },
           {
             label: "Scheduled",
             value: scheduled,
-            icon: Clock,
+            icon: <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: scheduled > 0 ? "info" : "idle"
           },
           {
             label: "Final",
             value: completed,
-            icon: Flag,
+            icon: <Flag className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "ok"
           },
           {
             label: "Total tracked",
             value: total,
-            icon: CalendarRange,
+            icon: <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           }
         ]}

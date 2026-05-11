@@ -90,23 +90,23 @@ export default async function AuditPage({
       />
       <KineticStrip
         cards={[
-          { label: "Recent events", value: total, icon: ScrollText, tone: "idle" },
+          { label: "Recent events", value: total, icon: <ScrollText className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Last 24h",
             value: last24h,
-            icon: Activity,
+            icon: <Activity className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: last24h > 0 ? "live" : "idle"
           },
           {
             label: "Distinct actors",
             value: distinctActors,
-            icon: Users,
+            icon: <Users className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           },
           {
             label: "Resource types",
             value: distinctResources,
-            icon: Layers,
+            icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           }
         ]}

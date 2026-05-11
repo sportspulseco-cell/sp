@@ -70,19 +70,19 @@ export default async function RolesPage() {
           {
             label: "System roles",
             value: systemRoles.length,
-            icon: ShieldCheck,
+            icon: <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           },
           {
             label: "Custom roles",
             value: customRoles.length,
-            icon: Sparkles,
+            icon: <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: customRoles.length > 0 ? "ok" : "idle"
           },
           {
             label: "Total roles",
             value: page.items.length,
-            icon: Layers,
+            icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           }
         ]}

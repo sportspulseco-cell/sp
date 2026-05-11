@@ -70,25 +70,25 @@ export default async function LeaguesPage({
           {
             label: "Active",
             value: active,
-            icon: Trophy,
+            icon: <Trophy className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: active > 0 ? "ok" : "idle"
           },
           {
             label: "Draft",
             value: draft,
-            icon: Network,
+            icon: <Network className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: draft > 0 ? "warn" : "idle"
           },
           {
             label: "Archived",
             value: archived,
-            icon: Archive,
+            icon: <Archive className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           },
           {
             label: "Sports",
             value: sportsCount,
-            icon: Layers,
+            icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           }
         ]}

@@ -41,15 +41,15 @@ export default async function DocumentsPage() {
       />
       <KineticStrip
         cards={[
-          { label: "Total docs", value: total, icon: FileSignature, tone: "idle" },
+          { label: "Total docs", value: total, icon: <FileSignature className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Published",
             value: published,
-            icon: CheckCircle2,
+            icon: <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: published > 0 ? "ok" : "idle"
           },
-          { label: "Distinct kinds", value: kinds, icon: Layers, tone: "info" },
-          { label: "Orgs covered", value: orgsCovered, icon: Building2, tone: "idle" }
+          { label: "Distinct kinds", value: kinds, icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "info" },
+          { label: "Orgs covered", value: orgsCovered, icon: <Building2 className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" }
         ]}
       />
 

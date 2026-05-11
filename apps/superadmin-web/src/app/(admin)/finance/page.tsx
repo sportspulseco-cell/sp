@@ -130,28 +130,28 @@ export default async function FinancePage({
           {
             label: "Outstanding",
             value: formatMoney(primaryTotals.outstandingCents, primaryCurrency),
-            icon: Wallet,
+            icon: <Wallet className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: primaryTotals.outstandingCents > 0 ? "info" : "idle",
             hint: `${counts.sent + counts.partial} active invoices`
           },
           {
             label: "Collected",
             value: formatMoney(primaryTotals.paidCents, primaryCurrency),
-            icon: CircleDollarSign,
+            icon: <CircleDollarSign className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: primaryTotals.paidCents > 0 ? "ok" : "idle",
             hint: `${counts.paid} paid in full`
           },
           {
             label: "Overdue",
             value: formatMoney(primaryTotals.overdueCents, primaryCurrency),
-            icon: AlertCircle,
+            icon: <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: primaryTotals.overdueCents > 0 ? "live" : "idle",
             hint: `${counts.overdue} past due`
           },
           {
             label: "Drafts",
             value: counts.draft,
-            icon: Clock,
+            icon: <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: counts.draft > 0 ? "warn" : "idle",
             hint: "Not yet sent"
           }

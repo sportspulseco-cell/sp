@@ -94,12 +94,12 @@ export default async function DivisionsPage({
       />
       <KineticStrip
         cards={[
-          { label: "Total divisions", value: total, icon: Layers, tone: "idle" },
-          { label: "Distinct tiers", value: tiers, icon: Network, tone: "info" },
+          { label: "Total divisions", value: total, icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
+          { label: "Distinct tiers", value: tiers, icon: <Network className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "info" },
           {
             label: "Roster capacity",
             value: totalSlots,
-            icon: Users,
+            icon: <Users className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle",
             hint: "sum of maxTeams across all divisions"
           },

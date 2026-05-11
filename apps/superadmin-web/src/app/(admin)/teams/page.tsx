@@ -39,20 +39,20 @@ export default async function TeamsPage() {
       />
       <KineticStrip
         cards={[
-          { label: "Total teams", value: total, icon: Network, tone: "idle" },
+          { label: "Total teams", value: total, icon: <Network className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Active",
             value: active,
-            icon: Trophy,
+            icon: <Trophy className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: active > 0 ? "ok" : "idle"
           },
           {
             label: "Owner orgs",
             value: orgsCovered,
-            icon: Building2,
+            icon: <Building2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           },
-          { label: "Sports", value: sports, icon: Layers, tone: "idle" }
+          { label: "Sports", value: sports, icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" }
         ]}
       />
 

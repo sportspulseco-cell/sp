@@ -111,25 +111,25 @@ export default async function CommunicationsPage({
           {
             label: "Queued",
             value: counts.queued,
-            icon: Inbox,
+            icon: <Inbox className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: counts.queued > 0 ? "warn" : "idle"
           },
           {
             label: "Sending",
             value: counts.sending,
-            icon: Send,
+            icon: <Send className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: counts.sending > 0 ? "live" : "idle"
           },
           {
             label: "Sent",
             value: counts.sent,
-            icon: MessageSquare,
+            icon: <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "ok"
           },
           {
             label: "Failed",
             value: counts.failed,
-            icon: AlertCircle,
+            icon: <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: counts.failed > 0 ? "live" : "idle"
           }
         ]}

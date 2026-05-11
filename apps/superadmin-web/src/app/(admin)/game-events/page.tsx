@@ -88,18 +88,18 @@ export default async function GameEventsPage({
       />
       <KineticStrip
         cards={[
-          { label: "Recent events", value: total, icon: Activity, tone: "idle" },
-          { label: "Goals", value: goals, icon: CircleDot, tone: "ok" },
+          { label: "Recent events", value: total, icon: <Activity className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
+          { label: "Goals", value: goals, icon: <CircleDot className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "ok" },
           {
             label: "Penalties",
             value: penalties,
-            icon: Clock,
+            icon: <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: penalties > 0 ? "warn" : "idle"
           },
           {
             label: "Distinct games",
             value: distinctGames,
-            icon: Layers,
+            icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           }
         ]}

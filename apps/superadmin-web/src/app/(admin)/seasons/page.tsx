@@ -72,25 +72,25 @@ export default async function SeasonsPage({
           {
             label: "In progress",
             value: inProgress,
-            icon: CircleDot,
+            icon: <CircleDot className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: inProgress > 0 ? "ok" : "idle"
           },
           {
             label: "Registration open",
             value: open,
-            icon: Trophy,
+            icon: <Trophy className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: open > 0 ? "info" : "idle"
           },
           {
             label: "Drafts",
             value: drafts,
-            icon: CalendarRange,
+            icon: <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: drafts > 0 ? "warn" : "idle"
           },
           {
             label: "Archived / done",
             value: archived,
-            icon: Archive,
+            icon: <Archive className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           }
         ]}

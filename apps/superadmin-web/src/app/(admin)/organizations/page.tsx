@@ -47,13 +47,13 @@ export default async function OrganizationsPage({
           {
             label: "Total tenants",
             value: total,
-            icon: Building2,
+            icon: <Building2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"
           },
           {
             label: "Active",
             value: active,
-            icon: Layers,
+            icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: active > 0 ? "ok" : "idle",
             hint:
               total > 0
@@ -63,13 +63,13 @@ export default async function OrganizationsPage({
           {
             label: "Suspended",
             value: suspended,
-            icon: ShieldAlert,
+            icon: <ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: suspended > 0 ? "warn" : "idle"
           },
           {
             label: "Countries",
             value: countries,
-            icon: Globe2,
+            icon: <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           }
         ]}

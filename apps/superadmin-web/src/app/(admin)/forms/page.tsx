@@ -75,11 +75,11 @@ export default async function FormsPage({
       />
       <KineticStrip
         cards={[
-          { label: "Total forms", value: total, icon: FileSignature, tone: "idle" },
+          { label: "Total forms", value: total, icon: <FileSignature className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Published",
             value: published,
-            icon: CheckCircle2,
+            icon: <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: published > 0 ? "ok" : "idle",
             hint:
               total > 0
@@ -89,13 +89,13 @@ export default async function FormsPage({
           {
             label: "Drafts",
             value: drafts,
-            icon: FileQuestion,
+            icon: <FileQuestion className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: drafts > 0 ? "warn" : "idle"
           },
           {
             label: "Orgs covered",
             value: orgsCovered,
-            icon: Layers,
+            icon: <Layers className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           }
         ]}

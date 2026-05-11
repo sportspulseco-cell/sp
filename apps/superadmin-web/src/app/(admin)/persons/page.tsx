@@ -46,19 +46,19 @@ export default async function PersonsPage() {
       />
       <KineticStrip
         cards={[
-          { label: "Total persons", value: total, icon: UserCircle2, tone: "idle" },
+          { label: "Total persons", value: total, icon: <UserCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
           {
             label: "Linked to account",
             value: linked,
-            icon: Link2,
+            icon: <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: linked > 0 ? "ok" : "idle",
             hint:
               total > 0
                 ? `${Math.round((linked / total) * 100)}% have auth`
                 : undefined
           },
-          { label: "Minors", value: minors, icon: Cake, tone: "info" },
-          { label: "Countries", value: countries, icon: Globe2, tone: "idle" }
+          { label: "Minors", value: minors, icon: <Cake className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "info" },
+          { label: "Countries", value: countries, icon: <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" }
         ]}
       />
 

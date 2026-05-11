@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/motion/reveal";
 import { Counter } from "@/components/motion/counter";
 import { LiveDot, ScanSheen } from "@/components/motion/kinetic";
@@ -13,8 +12,13 @@ export interface KineticCard {
   value: number | string;
   /** Optional caption underneath */
   hint?: string;
-  /** When provided, draws a small icon top-right */
-  icon?: LucideIcon;
+  /**
+   * Optional icon JSX rendered in the top-right corner. Pass a rendered
+   * element (e.g. `<FileSignature className="h-3.5 w-3.5" />`) NOT a
+   * component reference — server pages can't serialize forwardRef
+   * component types as data props to client components.
+   */
+  icon?: ReactNode;
   /**
    * "live" → red ping dot + scan sheen sweeping across (continuous motion)
    * "warn" → amber accent dot
@@ -36,7 +40,7 @@ export interface KineticCard {
  *   <KineticStrip cards={[
  *     { label: "Active", value: 24, tone: "ok", hint: "of 32 total" },
  *     { label: "Suspended", value: 0, tone: "warn" },
- *     { label: "Pending invite", value: 5, tone: "live", icon: Mail }
+ *     { label: "Pending invite", value: 5, tone: "live", icon: <Mail className="h-3.5 w-3.5" /> }
  *   ]} />
  */
 export function KineticStrip({
@@ -68,7 +72,6 @@ export function KineticStrip({
 }
 
 function Card({ card, delay }: { card: KineticCard; delay: number }) {
-  const Icon = card.icon;
   const isLive = card.tone === "live";
   return (
     <Reveal delay={delay}>
@@ -82,8 +85,8 @@ function Card({ card, delay }: { card: KineticCard; delay: number }) {
             {card.tone === "info" ? <LiveDot tone="cyan" /> : null}
             {card.label}
           </p>
-          {Icon ? (
-            <Icon className="h-3.5 w-3.5 text-fg-muted" strokeWidth={1.75} />
+          {card.icon ? (
+            <span className="text-fg-muted">{card.icon}</span>
           ) : null}
         </div>
         <div className="relative mt-5 flex items-baseline gap-2">

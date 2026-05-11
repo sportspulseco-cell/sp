@@ -98,25 +98,25 @@ export default async function EligibilityPage({
           {
             label: "Eligible",
             value: counts.eligible,
-            icon: ShieldCheck,
+            icon: <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "ok"
           },
           {
             label: "Pending",
             value: counts.pending,
-            icon: Clock,
+            icon: <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: counts.pending > 0 ? "warn" : "idle"
           },
           {
             label: "Ineligible",
             value: counts.ineligible,
-            icon: ShieldOff,
+            icon: <ShieldOff className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: counts.ineligible > 0 ? "live" : "idle"
           },
           {
             label: "Waived",
             value: counts.waived,
-            icon: ShieldAlert,
+            icon: <ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "info"
           }
         ]}
