@@ -31,6 +31,7 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 
 /**
@@ -121,8 +122,13 @@ export class CaptainController {
       .limit(1);
     if (!team) throw new NotFoundException("Team not found");
 
-    const isSuperAdmin = await this.isSuperAdmin(user.userId);
-    if (!isSuperAdmin && team.captainUserId !== user.userId) {
+    const isCaptain = await userIsCaptainOfTeam(
+      this.db,
+      user.userId,
+      teamId,
+      team.captainUserId
+    );
+    if (!isCaptain) {
       throw new ForbiddenException("Not the captain of this team");
     }
 
@@ -481,8 +487,13 @@ export class CaptainController {
       .limit(1);
     if (!team) throw new NotFoundException("Team not found");
 
-    const isSuper = await this.isSuperAdmin(user.userId);
-    if (!isSuper && team.captainUserId !== user.userId) {
+    const isCaptain = await userIsCaptainOfTeam(
+      this.db,
+      user.userId,
+      body.teamId,
+      team.captainUserId
+    );
+    if (!isCaptain) {
       throw new ForbiddenException("Not the captain of this team");
     }
 
@@ -812,6 +823,7 @@ export class CaptainController {
         collectedCents: schema.divisionTeamEntries.collectedCents,
         thresholdCents:
           schema.divisionTeamEntries.confirmationThresholdCents,
+        teamId: schema.teams.id,
         teamCaptain: schema.teams.captainUserId
       })
       .from(schema.divisionTeamEntries)
@@ -823,8 +835,13 @@ export class CaptainController {
       .limit(1);
     if (!row) throw new NotFoundException("Entry not found");
 
-    const isSuper = await this.isSuperAdmin(user.userId);
-    if (!isSuper && row.teamCaptain !== user.userId) {
+    const isCaptain = await userIsCaptainOfTeam(
+      this.db,
+      user.userId,
+      row.teamId,
+      row.teamCaptain
+    );
+    if (!isCaptain) {
       throw new ForbiddenException("Not the captain of this entry's team");
     }
 

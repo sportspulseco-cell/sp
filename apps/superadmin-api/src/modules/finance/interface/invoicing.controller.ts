@@ -39,6 +39,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 
 // =====================================================================
 // DTOs
@@ -188,9 +189,11 @@ export class FinanceInvoicingController {
   }
 
   // -------------------------------------------------------------------
-  // GET /finance/invoices?orgId&status&billingScope&search&page&limit
+  // GET /finance/admin/invoices?orgId&status&billingScope&search&page&limit
+  // (Renamed from /invoices/list — that path was eaten by the
+  // sibling `/invoices/:id` route, which tried to cast "list" as a UUID.)
   // -------------------------------------------------------------------
-  @Get("invoices/list")
+  @Get("admin/invoices")
   @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiOperation({
     summary:
@@ -766,15 +769,15 @@ export class FinanceInvoicingController {
       .where(eq(schema.teams.id, master.teamId))
       .limit(1);
     if (!team) throw new NotFoundException("Team not found");
-    if (team.captainUserId !== user.userId) {
-      const [profile] = await this.db
-        .select()
-        .from(schema.profiles)
-        .where(eq(schema.profiles.id, user.userId))
-        .limit(1);
-      if (!profile?.isSuperAdmin) {
-        throw new ForbiddenException("Not the captain of this team");
-      }
+    if (
+      !(await userIsCaptainOfTeam(
+        this.db,
+        user.userId,
+        team.id,
+        team.captainUserId
+      ))
+    ) {
+      throw new ForbiddenException("Not the captain of this team");
     }
 
     // Active members
@@ -941,15 +944,15 @@ export class FinanceInvoicingController {
       .where(eq(schema.teams.id, master.teamId))
       .limit(1);
     if (!team) throw new NotFoundException("Team not found");
-    if (team.captainUserId !== user.userId) {
-      const [profile] = await this.db
-        .select()
-        .from(schema.profiles)
-        .where(eq(schema.profiles.id, user.userId))
-        .limit(1);
-      if (!profile?.isSuperAdmin) {
-        throw new ForbiddenException("Not the captain of this team");
-      }
+    if (
+      !(await userIsCaptainOfTeam(
+        this.db,
+        user.userId,
+        team.id,
+        team.captainUserId
+      ))
+    ) {
+      throw new ForbiddenException("Not the captain of this team");
     }
 
     return await this.db.transaction(async (tx) => {
@@ -1047,15 +1050,15 @@ export class FinanceInvoicingController {
       .where(eq(schema.teams.id, master.teamId))
       .limit(1);
     if (!team) throw new NotFoundException("Team not found");
-    if (team.captainUserId !== user.userId) {
-      const [profile] = await this.db
-        .select()
-        .from(schema.profiles)
-        .where(eq(schema.profiles.id, user.userId))
-        .limit(1);
-      if (!profile?.isSuperAdmin) {
-        throw new ForbiddenException("Not the captain of this team");
-      }
+    if (
+      !(await userIsCaptainOfTeam(
+        this.db,
+        user.userId,
+        team.id,
+        team.captainUserId
+      ))
+    ) {
+      throw new ForbiddenException("Not the captain of this team");
     }
 
     const subs = await this.db

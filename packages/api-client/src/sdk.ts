@@ -838,7 +838,7 @@ export function createApi(f: Fetcher) {
           }>;
           page: number;
           limit: number;
-        }>(`/finance/invoices/list${qs(q)}`),
+        }>(`/finance/admin/invoices${qs(q)}`),
       /**
        * Invoice detail bundle: invoice + items + payments + installments.
        * Used by the admin invoice inspection screen.

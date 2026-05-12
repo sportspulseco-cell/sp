@@ -20,6 +20,7 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 
 class ApplyBodyDto {
@@ -524,15 +525,13 @@ export class CaptainApplicationsController {
       .where(eq(schema.teams.id, teamId))
       .limit(1);
     if (!team) throw new NotFoundException("Team not found");
-    if (team.captainUserId !== userId) {
-      const [profile] = await this.db
-        .select({ isSuper: schema.profiles.isSuperAdmin })
-        .from(schema.profiles)
-        .where(eq(schema.profiles.id, userId))
-        .limit(1);
-      if (!profile?.isSuper)
-        throw new ForbiddenException("Not the captain of this team");
-    }
+    const ok = await userIsCaptainOfTeam(
+      this.db,
+      userId,
+      teamId,
+      team.captainUserId
+    );
+    if (!ok) throw new ForbiddenException("Not the captain of this team");
     return team;
   }
 

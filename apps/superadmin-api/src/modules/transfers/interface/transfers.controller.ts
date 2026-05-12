@@ -24,6 +24,7 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 
 class InitiateTransferBodyDto {
@@ -305,10 +306,13 @@ export class TransfersController {
   private async requireCaptainTeam(userId: string, teamId: string) {
     const team = await this.loadTeam(teamId);
     if (!team) throw new NotFoundException("Team not found");
-    if (team.captainUserId !== userId) {
-      const isSuper = await this.isSuperAdmin(userId);
-      if (!isSuper) throw new ForbiddenException("Not the captain");
-    }
+    const ok = await userIsCaptainOfTeam(
+      this.db,
+      userId,
+      teamId,
+      team.captainUserId
+    );
+    if (!ok) throw new ForbiddenException("Not the captain");
     return team;
   }
 
@@ -316,9 +320,7 @@ export class TransfersController {
     userId: string,
     teamId: string
   ): Promise<boolean> {
-    const t = await this.loadTeam(teamId);
-    if (!t) return false;
-    return t.captainUserId === userId;
+    return userIsCaptainOfTeam(this.db, userId, teamId);
   }
 
   private async loadTeam(teamId: string) {
