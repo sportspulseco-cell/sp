@@ -7,11 +7,12 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsString, MinLength } from "class-validator";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -97,9 +98,79 @@ export class AdminApplicationsController {
   @Get("seasons/:seasonId/applications")
   @ApiOperation({
     summary:
-      "Pending team applications for a season. Lists every division_team_entries row with entry_status='pending_approval' under any division of this season."
+      "Team applications for a season. Defaults to entry_status='pending_approval'. Pass ?status=all to include approved/rejected/withdrawn (powers the queue filter)."
   })
-  async listForSeason(@Param("seasonId") seasonId: string) {
+  async listForSeason(
+    @Param("seasonId") seasonId: string,
+    @Query("status") status?: string
+  ) {
+    // Resolve season header + every division (for the filter dropdown
+    // and capacity-aware Approve disabling — mock 4).
+    const [season] = await this.db
+      .select({
+        id: schema.seasons.id,
+        name: schema.seasons.name,
+        registrationClosesAt: schema.seasons.registrationClosesAt
+      })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, seasonId))
+      .limit(1);
+    if (!season) throw new NotFoundException("Season not found");
+
+    const divisions = await this.db
+      .select({
+        id: schema.divisions.id,
+        name: schema.divisions.name,
+        maxTeams: schema.divisions.maxTeams
+      })
+      .from(schema.divisions)
+      .where(eq(schema.divisions.seasonId, seasonId));
+
+    // Per-division current count — anything not withdrawn/rejected.
+    // Used both for the capacity badge AND to disable Approve when the
+    // application's division is already full.
+    const counts = divisions.length
+      ? await this.db
+          .select({
+            divisionId: schema.divisionTeamEntries.divisionId,
+            count: sql<number>`COUNT(*)::int`
+          })
+          .from(schema.divisionTeamEntries)
+          .where(
+            and(
+              inArray(
+                schema.divisionTeamEntries.divisionId,
+                divisions.map((d) => d.id)
+              ),
+              sql`${schema.divisionTeamEntries.entryStatus} NOT IN ('withdrawn','rejected','disqualified')`
+            )
+          )
+          .groupBy(schema.divisionTeamEntries.divisionId)
+      : [];
+    const countByDiv = new Map(counts.map((c) => [c.divisionId, c.count]));
+
+    // Status filter — default to pending only, "all" returns everything
+    // except hard-cancel states the admin shouldn't act on.
+    const statusFilter =
+      status === "all"
+        ? inArray(schema.divisionTeamEntries.entryStatus, [
+            "pending_approval",
+            "applied",
+            "accepted",
+            "confirmed",
+            "rejected",
+            "withdrawn"
+          ])
+        : status === "approved"
+          ? inArray(schema.divisionTeamEntries.entryStatus, [
+              "applied",
+              "accepted",
+              "confirmed"
+            ])
+          : status === "rejected"
+            ? eq(schema.divisionTeamEntries.entryStatus, "rejected")
+            : eq(schema.divisionTeamEntries.entryStatus, "pending_approval");
+
     const rows = await this.db
       .select({
         id: schema.divisionTeamEntries.id,
@@ -107,8 +178,15 @@ export class AdminApplicationsController {
         createdAt: schema.divisionTeamEntries.createdAt,
         teamId: schema.teams.id,
         teamName: schema.teams.name,
+        teamShortName: schema.teams.shortName,
+        teamColors: schema.teams.colors,
         teamOrgId: schema.teams.orgId,
         captainUserId: schema.teams.captainUserId,
+        captainDisplayName: schema.profiles.displayName,
+        captainFirstName: schema.profiles.legalFirstName,
+        captainLastName: schema.profiles.legalLastName,
+        captainPreferredName: schema.profiles.preferredName,
+        captainEmail: schema.profiles.email,
         divisionId: schema.divisions.id,
         divisionName: schema.divisions.name
       })
@@ -121,15 +199,54 @@ export class AdminApplicationsController {
         schema.teams,
         eq(schema.teams.id, schema.divisionTeamEntries.teamId)
       )
-      .where(
-        and(
-          eq(schema.divisions.seasonId, seasonId),
-          eq(schema.divisionTeamEntries.entryStatus, "pending_approval")
-        )
+      .leftJoin(
+        schema.profiles,
+        eq(schema.profiles.id, schema.teams.captainUserId)
       )
+      .where(and(eq(schema.divisions.seasonId, seasonId), statusFilter))
       .orderBy(desc(schema.divisionTeamEntries.createdAt));
+
     return {
-      items: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }))
+      season: {
+        id: season.id,
+        name: season.name,
+        registrationClosesAt:
+          season.registrationClosesAt?.toISOString() ?? null
+      },
+      divisions: divisions.map((d) => ({
+        id: d.id,
+        name: d.name,
+        maxTeams: d.maxTeams ?? null,
+        currentTeamCount: countByDiv.get(d.id) ?? 0
+      })),
+      items: rows.map((r) => {
+        const max = divisions.find((d) => d.id === r.divisionId)?.maxTeams ?? null;
+        const current = countByDiv.get(r.divisionId) ?? 0;
+        const fullName = [r.captainFirstName, r.captainLastName]
+          .filter((x): x is string => !!x)
+          .join(" ");
+        const captainName =
+          r.captainPreferredName ||
+          r.captainDisplayName ||
+          (fullName || null);
+        return {
+          id: r.id,
+          entryStatus: r.entryStatus,
+          createdAt: r.createdAt.toISOString(),
+          teamId: r.teamId,
+          teamName: r.teamName,
+          teamShortName: r.teamShortName ?? null,
+          teamColors: r.teamColors as Record<string, unknown> | null,
+          teamOrgId: r.teamOrgId,
+          captainUserId: r.captainUserId,
+          captainName,
+          captainEmail: r.captainEmail ?? null,
+          divisionId: r.divisionId,
+          divisionName: r.divisionName,
+          divisionMaxTeams: max,
+          divisionCurrentTeamCount: current
+        };
+      })
     };
   }
 

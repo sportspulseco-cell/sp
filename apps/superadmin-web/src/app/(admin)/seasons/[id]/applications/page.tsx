@@ -1,4 +1,4 @@
-import { adminTransfers, leagueMgmt } from "@/lib/api/server-api";
+import { adminTransfers } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApplicationsQueue } from "./applications-queue";
 
@@ -10,18 +10,40 @@ export default async function SeasonApplicationsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: seasonId } = await params;
-  const [seasonsPage, initial] = await Promise.all([
-    leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null })),
-    adminTransfers.listApplications(seasonId).catch(() => ({ items: [] }))
-  ]);
-  const season = seasonsPage.items.find((s) => s.id === seasonId);
+  const initial = await adminTransfers
+    .listApplications(seasonId, "pending")
+    .catch(() => ({
+      season: { id: seasonId, name: "Season", registrationClosesAt: null },
+      divisions: [],
+      items: []
+    }));
+
+  const divisionListLabel =
+    initial.divisions.length === 0
+      ? ""
+      : initial.divisions.map((d) => d.name).join(", ");
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={`// admin · ${season?.name ?? "season"}`}
+        eyebrow={`// admin · ${initial.season.name}`}
         title="Team applications"
-        description="Captain-submitted applications awaiting your review. Approve to unlock the rollover wizard for the captain; reject (with reason) to send them back to division selection."
+        description={
+          divisionListLabel
+            ? `${initial.season.name} · ${divisionListLabel} divisions`
+            : `${initial.season.name} · approve or deny captain-submitted applications.`
+        }
+        action={
+          initial.season.registrationClosesAt ? (
+            <span className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+              Registration closes{" "}
+              {new Date(initial.season.registrationClosesAt).toLocaleDateString(
+                undefined,
+                { month: "short", day: "numeric", year: "numeric" }
+              )}
+            </span>
+          ) : undefined
+        }
       />
       <ApplicationsQueue seasonId={seasonId} initial={initial} />
     </div>

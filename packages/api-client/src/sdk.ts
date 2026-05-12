@@ -2290,20 +2290,40 @@ export function createApi(f: Fetcher) {
           { method: "POST", body: JSON.stringify({ reason }) }
         ),
       // Approval gate — admin review.
-      listApplications: (seasonId: string) =>
+      listApplications: (
+        seasonId: string,
+        status?: "pending" | "approved" | "rejected" | "all"
+      ) =>
         f<{
+          season: {
+            id: string;
+            name: string;
+            registrationClosesAt: string | null;
+          };
+          divisions: Array<{
+            id: string;
+            name: string;
+            maxTeams: number | null;
+            currentTeamCount: number;
+          }>;
           items: Array<{
             id: string;
             entryStatus: string;
             createdAt: string;
             teamId: string;
             teamName: string;
+            teamShortName: string | null;
+            teamColors: Record<string, unknown> | null;
             teamOrgId: string;
             captainUserId: string | null;
+            captainName: string | null;
+            captainEmail: string | null;
             divisionId: string;
             divisionName: string;
+            divisionMaxTeams: number | null;
+            divisionCurrentTeamCount: number;
           }>;
-        }>(`/admin/seasons/${seasonId}/applications`),
+        }>(`/admin/seasons/${seasonId}/applications${qs({ status })}`),
       approveApplication: (entryId: string) =>
         f<{ entryId: string; status: "applied" }>(
           `/admin/division-team-entries/${entryId}/approve`,
