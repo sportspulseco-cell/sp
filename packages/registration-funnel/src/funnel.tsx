@@ -202,13 +202,16 @@ export function RegistrationFunnel({
 
   const stepOrder: Step[] = useMemo(() => {
     // Order must match the PhaseStepper labels (1 Path · 2 Account ·
-    // 3 Details · 4 Compliance · 5 Payment · 6 Confirmation). The
-    // inner `questions` step IS the Details phase, so it must run
-    // before consent / waivers (Compliance) and before tier / review
-    // / payment (Payment). Earlier versions had questions after tier,
-    // which made the stepper jump 4 → 5 → 3.
-    const out: Step[] = ["path", "account"];
-    if (hasQuestions) out.push("questions");
+    // 3 Details · 4 Compliance · 5 Payment · 6 Confirmation).
+    //
+    // `questions` IS the Details phase. It ALWAYS runs — even when
+    // the form has no custom questions — because the step also
+    // renders the team-info card (team registration) and acts as the
+    // single Details surface the stepper points at. Tester transcript:
+    // signing in jumped Account → Compliance because the previous
+    // guard `if (hasQuestions)` evaluated to false when the form's
+    // schema was bare, dropping Phase 3 entirely.
+    const out: Step[] = ["path", "account", "questions"];
     // Skip parental consent entirely when the admin disabled it for
     // this season, even if DOB indicates a minor — adult-only leagues
     // (or test seasons) often turn it off.
@@ -222,7 +225,6 @@ export function RegistrationFunnel({
     parentalConsentRequired,
     waivers,
     tiers.length,
-    hasQuestions,
     hasInlineWaivers
   ]);
 
@@ -300,8 +302,17 @@ export function RegistrationFunnel({
    * needs an anon-key client for true credential validation. See
    * doc/deferred-integrations.md.
    */
-  async function submitSignIn() {
-    if (!email.trim()) {
+  /**
+   * Sign-in submit. Takes `emailOverride` so the child sign-in tab can
+   * pass the email it captured directly — previous version relied on
+   * the parent `email` state being set first, but setState is async and
+   * the closure read the stale empty value, producing intermittent
+   * "Enter the email" errors and downstream 404s on /pay (submission
+   * row was tied to one email but the pay call used another).
+   */
+  async function submitSignIn(emailOverride?: string) {
+    const useEmail = (emailOverride ?? email).trim();
+    if (!useEmail) {
       setError("Enter the email you used to sign up.");
       return;
     }
@@ -309,11 +320,16 @@ export function RegistrationFunnel({
       setError("Pick a registration path before signing in.");
       return;
     }
+    // Mirror into parent state so the rest of the funnel (pay, etc.)
+    // reads the same email the submission was created with.
+    if (emailOverride && emailOverride.trim() !== email) {
+      setEmail(useEmail);
+    }
     setSubmitting(true);
     setError(null);
     try {
       const result = await api.resumeSubmission(context.season.id, {
-        email: email.trim(),
+        email: useEmail,
         submissionType
       });
       setSubmissionId(result.id);
@@ -829,7 +845,7 @@ function AccountStep({
   onPhoneChange: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
-  onSignIn: () => void;
+  onSignIn: (emailOverride?: string) => void;
 }) {
   const [mode, setMode] = useState<"sign_in" | "create">("sign_in");
   // Independent state for the sign-in tab so it doesn't entangle with
@@ -925,9 +941,14 @@ function AccountStep({
               type="button"
               disabled={!signInEmailOk || submitting}
               onClick={() => {
-                // Hand the email up to the parent so the resume call uses it.
-                onEmailChange(signInEmail.trim());
-                onSignIn();
+                // Pass the captured email directly. The parent also
+                // mirrors it into the funnel-wide email state so the
+                // later pay() call uses the same value the submission
+                // row was created with — fixes the 404 "submission not
+                // found" reported after offline pay.
+                const emailValue = signInEmail.trim();
+                onEmailChange(emailValue);
+                onSignIn(emailValue);
               }}
             >
               {submitting ? (
