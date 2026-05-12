@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Star,
+  Trophy,
   User,
   Users,
   UsersRound,
@@ -84,6 +85,7 @@ const BASE_NAV: NavSection[] = [
 const CAPTAIN_NAV: NavSection = {
   label: "// Captain console",
   items: [
+    { href: "/captain/register", label: "Register my team", icon: Trophy },
     { href: "/captain/team", label: "Manage team", icon: Settings },
     { href: "/captain/roster", label: "Manage roster", icon: Users },
     { href: "/captain/invites", label: "Invites", icon: Mail },

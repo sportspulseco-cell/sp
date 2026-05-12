@@ -56,3 +56,4 @@ export const registrationV2 = api.registrationV2;
 export const communications = api.communications;
 export const compliance = api.compliance;
 export const finance = api.finance;
+export const captain = api.captain;
