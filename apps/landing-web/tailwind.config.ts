@@ -33,6 +33,14 @@ const config: Config = {
         cyan: {
           DEFAULT: "var(--cyan)",
           glow: "var(--cyan-glow)"
+        },
+        navy: {
+          DEFAULT: "var(--navy)",
+          deep: "var(--navy-deep)"
+        },
+        electric: {
+          DEFAULT: "var(--electric)",
+          glow: "var(--electric-glow)"
         }
       },
       borderRadius: {

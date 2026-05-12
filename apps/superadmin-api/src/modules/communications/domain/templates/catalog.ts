@@ -56,7 +56,23 @@ export const TEMPLATE_CODES = [
   "INVOICE_OVERDUE_STAGE_4",
   "INVOICE_MANUAL_REMIND",
   "SUB_INVOICE_REMINDER",
-  "DUES_COVERED_BY_CAPTAIN"
+  "DUES_COVERED_BY_CAPTAIN",
+  // Payments & Invoicing — Phase 16 (dotted codes used by cron + admin)
+  "invoice.created",
+  "payment.confirmed",
+  "installment.failed",
+  "invoice.late_fee_applied",
+  "invoice.overdue.r1",
+  "invoice.overdue.r2",
+  "invoice.overdue.r3",
+  "invoice.overdue.r4",
+  "invoice.overdue.admin_case",
+  "invoice.manual_reminder",
+  "invoice.due_date_extended",
+  "refund.issued",
+  "wallet.credited",
+  "wallet.credit_expired",
+  "captain.covered_dues"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
@@ -483,6 +499,118 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     body:
       "Good news — your team captain has paid your outstanding dues. You owe $0.",
     variables: ["teamName"]
+  },
+  // ─── Payments & Invoicing — Phase 16 dotted-code templates ───
+  {
+    code: "invoice.created",
+    channel: "email",
+    subject: "New invoice — {{invoiceNumber}}",
+    body:
+      "Template pending — invoice {{invoiceNumber}}. " +
+      "Pay at {{invoiceUrl}} by {{dueAt}}.",
+    variables: ["invoiceNumber", "totalCents", "dueAt", "invoiceUrl"]
+  },
+  {
+    code: "payment.confirmed",
+    channel: "email",
+    subject: "Payment received — {{invoiceNumber}}",
+    body: "Template pending — {{amountCents}} received on {{invoiceNumber}}.",
+    variables: ["invoiceNumber", "amountCents"]
+  },
+  {
+    code: "installment.failed",
+    channel: "email",
+    subject: "Installment {{installmentNumber}} failed",
+    body:
+      "Your installment payment failed. We'll retry on {{nextRetryDate}}. " +
+      "Update your card here: {{retryUrl}}",
+    variables: ["installmentNumber", "amountCents", "nextRetryDate", "retryUrl"]
+  },
+  {
+    code: "invoice.late_fee_applied",
+    channel: "email",
+    subject: "Late fee applied",
+    body: "A late fee of {{lateFeeCents}} was applied to your invoice.",
+    variables: ["lateFeeCents"]
+  },
+  {
+    code: "invoice.overdue.r1",
+    channel: "email",
+    subject: "Friendly reminder — invoice {{invoiceNumber}} past due",
+    body: "Template pending — invoice past due. {{outstandingCents}} owed.",
+    variables: ["invoiceNumber", "outstandingCents", "daysPastDue", "payUrl"]
+  },
+  {
+    code: "invoice.overdue.r2",
+    channel: "email",
+    subject: "Reminder — invoice 7+ days overdue",
+    body: "Template pending — 7+ days overdue.",
+    variables: ["invoiceNumber", "outstandingCents", "daysPastDue", "payUrl"]
+  },
+  {
+    code: "invoice.overdue.r3",
+    channel: "email",
+    subject: "Urgent — invoice 14+ days overdue",
+    body: "Template pending — urgent.",
+    variables: ["invoiceNumber", "outstandingCents", "daysPastDue", "payUrl"]
+  },
+  {
+    code: "invoice.overdue.r4",
+    channel: "email",
+    subject: "FINAL NOTICE — 21+ days overdue",
+    body: "Template pending — final notice.",
+    variables: ["invoiceNumber", "outstandingCents", "daysPastDue", "payUrl"]
+  },
+  {
+    code: "invoice.overdue.admin_case",
+    channel: "email",
+    subject: "Admin case opened — {{invoiceNumber}}",
+    body: "Template pending — admin case.",
+    variables: ["invoiceId", "invoiceNumber", "recipientPersonId", "daysPastDue", "outstandingCents"]
+  },
+  {
+    code: "invoice.manual_reminder",
+    channel: "email",
+    subject: "Payment reminder — {{invoiceNumber}}",
+    body: "Template pending — please complete payment.",
+    variables: ["invoiceNumber", "outstandingCents", "dueAt", "payUrl"]
+  },
+  {
+    code: "invoice.due_date_extended",
+    channel: "email",
+    subject: "Due date extended — {{invoiceNumber}}",
+    body: "Your invoice due date has been extended to {{newDueAt}}.",
+    variables: ["newDueAt"]
+  },
+  {
+    code: "refund.issued",
+    channel: "email",
+    subject: "Refund issued — {{amountCents}}",
+    body: "{{processingNote}} Reason: {{reason}}",
+    variables: ["amountCents", "reason", "processingNote"]
+  },
+  {
+    code: "wallet.credited",
+    channel: "email",
+    subject: "Wallet credit issued — {{amountCents}}",
+    body:
+      "A credit of {{amountCents}} has been added to your wallet. " +
+      "New balance: {{newBalance}}.",
+    variables: ["amountCents", "newBalance", "expiresAt"]
+  },
+  {
+    code: "wallet.credit_expired",
+    channel: "email",
+    subject: "Wallet credit expired",
+    body: "A wallet credit of {{expiredCents}} has expired.",
+    variables: ["expiredCents"]
+  },
+  {
+    code: "captain.covered_dues",
+    channel: "email",
+    subject: "Your captain covered your dues",
+    body: "Your captain paid {{amountCents}} toward your team dues.",
+    variables: ["amountCents"]
   }
 ];
 

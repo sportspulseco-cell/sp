@@ -36,7 +36,7 @@ export function SectionContact() {
                 +1 669-309-7426
               </ContactRow>
               <ContactRow icon={<Mail className="h-3.5 w-3.5" strokeWidth={1.75} />}>
-                INFO@SPORTSPULSE.IO
+                INFO@SPORTSPULSE.US
               </ContactRow>
               <ContactRow icon={<Globe className="h-3.5 w-3.5" strokeWidth={1.75} />}>
                 Belmont, MA · Boston · Dubai · Singapore · EN-AR-HI

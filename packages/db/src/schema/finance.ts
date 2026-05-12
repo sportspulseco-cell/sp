@@ -102,6 +102,24 @@ export const invoices = pgTable(
     invoiceType: text("invoice_type").notNull().default("standard"),
     /** When invoiceType='sub_invoice', this points to the master. */
     parentInvoiceId: uuid("parent_invoice_id"),
+    /** Workflow Payments & Invoicing — wallet credit applied to this invoice. */
+    walletCreditAppliedCents: integer("wallet_credit_applied_cents")
+      .notNull()
+      .default(0),
+    /** Total late fees that have been applied (sum of late_fee items). */
+    lateFeeAppliedCents: integer("late_fee_applied_cents")
+      .notNull()
+      .default(0),
+    /** Manual invoice billing scope at creation time. */
+    billingScope: text("billing_scope"),
+    /** Targeting columns for bulk invoices (team/division/league/season). */
+    teamId: uuid("team_id"),
+    divisionId: uuid("division_id"),
+    leagueId: uuid("league_id"),
+    seasonId: uuid("season_id"),
+    /** Shared id across rows in a bulk-invoice fanout. */
+    bulkJobId: uuid("bulk_job_id"),
+    feeScheduleId: uuid("fee_schedule_id"),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
     dueAt: timestamp("due_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
@@ -208,6 +226,76 @@ export const payments = pgTable(
     statusCheck: check(
       "payment_status_check",
       sql`${t.status} IN ('pending','succeeded','failed','refunded')`
+    )
+  })
+);
+
+// =====================================================================
+// WALLET_TRANSACTIONS — append-only ledger for wallet movements.
+// Distinct from the older wallet_ledger; this is the canonical ledger
+// referenced by the Payments & Invoicing spec.
+// =====================================================================
+import { walletAccounts } from "./finance-extensions";
+export const walletTransactions = pgTable(
+  "wallet_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    walletId: uuid("wallet_id")
+      .notNull()
+      .references(() => walletAccounts.id, { onDelete: "cascade" }),
+    /** credit_issued | credit_applied | refund_received | expired */
+    type: text("type").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    invoiceId: uuid("invoice_id").references(() => invoices.id, {
+      onDelete: "set null"
+    }),
+    reason: text("reason"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    typeCheck: check(
+      "wallet_tx_type_check",
+      sql`${t.type} IN ('credit_issued','credit_applied','refund_received','expired')`
+    ),
+    walletIdx: index("wallet_tx_wallet_id_idx").on(t.walletId)
+  })
+);
+
+// =====================================================================
+// QUICKBOOKS_SYNC_EVENTS — outbox for QB sync worker (Spec Phase 7).
+// =====================================================================
+export const quickbooksSyncEvents = pgTable(
+  "quickbooks_sync_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    /** pending | synced | failed | dead_letter */
+    status: text("status").notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    lastAttemptedAt: timestamp("last_attempted_at", { withTimezone: true }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    statusCheck: check(
+      "qb_sync_events_status_check",
+      sql`${t.status} IN ('pending','synced','failed','dead_letter')`
     )
   })
 );

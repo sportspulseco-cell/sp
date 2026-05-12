@@ -8,6 +8,7 @@ import { FinanceQuickbooksSyncController } from "./interface/quickbooks-sync.con
 import { PlayerPaymentsController } from "./interface/player-payments.controller";
 import { FinanceArActionsController } from "./interface/ar-actions.controller";
 import { CaptainDuesController } from "./interface/captain-dues.controller";
+import { FinanceInvoicingController } from "./interface/invoicing.controller";
 import { FinanceService } from "./application/finance.service";
 import {
   GetInvoiceHandler,
@@ -40,7 +41,8 @@ import {
     FinanceQuickbooksSyncController,
     PlayerPaymentsController,
     FinanceArActionsController,
-    CaptainDuesController
+    CaptainDuesController,
+    FinanceInvoicingController
   ],
   providers: [
     FinanceService,

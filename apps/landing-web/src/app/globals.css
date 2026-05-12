@@ -28,6 +28,12 @@
 
     --cyan: #22d3ee;
     --cyan-glow: rgba(34, 211, 238, 0.45);
+
+    /* Editorial Futurism — used by /pricing, /leadership, /resources, /contact */
+    --navy: #001b3a;
+    --navy-deep: #00102a;
+    --electric: #00f2ff;
+    --electric-glow: rgba(0, 242, 255, 0.55);
   }
 
   html {
@@ -81,5 +87,119 @@
   }
   .scrollbar-none {
     scrollbar-width: none;
+  }
+
+  /* Editorial Futurism — glassmorphic surface */
+  .glass {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.015) 100%
+    );
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(0, 242, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 30px 60px -30px rgba(0, 27, 58, 0.6);
+  }
+
+  .glass-strong {
+    background: linear-gradient(
+      180deg,
+      rgba(0, 27, 58, 0.5) 0%,
+      rgba(0, 16, 42, 0.65) 100%
+    );
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid rgba(0, 242, 255, 0.12);
+  }
+
+  .navy-radial {
+    background:
+      radial-gradient(ellipse at top, rgba(0, 27, 58, 0.55), transparent 60%),
+      radial-gradient(ellipse at bottom right, rgba(0, 242, 255, 0.08), transparent 55%);
+  }
+
+  .text-electric {
+    color: var(--electric);
+  }
+
+  .border-electric {
+    border-color: var(--electric);
+  }
+
+  .shadow-electric {
+    box-shadow:
+      0 0 0 1px rgba(0, 242, 255, 0.35),
+      0 0 24px -2px rgba(0, 242, 255, 0.55),
+      0 0 48px -8px rgba(0, 242, 255, 0.35);
+  }
+
+  /* Cinematic scanline that loops over leadership headshots */
+  .scanline {
+    position: relative;
+    overflow: hidden;
+  }
+  .scanline::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 49%,
+      rgba(0, 242, 255, 0.55) 50%,
+      transparent 51%,
+      transparent 100%
+    );
+    background-size: 100% 8px;
+    animation: scanline 2.6s linear infinite;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+
+  /* Cyan heartbeat — sticky 1px line at viewport bottom */
+  @keyframes heartbeat {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scaleY(1);
+    }
+    40% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+  }
+
+  @keyframes scanline {
+    0% {
+      background-position: 0 -100%;
+    }
+    100% {
+      background-position: 0 100%;
+    }
+  }
+
+  @keyframes electric-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 0 rgba(0, 242, 255, 0.45),
+        0 0 24px -2px rgba(0, 242, 255, 0.4);
+    }
+    50% {
+      box-shadow:
+        0 0 0 10px rgba(0, 242, 255, 0),
+        0 0 24px -2px rgba(0, 242, 255, 0.6);
+    }
+  }
+
+  .animate-electric-pulse {
+    animation: electric-pulse 2.4s ease-out infinite;
   }
 }

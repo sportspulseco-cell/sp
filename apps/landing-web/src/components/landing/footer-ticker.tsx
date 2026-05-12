@@ -10,7 +10,8 @@ const ITEMS = [
   "GLOBAL SCALE",
   "ZERO DOWNTIME",
   "24 LEAGUES ACTIVE",
-  "INFO@SPORTSPULSE.IO"
+  "INFO@SPORTSPULSE.US",
+  "+1 669-309-7426"
 ];
 
 export function FooterTicker() {

@@ -8,9 +8,9 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@/components/ui/reveal";
 
 const BULLETS = [
-  "Real-time availability matching",
-  "Credential & certification verified",
-  "Push confirmation in < 4 minutes"
+  "Eligible backups identified in sub-5 seconds",
+  "Officials credential & certification verified",
+  "The game never stops"
 ];
 
 type Phase = "alert" | "matching" | "filled";
@@ -30,14 +30,14 @@ export function SectionSubEngine() {
           </Reveal>
           <Reveal delay={0.05}>
             <h2 className="mt-5 text-[clamp(36px,5vw,64px)] font-semibold leading-[1.04] tracking-tighter text-balance text-fg">
-              We don't just alert you. We fill the gap.
+              We don't just alert you to gaps. <span className="text-electric">We fill them.</span>
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-fg-muted">
-              When a player or referee drops out, our automated substitution
-              engine scans verified replacements and confirms coverage — in
-              minutes, not days.
+              Our automated substitution and referee module identifies
+              eligible backups and officials in sub-5 seconds, ensuring the
+              game never stops.
             </p>
           </Reveal>
           <Reveal delay={0.16}>
