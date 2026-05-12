@@ -172,7 +172,7 @@ export function DivisionPendingApplications({
                   />
                   <Stat
                     label="Applied"
-                    value={new Date(t.createdAt).toLocaleDateString(undefined, {
+                    value={new Date(t.createdAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric"
