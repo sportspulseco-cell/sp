@@ -605,8 +605,10 @@ export function RegistrationFunnel({
 }
 
 function fmtDate(s: string) {
+  // Pin to en-US so SSR (Node locale) and client (browser locale) agree;
+  // a mismatch here triggers a hydration warning on every funnel mount.
   try {
-    return new Date(s).toLocaleDateString(undefined, {
+    return new Date(s).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric"

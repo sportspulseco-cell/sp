@@ -19,7 +19,7 @@ import {
   Matches,
   MinLength
 } from "class-validator";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import {
   assertValidTransition,
   isRegistrationState,
@@ -149,14 +149,14 @@ export class PublicRegistrationController {
             "season_registration"
           ),
           sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR ${schema.registrationForms.scope} = 'league')`,
-          sql`${schema.registrationForms.activeVersionId} IS NOT NULL`,
-          sql`${schema.registrationForms.deletedAt} IS NULL`
+          isNotNull(schema.registrationForms.activeVersionId),
+          isNull(schema.registrationForms.deletedAt)
         )
       )
       .where(
         and(
-          sql`${schema.seasons.registrationOpensAt} <= ${now}`,
-          sql`${schema.seasons.registrationClosesAt} >= ${now}`,
+          lte(schema.seasons.registrationOpensAt, now),
+          gte(schema.seasons.registrationClosesAt, now),
           sql`${schema.seasons.status} IN ('draft','registration_open')`
         )
       )

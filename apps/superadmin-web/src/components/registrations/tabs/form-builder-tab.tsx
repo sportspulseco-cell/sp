@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Upload } from "lucide-react";
+import { Download, ExternalLink, Upload } from "lucide-react";
 import {
   emptyFormDefinition,
   type FormDefinition
@@ -65,6 +65,18 @@ export function FormBuilderTab({ seasonId }: { seasonId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href={`${
+              process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app"
+            }/register/${seasonId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[11px] font-mono uppercase tracking-widest text-white hover:bg-emerald-700"
+            title="Open the live wizard exactly as a player would see it"
+          >
+            <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Open live wizard
+          </a>
           <Button type="button" variant="ghost" onClick={exportJson}>
             <Download className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
             Export JSON
