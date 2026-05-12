@@ -124,6 +124,166 @@ Status legend:
 
 ---
 
+## 9. Features yet to be implemented
+
+Status legend in this section:
+- ⏳ scaffolded — schema and/or routes exist but the engine that makes them useful is missing
+- ❌ not started — no real wiring (stub UI or placeholder seam only)
+
+### 9.1 Scheduler / scheduling engine ⏳
+
+Player-web `/schedule` and admin `/games` already render games and let an admin CRUD individual rows, but there is no engine that lays out a full season's schedule for a captain or admin.
+
+| What's there | What's missing |
+|---|---|
+| `games` schema + status enum + `gameOps.*` SDK methods | Automated round-robin / bracket schedule generation per division |
+| `venueName` + `surfaceLabel` strings on each game | Venue / slot inventory model (current `venueName` is freeform text) |
+| Game CRUD UI ([`/games`](apps/superadmin-web/src/app/(admin)/games/page.tsx)) | Conflict detection (team double-booked, venue clash, ref clash) |
+| iCal export e2e test (`tests/e2e/workflows/schedule-ical-export.spec.ts`) | Reschedule flow (move one game, cascade notifications, re-check availability) |
+| | Captain / ref availability calendars feeding into the engine |
+
+**Implementation plan** (when picked up):
+- Add `venues` + `venue_slots` tables (slot = venue + surface + start_ts + duration); index on `(venue_id, start_ts)` for fast clash checks.
+- New module `modules/scheduling/`: domain entity `Schedule`, algorithms `roundRobin` / `splitSquads`, conflict resolver against slots + team blackouts.
+- Schedule a season → fans out into `games` rows + queues `game.scheduled` notifications via the existing communications module.
+- Reschedule = soft-archive + recreate; cascade via `notifications.SUB_INVOICE_REMINDER`-style fan-out (template `game.rescheduled` already in catalog).
+
+### 9.2 Game operations / live scoring 🟡
+
+Event-log infra is live; the operator UI is not.
+
+| Live | Missing |
+|---|---|
+| `game_events` append-only log (type, period, clock, attributes JSONB) | Live scoreboard / scorekeeper app (period clock UI, score entry buttons, sub tracking) |
+| `ProjectStatsHandler` rebuilds `stat_lines` from events | Real-time game-state delivery (WS / SSE / poll) |
+| `gameOps.finalize()` API | "Confirm result" UX with two-officials co-sign |
+
+### 9.3 Officials / referees 🟡
+
+Schema exists, scheduling and payroll do not.
+
+| Live | Missing |
+|---|---|
+| `game_officials` table (role, slot, confirmation status) + assignment handlers | Ref availability calendar |
+| `suspensions` table + handlers | Ref scheduling UI (filter available refs per game, send invites, track confirms) |
+| `referee_payroll` invoice type recognised in finance schema | Ref payroll calculator + invoice generation flow |
+| | "Cannot assign while suspended" enforcement on assignment |
+
+### 9.4 Communications — real providers 🟡
+
+Template editor and notification outbox are live; nothing actually sends.
+
+| Live | Missing |
+|---|---|
+| 75+ template codes in [`catalog.ts`](apps/superadmin-api/src/modules/communications/domain/templates/catalog.ts) | Real email provider (SendGrid / SES / SMTP) — currently `ConsoleProvider` only |
+| Per-org template overrides UI | SMS provider (Twilio) |
+| `notifications` queue + delivery logs | Push (Firebase Cloud Messaging) for native shells |
+| | Notification preference centre per user (channel × event opt-in) |
+| | Retry scheduler for `status='failed'` rows |
+
+### 9.5 Real Stripe ❌
+
+Mock seam in place; flip the binding in one place to swap.
+
+- **Seam**: [`PaymentProcessor`](apps/superadmin-api/src/shared/payments/payment-processor.ts) interface; `MockPaymentProcessor` always succeeds unless `mockOutcome: "failed"`.
+- **To swap**: add `StripePaymentProcessor`, register in [`finance.module.ts`](apps/superadmin-api/src/modules/finance/finance.module.ts) behind `PAYMENT_PROCESSOR` token. Already-built call sites (`finance.refundSplit`, `captain-dues.coverOutstanding`, `recordPayment`) all flow through the seam.
+- **Also needed**: Stripe webhook ingestion (`payment_intent.succeeded`, `charge.refunded`), 3DS/SCA `requires_action` handling, idempotency-key tracking, card-token surface on the player payments dialog (currently a Stripe-Elements stub).
+
+### 9.6 QuickBooks sync ⏳
+
+Schema + read-only log UI live; no OAuth, no worker.
+
+| Live | Missing |
+|---|---|
+| `quickbooks_sync_logs` schema, list endpoint, read-only UI on `/payments` | Intuit OAuth 2.0 connect flow (per-org) |
+| Manual "retry" POST | Cron / queue worker to process `queued → syncing → succeeded` |
+| | Auto-enqueue: `invoice.created` / `payment.recorded` / `refund.issued` writing a sync log |
+| | Pull-back: reconcile QB-side paid status into our `invoices.status` |
+
+### 9.7 Tournaments / brackets ⏳
+
+Playoff JSONB on `divisions` exists; nothing generates a bracket.
+
+| Live | Missing |
+|---|---|
+| `divisions.playoff_config` JSONB (enabled, spots, dates, series format, bracket type) | Bracket generation algorithm (single-elim, double-elim, round-robin playoff) |
+| `leagues.format = 'tournament'` enum value | Series tracking (best-of-N progress, game dependencies) |
+| Playoff-eligibility checks on roster (min games played) | Auto-advancement (winner of series N feeds into series N+1) |
+| | Tournament container model (current schema = season has divisions; separate tournament concept is undefined) |
+| | Bracket visualisation UI |
+
+### 9.8 Team store / merch ❌
+
+`/store` route is a placeholder.
+
+- **Live**: route mounted, EmptyState renders Shopify-integration messaging.
+- **Missing**: Shopify OAuth + product sync, cart/checkout, order tracking, per-org store binding. No merch tables in `packages/db`.
+
+### 9.9 Free-agent pool — finish wiring 🟡
+
+CRUD + claim button live; downstream effects missing.
+
+- Claim doesn't fire a notification to the player (template code is in catalog but not triggered).
+- Claim doesn't add the player to the team's roster — admin/captain has to do it manually.
+- No "season ended → auto-withdraw active entries" job.
+- No dedup guard for "same player listing twice in same season".
+
+### 9.10 Multi-sport rule engine ⏳
+
+Hockey is implicit; everything else is just JSONB.
+
+| Live | Missing |
+|---|---|
+| `leagues.rule_set_id` + `divisions.rule_set_overrides` JSONB | Sport-agnostic stat schema (`stat_lines.core` is hockey-shaped) |
+| `sports` table with USA Hockey seed | Rule packs for soccer / basketball / rugby (event types, period config, OT rules) |
+| | Validation engine that rejects events not in the sport's vocabulary |
+
+### 9.11 i18n / translations ⏳
+
+JSONB columns are ready; the platform UI is hardcoded English.
+
+| Live | Missing |
+|---|---|
+| `leagues.name_translations`, `age_groups.name_translations`, `teams.name_translations` JSONB | Locale picker in the UI shells |
+| `notification_templates.locale` column | Translation management UI (admin /admin/i18n editor) |
+| | Locale-aware middleware to serve `es` / `fr` variants of pages |
+
+### 9.12 Reports / analytics 🟡
+
+CSV exports live; no dashboard, no scheduling.
+
+| Live | Missing |
+|---|---|
+| `/reports` superadmin route | Charts / metrics / trend dashboard (revenue, AR aging trend, registrations over time) |
+| Standings / rosters / registrations CSV | Email-scheduled reports ("weekly standings to commissioners") |
+| | League-scoped reports on league-admin-web (mirror of superadmin /reports, scope-filtered) |
+| | Compliance + ref-payroll + revenue export types |
+
+### 9.13 Sport-agnostic registration funnel polish 🟡
+
+Already shipped; the gaps that remain show up under specific runtimes.
+
+- File-upload waiver storage (currently text-only; PDF upload + e-sign capture deferred).
+- Conditional logic editor in form-builder is keyed-and-versioned but admin UX is keyboard-only — no drag-handle reorder yet.
+- Funnel cannot resume from a saved draft for a *different* device session (draft is keyed on personId so it works across devices, but the resume CTA is only on player-web — no email link).
+
+---
+
+## 10. Top of the backlog (rough ranking)
+
+If asked "what should I build next?", in priority order:
+
+1. **Real email provider** (SendGrid / SES). Captains apply → admin gets nothing because `ConsoleProvider` only logs. The single biggest "looks broken" issue.
+2. **Real Stripe**. Trivial to swap (one provider class) and unblocks every collected-cents counter on the platform.
+3. **Scheduler engine + venue/slot model**. Largest user-facing gap; everyone hand-rolls game rows today.
+4. **Scorekeeper app** (or admin sub-route) for live scoring. Without it, stats can be projected but only by manual `game_events` POSTs.
+5. **QB sync worker**. Schema and admin UI are ready; just needs OAuth + a worker.
+6. **Brackets**. Playoff JSONB is sitting there; one Sprint to build the elim/round-robin generator + visualiser.
+7. **Notification preferences + retry scheduler**. Per-user opt-in/out across channels.
+8. **i18n delivery layer** (next-intl style). All schema is i18n-ready; the UI isn't.
+
+---
+
 ## Local dev contract (for verifying against the matrix)
 
 | App | Port | env override |
