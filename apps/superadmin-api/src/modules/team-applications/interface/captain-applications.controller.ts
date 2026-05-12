@@ -119,7 +119,7 @@ export class CaptainApplicationsController {
       );
     const blockedSeasons = new Set(teamEntries.map((r) => r.seasonId));
 
-    // Count available divisions per season.
+    // Count active divisions + active team entries per season.
     const seasonIds = seasons.map((s) => s.seasonId);
     const divisionCounts = await this.db
       .select({
@@ -136,6 +136,32 @@ export class CaptainApplicationsController {
       .groupBy(schema.divisions.seasonId);
     const byDivCount = new Map(divisionCounts.map((r) => [r.seasonId, r.count]));
 
+    // Total teams registered (any non-withdrawn/rejected) per season.
+    // Powers the "12 teams registered" stat on season cards (mock 1).
+    const teamCounts = await this.db
+      .select({
+        seasonId: schema.divisions.seasonId,
+        count: sql<number>`COUNT(*)::int`
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .where(
+        and(
+          inArray(schema.divisions.seasonId, seasonIds),
+          inArray(schema.divisionTeamEntries.entryStatus, [
+            "pending_approval",
+            "applied",
+            "accepted",
+            "confirmed"
+          ])
+        )
+      )
+      .groupBy(schema.divisions.seasonId);
+    const byTeamCount = new Map(teamCounts.map((r) => [r.seasonId, r.count]));
+
     return {
       items: seasons
         .filter((s) => !blockedSeasons.has(s.seasonId))
@@ -146,7 +172,10 @@ export class CaptainApplicationsController {
           leagueName: s.leagueName,
           registrationOpensAt: s.registrationOpensAt?.toISOString() ?? null,
           registrationClosesAt: s.registrationClosesAt?.toISOString() ?? null,
-          availableDivisions: byDivCount.get(s.seasonId) ?? 0
+          startDate: s.startDate ?? null,
+          endDate: s.endDate ?? null,
+          availableDivisions: byDivCount.get(s.seasonId) ?? 0,
+          teamsRegistered: byTeamCount.get(s.seasonId) ?? 0
         }))
     };
   }
@@ -170,10 +199,16 @@ export class CaptainApplicationsController {
         entryStatus: schema.divisionTeamEntries.entryStatus,
         createdAt: schema.divisionTeamEntries.createdAt,
         metadata: schema.divisionTeamEntries.metadata,
+        thresholdCents: schema.divisionTeamEntries.confirmationThresholdCents,
+        collectedCents: schema.divisionTeamEntries.collectedCents,
         divisionId: schema.divisions.id,
         divisionName: schema.divisions.name,
+        divisionMaxTeams: schema.divisions.maxTeams,
         seasonId: schema.divisions.seasonId,
         seasonName: schema.seasons.name,
+        seasonStartDate: schema.seasons.startDate,
+        seasonEndDate: schema.seasons.endDate,
+        registrationClosesAt: schema.seasons.registrationClosesAt,
         leagueName: schema.leagues.name
       })
       .from(schema.divisionTeamEntries)
@@ -192,11 +227,55 @@ export class CaptainApplicationsController {
       .where(eq(schema.divisionTeamEntries.teamId, teamId))
       .orderBy(desc(schema.divisionTeamEntries.createdAt))
       .limit(50);
+
+    if (rows.length === 0) return { items: [] };
+
+    // Resolve fee per division (active tier — per-division override, else season-wide).
+    const seasonIds = Array.from(new Set(rows.map((r) => r.seasonId)));
+    const tiers = await this.db
+      .select()
+      .from(schema.pricingTiers)
+      .where(
+        and(
+          inArray(schema.pricingTiers.seasonId, seasonIds),
+          eq(schema.pricingTiers.isActive, true)
+        )
+      );
+    function feeFor(seasonId: string, divisionId: string) {
+      const perDiv = tiers.find(
+        (t) => t.seasonId === seasonId && t.divisionId === divisionId
+      );
+      const seasonWide = tiers.find(
+        (t) => t.seasonId === seasonId && !t.divisionId
+      );
+      const t = perDiv ?? seasonWide;
+      if (!t) return null;
+      return { fullPriceCents: t.fullPriceCents, currency: t.currency };
+    }
+
     return {
-      items: rows.map((r) => ({
-        ...r,
-        createdAt: r.createdAt.toISOString()
-      }))
+      items: rows.map((r) => {
+        const fee = feeFor(r.seasonId, r.divisionId);
+        return {
+          id: r.id,
+          entryStatus: r.entryStatus,
+          createdAt: r.createdAt.toISOString(),
+          metadata: r.metadata as Record<string, unknown>,
+          thresholdCents: r.thresholdCents ?? 0,
+          collectedCents: r.collectedCents ?? 0,
+          divisionId: r.divisionId,
+          divisionName: r.divisionName,
+          divisionMaxTeams: r.divisionMaxTeams ?? null,
+          seasonId: r.seasonId,
+          seasonName: r.seasonName,
+          seasonStartDate: r.seasonStartDate ?? null,
+          seasonEndDate: r.seasonEndDate ?? null,
+          registrationClosesAt: r.registrationClosesAt?.toISOString() ?? null,
+          leagueName: r.leagueName,
+          feeCents: fee?.fullPriceCents ?? null,
+          currency: fee?.currency ?? null
+        };
+      })
     };
   }
 

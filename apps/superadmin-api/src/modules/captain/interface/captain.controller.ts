@@ -266,7 +266,15 @@ export class CaptainController {
     @CurrentUser() _user: AuthPrincipal,
     @Query("seasonId") seasonId: string
   ): Promise<{
-    season: { id: string; name: string; registrationClosesAt: string | null };
+    season: {
+      id: string;
+      name: string;
+      registrationClosesAt: string | null;
+      startDate: string | null;
+      endDate: string | null;
+      teamsRegistered: number;
+      maxRosterSize: number | null;
+    };
     items: Array<{
       id: string;
       name: string;
@@ -274,6 +282,9 @@ export class CaptainController {
       genderEligibility: string;
       maxTeams: number | null;
       currentTeamCount: number;
+      ageGroupLabel: string | null;
+      gamesCount: number | null;
+      perPlayerCostCents: number | null;
       pricing: {
         tierId: string;
         name: string;
@@ -292,12 +303,20 @@ export class CaptainController {
       .select({
         id: schema.seasons.id,
         name: schema.seasons.name,
-        registrationClosesAt: schema.seasons.registrationClosesAt
+        registrationClosesAt: schema.seasons.registrationClosesAt,
+        startDate: schema.seasons.startDate,
+        endDate: schema.seasons.endDate,
+        config: schema.seasons.config
       })
       .from(schema.seasons)
       .where(eq(schema.seasons.id, seasonId))
       .limit(1);
     if (!season) throw new NotFoundException("Season not found");
+
+    const cfg = (season.config as { maxRosterSize?: number }) ?? {};
+    // Hockey defaults to ~14 if admin hasn't set it; per-player cost
+    // is purely an *advertised* number, so a sane default beats null.
+    const maxRosterSize = cfg.maxRosterSize ?? 14;
 
     const divs = await this.db
       .select({
@@ -305,7 +324,9 @@ export class CaptainController {
         name: schema.divisions.name,
         tier: schema.divisions.tier,
         genderEligibility: schema.divisions.genderEligibility,
-        maxTeams: schema.divisions.maxTeams
+        maxTeams: schema.divisions.maxTeams,
+        ageGroupId: schema.divisions.ageGroupId,
+        ruleSetOverrides: schema.divisions.ruleSetOverrides
       })
       .from(schema.divisions)
       .where(eq(schema.divisions.seasonId, seasonId));
@@ -316,7 +337,11 @@ export class CaptainController {
           id: season.id,
           name: season.name,
           registrationClosesAt:
-            season.registrationClosesAt?.toISOString() ?? null
+            season.registrationClosesAt?.toISOString() ?? null,
+          startDate: season.startDate ?? null,
+          endDate: season.endDate ?? null,
+          teamsRegistered: 0,
+          maxRosterSize
         },
         items: []
       };
@@ -340,6 +365,22 @@ export class CaptainController {
       )
       .groupBy(schema.divisionTeamEntries.divisionId);
     const countByDiv = new Map(counts.map((c) => [c.divisionId, c.count]));
+    const teamsRegistered = Array.from(countByDiv.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
+
+    // Age-group labels (one round-trip, only if any division references one).
+    const ageGroupIds = Array.from(
+      new Set(divs.map((d) => d.ageGroupId).filter((x): x is string => !!x))
+    );
+    const ageGroupRows = ageGroupIds.length
+      ? await this.db
+          .select({ id: schema.ageGroups.id, label: schema.ageGroups.label })
+          .from(schema.ageGroups)
+          .where(inArray(schema.ageGroups.id, ageGroupIds))
+      : [];
+    const ageGroupLabel = new Map(ageGroupRows.map((a) => [a.id, a.label]));
 
     // Pricing tiers — fetch all season-level tiers and per-division tiers,
     // then resolve the active tier per division.
@@ -375,17 +416,35 @@ export class CaptainController {
         id: season.id,
         name: season.name,
         registrationClosesAt:
-          season.registrationClosesAt?.toISOString() ?? null
+          season.registrationClosesAt?.toISOString() ?? null,
+        startDate: season.startDate ?? null,
+        endDate: season.endDate ?? null,
+        teamsRegistered,
+        maxRosterSize
       },
-      items: divs.map((d) => ({
-        id: d.id,
-        name: d.name,
-        tier: d.tier ?? null,
-        genderEligibility: d.genderEligibility ?? "open",
-        maxTeams: d.maxTeams ?? null,
-        currentTeamCount: countByDiv.get(d.id) ?? 0,
-        pricing: pricingFor(d.id)
-      }))
+      items: divs.map((d) => {
+        const pricing = pricingFor(d.id);
+        const rules =
+          (d.ruleSetOverrides as { gamesPerSeason?: number; totalGames?: number }) ??
+          {};
+        const gamesCount = rules.gamesPerSeason ?? rules.totalGames ?? null;
+        const perPlayerCostCents =
+          pricing && maxRosterSize
+            ? Math.round(pricing.fullPriceCents / maxRosterSize)
+            : null;
+        return {
+          id: d.id,
+          name: d.name,
+          tier: d.tier ?? null,
+          genderEligibility: d.genderEligibility ?? "open",
+          maxTeams: d.maxTeams ?? null,
+          currentTeamCount: countByDiv.get(d.id) ?? 0,
+          ageGroupLabel: d.ageGroupId ? ageGroupLabel.get(d.ageGroupId) ?? null : null,
+          gamesCount,
+          perPlayerCostCents,
+          pricing
+        };
+      })
     };
   }
 

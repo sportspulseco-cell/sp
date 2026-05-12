@@ -1972,6 +1972,10 @@ export function createApi(f: Fetcher) {
             id: string;
             name: string;
             registrationClosesAt: string | null;
+            startDate: string | null;
+            endDate: string | null;
+            teamsRegistered: number;
+            maxRosterSize: number | null;
           };
           items: Array<{
             id: string;
@@ -1980,6 +1984,9 @@ export function createApi(f: Fetcher) {
             genderEligibility: string;
             maxTeams: number | null;
             currentTeamCount: number;
+            ageGroupLabel: string | null;
+            gamesCount: number | null;
+            perPlayerCostCents: number | null;
             pricing: {
               tierId: string;
               name: string;
@@ -2046,7 +2053,10 @@ export function createApi(f: Fetcher) {
             leagueName: string;
             registrationOpensAt: string | null;
             registrationClosesAt: string | null;
+            startDate: string | null;
+            endDate: string | null;
             availableDivisions: number;
+            teamsRegistered: number;
           }>;
         }>(`/captain/open-seasons${qs({ teamId })}`),
       myApplications: (teamId: string) =>
@@ -2056,11 +2066,19 @@ export function createApi(f: Fetcher) {
             entryStatus: string;
             createdAt: string;
             metadata: Record<string, unknown>;
+            thresholdCents: number;
+            collectedCents: number;
             divisionId: string;
             divisionName: string;
+            divisionMaxTeams: number | null;
             seasonId: string;
             seasonName: string;
+            seasonStartDate: string | null;
+            seasonEndDate: string | null;
+            registrationClosesAt: string | null;
             leagueName: string;
+            feeCents: number | null;
+            currency: string | null;
           }>;
         }>(`/captain/applications${qs({ teamId })}`),
       applyToSeason: (body: {

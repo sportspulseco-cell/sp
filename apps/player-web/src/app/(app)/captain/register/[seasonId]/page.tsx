@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert, Sparkles } from "lucide-react";
+import { CalendarRange, ChevronRight, ShieldAlert, Sparkles, Users } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { captain, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -38,24 +38,45 @@ export default async function CaptainSeasonDetailPage({
     );
   }
 
+  const { season } = divs;
+  const range = formatSeasonRange(season.startDate, season.endDate);
+
   return (
     <div className="space-y-6">
-      <Link
-        href="/captain/register"
-        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3 w-3" /> Back
-      </Link>
+      <nav className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
+        <Link href="/captain/register" className="hover:text-fg">
+          Register your team
+        </Link>
+        <ChevronRight className="h-3 w-3" strokeWidth={1.75} />
+        <span className="text-fg">{season.name}</span>
+      </nav>
 
       <PageHeader
-        eyebrow={`// ${divs.season.name}`}
-        title="Choose a division"
-        description={
-          divs.season.registrationClosesAt
-            ? `Registration closes ${new Date(divs.season.registrationClosesAt).toLocaleDateString()}.`
-            : undefined
-        }
+        title={season.name}
+        description="Select a division to apply for. Your application will be reviewed by the league admin before your team is listed."
       />
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-surface-1 px-4 py-3 text-[12px] text-fg-muted">
+        {range && (
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Season: <span className="font-medium text-fg">{range}</span>
+          </span>
+        )}
+        {season.registrationClosesAt && (
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Registration closes:{" "}
+            <span className="font-medium text-fg">
+              {formatDate(season.registrationClosesAt)}
+            </span>
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <span className="font-medium text-fg">{season.teamsRegistered}</span> teams registered so far
+        </span>
+      </div>
 
       <DivisionPicker
         teamId={teamId}
@@ -64,4 +85,30 @@ export default async function CaptainSeasonDetailPage({
       />
     </div>
   );
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function formatSeasonRange(startISO: string | null, endISO: string | null) {
+  if (!startISO || !endISO) return null;
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const fmtShort = (d: Date) =>
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const fmtLong = (d: Date) =>
+    d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  return sameYear
+    ? `${fmtShort(start)} – ${fmtLong(end)}`
+    : `${fmtLong(start)} – ${fmtLong(end)}`;
 }
