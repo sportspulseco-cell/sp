@@ -18,8 +18,13 @@ import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { RolesGuard } from "../../../shared/auth/guards/roles.guard";
+import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { Roles } from "../../../shared/auth/decorators/roles.decorator";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { NotificationService } from "../../communications/application/notification.service";
 
 class RejectBodyDto {
@@ -27,17 +32,20 @@ class RejectBodyDto {
 }
 
 /**
- * Admin review screen — pending team applications.
+ * Admin review — pending team applications.
  *
- * Per the spec: super_admin / org_admin / league_admin can act on
- * applications scoped to their reach. Currently we enforce super_admin
- * only via SuperAdminGuard; finer scoping is a follow-up once the
- * org_admin / league_admin role assignments are wired.
+ * Per spec: super_admin / org_admin / league_admin can act on
+ * applications scoped to their reach. RolesGuard enforces role
+ * membership; row-level scope (league whitelist projected from
+ * org-scoped assignments) is checked inside each handler against the
+ * entry's season.leagueId. Out-of-scope reads return empty + writes
+ * raise 404 so we never leak existence across orgs.
  */
 @ApiTags("admin/applications")
 @ApiBearerAuth()
 @Controller("admin")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, AuthorizedAccessGuard)
+@Roles("super_admin", "org_admin", "league_admin")
 export class AdminApplicationsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -56,7 +64,26 @@ export class AdminApplicationsController {
     summary:
       "Approved teams registered in this division (entry_status IN applied | accepted | confirmed)."
   })
-  async listDivisionTeams(@Param("divisionId") divisionId: string) {
+  async listDivisionTeams(
+    @Param("divisionId") divisionId: string,
+    @UserScope() scope: UserScopeType
+  ) {
+    const [div] = await this.db
+      .select({
+        id: schema.divisions.id,
+        seasonId: schema.divisions.seasonId,
+        leagueId: schema.seasons.leagueId
+      })
+      .from(schema.divisions)
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .where(eq(schema.divisions.id, divisionId))
+      .limit(1);
+    if (!div) throw new NotFoundException("Division not found");
+    this.ensureLeagueInScope(scope, div.leagueId);
+
     const rows = await this.db
       .select({
         entryId: schema.divisionTeamEntries.id,
@@ -102,6 +129,7 @@ export class AdminApplicationsController {
   })
   async listForSeason(
     @Param("seasonId") seasonId: string,
+    @UserScope() scope: UserScopeType,
     @Query("status") status?: string
   ) {
     // Resolve season header + every division (for the filter dropdown
@@ -110,12 +138,14 @@ export class AdminApplicationsController {
       .select({
         id: schema.seasons.id,
         name: schema.seasons.name,
+        leagueId: schema.seasons.leagueId,
         registrationClosesAt: schema.seasons.registrationClosesAt
       })
       .from(schema.seasons)
       .where(eq(schema.seasons.id, seasonId))
       .limit(1);
     if (!season) throw new NotFoundException("Season not found");
+    this.ensureLeagueInScope(scope, season.leagueId);
 
     const divisions = await this.db
       .select({
@@ -251,15 +281,18 @@ export class AdminApplicationsController {
   }
 
   @Post("division-team-entries/:id/approve")
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Approve an application. Transitions entry_status pending_approval → applied. Captain is notified with a link to the rollover wizard for dues + roster setup."
   })
   async approve(
     @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType,
     @Param("id") entryId: string
   ) {
     const ctx = await this.loadEntry(entryId);
+    this.ensureLeagueInScope(scope, ctx.leagueId);
     if (ctx.entryStatus !== "pending_approval") {
       throw new ConflictException({
         error: "not_pending",
@@ -288,16 +321,19 @@ export class AdminApplicationsController {
   }
 
   @Post("division-team-entries/:id/reject")
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Reject a pending_approval application. Reason is required (min 10 chars). Captain is notified with the reason and can re-apply to a different division. No invoices to void at this stage — the wizard hasn't run yet."
   })
   async reject(
     @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType,
     @Param("id") entryId: string,
     @Body() body: RejectBodyDto
   ) {
     const ctx = await this.loadEntry(entryId);
+    this.ensureLeagueInScope(scope, ctx.leagueId);
     if (ctx.entryStatus !== "pending_approval") {
       throw new ConflictException({
         error: "not_pending",
@@ -347,7 +383,8 @@ export class AdminApplicationsController {
         divisionId: schema.divisions.id,
         divisionName: schema.divisions.name,
         seasonId: schema.divisions.seasonId,
-        seasonName: schema.seasons.name
+        seasonName: schema.seasons.name,
+        leagueId: schema.seasons.leagueId
       })
       .from(schema.divisionTeamEntries)
       .innerJoin(
@@ -366,5 +403,19 @@ export class AdminApplicationsController {
       .limit(1);
     if (!row) throw new NotFoundException("Application not found");
     return row;
+  }
+
+  /**
+   * Row-level scope gate. Super-admins and platform-scoped principals
+   * have `leagueIds === null` (unrestricted). Everyone else carries a
+   * whitelist projected from their role assignments — including the
+   * league set under any org-scoped role. Out-of-scope resources are
+   * surfaced as 404 to avoid leaking existence across orgs.
+   */
+  private ensureLeagueInScope(scope: UserScopeType, leagueId: string) {
+    if (scope.isSuperAdmin || scope.leagueIds === null) return;
+    if (!scope.leagueIds.includes(leagueId)) {
+      throw new NotFoundException("Application not found");
+    }
   }
 }
