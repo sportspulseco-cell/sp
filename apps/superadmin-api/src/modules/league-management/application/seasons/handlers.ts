@@ -1,5 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import {
   clampLimit,
   NotFoundError,
@@ -14,6 +17,7 @@ import { SeasonId } from "../../domain/identifiers";
 import { Season } from "../../domain/entities/season.entity";
 import { assertSeasonStatus } from "../../domain/value-objects/season-status.vo";
 import { SeasonDto, SeasonPageDto } from "../dtos/season.dto";
+import { DRIZZLE } from "../../../../shared/database/database.tokens";
 
 // ---------- Queries ----------
 
@@ -185,13 +189,35 @@ export interface ChangeSeasonStatusInput {
 export class ChangeSeasonStatusHandler
   implements CommandHandler<ChangeSeasonStatusInput, SeasonDto>
 {
-  constructor(@Inject(SEASON_REPOSITORY) private readonly seasons: SeasonRepository) {}
+  constructor(
+    @Inject(SEASON_REPOSITORY) private readonly seasons: SeasonRepository,
+    @Inject(DRIZZLE) private readonly db: Database
+  ) {}
 
   async execute(input: ChangeSeasonStatusInput): Promise<SeasonDto> {
     const season = await this.seasons.findById(SeasonId.of(input.id));
     if (!season) throw new NotFoundError("Season", input.id);
     season.changeStatus(assertSeasonStatus(input.status));
     await this.seasons.save(season);
+
+    // Side effect: when a season is opened for registration, flip every
+    // configured pricing tier under it to is_active=true. Tiers are
+    // created in 'draft' (is_active=false) by the form builder so admins
+    // can configure them privately; the status flip is the publish
+    // signal. Without this, captains see "No pricing tier configured"
+    // even though the season is live.
+    if (input.status === "registration_open") {
+      await this.db
+        .update(schema.pricingTiers)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.pricingTiers.seasonId, input.id),
+            eq(schema.pricingTiers.isActive, false)
+          )
+        );
+    }
+
     return SeasonDto.fromDomain(season);
   }
 }

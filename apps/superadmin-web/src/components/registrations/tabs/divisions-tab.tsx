@@ -54,9 +54,16 @@ export function DivisionsTab({
 }
 
 function SeasonConfigPanel({ season }: { season: Season }) {
-  const [config, setConfig] = useState<SeasonConfig>(
-    resolveSeasonConfig(season.config as SeasonConfig | undefined)
-  );
+  // Seed rosterLockAt from the seasons.roster_lock_at column when
+  // the JSONB config key is empty — the column is the runtime source
+  // of truth (set during season creation), the JSONB key is a mirror
+  // that older flows leave behind. <input type="datetime-local">
+  // expects "YYYY-MM-DDTHH:mm", so trim the timezone suffix.
+  const initial = resolveSeasonConfig(season.config as SeasonConfig | undefined);
+  if (!initial.rosterLockAt && season.rosterLockAt) {
+    initial.rosterLockAt = toDatetimeLocal(season.rosterLockAt);
+  }
+  const [config, setConfig] = useState<SeasonConfig>(initial);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -71,9 +78,23 @@ function SeasonConfigPanel({ season }: { season: Season }) {
     setError(null);
     setFlash(null);
     try {
-      await leagueMgmt.updateSeasonConfig(season.id, {
-        [key]: value
-      } as never);
+      if (key === "rosterLockAt") {
+        // rosterLockAt lives on the seasons.roster_lock_at column —
+        // patch the column directly so date queries (roster lock
+        // enforcement) see the value. The JSONB mirror is kept in sync
+        // by the same call below.
+        const iso = value
+          ? new Date(value as string).toISOString()
+          : null;
+        await leagueMgmt.updateSeason(season.id, { rosterLockAt: iso });
+        await leagueMgmt.updateSeasonConfig(season.id, {
+          rosterLockAt: (value as string) ?? undefined
+        } as never);
+      } else {
+        await leagueMgmt.updateSeasonConfig(season.id, {
+          [key]: value
+        } as never);
+      }
       setFlash(`Saved · ${String(key)}`);
     } catch (e) {
       setConfig((c) => ({ ...c, [key]: prev }));
@@ -81,6 +102,17 @@ function SeasonConfigPanel({ season }: { season: Season }) {
     } finally {
       setSaving(null);
     }
+  }
+
+  function toDatetimeLocal(iso: string): string {
+    // ISO timestamp → "YYYY-MM-DDTHH:mm" in local time (what the
+    // datetime-local input renders / emits).
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    );
   }
 
   return (
