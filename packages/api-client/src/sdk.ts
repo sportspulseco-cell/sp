@@ -119,6 +119,29 @@ export function createApi(f: Fetcher) {
         } = {}
       ) => f<Page<Profile>>(`/iam/users${qs(q)}`),
       getUser: (id: string) => f<Profile>(`/iam/users/${id}`),
+      userMemberships: (id: string) =>
+        f<{
+          items: Array<{
+            membershipId: string;
+            teamId: string;
+            teamName: string;
+            teamShortName: string | null;
+            orgId: string;
+            orgName: string;
+            seasonId: string;
+            seasonName: string;
+            seasonStatus: string;
+            divisionId: string | null;
+            divisionName: string | null;
+            divisionEntryStatus: string | null;
+            membershipType: string;
+            jerseyNumber: number | null;
+            positionCode: string | null;
+            currentStatus: string;
+            effectiveFrom: string;
+            effectiveTo: string | null;
+          }>;
+        }>(`/iam/users/${id}/memberships`),
       updateUser: (
         id: string,
         body: {

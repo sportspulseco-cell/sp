@@ -10,7 +10,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -188,6 +188,151 @@ export class IamController {
   @ApiOperation({ summary: "Get a user's profile (super admin only)" })
   async getOne(@Param("id") id: string): Promise<ProfileDto> {
     return this.getCurrentUser.execute({ userId: id });
+  }
+
+  @Get("users/:id/memberships")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Team memberships for a user — every team_memberships row joined through persons.user_id, enriched with team / org / season / division names so the user detail page can show 'which teams + divisions is this person on'."
+  })
+  async memberships(@Param("id") id: string): Promise<{
+    items: Array<{
+      membershipId: string;
+      teamId: string;
+      teamName: string;
+      teamShortName: string | null;
+      orgId: string;
+      orgName: string;
+      seasonId: string;
+      seasonName: string;
+      seasonStatus: string;
+      divisionId: string | null;
+      divisionName: string | null;
+      divisionEntryStatus: string | null;
+      membershipType: string;
+      jerseyNumber: number | null;
+      positionCode: string | null;
+      currentStatus: string;
+      effectiveFrom: string;
+      effectiveTo: string | null;
+    }>;
+  }> {
+    // Resolve the person record bound to this auth user. Without a
+    // person row we have no roster footprint, so return empty.
+    const [person] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, id))
+      .limit(1);
+    if (!person) return { items: [] };
+
+    const rows = await this.db
+      .select({
+        membershipId: schema.teamMemberships.id,
+        membershipType: schema.teamMemberships.membershipType,
+        jerseyNumber: schema.teamMemberships.jerseyNumber,
+        positionCode: schema.teamMemberships.positionCode,
+        currentStatus: schema.teamMemberships.currentStatus,
+        effectiveFrom: schema.teamMemberships.effectiveFrom,
+        effectiveTo: schema.teamMemberships.effectiveTo,
+        teamId: schema.teams.id,
+        teamName: schema.teams.name,
+        teamShortName: schema.teams.shortName,
+        orgId: schema.teams.orgId,
+        orgName: schema.orgs.displayName,
+        seasonId: schema.seasons.id,
+        seasonName: schema.seasons.name,
+        seasonStatus: schema.seasons.status
+      })
+      .from(schema.teamMemberships)
+      .innerJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.teamMemberships.teamId)
+      )
+      .innerJoin(schema.orgs, eq(schema.orgs.id, schema.teams.orgId))
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.teamMemberships.seasonId)
+      )
+      .where(eq(schema.teamMemberships.personId, person.id))
+      .orderBy(desc(schema.teamMemberships.effectiveFrom));
+
+    if (rows.length === 0) return { items: [] };
+
+    // Resolve the division the team played in per season via
+    // division_team_entries. A team can have multiple entries per
+    // season in theory; pick the one in the most-progressed status
+    // (confirmed > accepted > applied > pending_approval).
+    const teamIds = Array.from(new Set(rows.map((r) => r.teamId)));
+    const entries = await this.db
+      .select({
+        teamId: schema.divisionTeamEntries.teamId,
+        seasonId: schema.divisions.seasonId,
+        entryStatus: schema.divisionTeamEntries.entryStatus,
+        divisionId: schema.divisions.id,
+        divisionName: schema.divisions.name
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .where(inArray(schema.divisionTeamEntries.teamId, teamIds));
+
+    const STATUS_RANK: Record<string, number> = {
+      confirmed: 4,
+      accepted: 3,
+      applied: 2,
+      pending_approval: 1
+    };
+    const byTeamSeason = new Map<
+      string,
+      {
+        entryStatus: string;
+        divisionId: string;
+        divisionName: string;
+      }
+    >();
+    for (const e of entries) {
+      const key = `${e.teamId}::${e.seasonId}`;
+      const current = byTeamSeason.get(key);
+      const rank = STATUS_RANK[e.entryStatus] ?? 0;
+      if (!current || rank > (STATUS_RANK[current.entryStatus] ?? 0)) {
+        byTeamSeason.set(key, {
+          entryStatus: e.entryStatus,
+          divisionId: e.divisionId,
+          divisionName: e.divisionName
+        });
+      }
+    }
+
+    return {
+      items: rows.map((r) => {
+        const key = `${r.teamId}::${r.seasonId}`;
+        const entry = byTeamSeason.get(key) ?? null;
+        return {
+          membershipId: r.membershipId,
+          teamId: r.teamId,
+          teamName: r.teamName,
+          teamShortName: r.teamShortName ?? null,
+          orgId: r.orgId,
+          orgName: r.orgName,
+          seasonId: r.seasonId,
+          seasonName: r.seasonName,
+          seasonStatus: r.seasonStatus,
+          divisionId: entry?.divisionId ?? null,
+          divisionName: entry?.divisionName ?? null,
+          divisionEntryStatus: entry?.entryStatus ?? null,
+          membershipType: r.membershipType,
+          jerseyNumber: r.jerseyNumber ?? null,
+          positionCode: r.positionCode ?? null,
+          currentStatus: r.currentStatus,
+          effectiveFrom: r.effectiveFrom.toISOString(),
+          effectiveTo: r.effectiveTo?.toISOString() ?? null
+        };
+      })
+    };
   }
 
   @Patch("users/:id")

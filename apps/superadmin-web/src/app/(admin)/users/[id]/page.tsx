@@ -1,4 +1,4 @@
-import { ArrowLeft, ShieldCheck, UserCog } from "lucide-react";
+import { ArrowLeft, Building2, ShieldCheck, Trophy, UserCog } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { iam } from "@/lib/api/server-api";
@@ -29,10 +29,11 @@ export default async function UserDetailPage({
 }) {
   const { id } = await params;
 
-  const [user, assignments, roles] = await Promise.all([
+  const [user, assignments, roles, memberships] = await Promise.all([
     iam.getUser(id).catch(() => null),
     iam.activeRolesForUser(id).catch(() => []),
-    iam.listRoles({ limit: 200 }).catch(() => ({ items: [] }))
+    iam.listRoles({ limit: 200 }).catch(() => ({ items: [] })),
+    iam.userMemberships(id).catch(() => ({ items: [] }))
   ]);
   if (!user) notFound();
 
@@ -128,6 +129,87 @@ export default async function UserDetailPage({
                   </p>
                 </div>
                 <RevokeAssignmentButton id={a.id} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Team memberships */}
+      <section className="rounded-xl border border-border bg-surface-1">
+        <header className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div>
+            <Eyebrow>Team memberships</Eyebrow>
+            <p className="mt-1 text-[13px] text-fg-muted">
+              {memberships.items.length} team{memberships.items.length === 1 ? "" : "s"} this user is rostered on, with division + season context.
+            </p>
+          </div>
+        </header>
+        {memberships.items.length === 0 ? (
+          <p className="px-6 py-12 text-center text-sm text-fg-muted">
+            Not on any team rosters. Once a captain adds them via the
+            registration funnel or the roster manager, the team + division
+            will appear here.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {memberships.items.map((m) => (
+              <li key={m.membershipId} className="flex flex-wrap items-center gap-4 px-6 py-3.5">
+                <IconTile icon={Trophy} tint="emerald" size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-fg">
+                    <Link
+                      href={`/teams/${m.teamId}`}
+                      className="hover:underline"
+                    >
+                      {m.teamName}
+                    </Link>
+                    {m.teamShortName && (
+                      <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                        {m.teamShortName}
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                    <Link
+                      href={`/organizations/${m.orgId}`}
+                      className="inline-flex items-center gap-1 hover:text-fg"
+                    >
+                      <Building2 className="h-3 w-3" strokeWidth={1.75} />
+                      {m.orgName}
+                    </Link>
+                    <span aria-hidden>·</span>
+                    <span>{m.seasonName}</span>
+                    {m.divisionName && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="text-fg">{m.divisionName}</span>
+                      </>
+                    )}
+                    {m.jerseyNumber != null && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>#{m.jerseyNumber}</span>
+                      </>
+                    )}
+                    {m.positionCode && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>{m.positionCode}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {m.membershipType !== "primary" && (
+                    <Badge tone="neutral" mono>
+                      {m.membershipType}
+                    </Badge>
+                  )}
+                  <Badge tone={statusTone(m.currentStatus)} mono>
+                    {m.currentStatus}
+                  </Badge>
+                </div>
               </li>
             ))}
           </ul>

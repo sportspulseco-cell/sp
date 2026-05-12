@@ -1,9 +1,12 @@
 import {
   ArrowLeft,
   Building2,
+  CalendarRange,
   Globe2,
   KeyRound,
+  Layers,
   Network,
+  Trophy,
   Users,
   type LucideIcon
 } from "lucide-react";
@@ -81,6 +84,25 @@ export default async function OrgDetailPage({
   const orgMap = new Map(allOrgsPage.items.map((o) => [o.id, o.displayName]));
   // Post-flip — leagues belong directly to an org.
   const orgLeagues = leaguesPage.items.filter((l) => l.orgId === id);
+  const leagueMap = new Map(orgLeagues.map((l) => [l.id, l.name]));
+
+  // Divisions live under seasons; fan out one fetch per season in this
+  // org so we can render the cross-season division roll-up.
+  const divisionsPerSeason = await Promise.all(
+    seasonsPage.items.map((s) =>
+      leagueMgmt
+        .listDivisions({ seasonId: s.id })
+        .catch(() => ({ items: [], nextCursor: null }))
+    )
+  );
+  const allDivisions = divisionsPerSeason.flatMap((page, idx) =>
+    page.items.map((d) => ({
+      ...d,
+      seasonName: seasonsPage.items[idx]!.name,
+      leagueName:
+        leagueMap.get(seasonsPage.items[idx]!.leagueId) ?? null
+    }))
+  );
 
   return (
     <div className="space-y-10">
@@ -253,8 +275,190 @@ export default async function OrgDetailPage({
         )}
       </Section>
 
-      {/* Activity counters */}
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* Leagues */}
+      <Section
+        eyebrow="Leagues"
+        title={`Leagues (${orgLeagues.length})`}
+        description="Every league owned by this org. Each league owns its seasons + division structure."
+        icon={Network}
+        tint="blue"
+      >
+        {orgLeagues.length === 0 ? (
+          <Empty message="No leagues yet for this org." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {orgLeagues.map((l) => (
+              <li
+                key={l.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-fg">
+                    <Link
+                      href={`/leagues/${l.id}`}
+                      className="hover:underline"
+                    >
+                      {l.name}
+                    </Link>
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                    {l.sportCode} · {l.format ?? "—"}
+                  </p>
+                </div>
+                <Badge tone={statusTone(l.status)} mono>
+                  {l.status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/* Seasons */}
+      <Section
+        eyebrow="Seasons"
+        title={`Seasons (${seasonsPage.items.length})`}
+        description="All seasons under this org's leagues, newest first."
+        icon={CalendarRange}
+        tint="cyan"
+      >
+        {seasonsPage.items.length === 0 ? (
+          <Empty message="No seasons scheduled yet." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {seasonsPage.items.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-fg">
+                    <Link
+                      href={`/seasons/${s.id}`}
+                      className="hover:underline"
+                    >
+                      {s.name}
+                    </Link>
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                    {leagueMap.get(s.leagueId) ?? s.leagueId.slice(0, 8)} ·{" "}
+                    {fmtDate(s.startDate)} → {fmtDate(s.endDate)}
+                  </p>
+                </div>
+                <Badge tone={statusTone(s.status)} mono>
+                  {s.status.replace(/_/g, " ")}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/* Divisions */}
+      <Section
+        eyebrow="Divisions"
+        title={`Divisions (${allDivisions.length})`}
+        description="Tiered/age-stratified competition slots across every season."
+        icon={Layers}
+        tint="violet"
+      >
+        {allDivisions.length === 0 ? (
+          <Empty message="No divisions yet across this org's seasons." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {allDivisions.map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-fg">
+                    <Link
+                      href={`/divisions/${d.id}`}
+                      className="hover:underline"
+                    >
+                      {d.name}
+                    </Link>
+                    {d.tier && (
+                      <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                        {d.tier}
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                    {d.seasonName}
+                    {d.leagueName && ` · ${d.leagueName}`}
+                    {" · "}
+                    {d.genderEligibility}
+                    {d.maxTeams && ` · max ${d.maxTeams} teams`}
+                  </p>
+                </div>
+                <Badge tone={statusTone(d.status)} mono>
+                  {d.status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/* Teams */}
+      <Section
+        eyebrow="Teams"
+        title={`Teams (${teamsPage.items.length})`}
+        description="Teams owned by this org. They enter divisions via DivisionTeamEntry."
+        icon={Trophy}
+        tint="emerald"
+      >
+        {teamsPage.items.length === 0 ? (
+          <Empty message="No teams yet for this org." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {teamsPage.items.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-fg">
+                    <Link
+                      href={`/teams/${t.id}`}
+                      className="hover:underline"
+                    >
+                      {t.name}
+                    </Link>
+                    {t.shortName && (
+                      <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                        {t.shortName}
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                    {t.sportCode}
+                    {t.captainUserId && (
+                      <>
+                        {" · captain "}
+                        <Link
+                          href={`/users/${t.captainUserId}`}
+                          className="hover:text-fg"
+                        >
+                          {t.captainUserId.slice(0, 8)}
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Badge tone={statusTone(t.status)} mono>
+                  {t.status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/* Registrations counter (still useful, but no longer the only roll-up) */}
+      <section className="grid gap-4 md:grid-cols-1">
         <CounterCard
           label="Active registrations"
           value={
@@ -267,16 +471,6 @@ export default async function OrgDetailPage({
           }
           total={registrationsPage.items.length}
           href={`/registrations?orgId=${org.id}`}
-        />
-        <CounterCard
-          label="Seasons"
-          value={seasonsPage.items.length}
-          href={`/seasons`}
-        />
-        <CounterCard
-          label="Teams"
-          value={teamsPage.items.length}
-          href={`/teams`}
         />
       </section>
     </div>
