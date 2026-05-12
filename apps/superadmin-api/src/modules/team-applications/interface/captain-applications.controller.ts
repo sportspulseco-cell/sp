@@ -55,7 +55,7 @@ export class CaptainApplicationsController {
   @Get("captain/open-seasons")
   @ApiOperation({
     summary:
-      "Open seasons in the team's org that the team hasn't already applied to (non-rejected DTE)."
+      "Seasons reachable from this team whose registration window currently includes today. Status filter is permissive (draft + registration_open) — the window dates are the source of truth, so an admin can set up a season + window and captains see it without an explicit status flip."
   })
   async openSeasons(
     @CurrentUser() user: AuthPrincipal,
@@ -65,7 +65,12 @@ export class CaptainApplicationsController {
 
     const now = new Date();
 
-    // All seasons within this org currently in the registration window.
+    // Walk the org graph: include the team's own org plus every parent
+    // and child via org_relations. Federation-style setups (USA Hockey
+    // → club) need the captain to see seasons run by the parent org
+    // even though the team itself sits under a child org.
+    const reachableOrgIds = await this.reachableOrgIds(team.orgId);
+
     const seasons = await this.db
       .select({
         seasonId: schema.seasons.id,
@@ -85,8 +90,12 @@ export class CaptainApplicationsController {
       )
       .where(
         and(
-          eq(schema.leagues.orgId, team.orgId),
-          eq(schema.seasons.status, "registration_open"),
+          inArray(schema.leagues.orgId, reachableOrgIds),
+          // Permissive status filter — the date window is the source of
+          // truth. Draft seasons with a configured registration window
+          // are visible to captains; archived / completed / in-progress
+          // / playoffs are not.
+          inArray(schema.seasons.status, ["draft", "registration_open"]),
           lte(schema.seasons.registrationOpensAt, now),
           gte(schema.seasons.registrationClosesAt, now)
         )
@@ -303,11 +312,14 @@ export class CaptainApplicationsController {
       .where(eq(schema.seasons.id, body.seasonId))
       .limit(1);
     if (!season) throw new NotFoundException("Season not found");
-    if (
-      season.status !== "registration_open" ||
-      !season.registrationClosesAt ||
-      season.registrationClosesAt < now
-    ) {
+    const inOpenStatus =
+      season.status === "draft" || season.status === "registration_open";
+    const hasWindow =
+      !!season.registrationClosesAt &&
+      !!season.registrationOpensAt &&
+      season.registrationOpensAt <= now &&
+      season.registrationClosesAt >= now;
+    if (!inOpenStatus || !hasWindow) {
       throw new ConflictException({
         error: "season_closed",
         message: "Registration is not open for this season."
@@ -522,5 +534,38 @@ export class CaptainApplicationsController {
         throw new ForbiddenException("Not the captain of this team");
     }
     return team;
+  }
+
+  /**
+   * Set of orgIds the team can register into: its own org plus every
+   * parent and child in `org_relations` (any relation type — sanctions
+   * | member_of | owns — federation-style hierarchies all imply the
+   * captain should see leagues that live in the related orgs).
+   *
+   * One-hop walk only — clubs are typically a single hop under their
+   * governing federation. If we need deeper transitive reach later
+   * (grandparent federations, etc) we'll fold it into a CTE.
+   */
+  private async reachableOrgIds(teamOrgId: string): Promise<string[]> {
+    const now = new Date();
+    const related = await this.db
+      .select({
+        parentOrgId: schema.orgRelations.parentOrgId,
+        childOrgId: schema.orgRelations.childOrgId
+      })
+      .from(schema.orgRelations)
+      .where(
+        and(
+          sql`(${schema.orgRelations.parentOrgId} = ${teamOrgId} OR ${schema.orgRelations.childOrgId} = ${teamOrgId})`,
+          lte(schema.orgRelations.effectiveFrom, now),
+          sql`(${schema.orgRelations.effectiveTo} IS NULL OR ${schema.orgRelations.effectiveTo} >= ${now})`
+        )
+      );
+    const set = new Set<string>([teamOrgId]);
+    for (const r of related) {
+      set.add(r.parentOrgId);
+      set.add(r.childOrgId);
+    }
+    return Array.from(set);
   }
 }
