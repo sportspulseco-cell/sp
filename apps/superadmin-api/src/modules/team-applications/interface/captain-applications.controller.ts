@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsUUID } from "class-validator";
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -546,24 +546,36 @@ export class CaptainApplicationsController {
    * (grandparent federations, etc) we'll fold it into a CTE.
    */
   private async reachableOrgIds(teamOrgId: string): Promise<string[]> {
-    const now = new Date();
+    // Fetch any relation row that touches teamOrgId, then filter the
+    // effective window in-memory. Doing the time check via raw sql
+    // interpolation tripped postgres.js (it can't bind a JS Date inside
+    // a `sql\`\`` template literal — Drizzle's column operators do the
+    // conversion, raw interpolation doesn't).
     const related = await this.db
       .select({
         parentOrgId: schema.orgRelations.parentOrgId,
-        childOrgId: schema.orgRelations.childOrgId
+        childOrgId: schema.orgRelations.childOrgId,
+        effectiveFrom: schema.orgRelations.effectiveFrom,
+        effectiveTo: schema.orgRelations.effectiveTo
       })
       .from(schema.orgRelations)
       .where(
-        and(
-          sql`(${schema.orgRelations.parentOrgId} = ${teamOrgId} OR ${schema.orgRelations.childOrgId} = ${teamOrgId})`,
-          lte(schema.orgRelations.effectiveFrom, now),
-          sql`(${schema.orgRelations.effectiveTo} IS NULL OR ${schema.orgRelations.effectiveTo} >= ${now})`
+        or(
+          eq(schema.orgRelations.parentOrgId, teamOrgId),
+          eq(schema.orgRelations.childOrgId, teamOrgId)
         )
       );
+    const now = Date.now();
     const set = new Set<string>([teamOrgId]);
     for (const r of related) {
-      set.add(r.parentOrgId);
-      set.add(r.childOrgId);
+      const fromOk =
+        !r.effectiveFrom || new Date(r.effectiveFrom).getTime() <= now;
+      const toOk =
+        !r.effectiveTo || new Date(r.effectiveTo).getTime() >= now;
+      if (fromOk && toOk) {
+        set.add(r.parentOrgId);
+        set.add(r.childOrgId);
+      }
     }
     return Array.from(set);
   }
