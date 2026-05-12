@@ -1,7 +1,7 @@
 import { ArrowLeft, Layers } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { leagueMgmt } from "@/lib/api/server-api";
+import { adminTransfers, leagueMgmt } from "@/lib/api/server-api";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -50,9 +50,10 @@ export default async function DivisionDetailPage({
   const division = await leagueMgmt.getDivision(id).catch(() => null);
   if (!division) notFound();
 
-  const parentSeason = await leagueMgmt
-    .getSeason(division.seasonId)
-    .catch(() => null);
+  const [parentSeason, divisionTeams] = await Promise.all([
+    leagueMgmt.getSeason(division.seasonId).catch(() => null),
+    adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] }))
+  ]);
 
   const rules = (division.ruleSetOverrides ?? {}) as {
     gameRules?: {
@@ -249,6 +250,68 @@ export default async function DivisionDetailPage({
           <p className="mt-2 text-[12px] text-fg-muted">
             Playoffs disabled for this division.
           </p>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface-1 p-6">
+        <Eyebrow>// teams registered in this division</Eyebrow>
+        <p className="mt-1 text-[13px] text-fg-muted">
+          Captains apply via{" "}
+          <code className="font-mono">/captain/register</code>; once a
+          league/org/super admin approves the application, the team
+          shows here.
+        </p>
+        {divisionTeams.items.length === 0 ? (
+          <p className="mt-4 rounded-md border border-dashed border-border bg-bg-subtle px-3 py-6 text-center text-[13px] text-fg-muted">
+            No approved teams yet. Pending applications live at{" "}
+            <Link
+              href={`/seasons/${division.seasonId}/applications`}
+              className="text-accent hover:underline"
+            >
+              the season's applications queue
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-border rounded-md border border-border bg-bg-subtle">
+            {divisionTeams.items.map((t) => {
+              const pct = t.thresholdCents
+                ? Math.min(
+                    100,
+                    Math.round((t.collectedCents / t.thresholdCents) * 100)
+                  )
+                : 0;
+              return (
+                <li
+                  key={t.entryId}
+                  className="grid grid-cols-1 gap-2 px-4 py-3 md:grid-cols-[1fr_auto_auto_auto] md:items-center"
+                >
+                  <div>
+                    <Link
+                      href={`/teams/${t.teamId}`}
+                      className="font-medium text-fg hover:underline"
+                    >
+                      {t.teamName}
+                    </Link>
+                    {t.teamShortName && (
+                      <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                        {t.teamShortName}
+                      </span>
+                    )}
+                  </div>
+                  <Badge tone={statusTone(t.entryStatus)}>
+                    {t.entryStatus.replace(/_/g, " ")}
+                  </Badge>
+                  <span className="font-mono text-[11px] text-fg-muted tabular-nums">
+                    {pct}% confirmed
+                  </span>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                    applied {new Date(t.appliedAt).toLocaleDateString()}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </section>
 

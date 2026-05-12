@@ -323,17 +323,24 @@ export class CaptainApplicationsController {
         seasonName: season.name
       }
     });
-    void this.notify.queue({
-      orgId: team.orgId,
-      templateCode: "TEAM_REGISTRATION_APPLIED",
-      idempotencyKey: `app-admin-${entry.id}`,
-      payload: {
-        teamName: team.name,
-        divisionName: division.name,
-        seasonName: season.name,
-        entryId: entry.id
-      }
-    });
+    // Fan out one notification per admin role so the dispatcher can
+    // route to platform / org / league admin recipients distinctly
+    // (per spec: "send to super_admin + org_admin + league_admin").
+    for (const role of ["super_admin", "org_admin", "league_admin"] as const) {
+      void this.notify.queue({
+        orgId: team.orgId,
+        templateCode: "TEAM_REGISTRATION_APPLIED",
+        idempotencyKey: `app-admin-${role}-${entry.id}`,
+        payload: {
+          teamName: team.name,
+          divisionName: division.name,
+          seasonName: season.name,
+          entryId: entry.id,
+          targetRole: role,
+          leagueId: season.leagueId
+        }
+      });
+    }
 
     return { entry };
   }
@@ -355,9 +362,21 @@ export class CaptainApplicationsController {
         id: schema.divisionTeamEntries.id,
         teamId: schema.divisionTeamEntries.teamId,
         entryStatus: schema.divisionTeamEntries.entryStatus,
-        divisionId: schema.divisionTeamEntries.divisionId
+        divisionId: schema.divisionTeamEntries.divisionId,
+        divisionName: schema.divisions.name,
+        seasonId: schema.divisions.seasonId,
+        seasonName: schema.seasons.name,
+        leagueId: schema.seasons.leagueId
       })
       .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
       .where(eq(schema.divisionTeamEntries.id, body.divisionTeamEntryId))
       .limit(1);
     if (!entry) throw new NotFoundException("Application not found");
@@ -376,12 +395,24 @@ export class CaptainApplicationsController {
       .set({ entryStatus: "withdrawn" })
       .where(eq(schema.divisionTeamEntries.id, entry.id));
 
-    void this.notify.queue({
-      orgId: team.orgId,
-      templateCode: "TEAM_REGISTRATION_WITHDRAWN",
-      idempotencyKey: `app-withdrawn-${entry.id}`,
-      payload: { teamName: team.name, entryId: entry.id }
-    });
+    // Mirror the apply() fan-out so each admin tier (super / org / league)
+    // gets its own notification row with metadata.targetRole + leagueId,
+    // letting the dispatcher route to the right recipients distinctly.
+    for (const role of ["super_admin", "org_admin", "league_admin"] as const) {
+      void this.notify.queue({
+        orgId: team.orgId,
+        templateCode: "TEAM_REGISTRATION_WITHDRAWN",
+        idempotencyKey: `app-withdrawn-${role}-${entry.id}`,
+        payload: {
+          teamName: team.name,
+          divisionName: entry.divisionName,
+          seasonName: entry.seasonName,
+          entryId: entry.id,
+          targetRole: role,
+          leagueId: entry.leagueId
+        }
+      });
+    }
 
     return { entryId: entry.id, status: "withdrawn" as const };
   }

@@ -11,7 +11,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsString, MinLength } from "class-validator";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -42,6 +42,57 @@ export class AdminApplicationsController {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notify: NotificationService
   ) {}
+
+  // -------------------------------------------------------------------
+  // GET /admin/divisions/:divisionId/teams
+  // Teams currently registered (entry_status IN applied/accepted/confirmed)
+  // in a given division. Per the spec: "If the team is approved, that
+  // team should be listed under that division." Surfaces approved
+  // entries on the admin's division detail page.
+  // -------------------------------------------------------------------
+  @Get("divisions/:divisionId/teams")
+  @ApiOperation({
+    summary:
+      "Approved teams registered in this division (entry_status IN applied | accepted | confirmed)."
+  })
+  async listDivisionTeams(@Param("divisionId") divisionId: string) {
+    const rows = await this.db
+      .select({
+        entryId: schema.divisionTeamEntries.id,
+        entryStatus: schema.divisionTeamEntries.entryStatus,
+        appliedAt: schema.divisionTeamEntries.createdAt,
+        thresholdCents:
+          schema.divisionTeamEntries.confirmationThresholdCents,
+        collectedCents: schema.divisionTeamEntries.collectedCents,
+        teamId: schema.teams.id,
+        teamName: schema.teams.name,
+        teamShortName: schema.teams.shortName,
+        teamColors: schema.teams.colors,
+        captainUserId: schema.teams.captainUserId
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.divisionTeamEntries.teamId)
+      )
+      .where(
+        and(
+          eq(schema.divisionTeamEntries.divisionId, divisionId),
+          inArray(schema.divisionTeamEntries.entryStatus, [
+            "applied",
+            "accepted",
+            "confirmed"
+          ])
+        )
+      )
+      .orderBy(desc(schema.divisionTeamEntries.createdAt));
+    return {
+      items: rows.map((r) => ({
+        ...r,
+        appliedAt: r.appliedAt.toISOString()
+      }))
+    };
+  }
 
   @Get("seasons/:seasonId/applications")
   @ApiOperation({

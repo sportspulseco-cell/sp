@@ -2296,6 +2296,21 @@ export function createApi(f: Fetcher) {
           `/admin/division-team-entries/${entryId}/reject`,
           { method: "POST", body: JSON.stringify({ reason }) }
         ),
+      listDivisionTeams: (divisionId: string) =>
+        f<{
+          items: Array<{
+            entryId: string;
+            entryStatus: string;
+            appliedAt: string;
+            thresholdCents: number;
+            collectedCents: number;
+            teamId: string;
+            teamName: string;
+            teamShortName: string | null;
+            teamColors: Record<string, unknown>;
+            captainUserId: string | null;
+          }>;
+        }>(`/admin/divisions/${divisionId}/teams`),
 
       noShowReport: (q: { lastSeasonId: string; newSeasonId: string }) =>
         f<{
