@@ -2,10 +2,11 @@ import { ArrowLeft, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { Badge, statusTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
+import { SeasonStatusControl } from "@/components/seasons/season-status-control";
 
 export const metadata = { title: "Season — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -66,9 +67,6 @@ export default async function SeasonDetailPage({
           </h1>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Badge mono>{season.sportCode}</Badge>
-            <Badge tone={statusTone(season.status)} mono>
-              {season.status.replace(/_/g, " ")}
-            </Badge>
             {parentLeague ? (
               <Link
                 href={`/leagues/${parentLeague.id}`}
@@ -79,12 +77,18 @@ export default async function SeasonDetailPage({
             ) : null}
           </div>
         </div>
-        <Link
-          href={`/registrations/seasons/${season.id}/setup`}
-          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-        >
-          Open registration setup →
-        </Link>
+        <div className="ml-auto flex flex-col items-end gap-2">
+          <SeasonStatusControl
+            seasonId={season.id}
+            currentStatus={season.status}
+          />
+          <Link
+            href={`/registrations/seasons/${season.id}/setup`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+          >
+            Open registration setup →
+          </Link>
+        </div>
       </header>
 
       <section className="rounded-xl border border-border bg-surface-1 p-5">
