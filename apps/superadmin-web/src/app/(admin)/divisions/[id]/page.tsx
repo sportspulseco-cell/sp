@@ -6,6 +6,7 @@ import { Badge, statusTone } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
+import { DivisionPendingApplications } from "@/components/divisions/division-pending-applications";
 
 export const metadata = { title: "Division — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -50,10 +51,20 @@ export default async function DivisionDetailPage({
   const division = await leagueMgmt.getDivision(id).catch(() => null);
   if (!division) notFound();
 
-  const [parentSeason, divisionTeams] = await Promise.all([
+  const [parentSeason, divisionTeams, pendingForSeason] = await Promise.all([
     leagueMgmt.getSeason(division.seasonId).catch(() => null),
-    adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] }))
+    adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] })),
+    adminTransfers
+      .listApplications(division.seasonId, "pending")
+      .catch(() => ({
+        season: { id: division.seasonId, name: "", registrationClosesAt: null },
+        divisions: [],
+        items: []
+      }))
   ]);
+  const pendingForThisDivision = pendingForSeason.items.filter(
+    (a) => a.divisionId === id
+  );
 
   const rules = (division.ruleSetOverrides ?? {}) as {
     gameRules?: {
@@ -252,6 +263,12 @@ export default async function DivisionDetailPage({
           </p>
         )}
       </section>
+
+      <DivisionPendingApplications
+        divisionId={id}
+        divisionName={division.name}
+        initial={pendingForThisDivision}
+      />
 
       <section className="rounded-xl border border-border bg-surface-1 p-6">
         <Eyebrow>// teams registered in this division</Eyebrow>
