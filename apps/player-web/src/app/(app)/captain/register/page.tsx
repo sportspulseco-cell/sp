@@ -261,7 +261,12 @@ function ApprovedDetailCard({
   app: Application;
 }) {
   const isConfirmed = app.entryStatus === "confirmed";
-  const setupUrl = `https://sp-team-admin.vercel.app/captain/register/setup/${app.id}`;
+  // Cross-app link to the team-admin captain wizard. Defaults to the
+  // deployed URL; override with NEXT_PUBLIC_TEAM_ADMIN_URL (e.g.
+  // http://localhost:3005) when running the local stack.
+  const teamAdminBase =
+    process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://sp-team-admin.vercel.app";
+  const setupUrl = `${teamAdminBase}/captain/register/setup/${app.id}`;
   return (
     <section className="rounded-2xl border border-emerald-400/40 bg-emerald-50/70 p-6 dark:border-emerald-700/40 dark:bg-emerald-950/30">
       <div className="flex flex-col items-center text-center">
