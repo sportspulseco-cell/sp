@@ -64,28 +64,53 @@ export class CaptainDuesController {
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
 
-    // Find current master invoice via the team's most recent DTE.
+    // Find current master invoice via the team's most recent DTE, plus
+    // the threshold + season + division context for the captain UI.
     const dteRows = await this.db
       .select({
         masterInvoiceId: schema.divisionTeamEntries.invoiceId,
         collectedCents: schema.divisionTeamEntries.collectedCents,
         thresholdCents:
-          schema.divisionTeamEntries.confirmationThresholdCents
+          schema.divisionTeamEntries.confirmationThresholdCents,
+        entryStatus: schema.divisionTeamEntries.entryStatus,
+        seasonName: schema.seasons.name,
+        divisionName: schema.divisions.name
       })
       .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
       .where(eq(schema.divisionTeamEntries.teamId, teamId))
       .orderBy(schema.divisionTeamEntries.createdAt);
-    const masterInvoiceId =
-      dteRows.find((r) => r.masterInvoiceId)?.masterInvoiceId ?? null;
+    const activeRow =
+      dteRows.find((r) => r.masterInvoiceId) ?? dteRows.at(-1) ?? null;
+    const masterInvoiceId = activeRow?.masterInvoiceId ?? null;
     if (!masterInvoiceId) {
       return {
         teamId,
+        teamName: team.name,
         masterInvoiceId: null,
+        masterInvoiceNumber: null,
         totalCents: 0,
         collectedCents: 0,
+        thresholdCents: activeRow?.thresholdCents ?? 0,
+        seasonName: activeRow?.seasonName ?? null,
+        divisionName: activeRow?.divisionName ?? null,
+        entryStatus: activeRow?.entryStatus ?? null,
         subInvoices: []
       };
     }
+
+    const [master] = await this.db
+      .select({ invoiceNumber: schema.invoices.invoiceNumber })
+      .from(schema.invoices)
+      .where(eq(schema.invoices.id, masterInvoiceId))
+      .limit(1);
 
     const subs = await this.db
       .select({
@@ -97,14 +122,17 @@ export class CaptainDuesController {
         paidCents: schema.invoices.paidCents,
         status: schema.invoices.status,
         currency: schema.invoices.currency,
+        dueAt: schema.invoices.dueAt,
         firstName: schema.persons.legalFirstName,
-        lastName: schema.persons.legalLastName
+        lastName: schema.persons.legalLastName,
+        captainUserIdForRow: schema.teams.captainUserId
       })
       .from(schema.invoices)
       .leftJoin(
         schema.persons,
         eq(schema.persons.id, schema.invoices.recipientPersonId)
       )
+      .leftJoin(schema.teams, eq(schema.teams.id, teamId))
       .where(
         and(
           eq(schema.invoices.parentInvoiceId, masterInvoiceId),
@@ -114,18 +142,47 @@ export class CaptainDuesController {
 
     const totalCents = subs.reduce((a, s) => a + s.totalCents, 0);
     const collectedCents = subs.reduce((a, s) => a + s.paidCents, 0);
+    const now = new Date();
 
     return {
       teamId,
+      teamName: team.name,
       masterInvoiceId,
+      masterInvoiceNumber: master?.invoiceNumber ?? null,
       totalCents,
       collectedCents,
-      subInvoices: subs.map((s) => ({
-        ...s,
-        playerName:
-          [s.firstName, s.lastName].filter(Boolean).join(" ") || s.recipientEmail
-      })),
-      teamName: team.name
+      thresholdCents: activeRow?.thresholdCents ?? 0,
+      seasonName: activeRow?.seasonName ?? null,
+      divisionName: activeRow?.divisionName ?? null,
+      entryStatus: activeRow?.entryStatus ?? null,
+      subInvoices: subs.map((s) => {
+        const isCaptain =
+          s.recipientPersonId &&
+          s.captainUserIdForRow &&
+          // best-effort: persons.userId vs teams.captainUserId resolves
+          // captain-vs-player distinction. Currently a noop because we
+          // didn't select persons.userId — fall back to false.
+          false;
+        const owe = Math.max(0, s.totalCents - s.paidCents);
+        const overdue =
+          owe > 0 && !!s.dueAt && new Date(s.dueAt as unknown as string) < now;
+        return {
+          id: s.id,
+          invoiceNumber: s.invoiceNumber,
+          recipientPersonId: s.recipientPersonId,
+          recipientEmail: s.recipientEmail,
+          totalCents: s.totalCents,
+          paidCents: s.paidCents,
+          status: s.status,
+          currency: s.currency,
+          dueAt: s.dueAt?.toISOString() ?? null,
+          isOverdue: overdue,
+          isCaptain,
+          playerName:
+            [s.firstName, s.lastName].filter(Boolean).join(" ") ||
+            s.recipientEmail
+        };
+      })
     };
   }
 

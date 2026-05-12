@@ -131,10 +131,9 @@ export class FinanceInvoicingController {
   @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiOperation({
     summary:
-      "AR dashboard metric cards. Single aggregation query: total invoiced, collected, outstanding, overdue, counts."
+      "AR dashboard metric cards. Single aggregation query: total invoiced, collected, outstanding, overdue, counts. Omit orgId for platform-wide totals."
   })
-  async dashboardSummary(@Query("orgId") orgId: string) {
-    if (!orgId) throw new BadRequestException("orgId is required");
+  async dashboardSummary(@Query("orgId") orgId?: string) {
     const [row] = await this.db.execute<{
       total_invoiced_cents: number | null;
       collected_cents: number | null;
@@ -142,23 +141,42 @@ export class FinanceInvoicingController {
       overdue_cents: number | null;
       invoice_count: number;
       overdue_count: number;
-    }>(sql`
-      SELECT
-        COALESCE(SUM(total_cents) FILTER (WHERE status != 'void'), 0)::int
-          AS total_invoiced_cents,
-        COALESCE(SUM(paid_cents) FILTER (WHERE status != 'void'), 0)::int
-          AS collected_cents,
-        COALESCE(SUM(total_cents - paid_cents)
-          FILTER (WHERE status IN ('sent','partial','overdue')), 0)::int
-          AS outstanding_cents,
-        COALESCE(SUM(total_cents - paid_cents)
-          FILTER (WHERE status = 'overdue'), 0)::int
-          AS overdue_cents,
-        COUNT(*) FILTER (WHERE status != 'void')::int AS invoice_count,
-        COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
-      FROM invoices
-      WHERE org_id = ${orgId}
-    `);
+    }>(
+      orgId
+        ? sql`
+            SELECT
+              COALESCE(SUM(total_cents) FILTER (WHERE status != 'void'), 0)::int
+                AS total_invoiced_cents,
+              COALESCE(SUM(paid_cents) FILTER (WHERE status != 'void'), 0)::int
+                AS collected_cents,
+              COALESCE(SUM(total_cents - paid_cents)
+                FILTER (WHERE status IN ('sent','partial','overdue')), 0)::int
+                AS outstanding_cents,
+              COALESCE(SUM(total_cents - paid_cents)
+                FILTER (WHERE status = 'overdue'), 0)::int
+                AS overdue_cents,
+              COUNT(*) FILTER (WHERE status != 'void')::int AS invoice_count,
+              COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
+            FROM invoices
+            WHERE org_id = ${orgId}
+          `
+        : sql`
+            SELECT
+              COALESCE(SUM(total_cents) FILTER (WHERE status != 'void'), 0)::int
+                AS total_invoiced_cents,
+              COALESCE(SUM(paid_cents) FILTER (WHERE status != 'void'), 0)::int
+                AS collected_cents,
+              COALESCE(SUM(total_cents - paid_cents)
+                FILTER (WHERE status IN ('sent','partial','overdue')), 0)::int
+                AS outstanding_cents,
+              COALESCE(SUM(total_cents - paid_cents)
+                FILTER (WHERE status = 'overdue'), 0)::int
+                AS overdue_cents,
+              COUNT(*) FILTER (WHERE status != 'void')::int AS invoice_count,
+              COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
+            FROM invoices
+          `
+    );
     return {
       totalInvoicedCents: row?.total_invoiced_cents ?? 0,
       collectedCents: row?.collected_cents ?? 0,
@@ -179,7 +197,7 @@ export class FinanceInvoicingController {
       "Paginated invoices list with computed outstandingCents + recipient name join."
   })
   async listInvoices(
-    @Query("orgId") orgId: string,
+    @Query("orgId") orgId?: string,
     @Query("status") status?: string,
     @Query("billingScope") billingScope?: string,
     @Query("search") search?: string,

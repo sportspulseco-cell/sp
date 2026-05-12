@@ -540,11 +540,15 @@ export function createApi(f: Fetcher) {
             invoiceNumber: string;
             invoiceType: string;
             currency: string;
+            subtotalCents: number;
             totalCents: number;
             paidCents: number;
+            lateFeeAppliedCents: number;
+            walletCreditAppliedCents: number;
             status: string;
             dueAt: string | null;
             issuedAt: string | null;
+            cardOnFile: { brand: string; last4: string } | null;
             installments: Array<{
               id: string;
               installmentNumber: number;
@@ -679,9 +683,15 @@ export function createApi(f: Fetcher) {
       captainDuesBreakdown: (teamId: string) =>
         f<{
           teamId: string;
+          teamName: string;
           masterInvoiceId: string | null;
+          masterInvoiceNumber: string | null;
           totalCents: number;
           collectedCents: number;
+          thresholdCents: number;
+          seasonName: string | null;
+          divisionName: string | null;
+          entryStatus: string | null;
           subInvoices: Array<{
             id: string;
             invoiceNumber: string;
@@ -691,9 +701,11 @@ export function createApi(f: Fetcher) {
             paidCents: number;
             status: string;
             currency: string;
+            dueAt: string | null;
+            isOverdue: boolean;
+            isCaptain: boolean;
             playerName: string | null;
           }>;
-          teamName?: string;
         }>(`/captain/dues/${teamId}`),
       captainDuesRemindAll: (teamId: string) =>
         f<{ teamId: string; queued: number }>(
@@ -778,6 +790,128 @@ export function createApi(f: Fetcher) {
           registrationId?: string;
         } = {}
       ) => f<Page<Invoice>>(`/finance/invoices${qs(q)}`),
+      /**
+       * Aggregated AR KPIs for an org — total invoiced, collected,
+       * outstanding, overdue (cents) + counts. Powers the 4-tile row at
+       * the top of the admin Invoices & AR dashboard.
+       */
+      dashboardSummary: (orgId?: string) =>
+        f<{
+          totalInvoicedCents: number;
+          collectedCents: number;
+          outstandingCents: number;
+          overdueCents: number;
+          invoiceCount: number;
+          overdueCount: number;
+        }>(`/finance/dashboard-summary${qs({ orgId })}`),
+      /**
+       * Paginated invoices list with recipientName join + computed
+       * outstandingCents. Supports search / status / billingScope filters.
+       */
+      adminInvoicesList: (q: {
+        orgId?: string;
+        status?: string;
+        billingScope?: string;
+        search?: string;
+        page?: number;
+        limit?: number;
+      }) =>
+        f<{
+          items: Array<{
+            id: string;
+            invoiceNumber: string;
+            invoiceType: string;
+            billingScope: string | null;
+            status: string;
+            recipientPersonId: string | null;
+            recipientEmail: string | null;
+            recipientName: string | null;
+            totalCents: number;
+            paidCents: number;
+            outstandingCents: number;
+            currency: string;
+            dueAt: string | null;
+            paidAt: string | null;
+            lateFeeAppliedCents: number | null;
+            bulkJobId: string | null;
+            createdAt: string;
+          }>;
+          page: number;
+          limit: number;
+        }>(`/finance/invoices/list${qs(q)}`),
+      /**
+       * Invoice detail bundle: invoice + items + payments + installments.
+       * Used by the admin invoice inspection screen.
+       */
+      invoiceDetail: (id: string) =>
+        f<{
+          invoice: Invoice;
+          items: Array<{
+            id: string;
+            invoiceId: string;
+            kind: string | null;
+            description: string;
+            quantity: number;
+            unitAmountCents: number;
+            feeScheduleId: string | null;
+          }>;
+          payments: Payment[];
+          installments: Array<{
+            id: string;
+            invoiceId: string;
+            installmentNumber: number;
+            amountCents: number;
+            dueDate: string | null;
+            status: string;
+            attemptCount: number;
+            lastError: string | null;
+          }>;
+        }>(`/finance/invoices/${id}/detail`),
+      /**
+       * Bulk-aware invoice creation. Resolves billingScope+targetId to
+       * one or more personIds and fans out one invoice per recipient.
+       * The X-Idempotency-Key header dedupes retries.
+       */
+      createBulkInvoice: (
+        body: {
+          orgId: string;
+          billingScope:
+            | "individual"
+            | "team"
+            | "division"
+            | "league"
+            | "season"
+            | "org";
+          /** For individual scope this is the personId; for others, the resource id. */
+          targetId: string;
+          invoiceType?: string;
+          items: Array<{
+            kind?: string;
+            description: string;
+            quantity?: number;
+            unitAmountCents: number;
+            feeScheduleId?: string | null;
+          }>;
+          dueAt: string;
+          feeScheduleId?: string | null;
+          notes?: string | null;
+          paymentPlanEnabled?: boolean;
+          depositCents?: number;
+          installmentCount?: number;
+          installmentStartDate?: string | null;
+        },
+        idempotencyKey: string
+      ) =>
+        f<{
+          invoices: Invoice[];
+          bulkJobId: string | null;
+          count: number;
+          idempotent?: boolean;
+        }>(`/finance/invoices/bulk`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: { "X-Idempotency-Key": idempotencyKey }
+        }),
       getInvoice: (id: string) => f<Invoice>(`/finance/invoices/${id}`),
       createInvoice: (body: {
         orgId: string;

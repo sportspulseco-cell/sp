@@ -135,11 +135,17 @@ export class PlayerPaymentsController {
         invoiceNumber: inv.invoiceNumber,
         invoiceType: inv.invoiceType,
         currency: inv.currency,
+        subtotalCents: inv.subtotalCents,
         totalCents: inv.totalCents,
         paidCents: inv.paidCents,
+        lateFeeAppliedCents: inv.lateFeeAppliedCents ?? 0,
+        walletCreditAppliedCents: inv.walletCreditAppliedCents ?? 0,
         status: inv.status,
         dueAt: inv.dueAt?.toISOString() ?? null,
         issuedAt: inv.issuedAt?.toISOString() ?? null,
+        cardOnFile:
+          (inv.metadata as { cardOnFile?: { brand: string; last4: string } })
+            ?.cardOnFile ?? null,
         installments: (byInvoice.get(inv.id) ?? []).map((ins) => ({
           id: ins.id,
           installmentNumber: ins.installmentNumber,
