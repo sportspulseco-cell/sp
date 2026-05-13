@@ -129,11 +129,13 @@ export default async function PlayerHome() {
             .listGames({ teamId: myTeamId, limit: 30 })
             .catch(() => ({ items: [], nextCursor: null }))
         : Promise.resolve({ items: [], nextCursor: null }),
-      scope.personId
-        ? registration
-            .listRegistrations({ subjectPersonId: scope.personId })
-            .catch(() => ({ items: [], nextCursor: null }))
-        : Promise.resolve({ items: [], nextCursor: null }),
+      // Self-scoped endpoint — JwtAuthGuard only, returns the caller's
+      // own registrations (including the legacy-orphan heal-on-read).
+      // The admin `listRegistrations({subjectPersonId})` variant is
+      // SuperAdminGuard'd and 403s every non-super-admin player.
+      registration
+        .listMyRegistrations()
+        .catch(() => ({ items: [] })),
       scope.personId
         ? finance
             .listInvoices({ recipientPersonId: scope.personId, limit: 50 })
