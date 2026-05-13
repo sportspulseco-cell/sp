@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { ArrowRight, ScrollText } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  CalendarRange,
+  CheckCircle2,
+  Layers,
+  ScrollText,
+  Trophy,
+  Users
+} from "lucide-react";
 import { Badge, EmptyState } from "@sportspulse/ui";
-import type { Registration } from "@sportspulse/api-client";
 import { registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -9,8 +17,12 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "My registrations — SportsPulse" };
 
+type Row = Awaited<
+  ReturnType<typeof registration.listMyRegistrations>
+>["items"][number];
+
 const STATUS_TONE: Record<
-  Registration["status"],
+  string,
   "success" | "warning" | "danger" | "info" | "neutral"
 > = {
   draft: "neutral",
@@ -20,7 +32,6 @@ const STATUS_TONE: Record<
   rejected: "danger",
   waitlisted: "info",
   withdrawn: "neutral",
-  // Registration v2 states.
   pending_verification: "warning",
   pending_consent: "warning",
   pending_payment: "warning",
@@ -31,14 +42,14 @@ const STATUS_TONE: Record<
 };
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
   });
 }
 
-function statusCopy(status: Registration["status"]): string {
+function statusCopy(status: string): string {
   switch (status) {
     case "draft":
       return "Started but not yet submitted — finish the funnel to submit.";
@@ -73,15 +84,11 @@ function statusCopy(status: Registration["status"]): string {
 }
 
 export default async function MyRegistrationsPage() {
-  // Self-scoped endpoint — handles the persons.userId lookup AND the
-  // legacy-orphan back-fill server-side, so we don't have to gate on
-  // meScope's personId here. Returns an empty list (not an error) when
-  // the user has zero linked registrations.
   const page = await registration
     .listMyRegistrations()
-    .catch(() => ({ items: [] as Registration[] }));
+    .catch(() => ({ items: [] as Row[] }));
 
-  const items: Registration[] = page.items ?? [];
+  const items: Row[] = page.items ?? [];
   const sorted = items.slice().sort((a, b) => {
     const at = a.submittedAt ?? a.createdAt;
     const bt = b.submittedAt ?? b.createdAt;
@@ -105,48 +112,139 @@ export default async function MyRegistrationsPage() {
       ) : (
         <ul className="space-y-3">
           {sorted.map((r) => (
-            <li
-              key={r.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-surface-1 p-5"
-            >
-              <div className="min-w-0 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    // Ref
-                  </span>
-                  <span className="font-mono text-[12px] text-fg">
-                    {r.id.slice(0, 8)}
-                  </span>
-                  <Badge mono tone={STATUS_TONE[r.status]}>
-                    {r.status.replace(/_/g, " ")}
-                  </Badge>
-                </div>
-                <p className="text-[13px] text-fg">{statusCopy(r.status)}</p>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                  {r.submittedAt
-                    ? `Submitted ${fmtDate(r.submittedAt)}`
-                    : `Started ${fmtDate(r.createdAt)}`}
-                  {r.reviewedAt ? ` · Reviewed ${fmtDate(r.reviewedAt)}` : ""}
-                </p>
-                {r.decisionReason ? (
-                  <p className="text-[12px] text-fg-muted">
-                    Reason: {r.decisionReason}
-                  </p>
-                ) : null}
-              </div>
-              {r.status === "draft" || r.status === "rejected" ? (
-                <Link
-                  href={`/register?resume=${r.id}`}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
-                >
-                  Resume
-                  <ArrowRight className="h-3 w-3" strokeWidth={2} />
-                </Link>
-              ) : null}
-            </li>
+            <RegistrationRow key={r.id} r={r} />
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+function RegistrationRow({ r }: { r: Row }) {
+  const isApproved = r.status === "approved";
+  const isDraftish = r.status === "draft" || r.status === "rejected";
+  const title =
+    r.seasonName ||
+    r.formName ||
+    r.leagueName ||
+    r.orgName ||
+    `Registration ${r.id.slice(0, 8)}`;
+  const subtitle = [r.formName, r.orgName].filter(Boolean).join(" · ");
+  return (
+    <li
+      className={[
+        "rounded-xl border bg-surface-1 p-5",
+        isApproved
+          ? "border-emerald-500/40 bg-emerald-500/[0.04]"
+          : "border-border"
+      ].join(" ")}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            className={[
+              "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+              isApproved
+                ? "bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/40 dark:text-emerald-400"
+                : "bg-fg-muted/10 text-fg-muted"
+            ].join(" ")}
+          >
+            {isApproved ? (
+              <CheckCircle2 className="h-5 w-5" strokeWidth={1.75} />
+            ) : (
+              <ScrollText className="h-5 w-5" strokeWidth={1.75} />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[15px] font-semibold tracking-tight text-fg">
+                {title}
+              </p>
+              <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
+                {r.status.replace(/_/g, " ")}
+              </Badge>
+            </div>
+            {subtitle && (
+              <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                {subtitle}
+              </p>
+            )}
+            <p className="mt-2 text-[13px] text-fg-muted">
+              {statusCopy(r.status)}
+            </p>
+            {r.decisionReason && (
+              <p className="mt-1 text-[12px] text-fg-muted">
+                Reason: <span className="text-fg">{r.decisionReason}</span>
+              </p>
+            )}
+
+            {/* Detail chips */}
+            {(r.leagueName ||
+              r.divisionName ||
+              r.teamName ||
+              r.seasonName) && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-fg-muted">
+                {r.leagueName && (
+                  <span className="inline-flex items-center gap-1">
+                    <Trophy className="h-3 w-3" strokeWidth={1.75} />
+                    {r.leagueName}
+                  </span>
+                )}
+                {r.seasonName && (
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarRange className="h-3 w-3" strokeWidth={1.75} />
+                    {r.seasonName}
+                  </span>
+                )}
+                {r.divisionName && (
+                  <span className="inline-flex items-center gap-1">
+                    <Layers className="h-3 w-3" strokeWidth={1.75} />
+                    {r.divisionName}
+                  </span>
+                )}
+                {r.teamName && (
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-3 w-3" strokeWidth={1.75} />
+                    {r.teamName}
+                  </span>
+                )}
+                {r.orgName && (
+                  <span className="inline-flex items-center gap-1">
+                    <Building2 className="h-3 w-3" strokeWidth={1.75} />
+                    {r.orgName}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              Ref {r.id.slice(0, 8)} ·{" "}
+              {r.submittedAt
+                ? `Submitted ${fmtDate(r.submittedAt)}`
+                : `Started ${fmtDate(r.createdAt)}`}
+              {r.reviewedAt ? ` · Reviewed ${fmtDate(r.reviewedAt)}` : ""}
+            </p>
+          </div>
+        </div>
+
+        {isApproved ? (
+          <Link
+            href="/"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-emerald-700"
+          >
+            Open dashboard
+            <ArrowRight className="h-3 w-3" strokeWidth={2} />
+          </Link>
+        ) : isDraftish ? (
+          <Link
+            href={`/register?resume=${r.id}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+          >
+            Resume
+            <ArrowRight className="h-3 w-3" strokeWidth={2} />
+          </Link>
+        ) : null}
+      </div>
+    </li>
   );
 }

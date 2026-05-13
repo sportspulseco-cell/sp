@@ -5,7 +5,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -33,7 +33,7 @@ export class SelfRegistrationsController {
   @Get("registrations")
   @ApiOperation({
     summary:
-      "List the caller's own registrations (filtered by their linked persons.id). Heals legacy rows that pre-dated the persons.userId backfill by claiming any orphan person whose externalIds.supabaseUserId matches."
+      "List the caller's own registrations (filtered by their linked persons.id), enriched with form / org / season / league / division / team names so the player can see *what* they registered for, not just the ref id. Heals legacy rows that pre-dated the persons.userId backfill by claiming any orphan person whose externalIds.supabaseUserId matches."
   })
   async listMine(
     @CurrentUser() principal: AuthPrincipal
@@ -71,33 +71,89 @@ export class SelfRegistrationsController {
     if (!person) return { items: [] };
 
     const rows = await this.db
-      .select()
+      .select({
+        r: schema.registrations,
+        orgName: schema.orgs.displayName,
+        formName: schema.registrationForms.name,
+        formSeasonId: schema.registrationForms.seasonId,
+        leagueName: schema.leagues.name,
+        divisionName: schema.divisions.name,
+        teamName: schema.teams.name
+      })
       .from(schema.registrations)
+      .leftJoin(schema.orgs, eq(schema.orgs.id, schema.registrations.orgId))
+      .leftJoin(
+        schema.registrationFormVersions,
+        eq(
+          schema.registrationFormVersions.id,
+          schema.registrations.formVersionId
+        )
+      )
+      .leftJoin(
+        schema.registrationForms,
+        eq(
+          schema.registrationForms.id,
+          schema.registrationFormVersions.formId
+        )
+      )
+      .leftJoin(
+        schema.leagues,
+        eq(schema.leagues.id, schema.registrations.leagueId)
+      )
+      .leftJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.registrations.divisionId)
+      )
+      .leftJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.registrations.teamId)
+      )
       .where(eq(schema.registrations.subjectPersonId, person.id))
       .orderBy(desc(schema.registrations.createdAt))
       .limit(100);
 
-    return {
-      items: rows.map(
-        (r): RegistrationDto => ({
-          id: r.id,
-          idempotencyKey: r.idempotencyKey,
-          orgId: r.orgId,
-          formVersionId: r.formVersionId,
-          submittedByUserId: r.submittedByUserId,
-          subjectPersonId: r.subjectPersonId,
-          status: r.status as RegistrationDto["status"],
-          leagueId: r.leagueId,
-          divisionId: r.divisionId,
-          teamId: r.teamId,
-          submittedAt: r.submittedAt?.toISOString() ?? null,
-          reviewedByUserId: r.reviewedByUserId,
-          reviewedAt: r.reviewedAt?.toISOString() ?? null,
-          decisionReason: r.decisionReason,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString()
-        })
+    // Resolve season name when the form is season-scoped. Done in one
+    // round-trip rather than per-row to keep the query simple.
+    const seasonIds = Array.from(
+      new Set(
+        rows
+          .map((row) => row.formSeasonId)
+          .filter((x): x is string => !!x)
       )
+    );
+    const seasonRows = seasonIds.length
+      ? await this.db
+          .select({ id: schema.seasons.id, name: schema.seasons.name })
+          .from(schema.seasons)
+          .where(inArray(schema.seasons.id, seasonIds))
+      : [];
+    const seasonName = new Map(seasonRows.map((s) => [s.id, s.name]));
+
+    return {
+      items: rows.map(({ r, orgName, formName, formSeasonId, leagueName, divisionName, teamName }) => ({
+        id: r.id,
+        idempotencyKey: r.idempotencyKey,
+        orgId: r.orgId,
+        formVersionId: r.formVersionId,
+        submittedByUserId: r.submittedByUserId,
+        subjectPersonId: r.subjectPersonId,
+        status: r.status as RegistrationDto["status"],
+        leagueId: r.leagueId,
+        divisionId: r.divisionId,
+        teamId: r.teamId,
+        submittedAt: r.submittedAt?.toISOString() ?? null,
+        reviewedByUserId: r.reviewedByUserId,
+        reviewedAt: r.reviewedAt?.toISOString() ?? null,
+        decisionReason: r.decisionReason,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        orgName: orgName ?? null,
+        formName: formName ?? null,
+        seasonName: formSeasonId ? seasonName.get(formSeasonId) ?? null : null,
+        leagueName: leagueName ?? null,
+        divisionName: divisionName ?? null,
+        teamName: teamName ?? null
+      })) as unknown as RegistrationDto[]
     };
   }
 }

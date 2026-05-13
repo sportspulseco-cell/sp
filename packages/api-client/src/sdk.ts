@@ -1453,7 +1453,18 @@ export function createApi(f: Fetcher) {
        * users can hit it without scope errors.
        */
       listMyRegistrations: () =>
-        f<{ items: Registration[] }>(`/registration/self/registrations`),
+        f<{
+          items: Array<
+            Registration & {
+              orgName: string | null;
+              formName: string | null;
+              seasonName: string | null;
+              leagueName: string | null;
+              divisionName: string | null;
+              teamName: string | null;
+            }
+          >;
+        }>(`/registration/self/registrations`),
       reviewRegistration: (
         id: string,
         body: { action: "approve" | "reject" | "waitlist" | "start_review"; reason?: string }

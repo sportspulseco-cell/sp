@@ -497,10 +497,18 @@ function RecentGamesCard({
 
 /* ----------------------- registrations preview --------------------- */
 
-function RegistrationsPreview({ regs }: { regs: Registration[] }) {
+type EnrichedRegistration = Registration & {
+  orgName?: string | null;
+  formName?: string | null;
+  seasonName?: string | null;
+  leagueName?: string | null;
+  divisionName?: string | null;
+  teamName?: string | null;
+};
+
+function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
   const active = regs.filter(
-    (r: Registration) =>
-      r.status !== "rejected" && r.status !== "withdrawn"
+    (r) => r.status !== "rejected" && r.status !== "withdrawn"
   );
   return (
     <div className="rounded-xl border border-border bg-surface-1">
@@ -529,7 +537,7 @@ function RegistrationsPreview({ regs }: { regs: Registration[] }) {
         </div>
       ) : (
         <ul className="divide-y divide-border">
-          {active.slice(0, 4).map((r: Registration) => {
+          {active.slice(0, 4).map((r) => {
             const status = r.status as string;
             const tone: "success" | "warning" | "danger" | "info" | "neutral" =
               status === "approved"
@@ -541,19 +549,29 @@ function RegistrationsPreview({ regs }: { regs: Registration[] }) {
                   : status.startsWith("pending") || status === "submitted"
                     ? "warning"
                     : "info";
+            const title =
+              r.seasonName ||
+              r.formName ||
+              r.leagueName ||
+              r.orgName ||
+              `Ref ${r.id.slice(0, 8)}`;
+            const sub = [r.divisionName, r.teamName, r.orgName]
+              .filter(Boolean)
+              .join(" · ");
             return (
               <li
                 key={r.id}
                 className="flex items-center justify-between gap-3 px-5 py-3"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-[11px] text-fg-muted">
-                    {r.id.slice(0, 8)}
+                  <p className="truncate text-[13px] font-medium text-fg">
+                    {title}
                   </p>
-                  <p className="text-[12px] text-fg-muted">
-                    {r.submittedAt
-                      ? `Submitted ${fmtDate(r.submittedAt)}`
-                      : "Draft"}
+                  <p className="truncate text-[11px] text-fg-muted">
+                    {sub ||
+                      (r.submittedAt
+                        ? `Submitted ${fmtDate(r.submittedAt)}`
+                        : "Draft")}
                   </p>
                 </div>
                 <Badge mono tone={tone}>
