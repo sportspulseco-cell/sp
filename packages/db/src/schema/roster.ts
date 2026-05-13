@@ -136,3 +136,60 @@ export const teamMemberships = pgTable(
       .where(sql`${t.effectiveTo} IS NULL AND ${t.jerseyNumber} IS NOT NULL`)
   })
 );
+
+// =====================================================================
+// TEAM_JOIN_REQUESTS — player → captain "I want to join your team"
+// Complements team_invites (captain → player) and free_agent_pool_entries
+// (player advertises themselves to the marketplace). This is the third
+// path: a player who has already been approved at registration browses
+// the available teams in their division and applies to a specific one.
+// Captain accepts → team_membership row is created.
+// =====================================================================
+export const teamJoinRequests = pgTable(
+  "team_join_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    playerPersonId: uuid("player_person_id")
+      .notNull()
+      .references(() => persons.id, { onDelete: "cascade" }),
+    /** Season the player applied for (matches the team's active DTE). */
+    seasonId: uuid("season_id").references(() => seasons.id, {
+      onDelete: "set null"
+    }),
+    /** pending | approved | rejected | withdrawn */
+    status: text("status").notNull().default("pending"),
+    /** Optional message the player attaches with the application. */
+    message: text("message"),
+    appliedAt: timestamp("applied_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedByUserId: uuid("decided_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" }
+    ),
+    decisionReason: text("decision_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    teamIdx: index("team_join_team_idx").on(t.teamId),
+    playerIdx: index("team_join_player_idx").on(t.playerPersonId),
+    statusIdx: index("team_join_status_idx").on(t.status),
+    statusCheck: check(
+      "team_join_status_check",
+      sql`${t.status} IN ('pending','approved','rejected','withdrawn')`
+    ),
+    // One open (pending) request per (team, player, season).
+    uniqPending: uniqueIndex("team_join_pending_uniq")
+      .on(t.teamId, t.playerPersonId, t.seasonId)
+      .where(sql`${t.status} = 'pending'`)
+  })
+);

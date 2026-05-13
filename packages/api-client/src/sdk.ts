@@ -1476,6 +1476,58 @@ export function createApi(f: Fetcher) {
             teamName: string | null;
           }
         >(`/registration/self/registrations/${id}`),
+      // Player → captain team-join requests (player applies to a team
+      // after their season-level registration has been approved).
+      applyToTeam: (body: {
+        teamId: string;
+        seasonId?: string;
+        message?: string;
+      }) =>
+        f<{ id: string; status: string }>("/me/team-join-requests", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      listMyJoinRequests: () =>
+        f<{
+          items: Array<{
+            id: string;
+            status: string;
+            appliedAt: string;
+            decidedAt: string | null;
+            decisionReason: string | null;
+            message: string | null;
+            teamId: string;
+            teamName: string;
+            orgName: string | null;
+            seasonId: string | null;
+          }>;
+        }>("/me/team-join-requests"),
+      captainListJoinRequests: (
+        teamId: string,
+        status?: "all" | "pending"
+      ) =>
+        f<{
+          items: Array<{
+            id: string;
+            status: string;
+            appliedAt: string;
+            decidedAt: string | null;
+            decisionReason: string | null;
+            message: string | null;
+            seasonId: string | null;
+            playerPersonId: string;
+            playerName: string | null;
+            playerEmail: string | null;
+          }>;
+        }>(`/captain/team-join-requests${qs({ teamId, status })}`),
+      captainDecideJoinRequest: (
+        id: string,
+        body: { action: "approve" | "reject"; reason?: string }
+      ) =>
+        f<{ id: string; status: "approved" | "rejected" }>(
+          `/captain/team-join-requests/${id}/decide`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
       reviewRegistration: (
         id: string,
         body: { action: "approve" | "reject" | "waitlist" | "start_review"; reason?: string }

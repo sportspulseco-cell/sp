@@ -3,6 +3,7 @@ import { CommunicationsModule } from "../communications/communications.module";
 import { CaptainController } from "./interface/captain.controller";
 import { CaptainRosterController } from "./interface/captain-roster.controller";
 import { ComplianceController } from "./interface/compliance.controller";
+import { TeamJoinRequestsController } from "./interface/team-join-requests.controller";
 
 /**
  * Workflow 7A Phase 2 · captain console endpoints.
@@ -19,7 +20,8 @@ import { ComplianceController } from "./interface/compliance.controller";
   controllers: [
     CaptainController,
     CaptainRosterController,
-    ComplianceController
+    ComplianceController,
+    TeamJoinRequestsController
   ]
 })
 export class CaptainModule {}

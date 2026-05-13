@@ -222,10 +222,11 @@ export default async function RegistrationDetailPage({
           </Link>
           {isApproved ? (
             <Link
-              href="/compliance"
+              href={`/registrations/${r.id}/teams`}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-emerald-700"
             >
-              Check compliance docs
+              <Users className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Find a team
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
             </Link>
           ) : isRejected ? (

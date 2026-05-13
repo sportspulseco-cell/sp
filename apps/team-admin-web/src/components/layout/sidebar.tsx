@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarRange,
   CircleDollarSign,
+  Inbox,
   LayoutDashboard,
   ListChecks,
   Mail,
@@ -51,6 +52,7 @@ const CAPTAIN_NAV: NavSection = {
     { href: "/captain/team", label: "Manage team", icon: Settings },
     { href: "/captain/roster", label: "Manage roster", icon: Users },
     { href: "/captain/invites", label: "Invites", icon: Mail },
+    { href: "/captain/join-requests", label: "Join requests", icon: Inbox },
     { href: "/captain/free-agents", label: "Free agents", icon: Star },
     { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
     { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck }
