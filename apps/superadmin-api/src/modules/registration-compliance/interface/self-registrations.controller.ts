@@ -1,7 +1,10 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   Inject,
+  NotFoundException,
+  Param,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -155,5 +158,106 @@ export class SelfRegistrationsController {
         teamName: teamName ?? null
       })) as unknown as RegistrationDto[]
     };
+  }
+
+  @Get("registrations/:id")
+  @ApiOperation({
+    summary:
+      "Single self-scoped registration with the same enrichment as listMine. Returns 404 (never 403) when the row exists but doesn't belong to the caller — never leak existence across users."
+  })
+  async getMine(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param("id") id: string
+  ): Promise<RegistrationDto> {
+    const [person] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, principal.userId))
+      .limit(1);
+    if (!person) throw new NotFoundException("Registration not found");
+
+    const [row] = await this.db
+      .select({
+        r: schema.registrations,
+        orgName: schema.orgs.displayName,
+        formName: schema.registrationForms.name,
+        formSeasonId: schema.registrationForms.seasonId,
+        leagueName: schema.leagues.name,
+        divisionName: schema.divisions.name,
+        teamName: schema.teams.name
+      })
+      .from(schema.registrations)
+      .leftJoin(schema.orgs, eq(schema.orgs.id, schema.registrations.orgId))
+      .leftJoin(
+        schema.registrationFormVersions,
+        eq(
+          schema.registrationFormVersions.id,
+          schema.registrations.formVersionId
+        )
+      )
+      .leftJoin(
+        schema.registrationForms,
+        eq(
+          schema.registrationForms.id,
+          schema.registrationFormVersions.formId
+        )
+      )
+      .leftJoin(
+        schema.leagues,
+        eq(schema.leagues.id, schema.registrations.leagueId)
+      )
+      .leftJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.registrations.divisionId)
+      )
+      .leftJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.registrations.teamId)
+      )
+      .where(eq(schema.registrations.id, id))
+      .limit(1);
+
+    if (!row) throw new NotFoundException("Registration not found");
+    if (row.r.subjectPersonId !== person.id) {
+      // Row exists but isn't theirs — 404, not 403, to avoid leaking
+      // that the registration exists at all.
+      throw new NotFoundException("Registration not found");
+    }
+
+    let seasonName: string | null = null;
+    if (row.formSeasonId) {
+      const [s] = await this.db
+        .select({ name: schema.seasons.name })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, row.formSeasonId))
+        .limit(1);
+      seasonName = s?.name ?? null;
+    }
+
+    const r = row.r;
+    return {
+      id: r.id,
+      idempotencyKey: r.idempotencyKey,
+      orgId: r.orgId,
+      formVersionId: r.formVersionId,
+      submittedByUserId: r.submittedByUserId,
+      subjectPersonId: r.subjectPersonId,
+      status: r.status as RegistrationDto["status"],
+      leagueId: r.leagueId,
+      divisionId: r.divisionId,
+      teamId: r.teamId,
+      submittedAt: r.submittedAt?.toISOString() ?? null,
+      reviewedByUserId: r.reviewedByUserId,
+      reviewedAt: r.reviewedAt?.toISOString() ?? null,
+      decisionReason: r.decisionReason,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      orgName: row.orgName ?? null,
+      formName: row.formName ?? null,
+      seasonName,
+      leagueName: row.leagueName ?? null,
+      divisionName: row.divisionName ?? null,
+      teamName: row.teamName ?? null
+    } as unknown as RegistrationDto;
   }
 }

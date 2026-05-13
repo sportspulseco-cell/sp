@@ -229,10 +229,10 @@ function RegistrationRow({ r }: { r: Row }) {
 
         {isApproved ? (
           <Link
-            href="/"
+            href={`/registrations/${r.id}`}
             className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-emerald-700"
           >
-            Open dashboard
+            View details
             <ArrowRight className="h-3 w-3" strokeWidth={2} />
           </Link>
         ) : isDraftish ? (
@@ -243,7 +243,15 @@ function RegistrationRow({ r }: { r: Row }) {
             Resume
             <ArrowRight className="h-3 w-3" strokeWidth={2} />
           </Link>
-        ) : null}
+        ) : (
+          <Link
+            href={`/registrations/${r.id}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:bg-bg-subtle"
+          >
+            View details
+            <ArrowRight className="h-3 w-3" strokeWidth={2} />
+          </Link>
+        )}
       </div>
     </li>
   );

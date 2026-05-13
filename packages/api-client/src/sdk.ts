@@ -1465,6 +1465,17 @@ export function createApi(f: Fetcher) {
             }
           >;
         }>(`/registration/self/registrations`),
+      getMyRegistration: (id: string) =>
+        f<
+          Registration & {
+            orgName: string | null;
+            formName: string | null;
+            seasonName: string | null;
+            leagueName: string | null;
+            divisionName: string | null;
+            teamName: string | null;
+          }
+        >(`/registration/self/registrations/${id}`),
       reviewRegistration: (
         id: string,
         body: { action: "approve" | "reject" | "waitlist" | "start_review"; reason?: string }
