@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Loader2, Mail, X } from "lucide-react";
+import { ArrowUpRight, Check, Loader2, Mail, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
@@ -28,10 +28,17 @@ type PendingApplication = {
 export function DivisionPendingApplications({
   divisionId,
   divisionName,
+  seasonId,
   initial
 }: {
   divisionId: string;
   divisionName: string;
+  /**
+   * The season this division belongs to — passed in so the
+   * per-application row can deep-link to the cross-division
+   * applications queue (P2-1 / audit §4.3).
+   */
+  seasonId: string;
   initial: PendingApplication[];
 }) {
   const router = useRouter();
@@ -89,6 +96,14 @@ export function DivisionPendingApplications({
             your review
           </p>
         </div>
+        <Link
+          href={`/seasons/${seasonId}/applications`}
+          className="inline-flex items-center gap-1 self-start rounded-md border border-amber-500/40 bg-bg px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-amber-700 hover:bg-amber-500/10 dark:text-amber-300"
+          title="See applications across every division in this season"
+        >
+          Season queue
+          <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+        </Link>
       </header>
 
       {flash && (

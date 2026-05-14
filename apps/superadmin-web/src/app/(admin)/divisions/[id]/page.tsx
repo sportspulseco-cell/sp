@@ -267,6 +267,7 @@ export default async function DivisionDetailPage({
       <DivisionPendingApplications
         divisionId={id}
         divisionName={division.name}
+        seasonId={division.seasonId}
         initial={pendingForThisDivision}
       />
 

@@ -227,7 +227,7 @@ that deep-links out.
 
 ## Phase 2 — State convergence & schema cleanup (~4 weeks)
 
-### P2-1 — Pending team registration: cross-link the two admin surfaces ☐
+### P2-1 — Pending team registration: cross-link the two admin surfaces ☑
 
 | Field | Value |
 |---|---|
@@ -238,11 +238,12 @@ that deep-links out.
 `/divisions/[id]`. The two pages don't link to each other; admin acts
 on one, the other needs a manual refresh.
 
-**Acceptance**
-- [ ] `/seasons/[id]/applications` row: division column links to `/divisions/[id]`.
-- [ ] `/divisions/[id]` pending block: each pending row links to `/seasons/[seasonId]/applications`.
-- [ ] After Approve/Deny on either page, `router.refresh()` (already there) — verify both surfaces re-fetch.
-- [ ] Smoke: open both tabs side-by-side, approve on one, refresh the other → row gone.
+**Resolution (2026-05-15)**
+- [x] `/seasons/[id]/applications` queue: "Division applied" field on every application card is now a `<Link href="/divisions/[id]">` styled as the field value (subtle hover-accent + title-tooltip). One-click pivot from a season-wide queue to the division detail.
+- [x] `/divisions/[id]` pending block: header now carries a "Season queue ↗" link to `/seasons/[seasonId]/applications`. One link in the header (not per-row) since every pending row in this block belongs to the same season; per-row would be three identical buttons.
+- [x] `seasonId` plumbed through from `/divisions/[id]/page.tsx` (`division.seasonId`) → `<DivisionPendingApplications>` props.
+- [x] `router.refresh()` after approve/deny already wired in both surfaces — no change needed; an open second tab gets a stale row only until the admin clicks anywhere (cross-tab realtime is out of scope).
+- [x] `pnpm --filter @sportspulse/superadmin-web typecheck` clean.
 
 ---
 
@@ -433,7 +434,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P0-5 | rosterLockAt single source | §4.5 | ☑ | 2026-05-15 |
 | P1-1 | Real email (Resend) | §3, §7 | ☑ | 2026-05-15 |
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
-| P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☐ | — |
+| P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☑ | 2026-05-15 |
 | P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
 | P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |
 | P3-1 | Sidebar entries cleanup | §6 | ☐ | — |

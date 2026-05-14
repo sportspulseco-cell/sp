@@ -261,7 +261,13 @@ function ApplicationCard({
 
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
         <Field label="Division applied">
-          <p className="text-[13px] font-medium text-fg">{item.divisionName}</p>
+          <Link
+            href={`/divisions/${item.divisionId}`}
+            className="text-[13px] font-medium text-fg hover:text-accent hover:underline"
+            title={`Open ${item.divisionName} detail`}
+          >
+            {item.divisionName}
+          </Link>
           {full && (
             <p className="mt-0.5 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-rose-600 dark:text-rose-400">
               <AlertTriangle className="h-3 w-3" strokeWidth={1.75} /> Full
