@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AdminController } from "./interface/admin.controller";
+import { MaterializedViewsController } from "./interface/materialized-views.controller";
 import {
   DeleteFlagHandler,
   HealthHandler,
@@ -14,7 +15,7 @@ import { ADMIN_REPOSITORY } from "./domain/repositories/admin.repository";
 import { DrizzleAdminRepository } from "./infrastructure/repositories/drizzle-admin.repository";
 
 @Module({
-  controllers: [AdminController],
+  controllers: [AdminController, MaterializedViewsController],
   providers: [
     ListSettingsHandler,
     UpsertSettingHandler,

@@ -292,10 +292,16 @@ registration to the same season because there's no idempotency.
 - [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
 - [x] Smoke (logical): a player whose row already exists for a season at status pending_payment now hits 409 on a fresh submit, carrying the existing row id. The existing happy path (same `idempotencyKey` returns same row) is unchanged.
 
-**Part B — outstanding (materialized view + read consolidation)**
-- [ ] Materialised view `v_active_season_membership(person_id, season_id, team_id, source)` unioning the four paths.
-- [ ] All player-side and captain-side queries that need "is this player rostered?" read the view.
-- [ ] Smoke: captain accepts a player → view returns one row, source = `team_join_request`.
+**Part B — materialized view shipped (2026-05-15)**
+- [x] Migration `0033_v_active_season_membership.sql` — creates `v_active_season_membership` from `team_memberships WHERE current_status='active'` with a `source` column resolved via correlated EXISTS subqueries against the four originating tables (priority: `team_join_request` > `team_invite` > `free_agent` > `admin_direct` catchall). Applied live; current dataset returns 1 row tagged `admin_direct`.
+- [x] Unique index on `membership_id` (required for `REFRESH MATERIALIZED VIEW CONCURRENTLY`); lookup indexes on `(person_id, season_id)`, `(team_id, season_id)`, and `source`.
+- [x] `POST /admin/views/v-active-season-membership/refresh` (SuperAdminGuard) — calls `REFRESH MATERIALIZED VIEW CONCURRENTLY`. Hit on a cron cadence (hourly recommended) by the external scheduler; no-lock swap so reads never block.
+- [x] `MaterializedViewsController` wired into `AdminModule`.
+- [x] Smoke: live `REFRESH MATERIALIZED VIEW CONCURRENTLY` succeeded; the lone live membership row shows up tagged `admin_direct` as expected (captain Add-player path, no originating join/invite/free-agent row).
+- [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
+
+**Read-side consolidation — still outstanding**
+- [ ] All player-side and captain-side queries that ask "is this player rostered for this season" migrate to read the view instead of joining `team_memberships` ad-hoc. This is a separate scoping pass — grep `team_memberships` join sites, replace with the view where appropriate. Doing it greedily risks breaking write-path code that needs row-level current state, so it warrants a careful audit.
 
 ---
 
