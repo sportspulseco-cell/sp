@@ -148,6 +148,20 @@ export const registrations = pgTable(
     divisionId: uuid("division_id").references(() => divisions.id, {
       onDelete: "set null"
     }),
+    /**
+     * Denormalised season this registration belongs to. Set by the
+     * public funnel directly (it always operates on a known
+     * seasonId) and inferred by admin paths from
+     * `division.season_id` or `form.season_id`.
+     *
+     * Drives the partial unique index `registrations_active_uniq`
+     * that idempotency-checks (subject_person_id, season_id) for
+     * non-cancelled statuses (P2-3 / audit §4.1 + §8.2). Nullable
+     * to support org-only registrations that aren't season-bound.
+     */
+    seasonId: uuid("season_id").references(() => seasons.id, {
+      onDelete: "set null"
+    }),
     teamId: uuid("team_id").references(() => teams.id, {
       onDelete: "set null"
     }),

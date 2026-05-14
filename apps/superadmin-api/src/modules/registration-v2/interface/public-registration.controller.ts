@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   Inject,
@@ -428,27 +429,39 @@ export class PublicRegistrationController {
     // path through the state machine.
     assertValidTransition("draft", initialState);
 
-    const [reg] = await this.db
-      .insert(schema.registrations)
-      .values({
-        idempotencyKey,
-        orgId: season.orgId,
-        formVersionId: anyVersion.id,
-        submittedByUserId: userId,
-        subjectPersonId: personId!,
-        status: initialState,
-        metadata: {
-          submissionType,
-          pricingTierId: body.pricingTierId ?? null,
-          email,
-          fullName: body.fullName,
-          phone: body.phone ?? null,
-          dobDate: body.dobDate ?? null,
-          answers: body.answers ?? {},
-          isMinor
-        }
-      })
-      .returning();
+    let reg: typeof schema.registrations.$inferSelect | undefined;
+    try {
+      [reg] = await this.db
+        .insert(schema.registrations)
+        .values({
+          idempotencyKey,
+          orgId: season.orgId,
+          formVersionId: anyVersion.id,
+          submittedByUserId: userId,
+          subjectPersonId: personId!,
+          seasonId,
+          status: initialState,
+          metadata: {
+            submissionType,
+            pricingTierId: body.pricingTierId ?? null,
+            email,
+            fullName: body.fullName,
+            phone: body.phone ?? null,
+            dobDate: body.dobDate ?? null,
+            answers: body.answers ?? {},
+            isMinor
+          }
+        })
+        .returning();
+    } catch (e) {
+      const conflict = await this.handleActiveDuplicate(
+        e,
+        personId!,
+        seasonId
+      );
+      if (conflict) throw conflict;
+      throw e;
+    }
 
     return {
       id: reg!.id,
@@ -569,27 +582,39 @@ export class PublicRegistrationController {
       };
     }
 
-    const [reg] = await this.db
-      .insert(schema.registrations)
-      .values({
-        idempotencyKey,
-        orgId: season.orgId,
-        formVersionId: anyVersion.id,
-        submittedByUserId: userId,
-        subjectPersonId: personId!,
-        status: "pending_payment" as RegistrationState,
-        metadata: {
-          submissionType,
-          pricingTierId: null,
-          email,
-          fullName,
-          phone: null,
-          dobDate: null,
-          answers: {},
-          isMinor: false
-        }
-      })
-      .returning();
+    let reg: typeof schema.registrations.$inferSelect | undefined;
+    try {
+      [reg] = await this.db
+        .insert(schema.registrations)
+        .values({
+          idempotencyKey,
+          orgId: season.orgId,
+          formVersionId: anyVersion.id,
+          submittedByUserId: userId,
+          subjectPersonId: personId!,
+          seasonId,
+          status: "pending_payment" as RegistrationState,
+          metadata: {
+            submissionType,
+            pricingTierId: null,
+            email,
+            fullName,
+            phone: null,
+            dobDate: null,
+            answers: {},
+            isMinor: false
+          }
+        })
+        .returning();
+    } catch (e) {
+      const conflict = await this.handleActiveDuplicate(
+        e,
+        personId!,
+        seasonId
+      );
+      if (conflict) throw conflict;
+      throw e;
+    }
 
     return {
       id: reg!.id,
@@ -1148,6 +1173,46 @@ export class PublicRegistrationController {
   }
 
   // ---------- internals ----------
+
+  /**
+   * Turn a Postgres unique-violation on `registrations_active_uniq`
+   * into a `409 Conflict` with the id of the existing active row.
+   * Returns null for any other error so the caller can re-throw it.
+   * Plan P2-3 / audit §4.1 + §8.2.
+   */
+  private async handleActiveDuplicate(
+    err: unknown,
+    subjectPersonId: string,
+    seasonId: string
+  ): Promise<ConflictException | null> {
+    // Drizzle wraps the underlying pg error; the code might be on
+    // the original or the wrapper. Check both.
+    const e = err as { code?: string; cause?: { code?: string } };
+    const code = e.code ?? e.cause?.code;
+    if (code !== "23505") return null;
+    const [existing] = await this.db
+      .select({
+        id: schema.registrations.id,
+        status: schema.registrations.status
+      })
+      .from(schema.registrations)
+      .where(
+        and(
+          eq(schema.registrations.subjectPersonId, subjectPersonId),
+          eq(schema.registrations.seasonId, seasonId),
+          sql`${schema.registrations.status} NOT IN ('rejected','withdrawn','cancelled')`
+        )
+      )
+      .limit(1);
+    if (!existing) return null;
+    return new ConflictException({
+      error: "active_registration_exists",
+      message:
+        "You already have an active registration for this season. Resume it instead of starting over.",
+      registrationId: existing.id,
+      status: existing.status
+    });
+  }
 
   private async loadAndAuthorize(id: string, email: string) {
     if (!email) throw new NotFoundException("email required");

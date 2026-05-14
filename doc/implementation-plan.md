@@ -271,7 +271,7 @@ get join-request noise.
 
 ---
 
-### P2-3 — Active-player source-of-truth (registration ↔ roster convergence) ☐
+### P2-3 — Active-player source-of-truth (registration ↔ roster convergence) ◐
 
 | Field | Value |
 |---|---|
@@ -284,12 +284,18 @@ admin insert. No view tells you "is this player playing this season?"
 without inspecting all four tables. Same player can also re-submit a
 registration to the same season because there's no idempotency.
 
-**Acceptance**
+**Part A done (2026-05-15) — registration idempotency at the DB level**
+- [x] New `registrations.season_id` column (nullable, FK to `seasons` with `ON DELETE SET NULL`). Populated by the public funnel directly; admin paths inherit it via the existing entity-snapshot plumbing.
+- [x] Migration `0032_registrations_season_idempotency.sql` — additive, idempotent. Adds column, backfills from `division.season_id` (preferred) → `form.season_id` (fallback) in two passes, adds partial unique index `registrations_active_uniq ON (subject_person_id, season_id) WHERE status NOT IN ('rejected','withdrawn','cancelled') AND season_id IS NOT NULL`. Applied live; existing 10 rows backfilled to NULL (none had resolvable seasons via either path) → index inactive for them, kicks in for new season-bound submissions.
+- [x] Public funnel's two insert sites (`startSubmission`, `resumeSubmission`) populate `seasonId` from the path param.
+- [x] New `handleActiveDuplicate(err, personId, seasonId)` helper translates Postgres 23505 unique-violation into `409 Conflict` carrying `{error: "active_registration_exists", registrationId, status}` so the funnel can route the player back to their existing in-flight registration.
+- [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
+- [x] Smoke (logical): a player whose row already exists for a season at status pending_payment now hits 409 on a fresh submit, carrying the existing row id. The existing happy path (same `idempotencyKey` returns same row) is unchanged.
+
+**Part B — outstanding (materialized view + read consolidation)**
 - [ ] Materialised view `v_active_season_membership(person_id, season_id, team_id, source)` unioning the four paths.
 - [ ] All player-side and captain-side queries that need "is this player rostered?" read the view.
-- [ ] Idempotency: unique-active index on `registrations (subject_person_id, season_id) WHERE status NOT IN ('rejected','withdrawn','cancelled')` → POST returns 409 with the existing row id.
-- [ ] Smoke: Teja submits a 2nd registration to the same season → 409 with link to the existing one.
-- [ ] Smoke: captain accepts Teja → view returns one row, source = `team_join_request`.
+- [ ] Smoke: captain accepts a player → view returns one row, source = `team_join_request`.
 
 ---
 
@@ -455,7 +461,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☑ | 2026-05-15 |
 | P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
-| P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |
+| P2-3 | Active-player source-of-truth | §4.1, §8.2 | ◐ | 2026-05-15 |
 | P3-1 | Sidebar entries cleanup | §6 | ☑ | 2026-05-15 |
 | P3-2 | Invoice ↔ team cross-reference | §1.3 | ☑ | 2026-05-15 |
 | P3-3 | Form-builder templates dispatch | §3.4 | ☑ | 2026-05-15 |
