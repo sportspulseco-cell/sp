@@ -309,6 +309,8 @@ export class AdminApplicationsController {
       orgId: ctx.orgId,
       templateCode: "TEAM_REGISTRATION_APPROVED",
       idempotencyKey: `app-approved-${entryId}`,
+      recipientPersonId: ctx.captainUserId ?? null,
+      recipientEmail: ctx.captainEmail ?? null,
       payload: {
         teamName: ctx.teamName,
         divisionName: ctx.divisionName,
@@ -360,6 +362,8 @@ export class AdminApplicationsController {
       orgId: ctx.orgId,
       templateCode: "TEAM_REGISTRATION_REJECTED",
       idempotencyKey: `app-rejected-${entryId}`,
+      recipientPersonId: ctx.captainUserId ?? null,
+      recipientEmail: ctx.captainEmail ?? null,
       payload: {
         teamName: ctx.teamName,
         divisionName: ctx.divisionName,
@@ -380,6 +384,8 @@ export class AdminApplicationsController {
         teamId: schema.teams.id,
         teamName: schema.teams.name,
         orgId: schema.teams.orgId,
+        captainUserId: schema.teams.captainUserId,
+        captainEmail: schema.profiles.email,
         divisionId: schema.divisions.id,
         divisionName: schema.divisions.name,
         seasonId: schema.divisions.seasonId,
@@ -390,6 +396,10 @@ export class AdminApplicationsController {
       .innerJoin(
         schema.teams,
         eq(schema.teams.id, schema.divisionTeamEntries.teamId)
+      )
+      .leftJoin(
+        schema.profiles,
+        eq(schema.profiles.id, schema.teams.captainUserId)
       )
       .innerJoin(
         schema.divisions,

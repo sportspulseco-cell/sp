@@ -21,7 +21,6 @@ import { NOTIFICATION_REPOSITORY } from "./domain/repositories/notification.repo
 import { NOTIFICATION_TEMPLATE_REPOSITORY } from "./domain/repositories/template.repository";
 import { DrizzleNotificationRepository } from "./infrastructure/repositories/drizzle-notification.repository";
 import { DrizzleNotificationTemplateRepository } from "./infrastructure/repositories/drizzle-template.repository";
-import { ConsoleNotificationProvider } from "./infrastructure/providers/console-provider";
 
 @Module({
   controllers: [NotificationsController, NotificationTemplatesController],
@@ -36,7 +35,6 @@ import { ConsoleNotificationProvider } from "./infrastructure/providers/console-
     UpsertTemplateHandler,
     DeleteTemplateHandler,
     NotificationService,
-    ConsoleNotificationProvider,
     {
       provide: NOTIFICATION_REPOSITORY,
       useClass: DrizzleNotificationRepository

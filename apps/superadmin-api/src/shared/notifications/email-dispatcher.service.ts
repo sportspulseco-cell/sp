@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
 
@@ -45,7 +45,10 @@ export class EmailDispatcherService {
   private readonly log = new Logger(EmailDispatcherService.name);
   private client: Resend | null = null;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    @Inject(ConfigService)
+    private readonly config: ConfigService
+  ) {}
 
   private getClient(): Resend | null {
     if (this.client) return this.client;

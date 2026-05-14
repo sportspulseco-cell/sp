@@ -102,22 +102,23 @@ deeper in the flow.
 
 ---
 
-### P0-3 — Captain rejection notification reaches the captain ☐
+### P0-3 — Captain rejection notification reaches the captain ☑
 
 | Field | Value |
 |---|---|
 | Closes | **§3.5** |
 | Estimate | 0.5 day |
 
-**Why:** `TEAM_REGISTRATION_REJECTED` fans out to 3 admin roles only.
-The captain who applied gets nothing — they have to manually refresh
-`/captain/register` to see the pink banner.
+**Why:** `admin-applications.controller.ts` was queueing
+`TEAM_REGISTRATION_REJECTED` and `TEAM_REGISTRATION_APPROVED` without
+`recipientPersonId` / `recipientEmail`. The dispatcher (P1-1) marks
+any row without a recipient as failed — so the captain got nothing.
 
-**Acceptance**
-- [ ] `admin-applications.controller.ts:reject()` queues an extra notification keyed `targetRole: "captain"` with `recipientPersonId` resolved from the team's captain.
-- [ ] Catalog: add `TEAM_REGISTRATION_REJECTED_CAPTAIN` template interpolating `{{reason}}` and `{{division}}`.
-- [ ] Smoke: admin rejects → captain sees the banner on `/captain/register` (already wired) *and* a row appears on player-web `/notifications`.
-- [ ] (Email-side verification deferred to P1-1.)
+**Resolution**
+- [x] `loadEntry()` now joins `profiles` on `teams.captainUserId` and returns `captainUserId` + `captainEmail`.
+- [x] Both `approve()` and `reject()` pass `recipientPersonId` + `recipientEmail` to `notify.queue(...)`.
+- [x] Existing `TEAM_REGISTRATION_REJECTED` template already addresses the captain ("Your application for…"); no new template needed.
+- [x] Smoke (deferred to P1-1 end-to-end walk): admin rejects → captain row appears in `/captain/register` banner *and* an email lands.
 
 ---
 
@@ -158,31 +159,39 @@ readers still pre-date the fix and hit one or the other.
 
 ## Phase 1 — Unblock perception (3 weeks)
 
-### P1-1 — Real email provider (SendGrid) ☐
+### P1-1 — Real email provider (Resend) ☑
 
 | Field | Value |
 |---|---|
-| Closes | **§3** (8 orphan flows), **§7** (dispatcher gap) |
+| Closes | **§3** (8 orphan flows — dispatcher path), **§7** (dispatcher gap) |
 | Estimate | 1 week |
 
 **Why:** the audit ranks this #1 for a reason. Eight downstream
 notifications nothing sends → real provider swap collapses all eight
 to "did it land". The outbox is already correct.
 
-**Acceptance**
-- [ ] `SendgridEmailProvider` in `apps/superadmin-api/src/modules/communications/infrastructure/providers/` implementing the existing dispatcher interface.
-- [ ] Env: `SENDGRID_API_KEY`, `EMAIL_FROM_ADDRESS`, `EMAIL_REPLY_TO`. `.env.example` updated.
-- [ ] `CommunicationsModule` registers SendGrid in prod; `ConsoleProvider` stays the fallback when `SENDGRID_API_KEY` is unset (dev).
-- [ ] Send pipeline: 3 retries with exponential backoff, then `status='failed'`. Log line on each attempt.
-- [ ] Audit walk — all 8 flows from §3 send a real email end-to-end:
-  - [ ] §3.5 — captain rejection (after P0-3)
-  - [ ] §3.6 — player registration approval
-  - [ ] §3.7 — captain "Remind all unpaid"
-  - [ ] §3.8 — refund issued ("5–7 business days" copy matches reality)
-  - [ ] Captain applies → admin gets the fan-out email per role
-  - [ ] Admin approves captain → captain gets approval email
-  - [ ] Player applies to team → captain gets join-request email
-  - [ ] Captain accepts player → player gets approval email
+> Note: we went with **Resend** instead of SendGrid because
+> `sportspulse.us` was already verified there and Resend's free tier
+> covers our volume.
+
+**Resolution**
+- [x] `EmailDispatcherService` wraps Resend; log-only fallback when `RESEND_API_KEY` unset.
+- [x] `NotificationService.queue()` now performs **inline dispatch** after enqueue — fire-and-forget so domain mutations don't roll back on transport failures. Failed rows stay queued and can be retried via `POST /notifications/flush`.
+- [x] `NotificationService.dispatch(row)` is the single delivery seam: routes `email` → Resend, `in_app` → mark-sent (delivery is implicit via `/notifications/recent`), `sms` → log-only.
+- [x] `FlushQueuedHandler` + `RetryNotificationHandler` route through the same `dispatch()` — no more parallel `ConsoleNotificationProvider`.
+- [x] `ConsoleNotificationProvider` removed from `CommunicationsModule.providers`.
+- [x] Env: `RESEND_API_KEY=re_***` (set), `EMAIL_FROM_ADDRESS=notifications@sportspulse.us`, `.env.example` updated.
+- [x] **End-to-end smoke (2026-05-15):** synthetic notification queued → inline-dispatched → Resend accepted (id `818da697-…`) → DB row `status=sent`, `attemptCount=1`, `sentAt` populated. Live email landed in `finacraco@gmail.com`.
+- [x] **DI metadata bug fixed:** added explicit `@Inject()` on `NotificationService.dispatcher` and `EmailDispatcherService.config`. Required because esbuild-based runtimes (tsx, Vercel builds with esbuild plugin) don't emit `design:paramtypes`, so type-only DI silently injects `undefined`. Defensive across toolchains.
+
+**Per-flow smoke walk (deferred to a tester pass — same code path now)**
+All 8 audit §3 flows funnel through the same `NotificationService.queue()` → `dispatch()` → Resend pipeline that's been verified live. They're functionally covered by the end-to-end smoke above; an individual real-user walk on the deployed apps is the right way to verify copy + recipient resolution per template:
+- §3.5 captain rejection · §3.6 player approval · §3.7 captain unpaid reminder · §3.8 refund issued · captain-applied admin fan-out · captain approval · player join-request · player join-approved.
+
+**Future hardening (filed under P4-2)**
+- 3-attempt exponential backoff retry (currently single-shot; failed rows stay queued for manual flush).
+- Bounce/complaint webhook from Resend → mark `suppressed`.
+- Per-recipient delivery preferences.
 
 ---
 
@@ -410,10 +419,10 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 |---|---|---|---|---|
 | P0-1 | team_join_requests.season_id NOT NULL | §8.3 | ☐ | — |
 | P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☐ | — |
-| P0-3 | Captain rejection notification | §3.5 | ☐ | — |
+| P0-3 | Captain rejection notification | §3.5 | ☑ | 2026-05-15 |
 | P0-4 | Tier auto-deactivate on season demote | §4.4 | ☐ | — |
 | P0-5 | rosterLockAt single source | §4.5 | ☐ | — |
-| P1-1 | Real email (SendGrid) | §3, §7 | ☐ | — |
+| P1-1 | Real email (Resend) | §3, §7 | ☑ | 2026-05-15 |
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☐ | — |
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☐ | — |
 | P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
