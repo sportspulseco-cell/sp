@@ -1,61 +1,82 @@
 # SportsPulse implementation plan
 
-Anchored to the broken-flow audit in [traceability-matrix.md](traceability-matrix.md).
-Each item below is independently trackable — flip the checkbox in the
-**Status** column as work lands. Phases are ordered by **what the user
-notices first**, not by code size.
+Anchored 1:1 to the **Broken-flow audit** (this doc's TL;DR mirrors it
+below). Every plan item closes a numbered audit section. No item is
+on this plan unless it shows up in the audit.
 
-> **How to update:** edit this file directly. Acceptance criteria stay
-> as `[ ]` until verified by a fresh smoke walk on localhost (per the
-> CLAUDE.md "test like the testers test" rule).
+Longer-horizon features (scheduler engine, scorekeeper UI, brackets,
+i18n, multi-sport rules, team store) live on the platform backlog in
+[traceability-matrix.md §9](traceability-matrix.md) — not here.
 
-**Legend**
+**How to update this doc**
+- Flip the item-line status: ☐ → ◐ → ☑ (or ⊘ for blocked).
+- Tick each acceptance `[ ]` box only after a localhost smoke walk.
+- One commit per item, footer `Closes plan: P0-1`.
+- Update the **Tracking** table at the bottom with the date you moved status.
 
-- ☐ not started
-- ◐ in progress
-- ☑ done (acceptance criteria all checked)
-- ⊘ blocked / waiting on another item or external
+**Status legend**: ☐ not started · ◐ in progress · ☑ done · ⊘ blocked
 
-**Local dev stack assumed** (per [traceability-matrix.md §Local dev contract](traceability-matrix.md))
+**Local dev stack** (CORS-open API on 4000)
 
-| App | Port | Notes |
-|---|---|---|
-| superadmin-api | 4000 | CORS open to 3001–3005 |
-| superadmin-web | 3002 | god app |
-| player-web | 3004 | player + (currently) duplicate captain pages |
-| team-admin-web | 3005 | captain console + wizard |
+| App | Port |
+|---|---|
+| superadmin-web | 3002 |
+| player-web | 3004 |
+| team-admin-web | 3005 |
 
 ---
 
-## Phase 0 — Hot fixes (this week, ~1.5 engineer-weeks)
+## TL;DR of the audit it closes
 
-Outright bugs introduced during the build sprint. Doing these first
-because they break the flows we *just shipped*.
+| § | Problem | Plan item(s) |
+|---|---|---|
+| §1 | Captain bounces between player-web ↔ team-admin-web mid-task | P1-2 |
+| §2 | 5 captain pages duplicated byte-for-byte across two apps | P1-2 |
+| §3 | 8 admin actions enqueue notifications nothing sends (ConsoleProvider) | P1-1, P0-3, P3-2, P3-3 |
+| §4 | Same entity surfaces inconsistently across apps | P0-2, P0-4, P0-5, P2-1, P2-3 |
+| §5 | org-admin-web / league-admin-web are empty | P5-D |
+| §6 | Sidebar entries misnamed or point at stubs | P1-2, P3-1 |
+| §7 | Notification outbox correct, dispatcher missing | P1-1, P4-1 |
+| §8 | Schema decisions that drive UI confusion | P0-1, P2-2, P2-3 |
 
-### P0-1 — `team_join_requests.season_id` must be NOT NULL ☐
+**Ranked priority** (from the audit's own "what to fix first"):
+
+1. **P1-1** SendGrid — 1 week — closes §3 + §7
+2. **P0-1** team_join_requests.season_id NOT NULL — 1 day — closes §8.3
+3. **P1-2** Delete duplicate /captain/* — 2 days — closes §1 + §2 + §6
+4. **P0-2** userIsCaptainOfTeam everywhere — 1 day — closes §4.2
+5. **P5-D** Decide org/league admin app fate — 1 hour decision — closes §5
+6. **P4-1** Real Stripe — 2 weeks — closes §3.8
+7. **P4-2** Notification preferences + retry — 1 week — closes §7 follow-on
+8. **P2-3** Active-player source-of-truth — 1 wk design + 2 wk build — closes §4.1 + §8.2
+
+---
+
+## Phase 0 — Bugs we shipped this week (1.5 engineer-weeks)
+
+### P0-1 — `team_join_requests.season_id` NOT NULL ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | §8.3 |
+| Closes | **§8.3** |
 | Estimate | 0.5 day |
 | Depends on | — |
-| Owner | TBD |
 
-**Why:** the new player→team apply flow creates `team_memberships` rows
-on captain approval. `team_memberships.season_id` is NOT NULL — when
-`team_join_requests.season_id` is null, the insert crashes inside the
+**Why:** today's player→team apply flow inserts `team_memberships` on
+captain approval. `team_memberships.season_id` is NOT NULL — when the
+request carries a null season, the insert crashes inside the
 transaction. The unique-pending index also treats null season as
 "always different", so duplicate applications slip through.
 
 **Acceptance**
-- [ ] Migration: `ALTER TABLE team_join_requests ALTER COLUMN season_id SET NOT NULL` *(after backfilling existing nulls)*.
+- [ ] Migration: backfill `season_id` on any existing null rows; `ALTER COLUMN season_id SET NOT NULL`.
 - [ ] `ApplyBodyDto.seasonId` becomes required (drop `IsOptional`).
-- [ ] `/registrations/[id]/teams/page.tsx` passes a resolved seasonId on apply — either from the registration row's division → season, or from a season picker if division-less.
+- [ ] `/registrations/[id]/teams/page.tsx` resolves seasonId before calling apply — from the registration's division → season, or from a season picker if the registration is org-only.
+- [ ] Re-add unique-pending index after the null backfill.
 - [ ] Smoke: apply with no season → 400. Apply with season → roster row created on approve.
-- [ ] Unique-pending index re-asserted.
 
 **Files**
-- migration in `packages/db/migrations/`
+- new migration in `packages/db/migrations/`
 - `apps/superadmin-api/src/modules/captain/interface/team-join-requests.controller.ts`
 - `apps/player-web/src/app/(app)/registrations/[id]/teams/page.tsx`
 - `apps/player-web/src/app/(app)/registrations/[id]/teams/find-team-client.tsx`
@@ -66,20 +87,18 @@ transaction. The unique-pending index also treats null season as
 
 | Field | Value |
 |---|---|
-| Audit ref | §4.2 |
+| Closes | **§4.2** |
 | Estimate | 1 day |
-| Depends on | — |
 
-**Why:** I wired six controllers to use the shared helper (commit
-`a8cbe59`), but a follow-up grep finds more direct reads of the
-legacy column — especially inside `captain-roster.controller.ts` past
-the requireCaptainTeam check, and inside the team-admin-web client
-fetch path that reads `team.captainUserId` to gate UI affordances.
+**Why:** I wired the helper into six controllers (commit `a8cbe59`),
+but `/captain/roster` on team-admin-web and a handful of UI gates
+still read the legacy column directly. IAM-assigned captains 403
+deeper in the flow.
 
 **Acceptance**
-- [ ] `grep -r "captainUserId" apps/superadmin-api/src/modules/` returns zero occurrences outside the helper.
-- [ ] Same in `apps/team-admin-web/src` (UI gate falls back to `scope.roleCodes.includes("captain")`).
-- [ ] Smoke: captain whose `teams.captain_user_id` is NULL but has the role assignment loads `/captain/roster` without 403 deep in the flow.
+- [ ] `grep -r "captainUserId" apps/superadmin-api/src/modules/` returns zero matches outside `shared/auth/captain.ts`.
+- [ ] In team-admin-web, "is this user the captain?" gates read `scope.roleCodes.includes("captain")` rather than `team.captainUserId === user.id`.
+- [ ] Smoke: captain whose `teams.captain_user_id` is NULL (role assigned via IAM only) loads `/captain/roster` end-to-end with no 403.
 
 ---
 
@@ -87,36 +106,35 @@ fetch path that reads `team.captainUserId` to gate UI affordances.
 
 | Field | Value |
 |---|---|
-| Audit ref | §3.5 |
+| Closes | **§3.5** |
 | Estimate | 0.5 day |
-| Depends on | — |
 
-**Why:** `TEAM_REGISTRATION_REJECTED` fans out to 3 admin roles only;
-the captain who applied gets nothing. They have to refresh
-`/captain/register` to see the pink reason box.
+**Why:** `TEAM_REGISTRATION_REJECTED` fans out to 3 admin roles only.
+The captain who applied gets nothing — they have to manually refresh
+`/captain/register` to see the pink banner.
 
 **Acceptance**
-- [ ] `admin-applications.controller.ts:reject()` queues an additional notification with `targetRole: "captain"` and `recipientPersonId: <captain person>`.
-- [ ] `TEAM_REGISTRATION_REJECTED_CAPTAIN` template added to catalog with the rejection reason interpolated.
-- [ ] Smoke: admin rejects → captain's `/captain/register` shows the banner *and* a row appears on their `/notifications` page.
+- [ ] `admin-applications.controller.ts:reject()` queues an extra notification keyed `targetRole: "captain"` with `recipientPersonId` resolved from the team's captain.
+- [ ] Catalog: add `TEAM_REGISTRATION_REJECTED_CAPTAIN` template interpolating `{{reason}}` and `{{division}}`.
+- [ ] Smoke: admin rejects → captain sees the banner on `/captain/register` (already wired) *and* a row appears on player-web `/notifications`.
+- [ ] (Email-side verification deferred to P1-1.)
 
 ---
 
-### P0-4 — Season `is_active` symmetry on tier deactivation ☐
+### P0-4 — Pricing tier auto-deactivate on season demote ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | §4.4 |
+| Closes | **§4.4** |
 | Estimate | 0.5 day |
 
-**Why:** flipping season `registration_open → draft` doesn't
-deactivate pricing tiers, so they stay live and visible to captains
-who already have the season URL. The auto-activate side I added
-should have a symmetric inverse.
+**Why:** I added the activate-on-`registration_open` side (commit
+`eee5ff7`); the inverse is missing. Demoting back to `draft` leaves
+tiers live → state drift.
 
 **Acceptance**
-- [ ] `ChangeSeasonStatusHandler`: when status transitions *away from* `registration_open`, deactivate (`is_active = false`) all this season's tiers.
-- [ ] Smoke: open registration on a season → tiers active. Demote to draft → tiers inactive. Re-open → re-activate.
+- [ ] In `ChangeSeasonStatusHandler`, transitions *away* from `registration_open` deactivate every `is_active=true` tier for the season.
+- [ ] Smoke: cycle a season `draft → registration_open → draft` → tiers flip back to inactive.
 
 ---
 
@@ -124,393 +142,296 @@ should have a symmetric inverse.
 
 | Field | Value |
 |---|---|
-| Audit ref | §4.5 |
+| Closes | **§4.5** |
 | Estimate | 0.5 day |
 
-**Why:** form-builder writes both column + JSONB; readers that pre-date
-the fix still hit one or the other. We should pick the column and
-delete the JSONB copy.
+**Why:** the form-builder writes the column **and** JSONB to be safe;
+readers still pre-date the fix and hit one or the other.
 
 **Acceptance**
-- [ ] `grep -r "config.rosterLockAt\|config\.\\?rosterLockAt" apps/` returns zero occurrences.
-- [ ] One-off data migration: copy `config.rosterLockAt` → `seasons.roster_lock_at` for rows where the column is null but the JSONB has a value.
-- [ ] form-builder writes only to the column going forward.
+- [ ] `grep -r "config.rosterLockAt" apps/` returns zero matches.
+- [ ] One-off data migration: backfill `seasons.roster_lock_at` from `config.rosterLockAt` where the column is null but JSONB has a value.
+- [ ] form-builder writes to the column only (remove the JSONB write).
+- [ ] Smoke: roster-lock guard everywhere (captain-roster, registration funnel) reads the same value.
 
 ---
 
-## Phase 1 — Plumbing (~3 weeks)
-
-The "looks-broken" surfaces. Largest user-perception payoff per week
-of work.
+## Phase 1 — Unblock perception (3 weeks)
 
 ### P1-1 — Real email provider (SendGrid) ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | §3, §7, matrix §9.4a |
+| Closes | **§3** (8 orphan flows), **§7** (dispatcher gap) |
 | Estimate | 1 week |
-| Depends on | — |
 
-**Why:** unblocks every "did it work?" tester loop. Eight orphan flows
-listed in §3 of the audit all collapse to "the email never reached
-the user". One provider swap fixes all eight.
+**Why:** the audit ranks this #1 for a reason. Eight downstream
+notifications nothing sends → real provider swap collapses all eight
+to "did it land". The outbox is already correct.
 
 **Acceptance**
-- [ ] New `SendgridEmailProvider` class implementing the existing dispatcher interface in `apps/superadmin-api/src/modules/communications/infrastructure/providers/`.
+- [ ] `SendgridEmailProvider` in `apps/superadmin-api/src/modules/communications/infrastructure/providers/` implementing the existing dispatcher interface.
 - [ ] Env: `SENDGRID_API_KEY`, `EMAIL_FROM_ADDRESS`, `EMAIL_REPLY_TO`. `.env.example` updated.
-- [ ] `CommunicationsModule` registers the SendGrid provider in prod; keeps `ConsoleProvider` in dev unless `SENDGRID_API_KEY` is set (then SendGrid even in dev).
-- [ ] Backoff + retry: 3 attempts with exponential, then `status='failed'`.
-- [ ] Manual test: trigger `registration.approved` for a test user → real email lands in inbox; `notifications.status = 'sent'`.
-- [ ] Manual test: trigger `TEAM_REGISTRATION_REJECTED_CAPTAIN` (P0-3) → captain receives the rejection reason.
-- [ ] Manual test: overdue cron's `invoice.overdue.r1` lands.
-
-**Files**
-- `apps/superadmin-api/src/modules/communications/infrastructure/providers/sendgrid-provider.ts` (new)
-- `apps/superadmin-api/src/modules/communications/communications.module.ts`
-- `apps/superadmin-api/.env.example`
+- [ ] `CommunicationsModule` registers SendGrid in prod; `ConsoleProvider` stays the fallback when `SENDGRID_API_KEY` is unset (dev).
+- [ ] Send pipeline: 3 retries with exponential backoff, then `status='failed'`. Log line on each attempt.
+- [ ] Audit walk — all 8 flows from §3 send a real email end-to-end:
+  - [ ] §3.5 — captain rejection (after P0-3)
+  - [ ] §3.6 — player registration approval
+  - [ ] §3.7 — captain "Remind all unpaid"
+  - [ ] §3.8 — refund issued ("5–7 business days" copy matches reality)
+  - [ ] Captain applies → admin gets the fan-out email per role
+  - [ ] Admin approves captain → captain gets approval email
+  - [ ] Player applies to team → captain gets join-request email
+  - [ ] Captain accepts player → player gets approval email
 
 ---
 
-### P1-2 — Delete duplicate `/captain/*` pages from player-web ☐
+### P1-2 — Captain console consolidation: delete duplicate `/captain/*` from player-web ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | §1, §2 |
+| Closes | **§1** (cross-app handoffs), **§2** (parallel implementations), **§6** (sidebar duplicates) |
 | Estimate | 2 days |
-| Depends on | — |
 
-**Why:** five pages exist as byte-identical copies across two apps.
-Maintenance silo. Captain console is the team-admin-web's job;
-player-web should have a *banner* deep-linking out.
+**Why:** the audit caught five byte-identical page pairs. Captain
+console belongs in team-admin-web. Player-web keeps a single banner
+that deep-links out.
 
 **Acceptance**
-- [ ] Delete `apps/player-web/src/app/(app)/captain/` directory.
-- [ ] Player-web sidebar removes the "Captain console" section.
-- [ ] New banner component on player-web home: if `scope.roleCodes.includes("captain")`, show "You're a captain — open the captain console" deep-linking to `NEXT_PUBLIC_TEAM_ADMIN_URL/captain/register` or `/` depending on registration state.
-- [ ] Removed routes return 404 — no orphan links inside the player-web codebase.
-- [ ] Smoke: Azmath signs in to player-web → sees banner → clicks → arrives at team-admin-web logged in.
+- [ ] Delete `apps/player-web/src/app/(app)/captain/` entirely.
+- [ ] Player-web sidebar: drop the "Captain console" section.
+- [ ] New banner component on player-web home: if `scope.roleCodes.includes("captain")`, render "You're a captain — open the captain console" → deep-links to `NEXT_PUBLIC_TEAM_ADMIN_URL` (`/captain/register` if pre-approval, `/` otherwise).
+- [ ] `/registrations/[id]/teams/page.tsx` keeps the player-side **Find a team** flow (it's a *player* feature, not a captain one — apply is player-initiated).
+- [ ] Removed routes return 404; no orphan links inside the player-web codebase (`rg -F "/captain/"` returns zero hits in player-web).
+- [ ] Smoke: captain on player-web → sees banner → clicks → arrives signed-in at team-admin-web. Same Supabase project so the redirect lands authenticated where possible (if per-origin session fails, banner copy says "you'll need to sign in once" and pre-fills the email).
 
 ---
 
-### P1-3 — Notification preferences UI + retry scheduler ☐
+## Phase 2 — State convergence & schema cleanup (~4 weeks)
+
+### P2-1 — Pending team registration: cross-link the two admin surfaces ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | matrix §9.4d |
-| Estimate | 1 week |
+| Closes | **§4.3** |
+| Estimate | 1 day |
+
+**Why:** admin can approve a DTE from `/seasons/[id]/applications` *or*
+`/divisions/[id]`. The two pages don't link to each other; admin acts
+on one, the other needs a manual refresh.
+
+**Acceptance**
+- [ ] `/seasons/[id]/applications` row: division column links to `/divisions/[id]`.
+- [ ] `/divisions/[id]` pending block: each pending row links to `/seasons/[seasonId]/applications`.
+- [ ] After Approve/Deny on either page, `router.refresh()` (already there) — verify both surfaces re-fetch.
+- [ ] Smoke: open both tabs side-by-side, approve on one, refresh the other → row gone.
+
+---
+
+### P2-2 — Org-scoped registration UX (require division on form or in funnel) ☐
+
+| Field | Value |
+|---|---|
+| Closes | **§8.1** |
+| Estimate | 2 days |
+
+**Why:** today an org-only registration surfaces *every team in the
+org* on `/registrations/[id]/teams`. Captains in unrelated divisions
+get join-request noise.
+
+**Decision required** (pick one in this PR):
+
+- **A** — Block publishing a form unless it has league + division bound.
+- **B** — Keep org-scoped forms; require player to pick a division inside the funnel and persist `registrations.division_id`.
+
+**Acceptance**
+- [ ] Decision recorded in commit body.
+- [ ] If A: Review & Publish blocker added when `form.scope='org'` or `season_id` is null. Existing org-scoped forms surfaced for admin migration.
+- [ ] If B: Funnel adds a "Pick a division" step before submit; `registrations.division_id` populated; `/registrations/[id]/teams` query becomes "teams with an active DTE in *this* division".
+- [ ] Either way: Teja's existing org-scoped row gets a one-off "complete your division choice" prompt on her registration detail page.
+
+---
+
+### P2-3 — Active-player source-of-truth (registration ↔ roster convergence) ☐
+
+| Field | Value |
+|---|---|
+| Closes | **§4.1**, **§8.2** |
+| Estimate | 1 week design + 2 weeks build |
+
+**Why:** four paths can put a player on a team — `team_invites`
+accepted, free-agent claimed, `team_join_request` approved, manual
+admin insert. No view tells you "is this player playing this season?"
+without inspecting all four tables. Same player can also re-submit a
+registration to the same season because there's no idempotency.
+
+**Acceptance**
+- [ ] Materialised view `v_active_season_membership(person_id, season_id, team_id, source)` unioning the four paths.
+- [ ] All player-side and captain-side queries that need "is this player rostered?" read the view.
+- [ ] Idempotency: unique-active index on `registrations (subject_person_id, season_id) WHERE status NOT IN ('rejected','withdrawn','cancelled')` → POST returns 409 with the existing row id.
+- [ ] Smoke: Teja submits a 2nd registration to the same season → 409 with link to the existing one.
+- [ ] Smoke: captain accepts Teja → view returns one row, source = `team_join_request`.
+
+---
+
+## Phase 3 — Cross-surface polish (~3 days)
+
+Small things the audit caught that don't fit elsewhere.
+
+### P3-1 — Sidebar entries: rename "Find a team", drop superadmin /payments overlap, replace "Manage roster" stub ☐
+
+| Field | Value |
+|---|---|
+| Closes | **§6** (final cleanup after P1-2 collapses /captain duplicates) |
+| Estimate | 0.5 day |
+
+**Acceptance**
+- [ ] player-web sidebar "Find a team" → renamed "Open registrations" (it's the funnel-discovery page, not a roster page).
+- [ ] superadmin-web sidebar: keep `/finance` (Invoices); remove or rename `/payments` (Payment & invoicing deep-tools) to "Finance ops" so the overlap is explicit.
+- [ ] team-admin-web `/captain/roster` either gets the full UI (port from the deleted player-web version) or the sidebar entry is removed. Stub-status is not acceptable.
+
+---
+
+### P3-2 — Invoice ↔ team cross-reference ☐
+
+| Field | Value |
+|---|---|
+| Closes | **§1.3** |
+| Estimate | 0.5 day |
+| Depends on | P1-1 (so the team-link email actually lands) |
+
+**Acceptance**
+- [ ] `/payments` invoice card: if `invoice.team_id` is set, render the team name as a link → `/captain/dues` on team-admin-web (if caller is captain) or a public team page otherwise.
+- [ ] The payment confirmation email (`payment.confirmed`) includes the team name in the subject and body.
+
+---
+
+### P3-3 — Form-builder email templates wire into dispatch ☐
+
+| Field | Value |
+|---|---|
+| Closes | **§3.4** |
+| Estimate | 1 day |
 | Depends on | P1-1 |
 
+**Why:** admin builds custom templates in the form-builder
+"Email templates" tab; nothing dispatches them. They sit in
+`registration_v2.email_templates`.
+
 **Acceptance**
-- [ ] New table `notification_preferences` (user_id, template_code, channel, enabled). Default = all on for email + in_app.
-- [ ] Player `/notifications/settings` page with toggle grid (template × channel).
-- [ ] Dispatcher reads preferences before sending; respects opt-out.
-- [ ] Cron worker: every 5 min, scan `notifications.status='failed'` rows where `attempts < 3` and retry.
-- [ ] Smoke: opt out of `invoice.overdue.r1` → overdue cron runs → no email lands for that user.
+- [ ] Dispatcher: when emitting a notification with a `template_code` that has an org-specific override in `email_templates`, use that override.
+- [ ] Variables: `{{playerName}}`, `{{seasonName}}`, `{{divisionName}}` interpolated from the notification payload.
+- [ ] Smoke: admin customises the `registration.approved` body in form-builder → trigger an approval → email uses the custom body.
 
 ---
 
-### P1-4 — In-app notification center on captain side ☐
+### P3-4 — Admin "Open live wizard" cross-app session handoff (note, not a fix) ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | §6 (team-admin-web has no notif center) |
-| Estimate | 2 days |
-| Depends on | P1-1 |
+| Closes | **§1.4** (logged, not blocking) |
+| Estimate | n/a (intentional) |
 
 **Acceptance**
-- [ ] Add `/notifications` page on team-admin-web (mirror of player-web's).
-- [ ] Sidebar entry "Notifications" with unread count badge.
-- [ ] Captain join-request notifications + dues reminder confirmations show here.
+- [ ] Add a copy-tweak on the form-builder header: "Opens player-web in a new tab — you'll see the funnel as a fresh visitor." So the re-sign-in is expected, not a bug.
 
 ---
 
-## Phase 2 — Player-side flow completion (~1.5 weeks)
+## Phase 4 — Real money & comms polish (~3 weeks)
 
-Close the last-mile gaps where a player action *says* it succeeded but
-nothing real happens downstream.
-
-### P2-1 — Free-agent claim → roster + notification ☐
+### P4-1 — Real Stripe ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | §3.1, matrix §9.9 |
-| Estimate | 0.5 day |
-| Depends on | P1-1 (for the email) |
-
-**Acceptance**
-- [ ] `ClaimFreeAgentHandler`: insert `team_memberships` row (idempotent on the active index) inside the same transaction that sets `free_agent_pool_entries.status='placed'`.
-- [ ] Queue `CAPTAIN_CLAIMED_FREE_AGENT` notification (template already in catalog) to the player.
-- [ ] Smoke: captain claims player → player's `/registrations` page shows them rostered + email lands.
-
----
-
-### P2-2 — Org-scoped registration ↔ team apply UX ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | §8.1 |
-| Estimate | 2 days |
-
-**Why:** today an org-scoped registration (Teja's case) shows *every*
-team in the org on `/registrations/[id]/teams` — including teams in
-different leagues / sports. The captain inbox then gets noise.
-
-**Acceptance**
-- [ ] On the form-builder, **require** league + division on the form definition before publish (block via Review & Publish blockers list).
-- [ ] Or: keep org-only scope but require the player to **pick a division** inside the funnel; persist `division_id` on the `registrations` row.
-- [ ] `/registrations/[id]/teams` query becomes "teams with an active DTE in the player's division".
-- [ ] Decision recorded in audit log: which path we took.
-
-*(Pick one of the two acceptance paths — needs a product call.)*
-
----
-
-### P2-3 — Player can withdraw their team-join request ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | §3 (flow incompleteness) |
-| Estimate | 0.5 day |
-
-**Acceptance**
-- [ ] `POST /me/team-join-requests/:id/withdraw` (player-only, scope-checked against `playerPersonId`).
-- [ ] On `/registrations/[id]/teams`, pending requests render a **Withdraw** button next to the "Application pending" chip.
-- [ ] Status flips to `withdrawn`; captain inbox excludes withdrawn entries.
-
----
-
-### P2-4 — Player registration row + roster status convergence ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | §4.1, §8.2 |
-| Estimate | 1 week (design + implementation) |
-
-**Why:** four paths can put a player on a team (invites, free-agent
-claim, team_join_request approve, manual admin). No view tells you
-"is this player playing this season?" without inspecting all four
-tables.
-
-**Acceptance**
-- [ ] Materialised view `v_active_season_membership` (person_id, season_id, team_id, source) unioning the four paths.
-- [ ] All player-side and captain-side queries that ask "is this player rostered?" read from the view.
-- [ ] Idempotency check on registration: 409 if `(subject_person_id, season_id)` already has a non-rejected row.
-
----
-
-## Phase 3 — Real money (~3.5 weeks)
-
-### P3-1 — Real Stripe via existing `PaymentProcessor` seam ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | §3.8, matrix §9.5 |
+| Closes | **§3.8** (refund email copy promises 5–7 business days; today it's mock) |
 | Estimate | 2 weeks |
-| Depends on | P1-1 (for refund-issued email) |
+| Depends on | P1-1 (refund-issued email) |
 
 **Acceptance**
-- [ ] New `StripePaymentProcessor` class implementing `charge`, `refund`.
-- [ ] Webhook ingestion at `POST /webhooks/stripe`: `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`. Signature-verified.
-- [ ] Idempotency-key tracking column on `payments` table.
-- [ ] 3DS / SCA: `requires_action` flow with frontend redirect handling.
-- [ ] Stripe Elements card-token surface replaces the mock dialog on `/payments` Update card and `/payments` Pay action.
+- [ ] `StripePaymentProcessor` implementing existing `PaymentProcessor` seam (`charge`, `refund`).
+- [ ] Webhook `POST /webhooks/stripe` ingests `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`. Signature-verified.
+- [ ] Idempotency-key column on `payments` table.
+- [ ] 3DS / SCA `requires_action` flow handled.
+- [ ] Stripe Elements card-token surface replaces the mock dialog on `/payments` Pay + Update card.
 - [ ] Smoke: real test card pays a real test invoice end-to-end on Stripe test mode.
 
 ---
 
-### P3-2 — QuickBooks sync worker + OAuth ☐
+### P4-2 — Notification preferences UI + retry scheduler ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | matrix §9.6 |
-| Estimate | 2 weeks |
-| Depends on | — |
+| Closes | **§7** follow-on (once email is real, opt-out + retry close the loop) |
+| Estimate | 1 week |
+| Depends on | P1-1 |
 
 **Acceptance**
-- [ ] Intuit OAuth 2.0 connect flow per-org, surfaced on `/payments` "QuickBooks" tab.
-- [ ] Cron job: every 5 min, dequeue `quickbooks_sync_logs.status='queued'` and push to QB. Update with `qbId` on success.
-- [ ] `invoice.created`, `payment.recorded`, `refund.issued` enqueue a sync log row.
-- [ ] Pull-back: nightly cron polls QB for invoice paid status and reconciles to local `invoices.status`.
+- [ ] New table `notification_preferences (user_id, template_code, channel, enabled)`. Default = all on for email + in_app.
+- [ ] Player `/notifications/settings` toggle grid.
+- [ ] Dispatcher consults preferences before sending; respects opt-out.
+- [ ] Cron worker: every 5 min, scan `notifications.status='failed' AND attempts < 3` and retry.
+- [ ] Smoke: opt out of `invoice.overdue.r1` → overdue cron runs → email skipped for that user.
 
 ---
 
-## Phase 4 — Operations (~10 weeks)
+## Phase 5 — Decision-gated
 
-### P4-1 — Scheduler engine + venue / slot model ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | matrix §9.1 |
-| Estimate | 4 weeks |
-
-**Acceptance**
-- [ ] New tables `venues` + `venue_slots` (slot = venue + surface + start_ts + duration).
-- [ ] New module `modules/scheduling/`: `roundRobin` / `splitSquads` algorithms; conflict resolver against slots + team blackouts.
-- [ ] Generate schedule for a season → fans out into `games` rows + queues `game.scheduled` notifications.
-- [ ] Reschedule = soft-archive + recreate + cascade notifications via the `game.rescheduled` template.
-- [ ] Admin UI: schedule generator form + conflict report + drag-to-move calendar.
-- [ ] Smoke: 8-team division generates a 14-game schedule with zero conflicts.
-
----
-
-### P4-2 — Scorekeeper UI / live scoring ☐
+### P5-D — Decide: build or delete `org-admin-web` and `league-admin-web` ☐
 
 | Field | Value |
 |---|---|
-| Audit ref | matrix §9.2 |
-| Estimate | 3 weeks |
+| Closes | **§5** |
+| Estimate | 1-hour decision; 4 weeks build per app **OR** 1 day delete |
 
-**Acceptance**
-- [ ] New `/games/[id]/score` route on superadmin-web (or new scorekeeper sub-app).
-- [ ] Period clock UI (start/pause/reset) with second-level persistence.
-- [ ] Score-entry buttons → write `game_events` rows.
-- [ ] Sub tracking UI: pick-a-player drawer.
-- [ ] Realtime: WebSocket or Server-Sent Events for "live state" updates to spectators.
-- [ ] Two-officials co-sign on Confirm Result.
+**Why we need a decision now:** `org-admin-web` is `next-env.d.ts` +
+`node_modules`. `league-admin-web` has 11 pages but no way to grant
+the role from its own UI. Today the 403 a "real" super-admin sees on
+the admin queue (e.g. yesterday's `/registration-v2/admin/submissions`)
+is exactly this seam: the request requires super_admin, an org_admin
+isn't one, and they have no scoped app to use instead.
 
----
+**Options**
 
-### P4-3 — Referees: availability + scheduling + payroll ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | matrix §9.3 |
-| Estimate | 3 weeks |
-| Depends on | P4-1 (slot model) |
-
-**Acceptance**
-- [ ] Ref availability calendar: refs self-flag open/busy slots.
-- [ ] Ref scheduling UI: filter available refs per game, send invites via existing notifications, track confirmations.
-- [ ] Payroll calculator: rate × games × overtime → generate `referee_payroll` invoices.
-- [ ] Suspension enforcement: cannot assign while suspended.
-
----
-
-## Phase 5 — Platform expansion (~12 weeks)
-
-### P5-1 — Tournament brackets ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | matrix §9.7 |
-| Estimate | 3 weeks |
-| Depends on | P4-1 |
-
-**Acceptance**
-- [ ] Bracket generator: single-elim, double-elim, round-robin playoff.
-- [ ] Series tracking (best-of-N progress, game dependencies).
-- [ ] Auto-advancement: winner of series N feeds into series N+1.
-- [ ] Bracket visualisation UI on superadmin + player surfaces.
-
----
-
-### P5-2 — i18n delivery layer ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | matrix §9.11 |
-| Estimate | 2.5 weeks |
-
-**Acceptance**
-- [ ] `next-intl` wired across the 4 web apps.
-- [ ] Locale picker in each app shell.
-- [ ] Translation management UI on superadmin `/admin/i18n` reading from existing `nameTranslations` JSONB columns.
-- [ ] Locale-aware middleware to serve es/fr variants.
-
----
-
-### P5-3 — Multi-sport rule engine ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | matrix §9.10 |
-| Estimate | 4 weeks |
-
-**Acceptance**
-- [ ] Sport-agnostic stat schema (`stat_lines.core` becomes JSONB driven by `sports.statSchema`).
-- [ ] Rule packs for soccer / basketball / rugby (event types, period config, OT rules).
-- [ ] Validation engine rejects events not in the sport's vocabulary.
-
----
-
-### P5-4 — Team store / Shopify ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | matrix §9.8 |
-| Estimate | 2 weeks |
-
-**Acceptance**
-- [ ] Shopify OAuth + product sync (per-org).
-- [ ] Embedded storefront on player-web `/store`.
-- [ ] No fulfilment side built; order tracking pulls from Shopify via webhook.
-
----
-
-## Phase 6 — Role-targeted apps (decision-gated)
-
-### P6-D — Decision: build or delete `org-admin-web` and `league-admin-web` ☐
-
-| Field | Value |
-|---|---|
-| Audit ref | §5 |
-| Estimate | 1-hour decision; then 4 weeks if build, 1 day if delete |
-
-**Why we need a decision now:** today these apps are directory rot.
-`org-admin-web` is `next-env.d.ts` + `node_modules` only.
-`league-admin-web` has 11 pages but no IAM flow to grant the role,
-and the role-scoped queries on superadmin already work.
-
-**Decision options**
-
-- **Option A — Delete:** `rm -rf apps/org-admin-web apps/league-admin-web`. Make superadmin-web fully role-aware (it mostly is — scope helpers exist). Org/league admins use superadmin-web with their org/league filter pre-applied.
-- **Option B — Build:** flesh out both apps with role-scoped dashboards mirroring superadmin's surfaces, filtered to the admin's scope. 4 engineer-weeks per app.
+- **A — Delete:** `rm -rf apps/org-admin-web apps/league-admin-web`. Make superadmin-web fully role-aware (already mostly is — scope helpers exist). Org/league admins use superadmin-web with their org/league filter pre-applied. The 403s become "filter the queue to your org" no-ops.
+- **B — Build:** flesh out both apps with role-scoped dashboards mirroring superadmin's surfaces, filtered to the admin's scope. ~4 engineer-weeks per app.
 
 **Acceptance for either path**
-- [ ] Decision recorded here.
-- [ ] If A: directories removed, sidebar links cleaned up, Vercel projects deleted, README updated.
-- [ ] If B: P6-1 + P6-2 below get their own acceptance criteria + estimates.
+- [ ] Decision recorded in this section + commit body.
+- [ ] If A: directories removed, sidebar links cleaned up, Vercel projects deleted, README updated to a single "superadmin-web is the only admin surface" line.
+- [ ] If B: spawn P5-B-1 and P5-B-2 items below with their own acceptance.
 
 ---
 
-## Tracking dashboard
+## Tracking
 
-Edit the table as items move. Don't delete completed rows — they're
-the project audit trail.
+Flip the **Status** column inline as items move; don't delete completed rows.
 
-| ID | Title | Status | Updated |
-|---|---|---|---|
-| P0-1 | team_join_requests.season_id NOT NULL | ☐ | — |
-| P0-2 | userIsCaptainOfTeam everywhere | ☐ | — |
-| P0-3 | Captain rejection notification | ☐ | — |
-| P0-4 | Tier auto-deactivate on season demote | ☐ | — |
-| P0-5 | rosterLockAt single source | ☐ | — |
-| P1-1 | Real email (SendGrid) | ☐ | — |
-| P1-2 | Delete duplicate /captain/* | ☐ | — |
-| P1-3 | Notification prefs + retry | ☐ | — |
-| P1-4 | Captain notification center | ☐ | — |
-| P2-1 | Free-agent claim → roster + notif | ☐ | — |
-| P2-2 | Org-scope ↔ team apply UX | ☐ | — |
-| P2-3 | Player withdraw join request | ☐ | — |
-| P2-4 | Registration ↔ roster convergence | ☐ | — |
-| P3-1 | Real Stripe | ☐ | — |
-| P3-2 | QuickBooks sync | ☐ | — |
-| P4-1 | Scheduler engine | ☐ | — |
-| P4-2 | Scorekeeper UI | ☐ | — |
-| P4-3 | Referees end-to-end | ☐ | — |
-| P5-1 | Tournament brackets | ☐ | — |
-| P5-2 | i18n delivery | ☐ | — |
-| P5-3 | Multi-sport rule engine | ☐ | — |
-| P5-4 | Team store | ☐ | — |
-| P6-D | Org/league admin app decision | ☐ | — |
+| ID | Title | Closes | Status | Updated |
+|---|---|---|---|---|
+| P0-1 | team_join_requests.season_id NOT NULL | §8.3 | ☐ | — |
+| P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☐ | — |
+| P0-3 | Captain rejection notification | §3.5 | ☐ | — |
+| P0-4 | Tier auto-deactivate on season demote | §4.4 | ☐ | — |
+| P0-5 | rosterLockAt single source | §4.5 | ☐ | — |
+| P1-1 | Real email (SendGrid) | §3, §7 | ☐ | — |
+| P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☐ | — |
+| P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☐ | — |
+| P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
+| P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |
+| P3-1 | Sidebar entries cleanup | §6 | ☐ | — |
+| P3-2 | Invoice ↔ team cross-reference | §1.3 | ☐ | — |
+| P3-3 | Form-builder templates dispatch | §3.4 | ☐ | — |
+| P3-4 | "Open live wizard" copy tweak | §1.4 | ☐ | — |
+| P4-1 | Real Stripe | §3.8 | ☐ | — |
+| P4-2 | Notification preferences + retry | §7 | ☐ | — |
+| P5-D | Org/league admin app decision | §5 | ☐ | — |
 
 ---
 
-## How we'll work
+## Working rules
 
-1. **Pick the next ☐ item.** Default order = file order above (P0 then P1 …); skip if blocked.
-2. **Flip to ◐** as soon as work starts, with the **Updated** column = today.
-3. **All acceptance criteria boxes must be checked** before flipping to ☑. Untested = not done.
-4. **Localhost smoke walk** for any UI item. Per CLAUDE.md "test like the testers test" rule — sign in as the actual role and walk the flow end-to-end, cross-surface verification mandatory.
-5. **One commit per item** with a `Closes plan: P0-1` line in the body so we can grep history.
-6. **Re-rank** the tracking table if priorities shift — the order isn't sacred.
+1. **Pick the next ☐** item in priority-rank order (top of TL;DR). Skip ⊘.
+2. **Flip to ◐** the moment work starts. Update **Updated** column to today.
+3. **All acceptance `[ ]` must be checked** before flipping to ☑. Untested = not done. Tester rule from CLAUDE.md applies — sign in as the actual role, walk the flow end-to-end, cross-surface verify.
+4. **One commit per item**, footer `Closes plan: P0-1` so history greps cleanly.
+5. **No scope creep** — if an item needs a feature not on this plan, file a new audit observation rather than expanding the item.
