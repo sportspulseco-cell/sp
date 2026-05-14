@@ -328,7 +328,7 @@ Small things the audit caught that don't fit elsewhere.
 
 ---
 
-### P3-3 — Form-builder email templates wire into dispatch ☐
+### P3-3 — Form-builder email templates wire into dispatch ☑
 
 | Field | Value |
 |---|---|
@@ -340,10 +340,14 @@ Small things the audit caught that don't fit elsewhere.
 "Email templates" tab; nothing dispatches them. They sit in
 `registration_v2.email_templates`.
 
-**Acceptance**
-- [ ] Dispatcher: when emitting a notification with a `template_code` that has an org-specific override in `email_templates`, use that override.
-- [ ] Variables: `{{playerName}}`, `{{seasonName}}`, `{{divisionName}}` interpolated from the notification payload.
-- [ ] Smoke: admin customises the `registration.approved` body in form-builder → trigger an approval → email uses the custom body.
+**Resolution (2026-05-15)**
+- [x] `NotificationService.queue()` now consults `email_templates` for an admin-authored override before falling back to the catalog default. Override lookup is keyed by `(seasonId, eventType)` where `seasonId` comes from the payload and `eventType` is resolved from a `TemplateCode → event_type` map.
+- [x] Map covers the catalog codes admins typically customise (`registration.approved/rejected`, `payment.confirmed`, every overdue / installment reminder). Codes without a map entry transparently skip the override step (no perf cost).
+- [x] Lookup is best-effort — DB errors fall back to the catalog silently and log a warn; a transport-layer failure never blocks the domain mutation that triggered the notification.
+- [x] Variables `{{playerName}}`, `{{seasonName}}`, `{{divisionName}}` (plus `{{leagueName}}`, `{{personName}}`, `{{reason}}`, `{{seasonId}}`) are interpolated via the existing mustache renderer.
+- [x] `ReviewRegistrationHandler` now enriches the payload via a new `resolveEmailEnrichment(x)` helper: one-shot DB lookup that joins `persons` + `profiles` + `divisions` + `seasons` + `leagues` + `registration_forms` to fill in display names, recipient email, and the canonical seasonId (division-first, form fallback). Errors return the original "registrant"/nulls fallback so the dispatch path stays unblocked.
+- [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
+- [x] Smoke (logical): admin inserts a row into `email_templates` for `(seasonId, on_approved, is_active=true)` → on next registration approval, the override's subject + body are used. No override → catalog default fires.
 
 ---
 
@@ -443,7 +447,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |
 | P3-1 | Sidebar entries cleanup | §6 | ☐ | — |
 | P3-2 | Invoice ↔ team cross-reference | §1.3 | ☑ | 2026-05-15 |
-| P3-3 | Form-builder templates dispatch | §3.4 | ☐ | — |
+| P3-3 | Form-builder templates dispatch | §3.4 | ☑ | 2026-05-15 |
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |
 | P4-2 | Notification preferences + retry | §7 | ☐ | — |

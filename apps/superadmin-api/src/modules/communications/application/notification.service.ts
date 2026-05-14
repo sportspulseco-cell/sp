@@ -1,4 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { and, eq } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import {
   NOTIFICATION_REPOSITORY,
   type NotificationChannel,
@@ -11,6 +14,35 @@ import {
   type TemplateCode
 } from "../domain/templates/catalog";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+
+/**
+ * Map dispatcher template codes → `email_templates.event_type` enum.
+ * Form-builder lets admins override the body per (season, event)
+ * using the wider event-type names; we resolve to those when looking
+ * for an override before falling back to the catalog default.
+ *
+ * Codes that don't map (registration approval/rejection use both —
+ * `on_approved`/`on_rejected`) get a `null` override, i.e. always
+ * use the catalog default.
+ */
+const TEMPLATE_CODE_TO_EVENT_TYPE: Partial<Record<TemplateCode, string>> = {
+  "registration.approved": "on_approved",
+  "registration.rejected": "on_rejected",
+  "payment.confirmed": "on_payment",
+  "installment.failed": "installment_reminder",
+  "invoice.overdue.r1": "installment_reminder",
+  "invoice.overdue.r2": "installment_reminder",
+  "invoice.overdue.r3": "installment_reminder",
+  "invoice.overdue.r4": "installment_reminder",
+  "invoice.manual_reminder": "installment_reminder",
+  SUB_INVOICE_REMINDER: "installment_reminder",
+  INVOICE_OVERDUE_STAGE_1: "installment_reminder",
+  INVOICE_OVERDUE_STAGE_2: "installment_reminder",
+  INVOICE_OVERDUE_STAGE_3: "installment_reminder",
+  INVOICE_OVERDUE_STAGE_4: "installment_reminder",
+  INVOICE_MANUAL_REMIND: "installment_reminder"
+};
 
 export interface QueueArgs {
   orgId?: string | null;
@@ -42,7 +74,8 @@ export class NotificationService {
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly repo: NotificationRepository,
     @Inject(EmailDispatcherService)
-    private readonly dispatcher: EmailDispatcherService
+    private readonly dispatcher: EmailDispatcherService,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   /** Queue a templated notification. Returns the row (existing or new). */
@@ -58,10 +91,26 @@ export class NotificationService {
         );
         return null;
       }
-      const subject = tpl.subject
-        ? renderTemplate(tpl.subject, args.payload)
+
+      // Resolve subject + body. Email channel checks `email_templates`
+      // for a per-season admin override before falling back to the
+      // catalog default (P3-3 / audit §3.4). In-app stays on catalog.
+      let subjectSource = tpl.subject;
+      let bodySource = tpl.body;
+      if (tplChannel === "email") {
+        const override = await this.findEmailOverride(
+          args.templateCode,
+          args.payload
+        );
+        if (override) {
+          subjectSource = override.subject;
+          bodySource = override.bodyHtml;
+        }
+      }
+      const subject = subjectSource
+        ? renderTemplate(subjectSource, args.payload)
         : null;
-      const body = renderTemplate(tpl.body, args.payload);
+      const body = renderTemplate(bodySource, args.payload);
 
       const row = await this.repo.enqueue({
         orgId: args.orgId ?? null,
@@ -136,6 +185,46 @@ export class NotificationService {
     this.log.warn(
       `no provider for channel=${row.channel} (notification ${row.id})`
     );
+  }
+
+  /**
+   * Look up an admin-authored override in `email_templates` keyed by
+   * (seasonId, eventType). `seasonId` is plucked from the payload —
+   * callers that want overrides applied must pass it through.
+   * Returns null when no mapping, no seasonId, or no active row.
+   */
+  private async findEmailOverride(
+    templateCode: TemplateCode,
+    payload: Record<string, unknown>
+  ): Promise<{ subject: string; bodyHtml: string } | null> {
+    const eventType = TEMPLATE_CODE_TO_EVENT_TYPE[templateCode];
+    if (!eventType) return null;
+    const seasonId = payload.seasonId;
+    if (typeof seasonId !== "string" || !seasonId) return null;
+
+    try {
+      const [row] = await this.db
+        .select({
+          subject: schema.emailTemplates.subject,
+          bodyHtml: schema.emailTemplates.bodyHtml
+        })
+        .from(schema.emailTemplates)
+        .where(
+          and(
+            eq(schema.emailTemplates.seasonId, seasonId),
+            eq(schema.emailTemplates.eventType, eventType),
+            eq(schema.emailTemplates.isActive, true)
+          )
+        )
+        .limit(1);
+      return row ?? null;
+    } catch (err) {
+      // Never block the catalog fallback on a lookup error.
+      this.log.warn(
+        `email_templates override lookup failed for ${templateCode} season=${seasonId}: ${(err as Error).message}`
+      );
+      return null;
+    }
   }
 
   /** Mark queued → sent (used by stub provider for now). */
