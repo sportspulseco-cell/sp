@@ -385,7 +385,7 @@ Small things the audit caught that don't fit elsewhere.
 
 ---
 
-### P4-2 — Notification preferences UI + retry scheduler ☐
+### P4-2 — Notification preferences UI + retry scheduler ◐
 
 | Field | Value |
 |---|---|
@@ -393,11 +393,17 @@ Small things the audit caught that don't fit elsewhere.
 | Estimate | 1 week |
 | Depends on | P1-1 |
 
-**Acceptance**
+**Retry-scheduler half done (2026-05-15)**
+- [x] `RetryFailedHandler` selects `failed` rows with `attemptCount < 3` whose `updated_at` is older than the backoff window for the current attempt count (5 min after attempt 1, 30 min after attempt 2). Routes each through `NotificationService.dispatch()` so the same provider-routing rules apply.
+- [x] `POST /notifications/cron/retry-failed` exposes the sweep, gated by `SuperAdminGuard` — matches the existing cron-sweep pattern (`/compliance/eligibility/season/:id/*-sweep`). External scheduler (Vercel Cron / GitHub Actions) hits it on a ~5-min cadence.
+- [x] Three total attempts (1 inline + 2 cron retries). After the 3rd failure the row is terminal — admin can manually retry via `/notifications/:id/retry`.
+- [x] Idempotent — re-running the cron without any expired rows returns `{eligible:0, sent:0, stillFailed:0}` and logs a no-op line.
+- [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean. Closes P1-1's last residual.
+
+**Preferences UI — outstanding**
 - [ ] New table `notification_preferences (user_id, template_code, channel, enabled)`. Default = all on for email + in_app.
 - [ ] Player `/notifications/settings` toggle grid.
 - [ ] Dispatcher consults preferences before sending; respects opt-out.
-- [ ] Cron worker: every 5 min, scan `notifications.status='failed' AND attempts < 3` and retry.
 - [ ] Smoke: opt out of `invoice.overdue.r1` → overdue cron runs → email skipped for that user.
 
 ---
@@ -451,7 +457,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P3-3 | Form-builder templates dispatch | §3.4 | ☑ | 2026-05-15 |
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |
-| P4-2 | Notification preferences + retry | §7 | ☐ | — |
+| P4-2 | Notification preferences + retry | §7 | ◐ | 2026-05-15 |
 | P5-D | Org/league admin app decision | §5 | ☐ | — |
 
 ---

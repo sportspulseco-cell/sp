@@ -9,6 +9,7 @@ import {
 } from "./application/handlers/queries";
 import {
   FlushQueuedHandler,
+  RetryFailedHandler,
   RetryNotificationHandler
 } from "./application/handlers/retry.handler";
 import {
@@ -30,6 +31,7 @@ import { DrizzleNotificationTemplateRepository } from "./infrastructure/reposito
     RecentForPersonHandler,
     RetryNotificationHandler,
     FlushQueuedHandler,
+    RetryFailedHandler,
     ListTemplatesHandler,
     GetTemplateHandler,
     UpsertTemplateHandler,
