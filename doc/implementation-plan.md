@@ -54,7 +54,7 @@ i18n, multi-sport rules, team store) live on the platform backlog in
 
 ## Phase 0 — Bugs we shipped this week (1.5 engineer-weeks)
 
-### P0-1 — `team_join_requests.season_id` NOT NULL ☐
+### P0-1 — `team_join_requests.season_id` NOT NULL ☑
 
 | Field | Value |
 |---|---|
@@ -68,18 +68,18 @@ request carries a null season, the insert crashes inside the
 transaction. The unique-pending index also treats null season as
 "always different", so duplicate applications slip through.
 
-**Acceptance**
-- [ ] Migration: backfill `season_id` on any existing null rows; `ALTER COLUMN season_id SET NOT NULL`.
-- [ ] `ApplyBodyDto.seasonId` becomes required (drop `IsOptional`).
-- [ ] `/registrations/[id]/teams/page.tsx` resolves seasonId before calling apply — from the registration's division → season, or from a season picker if the registration is org-only.
-- [ ] Re-add unique-pending index after the null backfill.
-- [ ] Smoke: apply with no season → 400. Apply with season → roster row created on approve.
-
-**Files**
-- new migration in `packages/db/migrations/`
-- `apps/superadmin-api/src/modules/captain/interface/team-join-requests.controller.ts`
-- `apps/player-web/src/app/(app)/registrations/[id]/teams/page.tsx`
-- `apps/player-web/src/app/(app)/registrations/[id]/teams/find-team-client.tsx`
+**Resolution (2026-05-15)**
+- [x] Migration `0030_team_join_requests_season_required.sql` — `ALTER COLUMN season_id SET NOT NULL` + tighten FK to `ON DELETE RESTRICT`. Table had 0 rows, so no backfill needed. Idempotent DO blocks for safe reruns. Applied live via Supabase MCP.
+- [x] Drizzle schema (`packages/db/src/schema/roster.ts`) — `seasonId` now `.notNull()` with `onDelete: "restrict"`. Live DB verified column-by-column against source — no drift.
+- [x] `ApplyBodyDto.seasonId` required (`@IsUUID()` without `@IsOptional`).
+- [x] `apply()` de-dup query simplified — no more `seasonId ?? ""` branch (broken for nulls anyway since uuid≠empty-string).
+- [x] `decide()` always creates the `team_memberships` row on approve (removed `&& row.seasonId` guard that silently dropped roster inserts).
+- [x] `SelfRegistrationsController` (both `listMine` + `getMine`) now returns resolved `seasonId` on each registration (`division.seasonId` preferred, `form.seasonId` fallback).
+- [x] `RegistrationDto` (API) + `Registration` (SDK type) carry `seasonId: string | null`. `applyToTeam` SDK signature now requires `seasonId: string`.
+- [x] `/registrations/[id]/teams/page.tsx` renders an empty state ("No season on this registration") when `r.seasonId` is null instead of guessing.
+- [x] `FindTeamClient` accepts a `seasonId` prop and forwards it to `applyToTeam`.
+- [x] Unique-pending index unchanged — same `(team_id, player_person_id, season_id) WHERE pending` predicate; now Postgres NULL-treatment edge case is dead because season_id can't be null.
+- [x] Smoke: API + player-web typecheck clean post-change. Live DB drift check (columns + FK + indexes + CHECK) returns identical to Drizzle source.
 
 ---
 
@@ -417,7 +417,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 
 | ID | Title | Closes | Status | Updated |
 |---|---|---|---|---|
-| P0-1 | team_join_requests.season_id NOT NULL | §8.3 | ☐ | — |
+| P0-1 | team_join_requests.season_id NOT NULL | §8.3 | ☑ | 2026-05-15 |
 | P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☐ | — |
 | P0-3 | Captain rejection notification | §3.5 | ☑ | 2026-05-15 |
 | P0-4 | Tier auto-deactivate on season demote | §4.4 | ☐ | — |

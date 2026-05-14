@@ -26,7 +26,12 @@ import { NotificationService } from "../../communications/application/notificati
 
 class ApplyBodyDto {
   @IsUUID() teamId!: string;
-  @IsOptional() @IsUUID() seasonId?: string;
+  /**
+   * Required — the season the player wants to be rostered for. On
+   * captain approval we insert a `team_memberships` row, which is
+   * NOT NULL on season_id. See migration 0030.
+   */
+  @IsUUID() seasonId!: string;
   @IsOptional() @IsString() @MaxLength(500) message?: string;
 }
 
@@ -86,24 +91,22 @@ export class TeamJoinRequestsController {
 
     // Block if the player already has a roster row on this team for the
     // same season — captain has already accepted them.
-    if (body.seasonId) {
-      const [existingMember] = await this.db
-        .select({ id: schema.teamMemberships.id })
-        .from(schema.teamMemberships)
-        .where(
-          and(
-            eq(schema.teamMemberships.teamId, body.teamId),
-            eq(schema.teamMemberships.personId, person.id),
-            eq(schema.teamMemberships.seasonId, body.seasonId)
-          )
+    const [existingMember] = await this.db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, body.teamId),
+          eq(schema.teamMemberships.personId, person.id),
+          eq(schema.teamMemberships.seasonId, body.seasonId)
         )
-        .limit(1);
-      if (existingMember) {
-        throw new ConflictException({
-          error: "already_on_roster",
-          message: "You're already on this team's roster for that season."
-        });
-      }
+      )
+      .limit(1);
+    if (existingMember) {
+      throw new ConflictException({
+        error: "already_on_roster",
+        message: "You're already on this team's roster for that season."
+      });
     }
 
     // De-dup: one open request per (team, player, season).
@@ -114,10 +117,8 @@ export class TeamJoinRequestsController {
         and(
           eq(schema.teamJoinRequests.teamId, body.teamId),
           eq(schema.teamJoinRequests.playerPersonId, person.id),
-          eq(schema.teamJoinRequests.status, "pending"),
-          body.seasonId
-            ? eq(schema.teamJoinRequests.seasonId, body.seasonId)
-            : eq(schema.teamJoinRequests.seasonId, body.seasonId ?? "")
+          eq(schema.teamJoinRequests.seasonId, body.seasonId),
+          eq(schema.teamJoinRequests.status, "pending")
         )
       )
       .limit(1);
@@ -133,7 +134,7 @@ export class TeamJoinRequestsController {
       .values({
         teamId: body.teamId,
         playerPersonId: person.id,
-        seasonId: body.seasonId ?? null,
+        seasonId: body.seasonId,
         message: body.message?.trim() || null,
         status: "pending"
       })
@@ -339,7 +340,7 @@ export class TeamJoinRequestsController {
 
       // On approve, create the active roster row (idempotent on the
       // active uniqueness index — duplicate insert silently bails out).
-      if (body.action === "approve" && row.seasonId) {
+      if (body.action === "approve") {
         await tx
           .insert(schema.teamMemberships)
           .values({

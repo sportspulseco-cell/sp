@@ -21,7 +21,13 @@ type Team = {
   alreadyPending: boolean;
 };
 
-export function FindTeamClient({ teams }: { teams: Team[] }) {
+export function FindTeamClient({
+  seasonId,
+  teams
+}: {
+  seasonId: string;
+  teams: Team[];
+}) {
   const router = useRouter();
   const [target, setTarget] = useState<Team | null>(null);
   const [message, setMessage] = useState("");
@@ -39,6 +45,7 @@ export function FindTeamClient({ teams }: { teams: Team[] }) {
     try {
       await registration.applyToTeam({
         teamId: target.id,
+        seasonId,
         message: message.trim() || undefined
       });
       setAppliedTeamIds((s) => new Set(s).add(target.id));

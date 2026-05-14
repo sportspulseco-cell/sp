@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, CalendarX, Users } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { leagueMgmt, registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -32,6 +32,30 @@ export default async function FindTeamPage({
           icon={Users}
           title="Not approved yet"
           description="You can browse teams once an admin approves your registration."
+        />
+      </div>
+    );
+  }
+
+  // Apply requires a season — captain approval inserts a
+  // team_memberships row, which is NOT NULL on season_id. If the
+  // registration isn't bound to a season (org-only, no season-scoped
+  // form) we can't infer one, so render an empty state instead of
+  // guessing. Audit P0-1 / §8.3.
+  if (!r.seasonId) {
+    return (
+      <div className="space-y-6">
+        <Link
+          href={`/registrations/${id}`}
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Back to registration
+        </Link>
+        <EmptyState
+          icon={CalendarX}
+          title="No season on this registration"
+          description="This registration isn't tied to a specific season yet, so we don't know which roster to add you to. Ask your league admin to assign it to a division (or pick a season-scoped registration) before applying to a team."
         />
       </div>
     );
@@ -82,6 +106,7 @@ export default async function FindTeamPage({
         />
       ) : (
         <FindTeamClient
+          seasonId={r.seasonId}
           teams={teamsPage.items.map((t) => ({
             id: t.id,
             name: t.name,

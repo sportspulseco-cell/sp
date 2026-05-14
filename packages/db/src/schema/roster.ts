@@ -155,10 +155,17 @@ export const teamJoinRequests = pgTable(
     playerPersonId: uuid("player_person_id")
       .notNull()
       .references(() => persons.id, { onDelete: "cascade" }),
-    /** Season the player applied for (matches the team's active DTE). */
-    seasonId: uuid("season_id").references(() => seasons.id, {
-      onDelete: "set null"
-    }),
+    /**
+     * Season the player applied for (matches the team's active DTE).
+     * Required — on captain approval we insert a `team_memberships`
+     * row, and team_memberships.season_id is NOT NULL. A nullable
+     * value here also defeated the unique-pending index below
+     * (Postgres treats NULL as distinct), so duplicates slipped
+     * through. P0-1 / audit §8.3.
+     */
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "restrict" }),
     /** pending | approved | rejected | withdrawn */
     status: text("status").notNull().default("pending"),
     /** Optional message the player attaches with the application. */

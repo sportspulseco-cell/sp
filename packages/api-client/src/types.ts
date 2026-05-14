@@ -209,6 +209,13 @@ export interface Registration {
     | "cancelled";
   leagueId: string | null;
   divisionId: string | null;
+  /**
+   * Resolved season (from division.seasonId, falling back to the
+   * form's seasonId). Surfaces on the self-registration endpoints
+   * so the player-web "Find a team" flow can pass it straight
+   * through to applyToTeam.
+   */
+  seasonId: string | null;
   teamId: string | null;
   submittedAt: string | null;
   reviewedByUserId: string | null;

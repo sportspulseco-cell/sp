@@ -81,6 +81,15 @@ export class RegistrationDto {
   status!: (typeof REGISTRATION_STATUSES)[number];
   @ApiPropertyOptional({ nullable: true }) leagueId!: string | null;
   @ApiPropertyOptional({ nullable: true }) divisionId!: string | null;
+  /**
+   * Resolved season the registration belongs to (derived from
+   * `divisions.seasonId` or the form's seasonId). Returned by the
+   * self-registration endpoints so the player-web "Find a team"
+   * flow can pass it through to the team-join-request apply call
+   * without a round-trip. Null when the registration is org-only
+   * and the form isn't season-scoped either.
+   */
+  @ApiPropertyOptional({ nullable: true }) seasonId!: string | null;
   @ApiPropertyOptional({ nullable: true }) teamId!: string | null;
   @ApiPropertyOptional({ nullable: true }) submittedAt!: string | null;
   @ApiPropertyOptional({ nullable: true }) reviewedByUserId!: string | null;
@@ -101,6 +110,7 @@ export class RegistrationDto {
       status: x.status,
       leagueId: x.leagueId,
       divisionId: x.divisionId,
+      seasonId: null,
       teamId: x.teamId,
       submittedAt: x.submittedAt?.toISOString() ?? null,
       reviewedByUserId: x.reviewedByUserId,

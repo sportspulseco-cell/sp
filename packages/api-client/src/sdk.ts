@@ -1480,7 +1480,7 @@ export function createApi(f: Fetcher) {
       // after their season-level registration has been approved).
       applyToTeam: (body: {
         teamId: string;
-        seasonId?: string;
+        seasonId: string;
         message?: string;
       }) =>
         f<{ id: string; status: string }>("/me/team-join-requests", {

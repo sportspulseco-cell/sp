@@ -79,6 +79,7 @@ export class SelfRegistrationsController {
         orgName: schema.orgs.displayName,
         formName: schema.registrationForms.name,
         formSeasonId: schema.registrationForms.seasonId,
+        divisionSeasonId: schema.divisions.seasonId,
         leagueName: schema.leagues.name,
         divisionName: schema.divisions.name,
         teamName: schema.teams.name
@@ -115,12 +116,13 @@ export class SelfRegistrationsController {
       .orderBy(desc(schema.registrations.createdAt))
       .limit(100);
 
-    // Resolve season name when the form is season-scoped. Done in one
-    // round-trip rather than per-row to keep the query simple.
+    // Resolve season name from either the division's season or the
+    // form's season (whichever we end up surfacing per-row). Done in
+    // one round-trip rather than per-row to keep the query simple.
     const seasonIds = Array.from(
       new Set(
         rows
-          .map((row) => row.formSeasonId)
+          .flatMap((row) => [row.divisionSeasonId, row.formSeasonId])
           .filter((x): x is string => !!x)
       )
     );
@@ -133,30 +135,38 @@ export class SelfRegistrationsController {
     const seasonName = new Map(seasonRows.map((s) => [s.id, s.name]));
 
     return {
-      items: rows.map(({ r, orgName, formName, formSeasonId, leagueName, divisionName, teamName }) => ({
-        id: r.id,
-        idempotencyKey: r.idempotencyKey,
-        orgId: r.orgId,
-        formVersionId: r.formVersionId,
-        submittedByUserId: r.submittedByUserId,
-        subjectPersonId: r.subjectPersonId,
-        status: r.status as RegistrationDto["status"],
-        leagueId: r.leagueId,
-        divisionId: r.divisionId,
-        teamId: r.teamId,
-        submittedAt: r.submittedAt?.toISOString() ?? null,
-        reviewedByUserId: r.reviewedByUserId,
-        reviewedAt: r.reviewedAt?.toISOString() ?? null,
-        decisionReason: r.decisionReason,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-        orgName: orgName ?? null,
-        formName: formName ?? null,
-        seasonName: formSeasonId ? seasonName.get(formSeasonId) ?? null : null,
-        leagueName: leagueName ?? null,
-        divisionName: divisionName ?? null,
-        teamName: teamName ?? null
-      })) as unknown as RegistrationDto[]
+      items: rows.map(({ r, orgName, formName, formSeasonId, divisionSeasonId, leagueName, divisionName, teamName }) => {
+        // Prefer the division's season (most specific) over the form's
+        // season (the form may cover multiple seasons via division
+        // scoping). Falls back to formSeasonId for org/league-scoped
+        // forms that aren't bound to a single division.
+        const seasonId = divisionSeasonId ?? formSeasonId ?? null;
+        return {
+          id: r.id,
+          idempotencyKey: r.idempotencyKey,
+          orgId: r.orgId,
+          formVersionId: r.formVersionId,
+          submittedByUserId: r.submittedByUserId,
+          subjectPersonId: r.subjectPersonId,
+          status: r.status as RegistrationDto["status"],
+          leagueId: r.leagueId,
+          divisionId: r.divisionId,
+          seasonId,
+          teamId: r.teamId,
+          submittedAt: r.submittedAt?.toISOString() ?? null,
+          reviewedByUserId: r.reviewedByUserId,
+          reviewedAt: r.reviewedAt?.toISOString() ?? null,
+          decisionReason: r.decisionReason,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+          orgName: orgName ?? null,
+          formName: formName ?? null,
+          seasonName: seasonId ? seasonName.get(seasonId) ?? null : null,
+          leagueName: leagueName ?? null,
+          divisionName: divisionName ?? null,
+          teamName: teamName ?? null
+        };
+      }) as unknown as RegistrationDto[]
     };
   }
 
@@ -182,6 +192,7 @@ export class SelfRegistrationsController {
         orgName: schema.orgs.displayName,
         formName: schema.registrationForms.name,
         formSeasonId: schema.registrationForms.seasonId,
+        divisionSeasonId: schema.divisions.seasonId,
         leagueName: schema.leagues.name,
         divisionName: schema.divisions.name,
         teamName: schema.teams.name
@@ -224,12 +235,15 @@ export class SelfRegistrationsController {
       throw new NotFoundException("Registration not found");
     }
 
+    // Prefer division's season (most specific) over form's season —
+    // see listMine for the rationale.
+    const seasonId = row.divisionSeasonId ?? row.formSeasonId ?? null;
     let seasonName: string | null = null;
-    if (row.formSeasonId) {
+    if (seasonId) {
       const [s] = await this.db
         .select({ name: schema.seasons.name })
         .from(schema.seasons)
-        .where(eq(schema.seasons.id, row.formSeasonId))
+        .where(eq(schema.seasons.id, seasonId))
         .limit(1);
       seasonName = s?.name ?? null;
     }
@@ -245,6 +259,7 @@ export class SelfRegistrationsController {
       status: r.status as RegistrationDto["status"],
       leagueId: r.leagueId,
       divisionId: r.divisionId,
+      seasonId,
       teamId: r.teamId,
       submittedAt: r.submittedAt?.toISOString() ?? null,
       reviewedByUserId: r.reviewedByUserId,
