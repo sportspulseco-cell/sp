@@ -187,7 +187,7 @@ function RosterRow({
   status: "active";
 }) {
   return (
-    <li className="grid grid-cols-[40px_1fr_64px_92px_88px] items-center gap-3 px-5 py-3 sm:grid-cols-[44px_1fr_72px_120px_92px]">
+    <li className="grid grid-cols-[32px_minmax(0,1fr)_44px_84px] items-center gap-3 px-4 py-3 sm:grid-cols-[44px_minmax(0,1fr)_72px_120px_92px] sm:px-5">
       <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
         #{num}
       </span>
@@ -226,7 +226,7 @@ function ReferRow({ phase, matchPct }: { phase: Phase; matchPct: number }) {
               : "rgba(70,211,105,0.04)"
       }}
       transition={{ duration: 0.4 }}
-      className="relative grid grid-cols-[40px_1fr_64px_64px_120px] items-center gap-3 px-5 py-3 sm:grid-cols-[44px_1fr_72px_120px_140px]"
+      className="relative grid grid-cols-[32px_minmax(0,1fr)_44px_108px] items-center gap-3 px-4 py-3 sm:grid-cols-[44px_minmax(0,1fr)_72px_120px_140px] sm:px-5"
     >
       {/* Heartbeat pulse rail on the left */}
       <span className="font-mono text-[11px] tabular-nums text-fg-subtle">

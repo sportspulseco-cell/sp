@@ -426,27 +426,36 @@ Small things the audit caught that don't fit elsewhere.
 
 ## Phase 5 — Decision-gated
 
-### P5-D — Decide: build or delete `org-admin-web` and `league-admin-web` ☐
+### P5-D — Decision: delete `league-admin-web`, build out `org-admin-web` ◐
 
 | Field | Value |
 |---|---|
 | Closes | **§5** |
-| Estimate | 1-hour decision; 4 weeks build per app **OR** 1 day delete |
+| Estimate | 1-hour decision (done); 4 weeks build for `org-admin-web` |
 
-**Why we need a decision now:** `org-admin-web` is `next-env.d.ts` +
-`node_modules`. `league-admin-web` has 11 pages but no way to grant
-the role from its own UI. Today the 403 a "real" super-admin sees on
-the admin queue (e.g. yesterday's `/registration-v2/admin/submissions`)
-is exactly this seam: the request requires super_admin, an org_admin
-isn't one, and they have no scoped app to use instead.
+**Decision (2026-05-15):** delete `league-admin-web`, build out `org-admin-web`.
+League admins fold into `superadmin-web` with a league-scoped role
+filter — the cardinal rule "Every app is just filtered-by-role"
+applies cleanly there. Org admins keep their own console because
+the persona has a richer surface (multi-league federation owners
+need a single org-scoped dashboard, not a global one filtered down).
 
-**Options**
+**Part 1 — `league-admin-web` deletion (done 2026-05-15)**
+- [x] `rm -rf apps/league-admin-web` (entire 320-file tree).
+- [x] Landing-web nav + CTA section drop the "League Admin" entry; `LEAGUE_ADMIN` const removed.
+- [x] Comment refs cleaned across team-admin-web, player-web, org-admin-web, superadmin-web SDK comments.
+- [x] CLAUDE.md repo map + deploy table + cardinal-rule text updated. App-Reference.md mentions converted to "league admins land in superadmin-web with a league-scoped filter".
+- [x] Playwright config drops `leagueAdmin` URL slots in PROD + LOCAL. Smoke spec `tests/e2e/smoke/league-admin.spec.ts` deleted. Sign-up + sign-in-redirect tests no longer enumerate the league-admin app. Captain-dual-role spec retargets the league-admin smoke user at superadmin-web. README updated.
+- [x] `SMOKE_USERS.leagueAdmin` retained in fixtures (the actual auth.users row still exists and is useful for "wrong-role gating" tests).
+- [x] `pnpm install` clean; `pnpm --filter @sportspulse/landing-web typecheck` clean.
+- [ ] **Manual follow-up:** delete Vercel project `sp-league-admin` from the dashboard. Repo cleanup is done, but the standalone deployment is still live until that project is removed.
 
-- **A — Delete:** `rm -rf apps/org-admin-web apps/league-admin-web`. Make superadmin-web fully role-aware (already mostly is — scope helpers exist). Org/league admins use superadmin-web with their org/league filter pre-applied. The 403s become "filter the queue to your org" no-ops.
-- **B — Build:** flesh out both apps with role-scoped dashboards mirroring superadmin's surfaces, filtered to the admin's scope. ~4 engineer-weeks per app.
-
-**Acceptance for either path**
-- [ ] Decision recorded in this section + commit body.
+**Part 2 — `org-admin-web` build-out (outstanding)**
+- [ ] Scope + design the org-admin surface tree. The app shell exists but most routes are stubs.
+- [ ] Mirror superadmin-web's surfaces filtered to the admin's org scope (Leagues, Seasons, Divisions, Teams, Registrations, Forms, Finance, Communications, Audit).
+- [ ] Reuse the canonical `<Sidebar>`, `<TopBar>`, IAM hooks; no parallel implementations.
+- [ ] Smoke: org-admin signs in, sees only their org(s) on every list.
+- [ ] Estimate: ~4 engineer-weeks. Filed for a follow-up planning pass when ready to start.
 - [ ] If A: directories removed, sidebar links cleaned up, Vercel projects deleted, README updated to a single "superadmin-web is the only admin surface" line.
 - [ ] If B: spawn P5-B-1 and P5-B-2 items below with their own acceptance.
 
@@ -474,7 +483,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |
 | P4-2 | Notification preferences + retry | §7 | ☑ | 2026-05-15 |
-| P5-D | Org/league admin app decision | §5 | ☐ | — |
+| P5-D | Org/league admin app decision | §5 | ◐ | 2026-05-15 |
 
 ---
 

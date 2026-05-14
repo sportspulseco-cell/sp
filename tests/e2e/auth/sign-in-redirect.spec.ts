@@ -7,7 +7,6 @@ import { test, expect, E2E_URLS } from "../fixtures";
  */
 const PROTECTED: Array<{ name: string; url: string; path: string }> = [
   { name: "super-admin", url: E2E_URLS.superadmin, path: "/dashboard" },
-  { name: "league-admin", url: E2E_URLS.leagueAdmin, path: "/dashboard" },
   { name: "org-admin", url: E2E_URLS.orgAdmin, path: "/" },
   { name: "team-admin", url: E2E_URLS.teamAdmin, path: "/" },
   { name: "player", url: E2E_URLS.player, path: "/" }

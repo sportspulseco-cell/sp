@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   Building2,
   ShieldCheck,
-  Trophy,
   User,
   UsersRound
 } from "lucide-react";
@@ -14,11 +13,12 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@/components/ui/reveal";
 
 const SUPERADMIN = "https://sp-superadmin.vercel.app";
-const LEAGUE_ADMIN = "https://sp-league-admin.vercel.app";
 const ORG_ADMIN = "https://sp-org-admin.vercel.app";
 const TEAM_ADMIN = "https://sp-team-admin.vercel.app";
 // sp-player.vercel.app was held externally — Vercel auto-assigned -red.
 const PLAYER = "https://sp-player-red.vercel.app";
+// League-admin sign-in landing collapsed into superadmin-web with a
+// league-scoped role filter (P5-D, 2026-05-15).
 
 export function SectionCta() {
   const [email, setEmail] = useState("");
@@ -100,13 +100,6 @@ export function SectionCta() {
               sub="One organization: leagues, seasons, billing"
               signIn={`${ORG_ADMIN}/sign-in`}
               signUp={`${ORG_ADMIN}/sign-up`}
-            />
-            <ConsoleCard
-              icon={<Trophy className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="League Admin"
-              sub="Your league: divisions, teams, games"
-              signIn={`${LEAGUE_ADMIN}/sign-in`}
-              signUp={`${LEAGUE_ADMIN}/sign-up`}
             />
             <ConsoleCard
               icon={<UsersRound className="h-3.5 w-3.5" strokeWidth={2.25} />}

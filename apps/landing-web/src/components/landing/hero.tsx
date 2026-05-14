@@ -22,7 +22,7 @@ export function Hero() {
       <div className="relative mx-auto max-w-container px-6 pb-20 pt-36 lg:px-10 lg:pb-28 lg:pt-44">
         <Eyebrow className="mb-6">
           <span className="text-fg/70">// Unified League Management Engine</span>{" "}
-          <span className="text-fg">· v2.0</span>
+          <span className="text-fg">· v1.0</span>
         </Eyebrow>
 
         <motion.h1

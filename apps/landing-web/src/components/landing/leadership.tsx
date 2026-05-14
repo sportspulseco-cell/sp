@@ -26,7 +26,7 @@ const TEAM: TeamMember[] = [
   },
   {
     id: "thangaraj",
-    name: "V. Thangaraj",
+    name: "Ven Thangaraj",
     role: "Tech Team",
     bio: "Owns the platform's structural integrity — schema, scheduling kernel, audit. Twenty years of building backbone infrastructure that has to be right the first time.",
     initials: "VT",
@@ -34,7 +34,7 @@ const TEAM: TeamMember[] = [
   },
   {
     id: "azmath",
-    name: "Azmath Sharief",
+    name: "Azmath Sheriff",
     role: "CTO",
     bio: "Engineering org and the autonomous logistics core. Designs the systems that decide — substitutions, conflict resolution, predictive optimization — and the guardrails that keep them honest.",
     initials: "AS",

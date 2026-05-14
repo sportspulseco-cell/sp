@@ -43,11 +43,14 @@ test.describe("captain dual role across apps", () => {
     expect(captainConsole).toBe(0);
   });
 
-  test("league-admin: promote-captain dialog opens from teams page", async ({
+  test("league-admin (now via superadmin-web): promote-captain dialog opens from teams page", async ({
     page
   }) => {
-    await signIn(page, E2E_URLS.leagueAdmin, SMOKE_USERS.leagueAdmin);
-    await page.goto(`${E2E_URLS.leagueAdmin}/teams`);
+    // P5-D — league_admin role now signs into superadmin-web with a
+    // league-scoped role filter applied. The dedicated league-admin-web
+    // app was deleted 2026-05-15.
+    await signIn(page, E2E_URLS.superadmin, SMOKE_USERS.leagueAdmin);
+    await page.goto(`${E2E_URLS.superadmin}/teams`);
 
     // The Teams page renders one row per team in scope. The league
     // smoke user holds league_admin scope on PPHL U16 — so at least

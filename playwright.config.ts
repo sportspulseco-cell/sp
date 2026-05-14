@@ -22,7 +22,6 @@ const TARGET = process.env.E2E_TARGET ?? "prod";
 const PROD_URLS = {
   landing: "https://sp-landing-seven.vercel.app",
   superadmin: "https://sp-superadmin.vercel.app",
-  leagueAdmin: "https://sp-league-admin.vercel.app",
   orgAdmin: "https://sp-org-admin.vercel.app",
   teamAdmin: "https://sp-team-admin.vercel.app",
   player: "https://sp-player-red.vercel.app"
@@ -31,7 +30,6 @@ const PROD_URLS = {
 const LOCAL_URLS = {
   landing: "http://localhost:3000",
   superadmin: "http://localhost:3001",
-  leagueAdmin: "http://localhost:3002",
   orgAdmin: "http://localhost:3003",
   player: "http://localhost:3004",
   teamAdmin: "http://localhost:3005"

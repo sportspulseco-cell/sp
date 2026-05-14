@@ -69,21 +69,21 @@ component / endpoint / table?" is **"check what's already there first."**
 > permissions." — repo owner, 2026-05-04
 
 **`apps/superadmin-web` ships every feature.** Other web surfaces
-(`league-admin-web`, future `team-admin-web`, future `player-portal`,
-referee app, scorekeeper app, parent portal, etc.) are **role-filtered
-views of the same underlying functionality** — never parallel
-implementations. **Every app is just filtered-by-role** (repo owner,
-2026-05-04).
+(`org-admin-web`, `team-admin-web`, `player-web`, future referee /
+scorekeeper / parent portal etc.) are **role-filtered views of the
+same underlying functionality** — never parallel implementations.
+**Every app is just filtered-by-role** (repo owner, 2026-05-04).
 
 - New features land in superadmin-web first. Other consoles inherit them by
   role gating, not by reimplementation.
 - Logic shared across apps (form validation, state machines, formatters)
   belongs in `packages/kernel` or a shared UI package, not duplicated per app.
-- A 90%-identical `<LeagueAdminSidebar>` sitting next to `<Sidebar>` is the
-  silo problem in disguise. Factor it shared in the same PR.
-- Long-term direction: `league-admin-web` may collapse into `superadmin-web`
-  with a `mode=league_admin` flag. Design every new component so that
-  collapse stays easy.
+- A 90%-identical sidebar sitting next to `<Sidebar>` is the silo problem
+  in disguise. Factor it shared in the same PR.
+- `league-admin-web` was deleted in P5-D (2026-05-15) — league admins now
+  sign in to `superadmin-web` and see a league-scoped filter applied via
+  their role assignment. Future role-scoped surfaces (referee, scorekeeper)
+  should follow the same role-filter pattern rather than spawn new apps.
 
 ### Concrete reuse map (where the existing primitives live)
 
@@ -95,7 +95,7 @@ implementations. **Every app is just filtered-by-role** (repo owner,
 | DB schema, types, repositories | `packages/db` (Drizzle source of truth) |
 | Domain entities, value objects, kernel types (Result, Page, ID) | `packages/kernel` |
 | Permission catalogue, role codes, scope types, audit action labels | **Must be sourced from a canonical file in `packages/kernel`** (e.g. `permissions.ts`, `roles.ts`) so API and UI never drift. |
-| API SDK consumed by web apps | `apps/superadmin-web/src/lib/api/sdk.ts` (factory) + `server-api.ts` and `browser-api.ts` (bindings). League-admin app has its own thinner mirror at `apps/league-admin-web/src/lib/api/sdk.ts`. |
+| API SDK consumed by web apps | `apps/superadmin-web/src/lib/api/sdk.ts` (factory) + `server-api.ts` and `browser-api.ts` (bindings). Other apps each carry their own thinner mirror under `apps/<app>/src/lib/api/`. |
 | API guards, decorators, scope helpers | `apps/superadmin-api/src/shared/auth/` (`AuthorizedAccessGuard`, `SuperAdminGuard`, `RolesGuard`, `@CurrentUser`, `@UserScope`, `loadUserScope`) |
 | Audit interceptor (records every successful mutation) | `apps/superadmin-api/src/modules/audit/interface/audit.interceptor.ts` — global, do not reimplement |
 
@@ -118,8 +118,10 @@ implementations. **Every app is just filtered-by-role** (repo owner,
 ```
 apps/
   superadmin-api          NestJS · DDD · Drizzle · service-role bypass · audit interceptor
-  superadmin-web          Next.js 15 · platform admin console
-  league-admin-web        Next.js 15 · scoped read-only console (one or more leagues)
+  superadmin-web          Next.js 15 · platform admin console (god app — league admins use this too)
+  org-admin-web           Next.js 15 · scoped console for an organization (P5-D build-out in progress)
+  team-admin-web          Next.js 15 · captain / coach console
+  player-web              Next.js 15 · player / free-agent console
   landing-web             Next.js 15 · public marketing site, framer-motion
 packages/
   auth                    Supabase JWT verifier, SSR helpers, web client factory
@@ -136,7 +138,6 @@ doc/
 |---|---|---|
 | API | `sp-api` | https://sp-api-one.vercel.app |
 | Super-admin | `sp-superadmin` | https://sp-superadmin.vercel.app |
-| League-admin | `sp-league-admin` | https://sp-league-admin.vercel.app |
 | Org-admin | `sp-org-admin` | https://sp-org-admin.vercel.app |
 | Player | `sp-player` | https://sp-player-red.vercel.app (sp-player.vercel.app was taken externally) |
 | Team-admin | `sp-team-admin` | https://sp-team-admin.vercel.app |

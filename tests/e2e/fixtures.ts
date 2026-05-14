@@ -10,6 +10,8 @@ export const SMOKE_PASSWORD = "SmokeTest!2026";
 
 export const SMOKE_USERS = {
   superAdmin: "sportspulse.smoketest+sa@gmail.com",
+  // League admin smoke user retained — they now sign in to
+  // superadmin-web (P5-D, 2026-05-15) and see a league-scoped filter.
   leagueAdmin: "sportspulse.smoketest+la@gmail.com",
   orgAdmin: "sportspulse.smoketest+oa@gmail.com",
   teamAdmin: "sportspulse.smoketest+ta@gmail.com",
@@ -49,17 +51,6 @@ export const ROUTES = {
     { path: "/forms", anchor: /Registration forms/i },
     { path: "/finance", anchor: /Finance/i },
     { path: "/finance/ar", anchor: /AR Dashboard/i }
-  ] as RouteCheck[],
-
-  leagueAdmin: [
-    { path: "/dashboard", anchor: /Welcome back/i },
-    { path: "/leagues", anchor: /My leagues/i },
-    { path: "/divisions", anchor: /Divisions/i },
-    { path: "/teams", anchor: /Teams/i },
-    { path: "/rosters", anchor: /Memberships/i },
-    { path: "/games", anchor: /Games/i },
-    { path: "/standings", anchor: /Standings/i },
-    { path: "/audit", anchor: /Audit/i }
   ] as RouteCheck[],
 
   orgAdmin: [

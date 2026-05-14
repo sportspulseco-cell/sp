@@ -48,7 +48,7 @@ async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<
 const api = createApi(apiFetch);
 
 // Re-export the SDK namespaces this app actually uses. Add more as
-// the app grows. Same pattern as superadmin-web/league-admin-web.
+// the app grows. Same pattern as superadmin-web.
 export const iam = api.iam;
 export const leagueMgmt = api.leagueMgmt;
 export const roster = api.roster;

@@ -23,7 +23,6 @@
 |---|---|---|---|
 | `apps/superadmin-api` | NestJS API for everything (DDD modules) | `sp-api` | https://sp-api-one.vercel.app |
 | `apps/superadmin-web` | Platform / "god" admin console | `sp-superadmin` | https://sp-superadmin.vercel.app |
-| `apps/league-admin-web` | League admin scoped console | `sp-league-admin` | https://sp-league-admin.vercel.app |
 | `apps/org-admin-web` | Org admin scoped console | `sp-org-admin` | https://sp-org-admin.vercel.app |
 | `apps/team-admin-web` | Team admin / coach console | `sp-team-admin` | https://sp-team-admin.vercel.app |
 | `apps/player-web` | Player + captain self-serve | `sp-player` | https://sp-player-red.vercel.app |
@@ -36,7 +35,7 @@ All seven projects auto-deploy from `main` on the GitHub repo. Postgres lives in
 These are repo-owner directives in [CLAUDE.md](../CLAUDE.md). Every proposal must respect them.
 
 1. **Reuse over silos.** Find the existing primitive before adding a new one. Permissions, role codes, scope types, audit-action labels, registration submission states live in canonical files under `packages/`. Do not duplicate.
-2. **Superadmin is the god app.** All features land in `superadmin-web` first. `org-admin-web`, `league-admin-web`, `team-admin-web`, `player-web` are **role-filtered views of the same functionality** -- never parallel implementations.
+2. **Superadmin is the god app.** All features land in `superadmin-web` first. `org-admin-web`, `team-admin-web`, `player-web` are **role-filtered views of the same functionality** -- never parallel implementations. League admins use `superadmin-web` with a league-scoped role filter (the dedicated `league-admin-web` was deleted in P5-D, 2026-05-15).
 3. **Design thinking before code.** Walk every UI flow as super_admin / new user / multi-role user / no-profile user before merging any new dialog or dropdown. Defaults must reflect context (no alphabetic-first, no `array[0]`).
 4. **Drizzle is the schema source of truth.** Edit `packages/db/src/schema/*.ts` then `pnpm --filter @sportspulse/db generate`. Migrations are additive and idempotent.
 5. **Audit interceptor is global.** Every successful 2xx mutation is logged automatically. Don't reimplement per handler; use action labels of the form `<resource>.<verb>`.
@@ -89,7 +88,7 @@ The platform groups into **14 backend modules** under `apps/superadmin-api/src/m
 |---|---|---|---|
 | 2.1 | IAM | `iam.ts` | superadmin-web (Users, Persons, Roles), all apps' onboarding |
 | 2.2 | Org Management | `iam.ts` (org tables) | superadmin-web (Orgs), org-admin-web |
-| 2.3 | League Management | `league.ts` | superadmin-web, league-admin-web, org-admin-web |
+| 2.3 | League Management | `league.ts` | superadmin-web, org-admin-web |
 | 2.4 | Roster & Membership | `roster.ts` | superadmin-web, team-admin-web, player-web (captain) |
 | 2.5 | Registration v1 (compliance) | `registration.ts` | superadmin-web (Forms / Documents / Eligibility) |
 | 2.6 | Registration v2 (public funnel) | `registration-v2.ts` | superadmin-web (Pricing / Templates / Review), player-web (`/register`) |
@@ -97,7 +96,7 @@ The platform groups into **14 backend modules** under `apps/superadmin-api/src/m
 | 2.8 | Stats | `stats.ts` | superadmin-web (Stats), player-web (Stats), public game pages |
 | 2.9 | Finance | `finance.ts` + `registration-v2.ts` (installments) | superadmin-web (Finance), player-web (Payments) |
 | 2.10 | Communications / Notifications | `notifications.ts` | superadmin-web (Communications), player-web (Notifications) |
-| 2.11 | Audit | `audit.ts` | superadmin-web (Audit), league-admin-web (Audit) |
+| 2.11 | Audit | `audit.ts` | superadmin-web (Audit) (Audit) |
 | 2.12 | Admin (settings, flags) | `admin.ts` | superadmin-web (Admin Console) |
 | 2.13 | Reports (CSV exports) | -- (read-only) | superadmin-web (Reports) |
 | 2.14 | Data Migration | `admin.ts` (importJobs/Rows) | superadmin-web (Data Migration) |
@@ -216,8 +215,7 @@ Org -> League -> Season -> Division -> Team (via division_team_entries)
 | GET / POST / PATCH / DELETE | `/league/teams[/:id]` | Teams CRUD; PATCH allows scoped writes for team_admin on own team | AuthorizedAccess + `@AllowScopedWrite` |
 
 **Web surfaces.**
-- `superadmin-web /(admin)/leagues`, `/seasons`, `/divisions`, `/teams` -- full CRUD.
-- `league-admin-web /(admin)/leagues`, `/divisions`, `/teams` -- read scoped to assigned leagues.
+- `superadmin-web /(admin)/leagues`, `/seasons`, `/divisions`, `/teams` -- full CRUD. League admins land here with a league-scoped role filter applied.
 - `org-admin-web /(app)/leagues`, `/seasons`, `/divisions`, `/teams` -- read scoped to assigned orgs.
 - `team-admin-web /(app)/dashboard` -- read for the user's team.
 
@@ -456,7 +454,7 @@ Suspensions (super_admin only):
 - `superadmin-web /(admin)/stats` -- viewer + recompute trigger.
 - `player-web /(app)/stats` -- selectable scope (career / season / playoffs).
 - `team-admin-web /(app)/stats` -- team-level.
-- `league-admin-web /(admin)/standings` -- league standings.
+- `superadmin-web /(admin)/standings` -- league standings (league admins land here with a league-scoped filter).
 
 **Features.**
 - `stat_lines.core` JSONB has canonical per-sport stats (G, A, P, PIM, +/-); `extended` JSONB has goalie / advanced metrics.
@@ -556,8 +554,7 @@ Suspensions (super_admin only):
 | GET | `/audit/:id` | Get one (scope-checked) |
 
 **Web surfaces.**
-- `superadmin-web /(admin)/audit`, `/audit/[id]` -- all-org viewer + detail.
-- `league-admin-web /(admin)/audit` -- scoped to user's leagues.
+- `superadmin-web /(admin)/audit`, `/audit/[id]` -- all-org viewer + detail (league admins see the same surface filtered to their leagues via their role scope).
 
 **Features.**
 - Captures `actorUserId`, `onBehalfOfUserId` (delegation), `before`, `after` JSONB diffs, IP, UA, request ID.
@@ -1609,13 +1606,9 @@ Unique: `(orgId, code, channel, locale)`.
 
 **Navigation** (`Sidebar.tsx`): Platform tier (Overview, Organizations, Users, Persons, Roles, Audit, Admin Console). League tier (Seasons, Leagues, Divisions, Teams, Memberships, Registrations, Forms, Documents, Eligibility, Games, Game Events, Stats, Finance, Communications, Reports, Data Migration).
 
-## 4.2 league-admin-web
+## 4.2 league-admin-web — DELETED (P5-D, 2026-05-15)
 
-**Audience.** Users with `league_admin` role assignments scoped to one or more leagues. Super-admin bypasses.
-
-**Auth gating.** Middleware: `requireRole(['league_admin'])`; onboarding wizard at `/onboarding` if profile incomplete.
-
-**Routes.** `(admin)/` (dashboard), `/my-leagues`, `/divisions`, `/teams`, `/rosters`, `/games`, `/standings`, `/audit`. `(auth)/sign-in`, `/sign-up`, `/onboarding`.
+The dedicated league-admin app was removed. League admins now sign in to `superadmin-web` and see a league-scoped filter applied via their role assignment. The functionality previously listed here (My leagues, divisions, teams, rosters, games, standings, audit) is reached from `superadmin-web` with the same filter.
 
 **Notable features.** Read-mostly views scoped to assigned leagues; standings + audit trail.
 

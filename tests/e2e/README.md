@@ -14,8 +14,7 @@ tests/e2e/
 ├── smoke/                   # Layer 1 — every route loads + renders its anchor
 │   ├── landing.spec.ts      # public marketing site
 │   ├── sign-up.spec.ts      # multi-step funnel reaches step 2 on every app
-│   ├── superadmin.spec.ts   # all 15 super-admin routes
-│   ├── league-admin.spec.ts # all 8 league-admin routes
+│   ├── superadmin.spec.ts   # all 15 super-admin routes (league admins land here with a league-scoped filter; P5-D)
 │   ├── org-admin.spec.ts    # all 8 org-admin routes
 │   ├── team-admin.spec.ts   # all 6 team-admin routes
 │   └── player.spec.ts       # all 10 player routes + 4 captain console routes

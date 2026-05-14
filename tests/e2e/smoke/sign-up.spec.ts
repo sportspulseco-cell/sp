@@ -7,7 +7,6 @@ import { test, expect, E2E_URLS } from "../fixtures";
  */
 const APPS: Array<{ name: string; url: string; copy: string }> = [
   { name: "Super Admin", url: E2E_URLS.superadmin, copy: "Super Admin" },
-  { name: "League Admin", url: E2E_URLS.leagueAdmin, copy: "League Admin" },
   { name: "Org Admin", url: E2E_URLS.orgAdmin, copy: "Org Admin" },
   { name: "Team Admin", url: E2E_URLS.teamAdmin, copy: "Team Admin" },
   { name: "Player", url: E2E_URLS.player, copy: "Player" }

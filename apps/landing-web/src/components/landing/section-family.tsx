@@ -68,62 +68,67 @@ export function SectionFamily() {
                 </div>
               </div>
 
-              {/* Day rail */}
-              <div className="grid grid-cols-7 gap-px overflow-hidden border-b border-border bg-border">
-                {DAYS.map((d) => (
-                  <div
-                    key={d}
-                    className="bg-bg-elev px-3 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-fg-muted"
-                  >
-                    {d}
+              {/* Day rail + timeline — horizontally scrollable on mobile so
+                  each day keeps a legible min-width. On sm+ the grid fits the
+                  full week in view. */}
+              <div className="overflow-x-auto scrollbar-none">
+                <div className="min-w-[640px] sm:min-w-0">
+                  <div className="grid grid-cols-7 gap-px overflow-hidden border-b border-border bg-border">
+                    {DAYS.map((d) => (
+                      <div
+                        key={d}
+                        className="bg-bg-elev px-3 py-2 text-center font-mono text-[10px] uppercase tracking-widest text-fg-muted"
+                      >
+                        {d}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* Timeline */}
-              <div className="grid grid-cols-7 gap-px bg-border">
-                {DAYS.map((d) => {
-                  const dayEvents = events.filter((e) => e.day === d);
-                  return (
-                    <div
-                      key={d}
-                      className="min-h-[180px] space-y-1.5 bg-bg-elev px-1.5 py-2"
-                    >
-                      <AnimatePresence mode="popLayout">
-                        {dayEvents.map((e, idx) => (
-                          <motion.div
-                            key={`${e.kid}-${e.day}-${idx}`}
-                            layout
-                            initial={{ opacity: 0, scale: 0.92, y: 6 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.92, y: 6 }}
-                            transition={{
-                              duration: 0.32,
-                              type: "spring",
-                              stiffness: 240,
-                              damping: 22
-                            }}
-                            className={cn(
-                              "rounded-md border px-1.5 py-1.5 text-[10px] leading-tight",
-                              e.tint
-                            )}
-                          >
-                            <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide">
-                              <span>{e.emoji}</span>
-                              <span className="font-semibold">{e.kid}</span>
-                            </div>
-                            <p className="mt-0.5 truncate text-[10px] opacity-90">
-                              {e.label.split(" · ")[0]}
-                            </p>
-                            <p className="mt-0.5 truncate font-mono text-[9px] tabular-nums opacity-70">
-                              {e.label.split(" · ")[1]}
-                            </p>
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
+                  <div className="grid grid-cols-7 gap-px bg-border">
+                    {DAYS.map((d) => {
+                      const dayEvents = events.filter((e) => e.day === d);
+                      return (
+                        <div
+                          key={d}
+                          className="min-h-[180px] space-y-1.5 bg-bg-elev px-1.5 py-2"
+                        >
+                          <AnimatePresence mode="popLayout">
+                            {dayEvents.map((e, idx) => (
+                              <motion.div
+                                key={`${e.kid}-${e.day}-${idx}`}
+                                layout
+                                initial={{ opacity: 0, scale: 0.92, y: 6 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.92, y: 6 }}
+                                transition={{
+                                  duration: 0.32,
+                                  type: "spring",
+                                  stiffness: 240,
+                                  damping: 22
+                                }}
+                                className={cn(
+                                  "rounded-md border px-1.5 py-1.5 text-[10px] leading-tight",
+                                  e.tint
+                                )}
+                              >
+                                <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide">
+                                  <span>{e.emoji}</span>
+                                  <span className="font-semibold">{e.kid}</span>
+                                </div>
+                                <p className="mt-0.5 truncate text-[10px] opacity-90">
+                                  {e.label.split(" · ")[0]}
+                                </p>
+                                <p className="mt-0.5 truncate font-mono text-[9px] tabular-nums opacity-70">
+                                  {e.label.split(" · ")[1]}
+                                </p>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-between border-t border-border px-5 py-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
