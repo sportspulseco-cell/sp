@@ -200,12 +200,14 @@ export class ChangeSeasonStatusHandler
     season.changeStatus(assertSeasonStatus(input.status));
     await this.seasons.save(season);
 
-    // Side effect: when a season is opened for registration, flip every
-    // configured pricing tier under it to is_active=true. Tiers are
-    // created in 'draft' (is_active=false) by the form builder so admins
-    // can configure them privately; the status flip is the publish
-    // signal. Without this, captains see "No pricing tier configured"
-    // even though the season is live.
+    // Side effect: pricing tiers track the season's open/closed state.
+    //   • registration_open → flip every is_active=false tier to true
+    //     (publish signal — tiers are created draft so admins can
+    //     configure them privately).
+    //   • anything else (draft / scheduled / completed / cancelled /
+    //     archived) → flip every is_active=true tier back to false
+    //     (P0-4 / audit §4.4: demoting to draft left tiers live, so a
+    //     captain could still hit the wizard against a closed season).
     if (input.status === "registration_open") {
       await this.db
         .update(schema.pricingTiers)
@@ -214,6 +216,16 @@ export class ChangeSeasonStatusHandler
           and(
             eq(schema.pricingTiers.seasonId, input.id),
             eq(schema.pricingTiers.isActive, false)
+          )
+        );
+    } else {
+      await this.db
+        .update(schema.pricingTiers)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.pricingTiers.seasonId, input.id),
+            eq(schema.pricingTiers.isActive, true)
           )
         );
     }

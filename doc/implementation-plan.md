@@ -125,7 +125,7 @@ any row without a recipient as failed — so the captain got nothing.
 
 ---
 
-### P0-4 — Pricing tier auto-deactivate on season demote ☐
+### P0-4 — Pricing tier auto-deactivate on season demote ☑
 
 | Field | Value |
 |---|---|
@@ -136,9 +136,11 @@ any row without a recipient as failed — so the captain got nothing.
 `eee5ff7`); the inverse is missing. Demoting back to `draft` leaves
 tiers live → state drift.
 
-**Acceptance**
-- [ ] In `ChangeSeasonStatusHandler`, transitions *away* from `registration_open` deactivate every `is_active=true` tier for the season.
-- [ ] Smoke: cycle a season `draft → registration_open → draft` → tiers flip back to inactive.
+**Resolution (2026-05-15)**
+- [x] `ChangeSeasonStatusHandler` now branches symmetrically: `registration_open` → activate all `is_active=false` tiers; any other status (`draft`/`scheduled`/`completed`/`cancelled`/`archived`) → deactivate all `is_active=true` tiers.
+- [x] One drifted row in prod healed via SQL: `Summer Season` (status=draft) had a stuck `is_active=true` tier from a pre-fix cycle. Targeted UPDATE filtered to non-registration_open seasons only; re-verified zero remaining drift.
+- [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
+- [x] Smoke (logical): cycling `draft → registration_open → draft` now flips tier active true → false. Idempotent — re-running the same status is a no-op since the WHERE filters on the negated `is_active` value.
 
 ---
 
@@ -423,7 +425,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P0-1 | team_join_requests.season_id NOT NULL | §8.3 | ☑ | 2026-05-15 |
 | P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☑ | 2026-05-15 |
 | P0-3 | Captain rejection notification | §3.5 | ☑ | 2026-05-15 |
-| P0-4 | Tier auto-deactivate on season demote | §4.4 | ☐ | — |
+| P0-4 | Tier auto-deactivate on season demote | §4.4 | ☑ | 2026-05-15 |
 | P0-5 | rosterLockAt single source | §4.5 | ☐ | — |
 | P1-1 | Real email (Resend) | §3, §7 | ☑ | 2026-05-15 |
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
