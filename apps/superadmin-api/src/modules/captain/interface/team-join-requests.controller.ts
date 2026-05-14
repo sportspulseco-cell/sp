@@ -81,8 +81,7 @@ export class TeamJoinRequestsController {
       .select({
         id: schema.teams.id,
         orgId: schema.teams.orgId,
-        name: schema.teams.name,
-        captainUserId: schema.teams.captainUserId
+        name: schema.teams.name
       })
       .from(schema.teams)
       .where(eq(schema.teams.id, body.teamId))

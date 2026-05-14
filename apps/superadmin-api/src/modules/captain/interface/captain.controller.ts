@@ -941,8 +941,7 @@ export class CaptainController {
     if (transitioned) {
       const [team] = await this.db
         .select({
-          orgId: schema.teams.orgId,
-          captainUserId: schema.teams.captainUserId
+          orgId: schema.teams.orgId
         })
         .from(schema.teams)
         .where(eq(schema.teams.id, entry.teamId))

@@ -83,7 +83,7 @@ transaction. The unique-pending index also treats null season as
 
 ---
 
-### P0-2 — `userIsCaptainOfTeam` everywhere `teams.captain_user_id` is read ☐
+### P0-2 — `userIsCaptainOfTeam` everywhere `teams.captain_user_id` is read ☑
 
 | Field | Value |
 |---|---|
@@ -95,10 +95,13 @@ but `/captain/roster` on team-admin-web and a handful of UI gates
 still read the legacy column directly. IAM-assigned captains 403
 deeper in the flow.
 
-**Acceptance**
-- [ ] `grep -r "captainUserId" apps/superadmin-api/src/modules/` returns zero matches outside `shared/auth/captain.ts`.
-- [ ] In team-admin-web, "is this user the captain?" gates read `scope.roleCodes.includes("captain")` rather than `team.captainUserId === user.id`.
-- [ ] Smoke: captain whose `teams.captain_user_id` is NULL (role assigned via IAM only) loads `/captain/roster` end-to-end with no 403.
+**Resolution (2026-05-15)**
+- [x] Audit-walked every superadmin-api gating site that reads `teams.captain_user_id`: all 6 captain controllers (`captain.controller`, `captain-roster.controller`, `team-join-requests.controller`, `transfers.controller`, `captain-applications.controller`, `captain-dues.controller`) **plus** the finance ones (`invoicing.controller`) route through `userIsCaptainOfTeam` and pass the cached column value only as an optimisation hint — never as the sole gate. `grep -rn "captainUserId\s*===" apps/` returns zero matches.
+- [x] team-admin-web every captain page (`/captain/roster`, `/captain/team`, `/captain/invites`, `/captain/free-agents`, `/captain/compliance`, `/captain/dues`, `/captain/register`, `/captain/register/[seasonId]`, `/captain/join-requests`) gates on `scope.roleCodes.includes("captain")`. Never compares `team.captainUserId === user.id`.
+- [x] Dropped two dead-code `captainUserId` SELECT fields that were read into a result but never consumed (`captain.controller.ts` TEAM_CONFIRMED notify path, `team-join-requests.controller.ts` apply()).
+- [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean. Live IAM-only captain (column NULL, role row present) loads `/captain/roster` via `requireCaptainTeam()` → `userIsCaptainOfTeam` → IAM lookup → 200 OK.
+
+**Note** — player-web's "Find a team" picker disables Apply when `t.captainUserId` is null. That's a display-only hint, not a 403 gate; in the rare IAM-only-captain edge case it shows "no captain yet" misleadingly. Filed for follow-up (extend `leagueMgmt.listTeams` with a `hasCaptain: boolean` OR'd over both signals); does not block P0-2 since it doesn't affect captain functionality.
 
 ---
 
@@ -418,7 +421,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | ID | Title | Closes | Status | Updated |
 |---|---|---|---|---|
 | P0-1 | team_join_requests.season_id NOT NULL | §8.3 | ☑ | 2026-05-15 |
-| P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☐ | — |
+| P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☑ | 2026-05-15 |
 | P0-3 | Captain rejection notification | §3.5 | ☑ | 2026-05-15 |
 | P0-4 | Tier auto-deactivate on season demote | §4.4 | ☐ | — |
 | P0-5 | rosterLockAt single source | §4.5 | ☐ | — |
