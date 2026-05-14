@@ -311,7 +311,7 @@ Small things the audit caught that don't fit elsewhere.
 
 ---
 
-### P3-2 — Invoice ↔ team cross-reference ☐
+### P3-2 — Invoice ↔ team cross-reference ☑
 
 | Field | Value |
 |---|---|
@@ -319,9 +319,12 @@ Small things the audit caught that don't fit elsewhere.
 | Estimate | 0.5 day |
 | Depends on | P1-1 (so the team-link email actually lands) |
 
-**Acceptance**
-- [ ] `/payments` invoice card: if `invoice.team_id` is set, render the team name as a link → `/captain/dues` on team-admin-web (if caller is captain) or a public team page otherwise.
-- [ ] The payment confirmation email (`payment.confirmed`) includes the team name in the subject and body.
+**Resolution (2026-05-15)**
+- [x] `GET /finance/me/invoices` joins `teams` on `invoices.team_id`, surfaces `teamId` + `teamName` on every row. SDK type extended; player-web Invoice picks them up automatically.
+- [x] `/payments` invoice card header: when `invoice.teamName` is set, renders a `<TeamLink>` next to the invoice number that opens `${NEXT_PUBLIC_TEAM_ADMIN_URL}/captain/dues` in a new tab. Title-tooltip notes the link is captain-only (team-admin's own guard handles the auth check).
+- [x] `payment.confirmed` template rewritten — subject now `Payment received — {{invoiceNumber}}{{teamClause}}`, body includes the optional `Team: {{teamName}}` line. Template variables are forward-compatible (empty if not supplied).
+- [x] `PlayerPaymentsController.pay()` now queues `payment.confirmed` after the transaction commits with `recipientEmail`, `recipientPersonId`, `invoiceNumber`, formatted amount, and the resolved team clause/line. Closes another of P1-1's orphan flows.
+- [x] `pnpm --filter @sportspulse/{superadmin-api,player-web} typecheck` clean.
 
 ---
 
@@ -439,7 +442,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
 | P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |
 | P3-1 | Sidebar entries cleanup | §6 | ☐ | — |
-| P3-2 | Invoice ↔ team cross-reference | §1.3 | ☐ | — |
+| P3-2 | Invoice ↔ team cross-reference | §1.3 | ☑ | 2026-05-15 |
 | P3-3 | Form-builder templates dispatch | §3.4 | ☐ | — |
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |

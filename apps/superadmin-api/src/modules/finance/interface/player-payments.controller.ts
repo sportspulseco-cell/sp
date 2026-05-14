@@ -23,6 +23,12 @@ import {
   PAYMENT_PROCESSOR,
   type PaymentProcessor
 } from "../../../shared/payments/payment-processor";
+import { NotificationService } from "../../communications/application/notification.service";
+
+function fmtMoneyCents(cents: number, currency: string): string {
+  const amount = (cents / 100).toFixed(2);
+  return `${amount} ${currency}`;
+}
 
 class PayInvoiceBodyDto {
   /** Amount to apply from wallet, in cents. 0 or unset = card-only. */
@@ -64,7 +70,8 @@ class RetryInstallmentBodyDto {
 export class PlayerPaymentsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
+    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor,
+    private readonly notify: NotificationService
   ) {}
 
   // -------------------------------------------------------------------
@@ -103,12 +110,17 @@ export class PlayerPaymentsController {
     const personId = await this.resolvePersonId(user.userId);
     if (!personId) return { items: [] };
 
-    const invoices = await this.db
-      .select()
+    const rows = await this.db
+      .select({
+        inv: schema.invoices,
+        teamName: schema.teams.name
+      })
       .from(schema.invoices)
+      .leftJoin(schema.teams, eq(schema.teams.id, schema.invoices.teamId))
       .where(eq(schema.invoices.recipientPersonId, personId))
       .orderBy(desc(schema.invoices.createdAt))
       .limit(50);
+    const invoices = rows.map((r) => ({ ...r.inv, teamName: r.teamName }));
 
     const invoiceIds = invoices.map((i) => i.id);
     const installments = invoiceIds.length
@@ -132,6 +144,8 @@ export class PlayerPaymentsController {
       items: invoices.map((inv) => ({
         id: inv.id,
         orgId: inv.orgId,
+        teamId: inv.teamId,
+        teamName: inv.teamName,
         invoiceNumber: inv.invoiceNumber,
         invoiceType: inv.invoiceType,
         currency: inv.currency,
@@ -334,8 +348,46 @@ export class PlayerPaymentsController {
         paidCents: newPaid,
         totalCents,
         walletApplied: wallet,
-        cardCharged: card
+        cardCharged: card,
+        _emailContext: {
+          recipientEmail: locked.recipientEmail,
+          recipientPersonId: locked.recipientPersonId,
+          invoiceNumber: locked.invoiceNumber,
+          teamId: locked.teamId,
+          amountCents: wallet + card,
+          currency
+        }
       };
+    }).then(async (result) => {
+      // Fan-out the payment-received email after the transaction
+      // commits. Audit P3-2 / §1.3: include the team name in the
+      // subject + body so the player sees what this invoice was for.
+      const ctx = result._emailContext;
+      let teamName: string | null = null;
+      if (ctx.teamId) {
+        const [t] = await this.db
+          .select({ name: schema.teams.name })
+          .from(schema.teams)
+          .where(eq(schema.teams.id, ctx.teamId))
+          .limit(1);
+        teamName = t?.name ?? null;
+      }
+      void this.notify.queue({
+        templateCode: "payment.confirmed",
+        idempotencyKey: `pay-confirmed-${result.invoiceId}-${result.paidCents}`,
+        recipientPersonId: ctx.recipientPersonId,
+        recipientEmail: ctx.recipientEmail,
+        payload: {
+          invoiceNumber: ctx.invoiceNumber,
+          amountCents: fmtMoneyCents(ctx.amountCents, ctx.currency),
+          teamClause: teamName ? ` (${teamName})` : "",
+          teamLine: teamName ? `\nTeam: ${teamName}` : ""
+        }
+      });
+      // Strip the internal-only context before returning to the client.
+      const { _emailContext: _ignore, ...clean } = result;
+      void _ignore;
+      return clean;
     });
   }
 

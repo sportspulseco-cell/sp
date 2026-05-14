@@ -200,6 +200,15 @@ function InvoiceCard({
           </p>
           <p className="font-mono text-[11px] text-fg-muted">
             {invoice.invoiceNumber}
+            {invoice.teamName && (
+              <>
+                <span className="px-1.5 text-fg-muted/40">·</span>
+                <TeamLink
+                  teamId={invoice.teamId}
+                  teamName={invoice.teamName}
+                />
+              </>
+            )}
           </p>
         </div>
         <StatusBadge status={invoice.status} />
@@ -421,6 +430,36 @@ function StatusBadge({ status }: { status: string }) {
     <Badge tone={entry.tone} mono>
       {entry.label}
     </Badge>
+  );
+}
+
+/**
+ * Renders the invoice's team as a link to the team-admin captain
+ * dues page (where the captain can chase outstanding sub-invoices).
+ * Non-captain players get a no-op label — the link target requires
+ * captain access. Server-side scope check would belong here too, but
+ * the link target's own guard handles that. P3-2 / audit §1.3.
+ */
+function TeamLink({
+  teamId,
+  teamName
+}: {
+  teamId: string | null;
+  teamName: string;
+}) {
+  if (!teamId) return <span className="text-fg-muted">{teamName}</span>;
+  const teamAdminBase =
+    process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://sp-team-admin.vercel.app";
+  return (
+    <a
+      href={`${teamAdminBase}/captain/dues`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+      title="Open captain dues in team-admin (captains only)"
+    >
+      {teamName}
+    </a>
   );
 }
 

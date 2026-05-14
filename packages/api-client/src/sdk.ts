@@ -537,6 +537,8 @@ export function createApi(f: Fetcher) {
           items: Array<{
             id: string;
             orgId: string;
+            teamId: string | null;
+            teamName: string | null;
             invoiceNumber: string;
             invoiceType: string;
             currency: string;

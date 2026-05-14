@@ -517,9 +517,13 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     code: "payment.confirmed",
     channel: "email",
-    subject: "Payment received — {{invoiceNumber}}",
-    body: "Template pending — {{amountCents}} received on {{invoiceNumber}}.",
-    variables: ["invoiceNumber", "amountCents"]
+    subject: "Payment received — {{invoiceNumber}}{{teamClause}}",
+    body:
+      "Thanks — we've received your payment.\n\n" +
+      "Invoice: {{invoiceNumber}}\n" +
+      "Amount: {{amountCents}}{{teamLine}}\n\n" +
+      "A receipt PDF is on the way.",
+    variables: ["invoiceNumber", "amountCents", "teamClause", "teamLine"]
   },
   {
     code: "installment.failed",
