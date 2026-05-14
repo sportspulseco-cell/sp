@@ -10,7 +10,9 @@ import {
   index,
   uniqueIndex
 } from "drizzle-orm/pg-core";
+import { check } from "drizzle-orm/pg-core";
 import { orgs, persons } from "./iam";
+import { authUsers } from "./auth";
 
 // =====================================================================
 // NOTIFICATION_TEMPLATES — versioned, addressable by stable code
@@ -101,6 +103,45 @@ export const notifications = pgTable(
     ),
     recipientIdx: index("notif_recipient_idx").on(t.recipientPersonId),
     orgStatusIdx: index("notif_org_status_idx").on(t.orgId, t.status)
+  })
+);
+
+// =====================================================================
+// NOTIFICATION_PREFERENCES — per-recipient opt-out grid
+// One row per (user, templateCode, channel). Absent row = opted in
+// (default-on). enabled=false means suppress this notification class
+// for this recipient. Plan P4-2 / audit §7 follow-on.
+// =====================================================================
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    /** Catalog code: `registration.approved`, `invoice.overdue.r1`, etc. */
+    templateCode: text("template_code").notNull(),
+    /** email | in_app | sms */
+    channel: text("channel").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    uniq: uniqueIndex("notif_prefs_user_template_channel_uniq").on(
+      t.userId,
+      t.templateCode,
+      t.channel
+    ),
+    userIdx: index("notif_prefs_user_idx").on(t.userId),
+    channelCheck: check(
+      "notif_prefs_channel_check",
+      sql`${t.channel} IN ('email','in_app','sms')`
+    )
   })
 );
 

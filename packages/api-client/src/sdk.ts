@@ -1099,6 +1099,27 @@ export function createApi(f: Fetcher) {
         f<{ updated: number }>("/notifications/me/read-all", {
           method: "POST"
         }),
+      myPreferences: () =>
+        f<{
+          items: Array<{
+            templateCode: string;
+            channel: string;
+            enabled: boolean;
+          }>;
+          templates: string[];
+        }>("/notifications/me/preferences"),
+      setPreference: (
+        templateCode: string,
+        channel: "email" | "in_app" | "sms",
+        body: { enabled: boolean }
+      ) =>
+        f<{ templateCode: string; channel: string; enabled: boolean }>(
+          `/notifications/me/preferences/${templateCode}/${channel}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(body)
+          }
+        ),
       listNotifications: (
         q: {
           limit?: number;

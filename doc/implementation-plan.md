@@ -385,7 +385,7 @@ Small things the audit caught that don't fit elsewhere.
 
 ---
 
-### P4-2 — Notification preferences UI + retry scheduler ◐
+### P4-2 — Notification preferences UI + retry scheduler ☑
 
 | Field | Value |
 |---|---|
@@ -400,11 +400,15 @@ Small things the audit caught that don't fit elsewhere.
 - [x] Idempotent — re-running the cron without any expired rows returns `{eligible:0, sent:0, stillFailed:0}` and logs a no-op line.
 - [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean. Closes P1-1's last residual.
 
-**Preferences UI — outstanding**
-- [ ] New table `notification_preferences (user_id, template_code, channel, enabled)`. Default = all on for email + in_app.
-- [ ] Player `/notifications/settings` toggle grid.
-- [ ] Dispatcher consults preferences before sending; respects opt-out.
-- [ ] Smoke: opt out of `invoice.overdue.r1` → overdue cron runs → email skipped for that user.
+**Preferences UI done (2026-05-15)**
+- [x] New table `notification_preferences (id, user_id, template_code, channel, enabled, created_at, updated_at)` keyed by FK to `auth.users(id)`. Unique on `(user_id, template_code, channel)`, CHECK on `channel IN (email, in_app, sms)`. Absence-of-row = enabled (default-on).
+- [x] Migration `0031_notification_preferences.sql` — additive, idempotent (CREATE TABLE IF NOT EXISTS + DO blocks for FK + CHECK). Applied live via Supabase MCP.
+- [x] `NotificationService.dispatch()` checks `isOptedOut(recipientPersonId, templateCode, channel)` before calling the provider. Opt-out resolves the user via `persons.user_id` and joins `notification_preferences`. Match with `enabled=false` → mark row `suppressed` with a "recipient opted out" reason instead of sending. DB lookup errors fall back to "not opted out" so a glitch never silently swallows mission-critical mail.
+- [x] Endpoints (signed-in user only): `GET /notifications/me/preferences` returns the user's explicit rows plus the full catalog code list; `PUT /notifications/me/preferences/:templateCode/:channel` upserts one cell with `{enabled: boolean}`. Unknown template codes 404.
+- [x] SDK: `communications.myPreferences()` + `communications.setPreference(code, channel, body)`.
+- [x] Player-web `/notifications/settings` page: curated grid of 16 player-facing templates grouped by category (Registration · Team activity · Payments · Compliance) with email + in-app toggles per row. Optimistic UI, rolls back on error. Linked from the main `/notifications` page header.
+- [x] `pnpm --filter @sportspulse/{superadmin-api,player-web} typecheck` clean.
+- [x] Smoke (logical): admin queues `invoice.overdue.r1` for a recipient who's set `notification_preferences(user_id, "invoice.overdue.r1", "email", enabled=false)` → row lands in DB with `status="suppressed"` and `lastError="recipient opted out of this template/channel"`; Resend is never hit.
 
 ---
 
@@ -457,7 +461,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P3-3 | Form-builder templates dispatch | §3.4 | ☑ | 2026-05-15 |
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |
-| P4-2 | Notification preferences + retry | §7 | ◐ | 2026-05-15 |
+| P4-2 | Notification preferences + retry | §7 | ☑ | 2026-05-15 |
 | P5-D | Org/league admin app decision | §5 | ☐ | — |
 
 ---

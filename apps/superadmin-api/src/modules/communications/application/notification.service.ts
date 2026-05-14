@@ -167,6 +167,21 @@ export class NotificationService {
         await this.markFailed(row.id, "no recipientEmail on row");
         return;
       }
+      // Honor opt-outs in notification_preferences (P4-2). Marks
+      // `suppressed` rather than `failed` so admins can tell the
+      // delivery was skipped intentionally vs the provider rejecting.
+      const optedOut = await this.isOptedOut(
+        row.recipientPersonId,
+        row.templateCode,
+        "email"
+      );
+      if (optedOut) {
+        await this.repo.incrementAttempt(row.id);
+        await this.repo.markStatus(row.id, "suppressed", {
+          lastError: "recipient opted out of this template/channel"
+        });
+        return;
+      }
       const result = await this.dispatcher.send({
         to: row.recipientEmail,
         subject: row.subject ?? row.templateCode,
@@ -185,6 +200,44 @@ export class NotificationService {
     this.log.warn(
       `no provider for channel=${row.channel} (notification ${row.id})`
     );
+  }
+
+  /**
+   * Has the recipient opted out of this (templateCode, channel)?
+   * Resolves the recipient's auth.users.id via persons.user_id, then
+   * checks notification_preferences. Absence of a row = opted-in
+   * (default-on). DB errors fall back to "not opted out" so a glitch
+   * never silently swallows mission-critical mail.
+   */
+  private async isOptedOut(
+    recipientPersonId: string | null,
+    templateCode: string,
+    channel: "email" | "in_app" | "sms"
+  ): Promise<boolean> {
+    if (!recipientPersonId) return false;
+    try {
+      const [row] = await this.db
+        .select({ enabled: schema.notificationPreferences.enabled })
+        .from(schema.notificationPreferences)
+        .innerJoin(
+          schema.persons,
+          eq(schema.persons.userId, schema.notificationPreferences.userId)
+        )
+        .where(
+          and(
+            eq(schema.persons.id, recipientPersonId),
+            eq(schema.notificationPreferences.templateCode, templateCode),
+            eq(schema.notificationPreferences.channel, channel)
+          )
+        )
+        .limit(1);
+      return row ? row.enabled === false : false;
+    } catch (err) {
+      this.log.warn(
+        `prefs lookup failed for person=${recipientPersonId} tpl=${templateCode}: ${(err as Error).message}`
+      );
+      return false;
+    }
   }
 
   /**

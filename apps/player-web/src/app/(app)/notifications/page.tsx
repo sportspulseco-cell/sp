@@ -1,4 +1,5 @@
-import { Bell, CheckCheck } from "lucide-react";
+import Link from "next/link";
+import { Bell, CheckCheck, Settings as SettingsIcon } from "lucide-react";
 import {
   EmptyState,
   Eyebrow
@@ -32,7 +33,18 @@ export default async function NotificationsPage() {
         eyebrow="// Notifications"
         title="Notifications"
         description="Schedule changes, payment reminders, compliance updates, and admin notes. Click a notification to mark it read."
-        action={unread > 0 ? <MarkAllReadButton unreadCount={unread} /> : undefined}
+        action={
+          <div className="flex items-center gap-2">
+            <Link
+              href="/notifications/settings"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+            >
+              <SettingsIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Settings
+            </Link>
+            {unread > 0 ? <MarkAllReadButton unreadCount={unread} /> : null}
+          </div>
+        }
       />
 
       {notifs.length === 0 ? (

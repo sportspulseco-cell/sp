@@ -1,15 +1,19 @@
 import {
+  Body,
   Controller,
   Get,
   Inject,
   NotFoundException,
   Param,
   Post,
+  Put,
   Query,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { IsBoolean } from "class-validator";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import { TEMPLATE_CODES } from "../domain/templates/catalog";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -36,6 +40,10 @@ import {
   RetryNotificationHandler
 } from "../application/handlers/retry.handler";
 import { ListNotificationsQueryDto } from "./dto/notification.dto";
+
+class SetPreferenceBodyDto {
+  @IsBoolean() enabled!: boolean;
+}
 
 /**
  * Two surfaces:
@@ -156,6 +164,69 @@ export class NotificationsController {
     const personId = await this.resolvePersonId(user.userId);
     if (!personId) return { updated: 0 };
     return this.repo.markAllReadForPerson(personId);
+  }
+
+  /**
+   * The signed-in user's notification preferences. Returns one row
+   * per (templateCode, channel) the user has *explicitly* set — the
+   * UI overlays this on the catalog of known codes and renders any
+   * missing combination as the default-on state.
+   */
+  @Get("me/preferences")
+  @ApiOperation({
+    summary:
+      "Return the caller's per-(templateCode, channel) opt-out preferences. Absence-of-row = enabled (default-on)."
+  })
+  async myPreferences(@CurrentUser() user: AuthPrincipal): Promise<{
+    items: Array<{ templateCode: string; channel: string; enabled: boolean }>;
+    templates: string[];
+  }> {
+    const rows = await this.db
+      .select({
+        templateCode: schema.notificationPreferences.templateCode,
+        channel: schema.notificationPreferences.channel,
+        enabled: schema.notificationPreferences.enabled
+      })
+      .from(schema.notificationPreferences)
+      .where(eq(schema.notificationPreferences.userId, user.userId));
+    return { items: rows, templates: [...TEMPLATE_CODES] };
+  }
+
+  /**
+   * Upsert one preference cell. Absent row → row inserted with the
+   * supplied `enabled`. Existing row → updated to match.
+   */
+  @Put("me/preferences/:templateCode/:channel")
+  @ApiOperation({
+    summary:
+      "Upsert a single preference cell. PUT body: { enabled: boolean }. Channel is one of email | in_app | sms."
+  })
+  async setPreference(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("templateCode") templateCode: string,
+    @Param("channel") channel: string,
+    @Body() body: SetPreferenceBodyDto
+  ): Promise<{ templateCode: string; channel: string; enabled: boolean }> {
+    if (!TEMPLATE_CODES.includes(templateCode as (typeof TEMPLATE_CODES)[number])) {
+      throw new NotFoundException(`Unknown template code: ${templateCode}`);
+    }
+    await this.db
+      .insert(schema.notificationPreferences)
+      .values({
+        userId: user.userId,
+        templateCode,
+        channel,
+        enabled: body.enabled
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.notificationPreferences.userId,
+          schema.notificationPreferences.templateCode,
+          schema.notificationPreferences.channel
+        ],
+        set: { enabled: body.enabled, updatedAt: new Date() }
+      });
+    return { templateCode, channel, enabled: body.enabled };
   }
 
   // Get-one is open to recipients OR super_admin.
