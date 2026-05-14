@@ -63,11 +63,36 @@ export class TeamsController {
         : (scope.leagueIds ?? undefined);
     const page = await this.listH.execute({ ...q, leagueIdsFilter: filter });
     if (page.items.length === 0) return page;
-    const ids = page.items.map((t) => t.id);
+
+    // P2-2 — narrow to teams with an active DTE in the requested
+    // division. Done at the controller level so the underlying list
+    // handler stays unchanged. Non-terminal statuses only — a team
+    // whose DTE is rejected/withdrawn shouldn't show up to players.
+    let items = page.items;
+    if (q.divisionId) {
+      const dteRows = await this.db
+        .select({ teamId: schema.divisionTeamEntries.teamId })
+        .from(schema.divisionTeamEntries)
+        .where(
+          and(
+            eq(schema.divisionTeamEntries.divisionId, q.divisionId),
+            inArray(schema.divisionTeamEntries.entryStatus, [
+              "applied",
+              "accepted",
+              "confirmed"
+            ])
+          )
+        );
+      const inDivision = new Set(dteRows.map((r) => r.teamId));
+      items = items.filter((t) => inDivision.has(t.id));
+    }
+
+    if (items.length === 0) return { ...page, items: [] };
+    const ids = items.map((t) => t.id);
     const lifecycle = await this.loadLifecycle(ids);
     return {
       ...page,
-      items: page.items.map((t) => this.mergeLifecycle(t, lifecycle.get(t.id)))
+      items: items.map((t) => this.mergeLifecycle(t, lifecycle.get(t.id)))
     };
   }
 

@@ -54,6 +54,8 @@ export interface PublicRegistrationApi {
       dobDate?: string;
       pricingTierId?: string;
       submissionType?: SubmissionType;
+      /** P2-2: division the player is registering into. */
+      divisionId?: string;
       answers?: Record<string, unknown>;
     }
   ): Promise<{

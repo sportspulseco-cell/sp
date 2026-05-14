@@ -60,4 +60,11 @@ export class ListTeamsQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() sportCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
+  /**
+   * P2-2 — narrow to teams with an active DTE
+   * (entry_status IN applied|accepted|confirmed) in this division.
+   * Used by the player-web "Find a team" flow so a division-bound
+   * registration only sees teams in its own division.
+   */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() divisionId?: string;
 }

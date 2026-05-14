@@ -10,6 +10,7 @@ import { FormRenderer } from "./form-renderer";
 
 type Step =
   | "path"
+  | "division"
   | "account"
   | "consent"
   | "waivers"
@@ -99,6 +100,11 @@ export function RegistrationFunnel({
   const [phone, setPhone] = useState("");
   const [dobDate, setDobDate] = useState("");
   const [pricingTierId, setPricingTierId] = useState<string | null>(null);
+  // P2-2 — division-bound submissions. Auto-picks when there's
+  // exactly one division; null until the player picks otherwise.
+  const [divisionId, setDivisionId] = useState<string | null>(
+    context.divisions?.length === 1 ? context.divisions[0]!.id : null
+  );
   const [answers, setAnswers] = useState<AnswerMap>({});
   // Phase 2 team-info card state (only shown when path=team).
   // Sent to the backend via the answers map under reserved keys at
@@ -200,6 +206,13 @@ export function RegistrationFunnel({
       formWaivers.codeOfConduct.enabled ||
       formWaivers.photoRelease.enabled);
 
+  const divisions = context.divisions ?? [];
+  // P2-2 — show the division step only when there are 2+ divisions
+  // to pick from. One auto-picks at state init; zero means the
+  // season has no divisions and the field stays NULL (registration
+  // is org-only, falls through to org-wide listings downstream).
+  const showDivisionStep = divisions.length >= 2;
+
   const stepOrder: Step[] = useMemo(() => {
     // Order must match the PhaseStepper labels (1 Path · 2 Account ·
     // 3 Details · 4 Compliance · 5 Payment · 6 Confirmation).
@@ -211,7 +224,12 @@ export function RegistrationFunnel({
     // signing in jumped Account → Compliance because the previous
     // guard `if (hasQuestions)` evaluated to false when the form's
     // schema was bare, dropping Phase 3 entirely.
-    const out: Step[] = ["path", "account", "questions"];
+    const out: Step[] = ["path"];
+    // P2-2 — Division step lands between Path and Account so the
+    // chosen divisionId is in scope when startSubmission inserts
+    // the registration row.
+    if (showDivisionStep) out.push("division");
+    out.push("account", "questions");
     // Skip parental consent entirely when the admin disabled it for
     // this season, even if DOB indicates a minor — adult-only leagues
     // (or test seasons) often turn it off.
@@ -225,7 +243,8 @@ export function RegistrationFunnel({
     parentalConsentRequired,
     waivers,
     tiers.length,
-    hasInlineWaivers
+    hasInlineWaivers,
+    showDivisionStep
   ]);
 
   function next() {
@@ -260,6 +279,7 @@ export function RegistrationFunnel({
           dobDate: dobDate || undefined,
           pricingTierId: pricingTierId ?? undefined,
           submissionType,
+          divisionId: divisionId ?? undefined,
           answers
         }
       );
@@ -415,6 +435,16 @@ export function RegistrationFunnel({
             onChange={setSubmissionType}
             onNext={next}
             allowFreeAgent={allowFreeAgent}
+          />
+        )}
+
+        {step === "division" && (
+          <DivisionStep
+            divisions={divisions}
+            value={divisionId}
+            onChange={setDivisionId}
+            onBack={back}
+            onNext={next}
           />
         )}
 
@@ -651,6 +681,7 @@ function phaseFor(step: Step): Phase {
   // Phase 5 in the stepper.
   switch (step) {
     case "path":
+    case "division":
       return 1;
     case "account":
       return 2;
@@ -794,7 +825,95 @@ function PathStep({
 
       <div className="flex justify-end">
         <Button onClick={onNext} disabled={!value}>
-          Next: Account <ArrowRight className="ml-2 h-4 w-4" />
+          Next <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * P2-2 — division picker. Only shown when the season has 2+ divisions
+ * (one auto-picks at funnel init; zero is org-only and skips this
+ * step entirely). The pick lands in `registrations.division_id` via
+ * the startSubmission call, which narrows downstream surfaces (Find a
+ * team, captain inbox routing) to teams with an active DTE in the
+ * chosen division.
+ */
+function DivisionStep({
+  divisions,
+  value,
+  onChange,
+  onBack,
+  onNext
+}: {
+  divisions: Array<{ id: string; name: string; tier: number | null }>;
+  value: string | null;
+  onChange: (id: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <section className="rounded-xl border border-border bg-surface-1 p-5">
+        <h2 className="text-[14px] font-semibold tracking-tight text-fg">
+          Which division are you registering for?
+        </h2>
+        <p className="mt-0.5 text-[12px] text-fg-muted">
+          Captains can only see your registration if you pick the same division as their team.
+        </p>
+
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {divisions.map((d) => {
+            const on = value === d.id;
+            return (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  onClick={() => onChange(d.id)}
+                  className={
+                    on
+                      ? "flex w-full items-center gap-3 rounded-lg border border-accent bg-accent/5 p-4 text-left ring-2 ring-accent/30 transition-colors"
+                      : "flex w-full items-center gap-3 rounded-lg border border-border bg-bg-subtle p-4 text-left transition-colors hover:border-fg-muted"
+                  }
+                >
+                  <span
+                    aria-hidden
+                    className={
+                      on
+                        ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 font-mono text-[11px] font-semibold text-accent"
+                        : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg font-mono text-[11px] font-semibold text-fg-muted"
+                    }
+                  >
+                    {d.tier ?? "—"}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold text-fg">
+                      {d.name}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-fg-muted">
+                      Tier {d.tier ?? "—"}
+                    </span>
+                  </span>
+                  {on ? (
+                    <Check
+                      className="h-4 w-4 shrink-0 text-accent"
+                      strokeWidth={2.25}
+                    />
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        <Button onClick={onNext} disabled={!value}>
+          Next <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -2440,6 +2559,11 @@ function phaseHeadingFor(step: Step): {
   switch (step) {
     case "path":
       return { title: "Player registration", subtitle: null };
+    case "division":
+      return {
+        title: "Pick a division",
+        subtitle: "Step 1b — Which division you're registering for"
+      };
     case "account":
       return {
         title: "Create your account",

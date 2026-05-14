@@ -1364,7 +1364,13 @@ export function createApi(f: Fetcher) {
         }),
 
       listTeams: (
-        q: { orgId?: string; sportCode?: string; status?: string; search?: string } = {}
+        q: {
+          orgId?: string;
+          sportCode?: string;
+          status?: string;
+          search?: string;
+          divisionId?: string;
+        } = {}
       ) => f<Page<Team>>(`/league/teams${qs(q)}`),
       getTeam: (id: string) => f<Team>(`/league/teams/${id}`),
       createTeam: (body: {

@@ -29,6 +29,17 @@ export interface PricingTier {
   updatedAt: string;
 }
 
+/**
+ * Division entry surfaced to the funnel's "Pick a division" step
+ * (P2-2). Sorted by tier asc on the server; rendered as a single
+ * radio list in the UI.
+ */
+export interface PublicDivision {
+  id: string;
+  name: string;
+  tier: number | null;
+}
+
 export interface PublicSeasonContext {
   season: {
     id: string;
@@ -50,6 +61,12 @@ export interface PublicSeasonContext {
     config?: Record<string, unknown>;
   };
   pricingTiers: PricingTier[];
+  /**
+   * Divisions configured for this season. Empty array when the
+   * season has no divisions — funnel skips the division step.
+   * One element → auto-pick + skip. Two+ → render the step.
+   */
+  divisions: PublicDivision[];
   formVersionId: string | null;
   formDefinition: FormDefinition;
 }

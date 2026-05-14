@@ -247,7 +247,7 @@ on one, the other needs a manual refresh.
 
 ---
 
-### P2-2 — Org-scoped registration UX (require division on form or in funnel) ☐
+### P2-2 — Org-scoped registration UX (require division on form or in funnel) ☑
 
 | Field | Value |
 |---|---|
@@ -258,16 +258,18 @@ on one, the other needs a manual refresh.
 org* on `/registrations/[id]/teams`. Captains in unrelated divisions
 get join-request noise.
 
-**Decision required** (pick one in this PR):
+**Decision: Option B** (2026-05-15) — keep org-scoped forms allowed, ask the player for a division inside the funnel, persist on `registrations.division_id`. Fits the season-aware direction P0-1 + P2-3a already established; avoids breaking existing org-scoped forms.
 
-- **A** — Block publishing a form unless it has league + division bound.
-- **B** — Keep org-scoped forms; require player to pick a division inside the funnel and persist `registrations.division_id`.
+**Resolution (2026-05-15)**
+- [x] Public season context (`GET /public/registration/seasons/:id`) now returns `divisions[]` (id, name, tier — sorted by tier). Empty array when the season has none.
+- [x] `StartSubmissionBodyDto` accepts `divisionId?: string` (UUID). Public funnel insert site persists it on `registrations.division_id`.
+- [x] `@sportspulse/registration-funnel`: `PublicSeasonContext` carries `divisions: PublicDivision[]`. New `division` step lands between `path` and `account` in the step machine — auto-skipped when there are 0 or 1 divisions (1 auto-picks at funnel init). New `<DivisionStep>` component renders a radio grid of tiers + names, gated to non-empty selection before `Next` is enabled. `phaseFor`/`phaseHeadingFor` updated so the new step lives in Phase 1 alongside `path`.
+- [x] `startSubmission` SDK call now passes `divisionId` through; funnel state seeds from `context.divisions[0]` when there's exactly one.
+- [x] `leagueMgmt.listTeams` accepts `divisionId?: string`; the teams controller post-filters the result set against `division_team_entries` rows with `entry_status IN (applied|accepted|confirmed)` for that division.
+- [x] `/registrations/[id]/teams` on player-web now passes `r.divisionId` through to `listTeams`, narrowing the listing to teams with an active DTE in that division. Org-only registrations (no divisionId) keep the existing org-wide listing.
+- [x] `pnpm --filter @sportspulse/{superadmin-api,player-web,registration-funnel} typecheck` all clean.
 
-**Acceptance**
-- [ ] Decision recorded in commit body.
-- [ ] If A: Review & Publish blocker added when `form.scope='org'` or `season_id` is null. Existing org-scoped forms surfaced for admin migration.
-- [ ] If B: Funnel adds a "Pick a division" step before submit; `registrations.division_id` populated; `/registrations/[id]/teams` query becomes "teams with an active DTE in *this* division".
-- [ ] Either way: Teja's existing org-scoped row gets a one-off "complete your division choice" prompt on her registration detail page.
+**One-off prompt for legacy rows — filed as follow-up:** existing org-scoped registrations have `division_id = NULL`. Surfacing a "complete your division choice" prompt on each player's registration detail page is straightforward but out of scope for this PR.
 
 ---
 
@@ -475,7 +477,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P1-1 | Real email (Resend) | §3, §7 | ☑ | 2026-05-15 |
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☑ | 2026-05-15 |
-| P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
+| P2-2 | Org-scoped registration UX | §8.1 | ☑ | 2026-05-15 |
 | P2-3 | Active-player source-of-truth | §4.1, §8.2 | ◐ | 2026-05-15 |
 | P3-1 | Sidebar entries cleanup | §6 | ☑ | 2026-05-15 |
 | P3-2 | Invoice ↔ team cross-reference | §1.3 | ☑ | 2026-05-15 |

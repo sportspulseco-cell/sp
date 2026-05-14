@@ -74,6 +74,17 @@ class StartSubmissionBodyDto {
   @IsString()
   submissionType?: "team" | "individual" | "free_agent" | "captain_invite";
 
+  /**
+   * Division the player is registering into. The funnel collects
+   * this in its "Pick a division" step (P2-2). Optional — funnels
+   * for seasons with zero divisions skip the step entirely; the
+   * field stays NULL and downstream surfaces fall back to org-wide.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
@@ -215,6 +226,20 @@ export class PublicRegistrationController {
 
     const tiers = await this.v2.listPricingTiers({ seasonId: id });
 
+    // Divisions list for the in-funnel "Pick a division" step
+    // (P2-2 / audit §8.1). The funnel skips the step when there's
+    // 0 or 1 divisions; with 1 it auto-picks; with 0 the field
+    // stays NULL and the player applies via org-wide listing.
+    const divisionsList = await this.db
+      .select({
+        id: schema.divisions.id,
+        name: schema.divisions.name,
+        tier: schema.divisions.tier
+      })
+      .from(schema.divisions)
+      .where(eq(schema.divisions.seasonId, id))
+      .orderBy(schema.divisions.tier);
+
     const [formVersion] = await this.db
       .select({
         id: schema.registrationFormVersions.id,
@@ -268,6 +293,7 @@ export class PublicRegistrationController {
         config: (season.config ?? {}) as Record<string, unknown>
       },
       pricingTiers: tiers.filter((t) => t.isActive),
+      divisions: divisionsList,
       formVersionId: formVersion?.id ?? null,
       formDefinition: formVersion?.schema ?? { schemaVersion: 1, questions: [] }
     };
@@ -440,6 +466,7 @@ export class PublicRegistrationController {
           submittedByUserId: userId,
           subjectPersonId: personId!,
           seasonId,
+          divisionId: body.divisionId ?? null,
           status: initialState,
           metadata: {
             submissionType,
