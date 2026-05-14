@@ -38,7 +38,7 @@ interface NavSection {
  *   - "My game" — Schedule, Stats, Video
  *   - "My team" — Team, Team store
  *   - "My account" — Payments, Compliance, Notifications
- *   - "Discover" — Find a team, Profile
+ *   - "Discover" — Open registrations, Profile
  *
  * The captain console lives in team-admin-web — dual-role users
  * (player + captain) see a banner on Home that deep-links there.
@@ -78,7 +78,7 @@ const BASE_NAV: NavSection[] = [
 const DISCOVER_NAV: NavSection = {
   label: "// Discover",
   items: [
-    { href: "/register", label: "Find a team", icon: Compass },
+    { href: "/register", label: "Open registrations", icon: Compass },
     { href: "/profile", label: "Profile", icon: User }
   ]
 };

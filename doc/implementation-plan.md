@@ -297,17 +297,18 @@ registration to the same season because there's no idempotency.
 
 Small things the audit caught that don't fit elsewhere.
 
-### P3-1 — Sidebar entries: rename "Find a team", drop superadmin /payments overlap, replace "Manage roster" stub ☐
+### P3-1 — Sidebar entries: rename "Find a team", drop superadmin /payments overlap, replace "Manage roster" stub ☑
 
 | Field | Value |
 |---|---|
 | Closes | **§6** (final cleanup after P1-2 collapses /captain duplicates) |
 | Estimate | 0.5 day |
 
-**Acceptance**
-- [ ] player-web sidebar "Find a team" → renamed "Open registrations" (it's the funnel-discovery page, not a roster page).
-- [ ] superadmin-web sidebar: keep `/finance` (Invoices); remove or rename `/payments` (Payment & invoicing deep-tools) to "Finance ops" so the overlap is explicit.
-- [ ] team-admin-web `/captain/roster` either gets the full UI (port from the deleted player-web version) or the sidebar entry is removed. Stub-status is not acceptable.
+**Resolution (2026-05-15)**
+- [x] player-web sidebar "Find a team" → "Open registrations". Discover-section JSDoc updated to match.
+- [x] superadmin-web sidebar: `/finance` relabelled "Invoices" (was "Finance"); `/payments` relabelled "Finance ops" (was "Payment & invoicing"). Overlap is now explicit at a glance.
+- [x] team-admin-web `/captain/roster` audit-verified — it's the real screen (`roster-screen.tsx` is 527 lines, wires `captain.roster.list()`, renders the full roster + add/drop/invite flows). The audit's "stub-status not acceptable" claim was outdated; no port required.
+- [x] `pnpm --filter @sportspulse/{player-web,superadmin-web} typecheck` clean.
 
 ---
 
@@ -445,7 +446,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☑ | 2026-05-15 |
 | P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
 | P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |
-| P3-1 | Sidebar entries cleanup | §6 | ☐ | — |
+| P3-1 | Sidebar entries cleanup | §6 | ☑ | 2026-05-15 |
 | P3-2 | Invoice ↔ team cross-reference | §1.3 | ☑ | 2026-05-15 |
 | P3-3 | Form-builder templates dispatch | §3.4 | ☑ | 2026-05-15 |
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
