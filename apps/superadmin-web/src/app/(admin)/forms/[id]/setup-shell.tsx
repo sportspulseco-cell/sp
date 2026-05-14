@@ -78,7 +78,12 @@ export function RegistrationSetupShell({
   formId: string;
   formName: string;
   seasonName: string | null;
-  /** When set, enables the "Live wizard" link */
+  /**
+   * When set, enables the "Live wizard" link. The link opens
+   * player-web in a new tab — admins see the funnel as a fresh
+   * visitor and may be prompted to sign in. The expected behaviour
+   * is documented in the link's title-tooltip (audit §1.4 / P3-4).
+   */
   seasonId: string | null;
   orgName: string;
   active: SectionKey;
@@ -167,6 +172,7 @@ export function RegistrationSetupShell({
                 href={`/registration/${seasonId}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                title="Opens player-web in a new tab — you'll see the funnel as a fresh visitor, so expect a sign-in prompt."
                 className="inline-flex h-8 items-center gap-1.5 rounded-full border border-blue-500/40 bg-blue-500/10 px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-blue-700 transition-colors hover:bg-blue-500/15"
               >
                 <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />

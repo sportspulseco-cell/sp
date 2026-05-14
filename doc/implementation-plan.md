@@ -344,15 +344,16 @@ Small things the audit caught that don't fit elsewhere.
 
 ---
 
-### P3-4 — Admin "Open live wizard" cross-app session handoff (note, not a fix) ☐
+### P3-4 — Admin "Open live wizard" cross-app session handoff (note, not a fix) ☑
 
 | Field | Value |
 |---|---|
 | Closes | **§1.4** (logged, not blocking) |
 | Estimate | n/a (intentional) |
 
-**Acceptance**
-- [ ] Add a copy-tweak on the form-builder header: "Opens player-web in a new tab — you'll see the funnel as a fresh visitor." So the re-sign-in is expected, not a bug.
+**Resolution (2026-05-15)**
+- [x] `setup-shell.tsx` header: "Live wizard" link now carries a `title=` tooltip explaining the cross-app behaviour. Tooltip text mirrors the audit phrasing.
+- [x] Component prop JSDoc updated so callers see the same expectation.
 
 ---
 
@@ -440,7 +441,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P3-1 | Sidebar entries cleanup | §6 | ☐ | — |
 | P3-2 | Invoice ↔ team cross-reference | §1.3 | ☐ | — |
 | P3-3 | Form-builder templates dispatch | §3.4 | ☐ | — |
-| P3-4 | "Open live wizard" copy tweak | §1.4 | ☐ | — |
+| P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |
 | P4-2 | Notification preferences + retry | §7 | ☐ | — |
 | P5-D | Org/league admin app decision | §5 | ☐ | — |
