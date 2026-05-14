@@ -9,14 +9,9 @@ import {
   Compass,
   CreditCard,
   LayoutDashboard,
-  Mail,
-  Settings,
   ShieldCheck,
   ShoppingBag,
-  Star,
-  Trophy,
   User,
-  Users,
   UsersRound,
   Video,
   X,
@@ -43,13 +38,11 @@ interface NavSection {
  *   - "My game" — Schedule, Stats, Video
  *   - "My team" — Team, Team store
  *   - "My account" — Payments, Compliance, Notifications
- *   - "Captain console" — only when scope.roleCodes includes 'captain'
  *   - "Discover" — Find a team, Profile
  *
- * The captain section is the dual-role surface: a player who's also
- * been elected captain of their team gets four extra pages here for
- * roster / invites / free-agent / team-profile management. Hidden
- * for non-captains.
+ * The captain console lives in team-admin-web — dual-role users
+ * (player + captain) see a banner on Home that deep-links there.
+ * The /captain/* page tree was removed from player-web in P1-2.
  */
 const BASE_NAV: NavSection[] = [
   {
@@ -82,17 +75,6 @@ const BASE_NAV: NavSection[] = [
   }
 ];
 
-const CAPTAIN_NAV: NavSection = {
-  label: "// Captain console",
-  items: [
-    { href: "/captain/register", label: "Register my team", icon: Trophy },
-    { href: "/captain/team", label: "Manage team", icon: Settings },
-    { href: "/captain/roster", label: "Manage roster", icon: Users },
-    { href: "/captain/invites", label: "Invites", icon: Mail },
-    { href: "/captain/free-agents", label: "Free agents", icon: Star }
-  ]
-};
-
 const DISCOVER_NAV: NavSection = {
   label: "// Discover",
   items: [
@@ -101,11 +83,9 @@ const DISCOVER_NAV: NavSection = {
   ]
 };
 
-export function Sidebar({ isCaptain = false }: { isCaptain?: boolean }) {
+export function Sidebar() {
   const { open, setOpen } = useNav();
-  const sections = isCaptain
-    ? [...BASE_NAV, CAPTAIN_NAV, DISCOVER_NAV]
-    : [...BASE_NAV, DISCOVER_NAV];
+  const sections = [...BASE_NAV, DISCOVER_NAV];
 
   return (
     <>

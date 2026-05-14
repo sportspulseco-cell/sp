@@ -195,7 +195,7 @@ All 8 audit §3 flows funnel through the same `NotificationService.queue()` → 
 
 ---
 
-### P1-2 — Captain console consolidation: delete duplicate `/captain/*` from player-web ☐
+### P1-2 — Captain console consolidation: delete duplicate `/captain/*` from player-web ☑
 
 | Field | Value |
 |---|---|
@@ -206,13 +206,13 @@ All 8 audit §3 flows funnel through the same `NotificationService.queue()` → 
 console belongs in team-admin-web. Player-web keeps a single banner
 that deep-links out.
 
-**Acceptance**
-- [ ] Delete `apps/player-web/src/app/(app)/captain/` entirely.
-- [ ] Player-web sidebar: drop the "Captain console" section.
-- [ ] New banner component on player-web home: if `scope.roleCodes.includes("captain")`, render "You're a captain — open the captain console" → deep-links to `NEXT_PUBLIC_TEAM_ADMIN_URL` (`/captain/register` if pre-approval, `/` otherwise).
-- [ ] `/registrations/[id]/teams/page.tsx` keeps the player-side **Find a team** flow (it's a *player* feature, not a captain one — apply is player-initiated).
-- [ ] Removed routes return 404; no orphan links inside the player-web codebase (`rg -F "/captain/"` returns zero hits in player-web).
-- [ ] Smoke: captain on player-web → sees banner → clicks → arrives signed-in at team-admin-web. Same Supabase project so the redirect lands authenticated where possible (if per-origin session fails, banner copy says "you'll need to sign in once" and pre-fills the email).
+**Resolution (2026-05-15)**
+- [x] Deleted `apps/player-web/src/app/(app)/captain/` (13 files across `free-agents`, `invites`, `register`, `roster`, `team`).
+- [x] Player-web sidebar: dropped the "Captain console" section, the `CAPTAIN_NAV` entry, and the `isCaptain` prop from `<Sidebar>`. Layout no longer threads `isCaptain` into the sidebar (TopBar still uses it for the captain-pill, unrelated).
+- [x] New `<CaptainConsoleBanner>` on player-web home — renders only when `scope.roleCodes.includes("captain")`, deep-links to `${NEXT_PUBLIC_TEAM_ADMIN_URL}/` (defaults to `https://sp-team-admin.vercel.app`). Sits just below the registration-state banner.
+- [x] `/registrations/[id]/teams/page.tsx` untouched — that's a *player*-initiated feature (join request) and stays in player-web. P0-1 already hardened it.
+- [x] Grep `rg -F "/captain/" apps/player-web/src` returns three comment-only references (banner + sidebar + home, all explaining the removal). Zero live links / imports.
+- [x] `pnpm --filter @sportspulse/player-web typecheck` clean (after clearing stale `.next/types` cache that referenced deleted routes).
 
 ---
 
@@ -423,7 +423,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P0-4 | Tier auto-deactivate on season demote | §4.4 | ☐ | — |
 | P0-5 | rosterLockAt single source | §4.5 | ☐ | — |
 | P1-1 | Real email (Resend) | §3, §7 | ☑ | 2026-05-15 |
-| P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☐ | — |
+| P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☐ | — |
 | P2-2 | Org-scoped registration UX | §8.1 | ☐ | — |
 | P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☐ | — |

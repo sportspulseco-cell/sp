@@ -33,6 +33,7 @@ import {
   roster
 } from "@/lib/api/server-api";
 import { RegistrationStateBanner } from "./registration-state-banner";
+import { CaptainConsoleBanner } from "@/components/captain-console-banner";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -249,6 +250,13 @@ export default async function PlayerHome() {
       {/* Workflow 5 §3 — registration state banner above the hero so the
           player knows whether they're new / returning / mid-funnel. */}
       <RegistrationStateBanner registrations={regPage.items} />
+
+      {/* Dual-role users (player + captain) get a single discoverable
+          entry point into the captain console — which lives in
+          team-admin-web. The full /captain/* page tree was removed
+          from player-web (plan P1-2 / audit §1 §2 §6) to kill the
+          byte-identical duplication. */}
+      {scope.roleCodes.includes("captain") && <CaptainConsoleBanner />}
 
       {/* Open public registrations — leagues currently accepting
           signups. Added to close the discovery gap: a /forms-published

@@ -33,7 +33,7 @@ export default async function AppLayout({
   return (
     <NavProvider>
       <div className="flex min-h-screen bg-bg">
-        <Sidebar isCaptain={isCaptain} />
+        <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             email={profile?.email ?? user.email ?? ""}
