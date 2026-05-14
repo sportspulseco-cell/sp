@@ -77,12 +77,10 @@ export interface SeasonConfig {
    */
   maxRosterSize?: number;
 
-  /**
-   * After this timestamp, roster moves block. Spec § Divisions &
-   * eligibility. Stored as ISO 8601 string in JSONB.
-   * Default: undefined (no lock enforced).
-   */
-  rosterLockAt?: string;
+  // NOTE: rosterLockAt used to live here in JSONB but is now a single
+  // source of truth on the `seasons.roster_lock_at` column. Plan
+  // P0-5 / audit §4.5. Readers must use season.rosterLockAt; writers
+  // go through leagueMgmt.updateSeason({ rosterLockAt }).
 }
 
 export const SEASON_CONFIG_DEFAULTS: Required<
@@ -122,7 +120,6 @@ export function resolveSeasonConfig(
   Pick<
     SeasonConfig,
     | "maxRosterSize"
-    | "rosterLockAt"
     | "liabilityWaiverContent"
     | "codeOfConductContent"
   > {

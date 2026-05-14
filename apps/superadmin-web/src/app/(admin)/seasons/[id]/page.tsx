@@ -45,7 +45,6 @@ export default async function SeasonDetailPage({
     allowFreeAgent?: boolean;
     parentalConsentRequired?: boolean;
     maxRosterSize?: number;
-    rosterLockAt?: string;
   };
 
   return (
@@ -141,9 +140,6 @@ export default async function SeasonDetailPage({
         <dl className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label="Max roster size" tag="config.maxRosterSize" mono>
             {cfg.maxRosterSize ?? "—"}
-          </Field>
-          <Field label="Roster lock date" tag="config.rosterLockAt" mono>
-            {fmtDate(cfg.rosterLockAt)}
           </Field>
           <Field
             label="Require USA Hockey ID"

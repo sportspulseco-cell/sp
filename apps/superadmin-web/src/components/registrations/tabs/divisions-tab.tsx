@@ -54,19 +54,35 @@ export function DivisionsTab({
 }
 
 function SeasonConfigPanel({ season }: { season: Season }) {
-  // Seed rosterLockAt from the seasons.roster_lock_at column when
-  // the JSONB config key is empty — the column is the runtime source
-  // of truth (set during season creation), the JSONB key is a mirror
-  // that older flows leave behind. <input type="datetime-local">
-  // expects "YYYY-MM-DDTHH:mm", so trim the timezone suffix.
   const initial = resolveSeasonConfig(season.config as SeasonConfig | undefined);
-  if (!initial.rosterLockAt && season.rosterLockAt) {
-    initial.rosterLockAt = toDatetimeLocal(season.rosterLockAt);
-  }
   const [config, setConfig] = useState<SeasonConfig>(initial);
+  // rosterLockAt is no longer part of SeasonConfig — it's the
+  // canonical seasons.roster_lock_at column (P0-5 / audit §4.5).
+  // <input type="datetime-local"> expects "YYYY-MM-DDTHH:mm".
+  const [rosterLockAt, setRosterLockAt] = useState<string>(
+    season.rosterLockAt ? toDatetimeLocal(season.rosterLockAt) : ""
+  );
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+
+  async function patchRosterLockAt(value: string) {
+    const prev = rosterLockAt;
+    setRosterLockAt(value);
+    setSaving("rosterLockAt");
+    setError(null);
+    setFlash(null);
+    try {
+      const iso = value ? new Date(value).toISOString() : null;
+      await leagueMgmt.updateSeason(season.id, { rosterLockAt: iso });
+      setFlash("Saved · rosterLockAt");
+    } catch (e) {
+      setRosterLockAt(prev);
+      setError((e as Error).message);
+    } finally {
+      setSaving(null);
+    }
+  }
 
   async function patch<K extends keyof SeasonConfig>(
     key: K,
@@ -78,23 +94,9 @@ function SeasonConfigPanel({ season }: { season: Season }) {
     setError(null);
     setFlash(null);
     try {
-      if (key === "rosterLockAt") {
-        // rosterLockAt lives on the seasons.roster_lock_at column —
-        // patch the column directly so date queries (roster lock
-        // enforcement) see the value. The JSONB mirror is kept in sync
-        // by the same call below.
-        const iso = value
-          ? new Date(value as string).toISOString()
-          : null;
-        await leagueMgmt.updateSeason(season.id, { rosterLockAt: iso });
-        await leagueMgmt.updateSeasonConfig(season.id, {
-          rosterLockAt: (value as string) ?? undefined
-        } as never);
-      } else {
-        await leagueMgmt.updateSeasonConfig(season.id, {
-          [key]: value
-        } as never);
-      }
+      await leagueMgmt.updateSeasonConfig(season.id, {
+        [key]: value
+      } as never);
       setFlash(`Saved · ${String(key)}`);
     } catch (e) {
       setConfig((c) => ({ ...c, [key]: prev }));
@@ -146,16 +148,13 @@ function SeasonConfigPanel({ season }: { season: Season }) {
         </Field>
         <Field
           label="Roster lock at"
-          hint="After this, roster moves are blocked."
+          hint="After this, roster moves are blocked. Stored on seasons.roster_lock_at."
         >
           <Input
             type="datetime-local"
-            value={config.rosterLockAt ?? ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              setConfig((c) => ({ ...c, rosterLockAt: v || undefined }));
-            }}
-            onBlur={() => patch("rosterLockAt", config.rosterLockAt)}
+            value={rosterLockAt}
+            onChange={(e) => setRosterLockAt(e.target.value)}
+            onBlur={() => patchRosterLockAt(rosterLockAt)}
           />
         </Field>
       </div>

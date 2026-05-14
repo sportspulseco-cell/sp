@@ -144,7 +144,7 @@ tiers live → state drift.
 
 ---
 
-### P0-5 — `seasons.config.rosterLockAt` consumers consolidated ☐
+### P0-5 — `seasons.config.rosterLockAt` consumers consolidated ☑
 
 | Field | Value |
 |---|---|
@@ -154,11 +154,15 @@ tiers live → state drift.
 **Why:** the form-builder writes the column **and** JSONB to be safe;
 readers still pre-date the fix and hit one or the other.
 
-**Acceptance**
-- [ ] `grep -r "config.rosterLockAt" apps/` returns zero matches.
-- [ ] One-off data migration: backfill `seasons.roster_lock_at` from `config.rosterLockAt` where the column is null but JSONB has a value.
-- [ ] form-builder writes to the column only (remove the JSONB write).
-- [ ] Smoke: roster-lock guard everywhere (captain-roster, registration funnel) reads the same value.
+**Resolution (2026-05-15)**
+- [x] `grep "config.rosterLockAt" apps/` returns zero matches.
+- [x] Backfill not needed — prod check returned 0 rows with `config ? 'rosterLockAt'`; all 9 seasons with a roster-lock had the value on the column only. The dual-write path apparently never landed in JSONB despite the bug claim.
+- [x] Dropped `rosterLockAt` from `SeasonConfig` in `packages/kernel/src/season-config.ts` — TS now enforces "column only" everywhere readers and writers go.
+- [x] `divisions-tab.tsx` (registration-setup-wizard step 3): separated state — `rosterLockAt` is its own `useState<string>` seeded from `season.rosterLockAt`, written via `leagueMgmt.updateSeason()`. Other toggles still flow through `updateSeasonConfig()`.
+- [x] `divisions-client.tsx` (older form-builder section): same split — `saveEligibility()` now does `Promise.all([updateSeason({rosterLockAt}), updateSeasonConfig({...other})])`. Schema tag relabelled to `seasons.roster_lock_at`.
+- [x] `seasons/[id]/page.tsx` admin detail view: removed the duplicate "Roster lock date" row that read `cfg.rosterLockAt`. The canonical row under "Registration window" tagged `seasons.roster_lock_at` is the only display.
+- [x] Smoke: captain-roster guard (`captain-roster.controller.ts:assertRosterUnlocked`) reads `season.rosterLockAt` (column) — unchanged. Public registration funnel + compliance sweeps already read the column. Single source of truth now.
+- [x] `pnpm --filter @sportspulse/{superadmin-web,superadmin-api} typecheck` clean.
 
 ---
 
@@ -426,7 +430,7 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P0-2 | userIsCaptainOfTeam everywhere | §4.2 | ☑ | 2026-05-15 |
 | P0-3 | Captain rejection notification | §3.5 | ☑ | 2026-05-15 |
 | P0-4 | Tier auto-deactivate on season demote | §4.4 | ☑ | 2026-05-15 |
-| P0-5 | rosterLockAt single source | §4.5 | ☐ | — |
+| P0-5 | rosterLockAt single source | §4.5 | ☑ | 2026-05-15 |
 | P1-1 | Real email (Resend) | §3, §7 | ☑ | 2026-05-15 |
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☐ | — |

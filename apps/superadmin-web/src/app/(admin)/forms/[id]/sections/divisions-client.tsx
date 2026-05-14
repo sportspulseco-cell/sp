@@ -44,10 +44,10 @@ export function DivisionsClient({
   const [savingTier, setSavingTier] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Eligibility state — read from season.config (kernel SeasonConfig).
+  // Eligibility state — JSONB toggles live on season.config; rosterLockAt
+  // is the canonical seasons.roster_lock_at column (P0-5).
   const initialConfig = (season.config ?? {}) as {
     maxRosterSize?: number;
-    rosterLockAt?: string;
     requireUsaHockeyId?: boolean;
     requireLiabilityWaiver?: boolean;
     requireCodeOfConduct?: boolean;
@@ -60,7 +60,7 @@ export function DivisionsClient({
     initialConfig.maxRosterSize ?? 20
   );
   const [rosterLockAt, setRosterLockAt] = useState<string>(
-    initialConfig.rosterLockAt ? initialConfig.rosterLockAt.slice(0, 10) : ""
+    season.rosterLockAt ? season.rosterLockAt.slice(0, 10) : ""
   );
   const [requireUsaHockeyId, setRequireUsaHockeyId] = useState(
     initialConfig.requireUsaHockeyId ?? true
@@ -121,19 +121,25 @@ export function DivisionsClient({
     setConfigSaved(false);
     setError(null);
     try {
-      await leagueMgmt.updateSeasonConfig(season.id, {
-        maxRosterSize,
-        rosterLockAt: rosterLockAt
-          ? new Date(rosterLockAt + "T23:59:59").toISOString()
-          : undefined,
-        requireUsaHockeyId,
-        requireLiabilityWaiver,
-        requireCodeOfConduct,
-        liabilityWaiverContent: liabilityWaiverContent.trim(),
-        codeOfConductContent: codeOfConductContent.trim(),
-        allowFreeAgent,
-        parentalConsentRequired: parentalConsent
-      });
+      // rosterLockAt → seasons.roster_lock_at column; everything else
+      // → seasons.config JSONB (P0-5 split).
+      await Promise.all([
+        leagueMgmt.updateSeason(season.id, {
+          rosterLockAt: rosterLockAt
+            ? new Date(rosterLockAt + "T23:59:59").toISOString()
+            : null
+        }),
+        leagueMgmt.updateSeasonConfig(season.id, {
+          maxRosterSize,
+          requireUsaHockeyId,
+          requireLiabilityWaiver,
+          requireCodeOfConduct,
+          liabilityWaiverContent: liabilityWaiverContent.trim(),
+          codeOfConductContent: codeOfConductContent.trim(),
+          allowFreeAgent,
+          parentalConsentRequired: parentalConsent
+        })
+      ]);
       setConfigSaved(true);
       router.refresh();
     } catch (e) {
@@ -250,7 +256,7 @@ export function DivisionsClient({
               className="input"
             />
           </Field>
-          <Field label="Roster lock date" schemaTag="seasons.config.rosterLockAt">
+          <Field label="Roster lock date" schemaTag="seasons.roster_lock_at">
             <input
               type="date"
               value={rosterLockAt}
