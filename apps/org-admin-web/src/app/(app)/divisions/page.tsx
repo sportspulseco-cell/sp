@@ -12,13 +12,14 @@ import {
 import type { Division } from "@sportspulse/api-client";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Divisions - Org Admin" };
 
 export default async function DivisionsPage() {
   const scope = await iam.meScope().catch(() => null);
-  const orgId = scope?.orgIds[0];
+  const orgId = await getActiveOrgId(scope);
 
   // Divisions are filtered by seasonId; fetch every season in the org
   // and union the divisions. Cheap enough at the org scale we expect.

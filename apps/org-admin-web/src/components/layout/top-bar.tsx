@@ -4,15 +4,21 @@ import { useRouter } from "next/navigation";
 import { LogOut, Menu, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useNav } from "./nav-context";
+import { OrgSwitcher } from "./org-switcher";
 
 export function TopBar({
   email,
   displayName,
-  roleLine
+  roleLine,
+  orgs,
+  activeOrgId
 }: {
   email: string;
   displayName: string | null;
   roleLine: string;
+  /** Empty or single-org → switcher renders nothing. */
+  orgs: Array<{ id: string; displayName: string }>;
+  activeOrgId: string;
 }) {
   const router = useRouter();
   const { setOpen } = useNav();
@@ -43,6 +49,7 @@ export function TopBar({
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <OrgSwitcher orgs={orgs} activeOrgId={activeOrgId} />
         <div className="hidden text-right sm:block">
           <p className="text-[13px] font-medium leading-none text-fg">
             {displayName ?? email}

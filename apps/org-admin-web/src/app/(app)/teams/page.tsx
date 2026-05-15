@@ -11,13 +11,14 @@ import {
 } from "@sportspulse/ui";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Teams - Org Admin" };
 
 export default async function TeamsPage() {
   const scope = await iam.meScope().catch(() => null);
-  const orgId = scope?.orgIds[0];
+  const orgId = await getActiveOrgId(scope);
 
   const page = orgId
     ? await leagueMgmt.listTeams({ orgId }).catch(() => ({ items: [], nextCursor: null }))

@@ -11,6 +11,7 @@ import {
 } from "@sportspulse/ui";
 import { audit, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Audit · Org Admin" };
@@ -35,7 +36,7 @@ function fmt(iso: string): string {
  */
 export default async function AuditPage() {
   const scope = await iam.meScope().catch(() => null);
-  const orgId = scope?.orgIds[0];
+  const orgId = await getActiveOrgId(scope);
 
   const page = orgId
     ? await audit.list({ orgId, limit: 100 }).catch(() => ({

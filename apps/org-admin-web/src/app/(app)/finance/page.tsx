@@ -2,6 +2,7 @@ import { ExternalLink, Wallet } from "lucide-react";
 import { Eyebrow, IconTile } from "@sportspulse/ui";
 import { iam, finance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Finance - Org Admin" };
@@ -15,7 +16,7 @@ function fmtMoney(cents: number, currency = "USD"): string {
 
 export default async function FinancePage() {
   const scope = await iam.meScope().catch(() => null);
-  const orgId = scope?.orgIds[0];
+  const orgId = await getActiveOrgId(scope);
 
   const invoicesPage = orgId
     ? await finance.listInvoices({ orgId, limit: 200 }).catch(() => ({ items: [], nextCursor: null }))

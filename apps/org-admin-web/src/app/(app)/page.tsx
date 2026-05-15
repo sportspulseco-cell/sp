@@ -30,6 +30,7 @@ import {
   orgs,
   registration
 } from "@/lib/api/server-api";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +42,10 @@ function formatMoney(cents: number, currency = "USD"): string {
 }
 
 export default async function OrgAdminHome() {
-  // 1) figure out which org the signed-in user is scoped to
+  // 1) figure out which org the signed-in user is currently looking
+  // at — cookie-backed switcher with `scope.orgIds[0]` fallback.
   const scope = await iam.meScope().catch(() => null);
-  const myOrgId = scope?.orgIds[0] ?? null;
+  const myOrgId = await getActiveOrgId(scope);
   const myOrg = myOrgId ? await orgs.get(myOrgId).catch(() => null) : null;
 
   if (!scope || !myOrgId) {

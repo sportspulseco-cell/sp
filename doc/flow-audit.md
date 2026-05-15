@@ -365,7 +365,7 @@ Both jobs scheduled; one waiting on the API deploy + CRON_SECRET env to actually
 | 4 | **Referee app** | API has assignments + payroll; no UI. Refs see emails today, can't accept/decline assignments in-app. | ~2 weeks |
 | 5 | **Lineups full UI** (E3) | Page is "Coming soon" today. Pick starters, lock at game-start. | ~1 week |
 | 6 | **org-admin-web action mutations** | Every list page reads; creates/updates still happen in superadmin-web. As org-admins mature into the product, mirror those mutations. | ~3 weeks |
-| 7 | **org-admin-web multi-org switcher** | Today `orgIds[0]` is hardcoded. Federation owners scoped to 2+ orgs only see the first. | ~2 days |
+| 7 | ~~org-admin-web multi-org switcher~~ ☑ | **Done 2026-05-15** — cookie-backed `getActiveOrgId(scope)` helper + `<OrgSwitcher>` in the topbar (hidden when scope has <2 orgs). Every page (overview, leagues, seasons, divisions, teams, registrations, finance, communications, audit) consumes the active org via the helper. | — |
 | 8 | **Parent portal** | Minor's parent gets a consent email but has no app to log into; today it's a token-URL flow. | ~1 week |
 | 9 | **Brackets + playoff scheduling UI** | Domain entities exist; UI doesn't. | ~2 weeks |
 | 10 | **Scheduler engine** | Auto-generates round-robin schedules; today every game is hand-entered. | ~3 weeks |
