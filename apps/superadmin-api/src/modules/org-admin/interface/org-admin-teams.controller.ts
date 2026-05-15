@@ -11,7 +11,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsUUID } from "class-validator";
+import { IsOptional, IsString, IsUUID, Length } from "class-validator";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -24,9 +24,18 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { AssignRoleHandler } from "../../iam/application/roles/handlers";
+import { CreateTeamHandler } from "../../league-management/application/teams/handlers";
 
 class AssignCaptainBodyDto {
   @IsUUID() userId!: string;
+}
+
+class CreateTeamBodyDto {
+  @IsUUID() orgId!: string;
+  @IsString() @Length(2, 200) name!: string;
+  @IsString() @Length(2, 32) sportCode!: string;
+  @IsOptional() @IsString() @Length(1, 16) shortName?: string;
+  @IsOptional() @IsString() logoUrl?: string;
 }
 
 /**
@@ -51,8 +60,44 @@ class AssignCaptainBodyDto {
 export class OrgAdminTeamsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly assignRoleH: AssignRoleHandler
+    private readonly assignRoleH: AssignRoleHandler,
+    private readonly createTeamH: CreateTeamHandler
   ) {}
+
+  // -------------------------------------------------------------------
+  // POST /org-admin/teams — create a team under an org
+  // -------------------------------------------------------------------
+  @Post()
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Create a team under one of the caller's orgs. Caller must hold org_admin (or super_admin) on the target org."
+  })
+  async create(
+    @Body() body: CreateTeamBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    if (!scope.isSuperAdmin) {
+      if (scope.orgIds !== null && !scope.orgIds.includes(body.orgId)) {
+        throw new NotFoundException("Org not found");
+      }
+      const ok = await this.userHasOrgAdminOnOrg(user.userId, body.orgId);
+      if (!ok) {
+        throw new ForbiddenException(
+          "Requires org_admin (or super_admin) on this org"
+        );
+      }
+    }
+    const team = await this.createTeamH.execute({
+      orgId: body.orgId,
+      name: body.name.trim(),
+      sportCode: body.sportCode,
+      shortName: body.shortName?.trim() || null,
+      logoUrl: body.logoUrl?.trim() || null
+    });
+    return { team };
+  }
 
   // -------------------------------------------------------------------
   // GET /org-admin/teams/:teamId — team detail + current captain(s)

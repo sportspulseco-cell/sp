@@ -95,7 +95,8 @@ import { DrizzleTeamRepository } from "./infrastructure/repositories/drizzle-tea
     SEASON_REPOSITORY,
     CreateLeagueHandler,
     CreateSeasonHandler,
-    CreateDivisionHandler
+    CreateDivisionHandler,
+    CreateTeamHandler
   ]
 })
 export class LeagueManagementModule {}

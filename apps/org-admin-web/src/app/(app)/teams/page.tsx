@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Network } from "lucide-react";
+import { Network, Plus } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -30,10 +30,23 @@ export default async function TeamsPage() {
       <PageHeader
         eyebrow="// Teams"
         title="Teams"
-        description="Every team registered under your org."
+        description="Every team registered under your org. You can add teams directly or let captains create them through the registration funnel."
+        action={
+          <Link
+            href="/teams/new"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            New team
+          </Link>
+        }
       />
       {page.items.length === 0 ? (
-        <EmptyState icon={Network} title="No teams yet" description="Teams appear once league admins or captains create them." />
+        <EmptyState
+          icon={Network}
+          title="No teams yet"
+          description="Add a team here, or wait for captains to apply via the registration funnel."
+        />
       ) : (
         <Table>
           <THead>

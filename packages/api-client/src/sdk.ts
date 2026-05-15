@@ -2717,8 +2717,19 @@ export function createApi(f: Fetcher) {
         })
     },
 
-    // Backlog #17 · org-admin extended actions (captain assignment etc).
+    // Backlog #17 · org-admin extended actions (captain assignment + team create).
     orgAdminTeams: {
+      create: (body: {
+        orgId: string;
+        name: string;
+        sportCode: string;
+        shortName?: string;
+        logoUrl?: string;
+      }) =>
+        f<{ team: Team }>(`/org-admin/teams`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       detail: (teamId: string) =>
         f<{
           team: {
