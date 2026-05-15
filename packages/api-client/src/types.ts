@@ -1017,3 +1017,22 @@ export interface FreeAgentPoolEntry {
   createdAt: string;
   updatedAt: string;
 }
+
+// ----- Team Store (Backlog #11) -----
+
+export interface TeamStoreProduct {
+  id: string;
+  teamId: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  priceCents: number;
+  currency: string;
+  variantLabel: string | null;
+  stockQty: number | null;
+  isActive: boolean;
+  metadata: Record<string, unknown>;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -66,7 +66,8 @@ import type {
   Standing,
   Suspension,
   Team,
-  TeamMembership
+  TeamMembership,
+  TeamStoreProduct
 } from "./types";
 
 const qs = (params: Record<string, string | number | boolean | undefined>) => {
@@ -2608,6 +2609,68 @@ export function createApi(f: Fetcher) {
             )
         }
       }
+    },
+
+    // Backlog #11 · team merch catalog. Captain CRUD + team-member read.
+    teamStore: {
+      listForCaptain: (teamId: string) =>
+        f<{ items: TeamStoreProduct[] }>(`/captain/store/${teamId}/products`),
+      create: (
+        teamId: string,
+        body: {
+          name: string;
+          description?: string;
+          imageUrl?: string;
+          priceCents: number;
+          currency?: string;
+          variantLabel?: string;
+          stockQty?: number;
+          isActive?: boolean;
+        }
+      ) =>
+        f<{ product: TeamStoreProduct }>(`/captain/store/${teamId}/products`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      update: (
+        teamId: string,
+        productId: string,
+        body: {
+          name?: string;
+          description?: string;
+          imageUrl?: string;
+          priceCents?: number;
+          currency?: string;
+          variantLabel?: string;
+          stockQty?: number;
+          isActive?: boolean;
+        }
+      ) =>
+        f<{ product: TeamStoreProduct }>(
+          `/captain/store/${teamId}/products/${productId}`,
+          { method: "PATCH", body: JSON.stringify(body) }
+        ),
+      remove: (teamId: string, productId: string) =>
+        f<{ id: string; deleted: true }>(
+          `/captain/store/${teamId}/products/${productId}`,
+          { method: "DELETE" }
+        ),
+      // Player browse — active products only.
+      listForTeam: (teamId: string) =>
+        f<{
+          team: { id: string; name: string };
+          items: Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            imageUrl: string | null;
+            priceCents: number;
+            currency: string;
+            variantLabel: string | null;
+            stockQty: number | null;
+            createdAt: string;
+          }>;
+        }>(`/team-store/${teamId}/products`)
     },
 
     adminTransfers: {

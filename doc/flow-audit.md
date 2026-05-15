@@ -373,7 +373,7 @@ Both jobs scheduled; one waiting on the API deploy + CRON_SECRET env to actually
 | 8 | ~~Parent portal~~ ☑ | **Done 2026-05-15** — anonymous `/parental-consent/[token]` page on player-web. `GET /public/registration/parental-consent/:token` returns context (child name, season, org, expired flag). `POST .../redeem { action: confirm \| decline }` advances or cancels. Tokens carry an embedded timestamp; 24h TTL enforced. The start-consent endpoint now emails the parent a one-click URL. Middleware whitelists the path so the parent (no Supabase account) can land directly. | — |
 | 9 | **Brackets + playoff scheduling UI** | Domain entities exist; UI doesn't. | ~2 weeks |
 | 10 | **Scheduler engine** | Auto-generates round-robin schedules; today every game is hand-entered. | ~3 weeks |
-| 11 | **Team store** | Player-web sidebar entry; page says "Coming soon". | ~2 weeks |
+| 11 | ~~Team store~~ ◐ | **Catalog slice done 2026-05-15** — `team_store_products` table (migration 0038) + `TeamStoreModule` with captain CRUD (`/captain/store/:teamId/products` GET/POST/PATCH/DELETE) and player browse (`/team-store/:teamId/products` GET, gated to active team members + captains + super_admin). Captain UI at team-admin-web `/captain/store` (add/edit/hide/delete, inline forms). Player UI at player-web `/store` replaces the "Coming soon" stub with a real product grid. **Still pending:** purchase/checkout flow — blocked on real Stripe (P4-1). | Checkout: depends on #1 |
 | 12 | **Video** | Same — sidebar link + "Coming soon" page. | ~3 weeks |
 | 13 | **i18n** | Copy is English-only. Affects every screen. | ~1 week to scaffold + ongoing |
 | 14 | **Multi-sport rule packs** | Hockey-specific stat fields hardcoded; other sports need different shapes. | ~2 weeks per sport |

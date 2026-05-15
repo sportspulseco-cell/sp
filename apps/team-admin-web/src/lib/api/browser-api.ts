@@ -59,3 +59,4 @@ export const captain = api.captain;
 export const compliance = api.compliance;
 export const finance = api.finance;
 export const gameOps = api.gameOps;
+export const teamStore = api.teamStore;

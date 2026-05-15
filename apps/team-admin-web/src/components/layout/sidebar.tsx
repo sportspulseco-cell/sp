@@ -12,6 +12,7 @@ import {
   Mail,
   Settings,
   ShieldCheck,
+  ShoppingBag,
   Sparkles,
   Star,
   Users,
@@ -55,7 +56,8 @@ const CAPTAIN_NAV: NavSection = {
     { href: "/captain/join-requests", label: "Join requests", icon: Inbox },
     { href: "/captain/free-agents", label: "Free agents", icon: Star },
     { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
-    { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck }
+    { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck },
+    { href: "/captain/store", label: "Team store", icon: ShoppingBag }
   ]
 };
 
