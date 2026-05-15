@@ -51,3 +51,4 @@ const api = createApi(apiFetch);
 // the app grows. Same pattern as superadmin-web.
 export const iam = api.iam;
 export const orgAdminTeams = api.orgAdminTeams;
+export const orgAdminRefundAssessments = api.orgAdminRefundAssessments;

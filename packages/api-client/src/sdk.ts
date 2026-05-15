@@ -2611,6 +2611,63 @@ export function createApi(f: Fetcher) {
       }
     },
 
+    // Backlog #17c · org-admin dispute resolution (refund assessments).
+    orgAdminRefundAssessments: {
+      list: (
+        q: {
+          orgId?: string;
+          status?:
+            | "pending"
+            | "resolved_refund"
+            | "resolved_no_refund"
+            | "void"
+            | "all";
+        } = {}
+      ) =>
+        f<{
+          items: Array<{
+            id: string;
+            orgId: string;
+            teamId: string;
+            teamName: string;
+            seasonId: string;
+            seasonName: string;
+            personId: string;
+            personFirstName: string | null;
+            personLastName: string | null;
+            invoiceId: string | null;
+            sourceEvent: string;
+            paidCents: number;
+            currency: string;
+            status: string;
+            decisionNotes: string | null;
+            refundAmountCents: number;
+            resolvedAt: string | null;
+            createdAt: string;
+          }>;
+        }>(`/org-admin/refund-assessments${qs(q)}`),
+      resolve: (
+        id: string,
+        body: {
+          decision: "refund" | "no_refund" | "void";
+          refundAmountCents?: number;
+          decisionNotes: string;
+        }
+      ) =>
+        f<{
+          assessment: {
+            id: string;
+            status: string;
+            refundAmountCents: number;
+            decisionNotes: string | null;
+            resolvedAt: string | null;
+          };
+        }>(`/org-admin/refund-assessments/${id}/resolve`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
+    },
+
     // Backlog #17 · org-admin extended actions (captain assignment etc).
     orgAdminTeams: {
       detail: (teamId: string) =>

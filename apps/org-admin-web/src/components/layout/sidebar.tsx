@@ -7,6 +7,7 @@ import {
   CalendarRange,
   FileBarChart,
   FileSignature,
+  Gavel,
   Layers,
   LayoutDashboard,
   Mail,
@@ -35,6 +36,7 @@ const NAV: NavItem[] = [
   { href: "/registrations", label: "Registrations", icon: ScrollText },
   { href: "/forms", label: "Forms", icon: FileSignature },
   { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/disputes", label: "Disputes", icon: Gavel },
   { href: "/communications", label: "Communications", icon: Mail },
   { href: "/audit", label: "Audit", icon: FileBarChart }
 ];
