@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Activity, Users, CalendarRange, Wifi } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Eyebrow } from "@/components/ui/eyebrow";
 
 export function Hero() {
+  const t = useTranslations("hero");
   return (
     <section
       id="top"
@@ -21,7 +23,7 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-container px-6 pb-20 pt-36 lg:px-10 lg:pb-28 lg:pt-44">
         <Eyebrow className="mb-6">
-          <span className="text-fg/70">// Unified League Management Engine</span>{" "}
+          <span className="text-fg/70">{t("eyebrow")}</span>{" "}
           <span className="text-fg">· v1.0</span>
         </Eyebrow>
 
@@ -31,7 +33,7 @@ export function Hero() {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="max-w-[18ch] font-sans text-[clamp(48px,9vw,128px)] font-semibold uppercase leading-[0.92] tracking-tighter text-balance text-fg"
         >
-          The pulse of every league.
+          {t("title")}
         </motion.h1>
 
         <motion.p
@@ -40,8 +42,7 @@ export function Hero() {
           transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
           className="mt-6 max-w-2xl text-[18px] leading-relaxed text-fg-muted"
         >
-          We've built the unified engine for elite sports. We handle the
-          logistics so you can handle the game.
+          {t("subtitle")}
         </motion.p>
 
         <motion.div
@@ -54,7 +55,7 @@ export function Hero() {
             href="#cta"
             className="group inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2.5 font-mono text-[12px] font-medium uppercase tracking-widest text-bg transition-transform hover:scale-[1.02] active:scale-100"
           >
-            Start Season
+            {t("cta_primary")}
             <ArrowUpRight
               className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
               strokeWidth={2.25}
@@ -64,7 +65,7 @@ export function Hero() {
             href="#logistics"
             className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface-1 px-5 py-2.5 font-mono text-[12px] font-medium uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
           >
-            Explore Platform
+            {t("cta_secondary")}
           </a>
         </motion.div>
 

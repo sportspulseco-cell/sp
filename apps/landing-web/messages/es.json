@@ -1,0 +1,19 @@
+{
+  "hero": {
+    "eyebrow": "// Motor Unificado de Gestión de Ligas",
+    "title": "El pulso de cada liga.",
+    "subtitle": "Hemos construido el motor unificado para el deporte de élite. Nosotros nos encargamos de la logística para que tú te concentres en el juego.",
+    "cta_primary": "Empezar temporada",
+    "cta_secondary": "Explorar plataforma"
+  },
+  "nav": {
+    "home": "Inicio",
+    "pricing": "Precios",
+    "leadership": "Liderazgo",
+    "resources": "Recursos",
+    "contact": "Contacto"
+  },
+  "locale_picker": {
+    "label": "Idioma"
+  }
+}

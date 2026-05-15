@@ -1,0 +1,19 @@
+{
+  "hero": {
+    "eyebrow": "// Unified League Management Engine",
+    "title": "The pulse of every league.",
+    "subtitle": "We've built the unified engine for elite sports. We handle the logistics so you can handle the game.",
+    "cta_primary": "Start Season",
+    "cta_secondary": "Explore Platform"
+  },
+  "nav": {
+    "home": "Home",
+    "pricing": "Pricing",
+    "leadership": "Leadership",
+    "resources": "Resources",
+    "contact": "Contact"
+  },
+  "locale_picker": {
+    "label": "Language"
+  }
+}

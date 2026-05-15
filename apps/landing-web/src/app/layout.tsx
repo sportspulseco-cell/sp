@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 import { Heartbeat } from "@/components/landing/heartbeat";
 
@@ -32,15 +34,22 @@ export const viewport: Viewport = {
   themeColor: "#050505"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrains.variable} dark`}>
+    <html
+      lang={locale}
+      className={`${inter.variable} ${jetbrains.variable} dark`}
+    >
       <body className="bg-bg text-fg antialiased">
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
         <Heartbeat />
       </body>
     </html>

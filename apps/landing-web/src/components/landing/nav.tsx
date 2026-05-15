@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
+import { LocaleSwitcher } from "@/components/landing/locale-switcher";
 
 type MegaItem = {
   title: string;
@@ -188,6 +189,9 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <div className="hidden sm:block">
+            <LocaleSwitcher />
+          </div>
           <div className="relative hidden sm:block">
             <button
               type="button"
