@@ -140,7 +140,7 @@ export const notificationPreferences = pgTable(
     userIdx: index("notif_prefs_user_idx").on(t.userId),
     channelCheck: check(
       "notif_prefs_channel_check",
-      sql`${t.channel} IN ('email','in_app','sms')`
+      sql`${t.channel} IN ('email','in_app','sms','push')`
     )
   })
 );
@@ -167,5 +167,50 @@ export const notificationDeliveryLogs = pgTable(
   (t) => ({
     notifIdx: index("notif_dlog_notif_idx").on(t.notificationId),
     attemptedIdx: index("notif_dlog_attempted_idx").on(t.attemptedAt)
+  })
+);
+
+// =====================================================================
+// PUSH_SUBSCRIPTIONS — per-user device / web-push tokens. Backlog #16.
+// One row per (userId, endpoint). Endpoint is the unique key — keeps
+// the same row alive when a browser refreshes its keys.
+// =====================================================================
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    /** web | ios | android. Web-push first, native later. */
+    platform: text("platform").notNull().default("web"),
+    /** web-push endpoint URL OR an FCM/APNs device token. */
+    endpoint: text("endpoint").notNull(),
+    /** web-push only: subscription keys for VAPID encryption. */
+    p256dhKey: text("p256dh_key"),
+    authKey: text("auth_key"),
+    userAgent: text("user_agent"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Soft-disable when the provider returns 410-gone. */
+    isActive: boolean("is_active").notNull().default(true),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    endpointUniq: uniqueIndex("push_subscriptions_endpoint_uniq").on(
+      t.endpoint
+    ),
+    userIdx: index("push_subscriptions_user_idx").on(t.userId, t.isActive),
+    platformCheck: check(
+      "push_subscriptions_platform_check",
+      sql`${t.platform} IN ('web','ios','android')`
+    )
   })
 );

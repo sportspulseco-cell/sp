@@ -1111,7 +1111,7 @@ export function createApi(f: Fetcher) {
         }>("/notifications/me/preferences"),
       setPreference: (
         templateCode: string,
-        channel: "email" | "in_app" | "sms",
+        channel: "email" | "in_app" | "sms" | "push",
         body: { enabled: boolean }
       ) =>
         f<{ templateCode: string; channel: string; enabled: boolean }>(
@@ -1120,6 +1120,45 @@ export function createApi(f: Fetcher) {
             method: "PUT",
             body: JSON.stringify(body)
           }
+        ),
+      // Backlog #16 — push subscription registry.
+      pushSubscribe: (body: {
+        endpoint: string;
+        p256dhKey?: string;
+        authKey?: string;
+        userAgent?: string;
+        platform?: "web" | "ios" | "android";
+      }) =>
+        f<{
+          subscription: {
+            id: string;
+            platform: string;
+            endpoint: string;
+            userAgent: string | null;
+            isActive: boolean;
+            lastSeenAt: string;
+            createdAt: string;
+          };
+        }>(`/communications/push/subscribe`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      pushListMine: () =>
+        f<{
+          items: Array<{
+            id: string;
+            platform: string;
+            endpoint: string;
+            userAgent: string | null;
+            isActive: boolean;
+            lastSeenAt: string;
+            createdAt: string;
+          }>;
+        }>(`/communications/push`),
+      pushUnsubscribe: (id: string) =>
+        f<{ id: string | null; deleted: boolean }>(
+          `/communications/push/${id}`,
+          { method: "DELETE" }
         ),
       listNotifications: (
         q: {

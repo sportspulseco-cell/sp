@@ -7,7 +7,7 @@ export type NotificationStatus =
   | "failed"
   | "suppressed";
 
-export type NotificationChannel = "email" | "sms" | "in_app";
+export type NotificationChannel = "email" | "sms" | "in_app" | "push";
 
 export interface NotificationRow {
   id: string;

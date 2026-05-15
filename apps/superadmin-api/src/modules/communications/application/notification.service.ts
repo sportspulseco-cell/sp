@@ -14,6 +14,7 @@ import {
   type TemplateCode
 } from "../domain/templates/catalog";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
+import { PushDispatcherService } from "../../../shared/notifications/push-dispatcher.service";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 
 /**
@@ -75,6 +76,8 @@ export class NotificationService {
     private readonly repo: NotificationRepository,
     @Inject(EmailDispatcherService)
     private readonly dispatcher: EmailDispatcherService,
+    @Inject(PushDispatcherService)
+    private readonly pushDispatcher: PushDispatcherService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
@@ -196,6 +199,47 @@ export class NotificationService {
       return;
     }
 
+    if (row.channel === "push") {
+      if (!row.recipientPersonId) {
+        await this.markFailed(row.id, "no recipientPersonId on row");
+        return;
+      }
+      const optedOut = await this.isOptedOut(
+        row.recipientPersonId,
+        row.templateCode,
+        "push"
+      );
+      if (optedOut) {
+        await this.repo.incrementAttempt(row.id);
+        await this.repo.markStatus(row.id, "suppressed", {
+          lastError: "recipient opted out of this template/channel"
+        });
+        return;
+      }
+      // Resolve persons.user_id → auth.users.id for push lookup.
+      const [person] = await this.db
+        .select({ userId: schema.persons.userId })
+        .from(schema.persons)
+        .where(eq(schema.persons.id, row.recipientPersonId))
+        .limit(1);
+      if (!person?.userId) {
+        await this.markFailed(row.id, "person has no linked auth user");
+        return;
+      }
+      const result = await this.pushDispatcher.send({
+        userId: person.userId,
+        title: row.subject ?? row.templateCode,
+        body: row.body,
+        channel: row.templateCode
+      });
+      if (result.delivered) {
+        await this.markSent(row.id);
+      } else {
+        await this.markFailed(row.id, result.reason ?? "no delivery");
+      }
+      return;
+    }
+
     // SMS provider not wired yet — leave queued.
     this.log.warn(
       `no provider for channel=${row.channel} (notification ${row.id})`
@@ -212,7 +256,7 @@ export class NotificationService {
   private async isOptedOut(
     recipientPersonId: string | null,
     templateCode: string,
-    channel: "email" | "in_app" | "sms"
+    channel: "email" | "in_app" | "sms" | "push"
   ): Promise<boolean> {
     if (!recipientPersonId) return false;
     try {
