@@ -2701,6 +2701,22 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Backlog #6 · org-admin write surfaces (divisions).
+    orgAdminDivisions: {
+      create: (body: {
+        seasonId: string;
+        name: string;
+        tier?: string;
+        ageGroupId?: string;
+        genderEligibility?: "male" | "female" | "mixed" | "open";
+        maxTeams?: number;
+      }) =>
+        f<{ division: Division }>(`/org-admin/divisions`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
+    },
+
     // Backlog #17 · org-admin extended actions (captain assignment etc).
     orgAdminTeams: {
       detail: (teamId: string) =>

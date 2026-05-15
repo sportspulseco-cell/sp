@@ -5,6 +5,7 @@ import { OrgAdminTeamsController } from "./interface/org-admin-teams.controller"
 import { OrgAdminRefundAssessmentsController } from "./interface/org-admin-refund-assessments.controller";
 import { OrgAdminLeaguesController } from "./interface/org-admin-leagues.controller";
 import { OrgAdminSeasonsController } from "./interface/org-admin-seasons.controller";
+import { OrgAdminDivisionsController } from "./interface/org-admin-divisions.controller";
 
 /**
  * Backlog #17 — org-admin extended actions module.
@@ -24,7 +25,8 @@ import { OrgAdminSeasonsController } from "./interface/org-admin-seasons.control
     OrgAdminTeamsController,
     OrgAdminRefundAssessmentsController,
     OrgAdminLeaguesController,
-    OrgAdminSeasonsController
+    OrgAdminSeasonsController,
+    OrgAdminDivisionsController
   ]
 })
 export class OrgAdminModule {}
