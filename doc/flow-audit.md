@@ -205,11 +205,15 @@ Six of seven flows ☑. D2 + D3 + D7 carry payment-mocked + needs-tester-walk ca
 
 **Done:** both views. **Pending:** none. **Not started:** none.
 
-### E3. Set lineups &nbsp;·&nbsp; ☐
-- [ ] Captain / team-admin-web → `/lineups` → pick starters from active roster. Today the page renders "Coming soon".
-- [ ] Lineup snapshotted; goes into roster_lock once the game starts.
+### E3. Set lineups &nbsp;·&nbsp; ☑
+- [x] Captain / team-admin-web → `/lineups` → list of scheduled / in-play games for the captain's team.
+- [x] Captain → `/lineups/[gameId]` → editor with one row per active roster player. Three radio buckets (starter / bench / scratch) + inline jersey-number + position inputs + scratch-reason. Live counts on three stat cards.
+- [x] Save → `PUT /games/:gameId/lineups/:teamId` (captain-gated via `userIsCaptainOfTeam`). Upsert via unique `(game_id, team_id)` index.
+- [x] Auto-lock: when game.status flips to `in_play` via `StartPlayHandler`, the handler stamps `locked_at = now()` on every `game_lineups` row for that game. Subsequent PUTs return 409 `lineup_locked`.
+- [x] Migration 0037 adds the `game_lineups` table; SDK exposes `gameOps.getLineup` + `gameOps.putLineup`.
+- [x] `pnpm --filter @sportspulse/{superadmin-api,team-admin-web} typecheck` clean.
 
-**Done:** none. **Pending:** none. **Not started:** the full lineups feature.
+**Done:** every step. **Pending:** none. **Not started:** none.
 
 ### E4. Score the game &nbsp;·&nbsp; ◐
 - [x] Scorekeeper (no app yet — currently a super-admin task) → Admin / superadmin-web → `/game-events` → enter goals/assists/penalties.
@@ -227,7 +231,7 @@ Six of seven flows ☑. D2 + D3 + D7 carry payment-mocked + needs-tester-walk ca
 **Done:** all four. **Pending:** none. **Not started:** none.
 
 ### E — Section roll-up &nbsp;·&nbsp; ◐ Partial
-Stats are ☑; schedule view is ☑; lineups is ☐ (Coming soon); scheduling + scoring rely on the super-admin doing scorekeeper work because the dedicated scorekeeper app doesn't exist.
+Stats ☑, schedule view ☑, lineups ☑ (built this session). Schedule-game + score-game still rely on the super-admin doing scorekeeper work because the dedicated scorekeeper app doesn't exist (Backlog #3). `game.scheduled` / `game.finalized` email dispatches still need tester verification.
 
 ---
 
@@ -363,7 +367,7 @@ Both jobs scheduled; one waiting on the API deploy + CRON_SECRET env to actually
 | 2 | **Set `CRON_SECRET` on Vercel `sp-api`** + redeploy | Flips I1 retry-failed from ◐ → ☑. 5 min. | ≤ 1 hour |
 | 3 | **Scorekeeper app** | Today scoring is a super-admin chore in `/game-events`. Real ops need a lightweight scorer UI on the rink-side iPad. | ~2 weeks |
 | 4 | **Referee app** | API has assignments + payroll; no UI. Refs see emails today, can't accept/decline assignments in-app. | ~2 weeks |
-| 5 | **Lineups full UI** (E3) | Page is "Coming soon" today. Pick starters, lock at game-start. | ~1 week |
+| 5 | ~~Lineups full UI~~ ☑ | **Done 2026-05-15** — `game_lineups` table (migration 0037) + `/games/:gameId/lineups/:teamId` GET + PUT API. Captain UI at `/lineups` (game list) + `/lineups/[gameId]` (editor: starter / bench / scratch radio buckets + jersey + position inputs). Auto-locks when game flips to `in_play` via `StartPlayHandler`. SDK: `gameOps.getLineup` + `gameOps.putLineup`. | — |
 | 6 | **org-admin-web action mutations** | Every list page reads; creates/updates still happen in superadmin-web. As org-admins mature into the product, mirror those mutations. | ~3 weeks |
 | 7 | ~~org-admin-web multi-org switcher~~ ☑ | **Done 2026-05-15** — cookie-backed `getActiveOrgId(scope)` helper + `<OrgSwitcher>` in the topbar (hidden when scope has <2 orgs). Every page (overview, leagues, seasons, divisions, teams, registrations, finance, communications, audit) consumes the active org via the helper. | — |
 | 8 | **Parent portal** | Minor's parent gets a consent email but has no app to log into; today it's a token-URL flow. | ~1 week |

@@ -3,6 +3,7 @@ import { CommunicationsModule } from "../communications/communications.module";
 
 import { GamesController } from "./interface/games.controller";
 import { EventsController } from "./interface/events.controller";
+import { LineupsController } from "./interface/lineups.controller";
 import { SuspensionsController } from "./interface/suspensions.controller";
 import { GameOfficialsController } from "./interface/game-officials.controller";
 
@@ -51,6 +52,7 @@ import { DrizzleGameOfficialRepository } from "./infrastructure/repositories/dri
   controllers: [
     GamesController,
     EventsController,
+    LineupsController,
     SuspensionsController,
     GameOfficialsController
   ],

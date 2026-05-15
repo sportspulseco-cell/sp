@@ -1687,6 +1687,63 @@ export function createApi(f: Fetcher) {
       finalizeGame: (id: string) =>
         f<Game>(`/games/${id}/finalize`, { method: "POST" }),
 
+      // -------- lineups (Backlog #5 / E3) ------------------------------
+      getLineup: (gameId: string, teamId: string) =>
+        f<{
+          gameId: string;
+          teamId: string;
+          starters: Array<{
+            personId: string;
+            jerseyNumber?: string;
+            positionCode?: string;
+          }>;
+          bench: Array<{
+            personId: string;
+            jerseyNumber?: string;
+            positionCode?: string;
+          }>;
+          scratches: Array<{ personId: string; reason?: string }>;
+          submittedAt: string | null;
+          lockedAt: string | null;
+        }>(`/games/${gameId}/lineups/${teamId}`),
+      putLineup: (
+        gameId: string,
+        teamId: string,
+        body: {
+          starters: Array<{
+            personId: string;
+            jerseyNumber?: string;
+            positionCode?: string;
+          }>;
+          bench: Array<{
+            personId: string;
+            jerseyNumber?: string;
+            positionCode?: string;
+          }>;
+          scratches: Array<{ personId: string; reason?: string }>;
+        }
+      ) =>
+        f<{
+          gameId: string;
+          teamId: string;
+          starters: Array<{
+            personId: string;
+            jerseyNumber?: string;
+            positionCode?: string;
+          }>;
+          bench: Array<{
+            personId: string;
+            jerseyNumber?: string;
+            positionCode?: string;
+          }>;
+          scratches: Array<{ personId: string; reason?: string }>;
+          submittedAt: string | null;
+          lockedAt: string | null;
+        }>(`/games/${gameId}/lineups/${teamId}`, {
+          method: "PUT",
+          body: JSON.stringify(body)
+        }),
+
       listEvents: (
         q: {
           limit?: number;

@@ -1,5 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { and, eq, isNull } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import {
   clampLimit,
   NotFoundError,
@@ -14,6 +17,7 @@ import { GameId } from "../../domain/identifiers";
 import { Game } from "../../domain/entities/game.entity";
 import { GameDto, GamePageDto } from "../dtos/game.dto";
 import { NotificationService } from "../../../communications/application/notification.service";
+import { DRIZZLE } from "../../../../shared/database/database.tokens";
 
 export interface ListGamesInput {
   limit?: number;
@@ -105,12 +109,29 @@ export class CreateGameHandler
 export class StartPlayHandler
   implements CommandHandler<{ id: string }, GameDto>
 {
-  constructor(@Inject(GAME_REPOSITORY) private readonly games: GameRepository) {}
+  constructor(
+    @Inject(GAME_REPOSITORY) private readonly games: GameRepository,
+    @Inject(DRIZZLE) private readonly db: Database
+  ) {}
   async execute(input: { id: string }): Promise<GameDto> {
     const g = await this.games.findById(GameId.of(input.id));
     if (!g) throw new NotFoundError("Game", input.id);
     g.startPlay();
     await this.games.save(g);
+
+    // Lock both teams' lineups the moment the game starts play
+    // (Backlog #5 — captain edits 409 past this point). Idempotent —
+    // only sets locked_at on rows where it's still null.
+    await this.db
+      .update(schema.gameLineups)
+      .set({ lockedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.gameLineups.gameId, input.id),
+          isNull(schema.gameLineups.lockedAt)
+        )
+      );
+
     return GameDto.fromDomain(g);
   }
 }

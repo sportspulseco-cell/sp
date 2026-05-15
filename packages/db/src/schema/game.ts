@@ -91,6 +91,58 @@ export const games = pgTable(
 );
 
 // =====================================================================
+// GAME LINEUPS — per-(game, team) starter / bench / scratch lists
+// Captain-managed before kickoff; locked the moment game.status flips
+// to in_play (the API's PUT handler refuses edits when locked_at is set).
+// Backlog #5 / E3.
+// =====================================================================
+export const gameLineups = pgTable(
+  "game_lineups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    /**
+     * Lineup shape — JSONB so we don't need to model every position.
+     * Schema:
+     *   {
+     *     starters: Array<{ personId, jerseyNumber?, positionCode? }>,
+     *     bench:    Array<{ personId, jerseyNumber?, positionCode? }>,
+     *     scratches: Array<{ personId, reason? }>
+     *   }
+     * The membership_id reference is implicit — readers look up by
+     * (teamId, personId, seasonId) in team_memberships.
+     */
+    lineup: jsonb("lineup").notNull().default(sql`'{}'::jsonb`),
+    submittedByUserId: uuid("submitted_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" }
+    ),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    /** Stamped when game.status flips to in_play — PUT 409s past this. */
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    uniqGameTeam: uniqueIndex("game_lineup_game_team_uniq").on(
+      t.gameId,
+      t.teamId
+    ),
+    gameIdx: index("game_lineup_game_idx").on(t.gameId),
+    teamIdx: index("game_lineup_team_idx").on(t.teamId)
+  })
+);
+
+// =====================================================================
 // GAME EVENTS — append-only event log (the source of truth)
 // =====================================================================
 export const gameEvents = pgTable(
