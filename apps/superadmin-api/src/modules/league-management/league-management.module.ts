@@ -88,6 +88,12 @@ import { DrizzleTeamRepository } from "./infrastructure/repositories/drizzle-tea
     { provide: DIVISION_REPOSITORY, useClass: DrizzleDivisionRepository },
     { provide: TEAM_REPOSITORY, useClass: DrizzleTeamRepository }
   ],
-  exports: [TEAM_REPOSITORY, LEAGUE_REPOSITORY, DIVISION_REPOSITORY, SEASON_REPOSITORY]
+  exports: [
+    TEAM_REPOSITORY,
+    LEAGUE_REPOSITORY,
+    DIVISION_REPOSITORY,
+    SEASON_REPOSITORY,
+    CreateLeagueHandler
+  ]
 })
 export class LeagueManagementModule {}

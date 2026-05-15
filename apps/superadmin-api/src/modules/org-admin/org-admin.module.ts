@@ -1,22 +1,28 @@
 import { Module } from "@nestjs/common";
 import { IamModule } from "../iam/iam.module";
+import { LeagueManagementModule } from "../league-management/league-management.module";
 import { OrgAdminTeamsController } from "./interface/org-admin-teams.controller";
 import { OrgAdminRefundAssessmentsController } from "./interface/org-admin-refund-assessments.controller";
+import { OrgAdminLeaguesController } from "./interface/org-admin-leagues.controller";
 
 /**
  * Backlog #17 — org-admin extended actions module.
  *
- * Today this exposes captain assignment (grant + revoke) at
- * `/org-admin/teams/...` and refund-assessment review at
- * `/org-admin/refund-assessments/...`. Future endpoints (kick off
- * org-setup) will land here too so the org-admin mutation surface
- * stays in one place.
+ * Endpoints:
+ *   - /org-admin/teams/...               captain grant + revoke
+ *   - /org-admin/refund-assessments/...  dispute adjudication
+ *   - /org-admin/leagues                 create a league (kick off setup)
+ *
+ * Each controller carries the scope check inline (caller must hold
+ * super_admin or org_admin on the relevant org) so the rest of the
+ * API surface keeps its default "writes require super_admin" rule.
  */
 @Module({
-  imports: [IamModule],
+  imports: [IamModule, LeagueManagementModule],
   controllers: [
     OrgAdminTeamsController,
-    OrgAdminRefundAssessmentsController
+    OrgAdminRefundAssessmentsController,
+    OrgAdminLeaguesController
   ]
 })
 export class OrgAdminModule {}

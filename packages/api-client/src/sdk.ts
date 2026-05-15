@@ -2668,6 +2668,21 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Backlog #17b · org-admin kicks off setup (create a league).
+    orgAdminLeagues: {
+      create: (body: {
+        orgId: string;
+        name: string;
+        sportCode: string;
+        format?: League["format"];
+        governingBodyId?: string;
+      }) =>
+        f<{ league: League }>(`/org-admin/leagues`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
+    },
+
     // Backlog #17 · org-admin extended actions (captain assignment etc).
     orgAdminTeams: {
       detail: (teamId: string) =>

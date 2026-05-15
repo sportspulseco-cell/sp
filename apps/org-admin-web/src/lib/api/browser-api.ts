@@ -52,3 +52,4 @@ const api = createApi(apiFetch);
 export const iam = api.iam;
 export const orgAdminTeams = api.orgAdminTeams;
 export const orgAdminRefundAssessments = api.orgAdminRefundAssessments;
+export const orgAdminLeagues = api.orgAdminLeagues;

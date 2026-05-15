@@ -182,11 +182,22 @@ export default async function OrgAdminHome() {
           </span>
         </header>
         {leaguesPage.items.length === 0 ? (
-          <EmptyState
-            icon={Layers}
-            title="No leagues yet"
-            description="Create the first league from the SportsPulse super-admin console."
-          />
+          <div className="px-6 py-10">
+            <EmptyState
+              icon={Layers}
+              title="No leagues yet"
+              description="Kick off setup by creating your first league."
+            />
+            <div className="mt-4 flex justify-center">
+              <Link
+                href="/leagues/new"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
+              >
+                Create league
+                <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+              </Link>
+            </div>
+          </div>
         ) : (
           <Table>
             <THead>

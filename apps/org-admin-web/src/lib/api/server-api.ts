@@ -17,3 +17,4 @@ export const communications = api.communications;
 export const audit = api.audit;
 export const orgAdminTeams = api.orgAdminTeams;
 export const orgAdminRefundAssessments = api.orgAdminRefundAssessments;
+export const orgAdminLeagues = api.orgAdminLeagues;
