@@ -2740,6 +2740,18 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Backlog #6 · org-admin registration review.
+    orgAdminRegistrations: {
+      review: (
+        id: string,
+        body: { action: "approve" | "reject"; reason?: string }
+      ) =>
+        f<{ id: string; status: "approved" | "rejected" }>(
+          `/org-admin/registrations/${id}/review`,
+          { method: "POST", body: JSON.stringify(body) }
+        )
+    },
+
     // Backlog #6 · org-admin manual payment recording.
     orgAdminFinance: {
       recordPayment: (

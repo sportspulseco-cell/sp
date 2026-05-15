@@ -10,6 +10,7 @@ import { OrgAdminSeasonsController } from "./interface/org-admin-seasons.control
 import { OrgAdminDivisionsController } from "./interface/org-admin-divisions.controller";
 import { OrgAdminBroadcastController } from "./interface/org-admin-broadcast.controller";
 import { OrgAdminFinanceController } from "./interface/org-admin-finance.controller";
+import { OrgAdminRegistrationsController } from "./interface/org-admin-registrations.controller";
 
 /**
  * Backlog #17 — org-admin extended actions module.
@@ -32,7 +33,8 @@ import { OrgAdminFinanceController } from "./interface/org-admin-finance.control
     OrgAdminSeasonsController,
     OrgAdminDivisionsController,
     OrgAdminBroadcastController,
-    OrgAdminFinanceController
+    OrgAdminFinanceController,
+    OrgAdminRegistrationsController
   ]
 })
 export class OrgAdminModule {}
