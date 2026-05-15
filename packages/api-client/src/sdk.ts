@@ -2740,6 +2740,30 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Backlog #6 · org-admin manual payment recording.
+    orgAdminFinance: {
+      recordPayment: (
+        invoiceId: string,
+        body: {
+          amountCents: number;
+          method?:
+            | "cash"
+            | "check"
+            | "credit_card"
+            | "etransfer"
+            | "bank_transfer"
+            | "manual";
+          receivedAt?: string;
+          externalProviderId?: string;
+          notes?: string;
+        }
+      ) =>
+        f<{ payment: Payment }>(
+          `/org-admin/finance/invoices/${invoiceId}/payments`,
+          { method: "POST", body: JSON.stringify(body) }
+        )
+    },
+
     // Backlog #6 · org-admin broadcast composer.
     orgAdminBroadcast: {
       send: (body: {

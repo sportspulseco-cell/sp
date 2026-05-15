@@ -61,6 +61,6 @@ import {
     // changing this single provider line.
     { provide: PAYMENT_PROCESSOR, useClass: MockPaymentProcessor }
   ],
-  exports: [FinanceService, PAYMENT_PROCESSOR]
+  exports: [FinanceService, PAYMENT_PROCESSOR, RecordPaymentHandler]
 })
 export class FinanceModule {}

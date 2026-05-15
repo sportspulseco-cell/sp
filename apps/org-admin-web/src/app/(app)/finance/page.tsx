@@ -3,6 +3,7 @@ import { Eyebrow, IconTile } from "@sportspulse/ui";
 import { iam, finance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
+import { InvoiceTable } from "./invoice-table";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Finance - Org Admin" };
@@ -32,7 +33,7 @@ export default async function FinancePage() {
       <PageHeader
         eyebrow="// Finance"
         title="Finance"
-        description="Outstanding receivables for your org. The full AR Dashboard with aging buckets lives in the super-admin console."
+        description="Outstanding receivables for your org. Record offline payments inline; the full AR Dashboard with aging buckets lives in the super-admin console."
         action={
           <a
             href={`${SUPERADMIN_URL}/finance/ar`}
@@ -74,6 +75,8 @@ export default async function FinancePage() {
           <p className="mt-1 text-[12px] text-fg-muted">need follow-up</p>
         </div>
       </section>
+
+      <InvoiceTable invoices={invoicesPage.items} />
     </div>
   );
 }
