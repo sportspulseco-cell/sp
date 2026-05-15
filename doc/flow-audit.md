@@ -42,7 +42,7 @@ Each section letter (A, B, …) rolls up to a section-level status.
 **Done:** role + filtered superadmin-web view. **Pending:** none. **Not started:** none.
 
 ### A — Section roll-up &nbsp;·&nbsp; ☑ Done
-All three flows complete. The only soft gap is the mock email-verification — Supabase's email_confirm is auto-true today; flipping `SUPABASE_REQUIRE_EMAIL_CONFIRM` later is a config switch, not a build.
+All three flows complete. Real-email-verification foundations shipped (backlog #18 — env flag + `/auth/callback` on all 4 apps); flipping `SUPABASE_REQUIRE_EMAIL_CONFIRM=true` in env is now a config switch, gated on a "check your inbox" UI state being added.
 
 ---
 
