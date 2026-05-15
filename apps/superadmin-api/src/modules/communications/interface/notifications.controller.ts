@@ -36,7 +36,6 @@ import {
 } from "../application/handlers/queries";
 import {
   FlushQueuedHandler,
-  RetryFailedHandler,
   RetryNotificationHandler
 } from "../application/handlers/retry.handler";
 import { ListNotificationsQueryDto } from "./dto/notification.dto";
@@ -64,7 +63,6 @@ export class NotificationsController {
     private readonly recentH: RecentForPersonHandler,
     private readonly retryH: RetryNotificationHandler,
     private readonly flushH: FlushQueuedHandler,
-    private readonly retryFailedH: RetryFailedHandler,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly repo: NotificationRepository,
     @Inject(DRIZZLE) private readonly db: Database
@@ -105,16 +103,6 @@ export class NotificationsController {
    * 3-attempt cap with exponential backoff (5 min → 30 min). Hit by
    * the scheduler every ~5 min on this endpoint. P4-2 / P1-1 follow-on.
    */
-  @Post("cron/retry-failed")
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({
-    summary:
-      "Retry every failed notification under the 3-attempt cap whose last attempt is older than the backoff window. Idempotent; safe to call on a short cadence."
-  })
-  retryFailed() {
-    return this.retryFailedH.execute();
-  }
-
   // -------- "/me" surfaces — any signed-in user --------
 
   @Get("me/unread-count")

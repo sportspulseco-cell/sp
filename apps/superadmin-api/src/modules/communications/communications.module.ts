@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { NotificationsController } from "./interface/notifications.controller";
+import { NotificationsCronController } from "./interface/notifications-cron.controller";
 import { NotificationTemplatesController } from "./interface/templates.controller";
+import { CronSecretGuard } from "../../shared/auth/guards/cron-secret.guard";
 import { NotificationService } from "./application/notification.service";
 import {
   GetNotificationHandler,
@@ -24,8 +26,13 @@ import { DrizzleNotificationRepository } from "./infrastructure/repositories/dri
 import { DrizzleNotificationTemplateRepository } from "./infrastructure/repositories/drizzle-template.repository";
 
 @Module({
-  controllers: [NotificationsController, NotificationTemplatesController],
+  controllers: [
+    NotificationsController,
+    NotificationsCronController,
+    NotificationTemplatesController
+  ],
   providers: [
+    CronSecretGuard,
     ListNotificationsHandler,
     GetNotificationHandler,
     RecentForPersonHandler,

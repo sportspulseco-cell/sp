@@ -301,7 +301,7 @@ registration to the same season because there's no idempotency.
 **Part B — materialized view shipped (2026-05-15)**
 - [x] Migration `0033_v_active_season_membership.sql` — creates `v_active_season_membership` from `team_memberships WHERE current_status='active'` with a `source` column resolved via correlated EXISTS subqueries against the four originating tables (priority: `team_join_request` > `team_invite` > `free_agent` > `admin_direct` catchall). Applied live; current dataset returns 1 row tagged `admin_direct`.
 - [x] Unique index on `membership_id` (required for `REFRESH MATERIALIZED VIEW CONCURRENTLY`); lookup indexes on `(person_id, season_id)`, `(team_id, season_id)`, and `source`.
-- [x] `POST /admin/views/v-active-season-membership/refresh` (SuperAdminGuard) — calls `REFRESH MATERIALIZED VIEW CONCURRENTLY`. Hit on a cron cadence (hourly recommended) by the external scheduler; no-lock swap so reads never block.
+- [x] `POST /admin/views/v-active-season-membership/refresh` — calls `REFRESH MATERIALIZED VIEW CONCURRENTLY`. Gated by `CronSecretGuard`. **pg_cron runs the refresh directly as pure SQL every hour (migration 0034)** — the HTTP endpoint stays for ad-hoc admin invocation.
 - [x] `MaterializedViewsController` wired into `AdminModule`.
 - [x] Smoke: live `REFRESH MATERIALIZED VIEW CONCURRENTLY` succeeded; the lone live membership row shows up tagged `admin_direct` as expected (captain Add-player path, no originating join/invite/free-agent row).
 - [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
@@ -419,7 +419,7 @@ Small things the audit caught that don't fit elsewhere.
 
 **Retry-scheduler half done (2026-05-15)**
 - [x] `RetryFailedHandler` selects `failed` rows with `attemptCount < 3` whose `updated_at` is older than the backoff window for the current attempt count (5 min after attempt 1, 30 min after attempt 2). Routes each through `NotificationService.dispatch()` so the same provider-routing rules apply.
-- [x] `POST /notifications/cron/retry-failed` exposes the sweep, gated by `SuperAdminGuard` — matches the existing cron-sweep pattern (`/compliance/eligibility/season/:id/*-sweep`). External scheduler (Vercel Cron / GitHub Actions) hits it on a ~5-min cadence.
+- [x] `POST /notifications/cron/retry-failed` exposes the sweep. Now lives on a dedicated `NotificationsCronController` (no class-level JWT guard) gated by a new `CronSecretGuard` that verifies `X-Cron-Secret` against the API's `CRON_SECRET` env. **Migration 0034 + Supabase Vault** schedule the job via pg_cron + pg_net — no external scheduler needed.
 - [x] Three total attempts (1 inline + 2 cron retries). After the 3rd failure the row is terminal — admin can manually retry via `/notifications/:id/retry`.
 - [x] Idempotent — re-running the cron without any expired rows returns `{eligible:0, sent:0, stillFailed:0}` and logs a no-op line.
 - [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean. Closes P1-1's last residual.
@@ -513,3 +513,37 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 3. **All acceptance `[ ]` must be checked** before flipping to ☑. Untested = not done. Tester rule from CLAUDE.md applies — sign in as the actual role, walk the flow end-to-end, cross-surface verify.
 4. **One commit per item**, footer `Closes plan: P0-1` so history greps cleanly.
 5. **No scope creep** — if an item needs a feature not on this plan, file a new audit observation rather than expanding the item.
+
+---
+
+## Background jobs (Supabase pg_cron)
+
+Migration `0034_cron_jobs.sql` schedules two background jobs natively in Postgres — no external scheduler (Vercel Cron / GitHub Actions) needed.
+
+| Job | Cadence | Mechanism | Notes |
+|---|---|---|---|
+| `refresh-active-season-membership` | every hour at :00 | pure SQL inside pg_cron | `REFRESH MATERIALIZED VIEW CONCURRENTLY v_active_season_membership` |
+| `retry-failed-notifications` | every 5 min | pg_net → POST /notifications/cron/retry-failed | Auth via `X-Cron-Secret` header, secret stored in Supabase Vault |
+
+**Vault entries** (`vault.secrets`):
+- `cron_secret` — must match the API's `CRON_SECRET` env var.
+- `cron_api_base_url` — base URL the API is deployed at.
+
+**Rotation**:
+```sql
+SELECT vault.update_secret(
+  (SELECT id FROM vault.secrets WHERE name = 'cron_secret'),
+  '<new-secret>'
+);
+-- Then update CRON_SECRET on the API's Vercel project to match.
+```
+
+**Inspection**:
+```sql
+SELECT jobid, jobname, schedule, active FROM cron.job;
+SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;
+SELECT id, created, status_code, content FROM net._http_response
+  ORDER BY created DESC LIMIT 20;
+```
+
+**Deployment requirement**: the API's Vercel project must carry `CRON_SECRET=<same-value-as-vault>` for the retry-failed job to pass `CronSecretGuard`. Until then pg_net's POST returns 404 (route not deployed) or 403 (secret mismatch).

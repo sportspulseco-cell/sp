@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AdminController } from "./interface/admin.controller";
 import { MaterializedViewsController } from "./interface/materialized-views.controller";
+import { CronSecretGuard } from "../../shared/auth/guards/cron-secret.guard";
 import {
   DeleteFlagHandler,
   HealthHandler,
@@ -17,6 +18,7 @@ import { DrizzleAdminRepository } from "./infrastructure/repositories/drizzle-ad
 @Module({
   controllers: [AdminController, MaterializedViewsController],
   providers: [
+    CronSecretGuard,
     ListSettingsHandler,
     UpsertSettingHandler,
     ListFlagsHandler,
