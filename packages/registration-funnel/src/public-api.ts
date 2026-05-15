@@ -122,6 +122,27 @@ export interface PublicRegistrationApi {
     submissionId: string,
     body: { email: string; consentToken: string }
   ): Promise<{ id: string; status: "pending_payment" }>;
+  /**
+   * Anonymous: look up a parent-consent token and return display
+   * context for the parent portal. No Supabase auth — token is auth.
+   */
+  getParentalConsentContext(token: string): Promise<{
+    submissionId: string;
+    status: string;
+    childDisplayName: string;
+    seasonName: string | null;
+    orgName: string | null;
+    expired: boolean;
+    confirmedAt: string | null;
+  }>;
+  /**
+   * Anonymous: parent confirms or declines via the portal. 410
+   * (ConflictException) when the token is older than 24h.
+   */
+  redeemParentalConsent(
+    token: string,
+    body: { action: "confirm" | "decline" }
+  ): Promise<{ submissionId: string; status: string }>;
   runEligibilityCheck(
     submissionId: string,
     email: string
@@ -180,6 +201,13 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
       }),
     confirmParentalConsent: (id, body) =>
       f(`/public/registration/submissions/${id}/parental-consent/confirm`, {
+        method: "POST",
+        body: JSON.stringify(body)
+      }),
+    getParentalConsentContext: (token) =>
+      f(`/public/registration/parental-consent/${token}`),
+    redeemParentalConsent: (token, body) =>
+      f(`/public/registration/parental-consent/${token}/redeem`, {
         method: "POST",
         body: JSON.stringify(body)
       }),

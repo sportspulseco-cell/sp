@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
 import {
   IsEmail,
   IsObject,
@@ -109,7 +110,8 @@ export class PublicRegistrationController {
     private readonly v2: RegistrationV2Service,
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly supabase: SupabaseAdminService,
-    private readonly email: EmailDispatcherService
+    private readonly email: EmailDispatcherService,
+    private readonly config: ConfigService
   ) {}
 
   @Get("open")
@@ -871,10 +873,10 @@ export class PublicRegistrationController {
       throw new Error("parentEmail required");
     }
 
-    // Mock token — UUID-shaped, scoped to this submission. Real flow
-    // would persist to a `parent_consent_tokens` table with TTL; for
-    // mock-flow we encode the submission id as the token so the
-    // confirm endpoint can resolve it without a new table.
+    // Token is base64url(`${submissionId}:${issuedAtMs}`). The redeem
+    // endpoint (POST /parental-consent/redeem) validates the embedded
+    // submissionId matches the row and rejects tokens older than 24h
+    // via the timestamp.
     const token = Buffer.from(`${submissionId}:${Date.now()}`).toString(
       "base64url"
     );
@@ -886,14 +888,19 @@ export class PublicRegistrationController {
       .update(schema.registrations)
       .set({ metadata: meta, updatedAt: new Date() })
       .where(eq(schema.registrations.id, submissionId));
+
+    const playerWebBase =
+      this.config.get<string>("PLAYER_WEB_URL") ??
+      "https://sp-player-red.vercel.app";
+    const portalUrl = `${playerWebBase}/parental-consent/${token}`;
     const subject = "Action required: please confirm your child's registration";
     const messageBody = [
       `A child registration on SportsPulse needs your consent before it can proceed.`,
       ``,
-      `Confirm consent — paste this token back into the registration funnel:`,
-      token,
+      `Click here to review and confirm:`,
+      portalUrl,
       ``,
-      `If you're not expecting this email, you can ignore it.`
+      `This link expires in 24 hours. If you weren't expecting this email, ignore it.`
     ].join("\n");
 
     // Real Resend dispatch (or log-only fallback if RESEND_API_KEY
@@ -950,6 +957,176 @@ export class PublicRegistrationController {
       .set({ status: "pending_payment", metadata: meta, updatedAt: new Date() })
       .where(eq(schema.registrations.id, submissionId));
     return { id: submissionId, status: "pending_payment" as const };
+  }
+
+  /**
+   * Parent-portal pre-fetch: a parent clicks the URL we emailed them
+   * (https://sp-player-red.vercel.app/parental-consent/:token) and
+   * the page calls this to look up context — child name, season name,
+   * organisation name — so the parent has enough information to
+   * decide whether to consent.
+   *
+   * Anonymous: the token IS the auth. No Supabase session required.
+   * Backlog #8 / Parent portal.
+   */
+  @Get("parental-consent/:token")
+  @ApiOperation({
+    summary:
+      "Anonymous lookup: decode a parental-consent token and return display context (child name, season, org). Used by the parent portal."
+  })
+  async getParentalConsentContext(@Param("token") token: string): Promise<{
+    submissionId: string;
+    status: string;
+    childDisplayName: string;
+    seasonName: string | null;
+    orgName: string | null;
+    expired: boolean;
+    confirmedAt: string | null;
+  }> {
+    const decoded = this.decodeConsentToken(token);
+    if (!decoded) {
+      throw new NotFoundException("Invalid or expired consent token");
+    }
+    const [row] = await this.db
+      .select({
+        r: schema.registrations,
+        orgName: schema.orgs.displayName,
+        seasonName: schema.seasons.name
+      })
+      .from(schema.registrations)
+      .leftJoin(schema.orgs, eq(schema.orgs.id, schema.registrations.orgId))
+      .leftJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.registrations.seasonId)
+      )
+      .where(eq(schema.registrations.id, decoded.submissionId))
+      .limit(1);
+    if (!row) {
+      throw new NotFoundException("Submission not found");
+    }
+    const meta = (row.r.metadata as Record<string, unknown>) ?? {};
+    return {
+      submissionId: row.r.id,
+      status: row.r.status,
+      childDisplayName: (meta.fullName as string) ?? "your child",
+      seasonName: row.seasonName ?? null,
+      orgName: row.orgName ?? null,
+      expired: decoded.expired,
+      confirmedAt: (meta.parentConsentConfirmedAt as string) ?? null
+    };
+  }
+
+  /**
+   * Parent-portal action: confirm or decline the registration. No
+   * Supabase auth — token-only. On confirm, advances state
+   * pending_consent → pending_payment. On decline, status → cancelled.
+   * Backlog #8 / Parent portal.
+   */
+  @Post("parental-consent/:token/redeem")
+  @ApiOperation({
+    summary:
+      "Anonymous redeem: parent confirms or declines via the portal. 410 when the token is expired (>24h)."
+  })
+  async redeemParentalConsent(
+    @Param("token") token: string,
+    @Body() body: { action: "confirm" | "decline" }
+  ): Promise<{ submissionId: string; status: string }> {
+    const decoded = this.decodeConsentToken(token);
+    if (!decoded) {
+      throw new NotFoundException("Invalid consent token");
+    }
+    if (decoded.expired) {
+      throw new ConflictException({
+        error: "consent_token_expired",
+        message:
+          "This consent link has expired. Ask the player to resend the consent email."
+      });
+    }
+    if (body.action !== "confirm" && body.action !== "decline") {
+      throw new ConflictException({
+        error: "invalid_action",
+        message: "action must be 'confirm' or 'decline'"
+      });
+    }
+
+    const [row] = await this.db
+      .select()
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, decoded.submissionId))
+      .limit(1);
+    if (!row) throw new NotFoundException("Submission not found");
+    if (row.status !== "pending_consent") {
+      throw new ConflictException({
+        error: "not_pending_consent",
+        message: `Registration is in status=${row.status}; only pending_consent can be redeemed.`,
+        currentStatus: row.status
+      });
+    }
+
+    const now = new Date();
+    if (body.action === "confirm") {
+      const meta = mergeMetadata(row.metadata, {
+        parentConsentConfirmedAt: now.toISOString()
+      });
+      await this.db
+        .update(schema.registrations)
+        .set({
+          status: "pending_payment",
+          metadata: meta,
+          updatedAt: now
+        })
+        .where(eq(schema.registrations.id, decoded.submissionId));
+      return { submissionId: decoded.submissionId, status: "pending_payment" };
+    }
+
+    // Decline.
+    const meta = mergeMetadata(row.metadata, {
+      parentConsentDeclinedAt: now.toISOString()
+    });
+    await this.db
+      .update(schema.registrations)
+      .set({
+        status: "cancelled",
+        metadata: meta,
+        updatedAt: now
+      })
+      .where(eq(schema.registrations.id, decoded.submissionId));
+    return { submissionId: decoded.submissionId, status: "cancelled" };
+  }
+
+  /**
+   * Decode a base64url(`${submissionId}:${issuedAtMs}`) consent token.
+   * Returns null on parse failure; marks `expired` when the timestamp
+   * is older than 24h so callers can render a "this link expired"
+   * state instead of a generic "invalid token" message.
+   */
+  private decodeConsentToken(
+    token: string
+  ): { submissionId: string; issuedAt: Date; expired: boolean } | null {
+    let decoded = "";
+    try {
+      decoded = Buffer.from(token, "base64url").toString("utf-8");
+    } catch {
+      return null;
+    }
+    const sep = decoded.indexOf(":");
+    if (sep <= 0) return null;
+    const submissionId = decoded.slice(0, sep);
+    const issuedAtMs = Number(decoded.slice(sep + 1));
+    if (
+      !submissionId ||
+      Number.isNaN(issuedAtMs) ||
+      submissionId.length < 32
+    ) {
+      return null;
+    }
+    const issuedAt = new Date(issuedAtMs);
+    const ageMs = Date.now() - issuedAtMs;
+    return {
+      submissionId,
+      issuedAt,
+      expired: ageMs > 24 * 60 * 60 * 1000
+    };
   }
 
   @Post("submissions/:id/eligibility-check")

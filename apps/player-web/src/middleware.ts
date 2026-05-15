@@ -11,7 +11,13 @@ const PUBLIC_PATHS = [
   "/favicon.ico",
   // Onboarding wizard — listed here so requireRole's public-path skip
   // lets the page render without bouncing the user back to itself.
-  "/onboarding"
+  "/onboarding",
+  // Parent portal — the parent of a minor registrant receives a
+  // tokenised URL by email and clicks through to consent. They do
+  // not have a Supabase account, so this surface stays anonymous.
+  "/parental-consent",
+  // Anonymous registration funnel (Workflow 1 v2.0).
+  "/register"
 ];
 
 /**
