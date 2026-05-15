@@ -2683,6 +2683,24 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Backlog #6 · org-admin write surfaces (seasons).
+    orgAdminSeasons: {
+      create: (body: {
+        leagueId: string;
+        name: string;
+        startDate: string;
+        endDate: string;
+        timezone?: string;
+        registrationOpensAt?: string;
+        registrationClosesAt?: string;
+        rosterLockAt?: string;
+      }) =>
+        f<{ season: Season }>(`/org-admin/seasons`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
+    },
+
     // Backlog #17 · org-admin extended actions (captain assignment etc).
     orgAdminTeams: {
       detail: (teamId: string) =>
