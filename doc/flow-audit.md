@@ -33,7 +33,7 @@ Each section letter (A, B, …) rolls up to a section-level status.
 - [x] Org-admin recipient gets invite email (real Resend now, P1-1).
 - [x] Org-admin / org-admin-web → signs in at `https://sp-org-admin.vercel.app/sign-in` → onboarding wizard → lands on `/` overview filtered to their org.
 
-**Done:** full invite-to-onboarded loop. **Pending:** real email-verification roundtrip (today's mock auto-confirms). **Not started:** none.
+**Done:** full invite-to-onboarded loop + foundations for real verification (env flag wired, `/auth/callback` route on all four apps). **Pending:** flip the env flag in production + ship "check your inbox" UI states on the sign-up pages. **Not started:** none.
 
 ### A3. Inviting a league admin (P5-D — uses superadmin-web) &nbsp;·&nbsp; ☑
 - [x] Super-admin / superadmin-web → `/users` → invite with `league_admin` role + league scope.
@@ -376,7 +376,7 @@ Both jobs scheduled; one waiting on the API deploy + CRON_SECRET env to actually
 | 15 | **Per-flow tester walk** | Every ◐/🧪 flow above needs a real human stepping through it on deployed apps. | ~3-5 days |
 | 16 | **Push notifications (mobile)** | `notification_preferences.channel` includes `sms` for future; no SMS / push provider wired. | ~1 week (provider integration) |
 | 17 | **Org-admin extended actions** (assign captains, kick off setup, dispute resolution) | Today these require super-admin. | ~2 weeks |
-| 18 | **Email-verification roundtrip** | Today Supabase email_confirm is auto-true. Flipping `SUPABASE_REQUIRE_EMAIL_CONFIRM` requires a UI for "check your inbox" state. | ~3 days |
+| 18 | ~~Email-verification roundtrip~~ ◐ | **Foundations done 2026-05-15** — env flag `SUPABASE_REQUIRE_EMAIL_CONFIRM` now conditional in `SupabaseAdminService.inviteUserByEmail`. `/auth/callback` route added to org-admin-web, team-admin-web, player-web (only superadmin-web had one). Documented in `.env.example`. **Still pending:** "check your inbox" UI state on each app's sign-up — product-copy decision. | UI states: ~1 day |
 | 19 | **Captain rollover wizard tester walk** (D2) | Code path exists for prior-roster import; no real human has walked it through on deployed apps. | 1 day |
 | 20 | ~~Compliance lock-sweep auto-trigger~~ ☑ | **Done 2026-05-15** — pg_cron `compliance-lock-sweep` runs hourly (migration 0036). `seasons.last_lock_sweep_at` column added (migration 0035) for idempotency; spammy notification key fixed. | — |
 

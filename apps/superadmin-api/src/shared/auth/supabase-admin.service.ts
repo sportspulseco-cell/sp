@@ -52,10 +52,18 @@ export class SupabaseAdminService {
     if (existing) return { userId: existing, created: false };
 
     if (input.password) {
+      // `email_confirm` defaults to true (mock flow — skip the
+      // verification roundtrip so flows complete in one step).
+      // Flip `SUPABASE_REQUIRE_EMAIL_CONFIRM=true` in env to enforce
+      // real verification: Supabase emails the user a confirmation
+      // link, and sign-in is blocked until they click it. Each app's
+      // /auth/callback route exchanges the code for a session.
+      const requireConfirm =
+        this.config.get<string>("SUPABASE_REQUIRE_EMAIL_CONFIRM") === "true";
       const { data, error } = await c.auth.admin.createUser({
         email: input.email,
         password: input.password,
-        email_confirm: true,
+        email_confirm: !requireConfirm,
         user_metadata: input.displayName
           ? { display_name: input.displayName }
           : undefined
