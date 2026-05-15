@@ -55,3 +55,4 @@ export const orgAdminRefundAssessments = api.orgAdminRefundAssessments;
 export const orgAdminLeagues = api.orgAdminLeagues;
 export const orgAdminSeasons = api.orgAdminSeasons;
 export const orgAdminDivisions = api.orgAdminDivisions;
+export const orgAdminBroadcast = api.orgAdminBroadcast;

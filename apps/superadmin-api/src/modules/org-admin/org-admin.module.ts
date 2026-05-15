@@ -1,11 +1,13 @@
 import { Module } from "@nestjs/common";
 import { IamModule } from "../iam/iam.module";
 import { LeagueManagementModule } from "../league-management/league-management.module";
+import { CommunicationsModule } from "../communications/communications.module";
 import { OrgAdminTeamsController } from "./interface/org-admin-teams.controller";
 import { OrgAdminRefundAssessmentsController } from "./interface/org-admin-refund-assessments.controller";
 import { OrgAdminLeaguesController } from "./interface/org-admin-leagues.controller";
 import { OrgAdminSeasonsController } from "./interface/org-admin-seasons.controller";
 import { OrgAdminDivisionsController } from "./interface/org-admin-divisions.controller";
+import { OrgAdminBroadcastController } from "./interface/org-admin-broadcast.controller";
 
 /**
  * Backlog #17 — org-admin extended actions module.
@@ -20,13 +22,14 @@ import { OrgAdminDivisionsController } from "./interface/org-admin-divisions.con
  * API surface keeps its default "writes require super_admin" rule.
  */
 @Module({
-  imports: [IamModule, LeagueManagementModule],
+  imports: [IamModule, LeagueManagementModule, CommunicationsModule],
   controllers: [
     OrgAdminTeamsController,
     OrgAdminRefundAssessmentsController,
     OrgAdminLeaguesController,
     OrgAdminSeasonsController,
-    OrgAdminDivisionsController
+    OrgAdminDivisionsController,
+    OrgAdminBroadcastController
   ]
 })
 export class OrgAdminModule {}

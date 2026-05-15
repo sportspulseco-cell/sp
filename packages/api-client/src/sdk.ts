@@ -2740,6 +2740,25 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Backlog #6 · org-admin broadcast composer.
+    orgAdminBroadcast: {
+      send: (body: {
+        orgId: string;
+        audiences: Array<"captains" | "team_admins" | "players" | "all_admins">;
+        subject: string;
+        body: string;
+        channel: "email" | "in_app";
+      }) =>
+        f<{
+          queued: number;
+          audiencesResolved: number;
+          broadcastId?: string;
+        }>(`/org-admin/broadcast`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
+    },
+
     // Backlog #6 · org-admin write surfaces (divisions).
     orgAdminDivisions: {
       create: (body: {

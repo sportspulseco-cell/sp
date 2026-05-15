@@ -76,7 +76,10 @@ export const TEMPLATE_CODES = [
   "refund.issued",
   "wallet.credited",
   "wallet.credit_expired",
-  "captain.covered_dues"
+  "captain.covered_dues",
+  // Ad-hoc broadcast composed by an org-admin (Backlog #6 / #17).
+  // subject + body are inline-rendered from the payload — no fixed body.
+  "org.broadcast"
 ] as const;
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
@@ -619,6 +622,20 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Your captain covered your dues",
     body: "Your captain paid {{amountCents}} toward your team dues.",
     variables: ["amountCents"]
+  },
+  {
+    code: "org.broadcast",
+    channel: "email",
+    subject: "{{subject}}",
+    body: "{{body}}",
+    variables: ["subject", "body"]
+  },
+  {
+    code: "org.broadcast",
+    channel: "in_app",
+    subject: "{{subject}}",
+    body: "{{body}}",
+    variables: ["subject", "body"]
   }
 ];
 

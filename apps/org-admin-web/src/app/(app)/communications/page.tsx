@@ -1,4 +1,5 @@
-import { Mail } from "lucide-react";
+import Link from "next/link";
+import { Mail, Send } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -63,7 +64,16 @@ export default async function CommunicationsPage() {
       <PageHeader
         eyebrow="// Communications"
         title="Notification outbox"
-        description="Every notification the platform has queued for this org. Sent / failed / suppressed at a glance."
+        description="Every notification the platform has queued for this org. Compose ad-hoc broadcasts to your audience here too."
+        action={
+          <Link
+            href="/communications/compose"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
+          >
+            <Send className="h-3.5 w-3.5" strokeWidth={2} />
+            Compose
+          </Link>
+        }
       />
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
