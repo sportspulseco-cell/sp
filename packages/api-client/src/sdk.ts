@@ -2611,6 +2611,39 @@ export function createApi(f: Fetcher) {
       }
     },
 
+    // Backlog #17 · org-admin extended actions (captain assignment etc).
+    orgAdminTeams: {
+      detail: (teamId: string) =>
+        f<{
+          team: {
+            id: string;
+            name: string;
+            shortName: string | null;
+            sportCode: string;
+            status: string;
+            orgId: string;
+            captainUserId: string | null;
+          };
+          captains: Array<{
+            assignmentId: string;
+            userId: string;
+            displayName: string | null;
+            email: string | null;
+            grantedAt: string | null;
+          }>;
+        }>(`/org-admin/teams/${teamId}`),
+      assignCaptain: (teamId: string, body: { userId: string }) =>
+        f<{ assignment: RoleAssignment }>(
+          `/org-admin/teams/${teamId}/captain`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      revokeCaptain: (teamId: string, assignmentId: string) =>
+        f<{ id: string; revoked?: true; alreadyRevoked?: true }>(
+          `/org-admin/teams/${teamId}/captain/${assignmentId}/revoke`,
+          { method: "POST" }
+        )
+    },
+
     // Backlog #11 · team merch catalog. Captain CRUD + team-member read.
     teamStore: {
       listForCaptain: (teamId: string) =>

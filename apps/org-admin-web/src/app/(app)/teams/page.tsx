@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Network } from "lucide-react";
 import {
   Badge,
@@ -46,7 +47,14 @@ export default async function TeamsPage() {
           <TBody>
             {page.items.map((t) => (
               <TR key={t.id}>
-                <TD className="font-medium text-fg">{t.name}</TD>
+                <TD className="font-medium text-fg">
+                  <Link
+                    href={`/teams/${t.id}`}
+                    className="hover:underline hover:underline-offset-2"
+                  >
+                    {t.name}
+                  </Link>
+                </TD>
                 <TD className="font-mono text-[11px] text-fg-muted">{t.shortName ?? "-"}</TD>
                 <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{t.sportCode}</TD>
                 <TD>

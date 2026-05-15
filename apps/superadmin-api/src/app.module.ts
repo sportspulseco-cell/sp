@@ -22,6 +22,7 @@ import { CaptainModule } from "./modules/captain/captain.module";
 import { TransfersModule } from "./modules/transfers/transfers.module";
 import { TeamApplicationsModule } from "./modules/team-applications/team-applications.module";
 import { TeamStoreModule } from "./modules/team-store/team-store.module";
+import { OrgAdminModule } from "./modules/org-admin/org-admin.module";
 
 @Module({
   imports: [
@@ -47,7 +48,8 @@ import { TeamStoreModule } from "./modules/team-store/team-store.module";
     CaptainModule,
     TransfersModule,
     TeamApplicationsModule,
-    TeamStoreModule
+    TeamStoreModule,
+    OrgAdminModule
   ]
 })
 export class AppModule {}
