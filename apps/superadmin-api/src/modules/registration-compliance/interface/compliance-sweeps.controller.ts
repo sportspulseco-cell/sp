@@ -102,12 +102,28 @@ export class ComplianceSweepsController {
       "Roster lock sweep (§3). Flags USA Hockey IDs that expire within the season window. Notifies player + captain for each."
   })
   async runLockSweep(@Param("id") seasonId: string) {
+    return this.lockSweepForSeason(seasonId);
+  }
+
+  /**
+   * Internal entry point — same logic as the HTTP endpoint above
+   * minus the controller-level guard wiring. Cron-driven callers
+   * invoke this directly to avoid an HTTP round-trip per season.
+   * Idempotency: stamps `seasons.last_lock_sweep_at` after the
+   * sweep completes; the compliance-cron query filters seasons
+   * by that timestamp so a re-run on the same hour is a no-op.
+   */
+  async lockSweepForSeason(seasonId: string) {
     const season = await this.loadSeason(seasonId);
     if (!season) throw new NotFoundException("Season not found");
 
     const members = await this.loadActiveMembers(seasonId);
     const personIds = members.map((m) => m.personId);
     if (personIds.length === 0) {
+      await this.db
+        .update(schema.seasons)
+        .set({ lastLockSweepAt: new Date(), updatedAt: new Date() })
+        .where(eq(schema.seasons.id, seasonId));
       return { seasonId, expiring: 0, expired: 0 };
     }
 
@@ -191,10 +207,13 @@ export class ComplianceSweepsController {
       }
     }
 
+    // Idempotency key intentionally omits Date.now() — re-running
+    // the sweep should NOT spam admins with another "complete"
+    // notification per cron pass. One row per season.
     void this.notify.queue({
       orgId: members[0]?.orgId ?? null,
       templateCode: "COMPLIANCE_SWEEP_COMPLETE",
-      idempotencyKey: `lock-sweep-${seasonId}-${Date.now()}`,
+      idempotencyKey: `lock-sweep-${seasonId}`,
       payload: {
         seasonId,
         expiring,
@@ -202,6 +221,11 @@ export class ComplianceSweepsController {
         sweepRunAt: now.toISOString()
       }
     });
+
+    await this.db
+      .update(schema.seasons)
+      .set({ lastLockSweepAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.seasons.id, seasonId));
 
     return { seasonId, expiring, expired };
   }

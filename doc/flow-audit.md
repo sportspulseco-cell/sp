@@ -294,11 +294,14 @@ Notifications is the most-finished surface — real provider, opt-outs, retry, p
 ## H. Compliance + audit
 
 ### H1. Compliance sweep at roster lock &nbsp;·&nbsp; ☑
-- [x] pg_cron (or manual `POST /compliance/eligibility/season/:id/lock-sweep`) runs at season's `roster_lock_at`.
+- [x] pg_cron `compliance-lock-sweep` runs hourly and POSTs to `/compliance/eligibility/cron/lock-sweep` with `X-Cron-Secret` (migration 0036).
+- [x] API finds seasons where `roster_lock_at <= now()` AND (`last_lock_sweep_at` IS NULL OR `last_lock_sweep_at < roster_lock_at`) and runs the sweep for each. Stamps `seasons.last_lock_sweep_at` so re-runs skip already-swept seasons.
+- [x] Manual fallback: `POST /compliance/eligibility/season/:id/lock-sweep` (SuperAdminGuard).
 - [x] Flags USA Hockey IDs expired or expiring within season window.
 - [x] Emails the player + captain (`USA_HOCKEY_EXPIRED`, `_EXPIRING_SOON`, `_EXPIRED_CAPTAIN`).
+- [x] `COMPLIANCE_SWEEP_COMPLETE` idempotency key fixed (was `lock-sweep-${seasonId}-${Date.now()}` — spammed admins on every cron pass; now stable per season).
 
-**Done:** sweep + emails. **Pending:** scheduled trigger of the lock-sweep at each season's roster_lock_at (today it runs manually or via admin button). **Not started:** none.
+**Done:** all six steps including the auto-trigger. **Pending:** none. **Not started:** none.
 
 ### H2. Playoff eligibility &nbsp;·&nbsp; ☑
 - [x] Admin / superadmin-web → `/compliance` → "Run playoff sweep" → 3 checks per active player.
@@ -375,7 +378,7 @@ Both jobs scheduled; one waiting on the API deploy + CRON_SECRET env to actually
 | 17 | **Org-admin extended actions** (assign captains, kick off setup, dispute resolution) | Today these require super-admin. | ~2 weeks |
 | 18 | **Email-verification roundtrip** | Today Supabase email_confirm is auto-true. Flipping `SUPABASE_REQUIRE_EMAIL_CONFIRM` requires a UI for "check your inbox" state. | ~3 days |
 | 19 | **Captain rollover wizard tester walk** (D2) | Code path exists for prior-roster import; no real human has walked it through on deployed apps. | 1 day |
-| 20 | **Compliance lock-sweep auto-trigger** (H1) | Today runs manually or via admin button. Should auto-fire at each season's `roster_lock_at` via pg_cron. | 1 day |
+| 20 | ~~Compliance lock-sweep auto-trigger~~ ☑ | **Done 2026-05-15** — pg_cron `compliance-lock-sweep` runs hourly (migration 0036). `seasons.last_lock_sweep_at` column added (migration 0035) for idempotency; spammy notification key fixed. | — |
 
 ---
 

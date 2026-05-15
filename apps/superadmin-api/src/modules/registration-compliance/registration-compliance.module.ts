@@ -6,9 +6,11 @@ import { RegistrationFormsController } from "./interface/registration-forms.cont
 import { RegistrationsController } from "./interface/registrations.controller";
 import { EligibilityController } from "./interface/eligibility.controller";
 import { ComplianceSweepsController } from "./interface/compliance-sweeps.controller";
+import { ComplianceCronController } from "./interface/compliance-cron.controller";
 import { DocumentsController } from "./interface/documents.controller";
 import { SelfComplianceController } from "./interface/self-compliance.controller";
 import { SelfRegistrationsController } from "./interface/self-registrations.controller";
+import { CronSecretGuard } from "../../shared/auth/guards/cron-secret.guard";
 
 import {
   ListFormsHandler,
@@ -63,11 +65,13 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
     RegistrationsController,
     EligibilityController,
     ComplianceSweepsController,
+    ComplianceCronController,
     DocumentsController,
     SelfComplianceController,
     SelfRegistrationsController
   ],
   providers: [
+    CronSecretGuard,
     // Forms
     ListFormsHandler,
     GetFormHandler,

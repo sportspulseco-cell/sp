@@ -220,6 +220,16 @@ export const seasons = pgTable(
       withTimezone: true
     }),
     rosterLockAt: timestamp("roster_lock_at", { withTimezone: true }),
+    /**
+     * Last time the compliance lock-sweep ran for this season.
+     * Set by the cron-driven sweep so subsequent runs can skip
+     * already-swept seasons. NULL = never swept. Compared against
+     * `rosterLockAt` to decide whether a re-sweep is due. See
+     * migration 0035 + the compliance-sweeps cron controller.
+     */
+    lastLockSweepAt: timestamp("last_lock_sweep_at", {
+      withTimezone: true
+    }),
     timezone: text("timezone").notNull().default("UTC"),
     status: text("status").notNull().default("draft"),
     /**
