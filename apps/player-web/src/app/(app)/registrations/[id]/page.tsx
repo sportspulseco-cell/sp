@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge, Eyebrow } from "@sportspulse/ui";
 import { registration } from "@/lib/api/server-api";
+import { LegacyDivisionPrompt } from "./legacy-division-prompt";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -78,6 +79,14 @@ export default async function RegistrationDetailPage({
         <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
         My registrations
       </Link>
+
+      {/* Legacy P2-2 prompt: registration has a season but no division. */}
+      {r.seasonId && !r.divisionId && r.availableDivisions && r.availableDivisions.length > 0 && (
+        <LegacyDivisionPrompt
+          registrationId={r.id}
+          divisions={r.availableDivisions}
+        />
+      )}
 
       {/* Hero */}
       <section

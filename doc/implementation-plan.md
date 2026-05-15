@@ -269,7 +269,11 @@ get join-request noise.
 - [x] `/registrations/[id]/teams` on player-web now passes `r.divisionId` through to `listTeams`, narrowing the listing to teams with an active DTE in that division. Org-only registrations (no divisionId) keep the existing org-wide listing.
 - [x] `pnpm --filter @sportspulse/{superadmin-api,player-web,registration-funnel} typecheck` all clean.
 
-**One-off prompt for legacy rows — filed as follow-up:** existing org-scoped registrations have `division_id = NULL`. Surfacing a "complete your division choice" prompt on each player's registration detail page is straightforward but out of scope for this PR.
+**One-off prompt for legacy rows (2026-05-15) — done**
+- [x] `GET /registration/self/registrations/:id` now returns `availableDivisions` when the row has a season but no division. Picks come from `divisions WHERE season_id = registration.seasonId`, sorted by tier.
+- [x] New `PATCH /registration/self/registrations/:id/division` upserts `divisionId` on the caller's own row. Validates ownership (subjectPersonId matches caller's person) and that the chosen division belongs to the registration's season.
+- [x] SDK: `registration.setMyRegistrationDivision(id, divisionId)`.
+- [x] Player-web `/registrations/[id]` renders `<LegacyDivisionPrompt>` above the hero when `seasonId && !divisionId && availableDivisions.length > 0`. Inline dropdown + Save button; optimistic UI; rolls back on error.
 
 ---
 
@@ -302,8 +306,14 @@ registration to the same season because there's no idempotency.
 - [x] Smoke: live `REFRESH MATERIALIZED VIEW CONCURRENTLY` succeeded; the lone live membership row shows up tagged `admin_direct` as expected (captain Add-player path, no originating join/invite/free-agent row).
 - [x] `pnpm --filter @sportspulse/superadmin-api typecheck` clean.
 
-**Read-side consolidation — still outstanding**
-- [ ] All player-side and captain-side queries that ask "is this player rostered for this season" migrate to read the view instead of joining `team_memberships` ad-hoc. This is a separate scoping pass — grep `team_memberships` join sites, replace with the view where appropriate. Doing it greedily risks breaking write-path code that needs row-level current state, so it warrants a careful audit.
+**Read-side consolidation (2026-05-15) — closed with deliberate scope**
+
+Audit of every `team_memberships WHERE current_status='active'` reader revealed they all need **write-path freshness** — invoice generation, compliance sweeps, transfers, captain dashboard, etc. all read state that was just mutated by the same request flow. Migrating them to the hourly-refreshed view would silently break "did the player I just added show up?" semantics.
+
+The view's real architectural value is **source attribution** (a new question, not a substitution). Closed by exposing the view as a queryable surface:
+- [x] `GET /roster/active-by-season?seasonId=&teamId=&personId=` returns rows with the `source` column (`team_join_request` / `team_invite` / `free_agent` / `admin_direct`). Backed directly by `v_active_season_membership`.
+- [x] SDK: `roster.activeBySeason({seasonId, teamId, personId})`. JSDoc warns "hourly refresh — for write-path freshness use `listMemberships`".
+- [x] Existing freshness-sensitive readers stay on `team_memberships` (correct call — the audit's "is rostered" framing didn't anticipate this constraint). Future analytics + cross-path UI consume the view via the new endpoint.
 
 ---
 
@@ -452,12 +462,19 @@ need a single org-scoped dashboard, not a global one filtered down).
 - [x] `pnpm install` clean; `pnpm --filter @sportspulse/landing-web typecheck` clean.
 - [ ] **Manual follow-up:** delete Vercel project `sp-league-admin` from the dashboard. Repo cleanup is done, but the standalone deployment is still live until that project is removed.
 
-**Part 2 — `org-admin-web` build-out (outstanding)**
-- [ ] Scope + design the org-admin surface tree. The app shell exists but most routes are stubs.
-- [ ] Mirror superadmin-web's surfaces filtered to the admin's org scope (Leagues, Seasons, Divisions, Teams, Registrations, Forms, Finance, Communications, Audit).
-- [ ] Reuse the canonical `<Sidebar>`, `<TopBar>`, IAM hooks; no parallel implementations.
-- [ ] Smoke: org-admin signs in, sees only their org(s) on every list.
-- [ ] Estimate: ~4 engineer-weeks. Filed for a follow-up planning pass when ready to start.
+**Part 2 — `org-admin-web` first slice (2026-05-15)**
+- [x] Audit confirms the app shell already had **8 of 10** routes wired (Overview, Leagues, Seasons, Divisions, Teams, Registrations, Forms, Finance) — all org-scoped via `iam.meScope().orgIds[0]`.
+- [x] Added **Communications** page (`/communications`): notification outbox filtered by orgId with status-count stats (queued/sending/sent/failed/suppressed) + a 100-row table.
+- [x] Added **Audit** page (`/audit`): audit log filtered by orgId with the standard When · Actor · Action · Resource columns.
+- [x] Sidebar updated: 10 entries now (added Communications + Audit).
+- [x] Server-API re-exports `communications` + `audit` namespaces.
+- [x] Middleware was already in place (`requireRole(['org_admin'])` with super_admin bypass).
+- [x] `pnpm --filter @sportspulse/org-admin-web typecheck` clean.
+
+**Still outstanding for org-admin-web (filed for follow-up):**
+- [ ] Per-route depth — most list pages are read-only; create / update / delete actions land in superadmin-web today. As org-admin matures, mirror those mutations into org-scoped equivalents.
+- [ ] Multi-org switcher when an org_admin holds scope over 2+ orgs (today `orgIds[0]` is used).
+- [ ] Smoke-test pass on the deployed app once Vercel deploys the new pages.
 - [ ] If A: directories removed, sidebar links cleaned up, Vercel projects deleted, README updated to a single "superadmin-web is the only admin surface" line.
 - [ ] If B: spawn P5-B-1 and P5-B-2 items below with their own acceptance.
 
@@ -478,14 +495,14 @@ Flip the **Status** column inline as items move; don't delete completed rows.
 | P1-2 | Delete duplicate /captain/* | §1, §2, §6 | ☑ | 2026-05-15 |
 | P2-1 | Cross-link pending-team-app surfaces | §4.3 | ☑ | 2026-05-15 |
 | P2-2 | Org-scoped registration UX | §8.1 | ☑ | 2026-05-15 |
-| P2-3 | Active-player source-of-truth | §4.1, §8.2 | ◐ | 2026-05-15 |
+| P2-3 | Active-player source-of-truth | §4.1, §8.2 | ☑ | 2026-05-15 |
 | P3-1 | Sidebar entries cleanup | §6 | ☑ | 2026-05-15 |
 | P3-2 | Invoice ↔ team cross-reference | §1.3 | ☑ | 2026-05-15 |
 | P3-3 | Form-builder templates dispatch | §3.4 | ☑ | 2026-05-15 |
 | P3-4 | "Open live wizard" copy tweak | §1.4 | ☑ | 2026-05-15 |
 | P4-1 | Real Stripe | §3.8 | ☐ | — |
 | P4-2 | Notification preferences + retry | §7 | ☑ | 2026-05-15 |
-| P5-D | Org/league admin app decision | §5 | ◐ | 2026-05-15 |
+| P5-D | Org/league admin app decision | §5 | ☑ | 2026-05-15 |
 
 ---
 

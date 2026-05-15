@@ -1503,8 +1503,27 @@ export function createApi(f: Fetcher) {
             leagueName: string | null;
             divisionName: string | null;
             teamName: string | null;
+            /**
+             * Populated when the registration has a season but no
+             * division (legacy org-only rows pre-P2-2). The player
+             * can pick one inline to retroactively assign — see
+             * setMyRegistrationDivision below.
+             */
+            availableDivisions: Array<{
+              id: string;
+              name: string;
+              tier: string | null;
+            }> | null;
           }
         >(`/registration/self/registrations/${id}`),
+      setMyRegistrationDivision: (id: string, divisionId: string) =>
+        f<{ id: string; divisionId: string }>(
+          `/registration/self/registrations/${id}/division`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ divisionId })
+          }
+        ),
       // Player → captain team-join requests (player applies to a team
       // after their season-level registration has been approved).
       applyToTeam: (body: {
@@ -1597,7 +1616,30 @@ export function createApi(f: Fetcher) {
         f<RosterMove>("/roster/moves/drop", {
           method: "POST",
           body: JSON.stringify(body)
-        })
+        }),
+      /**
+       * Source-attributed active-membership read backed by the
+       * `v_active_season_membership` materialized view. Each row
+       * carries `source` ∈ {team_join_request, team_invite,
+       * free_agent, admin_direct}. Hourly refresh — for write-path
+       * freshness use `listMemberships`.
+       */
+      activeBySeason: (q: {
+        seasonId?: string;
+        teamId?: string;
+        personId?: string;
+      }) =>
+        f<{
+          items: Array<{
+            membershipId: string;
+            personId: string;
+            seasonId: string;
+            teamId: string;
+            membershipType: string;
+            effectiveFrom: string;
+            source: string;
+          }>;
+        }>(`/roster/active-by-season${qs(q)}`)
     },
 
     gameOps: {

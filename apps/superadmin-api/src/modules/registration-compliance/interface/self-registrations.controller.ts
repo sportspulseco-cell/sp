@@ -1,14 +1,18 @@
 import {
+  Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
   Inject,
   NotFoundException,
   Param,
+  Patch,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { IsUUID } from "class-validator";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -248,6 +252,24 @@ export class SelfRegistrationsController {
       seasonName = s?.name ?? null;
     }
 
+    // P2-2 legacy-row follow-up: when the registration has a season
+    // but no division, surface the season's divisions so the player
+    // can pick one inline on the detail page.
+    let availableDivisions:
+      | Array<{ id: string; name: string; tier: string | null }>
+      | null = null;
+    if (seasonId && !row.r.divisionId) {
+      availableDivisions = await this.db
+        .select({
+          id: schema.divisions.id,
+          name: schema.divisions.name,
+          tier: schema.divisions.tier
+        })
+        .from(schema.divisions)
+        .where(eq(schema.divisions.seasonId, seasonId))
+        .orderBy(asc(schema.divisions.tier));
+    }
+
     const r = row.r;
     return {
       id: r.id,
@@ -272,7 +294,99 @@ export class SelfRegistrationsController {
       seasonName,
       leagueName: row.leagueName ?? null,
       divisionName: row.divisionName ?? null,
-      teamName: row.teamName ?? null
+      teamName: row.teamName ?? null,
+      availableDivisions
     } as unknown as RegistrationDto;
   }
+
+  /**
+   * Self-service assignment of a division on an existing registration
+   * that pre-dates the P2-2 funnel division step. Validates that:
+   *   - the registration belongs to the caller
+   *   - the chosen division belongs to the registration's season
+   * Once set, the partial unique index on (subject_person_id, season_id)
+   * — which already permits this row — continues to protect against
+   * duplicate active rows for the same player+season.
+   */
+  @Patch("registrations/:id/division")
+  @ApiOperation({
+    summary:
+      "Assign a division to the caller's own legacy registration. 404 if the row isn't theirs; 409 if the division doesn't belong to the registration's season."
+  })
+  async setMineDivision(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param("id") id: string,
+    @Body() body: SetDivisionBodyDto
+  ): Promise<{ id: string; divisionId: string }> {
+    const [person] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, principal.userId))
+      .limit(1);
+    if (!person) throw new NotFoundException("Registration not found");
+
+    const [reg] = await this.db
+      .select({
+        id: schema.registrations.id,
+        subjectPersonId: schema.registrations.subjectPersonId,
+        formVersionId: schema.registrations.formVersionId,
+        seasonId: schema.registrations.seasonId
+      })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, id))
+      .limit(1);
+    if (!reg) throw new NotFoundException("Registration not found");
+    if (reg.subjectPersonId !== person.id) {
+      throw new NotFoundException("Registration not found");
+    }
+
+    // Resolve the registration's season — column first, form fallback.
+    let resolvedSeasonId: string | null = reg.seasonId;
+    if (!resolvedSeasonId) {
+      const [fv] = await this.db
+        .select({ formId: schema.registrationFormVersions.formId })
+        .from(schema.registrationFormVersions)
+        .where(eq(schema.registrationFormVersions.id, reg.formVersionId))
+        .limit(1);
+      if (fv?.formId) {
+        const [form] = await this.db
+          .select({ seasonId: schema.registrationForms.seasonId })
+          .from(schema.registrationForms)
+          .where(eq(schema.registrationForms.id, fv.formId))
+          .limit(1);
+        resolvedSeasonId = form?.seasonId ?? null;
+      }
+    }
+
+    const [division] = await this.db
+      .select({ seasonId: schema.divisions.seasonId })
+      .from(schema.divisions)
+      .where(eq(schema.divisions.id, body.divisionId))
+      .limit(1);
+    if (!division) {
+      throw new NotFoundException("Division not found");
+    }
+    if (resolvedSeasonId && division.seasonId !== resolvedSeasonId) {
+      throw new ConflictException({
+        error: "division_season_mismatch",
+        message:
+          "That division belongs to a different season than this registration."
+      });
+    }
+
+    await this.db
+      .update(schema.registrations)
+      .set({
+        divisionId: body.divisionId,
+        seasonId: division.seasonId,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.registrations.id, id));
+
+    return { id, divisionId: body.divisionId };
+  }
+}
+
+class SetDivisionBodyDto {
+  @IsUUID() divisionId!: string;
 }

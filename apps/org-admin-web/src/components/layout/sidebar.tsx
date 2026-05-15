@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   Building2,
   CalendarRange,
+  FileBarChart,
   FileSignature,
   Layers,
   LayoutDashboard,
+  Mail,
   Network,
   ScrollText,
   Trophy,
@@ -32,7 +34,9 @@ const NAV: NavItem[] = [
   { href: "/teams", label: "Teams", icon: Network },
   { href: "/registrations", label: "Registrations", icon: ScrollText },
   { href: "/forms", label: "Forms", icon: FileSignature },
-  { href: "/finance", label: "Finance", icon: Wallet }
+  { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/communications", label: "Communications", icon: Mail },
+  { href: "/audit", label: "Audit", icon: FileBarChart }
 ];
 
 export function Sidebar() {

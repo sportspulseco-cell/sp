@@ -847,7 +847,7 @@ function DivisionStep({
   onBack,
   onNext
 }: {
-  divisions: Array<{ id: string; name: string; tier: number | null }>;
+  divisions: Array<{ id: string; name: string; tier: string | null }>;
   value: string | null;
   onChange: (id: string) => void;
   onBack: () => void;

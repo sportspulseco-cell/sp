@@ -37,7 +37,8 @@ export interface PricingTier {
 export interface PublicDivision {
   id: string;
   name: string;
-  tier: number | null;
+  /** Free-text tier label per `divisions.tier` (text column). */
+  tier: string | null;
 }
 
 export interface PublicSeasonContext {
