@@ -3,14 +3,34 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
 import { orgAdminTeams } from "@/lib/api/browser-api";
+
+// Mirrors the `public.sports` seed — same list as the new-league form
+// (BUG-019). Free-text sport code shipped 500s because the API FK is
+// case-sensitive UPPERCASE.
+const SPORTS: Array<{ value: string; label: string }> = [
+  { value: "HOCKEY_ICE", label: "Ice hockey" },
+  { value: "HOCKEY_FIELD", label: "Field hockey" },
+  { value: "SOCCER", label: "Soccer / football" },
+  { value: "BASKETBALL", label: "Basketball" },
+  { value: "BASEBALL", label: "Baseball" },
+  { value: "CRICKET", label: "Cricket" },
+  { value: "FUTSAL", label: "Futsal" },
+  { value: "HANDBALL", label: "Handball" },
+  { value: "LACROSSE", label: "Lacrosse" },
+  { value: "NETBALL", label: "Netball" },
+  { value: "RUGBY_LEAGUE", label: "Rugby league" },
+  { value: "RUGBY_UNION", label: "Rugby union" },
+  { value: "VOLLEYBALL", label: "Volleyball" },
+  { value: "AFL", label: "Australian rules football" }
+];
 
 export function NewTeamForm({ orgId }: { orgId: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [shortName, setShortName] = useState("");
-  const [sportCode, setSportCode] = useState("hockey");
+  const [sportCode, setSportCode] = useState("HOCKEY_ICE");
   const [logoUrl, setLogoUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +50,7 @@ export function NewTeamForm({ orgId }: { orgId: string }) {
       const res = await orgAdminTeams.create({
         orgId,
         name: name.trim(),
-        sportCode: sportCode.trim().toLowerCase(),
+        sportCode: sportCode.trim(),
         shortName: shortName.trim() || undefined,
         logoUrl: logoUrl.trim() || undefined
       });
@@ -63,16 +83,18 @@ export function NewTeamForm({ orgId }: { orgId: string }) {
           disabled={busy}
         />
       </Field>
-      <Field
-        label="Sport code"
-        hint="Must match a sport seeded on the platform (hockey, soccer, basketball…)."
-      >
-        <Input
+      <Field label="Sport" hint="Pick from the sports seeded on the platform.">
+        <Select
           value={sportCode}
           onChange={(e) => setSportCode(e.target.value)}
-          placeholder="hockey"
           disabled={busy}
-        />
+        >
+          {SPORTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
       </Field>
       <Field label="Logo URL (optional)">
         <Input

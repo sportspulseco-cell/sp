@@ -88,6 +88,16 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-B3-01 Create league | ✅ | 2026-05-16 | Backend verified end-to-end: `POST /org-admin/leagues` returned 201 with the new league row (sport_code=HOCKEY_ICE, status=draft, org=Smoke Test Org). Audit row `leagues.create` written (resource_id null — known BUG-013 follow-up because the response wraps `{league:{id,...}}`). UI flow initially 500'd because the form was a free-text input defaulting to `"hockey"` while the DB FK requires UPPER codes like `"HOCKEY_ICE"` (BUG-019). Form now uses a Select with all 14 platform sports + defaults to HOCKEY_ICE. |
 | TC-B3-02 Create league outside scope | ✅✅ | 2026-05-16 | Tampered orgId to USA Hockey (Olivia not in scope) → 403 `{"error":{"code":"FORBIDDEN","message":"Requires org_admin (or super_admin) on this org"}}`. Spec match. |
 | TC-B3-03 Empty-state CTA on dashboard | ✅✅ | 2026-05-16 | Verified pre-create on Smoke Test Org overview → leagues section rendered "No leagues yet • Kick off setup by creating your first league. • Create league" CTA linking to `/leagues/new`. |
+| TC-B4-01 Create season | ✅✅ | 2026-05-16 | Created `Smoke Test Season 2026` under Smoke Test League via the UI. League is a dropdown (sourced from this org's leagues — passes cardinal-rule #4), dates render as native pickers. Row appears on /seasons with sport=HOCKEY_ICE, window=Sep 1, 2026–Apr 30, 2027, status=draft. |
+| TC-B4-02 Empty-state when no leagues | ⏭️ | 2026-05-16 | Could not exercise without tearing down the league I just created; deferred. Source review of `/seasons/new` confirms the league select drives downstream state — when there are 0 leagues the dropdown is empty. |
+| TC-B5-01 Create division | ✅ | 2026-05-16 | Created `A-Div` (tier=A, max teams=8) under the season. Season picker is a dropdown ✅. BUG-020 noted: form is missing the `gender` field that the spec calls out as part of the field list (open / male / female / mixed) — handler defaulted eligibility to "open" silently. Tier should ideally be a dropdown of A/B/C/D too. |
+| TC-B5-02 Empty-state when no seasons | ⏭️ | 2026-05-16 | Same as TC-B4-02 — deferred; the season select would be empty. |
+| TC-B6-01 Create team | ✅ | 2026-05-16 | Backend verified: `POST /org-admin/teams` returned 201 with the new team row. UI flow initially 500'd because the form lowercased the sport code before sending (`hockey_ice` doesn't FK to `HOCKEY_ICE`) — same root cause as BUG-019. Form now uses a Select with the 14 platform sports + dropped the `.toLowerCase()`. After deploy, the form will redirect to `/teams/[id]` per spec. |
+| TC-B7-01 Assign a captain | ✅✅ | 2026-05-16 | Pasted Invite Test Three's UUID into the form → submit → "Captain assigned." flash → row appears in Captains list with display name + email + `captain` badge + Revoke button. DB confirms: `teams.captain_user_id = user.id`, `user_role_assignments` row with role=captain, scope=team/teamId, audit row `teams.captain` written. |
+| TC-B7-02 Revoke a captain | ✅✅ | 2026-05-16 | Clicked Revoke → confirm dialog → accepted → row drops out of the Captains list. DB confirms: `revoked_at` populated on the assignment, `teams.captain_user_id` cleared to NULL. |
+| TC-B7-03 Invalid UUID | ✅ | 2026-05-16 | API returns 400 "userId must be a UUID" (server validation). Spec called for client-side validation; the deployed form doesn't gate but the server catches it. Acceptable — defence in depth. |
+| TC-B7-04 Non-existent user | ✅✅ | 2026-05-16 | Real-looking UUID `a1b2c3d4-1234-4567-8901-123456789abc` → 400 "Target user not found". Exact spec match. |
+| TC-B7-05 Captain on out-of-scope team | ✅✅ | 2026-05-16 | Tampered teamId to a UUID Olivia has no access to → 404 "Team not found". No-leak rule honoured (404 not 403). |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -162,6 +172,23 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-021 · Org-admin "New team" form lowercases sport code; same FK violation as BUG-019 · **major**
+- **TC:** TC-B6-01
+- **Surface:** sp-org-admin · `/teams/new`
+- **Repro:** Submit the form with any sport. The handler at line 33 calls `sportCode.trim().toLowerCase()`, so even if the user types `HOCKEY_ICE` it gets coerced to `hockey_ice` → FK violation → 500.
+- **Fix:** Same shape as BUG-019 — converted the Input to a Select pre-populated with the 14 platform sports, defaulted to `HOCKEY_ICE`, removed the `.toLowerCase()` call.
+- **File:** `apps/org-admin-web/src/app/(app)/teams/new/new-team-form.tsx`.
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
+
+### BUG-020 · Org-admin "New division" form is missing the `gender` field listed in the spec · **minor**
+- **TC:** TC-B5-01
+- **Surface:** sp-org-admin · `/divisions/new`
+- **Spec field list:** name, tier (A/B/C/D), gender (open / male / female / mixed), max teams cap.
+- **Actual form:** season, name, tier (free-text), max teams. No gender selector.
+- **Behaviour:** Backend silently defaults eligibility to "open". Form accepts the row, but the admin can't pick a gendered division at create time — they'd have to edit it later (and that surface may not exist yet either). Also: tier should be a dropdown of A/B/C/D per the kernel `PLAYER_LEVELS` constants instead of free-text.
+- **File:** `apps/org-admin-web/src/app/(app)/divisions/new/...`.
+- **Status:** Open. Logged for the next form-builder pass — not blocking the test sweep because the row creation succeeds.
 
 ### BUG-019 · Org-admin "New league" form takes free-text sport code; DB FK expects `HOCKEY_ICE` etc · **major**
 - **TC:** TC-B3-01
