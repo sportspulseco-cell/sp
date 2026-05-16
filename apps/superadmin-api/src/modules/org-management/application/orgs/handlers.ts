@@ -81,6 +81,15 @@ export class CreateOrgHandler
     if (existing) {
       throw new ConflictError(`Org slug already taken: ${input.slug}`);
     }
+    // BUG-007 — surface a friendly 409 on duplicate legal name (case-
+    // insensitive, active rows only) instead of letting Postgres raise
+    // a unique_violation on migration 0040's partial index.
+    const dupLegalName = await this.orgs.findByLegalName(input.legalName);
+    if (dupLegalName) {
+      throw new ConflictError(
+        `Org legal name already taken: ${input.legalName}`
+      );
+    }
     const org = Org.create({
       id: OrgId.of(randomUUID()),
       slug: input.slug,
@@ -116,6 +125,17 @@ export class UpdateOrgHandler
   async execute(input: UpdateOrgInput): Promise<OrgDto> {
     const org = await this.orgs.findById(OrgId.of(input.id));
     if (!org) throw new NotFoundError("Org", input.id);
+    // BUG-007 — friendly 409 on rename collisions before the DB raises
+    // unique_violation on the partial index. Only check when the legal
+    // name is actually changing to a different active org.
+    if (input.legalName !== undefined) {
+      const dup = await this.orgs.findByLegalName(input.legalName);
+      if (dup && dup.id.value !== input.id) {
+        throw new ConflictError(
+          `Org legal name already taken: ${input.legalName}`
+        );
+      }
+    }
     if (input.legalName !== undefined || input.displayName !== undefined) {
       org.rename(input.legalName, input.displayName);
     }

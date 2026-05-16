@@ -33,6 +33,22 @@ export class DrizzleOrgRepository implements OrgRepository {
     return row ? this.toDomain(row) : null;
   }
 
+  async findByLegalName(legalName: string): Promise<Org | null> {
+    // Case-insensitive match (the unique partial index in migration
+    // 0040 is on LOWER(legal_name) WHERE deleted_at IS NULL).
+    const [row] = await this.db
+      .select()
+      .from(schema.orgs)
+      .where(
+        and(
+          sql`LOWER(${schema.orgs.legalName}) = LOWER(${legalName})`,
+          sql`${schema.orgs.deletedAt} IS NULL`
+        )
+      )
+      .limit(1);
+    return row ? this.toDomain(row) : null;
+  }
+
   async list(q: ListOrgsQuery): Promise<Page<Org>> {
     const cs = [];
     if (q.status) cs.push(eq(schema.orgs.status, q.status));

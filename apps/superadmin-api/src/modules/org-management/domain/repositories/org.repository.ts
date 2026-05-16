@@ -12,6 +12,13 @@ export interface ListOrgsQuery extends PageQuery {
 export interface OrgRepository {
   findById(id: OrgId): Promise<Org | null>;
   findBySlug(slug: string): Promise<Org | null>;
+  /**
+   * BUG-007 — used by CreateOrgHandler / UpdateOrgHandler to surface a
+   * friendly 409 before Postgres rejects on the partial unique index
+   * `orgs_legal_name_lower_unique` (migration 0040). Case-insensitive,
+   * skips soft-deleted rows.
+   */
+  findByLegalName(legalName: string): Promise<Org | null>;
   list(q: ListOrgsQuery): Promise<Page<Org>>;
   insert(org: Org): Promise<void>;
   save(org: Org): Promise<void>;
