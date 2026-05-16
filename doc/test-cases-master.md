@@ -69,7 +69,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A1-05/06/07 magic link / callback / session expiry | ⏭️ | 2026-05-16 | Skipped this run — magic link needs real inbox; session expiry needs JWT time-skip |
 | TC-A2-01 Create an organization | ✅✅ | 2026-05-16 | Pass after BUG-004/005/006 fixes deployed. Org `Smoke Test Org` exists in DB, audit row `orgs.create` written, list view shows the new row + KPI bumped to 4. |
 | TC-A2-02 Org uniqueness (slug + legal_name) | ✅✅ | 2026-05-16 | Both verified end-to-end on prod. Slug dup → 409 "Org slug already taken: smoke-test-org". Legal-name dup → 409 "Org legal name already taken: Smoke Test Org Inc." (BUG-007 + BUG-008 fixes both verified — human message renders inline, no raw JSON). |
-| TC-A3-01..03 Invite by email | ▶️ | 2026-05-16 | next |
+| TC-A3-01 Invite by email | ◐ | 2026-05-16 | User created in `auth.users`; BUG-009 (display_name → profiles) **fixed via migration 0041** + backfill. BUG-013 (no audit row for invite) — under investigation. BUG-011 (greeting parses display_name's first word as a single given name — minor) noted. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -144,6 +144,17 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-009 · Invited user's `display_name` not propagated to `profiles` · **major**
+- **TC:** TC-A3-01
+- **Surface:** super-admin · /users · Invite user dialog
+- **Repro:**
+  1. Invite a new email + display name "Invite Test One"
+  2. After submit, query `profiles` for the new user
+- **Expected:** `profiles.display_name = 'Invite Test One'`.
+- **Actual:** `display_name IS NULL`. The trigger `handle_new_user` (in Postgres) only inserts `(id, email)` and ignores `auth.users.raw_user_meta_data.display_name` even though the API DOES set that field via Supabase admin's `user_metadata: { display_name }`.
+- **Fix:** Migration `0041_handle_new_user_display_name.sql` rewrites the trigger to read `meta->>'display_name'` (plus `legal_first_name` / `legal_last_name` for symmetry with the self-registration funnel) and `NULLIF` empty-string. Backfill UPDATE applied for the existing test row.
+- **Status:** ✅ Trigger replaced + backfill applied. Re-test in next invite cycle.
 
 ### BUG-006 · Org-create slug pattern attribute throws SyntaxError under Chrome /v regex · **major**
 - **TC:** TC-A2-01
