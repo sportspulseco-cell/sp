@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,10 +34,21 @@ type DteItem = {
 };
 
 const STATUS_OPTIONS = [
+  // Captain-rollover applies land in pending_approval; this is the
+  // primary admin action queue. The list endpoint accepts comma-
+  // separated states, so we bundle pending_approval + applied as the
+  // default "needs decision" filter (BUG-025).
+  {
+    value: "pending_approval,applied",
+    label: "Needs decision (pending_approval + applied)"
+  },
+  { value: "pending_approval", label: "Pending approval" },
   { value: "applied", label: "Applied — awaiting threshold or admin" },
   { value: "accepted", label: "Accepted" },
   { value: "confirmed", label: "Confirmed" },
-  { value: "rejected", label: "Rejected" }
+  { value: "rejected", label: "Rejected" },
+  { value: "withdrawn", label: "Withdrawn" },
+  { value: "disqualified", label: "Disqualified" }
 ];
 
 export function DivisionApplicationsQueue({
@@ -45,13 +56,29 @@ export function DivisionApplicationsQueue({
 }: {
   initial: { items: DteItem[] };
 }) {
-  const [status, setStatus] = useState("applied");
+  const [status, setStatus] = useState("pending_approval,applied");
   const [items, setItems] = useState<DteItem[]>(initial.items);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<DteItem | null>(null);
+
+  async function confirmApprove(t: DteItem) {
+    setBusy(t.id);
+    setError(null);
+    try {
+      await adminTransfers.approveApplication(t.id);
+      setFlash(
+        `Approved ${t.teamName} → ${t.divisionName}. Captain can now run the rollover wizard.`
+      );
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function refresh() {
     setLoading(true);
@@ -172,7 +199,31 @@ export function DivisionApplicationsQueue({
                     {new Date(t.createdAt).toLocaleDateString()}
                   </TD>
                   <TD className="text-right">
-                    {t.entryStatus === "applied" ? (
+                    {t.entryStatus === "pending_approval" ? (
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => confirmApprove(t)}
+                          disabled={busy === t.id}
+                        >
+                          {busy === t.id ? (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="mr-1 h-3.5 w-3.5" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRejectTarget(t)}
+                          disabled={busy === t.id}
+                        >
+                          <X className="mr-1 h-3.5 w-3.5" /> Reject
+                        </Button>
+                      </div>
+                    ) : t.entryStatus === "applied" ? (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -254,7 +305,8 @@ function statusTone(
   s: string
 ): "neutral" | "success" | "warning" | "danger" | "info" {
   if (s === "confirmed") return "success";
-  if (s === "rejected") return "danger";
-  if (s === "applied") return "warning";
+  if (s === "rejected" || s === "disqualified") return "danger";
+  if (s === "applied" || s === "pending_approval") return "warning";
+  if (s === "withdrawn") return "neutral";
   return "info";
 }

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DivisionApplicationsPage() {
   const initial = await adminTransfers
-    .listDivisionEntries({ status: "applied" })
+    .listDivisionEntries({ status: "pending_approval,applied" })
     .catch(() => ({ items: [] }));
 
   return (
