@@ -25,7 +25,7 @@ export default async function AdminLayout({
     .single();
 
   if (!profile?.is_super_admin) {
-    redirect("/sign-in?error=not_authorized");
+    redirect("/sign-in?error=wrong_role");
   }
 
   return (

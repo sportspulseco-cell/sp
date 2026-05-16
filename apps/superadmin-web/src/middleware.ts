@@ -40,6 +40,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
   if (user && request.nextUrl.pathname === "/sign-in") {
+    // If a downstream guard bounced the user here with ?error=… (e.g.
+    // the (admin) layout redirecting on not_authorized), do NOT loop
+    // them back to /dashboard. Let them see the sign-out + retry UI
+    // on the sign-in page. Without this skip, the layout's redirect
+    // chains into middleware→layout→middleware and ends up rendering
+    // a blank /dashboard?error=not_authorized (BUG-002 from
+    // doc/test-cases-master.md).
+    if (request.nextUrl.searchParams.has("error")) {
+      return response;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.searchParams.delete("next");

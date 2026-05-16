@@ -62,8 +62,10 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 
 | TC | Status | Last run | Notes / Bug ref |
 |---|---|---|---|
-| TC-A1-01 Super-admin sign-in | 🔁 | 2026-05-16 | Pass with BUG-001 found in same walk — pending re-verify after deploy |
-| TC-A1-02 Wrong password | ▶️ | 2026-05-16 | next |
+| TC-A1-01 Super-admin sign-in | ✅✅ | 2026-05-16 | Pass; BUG-001 re-verified on localhost (commit 5b47e8d) |
+| TC-A1-02 Wrong password | ✅ | 2026-05-16 | Pass; inline "Invalid login credentials" alert renders |
+| TC-A1-03 Wrong role | ✅✅ | 2026-05-16 | Pass post-fix; BUG-002 + BUG-003 fixed + verified on localhost |
+| TC-A1-04 Sign-out clears every app | ▶️ | 2026-05-16 | next |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -78,7 +80,31 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Expected:** "Sign in" (or similar) because the form calls `signInWithPassword`.
 - **Actual:** Button label reads "Send sign-in link", which implies a magic-link flow but the form actually submits the password.
 - **File:** `apps/superadmin-web/src/components/auth/sign-in-form.tsx` line 115 — string replaced with "Sign in" (the `signInWithPassword` call wasn't touched).
-- **Status:** Fixed locally — needs deploy + re-verify.
+- **Status:** ✅✅ Fixed in commit `5b47e8d` — verified on localhost:4001 (button reads "Sign in"). Pending push + deploy to sp-superadmin.vercel.app.
+
+### BUG-002 · Wrong-role sign-in to super-admin app → redirect loop / blank dashboard · **major**
+- **TC:** TC-A1-03
+- **Surface:** super-admin · post-sign-in
+- **Repro:**
+  1. Visit `https://sp-superadmin.vercel.app/sign-in`
+  2. Sign in as a user who is NOT super-admin (e.g. the org-admin smoke account)
+  3. Observe the URL after Supabase auth completes
+- **Expected:** Bounced to `/sign-in?error=wrong_role` with a banner + a sign-out CTA so the user can switch accounts.
+- **Actual:** URL ends up at `/dashboard?error=not_authorized` with an empty page. The `(admin)` layout calls `redirect("/sign-in?error=not_authorized")`, the middleware sees a signed-in user heading to `/sign-in` and redirects back to `/dashboard`, looping until Next.js bails. User is stuck — no sign-out button visible.
+- **Files:**
+  - `apps/superadmin-web/src/middleware.ts` — skip the `/sign-in → /dashboard` redirect when an `error` query param is present.
+  - `apps/superadmin-web/src/components/auth/sign-in-form.tsx` — when the user is signed in AND `?error=wrong_role|not_authorized`, render a "Currently signed in as X" panel with a Sign-out button instead of the empty sign-in form.
+- **Status:** ✅✅ Fixed locally — verified on localhost:4001 (URL = `/sign-in?error=wrong_role`, banner renders, sign-out button works, signing out drops the session and the form returns to its default state).
+
+### BUG-003 · Super-admin wrong-role error code inconsistent with the other three role apps · **minor consistency**
+- **TC:** TC-A1-03
+- **Surface:** super-admin · (admin) layout
+- **Repro:** Compare the redirect target on super-admin (`?error=not_authorized`) vs the other three apps which all use `?error=wrong_role` (from `requireRole` in `@sportspulse/auth/web`).
+- **Expected:** All four apps use the same `?error=wrong_role` token so testers and copy stay in lockstep.
+- **Files:**
+  - `apps/superadmin-web/src/app/(admin)/layout.tsx` — redirect now uses `?error=wrong_role`.
+  - `apps/superadmin-web/src/components/auth/sign-in-form.tsx` — `ERROR_MESSAGES` now contains both `wrong_role` (canonical) and `not_authorized` (kept as alias for any stale links).
+- **Status:** ✅✅ Fixed in same commit as BUG-002. Verified on localhost — URL post-bounce is `/sign-in?error=wrong_role`.
 
 ---
 
