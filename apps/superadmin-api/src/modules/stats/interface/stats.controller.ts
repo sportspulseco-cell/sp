@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -110,6 +111,12 @@ export class StatsController {
     @Query("leagueId") leagueId: string,
     @Query("divisionId") divisionId?: string
   ) {
+    // Require leagueId at the boundary so a missing query doesn't
+    // crash the downstream JOIN as a 500 (BUG-032). Returns a clean
+    // 400 with the param name the caller forgot.
+    if (!leagueId) {
+      throw new BadRequestException("leagueId query parameter is required");
+    }
     return this.teamStandingH.execute({ teamId, leagueId, divisionId });
   }
 
