@@ -202,23 +202,39 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
 
-### BUG-031 · `GET /finance/invoices/list` route swallowed by `:id` UUID cast · **minor**
+### BUG-033 · `/compliance/eligibility/precheck` 500s with valid params · **major (open)**
+- **TC:** TC-F1-03 alt path (captain "Add player" precheck modal)
+- **Surface:** sp-api · `ComplianceController.precheck`
+- **Repro:** `GET /compliance/eligibility/precheck?personId=<valid>&divisionId=<valid>&teamId=<valid>` returns `500 INTERNAL_ERROR` even when all three params reference existing rows. Tested with Mike Patterson + Pro 25 Men + Boston Gold Kings.
+- **Diagnosis:** A diag try/catch was added (commit 21d9b16) but Vercel's free-tier daily deploy limit (100/day) was exhausted before the diag could land. The diag commit has been reverted on `main` so it won't slip into prod when the limit resets.
+- **Status:** Open. Re-add the diag wrapper in the next session and surface the underlying pg error. Likely candidates: a Date binding pattern matching BUG-023 / BUG-031 (raw `sql\`COUNT(*)::int\`` is fine; nothing else uses raw sql in this handler — so possibly somewhere upstream in DB/connection).
+
+### BUG-032 · `/stats/team/:teamId` 500 when `leagueId` query missing · **minor**
+- **TC:** TC-L (smoke)
+- **Surface:** sp-api · `StatsController.teamStanding`
+- **Observation:** Handler signature `@Query("leagueId") leagueId: string` doesn't validate or default; passing only `teamId` results in 500 instead of 400. Returns 200 correctly when `leagueId` is supplied.
+- **Status:** Open. One-line `class-validator` fix on the query DTO.
+
+### BUG-031 · `GET /finance/invoices` 500 — raw `sql\`= ANY(${ids})\`` binding · **major**
 - **TC:** TC-H1-01
-- **Surface:** sp-api · `FinanceController`
-- **Observation:** The list path `GET /finance/invoices?orgId=…` 500s because `invoices` was tried as a UUID by the `/finance/:id` route. The working list endpoint is `GET /finance/admin/invoices?orgId=…`. Comment in source notes this: "Renamed from /invoices/list — that path was eaten by the sibling /invoices/:id route."
-- **Status:** Documented. Working endpoint exists. Org-admin web app uses the correct path.
+- **Surface:** sp-api · `DrizzleFinanceRepository.listInvoices`
+- **Repro:** `GET /finance/invoices?orgId=…&limit=5` returned 500 INTERNAL_ERROR.
+- **Root cause:** Same pattern as BUG-023 — the invoice-items inner query used a raw `sql\`${col} = ANY(${ids})\`` template, binding a JS array directly into a Postgres array param. node-postgres rejected the binding shape. Drizzle's typed `inArray` helper serialises string[] correctly into ANY().
+- **Fix:** Replaced with `inArray(schema.invoiceItems.invoiceId, ids)`. Confirmed list endpoint now returns 200 with the expected invoice payload.
+- **File:** `apps/superadmin-api/src/modules/finance/infrastructure/repositories/drizzle-finance.repository.ts` line 145.
+- **Status:** ✅ Fixed + deployed (commit 909dbe1).
 
 ### BUG-030 · Lineup not auto-locked when `POST /games/:id/start` fires · **major**
 - **TC:** TC-G2-03 / TC-G2-04
-- **Surface:** sp-api · `StartPlayHandler`
+- **Surface:** sp-api · `LineupsController.upsert`
 - **Repro:**
   1. Create a scheduled game, then `POST /games/:id/start`.
   2. Fetch `GET /games/:gameId/lineups/:teamId` — `lockedAt` is still null.
   3. `PUT` a new lineup against the same game — returns 200 (should be 409 "Lineup locked").
-- **Expected:** Per the spec, "Auto-lock fires (StartPlayHandler). `game_lineups.locked_at` populated. Captain editor disables every input + shows lock badge." Any subsequent lineup PUT should 409.
-- **Actual:** Game status flips to `in_play` but `game_lineups.locked_at` stays null and the lineup PUT path doesn't enforce a lock. Captains could keep mutating lineups mid-game.
-- **File:** `apps/superadmin-api/src/modules/game-operations/application/games/handlers.ts` (StartPlayHandler) and the lineup PUT handler.
-- **Status:** Open. Not blocking the smoke sweep — game-state transitions work otherwise — but a correctness bug that should be closed before competitive play.
+- **Root cause:** `StartPlayHandler` does stamp `game_lineups.locked_at` on every existing row when the game flips to `in_play`. But it only matches rows that already exist. When a captain hadn't submitted a lineup before start, the start handler had no row to update — and the subsequent PUT created a fresh row with `lockedAt=null`, slipping past the existing lock check.
+- **Fix:** Added a second gate in `LineupsController.upsert` that refuses any lineup write when `game.status` is not `scheduled` or `postponed`. Now whether or not an existing row exists, post-start PUTs return 409 with `error: lineup_locked` + the current game.status in the body.
+- **File:** `apps/superadmin-api/src/modules/game-operations/interface/lineups.controller.ts`.
+- **Status:** ✅ Fixed + deployed (commit b76a644). Verified end-to-end: PUT against a completed game returns 409 with the lock message.
 
 ### BUG-029 · `GET /games/:id` 404s team-scoped users for games on their team · **major**
 - **TC:** TC-G2-01
@@ -229,11 +245,11 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File:** `apps/superadmin-api/src/modules/game-operations/interface/games.controller.ts`.
 - **Status:** ✅ Fixed + deployed.
 
-### BUG-028 · Missing resend-reminder endpoint on `registration-v2/team-invites` · **minor**
-- **TC:** TC-F1-05 (alt path)
-- **Surface:** sp-api · `registration-v2/team-invites` controller
-- **Observation:** The team-invites controller exposes GET + POST + PATCH-revoke but NO "remind" endpoint. The remind action is implemented on `/captain/roster/:teamId/remind/:inviteId` instead, which works fine and enforces 24h cooldown (✅). The duplication is fine; we just shouldn't expect `registration-v2/team-invites/:id/remind` to exist.
-- **Status:** Open. Not blocking — captain-roster endpoint handles remind end-to-end with cooldown.
+### BUG-028 · Spec mismatch on remind endpoint location — **NOT A BUG**
+- **TC:** TC-F1-05
+- **Surface:** sp-api · team-invites
+- **Re-check:** The remind endpoint IS implemented at `POST /captain/roster/:teamId/remind/:inviteId` (verified live: returns 409 "Wait 24h between resends" when called immediately after the initial invite — exactly the spec's required behaviour). My original log incorrectly assumed the endpoint had to live on `/registration-v2/team-invites`. The captain-roster path is the correct location since invite reminders are captain-initiated workflows.
+- **Status:** Invalid — closed.
 
 ### BUG-027 · `/iam/persons` requires super-admin, breaking captain "Add player" picker · **major**
 - **TC:** TC-F1-03
@@ -256,13 +272,11 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **TC:** TC-C4-02, TC-E3-01
 - **Surface:** super-admin · `/division-applications`
 - **Repro:**
-  1. Captain submits an application via `/captain/register` (state lands as `pending_approval` in `division_team_entries`).
-  2. Super-admin opens `/division-applications`.
-  3. The state filter dropdown only offers `Applied / Accepted / Confirmed / Rejected` — the new `pending_approval` row is invisible and impossible to approve from this UI.
-- **Expected:** "Awaiting admin approval" filter option that lists `pending_approval` entries, OR the default filter includes that state alongside `applied`.
-- **Actual:** The newer `pending_approval` state from the captain-side rollover doesn't appear in the page's filter set. The matching admin API (`/admin/division-team-entries/:id/approve`) works fine and was used to unblock TC-E3-01 — but no admin can reach it from this UI.
-- **File:** `apps/superadmin-web/src/app/(admin)/division-applications/...` (filter dropdown + server query).
-- **Status:** Open. Workaround: super-admin calls the approve API directly.
+  1. Captain submits an application via `/captain/register` (state lands as `pending_approval`).
+  2. Super-admin opens `/division-applications` — only Applied / Accepted / Confirmed / Rejected appear in the filter.
+- **Fix:** Default filter now bundles `pending_approval,applied` (the backend list endpoint accepts comma-separated states). Added a dedicated "Pending approval" filter option, plus Withdrawn and Disqualified for completeness. `pending_approval` rows now render with both an Approve button (wired to the existing `/admin/division-team-entries/:id/approve` endpoint) and a Reject button. Approved rows transition to `applied` and stay visible under the same default filter for as long as the captain hasn't run setup yet.
+- **File:** `apps/superadmin-web/src/app/(admin)/division-applications/queue.tsx` + `page.tsx`.
+- **Status:** ✅ Fixed + deployed (commit 1dbcba5).
 
 ### BUG-024 · Captain `/captain/invites` season dropdown empty because form reads `scope.orgIds[0]` · **major**
 - **TC:** TC-F1-04
@@ -307,14 +321,11 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File:** `apps/org-admin-web/src/app/(app)/teams/new/new-team-form.tsx`.
 - **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
 
-### BUG-020 · Org-admin "New division" form is missing the `gender` field listed in the spec · **minor**
+### BUG-020 · Division form gender field reported missing — **INVALID** (false positive)
 - **TC:** TC-B5-01
 - **Surface:** sp-org-admin · `/divisions/new`
-- **Spec field list:** name, tier (A/B/C/D), gender (open / male / female / mixed), max teams cap.
-- **Actual form:** season, name, tier (free-text), max teams. No gender selector.
-- **Behaviour:** Backend silently defaults eligibility to "open". Form accepts the row, but the admin can't pick a gendered division at create time — they'd have to edit it later (and that surface may not exist yet either). Also: tier should be a dropdown of A/B/C/D per the kernel `PLAYER_LEVELS` constants instead of free-text.
-- **File:** `apps/org-admin-web/src/app/(app)/divisions/new/...`.
-- **Status:** Open. Logged for the next form-builder pass — not blocking the test sweep because the row creation succeeds.
+- **Re-check:** The form DOES have a `Gender eligibility` field rendered as four button toggles (open / male / female / mixed). My original detection script counted only `<input>` and `<select>` elements and missed the button group. Form behaviour is correct end-to-end.
+- **Status:** Invalid — closed.
 
 ### BUG-019 · Org-admin "New league" form takes free-text sport code; DB FK expects `HOCKEY_ICE` etc · **major**
 - **TC:** TC-B3-01
