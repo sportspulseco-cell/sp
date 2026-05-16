@@ -119,6 +119,18 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Files:** `apps/superadmin-api/src/modules/registration-compliance/interface/self-registrations.controller.ts` — moved `class SetDivisionBodyDto` above the controller class.
 - **Status:** ✅ Fixed locally. Confirmed via `pnpm --filter @sportspulse/superadmin-api build` + `node dist/main.js` — Nest now boots: "Nest application successfully started". Pending push + Vercel redeploy.
 
+### BUG-006 · Org-create slug pattern attribute throws SyntaxError under Chrome /v regex · **major**
+- **TC:** TC-A2-01
+- **Surface:** super-admin · /organizations · Create org dialog
+- **Repro:**
+  1. Open the Create-org dialog
+  2. Open DevTools console
+  3. Observe: `Pattern attribute value ^[a-z0-9-]{2,60}$ is not a valid regular expression: Invalid regular expression: /^[a-z0-9-]{2,60}$/v: Invalid character class`
+- **Expected:** Pattern compiles silently.
+- **Actual:** Chrome's HTML pattern attribute now uses the /v unicode flag. Under /v, a literal `-` inside a character class must be escaped or first/last — `[a-z0-9-]` is rejected.
+- **File:** `apps/superadmin-web/src/components/orgs/create-org-button.tsx` line 119 — pattern changed from `^[a-z0-9-]{2,60}$` to `^[-a-z0-9]{2,60}$`.
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
+
 ### BUG-005 · FinanceModule + RegistrationComplianceModule DI graphs broken · **blocker**
 - **TC:** TC-A2-01 (revealed during sp-api boot after fixing BUG-004)
 - **Surface:** sp-api boot

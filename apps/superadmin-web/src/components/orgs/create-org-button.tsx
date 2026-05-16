@@ -116,7 +116,7 @@ function CreateOrgDialog({
             <Input
               id="slug"
               required
-              pattern="^[a-z0-9-]{2,60}$"
+              pattern="^[-a-z0-9]{2,60}$"
               value={form.slug}
               onChange={(e) => set("slug", e.target.value.toLowerCase())}
               placeholder="toronto-hockey"
