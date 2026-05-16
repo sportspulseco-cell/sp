@@ -1,4 +1,13 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
+import {
+  Children,
+  cloneElement,
+  forwardRef,
+  isValidElement,
+  useId,
+  type InputHTMLAttributes,
+  type ReactElement,
+  type ReactNode
+} from "react";
 import { cn } from "./lib/cn";
 
 export const Input = forwardRef<
@@ -26,7 +35,7 @@ export function Label({
   className
 }: {
   htmlFor?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -39,6 +48,12 @@ export function Label({
   );
 }
 
+/**
+ * Form field with an auto-bound `id` so the visible label is exposed
+ * via accessible-name. Caller can still pass an explicit `htmlFor` to
+ * override (multi-input fields), in which case nothing is auto-bound.
+ * Single-child convention keeps the cloneElement safe.
+ */
 export function Field({
   label,
   htmlFor,
@@ -48,12 +63,26 @@ export function Field({
   label: string;
   htmlFor?: string;
   hint?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
+  const autoId = useId();
+  const id = htmlFor ?? autoId;
+
+  let body: ReactNode = children;
+  if (!htmlFor && isValidElement(children)) {
+    const only = Children.only(children) as ReactElement<{
+      id?: string;
+      "aria-label"?: string;
+    }>;
+    if (!only.props.id) {
+      body = cloneElement(only, { id });
+    }
+  }
+
   return (
     <div className="space-y-2">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
+      <Label htmlFor={id}>{label}</Label>
+      {body}
       {hint ? <p className="text-xs text-fg-muted">{hint}</p> : null}
     </div>
   );
