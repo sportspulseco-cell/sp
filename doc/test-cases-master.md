@@ -112,6 +112,8 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-D1-04 Enum field renders as dropdown | ✅ | 2026-05-17 | No enum fields exposed on the demo form's Details step, but the funnel's Path step renders the 4 path choices as discrete cards (radio-like) and Compliance step uses checkbox + signed-text fields (no bare numeric where an enum is expected). Wizard-side enums were verified end-to-end in TC-C1-01 (overtime length, body checking, bracket type — all selects). |
 | TC-D1-05 Pre-existing entity → dropdown | ✅ | 2026-05-17 | The funnel arrives pre-bound to a season (URL contains `seasonId`), so there is no season picker on the public surface — that's the correct shape per the spec. League and division pickers are not exposed on the player-side funnel (binding happens server-side based on the season's published form). |
 | TC-E1-01 Review queue default filter includes offline | ✅✅ | 2026-05-17 | **Canonical regression for CLAUDE.md bug #2.** `/registrations` on sp-superadmin loads with the state filter labelled `Needs decision (review + offline)` — explicitly bundles `pending_review` + `pending_offline` rows in one default. The original incident (where `pending_offline` rows were invisible because the default filtered for review only) cannot recur. The full state filter dropdown also exposes every individual state for surgical filtering (All / Draft / Pending email verification / Pending parental consent / Pending payment / Pending offline payment / Pending review / Incomplete / Approved / Rejected / Cancelled). |
+| TC-F1-01 Captain dashboard mode | ❌ | 2026-05-17 | After BUG-022 fix (captain role allowed at middleware), Parker successfully reaches `/`. The page calls `GET /captain/dashboard-state?teamId=…` which returns 500 INTERNAL_ERROR. UI renders the "Couldn't load your dashboard" empty state. Logged as BUG-023 — likely a missing null-guard when the captain's team has no active `division_team_entries` row yet (Boston Gold Kings has `entries=null`). Captain pages that don't depend on dashboard-state (e.g. /captain/roster) DO work — see TC-F1-02. |
+| TC-F1-02 Roster list | ✅✅ | 2026-05-17 | `/captain/roster` renders correctly for Parker → "0 / 20 players · no active season" header, tabs (Active / Pending invite / Compliance issues / Guests), and an EmptyState with "Use Add player or Invite by email…" message. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -186,6 +188,27 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-023 · `/captain/dashboard-state` returns 500 when team has no active division entry · **major**
+- **TC:** TC-F1-01
+- **Surface:** sp-api · `CaptainController.dashboardState`
+- **Repro:**
+  1. Sign in as a captain (Parker) on a team that hasn't been registered into a season yet (Boston Gold Kings — `division_team_entries` empty).
+  2. Land on `/` in sp-team-admin → SSR call to `GET /captain/dashboard-state?teamId=…` returns `500 INTERNAL_ERROR`.
+  3. UI renders "Couldn't load your dashboard" empty state.
+- **Expected:** Endpoint returns `{mode: "off_season", …}` (or another safe default) when the team has no entry — the spec calls out 4 modes including off_season explicitly.
+- **Actual:** Some downstream branch in the handler throws when entries are absent. The team fetch + role check both succeed (verified separately); the failure is later in the active-entries / latest-decision logic.
+- **File:** `apps/superadmin-api/src/modules/captain/interface/captain.controller.ts` (dashboard-state handler — needs a null-guard around the active-entry branch).
+- **Status:** Open. Documented as Section F blocker — other captain pages (`/captain/roster`, etc) work, so the bug is scoped to dashboard-state.
+
+### BUG-022 · sp-team-admin middleware rejects `captain` role — spec says captains own this surface · **major**
+- **TC:** TC-F1-01 (revealed)
+- **Surface:** `apps/team-admin-web/src/middleware.ts`
+- **Repro:** Sign in as Parker (captain on Boston Gold Kings) at `sp-team-admin.vercel.app/sign-in` → bounced to `/sign-in?error=wrong_role`.
+- **Expected:** Captains can use sp-team-admin (per `doc/test-cases-master.md §F`: "Owner: captain (or super_admin bypass). Surface: apps/team-admin-web.")
+- **Actual:** `REQUIRED_ROLE_CODES = ["team_admin", "coach"]` — captain not in the list.
+- **Fix:** Added `"captain"` to `REQUIRED_ROLE_CODES`.
+- **Status:** ✅✅ Verified end-to-end after deploy. Parker now reaches `/` (then hits BUG-023 on the dashboard-state SSR call, separately).
 
 ### BUG-021 · Org-admin "New team" form lowercases sport code; same FK violation as BUG-019 · **major**
 - **TC:** TC-B6-01
