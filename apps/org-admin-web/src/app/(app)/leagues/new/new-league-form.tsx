@@ -3,10 +3,32 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
 import { orgAdminLeagues } from "@/lib/api/browser-api";
 
 type Format = "regular" | "tournament" | "pickup" | "friendly";
+
+// Mirror of the platform `sports` seed (codes are case-sensitive and
+// FK'd from `leagues.sport_code`). Free-text input here ships 500s
+// because users type "hockey" / "Hockey" — see BUG-019. Keep in sync
+// with `packages/db/migrations/*` and the SA create-league dialog
+// until we expose a public `/sports` endpoint.
+const SPORTS: Array<{ value: string; label: string }> = [
+  { value: "HOCKEY_ICE", label: "Ice hockey" },
+  { value: "HOCKEY_FIELD", label: "Field hockey" },
+  { value: "SOCCER", label: "Soccer / football" },
+  { value: "BASKETBALL", label: "Basketball" },
+  { value: "BASEBALL", label: "Baseball" },
+  { value: "CRICKET", label: "Cricket" },
+  { value: "FUTSAL", label: "Futsal" },
+  { value: "HANDBALL", label: "Handball" },
+  { value: "LACROSSE", label: "Lacrosse" },
+  { value: "NETBALL", label: "Netball" },
+  { value: "RUGBY_LEAGUE", label: "Rugby league" },
+  { value: "RUGBY_UNION", label: "Rugby union" },
+  { value: "VOLLEYBALL", label: "Volleyball" },
+  { value: "AFL", label: "Australian rules football" }
+];
 
 const FORMAT_OPTIONS: Array<{ value: Format; label: string; hint: string }> = [
   {
@@ -40,7 +62,7 @@ export function NewLeagueForm({
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [sportCode, setSportCode] = useState("hockey");
+  const [sportCode, setSportCode] = useState("HOCKEY_ICE");
   const [format, setFormat] = useState<Format>("regular");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,9 +74,9 @@ export function NewLeagueForm({
       setError("League name is required (min 2 characters).");
       return;
     }
-    const code = sportCode.trim().toLowerCase();
+    const code = sportCode.trim();
     if (code.length < 2) {
-      setError("Sport code is required (e.g. hockey, soccer).");
+      setError("Pick a sport.");
       return;
     }
     setBusy(true);
@@ -88,15 +110,20 @@ export function NewLeagueForm({
         />
       </Field>
       <Field
-        label="Sport code"
-        hint="Short identifier — must match a sport already seeded on the platform (hockey, soccer, basketball, etc)."
+        label="Sport"
+        hint="Pick from the sports configured on the platform."
       >
-        <Input
+        <Select
           value={sportCode}
           onChange={(e) => setSportCode(e.target.value)}
-          placeholder="hockey"
           disabled={busy}
-        />
+        >
+          {SPORTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
       </Field>
       <Field label="Format" hint="Drives later schedule + playoff defaults.">
         <div className="grid gap-2 sm:grid-cols-2">

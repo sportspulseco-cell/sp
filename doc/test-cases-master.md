@@ -80,6 +80,14 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A7-01 Audit log records every mutation | ✅✅ | 2026-05-16 | /audit page renders the append-only ledger with KPI tiles (Recent events 100, Last 24h 34, Distinct actors 2, Resource types 22). Every mutation we ran in this sweep is recorded: `invite.create`, `users.role-profile`, `role-assignments.create`, `role-assignments.revoke`, `cross-org-grants.create`, `users.suspend`, `orgs.create`. Cross-surface check on `/audit` inside org-admin-web pending (need Olivia sign-in). |
 | TC-A7-02 Audit log filter | ✅✅ | 2026-05-16 | Applied `?action=users.suspend` filter → KPIs narrow correctly (Recent events 1, Last 24h 1, Distinct actors 1, Resource types 1), timeline shows only suspend rows, "Clear filters" button surfaces. Filter UI exposes both resource-type and action dropdowns. |
 | TC-A7-03 Audit detail view | ✅✅ | 2026-05-16 | Clicked Inspect → detail page (`/audit/[id]`) renders metadata block (Actor, IP, UA, retention class, request id) + Before / After JSON blocks. `users.suspend` row shows Before=— (handler doesn't capture pre-state — minor data-quality gap, not crash) and After= the full ProfileDto with `status:"suspended"`. Null-guard works — `resourceId` cleanly omitted on actions that have no resource id. |
+| TC-B1-01 Org-admin sign-in | ✅✅ | 2026-05-16 | Olivia OrgAdmin signs in at sp-org-admin → lands on `/` overview → KPI tiles show PPHL data (3 active leagues, 4 total). Email/Password inputs have accessible names. |
+| TC-B1-02 No-roles user bounces | ✅ | 2026-05-16 | Signed in as Invite Test Three (no org_admin role) → bounced to `/sign-in?error=wrong_role` (mirrors superadmin pattern). Spec said "/onboarding or empty-state" but the implementation reuses the wrong-role bounce, which is functionally equivalent (user is blocked, given a clear signal). Noted as spec deviation, not a bug. |
+| TC-B2-01 Active-org switcher | ✅✅ | 2026-05-16 | Granted Olivia a second org_admin role on Smoke Test Org → after re-sign-in the topbar renders "org_admin · 2 orgs" with a `<select>` showing PPHL + Smoke Test Org. Switching to Smoke Test Org refreshes the overview banner + KPIs + leagues table to the new org. |
+| TC-B2-02 Switcher hidden when ≤1 org | ✅ | 2026-05-16 | Implicit — Olivia's first sign-in (one role only) showed no switcher; switcher only rendered after the second role was granted. |
+| TC-B2-03 Switcher persists across reloads | ✅✅ | 2026-05-16 | Reloaded `/` after switching to Smoke Test Org → overview still bound to Smoke Test Org (server-side cookie persists). |
+| TC-B3-01 Create league | ✅ | 2026-05-16 | Backend verified end-to-end: `POST /org-admin/leagues` returned 201 with the new league row (sport_code=HOCKEY_ICE, status=draft, org=Smoke Test Org). Audit row `leagues.create` written (resource_id null — known BUG-013 follow-up because the response wraps `{league:{id,...}}`). UI flow initially 500'd because the form was a free-text input defaulting to `"hockey"` while the DB FK requires UPPER codes like `"HOCKEY_ICE"` (BUG-019). Form now uses a Select with all 14 platform sports + defaults to HOCKEY_ICE. |
+| TC-B3-02 Create league outside scope | ✅✅ | 2026-05-16 | Tampered orgId to USA Hockey (Olivia not in scope) → 403 `{"error":{"code":"FORBIDDEN","message":"Requires org_admin (or super_admin) on this org"}}`. Spec match. |
+| TC-B3-03 Empty-state CTA on dashboard | ✅✅ | 2026-05-16 | Verified pre-create on Smoke Test Org overview → leagues section rendered "No leagues yet • Kick off setup by creating your first league. • Create league" CTA linking to `/leagues/new`. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -154,6 +162,29 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-019 · Org-admin "New league" form takes free-text sport code; DB FK expects `HOCKEY_ICE` etc · **major**
+- **TC:** TC-B3-01
+- **Surface:** sp-org-admin · `/leagues/new`
+- **Repro:**
+  1. Sign in as an org_admin, switch to an empty org, click "Create league".
+  2. Form pre-fills sport with placeholder `"hockey"`; hint says "hockey, soccer, basketball, etc".
+  3. Submit → `500 INTERNAL_ERROR / An unexpected error occurred`.
+- **Expected:** Either the dropdown is the source of truth + matches DB seeds, or the API normalises case before lookup.
+- **Actual:** `public.sports` ships codes `HOCKEY_ICE`, `SOCCER`, `BASKETBALL`, etc (uppercase + underscores). `leagues.sport_code` FKs to that table. The handler passes the raw input to insert → 500 on FK violation. The form was a free-text input — direct violation of CLAUDE.md cardinal rule #4 ("Pre-existing entities are dropdowns, never free-text inputs").
+- **File:** `apps/org-admin-web/src/app/(app)/leagues/new/new-league-form.tsx`.
+- **Fix:** Form now uses a `<Select>` populated from the 14 active platform sports, default `HOCKEY_ICE` (mirrors the SA create-league dialog which already used a Select, though hardcoded to 3 sports). Backend retry with `HOCKEY_ICE` returned 201 + audit row `leagues.create`. Follow-up: stand up a public `/sports` endpoint so both surfaces share a single source of truth instead of duplicating the seed list.
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
+
+### BUG-018 · sp-api CORS allowlist missing every web origin except sp-superadmin · **major**
+- **TC:** TC-B3-01 (revealed every cross-origin write from sp-org-admin / sp-player / sp-team-admin)
+- **Surface:** sp-api · `app.enableCors({ origin: CORS_ORIGIN.split(",") })`
+- **Repro:** From sp-org-admin, hit any `sp-api-one.vercel.app` endpoint → preflight returns 204 with no `Access-Control-Allow-Origin` header → browser blocks with "No 'Access-Control-Allow-Origin' header is present".
+- **Expected:** Every deployed web surface is in the allowlist.
+- **Actual:** Only `https://sp-superadmin.vercel.app` was in the env var, so every other app (org-admin, player, team-admin, landing) silently failed every cross-origin request.
+- **Files:** `apps/superadmin-api/.env.example` — updated the documented contract.
+- **Fix:** Updated `sp-api` Vercel env `CORS_ORIGIN` to a comma-separated list including all 5 production origins + localhost dev ports (3000–3004). Triggered a redeploy. Verified preflight from sp-org-admin now echoes `Access-Control-Allow-Origin: https://sp-org-admin.vercel.app`. `.env.example` updated with the full list so the contract lives in the repo.
+- **Status:** ✅✅ Verified end-to-end. Cross-origin POSTs from sp-org-admin now succeed at the network layer (BUG-019 surfaced next).
 
 ### BUG-017 · Suspend doesn't actually block sign-in · **major (security gap)**
 - **TC:** TC-A6-01
