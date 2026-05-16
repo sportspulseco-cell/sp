@@ -68,7 +68,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A1-04 Sign-out clears every app | ✅✅ | 2026-05-16 | Pass; /sign-in?error=signed_out + banner on click |
 | TC-A1-05/06/07 magic link / callback / session expiry | ⏭️ | 2026-05-16 | Skipped this run — magic link needs real inbox; session expiry needs JWT time-skip |
 | TC-A2-01 Create an organization | ✅✅ | 2026-05-16 | Pass after BUG-004/005/006 fixes deployed. Org `Smoke Test Org` exists in DB, audit row `orgs.create` written, list view shows the new row + KPI bumped to 4. |
-| TC-A2-02 Org uniqueness (slug + legal_name) | 🔁 | 2026-05-16 | Slug verified ✅✅. BUG-007 fixed — migration 0040 adds partial unique index on `LOWER(legal_name) WHERE deleted_at IS NULL`; CreateOrgHandler + UpdateOrgHandler raise ConflictError before Postgres errors. Re-verify after redeploy. |
+| TC-A2-02 Org uniqueness (slug + legal_name) | ✅✅ | 2026-05-16 | Both verified end-to-end on prod. Slug dup → 409 "Org slug already taken: smoke-test-org". Legal-name dup → 409 "Org legal name already taken: Smoke Test Org Inc." (BUG-007 + BUG-008 fixes both verified — human message renders inline, no raw JSON). |
 | TC-A3-01..03 Invite by email | ▶️ | 2026-05-16 | next |
 | _all others_ | ⏳ | — | queued |
 
@@ -132,7 +132,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
   - Migration `0040_orgs_legal_name_unique.sql` — partial unique index on `LOWER(legal_name) WHERE deleted_at IS NULL`. Case-insensitive, lets soft-deleted rows free their name for reuse.
   - `OrgRepository.findByLegalName(legalName)` added on the domain port + Drizzle impl.
   - `CreateOrgHandler` and `UpdateOrgHandler` now raise `ConflictError("Org legal name already taken: …")` before insert/save so the API returns a clean 409 with the same shape as the slug-collision path.
-- **Status:** ✅ Applied to DB (migration 0040). Code fix in same commit. Pending push + Vercel redeploy + re-verify TC-A2-02.
+- **Status:** ✅✅ Fixed + verified end-to-end on production (commit `d753fd8`). Re-ran TC-A2-02 with duplicate legal name + different slug — API returned 409, error UI rendered "Org legal name already taken: Smoke Test Org Inc." inline (also confirms BUG-008 working).
 
 ### BUG-008 · API error body dumped as raw JSON to users · **major UX**
 - **TC:** TC-A2-02 (surfaced when triggering 409)
@@ -143,7 +143,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Expected:** Human message extracted from `error.message`: "Org slug already taken: smoke-test-org".
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
-- **Status:** ✅ Fixed locally across all 8 files — pending push + Vercel redeploy.
+- **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
 
 ### BUG-006 · Org-create slug pattern attribute throws SyntaxError under Chrome /v regex · **major**
 - **TC:** TC-A2-01
