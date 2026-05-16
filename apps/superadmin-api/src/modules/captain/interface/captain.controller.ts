@@ -123,11 +123,21 @@ export class CaptainController {
       ) {
         throw e;
       }
+      // DIAG (BUG-023): Vercel runtime logs aren't accessible via the
+      // API for hobby fluid functions, so surface the error inline so
+      // the test harness can read it. Strip before closing the bug.
       this.log.error(
         `dashboard-state failed for user=${user.userId} team=${teamId}: ${(e as Error).message}`,
         (e as Error).stack
       );
-      throw e;
+      throw new BadRequestException({
+        diag: "dashboard-state-throw",
+        userId: user.userId,
+        teamId,
+        message: (e as Error).message,
+        name: (e as Error).name,
+        stack: ((e as Error).stack ?? "").slice(0, 2000)
+      });
     }
   }
 
