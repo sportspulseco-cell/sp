@@ -114,7 +114,14 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-E1-01 Review queue default filter includes offline | ✅✅ | 2026-05-17 | **Canonical regression for CLAUDE.md bug #2.** `/registrations` on sp-superadmin loads with the state filter labelled `Needs decision (review + offline)` — explicitly bundles `pending_review` + `pending_offline` rows in one default. The original incident (where `pending_offline` rows were invisible because the default filtered for review only) cannot recur. The full state filter dropdown also exposes every individual state for surgical filtering (All / Draft / Pending email verification / Pending parental consent / Pending payment / Pending offline payment / Pending review / Incomplete / Approved / Rejected / Cancelled). |
 | TC-F1-01 Captain dashboard mode | ✅✅ | 2026-05-17 | Pass after BUG-022 + BUG-023 fixes. Parker lands on `/` → page calls `GET /captain/dashboard-state?teamId=…` which returns 200 with `mode: "registration_open"` (Boston Gold Kings, ipl · ipl season autumn, closes 5/28/2026). UI renders the "registration open" eyebrow + "Register Boston Gold Kings" CTA + close-date banner. Initial 500 traced via an inline-diag throw → root cause was raw `sql\`${col} <= ${now}\`` templates passing a JS Date into node-postgres, which the driver rejected. Switched to Drizzle's typed comparators (`lte` / `gte` / `asc` / `desc`); the diag throw was stripped from the same commit, the `logger.error` remains so future regressions surface in Vercel runtime. |
 | TC-F1-02 Roster list | ✅✅ | 2026-05-17 | `/captain/roster` renders correctly for Parker → "0 / 20 players · no active season" header, tabs (Active / Pending invite / Compliance issues / Guests), and an EmptyState with "Use Add player or Invite by email…" message. |
-| TC-E3-01 Captain rollover wizard (partial) | ✅ (steps 1–2) | 2026-05-17 | Walked the wizard from `/captain/register` → picked `ipl season autumn` → applied for `Pro 25 Men` → entry created with `entry_status='pending_approval'` (`b6ba582e-…`). Approved as super-admin via `POST /admin/division-team-entries/:id/approve` (state flipped to `applied`). Returned to wizard → step 1 (Team details) auto-fills team name/short name. Stepper 01 → 02 → 03 → 04 displayed in canonical order. Step 2 (Division) correctly blocks Next with "No pricing tier configured for this division. League admin must add one before you can submit." — precondition gap in this test environment, not a bug. Steps 3 (Roster) + 4 (Dues) and the 8-write atomic submission can't be exercised until pricing-tier setup lands for ipl season autumn. Two side-bugs uncovered en route to this test (BUG-024 invite form + BUG-025 division-applications filter — see Bug log). |
+| TC-E3-01 Captain rollover wizard (8-write atomic) | ✅✅ | 2026-05-17 | Full end-to-end pass after pricing-tier setup + BUG-026 fix. Walked wizard apply → admin approve → setup steps 1–4 (Team details / Division / Roster / Dues). 8-write atomic transaction succeeded: 1 division_team_entries (upserted forward), 1 master invoice, 2 sub-invoices, 8 installment_schedules (1 deposit + 3 installments per sub), 2 pending team_invites. Entry status flipped to `confirmed` because threshold=0. Found BUG-026 (duplicate INSERT colliding with `dte_team_division_active_uniq`) — fixed by detecting active entry and UPDATEing instead. |
+| TC-F1-03 Add player to roster | ✅✅ | 2026-05-17 | Captain `/captain/roster` → "Add player" → searched persons (after BUG-027 fix — `/iam/persons` now allows authed users to read), picked Mike Patterson, clicked Add. Roster flipped to 1/20, Mike Patterson appears Active with eligibility=verified + Transfer/Drop actions. DB confirms `team_memberships` row + `roster_moves` add row. |
+| TC-F1-04 Invite player by email | ✅✅ | 2026-05-17 | `POST /registration-v2/team-invites` returned 201 with personal invite for `+invitetest@gmail.com`, expires +7d. |
+| TC-F1-05 Resend invite reminder | ✅ | 2026-05-17 | `POST /captain/roster/:teamId/remind/:inviteId` returns 409 "Wait 24h between resends." — cooldown enforced as spec demanded. |
+| TC-F1-06 Drop a player | ✅✅ | 2026-05-17 | `POST /captain/roster/:teamId/drop` with a 60-char reason succeeded (201). `roster_moves` drop row recorded, `team_memberships` flipped to inactive. |
+| TC-F1-07 Add guest player to one game | ✅✅ | 2026-05-17 | Set up an opponent team + scheduled game, then `POST /captain/roster/:teamId/guest` with `guestName` (walk-in) returned 201. `game_attendance` row created with `is_guest=true`, shell person auto-created. |
+| TC-F1-08 Transfer initiation | ✅✅ | 2026-05-17 | `POST /league/teams/:id/transfer` returned 201 with `transfer_requests` row in `pending_destination` status. |
+| TC-F2-02 Super-admin bypass (implicit) | ✅ | 2026-05-17 | Throughout this session every captain endpoint was also reachable via the Test Super Admin token (used for cross-surface verification). `userIsCaptainOfTeam` returns true for super-admins via the `profile.is_super_admin` signal. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -189,6 +196,29 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-028 · Missing resend-reminder endpoint on `registration-v2/team-invites` · **minor**
+- **TC:** TC-F1-05 (alt path)
+- **Surface:** sp-api · `registration-v2/team-invites` controller
+- **Observation:** The team-invites controller exposes GET + POST + PATCH-revoke but NO "remind" endpoint. The remind action is implemented on `/captain/roster/:teamId/remind/:inviteId` instead, which works fine and enforces 24h cooldown (✅). The duplication is fine; we just shouldn't expect `registration-v2/team-invites/:id/remind` to exist.
+- **Status:** Open. Not blocking — captain-roster endpoint handles remind end-to-end with cooldown.
+
+### BUG-027 · `/iam/persons` requires super-admin, breaking captain "Add player" picker · **major**
+- **TC:** TC-F1-03
+- **Surface:** sp-api · `PersonsController`
+- **Repro:** Captain opens `/captain/roster` → "Add player" → searches → API returns `403 Super admin access required`.
+- **Fix:** Moved `SuperAdminGuard` from controller-level to the mutation endpoints only (POST / PATCH / link-user). GETs (list + getOne) now use `JwtAuthGuard` so any authed user can read. Captains genuinely need this lookup to fulfill TC-F1-03; reads are low-risk.
+- **File:** `apps/superadmin-api/src/modules/iam/interface/persons.controller.ts`.
+- **Status:** ✅ Fixed + deployed. Verified end-to-end: searching for "Mike" returns 2 candidate persons; "Add to roster" works.
+
+### BUG-026 · Captain register handler INSERTs duplicate `division_team_entries`, hits unique-index 500 · **major**
+- **TC:** TC-E3-01
+- **Surface:** sp-api · `CaptainController.register`
+- **Repro:** Two-stage rollover: `/captain/register/apply` creates the entry in `pending_approval`; admin approves → `applied`. The 8-write `/captain/register` setup then tried to INSERT a brand-new row for the same `(team_id, division_id)` and crashed on `dte_team_division_active_uniq`. The transaction rolled back; nothing landed.
+- **Diag:** Inline 400 surfaced `duplicate key value violates unique constraint "dte_team_division_active_uniq"` (after wrapping the handler in try/catch + diag response).
+- **Fix:** Handler now looks up an active entry by `(team_id, division_id, status IN [pending_approval, applied, accepted])` and UPDATEs that row forward, falling back to INSERT for legacy single-shot flows. The 8-write transaction is otherwise unchanged.
+- **File:** `apps/superadmin-api/src/modules/captain/interface/captain.controller.ts` lines 664–714.
+- **Status:** ✅ Fixed + deployed. Verified end-to-end: 1 DTE (updated), 1 master invoice, 2 sub-invoices, 8 installment_schedules, 2 pending invites.
 
 ### BUG-025 · `/division-applications` queue filter doesn't expose the `pending_approval` state · **major**
 - **TC:** TC-C4-02, TC-E3-01
