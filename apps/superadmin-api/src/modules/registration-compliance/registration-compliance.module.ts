@@ -72,6 +72,12 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
   ],
   providers: [
     CronSecretGuard,
+    // ComplianceSweepsController is also registered as a provider so
+    // ComplianceCronController can inject it for the lock-sweep loop.
+    // Controllers ARE @Injectable() under the hood — Nest just doesn't
+    // auto-register them in providers like services. Without this the
+    // module fails to boot ("Nest can't resolve dependencies").
+    ComplianceSweepsController,
     // Forms
     ListFormsHandler,
     GetFormHandler,

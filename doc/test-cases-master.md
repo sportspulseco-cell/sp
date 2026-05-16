@@ -65,8 +65,10 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A1-01 Super-admin sign-in | ✅✅ | 2026-05-16 | Pass; BUG-001 re-verified on localhost (commit 5b47e8d) |
 | TC-A1-02 Wrong password | ✅ | 2026-05-16 | Pass; inline "Invalid login credentials" alert renders |
 | TC-A1-03 Wrong role | ✅✅ | 2026-05-16 | Pass post-fix; BUG-002 + BUG-003 fixed + verified on localhost |
-| TC-A1-04 Sign-out clears every app | ▶️ | 2026-05-16 | next |
-| _all others_ | ⏳ | — | queued |
+| TC-A1-04 Sign-out clears every app | ✅✅ | 2026-05-16 | Pass; /sign-in?error=signed_out + banner on click |
+| TC-A1-05/06/07 magic link / callback / session expiry | ⏭️ | 2026-05-16 | Skipped this run — magic link needs real inbox; session expiry needs JWT time-skip |
+| TC-A2-01 Create an organization | ❌ | 2026-05-16 | Blocked by BUG-004 + BUG-005 — entire deployed API was returning 500 (FUNCTION_INVOCATION_FAILED). Fixed locally, re-test after redeploy. |
+| _all others_ | 🚫 | — | Blocked behind sp-api redeploy |
 
 ## Bug log
 
@@ -105,6 +107,30 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
   - `apps/superadmin-web/src/app/(admin)/layout.tsx` — redirect now uses `?error=wrong_role`.
   - `apps/superadmin-web/src/components/auth/sign-in-form.tsx` — `ERROR_MESSAGES` now contains both `wrong_role` (canonical) and `not_authorized` (kept as alias for any stale links).
 - **Status:** ✅✅ Fixed in same commit as BUG-002. Verified on localhost — URL post-bounce is `/sign-in?error=wrong_role`.
+
+### BUG-004 · Deployed sp-api crashes on cold start — `Cannot access 'SetDivisionBodyDto' before initialization` · **blocker**
+- **TC:** TC-A2-01 (and every other authenticated API call)
+- **Surface:** sp-api · every `/api/*` endpoint
+- **Repro:**
+  1. `curl -i https://sp-api-one.vercel.app/api/health` (or any `/api/*`)
+- **Expected:** 200 with health body.
+- **Actual:** Vercel returns `FUNCTION_INVOCATION_FAILED`. The whole API is down.
+- **Root cause:** In `apps/superadmin-api/src/modules/registration-compliance/interface/self-registrations.controller.ts`, the `@Body() body: SetDivisionBodyDto` decorator at line 319 references a class declared AFTER the controller (line 390). Classes are not hoisted, so the decorator evaluates against the class's temporal-dead-zone slot and throws a `ReferenceError` at module-load time → Nest can't start → Vercel function never returns a response.
+- **Files:** `apps/superadmin-api/src/modules/registration-compliance/interface/self-registrations.controller.ts` — moved `class SetDivisionBodyDto` above the controller class.
+- **Status:** ✅ Fixed locally. Confirmed via `pnpm --filter @sportspulse/superadmin-api build` + `node dist/main.js` — Nest now boots: "Nest application successfully started". Pending push + Vercel redeploy.
+
+### BUG-005 · FinanceModule + RegistrationComplianceModule DI graphs broken · **blocker**
+- **TC:** TC-A2-01 (revealed during sp-api boot after fixing BUG-004)
+- **Surface:** sp-api boot
+- **Repro:** Boot the API locally (`pnpm --filter @sportspulse/superadmin-api start:dev`).
+- **Expected:** Nest application successfully started.
+- **Actual:**
+  - `PlayerPaymentsController` injects `NotificationService` but `FinanceModule` didn't import `CommunicationsModule`.
+  - `ComplianceCronController` injects `ComplianceSweepsController` but `ComplianceSweepsController` was only registered as a `controller`, not a `provider`, so Nest can't resolve it.
+- **Files:**
+  - `apps/superadmin-api/src/modules/finance/finance.module.ts` — added `imports: [CommunicationsModule]`.
+  - `apps/superadmin-api/src/modules/registration-compliance/registration-compliance.module.ts` — added `ComplianceSweepsController` to `providers` (it's `@Injectable()` under the hood, but Nest doesn't auto-register controllers in the DI graph).
+- **Status:** ✅ Fixed locally — Nest boots clean. Pending push + Vercel redeploy.
 
 ---
 

@@ -30,6 +30,14 @@ import { RegistrationDto } from "../application/dtos/registration.dto";
  * Players hit this from /registrations on the player-web app to see
  * their own submissions across leagues.
  */
+// DTO declared BEFORE the controller so the @Body() decorator can read
+// it at module-load time. Defining it after the controller class hits
+// a class TDZ ReferenceError under swc/Vercel runtime — that broke the
+// whole sp-api function with FUNCTION_INVOCATION_FAILED on 2026-05-16.
+class SetDivisionBodyDto {
+  @IsUUID() divisionId!: string;
+}
+
 @ApiTags("registration/self")
 @ApiBearerAuth()
 @Controller("registration/self")
@@ -385,8 +393,4 @@ export class SelfRegistrationsController {
 
     return { id, divisionId: body.divisionId };
   }
-}
-
-class SetDivisionBodyDto {
-  @IsUUID() divisionId!: string;
 }

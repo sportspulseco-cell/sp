@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CommunicationsModule } from "../communications/communications.module";
 import { FinanceController } from "./interface/finance.controller";
 import { FinanceSplitsController } from "./interface/splits.controller";
 import { FinanceRefundsController } from "./interface/refunds.controller";
@@ -32,6 +33,7 @@ import {
 } from "../../shared/payments/payment-processor";
 
 @Module({
+  imports: [CommunicationsModule],
   controllers: [
     FinanceController,
     FinanceSplitsController,
