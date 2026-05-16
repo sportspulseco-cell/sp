@@ -114,6 +114,24 @@ export class LineupsController {
       throw new NotFoundException("Game or lineup not found");
     }
 
+    // Two-stage lock: (1) existing rows are stamped lockedAt when
+    // game.startPlay fires, (2) NEW rows created after start were
+    // sneaking through because no existing row meant the lockedAt
+    // check matched nothing. Gate on game status directly so the
+    // PUT path refuses any lineup write once play has begun — even
+    // if the captain hadn't submitted yet (BUG-030).
+    if (
+      game.status !== "scheduled" &&
+      game.status !== "postponed"
+    ) {
+      throw new ConflictException({
+        error: "lineup_locked",
+        message:
+          "This lineup is locked — the game has started or finished. Ask an admin to revert the game to scheduled if a fix is needed.",
+        gameStatus: game.status
+      });
+    }
+
     const existing = await this.findRow(gameId, teamId);
     if (existing?.lockedAt) {
       throw new ConflictException({
