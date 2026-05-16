@@ -1,9 +1,7 @@
 import {
-  BadRequestException,
   Controller,
   Get,
   Inject,
-  Logger,
   NotFoundException,
   Query,
   UseGuards
@@ -31,8 +29,6 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 @Controller("compliance")
 @UseGuards(JwtAuthGuard)
 export class ComplianceController {
-  private readonly log = new Logger(ComplianceController.name);
-
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
   @Get("eligibility/precheck")
@@ -50,29 +46,6 @@ export class ComplianceController {
         "personId, divisionId, and teamId are required"
       );
     }
-    try {
-      return await this.precheckInner(personId, divisionId, teamId);
-    } catch (e) {
-      if (e instanceof NotFoundException) throw e;
-      this.log.error(
-        `precheck failed: ${(e as Error).message}`,
-        (e as Error).stack
-      );
-      // DIAG: surface inline; remove when fix lands.
-      throw new BadRequestException({
-        diag: "precheck-throw",
-        message: (e as Error).message,
-        name: (e as Error).name,
-        stack: ((e as Error).stack ?? "").slice(0, 2000)
-      });
-    }
-  }
-
-  private async precheckInner(
-    personId: string,
-    divisionId: string,
-    teamId: string
-  ) {
 
     const [division] = await this.db
       .select({
