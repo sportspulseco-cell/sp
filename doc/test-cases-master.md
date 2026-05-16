@@ -67,8 +67,10 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A1-03 Wrong role | ✅✅ | 2026-05-16 | Pass post-fix; BUG-002 + BUG-003 fixed + verified on localhost |
 | TC-A1-04 Sign-out clears every app | ✅✅ | 2026-05-16 | Pass; /sign-in?error=signed_out + banner on click |
 | TC-A1-05/06/07 magic link / callback / session expiry | ⏭️ | 2026-05-16 | Skipped this run — magic link needs real inbox; session expiry needs JWT time-skip |
-| TC-A2-01 Create an organization | ❌ | 2026-05-16 | Blocked by BUG-004 + BUG-005 — entire deployed API was returning 500 (FUNCTION_INVOCATION_FAILED). Fixed locally, re-test after redeploy. |
-| _all others_ | 🚫 | — | Blocked behind sp-api redeploy |
+| TC-A2-01 Create an organization | ✅✅ | 2026-05-16 | Pass after BUG-004/005/006 fixes deployed. Org `Smoke Test Org` exists in DB, audit row `orgs.create` written, list view shows the new row + KPI bumped to 4. |
+| TC-A2-02 Org slug uniqueness (legal_name not enforced by design) | ✅✅ | 2026-05-16 | Pass on slug — duplicate slug returns 409 "Org slug already taken: smoke-test-org". Legal-name uniqueness drops to BUG-007 (spec gap — UI copy says "Slug must be globally unique", legal_name is NOT a unique column). |
+| TC-A3-01..03 Invite by email | ▶️ | 2026-05-16 | next |
+| _all others_ | ⏳ | — | queued |
 
 ## Bug log
 
@@ -118,6 +120,26 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Root cause:** In `apps/superadmin-api/src/modules/registration-compliance/interface/self-registrations.controller.ts`, the `@Body() body: SetDivisionBodyDto` decorator at line 319 references a class declared AFTER the controller (line 390). Classes are not hoisted, so the decorator evaluates against the class's temporal-dead-zone slot and throws a `ReferenceError` at module-load time → Nest can't start → Vercel function never returns a response.
 - **Files:** `apps/superadmin-api/src/modules/registration-compliance/interface/self-registrations.controller.ts` — moved `class SetDivisionBodyDto` above the controller class.
 - **Status:** ✅ Fixed locally. Confirmed via `pnpm --filter @sportspulse/superadmin-api build` + `node dist/main.js` — Nest now boots: "Nest application successfully started". Pending push + Vercel redeploy.
+
+### BUG-007 · Legal name uniqueness not enforced (spec gap) · **minor / spec decision**
+- **TC:** TC-A2-02
+- **Surface:** super-admin · /organizations · Create org
+- **Repro:** Create two orgs with the same `legal_name` and different `slug` values. Both succeed.
+- **Expected (per test plan TC-A2-02):** Second create returns 409.
+- **Actual:** `orgs.legal_name` has no unique constraint in `packages/db/src/schema/iam.ts:81`. The dialog copy explicitly says "Slug must be globally unique" — slug IS unique, legal_name is not.
+- **Decision needed:** is legal-name uniqueness an actual product requirement? Most jurisdictions allow distinct entities to share legal names. If yes → migration adding `UNIQUE(legal_name) WHERE deleted_at IS NULL` + 409 handling. If no → update TC-A2-02 to test slug uniqueness only.
+- **Status:** ⏭️ Documented; deferred pending product decision. The walk pivoted to test slug uniqueness — which **does** return 409 cleanly (`Org slug already taken: smoke-test-org`).
+
+### BUG-008 · API error body dumped as raw JSON to users · **major UX**
+- **TC:** TC-A2-02 (surfaced when triggering 409)
+- **Surface:** super-admin, org-admin, team-admin, player — every browser-issued mutation
+- **Repro:**
+  1. Trigger any 4xx/5xx from a client-side mutation (e.g. duplicate-slug create)
+  2. Inline error UI shows: `API 409: {"error":{"code":"CONFLICT","message":"Org slug already taken: smoke-test-org"}}`
+- **Expected:** Human message extracted from `error.message`: "Org slug already taken: smoke-test-org".
+- **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
+- **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
+- **Status:** ✅ Fixed locally across all 8 files — pending push + Vercel redeploy.
 
 ### BUG-006 · Org-create slug pattern attribute throws SyntaxError under Chrome /v regex · **major**
 - **TC:** TC-A2-01

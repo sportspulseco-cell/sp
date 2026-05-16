@@ -25,8 +25,29 @@ export async function apiFetch<T = unknown>(
   });
 
   if (!res.ok) {
+    // Match browser-api.ts: surface the server's human message
+    // instead of dumping raw JSON when this error bubbles into a
+    // user-facing component.
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    let msg = `API ${res.status}`;
+    try {
+      const parsed = JSON.parse(body);
+      const human =
+        parsed?.error?.message ?? parsed?.message ?? parsed?.error;
+      if (typeof human === "string" && human.length > 0) msg = human;
+      else if (typeof parsed?.error === "object" && parsed.error?.code) {
+        msg = String(parsed.error.code);
+      }
+    } catch {
+      // not JSON — keep fallback
+    }
+    const err = new Error(msg) as Error & {
+      status?: number;
+      body?: string;
+    };
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
   return (await res.json()) as T;
 }

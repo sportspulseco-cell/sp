@@ -31,8 +31,29 @@ export async function apiFetch<T = unknown>(
   });
 
   if (!res.ok) {
+    // Surface the server's human message instead of dumping raw
+    // JSON to the user (BUG-008). Nest returns { error: { code,
+    // message } } or { message, statusCode } — pick the human bit.
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    let msg = `API ${res.status}`;
+    try {
+      const parsed = JSON.parse(body);
+      const human =
+        parsed?.error?.message ?? parsed?.message ?? parsed?.error;
+      if (typeof human === "string" && human.length > 0) msg = human;
+      else if (typeof parsed?.error === "object" && parsed.error?.code) {
+        msg = String(parsed.error.code);
+      }
+    } catch {
+      // not JSON — keep fallback
+    }
+    const err = new Error(msg) as Error & {
+      status?: number;
+      body?: string;
+    };
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
   return (await res.json()) as T;
 }

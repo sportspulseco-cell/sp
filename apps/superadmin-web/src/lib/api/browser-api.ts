@@ -46,8 +46,30 @@ async function apiFetchBrowser<T = unknown>(
   }
 
   if (!res.ok) {
+    // Surface the server's human message instead of dumping JSON to the
+    // user. Nest returns `{ error: { code, message } }` or `{ message,
+    // statusCode }` depending on the layer. Fall back to status text
+    // when nothing parses.
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    let msg = `API ${res.status}`;
+    try {
+      const parsed = JSON.parse(body);
+      const human =
+        parsed?.error?.message ?? parsed?.message ?? parsed?.error;
+      if (typeof human === "string" && human.length > 0) msg = human;
+      else if (typeof parsed?.error === "object" && parsed.error?.code) {
+        msg = String(parsed.error.code);
+      }
+    } catch {
+      // not JSON — keep "API <status>" fallback
+    }
+    const err = new Error(msg) as Error & {
+      status?: number;
+      body?: string;
+    };
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
   return (await res.json()) as T;
 }
