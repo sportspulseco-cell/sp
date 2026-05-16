@@ -114,6 +114,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-E1-01 Review queue default filter includes offline | ✅✅ | 2026-05-17 | **Canonical regression for CLAUDE.md bug #2.** `/registrations` on sp-superadmin loads with the state filter labelled `Needs decision (review + offline)` — explicitly bundles `pending_review` + `pending_offline` rows in one default. The original incident (where `pending_offline` rows were invisible because the default filtered for review only) cannot recur. The full state filter dropdown also exposes every individual state for surgical filtering (All / Draft / Pending email verification / Pending parental consent / Pending payment / Pending offline payment / Pending review / Incomplete / Approved / Rejected / Cancelled). |
 | TC-F1-01 Captain dashboard mode | ✅✅ | 2026-05-17 | Pass after BUG-022 + BUG-023 fixes. Parker lands on `/` → page calls `GET /captain/dashboard-state?teamId=…` which returns 200 with `mode: "registration_open"` (Boston Gold Kings, ipl · ipl season autumn, closes 5/28/2026). UI renders the "registration open" eyebrow + "Register Boston Gold Kings" CTA + close-date banner. Initial 500 traced via an inline-diag throw → root cause was raw `sql\`${col} <= ${now}\`` templates passing a JS Date into node-postgres, which the driver rejected. Switched to Drizzle's typed comparators (`lte` / `gte` / `asc` / `desc`); the diag throw was stripped from the same commit, the `logger.error` remains so future regressions surface in Vercel runtime. |
 | TC-F1-02 Roster list | ✅✅ | 2026-05-17 | `/captain/roster` renders correctly for Parker → "0 / 20 players · no active season" header, tabs (Active / Pending invite / Compliance issues / Guests), and an EmptyState with "Use Add player or Invite by email…" message. |
+| TC-E3-01 Captain rollover wizard (partial) | ✅ (steps 1–2) | 2026-05-17 | Walked the wizard from `/captain/register` → picked `ipl season autumn` → applied for `Pro 25 Men` → entry created with `entry_status='pending_approval'` (`b6ba582e-…`). Approved as super-admin via `POST /admin/division-team-entries/:id/approve` (state flipped to `applied`). Returned to wizard → step 1 (Team details) auto-fills team name/short name. Stepper 01 → 02 → 03 → 04 displayed in canonical order. Step 2 (Division) correctly blocks Next with "No pricing tier configured for this division. League admin must add one before you can submit." — precondition gap in this test environment, not a bug. Steps 3 (Roster) + 4 (Dues) and the 8-write atomic submission can't be exercised until pricing-tier setup lands for ipl season autumn. Two side-bugs uncovered en route to this test (BUG-024 invite form + BUG-025 division-applications filter — see Bug log). |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -188,6 +189,31 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-025 · `/division-applications` queue filter doesn't expose the `pending_approval` state · **major**
+- **TC:** TC-C4-02, TC-E3-01
+- **Surface:** super-admin · `/division-applications`
+- **Repro:**
+  1. Captain submits an application via `/captain/register` (state lands as `pending_approval` in `division_team_entries`).
+  2. Super-admin opens `/division-applications`.
+  3. The state filter dropdown only offers `Applied / Accepted / Confirmed / Rejected` — the new `pending_approval` row is invisible and impossible to approve from this UI.
+- **Expected:** "Awaiting admin approval" filter option that lists `pending_approval` entries, OR the default filter includes that state alongside `applied`.
+- **Actual:** The newer `pending_approval` state from the captain-side rollover doesn't appear in the page's filter set. The matching admin API (`/admin/division-team-entries/:id/approve`) works fine and was used to unblock TC-E3-01 — but no admin can reach it from this UI.
+- **File:** `apps/superadmin-web/src/app/(admin)/division-applications/...` (filter dropdown + server query).
+- **Status:** Open. Workaround: super-admin calls the approve API directly.
+
+### BUG-024 · Captain `/captain/invites` season dropdown empty because form reads `scope.orgIds[0]` · **major**
+- **TC:** TC-F1-04
+- **Surface:** sp-team-admin · `/captain/invites` · `CreateInviteForm`
+- **Repro:**
+  1. Sign in as a real captain (Parker, captain on Boston Gold Kings).
+  2. Open `/captain/invites`.
+  3. Season `<select>` only renders its placeholder "Select a season…".
+- **Expected:** Dropdown populated from the captain's team's org seasons.
+- **Actual:** Captains hold `captain` role at `scope_type='team'` only — `scope.orgIds` is empty, so `iam.meScope()`-then-`listSeasons({orgId: scope.orgIds[0]})` no-ops. Effectively every captain saw an empty dropdown.
+- **File:** `apps/team-admin-web/src/app/(app)/captain/invites/create-invite-form.tsx`.
+- **Fix:** Form now fetches the team via `leagueMgmt.getTeam(teamId)` and uses `team.orgId` as the seasons source, falling back to `scope.orgIds[0]` for super-admin / org-admin who hit this page via the captain-bypass path.
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
 
 ### BUG-023 · `/captain/dashboard-state` 500 — raw `sql\`${col} <= ${now}\`` template binds a JS Date that pg rejects · **major**
 - **TC:** TC-F1-01
