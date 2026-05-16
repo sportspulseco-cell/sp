@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, desc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -128,23 +128,18 @@ export class DrizzleFinanceRepository implements FinanceRepository {
     const hasMore = rows.length > q.limit;
     const slice = hasMore ? rows.slice(0, q.limit) : rows;
 
-    // Fetch all items for these invoices in one query.
+    // Fetch all items for these invoices in one query. The earlier
+    // path used a raw `sql\`= ANY(${ids})\`` template that crashed pg
+    // with "Received an instance of Date"-style binding errors (same
+    // root cause as BUG-023). Drizzle's typed `inArray` serialises
+    // string arrays correctly (BUG-031).
     const ids = slice.map((r) => r.id);
     const items = ids.length
       ? await this.db
           .select()
           .from(schema.invoiceItems)
-          .where(eq(schema.invoiceItems.invoiceId, ids[0]!)) // narrow seed; replaced via inArray below
+          .where(inArray(schema.invoiceItems.invoiceId, ids))
       : [];
-    // Switch to inArray for >1
-    if (ids.length > 1) {
-      items.length = 0;
-      const all = await this.db
-        .select()
-        .from(schema.invoiceItems)
-        .where(sql`${schema.invoiceItems.invoiceId} = ANY(${ids})`);
-      items.push(...all);
-    }
     const itemsByInvoice = new Map<string, InvoiceItemRow[]>();
     for (const it of items) {
       const list = itemsByInvoice.get(it.invoiceId) ?? [];
