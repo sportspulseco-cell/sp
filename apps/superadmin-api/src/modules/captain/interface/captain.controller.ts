@@ -25,7 +25,7 @@ import {
   ValidateNested
 } from "class-validator";
 import { Type } from "class-transformer";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -123,21 +123,14 @@ export class CaptainController {
       ) {
         throw e;
       }
-      // DIAG (BUG-023): Vercel runtime logs aren't accessible via the
-      // API for hobby fluid functions, so surface the error inline so
-      // the test harness can read it. Strip before closing the bug.
+      // Keep the logger.error so an unexpected throw surfaces in the
+      // dashboard runtime logs even though our hobby plan's API
+      // doesn't currently expose them programmatically.
       this.log.error(
         `dashboard-state failed for user=${user.userId} team=${teamId}: ${(e as Error).message}`,
         (e as Error).stack
       );
-      throw new BadRequestException({
-        diag: "dashboard-state-throw",
-        userId: user.userId,
-        teamId,
-        message: (e as Error).message,
-        name: (e as Error).name,
-        stack: ((e as Error).stack ?? "").slice(0, 2000)
-      });
+      throw e;
     }
   }
 
@@ -226,7 +219,7 @@ export class CaptainController {
           ])
         )
       )
-      .orderBy(sql`${schema.seasons.startDate} DESC`)
+      .orderBy(desc(schema.seasons.startDate))
       .limit(1);
 
     if (activeEntries[0]) {
@@ -270,12 +263,16 @@ export class CaptainController {
       .where(
         and(
           eq(schema.leagues.orgId, team.orgId),
-          sql`${schema.seasons.registrationOpensAt} <= ${now}`,
-          sql`${schema.seasons.registrationClosesAt} >= ${now}`,
+          // Raw `sql\`${col} <= ${now}\`` was binding a JS Date directly
+          // and pg threw `"string" argument must be of type string …
+          // Received an instance of Date` (BUG-023). Drizzle's typed
+          // comparators serialize Date values correctly.
+          lte(schema.seasons.registrationOpensAt, now),
+          gte(schema.seasons.registrationClosesAt, now),
           inArray(schema.seasons.status, ["draft", "registration_open"])
         )
       )
-      .orderBy(sql`${schema.seasons.registrationClosesAt} ASC`)
+      .orderBy(asc(schema.seasons.registrationClosesAt))
       .limit(1);
 
     if (openSeasons[0]) {
