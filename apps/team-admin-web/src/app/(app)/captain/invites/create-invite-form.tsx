@@ -25,12 +25,26 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
   // Fetch seasons in the captain's org so we have a season picker.
+  // Captains are TEAM-scoped (no org assignment in scope.orgIds), so
+  // we derive the org from the team itself — using `scope.orgIds[0]`
+  // would silently leave the dropdown empty for every real captain
+  // (BUG-024). Falls through to scope.orgIds for super-admin / org-
+  // admin who hit this page from the captain-bypass path.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const scope = await iam.meScope();
-        const orgId = scope.orgIds[0];
+        let orgId: string | undefined;
+        try {
+          const team = await leagueMgmt.getTeam(teamId);
+          orgId = team?.orgId;
+        } catch {
+          // ignore, fall through
+        }
+        if (!orgId) {
+          const scope = await iam.meScope();
+          orgId = scope.orgIds[0];
+        }
         if (!orgId) return;
         const page = await leagueMgmt.listSeasons({ orgId });
         if (cancelled) return;
@@ -44,7 +58,7 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [teamId]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
