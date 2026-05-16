@@ -128,8 +128,9 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
   3. Observe: `Pattern attribute value ^[a-z0-9-]{2,60}$ is not a valid regular expression: Invalid regular expression: /^[a-z0-9-]{2,60}$/v: Invalid character class`
 - **Expected:** Pattern compiles silently.
 - **Actual:** Chrome's HTML pattern attribute now uses the /v unicode flag. Under /v, a literal `-` inside a character class must be escaped or first/last — `[a-z0-9-]` is rejected.
-- **File:** `apps/superadmin-web/src/components/orgs/create-org-button.tsx` line 119 — pattern changed from `^[a-z0-9-]{2,60}$` to `^[-a-z0-9]{2,60}$`.
-- **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
+- **File:** `apps/superadmin-web/src/components/orgs/create-org-button.tsx` line 119.
+- **Notes on the fix:** First attempt (`^[-a-z0-9]{2,60}$` with leading hyphen) also failed under /v with "Invalid character in character class". Tested locally — under /v, `[a-z0-9-]`, `[-a-z0-9]`, and `[a-z0-9\-]` ALL fail. The only safe form keeps the hyphen OUT of any character class: `^[a-z0-9]+(-[a-z0-9]+)*$`. Length now enforced via the adjacent `minLength={2}` / `maxLength={60}` HTML attrs.
+- **Status:** ✅✅ Fixed in commit (this run) — verified via `new RegExp(..., 'v')` locally; pending push + Vercel redeploy.
 
 ### BUG-005 · FinanceModule + RegistrationComplianceModule DI graphs broken · **blocker**
 - **TC:** TC-A2-01 (revealed during sp-api boot after fixing BUG-004)

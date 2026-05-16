@@ -116,7 +116,16 @@ function CreateOrgDialog({
             <Input
               id="slug"
               required
-              pattern="^[-a-z0-9]{2,60}$"
+              minLength={2}
+              maxLength={60}
+              // Pattern explicitly keeps `-` OUT of any character class
+              // because Chrome's HTML pattern attribute now runs with the
+              // /v regex flag, which rejects `[a-z0-9-]`, `[-a-z0-9]`, and
+              // even `[a-z0-9\-]` as an "Invalid character class". This
+              // equivalent form — internal `-` between alnum runs — is
+              // valid under both /u and /v. Length is enforced by the
+              // adjacent min/maxLength HTML attrs.
+              pattern="^[a-z0-9]+(-[a-z0-9]+)*$"
               value={form.slug}
               onChange={(e) => set("slug", e.target.value.toLowerCase())}
               placeholder="toronto-hockey"
