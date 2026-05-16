@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -71,6 +72,8 @@ export class CaptainRegisterBodyDto {
 @Controller("captain")
 @UseGuards(JwtAuthGuard)
 export class CaptainController {
+  private readonly log = new Logger(CaptainController.name);
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notify: NotificationService
@@ -110,6 +113,45 @@ export class CaptainController {
       throw new NotFoundException("teamId required");
     }
 
+    try {
+      return await this.dashboardStateInner(user, teamId);
+    } catch (e) {
+      if (
+        e instanceof NotFoundException ||
+        e instanceof ForbiddenException ||
+        e instanceof BadRequestException
+      ) {
+        throw e;
+      }
+      this.log.error(
+        `dashboard-state failed for user=${user.userId} team=${teamId}: ${(e as Error).message}`,
+        (e as Error).stack
+      );
+      throw e;
+    }
+  }
+
+  private async dashboardStateInner(
+    user: AuthPrincipal,
+    teamId: string
+  ): Promise<{
+    mode:
+      | "off_season"
+      | "registration_open"
+      | "applied"
+      | "in_season"
+      | "post_season";
+    teamId: string;
+    seasonId: string | null;
+    leagueId: string | null;
+    seasonName: string | null;
+    leagueName: string | null;
+    divisionTeamEntryId: string | null;
+    entryStatus: string | null;
+    registrationClosesAt: string | null;
+    collectedCents: number;
+    thresholdCents: number;
+  }> {
     const [team] = await this.db
       .select({
         id: schema.teams.id,
