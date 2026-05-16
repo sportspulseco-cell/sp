@@ -122,6 +122,11 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-F1-07 Add guest player to one game | ✅✅ | 2026-05-17 | Set up an opponent team + scheduled game, then `POST /captain/roster/:teamId/guest` with `guestName` (walk-in) returned 201. `game_attendance` row created with `is_guest=true`, shell person auto-created. |
 | TC-F1-08 Transfer initiation | ✅✅ | 2026-05-17 | `POST /league/teams/:id/transfer` returned 201 with `transfer_requests` row in `pending_destination` status. |
 | TC-F2-02 Super-admin bypass (implicit) | ✅ | 2026-05-17 | Throughout this session every captain endpoint was also reachable via the Test Super Admin token (used for cross-surface verification). `userIsCaptainOfTeam` returns true for super-admins via the `profile.is_super_admin` signal. |
+| Section G — Game day | ✅ (API-level) | 2026-05-17 | Created opponent team + scheduled game. Verified end-to-end via API: `POST /games` (201, status=scheduled), `POST /games/:id/start` (201, in_play), `POST /games/:id/score` with `{home,away,period}` (201, scores applied), `POST /games/:id/finalize` (201, status=completed). Also created separate games for `POST /games/:id/cancel` (cancelled), `POST /games/:id/postpone` (postponed), and `POST /games/:id/forfeit` with reason (forfeited). Found BUG-029 (`GET /games/:id` 404'd team-scoped users — fixed) and BUG-030 (lineup auto-lock on game-start didn't fire — logged). |
+| Section H — Finance | ✅ (API-level) | 2026-05-17 | `GET /finance/admin/invoices?orgId=…` lists 200, `GET /finance/invoices/:id` returns full detail (master invoice from rollover). `POST /org-admin/finance/invoices/:id/payments` records offline payment (201, payment row + status flip). `POST /finance/refunds` with `refundType=wallet_credit` succeeded (201, status=succeeded). |
+| Section I — Communications | ✅ (API-level) | 2026-05-17 | `GET /notifications?limit=5` returns the outbox including the auto-fired `game.finalized` notification from Section G. `GET /notifications/me/preferences` returns the full template catalogue (registration / game / suspension / roster / etc.) with per-channel toggle shape. `GET /notification-templates` returns 200 (empty in this env). |
+| Section J — Public surfaces | ✅ (smoke) | 2026-05-17 | `https://sp-landing-seven.vercel.app/` renders the marketing landing page (h1 "The pulse of every league." + nav: Products, Pricing, Leadership, Sign in). Public funnel `/registration/:seasonId` verified in TC-D1-01 above. Per-app sign-in surfaces verified across TC-A1, TC-B1, TC-F1-01. |
+| Sections K–Q | ⏭️ (smoke only) | 2026-05-17 | Beyond the scope of this single test run — each section needs dedicated data setup (eligibility records, stats backfills, store catalog, cron schedules, i18n bundles). Underlying API contracts exist (controllers grep'd present) but exhaustive end-to-end exercise is queued for follow-up sweeps. Cross-app verification (Q) was implicit throughout — every cross-surface read (super-admin sees captain's writes, captain sees admin's approvals, etc.) was confirmed inline. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -196,6 +201,33 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-031 · `GET /finance/invoices/list` route swallowed by `:id` UUID cast · **minor**
+- **TC:** TC-H1-01
+- **Surface:** sp-api · `FinanceController`
+- **Observation:** The list path `GET /finance/invoices?orgId=…` 500s because `invoices` was tried as a UUID by the `/finance/:id` route. The working list endpoint is `GET /finance/admin/invoices?orgId=…`. Comment in source notes this: "Renamed from /invoices/list — that path was eaten by the sibling /invoices/:id route."
+- **Status:** Documented. Working endpoint exists. Org-admin web app uses the correct path.
+
+### BUG-030 · Lineup not auto-locked when `POST /games/:id/start` fires · **major**
+- **TC:** TC-G2-03 / TC-G2-04
+- **Surface:** sp-api · `StartPlayHandler`
+- **Repro:**
+  1. Create a scheduled game, then `POST /games/:id/start`.
+  2. Fetch `GET /games/:gameId/lineups/:teamId` — `lockedAt` is still null.
+  3. `PUT` a new lineup against the same game — returns 200 (should be 409 "Lineup locked").
+- **Expected:** Per the spec, "Auto-lock fires (StartPlayHandler). `game_lineups.locked_at` populated. Captain editor disables every input + shows lock badge." Any subsequent lineup PUT should 409.
+- **Actual:** Game status flips to `in_play` but `game_lineups.locked_at` stays null and the lineup PUT path doesn't enforce a lock. Captains could keep mutating lineups mid-game.
+- **File:** `apps/superadmin-api/src/modules/game-operations/application/games/handlers.ts` (StartPlayHandler) and the lineup PUT handler.
+- **Status:** Open. Not blocking the smoke sweep — game-state transitions work otherwise — but a correctness bug that should be closed before competitive play.
+
+### BUG-029 · `GET /games/:id` 404s team-scoped users for games on their team · **major**
+- **TC:** TC-G2-01
+- **Surface:** sp-api · `GamesController.getOne`
+- **Repro:** Sign in as a captain (Parker), `GET /games/:id` for a game on the captain's team → 404 "Game not found".
+- **Root cause:** Handler passed `scope.leagueIds` as a hard filter, which is empty for team-scoped users. The handler then rejects because the game's league isn't in the (empty) league list.
+- **Fix:** Fetch the game first, then apply the no-leak rule only when neither the game's league nor either team is in the caller's scope. Super-admin still short-circuits. Mirrors the existing list-endpoint bypass.
+- **File:** `apps/superadmin-api/src/modules/game-operations/interface/games.controller.ts`.
+- **Status:** ✅ Fixed + deployed.
 
 ### BUG-028 · Missing resend-reminder endpoint on `registration-v2/team-invites` · **minor**
 - **TC:** TC-F1-05 (alt path)

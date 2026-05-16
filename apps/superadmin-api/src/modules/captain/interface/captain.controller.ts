@@ -532,18 +532,13 @@ export class CaptainController {
       ) {
         throw e;
       }
+      // BUG-026 has been closed; the logger.error remains so any
+      // future unexpected throw surfaces in Vercel runtime logs.
       this.log.error(
         `captain/register failed: ${(e as Error).message}`,
         (e as Error).stack
       );
-      // DIAG (BUG-026): surface inline because Vercel hobby plan has no
-      // runtime log API. Strip when bug is closed.
-      throw new BadRequestException({
-        diag: "captain-register-throw",
-        message: (e as Error).message,
-        name: (e as Error).name,
-        stack: ((e as Error).stack ?? "").slice(0, 2000)
-      });
+      throw e;
     }
   }
 
