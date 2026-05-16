@@ -42,11 +42,21 @@ export class SetRoleProfileHandler {
     if (!/^[a-z][a-z0-9_]{2,40}$/.test(input.roleCode)) {
       throw new Error(`Invalid roleCode: ${input.roleCode}`);
     }
+    // Two-step jsonb_set: Postgres jsonb_set with create_if_missing only
+    // creates the LEAF key. If the `roleProfile` parent doesn't exist yet
+    // it silently returns the input unchanged, so a brand-new profile
+    // would never get its first roleProfile entry written (BUG-014).
+    // Step 1 ensures the parent exists; step 2 sets the per-role leaf.
     await this.db
       .update(schema.profiles)
       .set({
         metadata: sql`jsonb_set(
-          coalesce(${schema.profiles.metadata}, '{}'::jsonb),
+          jsonb_set(
+            coalesce(${schema.profiles.metadata}, '{}'::jsonb),
+            ARRAY['roleProfile'],
+            coalesce(${schema.profiles.metadata} -> 'roleProfile', '{}'::jsonb),
+            true
+          ),
           ARRAY['roleProfile', ${input.roleCode}],
           ${JSON.stringify(input.data)}::jsonb,
           true

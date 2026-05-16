@@ -69,7 +69,9 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A1-05/06/07 magic link / callback / session expiry | ⏭️ | 2026-05-16 | Skipped this run — magic link needs real inbox; session expiry needs JWT time-skip |
 | TC-A2-01 Create an organization | ✅✅ | 2026-05-16 | Pass after BUG-004/005/006 fixes deployed. Org `Smoke Test Org` exists in DB, audit row `orgs.create` written, list view shows the new row + KPI bumped to 4. |
 | TC-A2-02 Org uniqueness (slug + legal_name) | ✅✅ | 2026-05-16 | Both verified end-to-end on prod. Slug dup → 409 "Org slug already taken: smoke-test-org". Legal-name dup → 409 "Org legal name already taken: Smoke Test Org Inc." (BUG-007 + BUG-008 fixes both verified — human message renders inline, no raw JSON). |
-| TC-A3-01 Invite by email | ◐ | 2026-05-16 | User created in `auth.users`; BUG-009 (display_name → profiles) **fixed via migration 0041** + backfill. BUG-013 (no audit row for invite) — under investigation. BUG-011 (greeting parses display_name's first word as a single given name — minor) noted. |
+| TC-A3-01 Invite by email | ✅✅ | 2026-05-16 | Pass after BUG-009 + BUG-013 fixes deployed. Invited `Invite Test Two` — DB shows user + profile.display_name correctly populated + audit row `invite.create` written with super-admin as actor. |
+| TC-A3-02 Invite with credentials | ✅✅ | 2026-05-16 | Invited `Invite Test Three` with initial password `SmokeTest!2026`. DB confirms email_confirmed_at populated (~30ms after creation), encrypted_password set, profile.display_name correctly populated, audit row `invite.create` written. Live sign-in succeeded with the credentials (then bounced to `?error=wrong_role` because user has no role grant — exercises the BUG-002/003 recovery panel correctly). |
+| TC-A3-03 Invite + profile (single dialog) | ✅ | 2026-05-16 | Pass after BUG-014 fix. Invited `Invite Test Four` (magic-link) + `Invite Test Five` (UI typed) both with org_admin role scoped to `Smoke Test Org`. Auth/profile/role-assignment all written in one flow; audit rows `invite.create` + `users.role-profile` both recorded. Initial bug: `metadata.roleProfile` came back `{}` because the handler's jsonb_set call could not create nested parent path — fixed in `set-role-profile.command.ts`. Backfilled both rows directly via SQL to confirm the corrected query persists `{roleProfile: {org_admin: {title, phone}}}`. Pending live retest after deploy. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -145,6 +147,19 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
 
+### BUG-014 · SetRoleProfileHandler can't create nested `metadata.roleProfile.<role>` path on a fresh profile · **major**
+- **TC:** TC-A3-03
+- **Surface:** sp-api · `iam.setRoleProfile` (PATCH `/iam/users/:id/role-profile`)
+- **Repro:**
+  1. Invite a new user via the Invite dialog with "Also grant a role on invite" + "Also set up the <role> profile now" checked.
+  2. Fill the profile fields (e.g. org_admin → title + phone) and submit.
+  3. Query `profiles.metadata` for the new user — comes back `{}` even though the API returned 200 and the `users.role-profile` audit row recorded `{ok:true}`.
+- **Expected:** `profiles.metadata = {"roleProfile": {"org_admin": {"title": "...", "phone": "..."}}}`.
+- **Actual:** Postgres `jsonb_set` with `create_if_missing=true` only creates the LEAF key. When the `roleProfile` parent doesn't exist yet (brand-new profile with `metadata = {}`), the function silently returns the input unchanged — `SELECT jsonb_set('{}'::jsonb, ARRAY['roleProfile','org_admin'], '{...}'::jsonb, true)` returns `{}`. So every first-time profile write was a silent no-op.
+- **File:** `apps/superadmin-api/src/modules/iam/application/commands/set-role-profile.command.ts`.
+- **Fix:** Two-step jsonb_set — step 1 ensures the `roleProfile` parent exists (sets it to `coalesce(metadata -> 'roleProfile', '{}'::jsonb)`), step 2 sets the per-role leaf. Verified at SQL level: the corrected query persists `{roleProfile: {org_admin: {title, phone}}}` on both invtest4 (magic-link path) and invtest5 (auto-confirm path).
+- **Status:** ✅ Fixed locally — backfilled existing rows directly via SQL. Pending push + Vercel redeploy for the live API to use the fix.
+
 ### BUG-013 · Audit interceptor silently drops events under Vercel · **major**
 - **TC:** TC-A3-01, TC-A7-01
 - **Surface:** sp-api · global audit pipeline
@@ -155,7 +170,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Expected:** Every successful POST/PATCH/DELETE produces an audit row.
 - **Actual:** The interceptor called `void this.writer.write(...)` inside a `tap`. RxJS `tap` is fire-and-forget — it doesn't await the returned Promise. On Vercel, the serverless function terminates as soon as the HTTP response is flushed, killing the in-flight audit insert before it lands.
 - **Fix:** `audit.interceptor.ts` switched from `tap(...)` to `switchMap` over `from(this.writeFromRequest(...))`. The interceptor now AWAITS the audit write before the response flows downstream, so the serverless function lifetime is held open until the row commits (~50ms / write). Writer still swallows its own errors via try/catch so a flaky audit can't break the underlying mutation.
-- **Status:** ✅ Fixed locally — pending push + Vercel redeploy + re-verify TC-A3-01 (and TC-A7 across Section A).
+- **Status:** ✅✅ Verified end-to-end. After redeploy, the `Invite Test Two` invite produced an `invite.create` audit row with `actor_user_id` set to the super-admin. (Note: `resource_id` still null — the response body returns `userId`, not `id`, so the interceptor's loose key-lookup misses it. Tracked as a follow-up — see test plan TC-A7-01.)
 
 ### BUG-009 · Invited user's `display_name` not propagated to `profiles` · **major**
 - **TC:** TC-A3-01
@@ -166,7 +181,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Expected:** `profiles.display_name = 'Invite Test One'`.
 - **Actual:** `display_name IS NULL`. The trigger `handle_new_user` (in Postgres) only inserts `(id, email)` and ignores `auth.users.raw_user_meta_data.display_name` even though the API DOES set that field via Supabase admin's `user_metadata: { display_name }`.
 - **Fix:** Migration `0041_handle_new_user_display_name.sql` rewrites the trigger to read `meta->>'display_name'` (plus `legal_first_name` / `legal_last_name` for symmetry with the self-registration funnel) and `NULLIF` empty-string. Backfill UPDATE applied for the existing test row.
-- **Status:** ✅ Trigger replaced + backfill applied. Re-test in next invite cycle.
+- **Status:** ✅✅ Verified end-to-end. New invite "Invite Test Two" landed with `profiles.display_name='Invite Test Two'`.
 
 ### BUG-006 · Org-create slug pattern attribute throws SyntaxError under Chrome /v regex · **major**
 - **TC:** TC-A2-01
