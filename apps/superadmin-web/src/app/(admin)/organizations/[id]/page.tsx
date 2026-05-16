@@ -78,7 +78,7 @@ export default async function OrgDetailPage({
     registration
       .listRegistrations({ orgId: id })
       .catch(() => ({ items: [], nextCursor: null })),
-    orgs.list({ limit: 200 }).catch(() => ({ items: [], nextCursor: null }))
+    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const orgMap = new Map(allOrgsPage.items.map((o) => [o.id, o.displayName]));

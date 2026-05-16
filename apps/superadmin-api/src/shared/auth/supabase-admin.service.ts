@@ -127,6 +127,29 @@ export class SupabaseAdminService {
   }
 
   /**
+   * Flip a user's Supabase Auth ban state. Used by the super-admin
+   * suspend/reactivate actions on /users — without this, our
+   * `profiles.status = 'suspended'` flag was UI-only: the user could
+   * still sign in to any app because nothing checked status (BUG-017).
+   *
+   * `ban_duration` accepts a Go-style duration string ("87600h" = 10y)
+   * or the literal "none" to unban. Supabase rejects subsequent
+   * sign-in attempts with `User is banned` once the ban is active.
+   */
+  async setUserBanned(userId: string, banned: boolean): Promise<void> {
+    const c = this.get();
+    const { error } = await c.auth.admin.updateUserById(userId, {
+      ban_duration: banned ? "87600h" : "none"
+    });
+    if (error) {
+      this.log.warn(
+        `setUserBanned(${banned}) failed for ${userId}: ${error.message}`
+      );
+      throw new Error(error.message);
+    }
+  }
+
+  /**
    * Mirror a user's active role codes into Supabase JWT
    * `app_metadata.role_codes`. Called by every IAM mutation that
    * changes which roles a user holds (assignRole, revokeAssignment,

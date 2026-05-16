@@ -31,7 +31,9 @@ export function IssueGrantButton({
   useEffect(() => {
     if (!open) return;
     iam
-      .listUsers({ limit: 200 })
+      // Server caps limit at 100 — 200 silently 400'd via the catch,
+      // leaving "Choose user…" as the only option (BUG-016).
+      .listUsers({ limit: 100 })
       .then((p) => {
         setUsers(p.items);
         if (p.items[0]) setForm((f) => ({ ...f, userId: p.items[0]!.id }));

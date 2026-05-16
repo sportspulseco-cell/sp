@@ -75,6 +75,8 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A4-01 Assign a role | ✅ (backend) | 2026-05-16 | Backend verified end-to-end via direct API call: `POST /iam/role-assignments` returned 201 with the assignment row, `user_role_assignments` has org_admin row scoped to Smoke Test Org, `auth.users.raw_app_meta_data.role_codes` refreshed to `["org_admin"]`, audit row `role-assignments.create` written. UI flow BLOCKED by BUG-015 (orgs dropdown shows "No orgs found" because the assign panel sends limit=200 but the API caps at 100). Pending live UI retest after deploy. |
 | TC-A4-02 Revoke a role | ✅✅ | 2026-05-16 | Clicked Revoke on the active org_admin row → confirm dialog → accepted → UI updated to "No active assignments". DB confirms `revoked_at` set, `revoked_by_user_id` is the super-admin, `auth.users.raw_app_meta_data.role_codes` re-synced to `[]`, audit row `role-assignments.revoke` written. |
 | TC-A4-03 Dropdown defaults reflect context | ✅ | 2026-05-16 | Two paths verified: (a) "Change user type" on the super_admin user → defaulted to `super_admin — Super Admin` + scope `platform`, NOT alphabetic-first captain. (b) "Edit role profile" on the super_admin user → opened the **Super Admin** profile schema (Title + Emergency contact phone) — NOT the player default that CLAUDE.md called out as the original bug. Additionally patched the secondary cardinal-rule violation: the user-detail `Assign new role` panel + the `Roles` row dialog were silently defaulting to alphabetic-first captain when no `defaultRoleCode` was passed. Now thread `resolvePrimaryRole(isSuperAdmin, assignments)` through both call sites and render a "Select a role…" placeholder when there's no contextual role to land on. Pending live retest after deploy. |
+| TC-A5-01 Cross-org grant | ✅ (backend) | 2026-05-16 | Backend verified: `POST /cross-org-grants` returned 201 — Olivia OrgAdmin (admin of Smoke Test Org) granted `registration.review` permission inside PPHL. Audit row `cross-org-grants.create` written with full payload (fromOrg, toOrg, perms array, grant id). UI flow BLOCKED by BUG-016 (issue-grant dialog's user dropdown empty — same limit=200 vs API cap 100 pattern as BUG-015). Fixed both call sites (`issue-grant-button.tsx` listUsers, `organizations/[id]/page.tsx` orgs.list). Cross-surface check (Olivia views PPHL pages read-only inside org-admin app) pending deploy. |
+| TC-A6-01 Suspend / reactivate | ⚠️ | 2026-05-16 | Clicked Suspend on `Invite Test One` → confirm → `profiles.status='suspended'` written + audit row `users.suspend` recorded. **BUG-017 found**: the deployed Suspend handler does NOT call Supabase Auth's `ban_duration` so the user could still authenticate (no middleware checks profile status either). Fixed locally — both `SuspendProfileHandler` + `ReactivateProfileHandler` now flip `auth.users` ban state via a new `SupabaseAdminService.setUserBanned`. Backfilled invtest1 back to active for next test phase. Full cross-surface sign-in-blockage retest pending deploy. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -149,6 +151,36 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-017 · Suspend doesn't actually block sign-in · **major (security gap)**
+- **TC:** TC-A6-01
+- **Surface:** sp-api · `SuspendProfileHandler` / `ReactivateProfileHandler` + super-admin `/users/[id]` Suspend button
+- **Repro:**
+  1. Open any user with credentials (e.g. `Invite Test Three` with `SmokeTest!2026`).
+  2. Click Suspend → confirm.
+  3. Sign in as that user on any app's sign-in page.
+- **Expected:** Sign-in fails with "User is banned" (Supabase) or a "Your account has been suspended" message.
+- **Actual:** `profiles.status='suspended'` is set, but `auth.users.banned_until` stays NULL. Supabase Auth still issues a valid JWT; nothing in middleware or any API guard checks `profiles.status`, so a suspended user retains full access until their JWT expires.
+- **Files:**
+  - `apps/superadmin-api/src/modules/iam/application/commands/suspend-profile.command.ts`
+  - `apps/superadmin-api/src/modules/iam/application/commands/reactivate-profile.command.ts`
+  - `apps/superadmin-api/src/shared/auth/supabase-admin.service.ts` — new `setUserBanned(userId, banned)` helper.
+- **Fix:** Both handlers now call `SupabaseAdminService.setUserBanned(userId, true|false)` which calls Supabase admin `updateUserById({ ban_duration: '87600h' | 'none' })`. Errors are logged but don't roll back the DB write — the admin can re-run if Supabase is flaky. (10-year ban duration ≡ indefinite for our purposes; reactivate flips it back to `'none'`.)
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy. Verification post-deploy: suspend invtest3, try sign-in → expect "User is banned".
+
+### BUG-016 · Cross-org grant "Issue grant" dialog user/target-org dropdowns empty — same limit=200 vs API cap=100 pattern · **major**
+- **TC:** TC-A5-01
+- **Surface:** super-admin · `/organizations/[id]` · "Issue grant" dialog
+- **Repro:**
+  1. Click "Issue grant" on an org page.
+  2. Both "User" and "Target org" dropdowns render only the placeholder option.
+- **Expected:** User dropdown lists all eligible users (18 in this env); Target org lists the other 3 orgs.
+- **Actual:** `iam.listUsers({limit:200})` and `orgs.list({limit:200})` (server-rendered `allOrgs` prop) both return 400 `{"error":{"code":"BADREQUEST","message":"limit must not be greater than 100"}}`. The `.catch` swallows the error to empty array. Confirmed by direct curl. Same pattern as BUG-015 — there are at least 17 `limit:200` call sites in `superadmin-web` worth a broader sweep.
+- **Files:**
+  - `apps/superadmin-web/src/components/orgs/issue-grant-button.tsx` line 34.
+  - `apps/superadmin-web/src/app/(admin)/organizations/[id]/page.tsx` line 81.
+- **Fix:** Both lowered to limit=100. Backend test (direct `POST /cross-org-grants`) confirms the underlying grant pipeline (handler + audit interceptor) is healthy.
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy. Follow-up: broader sweep of remaining 15 `limit:200` call sites once tests reach them.
 
 ### BUG-015 · Assign-role panel's org list always "No orgs found" — sends limit=200, API caps at 100 · **major**
 - **TC:** TC-A4-01
