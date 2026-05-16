@@ -522,6 +522,41 @@ export class CaptainController {
     subInvoiceCount: number;
     inviteCount: number;
   }> {
+    try {
+      return await this.registerInner(user, body);
+    } catch (e) {
+      if (
+        e instanceof NotFoundException ||
+        e instanceof ForbiddenException ||
+        e instanceof BadRequestException
+      ) {
+        throw e;
+      }
+      this.log.error(
+        `captain/register failed: ${(e as Error).message}`,
+        (e as Error).stack
+      );
+      // DIAG (BUG-026): surface inline because Vercel hobby plan has no
+      // runtime log API. Strip when bug is closed.
+      throw new BadRequestException({
+        diag: "captain-register-throw",
+        message: (e as Error).message,
+        name: (e as Error).name,
+        stack: ((e as Error).stack ?? "").slice(0, 2000)
+      });
+    }
+  }
+
+  private async registerInner(
+    user: AuthPrincipal,
+    body: CaptainRegisterBodyDto
+  ): Promise<{
+    divisionTeamEntryId: string;
+    entryStatus: string;
+    masterInvoiceId: string;
+    subInvoiceCount: number;
+    inviteCount: number;
+  }> {
     // ----- 0. Authorise + load context -----
     const [team] = await this.db
       .select({
