@@ -662,19 +662,56 @@ export class CaptainController {
     );
 
     const result = await this.db.transaction(async (tx) => {
-      // STEP 1 — division_team_entries row.
-      const [dte] = await tx
-        .insert(schema.divisionTeamEntries)
-        .values({
-          teamId: team.id,
-          divisionId: division.id,
-          entryStatus: initialStatus,
-          confirmationThresholdCents: threshold,
-          collectedCents: 0,
-          metadata: { splitMode: body.splitMode }
-        })
-        .returning();
-      if (!dte) throw new Error("DTE insert returned no row");
+      // STEP 1 — division_team_entries row. Workflow 7A is now two
+      // stages: `/captain/register/apply` (admin-reviewed) followed by
+      // this 8-write setup. The apply step inserted the row with
+      // entry_status='pending_approval'; the admin flipped it to
+      // 'applied'. UPSERT here so the setup can move the same row
+      // forward instead of trying to INSERT a duplicate, which hits
+      // `dte_team_division_active_uniq` and 500s the whole flow
+      // (BUG-026).
+      const [existingDte] = await tx
+        .select()
+        .from(schema.divisionTeamEntries)
+        .where(
+          and(
+            eq(schema.divisionTeamEntries.teamId, team.id),
+            eq(schema.divisionTeamEntries.divisionId, division.id),
+            inArray(schema.divisionTeamEntries.entryStatus, [
+              "pending_approval",
+              "applied",
+              "accepted"
+            ])
+          )
+        )
+        .limit(1);
+      let dte;
+      if (existingDte) {
+        const [updated] = await tx
+          .update(schema.divisionTeamEntries)
+          .set({
+            entryStatus: initialStatus,
+            confirmationThresholdCents: threshold,
+            metadata: { ...(existingDte.metadata ?? {}), splitMode: body.splitMode }
+          })
+          .where(eq(schema.divisionTeamEntries.id, existingDte.id))
+          .returning();
+        dte = updated;
+      } else {
+        const [inserted] = await tx
+          .insert(schema.divisionTeamEntries)
+          .values({
+            teamId: team.id,
+            divisionId: division.id,
+            entryStatus: initialStatus,
+            confirmationThresholdCents: threshold,
+            collectedCents: 0,
+            metadata: { splitMode: body.splitMode }
+          })
+          .returning();
+        dte = inserted;
+      }
+      if (!dte) throw new Error("DTE upsert returned no row");
 
       // STEP 2 — master invoice (team_dues).
       const masterNumber = `INV-${dte.id.slice(0, 8).toUpperCase()}-MASTER`;
