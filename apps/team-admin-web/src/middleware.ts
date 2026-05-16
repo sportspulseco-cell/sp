@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireRole } from "@sportspulse/auth/web";
 
-const REQUIRED_ROLE_CODES = ["team_admin", "coach"];
+// Spec (doc/test-cases-master.md §F): "Owner: captain (or super_admin
+// bypass). Surface: apps/team-admin-web." Captains hold the canonical
+// roster / invite / lineup actions — they need access here, alongside
+// team_admin and coach. Omitting captain shipped as BUG-022 — Parker
+// (captain) bounced with ?error=wrong_role.
+const REQUIRED_ROLE_CODES = ["team_admin", "coach", "captain"];
 
 const PUBLIC_PATHS = [
   "/sign-in",
