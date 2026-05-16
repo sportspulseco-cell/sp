@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -64,11 +65,29 @@ export class GamesController {
       leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
     });
   }
-  @Get(":id") getOne(
+  @Get(":id") async getOne(
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<GameDto> {
-    return this.getH.execute({ id, leagueIdsFilter: scope.leagueIds ?? undefined });
+    // Mirror the list endpoint's "direct team-scope bypass" — when the
+    // game's home OR away team is one the caller holds directly (e.g.
+    // captain on the team), don't gate on leagueIds (captains never
+    // have any). Otherwise team-scoped users got 404 on every game
+    // they should be allowed to see (BUG-029). Fetch first, then
+    // re-apply the no-leak rule if neither the league nor either
+    // team is in scope.
+    const game = await this.getH.execute({ id });
+    if (scope.isSuperAdmin) return game;
+    const inLeagueScope =
+      !scope.leagueIds || scope.leagueIds.includes(game.leagueId);
+    const onEitherTeam =
+      !!scope.teamIds &&
+      (scope.teamIds.includes(game.homeTeamId) ||
+        scope.teamIds.includes(game.awayTeamId));
+    if (!inLeagueScope && !onEitherTeam) {
+      throw new NotFoundException(`Game not found: ${id}`);
+    }
+    return game;
   }
   @Post() create(@Body() body: CreateGameBodyDto): Promise<GameDto> {
     return this.createH.execute(body);
