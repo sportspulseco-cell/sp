@@ -145,6 +145,18 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
 
+### BUG-013 · Audit interceptor silently drops events under Vercel · **major**
+- **TC:** TC-A3-01, TC-A7-01
+- **Surface:** sp-api · global audit pipeline
+- **Repro:**
+  1. Make any 2xx mutation via the deployed sp-api (e.g. invite a user)
+  2. Query `audit_events` for the action — no row.
+  3. Older invites from the local-dev era ARE audited, confirming the writer worked once.
+- **Expected:** Every successful POST/PATCH/DELETE produces an audit row.
+- **Actual:** The interceptor called `void this.writer.write(...)` inside a `tap`. RxJS `tap` is fire-and-forget — it doesn't await the returned Promise. On Vercel, the serverless function terminates as soon as the HTTP response is flushed, killing the in-flight audit insert before it lands.
+- **Fix:** `audit.interceptor.ts` switched from `tap(...)` to `switchMap` over `from(this.writeFromRequest(...))`. The interceptor now AWAITS the audit write before the response flows downstream, so the serverless function lifetime is held open until the row commits (~50ms / write). Writer still swallows its own errors via try/catch so a flaky audit can't break the underlying mutation.
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy + re-verify TC-A3-01 (and TC-A7 across Section A).
+
 ### BUG-009 · Invited user's `display_name` not propagated to `profiles` · **major**
 - **TC:** TC-A3-01
 - **Surface:** super-admin · /users · Invite user dialog
