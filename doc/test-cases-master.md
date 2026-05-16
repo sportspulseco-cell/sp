@@ -72,6 +72,9 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | TC-A3-01 Invite by email | ✅✅ | 2026-05-16 | Pass after BUG-009 + BUG-013 fixes deployed. Invited `Invite Test Two` — DB shows user + profile.display_name correctly populated + audit row `invite.create` written with super-admin as actor. |
 | TC-A3-02 Invite with credentials | ✅✅ | 2026-05-16 | Invited `Invite Test Three` with initial password `SmokeTest!2026`. DB confirms email_confirmed_at populated (~30ms after creation), encrypted_password set, profile.display_name correctly populated, audit row `invite.create` written. Live sign-in succeeded with the credentials (then bounced to `?error=wrong_role` because user has no role grant — exercises the BUG-002/003 recovery panel correctly). |
 | TC-A3-03 Invite + profile (single dialog) | ✅ | 2026-05-16 | Pass after BUG-014 fix. Invited `Invite Test Four` (magic-link) + `Invite Test Five` (UI typed) both with org_admin role scoped to `Smoke Test Org`. Auth/profile/role-assignment all written in one flow; audit rows `invite.create` + `users.role-profile` both recorded. Initial bug: `metadata.roleProfile` came back `{}` because the handler's jsonb_set call could not create nested parent path — fixed in `set-role-profile.command.ts`. Backfilled both rows directly via SQL to confirm the corrected query persists `{roleProfile: {org_admin: {title, phone}}}`. Pending live retest after deploy. |
+| TC-A4-01 Assign a role | ✅ (backend) | 2026-05-16 | Backend verified end-to-end via direct API call: `POST /iam/role-assignments` returned 201 with the assignment row, `user_role_assignments` has org_admin row scoped to Smoke Test Org, `auth.users.raw_app_meta_data.role_codes` refreshed to `["org_admin"]`, audit row `role-assignments.create` written. UI flow BLOCKED by BUG-015 (orgs dropdown shows "No orgs found" because the assign panel sends limit=200 but the API caps at 100). Pending live UI retest after deploy. |
+| TC-A4-02 Revoke a role | ✅✅ | 2026-05-16 | Clicked Revoke on the active org_admin row → confirm dialog → accepted → UI updated to "No active assignments". DB confirms `revoked_at` set, `revoked_by_user_id` is the super-admin, `auth.users.raw_app_meta_data.role_codes` re-synced to `[]`, audit row `role-assignments.revoke` written. |
+| TC-A4-03 Dropdown defaults reflect context | ✅ | 2026-05-16 | Two paths verified: (a) "Change user type" on the super_admin user → defaulted to `super_admin — Super Admin` + scope `platform`, NOT alphabetic-first captain. (b) "Edit role profile" on the super_admin user → opened the **Super Admin** profile schema (Title + Emergency contact phone) — NOT the player default that CLAUDE.md called out as the original bug. Additionally patched the secondary cardinal-rule violation: the user-detail `Assign new role` panel + the `Roles` row dialog were silently defaulting to alphabetic-first captain when no `defaultRoleCode` was passed. Now thread `resolvePrimaryRole(isSuperAdmin, assignments)` through both call sites and render a "Select a role…" placeholder when there's no contextual role to land on. Pending live retest after deploy. |
 | _all others_ | ⏳ | — | queued |
 
 ## Bug log
@@ -146,6 +149,19 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **File(s):** `browser-api.ts` + `client.ts` in all four web apps (8 files). All threw `new Error(\`API ${res.status}: ${body}\`)` which surfaces raw JSON.
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
+
+### BUG-015 · Assign-role panel's org list always "No orgs found" — sends limit=200, API caps at 100 · **major**
+- **TC:** TC-A4-01
+- **Surface:** super-admin · `/users/[id]` · "Assign new role" panel
+- **Repro:**
+  1. Open any user's detail page.
+  2. In "Assign new role" change Role → `org_admin` (which auto-sets Scope type=org).
+  3. The Scope dropdown reads "No orgs found — create one first.", Assign button disabled.
+- **Expected:** Dropdown lists all orgs the super-admin can see (4 in this env: USA Hockey, Smoke Test Org, PPHL, Demo Hockey Club).
+- **Actual:** `orgsApi.list({limit:200})` returns `400 {error:{code:'BADREQUEST', message:'limit must not be greater than 100'}}`. The fetcher's `.catch` block swallows the error to `setScopeOptions([])`, so the user sees a misleading empty-state.
+- **File:** `apps/superadmin-web/src/components/roles/assign-role-panel.tsx` line 116.
+- **Fix:** Drop the limit to 100 (matches ResourcePicker, which is why the same orgs render fine in the Invite dialog's picker). Follow-up: surface the catch's error in the hint so a future failure doesn't masquerade as "no data".
+- **Status:** ✅ Fixed locally — pending push + Vercel redeploy.
 
 ### BUG-014 · SetRoleProfileHandler can't create nested `metadata.roleProfile.<role>` path on a fresh profile · **major**
 - **TC:** TC-A3-03

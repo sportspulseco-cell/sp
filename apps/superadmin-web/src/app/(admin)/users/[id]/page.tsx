@@ -10,6 +10,7 @@ import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { RevokeAssignmentButton } from "@/components/roles/revoke-assignment-button";
 import { EditUserButton } from "@/components/users/edit-user-button";
 import { SuspendUserButton } from "@/components/users/suspend-user-button";
+import { resolvePrimaryRole } from "@/components/users/primary-role";
 
 export const metadata = { title: "User — SportsPulse" };
 
@@ -226,7 +227,17 @@ export default async function UserDetailPage({
           </p>
         </header>
         <div className="p-6">
-          <AssignRolePanel userId={user.id} roles={roles.items} />
+          {/* defaultRoleCode reflects the user's current primary role so
+              the dropdown lands on a relevant default — captain
+              (alphabetic-first) was a CLAUDE.md cardinal-rule
+              violation on super_admin and org_admin rows. */}
+          <AssignRolePanel
+            userId={user.id}
+            roles={roles.items}
+            defaultRoleCode={
+              resolvePrimaryRole(user.isSuperAdmin ?? false, assignments)?.code
+            }
+          />
         </div>
       </section>
     </div>

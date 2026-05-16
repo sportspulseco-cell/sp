@@ -71,16 +71,20 @@ export function AssignRolePanel({
     [roles]
   );
 
-  // Resolve the initial selection. defaultRoleCode wins; otherwise we
-  // fall back to first system role rather than the alphabetic-first
-  // (which would land on "coach"). Honest empty state if `roles` is
-  // empty — useState handles that with the "" default.
+  // Resolve the initial selection.
+  // - When `defaultRoleCode` matches a known role, land on that role
+  //   (the panel was launched from a row with context — e.g. a super-
+  //   admin's "Change user type" should default to super_admin).
+  // - When no context is provided, render an empty state instead of
+  //   silently defaulting to alphabetic-first ("captain" first in our
+  //   catalog), which is the CLAUDE.md cardinal-rule violation that
+  //   shipped a captain default onto super_admin users.
   const initialRole = useMemo(() => {
     if (defaultRoleCode) {
       const match = sortedRoles.find((r) => r.code === defaultRoleCode);
       if (match) return match;
     }
-    return sortedRoles[0];
+    return undefined;
   }, [sortedRoles, defaultRoleCode]);
 
   const [roleId, setRoleId] = useState(initialRole?.id ?? "");
@@ -113,7 +117,10 @@ export function AssignRolePanel({
     const fetcher = async (): Promise<ScopeOption[]> => {
       switch (scopeType) {
         case "org": {
-          const p = await orgsApi.list({ limit: 200 });
+          // Server caps limit at 100 (see /orgs ListOrgsQueryDto). Was 200
+          // and 400'd silently — the catch swallowed the error and the
+          // user saw "No orgs found" even when orgs existed.
+          const p = await orgsApi.list({ limit: 100 });
           return p.items.map((o) => ({ id: o.id, label: o.displayName }));
         }
         case "league": {
@@ -225,6 +232,15 @@ export function AssignRolePanel({
           value={roleId}
           onChange={(e) => onRoleChange(e.target.value)}
         >
+          {/* Placeholder option keeps "Select a role…" as the visible
+              default when no contextual role was passed in. Forces the
+              admin to pick consciously rather than silently landing on
+              alphabetic-first. */}
+          {roleId === "" ? (
+            <option value="" disabled hidden>
+              Select a role…
+            </option>
+          ) : null}
           <optgroup label="System">
             {sortedRoles
               .filter((r) => r.isSystem)

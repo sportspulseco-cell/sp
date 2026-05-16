@@ -6,6 +6,7 @@ import { iam } from "@/lib/api/browser-api";
 import type { Role, RoleAssignment } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
+import { resolvePrimaryRole } from "./primary-role";
 
 /**
  * Per-row role manager for /users.
@@ -16,10 +17,14 @@ import { AssignRolePanel } from "@/components/roles/assign-role-panel";
  */
 export function ManageUserRolesCell({
   userId,
-  display
+  display,
+  isSuperAdmin = false
 }: {
   userId: string;
   display: string;
+  /** Used to default the Assign panel's role dropdown to "super_admin"
+   * instead of the alphabetic-first "captain" on a super-admin row. */
+  isSuperAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [assignments, setAssignments] = useState<RoleAssignment[] | null>(null);
@@ -131,7 +136,13 @@ export function ManageUserRolesCell({
             )}
 
             <div className="rounded-md border border-border bg-bg-subtle p-4">
-              <AssignRolePanel userId={userId} roles={roles} />
+              <AssignRolePanel
+                userId={userId}
+                roles={roles}
+                defaultRoleCode={
+                  resolvePrimaryRole(isSuperAdmin, assignments ?? [])?.code
+                }
+              />
             </div>
           </div>
         )}

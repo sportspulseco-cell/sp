@@ -112,7 +112,11 @@ export default async function UsersPage() {
                     />
                   </TD>
                   <TD>
-                    <ManageUserRolesCell userId={u.id} display={name} />
+                    <ManageUserRolesCell
+                      userId={u.id}
+                      display={name}
+                      isSuperAdmin={u.isSuperAdmin}
+                    />
                   </TD>
                   <TD className="text-muted-foreground">
                     {new Date(u.createdAt).toLocaleDateString()}
