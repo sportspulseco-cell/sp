@@ -112,7 +112,7 @@ export function SignInForm() {
           </>
         ) : (
           <>
-            Send sign-in link
+            Sign in
             <ArrowRight className="h-4 w-4" strokeWidth={2} />
           </>
         )}

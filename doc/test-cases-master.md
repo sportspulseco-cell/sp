@@ -46,6 +46,42 @@ Seed fixtures: `Org-A` (sports: hockey), one `League-X` under it, one `Season-S`
 
 ---
 
+# 📊 EXECUTION TRACKER
+
+Status legend:
+- ⏳ Not run
+- ▶️ In progress
+- ✅ Pass
+- ❌ Fail (open bug)
+- 🔁 Fixed — re-verify
+- ✅✅ Verified post-fix
+- 🚫 Blocked (dependency)
+- ⏭️ Skipped (out of session scope)
+
+Live run started **2026-05-16** with the smoke-test credentials provided by the repo owner.
+
+| TC | Status | Last run | Notes / Bug ref |
+|---|---|---|---|
+| TC-A1-01 Super-admin sign-in | 🔁 | 2026-05-16 | Pass with BUG-001 found in same walk — pending re-verify after deploy |
+| TC-A1-02 Wrong password | ▶️ | 2026-05-16 | next |
+| _all others_ | ⏳ | — | queued |
+
+## Bug log
+
+### BUG-001 · Super-admin sign-in button label says "Send sign-in link" instead of "Sign in" · **minor UX**
+- **TC:** TC-A1-01
+- **Surface:** super-admin · /sign-in
+- **Repro:**
+  1. Visit `https://sp-superadmin.vercel.app/sign-in`
+  2. Enter email + password
+  3. Look at the submit button
+- **Expected:** "Sign in" (or similar) because the form calls `signInWithPassword`.
+- **Actual:** Button label reads "Send sign-in link", which implies a magic-link flow but the form actually submits the password.
+- **File:** `apps/superadmin-web/src/components/auth/sign-in-form.tsx` line 115 — string replaced with "Sign in" (the `signInWithPassword` call wasn't touched).
+- **Status:** Fixed locally — needs deploy + re-verify.
+
+---
+
 # TABLE OF CONTENTS
 
 - [A. Platform & user setup](#a-platform--user-setup)
