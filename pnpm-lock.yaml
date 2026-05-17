@@ -78,6 +78,9 @@ importers:
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@sportspulse/forms-builder':
+        specifier: workspace:*
+        version: link:../../packages/forms-builder
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel

@@ -79,3 +79,11 @@ export const orgAdminDivisions = api.orgAdminDivisions;
 export const orgAdminBroadcast = api.orgAdminBroadcast;
 export const orgAdminFinance = api.orgAdminFinance;
 export const orgAdminRegistrations = api.orgAdminRegistrations;
+
+// Forms-builder shared package (BUG-043) consumes these namespaces via
+// its React context. They hit super-admin-guarded endpoints today —
+// the proxy/relax work in doc/bug-043-followup.md gates which calls
+// will succeed for an org_admin caller.
+export const registration = api.registration;
+export const registrationV2 = api.registrationV2;
+export const leagueMgmt = api.leagueMgmt;
