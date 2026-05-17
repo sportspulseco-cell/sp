@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@sportspulse/admin-pages": "workspace:*",
     "@sportspulse/api-client": "workspace:*",
     "@sportspulse/auth": "workspace:*",
     "@sportspulse/forms-builder": "workspace:*",

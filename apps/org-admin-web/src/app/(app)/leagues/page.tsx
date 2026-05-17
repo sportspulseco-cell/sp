@@ -60,7 +60,14 @@ export default async function LeaguesPage() {
           <TBody>
             {page.items.map((l) => (
               <TR key={l.id}>
-                <TD className="font-medium text-fg">{l.name}</TD>
+                <TD>
+                  <Link
+                    href={`/leagues/${l.id}`}
+                    className="font-medium text-fg hover:text-accent"
+                  >
+                    {l.name}
+                  </Link>
+                </TD>
                 <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{l.sportCode}</TD>
                 <TD className="text-fg-muted">{l.format ?? "-"}</TD>
                 <TD>
