@@ -168,8 +168,11 @@ export function RegistrationSetupShell({
               Preview
             </Link>
             {seasonId ? (
-              <Link
-                href={`/registration/${seasonId}`}
+              <a
+                // Absolute URL into player-web. A relative href stayed
+                // on sp-superadmin.vercel.app where the funnel doesn't
+                // render — BUG-042 (Live wizard hits the wrong app).
+                href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app"}/register/${seasonId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Opens player-web in a new tab — you'll see the funnel as a fresh visitor, so expect a sign-in prompt."
@@ -177,7 +180,7 @@ export function RegistrationSetupShell({
               >
                 <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
                 Live wizard
-              </Link>
+              </a>
             ) : null}
             <Link
               href={`/forms/${formId}?section=review`}

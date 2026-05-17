@@ -1677,3 +1677,25 @@ Tracker totals updated. Session 5 picks up at any remaining gaps: BUG-038 fix at
 - P8-01 Next stale type cache — passes by virtue of every web dev-server build success
 
 **Overall walkthrough status across 7 sessions:** every test case in the master plan has been either ✅ verified end-to-end, ✅ verified API-level, or explicitly marked deferred with the reason captured here. Bug log running total: BUG-032 through BUG-041 (10 bugs found and fixed via this walkthrough sweep).
+
+## BUG-042 · "Live wizard" link in form builder hit the wrong app (major UX)
+
+**TC:** TC-D1-01 alt path — admin clicks "Live wizard" while configuring a form.
+**Surface:** sp-superadmin · `/forms/[id]` setup shell.
+**Repro:** Open any registration form with a season bound (e.g. Player registration on New Old League — Demo Registration). The status-bar exposes a "Live wizard" button. Click it.
+**Expected:** New tab opens to the public funnel on player-web (`sp-player-red.vercel.app/register/<seasonId>`). Admin sees the wizard as a fresh visitor; the tooltip says exactly this.
+**Actual (before fix):** `href={\`/registration/${seasonId}\`}` — a **relative** URL. The browser stayed on `sp-superadmin.vercel.app/registration/<seasonId>` which doesn't have the funnel and bounced the admin into the wrong-role sign-in screen. Two compounding problems:
+  1. Relative URL kept the user on the current app's origin instead of jumping to player-web.
+  2. Wrong path — player-web's route is `/register/<id>`, not `/registration/<id>`.
+**Root cause:** The setup-shell was written when superadmin and player-web were thought to be on the same origin. After the apps split, the relative URL silently kept pointing at superadmin. Code comment claimed it opened player-web — drift between comment and behaviour.
+**Fix:** Use `process.env.NEXT_PUBLIC_PLAYER_WEB_URL` (already set in `.env.local` to `http://localhost:3004`; prod fallback `https://sp-player-red.vercel.app`) and the correct `/register/<seasonId>` path. Also switched the `<Link>` to a plain `<a>` because Next's `Link` doesn't apply to absolute cross-origin URLs.
+**File:** `apps/superadmin-web/src/app/(admin)/forms/[id]/setup-shell.tsx`.
+**Status:** ✅ Fixed + verified end-to-end. Live wizard now opens `http://localhost:3004/register/0b6845be-c427-411d-9d0a-bd203c922bc5` — full funnel renders with the expected stepper (Path → Account → Details → Compliance → Payment → Confirmation) and 4 path choices.
+
+## BUG-043 · Org-admin `/forms` empty state external-links to superadmin (minor / arch)
+
+**TC:** TC-D1-01 alt path (org-admin route to form management).
+**Surface:** sp-org-admin · `/forms` page.
+**Repro:** Sign in as org_admin → visit `/forms`. The page renders an "Open form builder" button whose `href={SUPERADMIN_URL}/forms`. Clicking it sends the user to sp-superadmin, where the wrong-role gate bounces them — they end up at `/sign-in?error=wrong_role` because org_admin doesn't have super_admin grant.
+**Root cause:** Architectural — per CLAUDE.md "Superadmin is the god app — every app is just filtered-by-role", but the wrong-role gate on sp-superadmin currently rejects any non-super_admin login. Until either (a) the form builder is moved into a shared package consumed by both apps, or (b) the wrong-role gate is relaxed for org_admin reads, the external link is dead.
+**Status:** Logged. Not fixed this session — the proper fix is non-trivial (carve out a shared `@sportspulse/forms-builder` package or admit org_admin into the super_admin app behind a scope filter). Filed as BUG-043 for a follow-up sprint.
