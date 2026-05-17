@@ -30,7 +30,7 @@ const SERIES_LABELS: Record<string, string> = {
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
@@ -324,7 +324,7 @@ export default async function DivisionDetailPage({
                     {pct}% confirmed
                   </span>
                   <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    applied {new Date(t.appliedAt).toLocaleDateString()}
+                    applied {new Date(t.appliedAt).toLocaleDateString("en-CA")}
                   </span>
                 </li>
               );

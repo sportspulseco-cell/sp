@@ -61,7 +61,7 @@ export default async function TeamAdminRosterPage() {
                 <TD className="text-right font-mono tabular-nums">{m.jerseyNumber ?? "-"}</TD>
                 <TD className="text-fg-muted">{m.positionCode ?? "-"}</TD>
                 <TD><Badge mono tone="neutral">{m.membershipType}</Badge></TD>
-                <TD className="text-[12px] text-fg-muted">{new Date(m.effectiveFrom).toLocaleDateString()}</TD>
+                <TD className="text-[12px] text-fg-muted">{new Date(m.effectiveFrom).toLocaleDateString("en-CA")}</TD>
               </TR>
             ))}
           </TBody>

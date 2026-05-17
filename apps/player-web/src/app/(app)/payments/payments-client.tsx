@@ -220,7 +220,7 @@ function InvoiceCard({
           <span>
             Your{" "}
             {oldestFailed.dueDate
-              ? new Date(oldestFailed.dueDate).toLocaleDateString(undefined, {
+              ? new Date(oldestFailed.dueDate).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric"
                 })
@@ -298,7 +298,7 @@ function InvoiceCard({
                       {ins.status === "failed"
                         ? "Failed"
                         : ins.dueDate
-                          ? new Date(ins.dueDate).toLocaleDateString(undefined, {
+                          ? new Date(ins.dueDate).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric"
                             })

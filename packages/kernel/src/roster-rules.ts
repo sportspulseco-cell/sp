@@ -154,9 +154,15 @@ export function assertValidTransferTransition(
 /**
  * Resolve a stored `divisions.rule_set_overrides` JSONB blob into a
  * fully-defaulted object. Use this everywhere a rule is consulted.
+ *
+ * Lenient reader: accepts both the flat shape this interface declares
+ * AND the nested shape the org-setup wizard writes
+ * (`{ageRange:{min,max}, gameRules:{maxRosterSize,...}}`). Without this
+ * normalisation, configured age ranges + roster caps silently fall
+ * back to defaults (BUG-034).
  */
 export function resolveDivisionRules(
-  raw: Partial<DivisionRuleSetOverrides> | null | undefined
+  raw: Record<string, unknown> | null | undefined
 ): Required<
   Pick<
     DivisionRuleSetOverrides,
@@ -167,5 +173,25 @@ export function resolveDivisionRules(
   >
 > &
   Pick<DivisionRuleSetOverrides, "ageMinYears" | "ageMaxYears"> {
-  return { ...DIVISION_RULES_DEFAULTS, ...(raw ?? {}) };
+  const flat: Partial<DivisionRuleSetOverrides> = {};
+  if (raw && typeof raw === "object") {
+    const r = raw as Record<string, unknown>;
+    const gameRules = (r.gameRules ?? {}) as Record<string, unknown>;
+    const ageRange = (r.ageRange ?? {}) as Record<string, unknown>;
+    const num = (v: unknown): number | undefined =>
+      typeof v === "number" && Number.isFinite(v) ? v : undefined;
+    flat.maxRosterSize = num(r.maxRosterSize) ?? num(gameRules.maxRosterSize);
+    flat.minGamesForPlayoffs =
+      num(r.minGamesForPlayoffs) ?? num(gameRules.minGamesForPlayoffs);
+    flat.maxGuestPlayersPerGame =
+      num(r.maxGuestPlayersPerGame) ?? num(gameRules.maxGuestPlayersPerGame);
+    flat.guestPlayerSeasonLimit =
+      num(r.guestPlayerSeasonLimit) ?? num(gameRules.guestPlayerSeasonLimit);
+    flat.ageMinYears = num(r.ageMinYears) ?? num(ageRange.min);
+    flat.ageMaxYears = num(r.ageMaxYears) ?? num(ageRange.max);
+  }
+  const stripUndef = Object.fromEntries(
+    Object.entries(flat).filter(([, v]) => v !== undefined)
+  ) as Partial<DivisionRuleSetOverrides>;
+  return { ...DIVISION_RULES_DEFAULTS, ...stripUndef };
 }

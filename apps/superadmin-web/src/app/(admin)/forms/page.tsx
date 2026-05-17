@@ -197,7 +197,7 @@ export default async function FormsPage({
                   )}
                 </TD>
                 <TD className="text-fg-muted">
-                  {new Date(f.updatedAt).toLocaleDateString()}
+                  {new Date(f.updatedAt).toLocaleDateString("en-CA")}
                 </TD>
               </TR>
             ))}

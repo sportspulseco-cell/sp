@@ -49,7 +49,7 @@ export function RegistrationOpenView({
             </Link>
             {state.registrationClosesAt && (
               <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-fg-muted">
-                Closes {new Date(state.registrationClosesAt).toLocaleDateString()}
+                Closes {new Date(state.registrationClosesAt).toLocaleDateString("en-CA")}
               </p>
             )}
           </div>

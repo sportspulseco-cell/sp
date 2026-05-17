@@ -196,7 +196,7 @@ export function DivisionApplicationsQueue({
                     </Badge>
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
-                    {new Date(t.createdAt).toLocaleDateString()}
+                    {new Date(t.createdAt).toLocaleDateString("en-CA")}
                   </TD>
                   <TD className="text-right">
                     {t.entryStatus === "pending_approval" ? (

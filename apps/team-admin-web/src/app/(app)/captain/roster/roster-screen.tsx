@@ -339,7 +339,7 @@ function ActiveRosterTable({
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {new Date(m.effectiveFrom).toLocaleDateString()}
+                  {new Date(m.effectiveFrom).toLocaleDateString("en-CA")}
                 </TD>
                 <TD className="text-right">
                   {isLocked ? (
@@ -456,7 +456,7 @@ function PendingInvitesTable({
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
                   {i.expiresAt
-                    ? new Date(i.expiresAt).toLocaleDateString()
+                    ? new Date(i.expiresAt).toLocaleDateString("en-CA")
                     : "—"}
                 </TD>
                 <TD className="text-[12px] text-fg-muted tabular-nums">
@@ -502,7 +502,7 @@ function useLockMeta(
     const days = Math.ceil((lock - now) / (24 * 60 * 60 * 1000));
     if (days < 0) {
       return {
-        label: `Roster locked since ${new Date(iso).toLocaleDateString()}`,
+        label: `Roster locked since ${new Date(iso).toLocaleDateString("en-CA")}`,
         tone: "red"
       };
     }

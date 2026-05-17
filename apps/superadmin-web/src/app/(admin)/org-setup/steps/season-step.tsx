@@ -6,7 +6,7 @@ import { Field, FieldStyle } from "./league-step";
 
 function fmt(d: string): string {
   if (!d) return "—";
-  return new Date(d + "T00:00:00").toLocaleDateString(undefined, {
+  return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"

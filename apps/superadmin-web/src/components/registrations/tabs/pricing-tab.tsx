@@ -141,7 +141,7 @@ function TierCard({
             className="w-full bg-transparent text-[16px] font-semibold tracking-tight text-fg outline-none focus:bg-surface-2 focus:px-1 focus:py-0.5 focus:rounded"
           />
           <p className="mt-1 font-mono text-[11px] tabular-nums text-fg-muted">
-            ID {tier.id.slice(0, 8)} · created {new Date(tier.createdAt).toLocaleDateString()}
+            ID {tier.id.slice(0, 8)} · created {new Date(tier.createdAt).toLocaleDateString("en-CA")}
           </p>
         </div>
         <div className="flex items-center gap-2">

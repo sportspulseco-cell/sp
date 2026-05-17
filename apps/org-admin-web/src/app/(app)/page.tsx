@@ -272,7 +272,7 @@ export default async function OrgAdminHome() {
                     </Badge>
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
-                    {new Date(r.createdAt).toLocaleDateString()}
+                    {new Date(r.createdAt).toLocaleDateString("en-CA")}
                   </TD>
                 </TR>
               ))}

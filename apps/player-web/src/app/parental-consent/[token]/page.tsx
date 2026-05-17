@@ -74,7 +74,7 @@ export default async function ParentalConsentPage({
             tone="emerald"
             icon={<CheckCircle2 className="h-6 w-6" strokeWidth={1.75} />}
             title="Consent already on file"
-            body={`You confirmed ${ctx.childDisplayName}'s registration on ${new Date(ctx.confirmedAt).toLocaleDateString()}. Nothing else to do here.`}
+            body={`You confirmed ${ctx.childDisplayName}'s registration on ${new Date(ctx.confirmedAt).toLocaleDateString("en-CA")}. Nothing else to do here.`}
           />
         ) : ctx.status !== "pending_consent" ? (
           <Card

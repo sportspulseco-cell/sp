@@ -100,7 +100,7 @@ export async function DuesSplitTab({
           <p className="mt-2 font-mono text-[11px] text-fg-muted">
             {pct}% collected
             {invoice.dueAt
-              ? ` · Deadline ${new Date(invoice.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
+              ? ` · Deadline ${new Date(invoice.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
               : ""}
           </p>
         </div>

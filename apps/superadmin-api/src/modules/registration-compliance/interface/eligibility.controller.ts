@@ -48,7 +48,12 @@ export class EligibilityController {
   @Get() list(@Query() q: ListEligibilityQueryDto): Promise<EligibilityRecordPageDto> {
     return this.listH.execute(q);
   }
-  @Get(":id") getOne(@Param("id") id: string): Promise<EligibilityRecordDto> {
+  // Constrain :id to UUID shape so /compliance/eligibility/precheck
+  // (registered on a separate ComplianceController) doesn't get swallowed
+  // by Express first-match into this :id handler — which 500'd with
+  // "Invalid UUID: precheck" before the precheck route was reached (BUG-033).
+  @Get(":id([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
+  getOne(@Param("id") id: string): Promise<EligibilityRecordDto> {
     return this.getH.execute({ id });
   }
   @Post() @ApiOperation({ summary: "Create eligibility record" })

@@ -129,7 +129,7 @@ export default async function CaptainCompliancePage() {
                   <div className="text-[12px] text-fg-muted">
                     USA Hockey:{" "}
                     {usah?.status
-                      ? `${usah.status}${usah.expiresAt ? ` · ${new Date(usah.expiresAt).toLocaleDateString()}` : ""}`
+                      ? `${usah.status}${usah.expiresAt ? ` · ${new Date(usah.expiresAt).toLocaleDateString("en-CA")}` : ""}`
                       : "—"}
                   </div>
                   <div className="text-[12px] text-fg-muted">

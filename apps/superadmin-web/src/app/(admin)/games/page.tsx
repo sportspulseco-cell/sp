@@ -30,7 +30,7 @@ const STATUS_FILTERS: Array<{ key: GameStatus | "all"; label: string }> = [
 
 function formatKickoff(iso: string, tz: string) {
   const d = new Date(iso);
-  const date = d.toLocaleDateString(undefined, {
+  const date = d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric"
   });

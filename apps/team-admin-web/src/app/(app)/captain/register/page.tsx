@@ -395,7 +395,7 @@ function RejectionDetailCard({ app }: { app: Application }) {
 
 function SeasonCard({ season }: { season: OpenSeason }) {
   const startStr = season.startDate
-    ? new Date(season.startDate).toLocaleDateString(undefined, {
+    ? new Date(season.startDate).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric"
       })
@@ -541,7 +541,7 @@ function StepBullet({
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"

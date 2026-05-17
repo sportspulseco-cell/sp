@@ -36,7 +36,7 @@ function fmtDay(iso: string): { day: string; mon: string } {
   const d = new Date(iso);
   return {
     day: String(d.getDate()),
-    mon: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase()
+    mon: d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
   };
 }
 

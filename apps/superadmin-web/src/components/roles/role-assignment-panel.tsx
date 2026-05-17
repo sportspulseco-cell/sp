@@ -233,7 +233,7 @@ export function RoleAssignmentPanel({
                   {a.role?.name ??
                     SYSTEM_ROLE_BY_CODE[a.role?.code ?? ""]?.name ??
                     "Custom role"}{" "}
-                  · since {new Date(a.effectiveFrom).toLocaleDateString()}
+                  · since {new Date(a.effectiveFrom).toLocaleDateString("en-CA")}
                 </p>
               </div>
               <button

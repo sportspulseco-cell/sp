@@ -119,7 +119,7 @@ export default async function PersonsPage() {
                     )}
                   </TD>
                   <TD className="text-muted-foreground">
-                    {new Date(p.createdAt).toLocaleDateString()}
+                    {new Date(p.createdAt).toLocaleDateString("en-CA")}
                   </TD>
                 </TR>
               );

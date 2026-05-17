@@ -163,7 +163,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
             {outcomeLabel(g, teamId)}
           </Badge>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            {new Date(g.scheduledStartTsUtc).toLocaleDateString()}
+            {new Date(g.scheduledStartTsUtc).toLocaleDateString("en-CA")}
           </span>
         </li>
       ))}

@@ -19,7 +19,7 @@ export function fmtMoney(cents: number, currency = "USD"): string {
 
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
@@ -28,7 +28,7 @@ export function fmtDate(iso: string | null | undefined): string {
 
 export function fmtDateShort(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric"
   });
@@ -44,7 +44,7 @@ export function fmtRelative(iso: string | null | undefined): string {
   if (hr < 24) return `${hr}h ago`;
   const d = Math.floor(hr / 24);
   if (d < 30) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString("en-CA");
 }
 
 export function daysPastDue(dueAt: string | null | undefined): number {

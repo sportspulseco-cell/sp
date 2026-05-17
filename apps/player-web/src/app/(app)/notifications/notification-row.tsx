@@ -42,7 +42,7 @@ function fmt(iso: string | null): string {
   if (diff < hour) return `${Math.floor(diff / minute)} min ago`;
   if (diff < day) return `${Math.floor(diff / hour)} h ago`;
   if (diff < 7 * day) return `${Math.floor(diff / day)} d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 /**

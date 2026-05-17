@@ -111,7 +111,7 @@ export default async function OrganizationsPage({
                   <Badge tone={statusTone(o.status)}>{o.status}</Badge>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {new Date(o.createdAt).toLocaleDateString()}
+                  {new Date(o.createdAt).toLocaleDateString("en-CA")}
                 </TD>
               </TR>
             ))}

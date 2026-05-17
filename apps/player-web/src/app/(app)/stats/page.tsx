@@ -20,7 +20,7 @@ export const revalidate = 0;
 export const metadata = { title: "Stats — SportsPulse" };
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric"
   });

@@ -193,7 +193,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         />
         <Detail
           label="Created"
-          value={new Date(profile.createdAt).toLocaleDateString(undefined, {
+          value={new Date(profile.createdAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric"
@@ -201,7 +201,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         />
         <Detail
           label="Updated"
-          value={new Date(profile.updatedAt).toLocaleDateString(undefined, {
+          value={new Date(profile.updatedAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric"

@@ -130,7 +130,7 @@ export function DuesScreen({
           fmt(r.totalCents, r.currency),
           fmt(r.paidCents, r.currency),
           rowStatusFor(r),
-          r.dueAt ? new Date(r.dueAt).toLocaleDateString() : "—"
+          r.dueAt ? new Date(r.dueAt).toLocaleDateString("en-CA") : "—"
         ].join(",")
       );
     }
@@ -450,7 +450,7 @@ function PlayerRow({
           }
         >
           {sub.dueAt
-            ? new Date(sub.dueAt).toLocaleDateString(undefined, {
+            ? new Date(sub.dueAt).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric"
               })

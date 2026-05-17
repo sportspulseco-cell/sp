@@ -108,7 +108,7 @@ export default async function DocumentsPage() {
                   )}
                 </TD>
                 <TD className="text-fg-muted">
-                  {new Date(d.updatedAt).toLocaleDateString()}
+                  {new Date(d.updatedAt).toLocaleDateString("en-CA")}
                 </TD>
               </TR>
             ))}

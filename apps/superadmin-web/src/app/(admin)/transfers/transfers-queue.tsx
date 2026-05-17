@@ -166,7 +166,7 @@ export function TransfersQueue({
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {new Date(t.initiatedAt).toLocaleDateString()}
+                  {new Date(t.initiatedAt).toLocaleDateString("en-CA")}
                 </TD>
                 <TD className="text-right">
                   {t.status === "pending_admin" ? (

@@ -88,7 +88,7 @@ export default async function CaptainSeasonDetailPage({
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
@@ -101,9 +101,9 @@ function formatSeasonRange(startISO: string | null, endISO: string | null) {
   const end = new Date(endISO);
   const sameYear = start.getFullYear() === end.getFullYear();
   const fmtShort = (d: Date) =>
-    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const fmtLong = (d: Date) =>
-    d.toLocaleDateString(undefined, {
+    d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric"

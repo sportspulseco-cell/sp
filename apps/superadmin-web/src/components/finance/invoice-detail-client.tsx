@@ -186,7 +186,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
               if (typeof last !== "string") return null;
               return (
                 <p>
-                  Last reminder sent {new Date(last).toLocaleDateString()}.
+                  Last reminder sent {new Date(last).toLocaleDateString("en-CA")}.
                 </p>
               );
             })()}
@@ -987,7 +987,7 @@ function MarkPaidOfflineDialog({
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"

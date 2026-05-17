@@ -403,8 +403,8 @@ function Row({
       </TD>
       <TD className="text-muted-foreground">
         {row.submittedAt
-          ? new Date(row.submittedAt).toLocaleDateString()
-          : new Date(row.createdAt).toLocaleDateString()}
+          ? new Date(row.submittedAt).toLocaleDateString("en-CA")
+          : new Date(row.createdAt).toLocaleDateString("en-CA")}
       </TD>
       <TD className="text-right">
         <Button variant="ghost" onClick={onReview}>
