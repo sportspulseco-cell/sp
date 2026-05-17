@@ -1,4 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  UnprocessableEntityException
+} from "@nestjs/common";
 import {
   FINANCE_REPOSITORY,
   type FinanceRepository,
@@ -63,6 +67,29 @@ export class RecordPaymentHandler {
     @Inject(FINANCE_REPOSITORY) private readonly repo: FinanceRepository
   ) {}
   async execute(input: RecordPaymentInput): Promise<PaymentDto> {
+    // Reject overpayment before writing the row (BUG-041). Previously the
+    // repo blindly inserted any amount and reconcileStatus flipped the
+    // invoice to "paid" with paid_cents > total_cents.
+    const invoice = await this.repo.findInvoice(input.invoiceId);
+    if (invoice && (input.status ?? "succeeded") === "succeeded") {
+      const remaining = invoice.totalCents - invoice.paidCents;
+      if (input.amountCents > remaining) {
+        throw new UnprocessableEntityException({
+          error: "payment_exceeds_remaining",
+          message: `Payment of ${input.amountCents} exceeds remaining ${remaining} on invoice ${input.invoiceId}.`,
+          totalCents: invoice.totalCents,
+          paidCents: invoice.paidCents,
+          remainingCents: remaining,
+          attemptedAmountCents: input.amountCents
+        });
+      }
+      if (invoice.status === "void") {
+        throw new UnprocessableEntityException({
+          error: "invoice_void",
+          message: `Invoice ${input.invoiceId} is void; payments cannot be recorded.`
+        });
+      }
+    }
     const row = await this.repo.recordPayment(input);
     return PaymentDto.fromRow(row);
   }

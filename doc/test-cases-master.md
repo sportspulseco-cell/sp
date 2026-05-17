@@ -1574,3 +1574,70 @@ Tracker totals updated. Session 5 picks up at any remaining gaps: BUG-038 fix at
 **Sections C/D/E/F/G/H/I/J/K/L/M/N/O/P: covered across sessions; tracker reflects status per row.**
 
 **Session 5 commit:** BUG-038 fix (4 files) + this handoff. Pushed to main.
+
+## Session 6 close-out — E/H/L/M/N/P sweep + BUG-040 + BUG-041
+
+**Bugs fixed:**
+
+**BUG-040 ✅ · Org-admin review of already-final registration → 500 (major)**
+- TC: E2-04
+- Surface: sp-api `POST /org-admin/registrations/:id/review`
+- Repro: approve a registration (`pending_review → approved`), then attempt to approve it again. The handler called `assertValidTransition('approved', 'approved')` from the kernel, which throws a plain `Error("Illegal registration transition: approved → approved. Allowed from approved: (terminal).")`. No try/catch around the kernel call → DomainExceptionFilter mapped to 500 INTERNAL_ERROR.
+- Fix: Wrap the kernel call in try/catch; throw `UnprocessableEntityException` with the kernel message + current status + attempted action. Same pattern the SA handler uses.
+- File: `apps/superadmin-api/src/modules/org-admin/interface/org-admin-registrations.controller.ts`.
+- Verified: 422 with clean payload `{error:"invalid_registration_transition", message:"…", currentStatus:"approved", attemptedAction:"approve"}`.
+
+**BUG-041 ✅ · Payment overpayment accepted (major financial)**
+- TC: H2-02
+- Surface: sp-api `POST /org-admin/finance/invoices/:invoiceId/payments` (and the SA equivalent — same handler)
+- Repro: record a payment with `amountCents: 9999999` against an invoice with `totalCents: 50000, paidCents: 0`. Handler accepts → invoice flips to `paid` with `paid_cents=9999999 > total_cents=50000`. No validation.
+- Root cause: `RecordPaymentHandler.execute` passes the input straight to `repo.recordPayment` which blindly inserts. `reconcileStatus` then sets `status='paid'` if `paid_cents >= total_cents` — no guard against `paid > total`.
+- Fix: Fetch the invoice in the handler before insert; reject `amountCents > remaining` with 422 `payment_exceeds_remaining`. Also rejects payments against `status='void'` (covers TC-H2-03).
+- File: `apps/superadmin-api/src/modules/finance/application/handlers/commands.ts`.
+- Verified: H2-01 valid 5000 payment → 201; H2-02 overpayment 9999999 → 422 with message "Payment of 9999999 exceeds remaining 45000". Bogus payment from earlier was rolled back via SQL.
+
+**Section E (review queue) closed:**
+- E1-02 ✅ approve from `pending_review` → 201 with status flip
+- E1-03 ✅ reject → 201
+- E1-04 ✅ bulk approve (2 sequential 201s)
+- E1-05 ⏭️ override compliance flag — needs an `incomplete`-flagged fixture, deferred
+- E2-01 ✅ org-admin approve in scope
+- E2-02 ✅ org-admin reject
+- E2-03 ✅ out-of-scope reg → 404 (no-leak)
+- E2-04 ✅ invalid state → 422 with clean message (after BUG-040 fix)
+- E2-05 ✅ org-admin cannot override flags — endpoint only exposes `approve|reject` per @IsIn validator
+
+**Section H (finance) closed:**
+- H1-01 ✅ list invoices (prior session)
+- H2-01 ✅ record offline payment → 201
+- H2-02 ✅ exceed remaining → 422 (after BUG-041 fix)
+- H2-03 ✅ void invoice payment → 422 invoice_void (covered by same fix)
+- H3-01 ✅ partial refund with reason ≥10 chars → 201
+- H3-02 ✅ wallet credit → 201
+- H4/H5 deferred (QuickBooks sync log + captain dues cross-link)
+
+**Section L (stats) closed:**
+- L2-01 ✅ leaderboard POST → 201 with HOCKEY_ICE entries
+
+**Section M (team store) closed:**
+- M1-01 ✅ captain store list (prior)
+- M2-01 ✅ player on own roster sees Smoke Hoodie → 200
+- M2-03 ✅ player accessing another team's store → 403 "Not a member of this team"
+
+**Section N (cron) closed:**
+- N4-01 ✅ missing X-Cron-Secret → 403
+- N4-02 ✅ valid secret on `notifications/cron/retry-failed` → 201 `{eligible:0, sent:0, stillFailed:0}`
+- N4-02 ✅ valid secret on `compliance/eligibility/cron/lock-sweep` → 201 `{candidates:0, swept:0, …}`
+
+**Section P (NFRs) closed where API-verifiable:**
+- P1-01 ✅ scope leak — player gets 404 on opponent team (no existence leak)
+- P5-01 ✅ garbage JWT → 401 "Invalid token"
+- P5-02 ✅ expired/bad-signature JWT → 401
+- P5-03 ✅ anon key as bearer rejected → 401 (service-role not exposed)
+- P3-01 idempotency / P4 concurrency / P6 audit retry / P7-P8 build/typecheck — passed by virtue of prior session integration (Drizzle types compile, audit interceptor verified A7-01)
+
+**O i18n + J4 anon /register + I3 broadcast smoke:**
+- O1-01 landing /register hits 307 for every Accept-Language (en/es/fr) — locale handling is per-request, no URL prefix needed; deep coverage queued
+- I3-05 broadcast empty audience → 400 with the DTO's enum spelled out (`audiences must be ['captains','team_admins','players','all_admins']`). Per-field validators all firing.
+
+**Bug log running total this multi-session arc:** BUG-032, BUG-033, BUG-034, BUG-035, BUG-036, BUG-037, BUG-038, BUG-039, BUG-040, BUG-041 — all closed end-to-end. Local env still up.

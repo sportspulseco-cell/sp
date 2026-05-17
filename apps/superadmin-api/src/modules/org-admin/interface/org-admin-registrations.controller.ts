@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -94,7 +95,18 @@ export class OrgAdminRegistrationsController {
     }
 
     const next = body.action === "approve" ? "approved" : "rejected";
-    assertValidTransition(row.status, next);
+    try {
+      assertValidTransition(row.status, next);
+    } catch (err) {
+      // Kernel throws a plain Error for illegal transitions; surface as
+      // a clean 422 instead of letting it fall through to 500 (BUG-040).
+      throw new UnprocessableEntityException({
+        error: "invalid_registration_transition",
+        message: (err as Error).message,
+        currentStatus: row.status,
+        attemptedAction: body.action
+      });
+    }
 
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     const recipient = (meta.email as string | undefined) ?? null;
