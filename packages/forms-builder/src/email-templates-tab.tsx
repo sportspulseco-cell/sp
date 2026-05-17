@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { registrationV2 as REG_API } from "@/lib/api/browser-api";
 import type {
   EmailEventType,
   EmailTemplate,
   EmailTypeFilter
-} from "@/lib/api/sdk";
+} from "@sportspulse/api-client";
+import { useFormsBuilderApi } from "./context";
 
 const EVENT_TYPES: { value: EmailEventType; label: string }[] = [
   { value: "on_payment", label: "Payment confirmed" },
@@ -34,6 +34,7 @@ export function EmailTemplatesTab({
   templates: EmailTemplate[];
   onTemplatesChange: (next: EmailTemplate[]) => void;
 }) {
+  const { registrationV2: REG_API } = useFormsBuilderApi();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

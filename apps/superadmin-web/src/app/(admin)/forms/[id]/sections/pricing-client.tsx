@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import type { Division, PricingTier } from "@sportspulse/api-client";
-import { PricingTab } from "@/components/registrations/tabs/pricing-tab";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { PricingTab, SectionHeader } from "@sportspulse/forms-builder";
 
 /**
  * Wrapper around the existing PricingTab — owns the local tier state

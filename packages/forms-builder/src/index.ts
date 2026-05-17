@@ -13,3 +13,5 @@
 export { FormsBuilderProvider, useFormsBuilderApi } from "./context";
 export type { FormsBuilderApi } from "./context";
 export { SectionHeader } from "./section-header";
+export { PricingTab } from "./pricing-tab";
+export { EmailTemplatesTab } from "./email-templates-tab";

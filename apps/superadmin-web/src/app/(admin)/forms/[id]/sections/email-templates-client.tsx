@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import type { EmailTemplate } from "@sportspulse/api-client";
-import { EmailTemplatesTab } from "@/components/registrations/tabs/email-templates-tab";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { EmailTemplatesTab, SectionHeader } from "@sportspulse/forms-builder";
 
 export function EmailTemplatesClient({
   seasonId,

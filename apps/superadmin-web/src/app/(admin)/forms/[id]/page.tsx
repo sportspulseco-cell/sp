@@ -8,6 +8,7 @@ import {
   registrationV2
 } from "@/lib/api/server-api";
 import { RegistrationSetupShell, type SectionKey, type SectionState } from "./setup-shell";
+import { FormsBuilderProviderClient } from "./forms-builder-provider-client";
 import { SeasonSection } from "./sections/season-section";
 import { PricingSection } from "./sections/pricing-section";
 import { DivisionsSection } from "./sections/divisions-section";
@@ -155,6 +156,7 @@ export default async function FormSetupPage({
   const orgName = org?.displayName ?? org?.legalName ?? "Organization";
 
   return (
+    <FormsBuilderProviderClient>
     <RegistrationSetupShell
       formId={form.id}
       formName={form.name}
@@ -213,5 +215,6 @@ export default async function FormSetupPage({
         <SubmissionsSection form={form} divisions={divisionsPage.items} />
       ) : null}
     </RegistrationSetupShell>
+    </FormsBuilderProviderClient>
   );
 }

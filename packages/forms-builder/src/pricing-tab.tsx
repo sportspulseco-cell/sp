@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { registrationV2 as REG_API } from "@/lib/api/browser-api";
-import type { Division } from "@/lib/api/types";
-import type { PricingTier } from "@/lib/api/sdk";
+import type { Division, PricingTier } from "@sportspulse/api-client";
+import { useFormsBuilderApi } from "./context";
 
 export function PricingTab({
   seasonId,
@@ -17,6 +16,7 @@ export function PricingTab({
   tiers: PricingTier[];
   onTiersChange: (next: PricingTier[]) => void;
 }) {
+  const { registrationV2: REG_API } = useFormsBuilderApi();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
