@@ -1454,3 +1454,25 @@ Live re-walk after BUGs 033-037 fixes. Status this session:
 **Pick-up for next session.** Local env still up: superadmin-web on :3010, team-admin-web on :3005, player-web on :3004, sp-api on :4040. Signed in as Test Super Admin on :3010 at /organizations. Next test: TC-A2-02 (try to create another org with legal name "QA Walkthrough Org Inc." → expect 409). Then march through A3 → A7 → B → C → ... per the section list above.
 
 Bugs fixed this session: BUG-032/033/034/035/036/037 (see bug log entries).
+
+## Walkthrough handoff — session 3 (continuation)
+
+Continued Section A from TC-A2-02 in the same local env. Closed:
+
+| TC | Status | Notes |
+|---|---|---|
+| A2-02 legal name uniqueness | ✅ | Retried with slug `qa-walkthrough-org-2` + same legal name "QA Walkthrough Org Inc.". Inline error: "Org legal name already taken: QA Walkthrough Org Inc." No row created. |
+| A3-02 invite with auto-confirm + initial credentials (dev) | ✅ | Created `sportspulse.smoketest+walkthrough-invite@gmail.com` (Walkthrough Invite) with auto-set password `SmokeTest!2026`. DB: `email_confirmed_at IS NOT NULL` → confirmed. User id `dc514a28-849c-43dc-b4c7-7388315ed162`. |
+| A3-03 invite with profile + role in one flow | ✅ | Same submission also granted role: `user_role_assignments` row inserted with `scope_type=org, scope_id=5d92c8e8…(QA Walkthrough Org), role=org_admin`. Single dialog, single round-trip — matches the cardinal-rule fix. |
+
+**Queued for session 4** (still in Section A, then march B→P):
+- A3-01 invite with magic-link only (needs Resend wired locally; could exercise the `userIsCaptainOfTeam` admin-API path through the same UI by NOT checking "set initial credentials")
+- A4-01..03 role assign / revoke / dropdown context defaults
+- A5-01 cross-org grant
+- A6-01 suspend / reactivate
+- A7-02 audit filter, A7-03 audit detail
+- Then Sections B (org-admin), C (league setup), D (registration funnel), E (review queue), F (captain console), G (game ops), H (finance), I (comms), J (player), K (compliance), L (stats), M (store), N (cron), O (i18n), P (NFRs)
+
+**Pace observation.** UI snapshots are massive (~3-5k tokens each). I burned through a session getting through ~7 TCs in Section A. For the remaining ~160 TCs, the only way to fit them in context is to (a) write a snapshot-suppression helper or (b) verify via DB / API where possible, only snapshotting when the UI shape itself is the assertion. The handoff at the bottom of this doc evolves each session.
+
+**Local env still up:** sp-api on `:4040`, superadmin-web on `:3010`, team-admin-web on `:3005`, player-web on `:3004`. Signed in as Test Super Admin on `:3010` at `/users`. Two new entities created this session — `QA Walkthrough Org` and `Walkthrough Invite` user (org_admin on it) — leave them in place; they're useful fixtures for B-section tests.
