@@ -1808,3 +1808,65 @@ Found **three more sites** with identical bugs, all in superadmin-web:
   - move the form-builder + AR-aging features into a shared `@sportspulse/*` package consumed by both apps, or
   - relax the wrong-role gate on sp-superadmin to admit org_admin behind a scope filter.
 Both are larger investments; this PR removes the broken UX surface and gives org_admin a useful read-only path until the shared-package option lands.
+
+## BUG-042 / BUG-044 family / BUG-043 close-out — sessions 8-11
+
+Three related arcs landed across roughly a dozen commits and ~3000 LOC of refactor.
+
+### BUG-042 · Live wizard link hits sp-superadmin instead of player-web · **major UX**
+- **Surface:** sa-web `/forms/[id]` setup shell.
+- **Root cause:** `href={`/registration/${seasonId}`}` was a relative URL. The funnel lives on player-web (sp-player-red); a relative href kept the user on sp-superadmin where that route doesn't render and the wrong-role gate bounced them to `/sign-in?error=wrong_role`. Path was also wrong — player-web uses `/register/:id`, not `/registration/:id`.
+- **Fix (commit c3a6816):** Absolute URL via `NEXT_PUBLIC_PLAYER_WEB_URL` (prod fallback `https://sp-player-red.vercel.app`) + correct `/register/:seasonId` path. Switched the JSX from Next `<Link>` to plain `<a>` (Link ignores cross-origin URLs anyway).
+- **File:** `apps/superadmin-web/src/app/(admin)/forms/[id]/setup-shell.tsx`.
+- **Verified:** SA opens `/forms/<id>` → clicks Live wizard → new tab lands on player-web's public funnel with the expected stepper.
+
+### BUG-044 family · 3 more cross-app URL leaks with the same anti-pattern · **major**
+Repo-wide audit after BUG-042 surfaced three more relative-URL → `target="_blank"` sites where the comment/label promised player-web but the href stayed on the host app:
+
+- **BUG-044a (commit 257820d)** — `/registrations` page top "Public funnel" button.
+- **BUG-044b (commit 257820d)** — per-row "preview" link in the same queue.
+- **BUG-044c (commit 257820d)** — `season-setup-shell.tsx` "Preview form" button.
+
+All three rewritten to `${NEXT_PUBLIC_PLAYER_WEB_URL}/register/${seasonId}` with plain `<a>`. Sites already using the env var pattern (form-builder-tab, review-publish-tab) were left as-is. Verified in browser: PUBLIC FUNNEL and PREVIEW buttons on `/registrations` now point to `localhost:3004/register/<seasonId>`.
+
+### BUG-043 close · org-admin form-builder works end-to-end without exposing super-admin · **major architectural**
+
+The reporter constraint: **the sp-superadmin URL is confidential**. Org-admin must build forms entirely inside org-admin-web. Done across an 11-step migration:
+
+| Step | Commit | What |
+|---|---|---|
+| 1 | f6311ba | `packages/forms-builder` skeleton + `FormsBuilderProvider` context + SectionHeader |
+| 2 | 4350390 | PricingTab + EmailTemplatesTab (full editors, take SDK via context) |
+| 3 | 3a4becf | RegistrationSetupShell (outer chrome, ~370 lines, with inlined LiveDot primitive) |
+| 4 | 39f8c73 | PricingClient + EmailTemplatesClient + SubmissionsClient |
+| 5 | 9e44e92 | ReviewSection + ReviewActions |
+| 6 | a2000b9 | FormBuilder + FormBuilderClient (~1060 lines — the question editor + waivers) |
+| 7 | 2bd2384 | SeasonSectionForm (with BUG-034 Eligibility panel preserved) |
+| 8 | 006f20e | DivisionsClient (extraction complete) |
+| 9 | 236efcf | Org-admin route skeleton + provider client + browser-api SDK exports |
+| 10 | 1fa3615 (pre-arc) | Earlier handoff |
+| 11 | **8f329bb** | **OrgAdminFormBuilderController (13 proxy endpoints) + apiFetch path-rewriter + real /forms/[id] route + dropped `sp-superadmin` link from /forms list** |
+
+**Architecture:**
+- `@sportspulse/forms-builder` is the canonical form-build surface. Both sa-web and org-admin-web mount the same `RegistrationSetupShell` and shared section clients.
+- The shared package is URL-agnostic: it calls SDK methods like `registration.createFormVersion(...)`. Each app wraps the tree in its own `<FormsBuilderProviderClient>` that injects auth-bound SDK namespaces.
+- Org-admin's browser-api + server-api `apiFetch` wrappers rewrite `/registration/forms`, `/registration-v2/pricing-tiers`, `/registration-v2/email-templates`, and `/registration-v2/pricing-tier-divisions` paths to `/org-admin/...` proxies.
+- `OrgAdminFormBuilderController` mounts 13 proxy endpoints. Each looks up the resource → derives orgId → calls a shared `assertScope` helper → delegates to the same handler/service the sa-web controllers use. **No business logic duplicated** — only the gate moves. Out-of-scope reads return 404 (no existence leak per ARCH §3.4).
+
+**Verified end-to-end:**
+1. **API layer** (curl as walkthrough-invite org_admin):
+   - `GET /api/org-admin/forms/69fa2240...` → 200 with full payload
+   - `GET /api/org-admin/forms/41b8b42f...` (different org) → 404 "Resource not found" (scope check fires)
+   - `PATCH /api/org-admin/forms/69fa2240...` → 200 with updated name
+2. **Browser walk** as walkthrough-invite:
+   - Sign in on `:3003/sign-in` → land on overview with `ORG_ADMIN · 2 ORGS` banner
+   - Switch active org to QA Walkthrough Org → `/forms` list shows the seeded "QA Walkthrough Player Registration (edited via org-admin)" row
+   - Click row → `/forms/69fa2240...` mounts the shared `RegistrationSetupShell` with all 6 sections + Submissions tab
+   - **Live wizard button** points to `https://sp-player-red.vercel.app/register/854ccb54...` (BUG-042 fix flows through the shared package)
+   - Click Pricing → "Pricing tiers" empty state renders
+   - Click NEW TIER → row inserted with full editor (name=New tier, $100, division picker showing QA Open). DB confirms `pricing_tiers.id=246967b3..., season_id=854ccb54..., name='New tier', full_price_cents=10000`.
+3. **URL audit:** `grep -rn "sp-superadmin\|NEXT_PUBLIC_SUPERADMIN_URL" apps/org-admin-web/src` → zero matches. The confidential URL never reaches an org-admin user's bundle.
+
+**Two duplicate form-builder implementations deleted along the way** (commit bbcc1f8): the `/forms/[id]/versions/new` version-wizard route (~976 LOC) and the `/registrations/seasons/[id]/setup` season-keyed shell (~318 LOC) — both were stale parallel surfaces with no link reaching them. 4 orphaned tabs in `components/registrations/tabs/` dropped too. Net –2012 LOC removed before the extraction started.
+
+**Bug-fix arc total this multi-session sweep:** BUG-032 through BUG-045 — every fix has a commit, a verified browser or curl check, and a doc-tracker entry. Local env (sp-api on `:4040`, sa-web `:3010`, org-admin-web `:3003`, team-admin-web `:3005`, player-web `:3004`) intact for future sessions.
