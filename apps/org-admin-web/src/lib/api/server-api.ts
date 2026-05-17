@@ -24,3 +24,7 @@ export const orgAdminBroadcast = api.orgAdminBroadcast;
 export const orgAdminFinance = api.orgAdminFinance;
 export const orgAdminRegistrations = api.orgAdminRegistrations;
 export const orgAdminForms = api.orgAdminForms;
+// Forms-builder shared package needs registrationV2 for the
+// pricing-tier + email-template fetches (BUG-043). The apiFetch
+// wrapper rewrites these paths to /org-admin/* proxies.
+export const registrationV2 = api.registrationV2;

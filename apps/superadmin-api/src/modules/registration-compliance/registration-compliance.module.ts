@@ -126,6 +126,13 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
       provide: DOCUMENT_REPOSITORY,
       useClass: DrizzleDocumentRepository
     }
+  ],
+  exports: [
+    // Re-export form handlers so the org-admin proxy controller
+    // (BUG-043) can delegate to them after its scope check.
+    UpdateFormHandler,
+    CreateFormVersionHandler,
+    PublishFormVersionHandler
   ]
 })
 export class RegistrationComplianceModule {}

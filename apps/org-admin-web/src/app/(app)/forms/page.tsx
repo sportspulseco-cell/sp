@@ -1,4 +1,5 @@
-import { ExternalLink, FileSignature } from "lucide-react";
+import Link from "next/link";
+import { FileSignature } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -17,21 +18,15 @@ import { getActiveOrgId } from "@/lib/active-org";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Forms - Org Admin" };
 
-const SUPERADMIN_URL =
-  process.env.NEXT_PUBLIC_SUPERADMIN_URL ?? "https://sp-superadmin.vercel.app";
-
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA");
 }
 
 /**
- * Org-admin forms list. The form BUILDER itself is a super-admin-only
- * feature (god-app pattern per CLAUDE.md) — but org-admin users own
- * the season their form runs against, so they need a place to see
- * what's published and link out for edits.
- *
- * Was a pure dead-end before BUG-043 fix (external link to sp-superadmin
- * /forms which org_admin couldn't even sign into).
+ * Org-admin forms list. Form-builder editing now happens IN-APP via
+ * the shared @sportspulse/forms-builder package mounted at
+ * /forms/[id] — no super-admin URL exposed to org-admin users
+ * anymore (BUG-043 close).
  */
 export default async function FormsPage() {
   const scope = await iam.meScope().catch(() => null);
@@ -46,29 +41,22 @@ export default async function FormsPage() {
       <PageHeader
         eyebrow="// Forms"
         title="Registration forms"
-        description="Forms bound to your org's seasons. Editing the schema runs through the super-admin form builder."
+        description="Forms bound to your org's seasons. Click any row to edit."
       />
 
       {formsPage.items.length === 0 ? (
         <EmptyState
           icon={FileSignature}
           title="No registration forms yet"
-          description="Forms are created by a super-admin against one of your org's seasons. Once a form is bound, it shows up here."
+          description="Once your platform admin (or your own org-admin via the builder below) creates a form against one of your org's seasons, it shows up here."
         />
       ) : (
         <div className="rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
             <Eyebrow>// Published forms</Eyebrow>
-            <a
-              href={`${SUPERADMIN_URL}/forms`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:text-fg"
-              title="Form schema editing happens in the super-admin builder (requires super_admin role)."
-            >
-              Edit in super-admin
-              <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-            </a>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              {formsPage.items.length} total
+            </span>
           </header>
           <Table>
             <THead>
@@ -83,14 +71,17 @@ export default async function FormsPage() {
               {formsPage.items.map((f) => (
                 <TR key={f.id}>
                   <TD>
-                    <div className="flex flex-col leading-tight">
+                    <Link
+                      href={`/forms/${f.id}`}
+                      className="flex flex-col leading-tight hover:text-accent"
+                    >
                       <span className="font-medium text-fg">{f.name}</span>
                       {f.description ? (
                         <span className="text-[11px] text-fg-muted">
                           {f.description}
                         </span>
                       ) : null}
-                    </div>
+                    </Link>
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
                     {f.seasonName ?? "—"}

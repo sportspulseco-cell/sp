@@ -4,6 +4,22 @@ import { createClient } from "@/lib/supabase/server";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 /**
+ * Mirror of browser-api's rewriter — keeps server-side reads going
+ * to the org-admin proxy controller paths for the forms-builder
+ * package (BUG-043).
+ */
+function rewriteForOrgAdmin(path: string): string {
+  return path
+    .replace(/^\/registration\/forms\b/, "/org-admin/forms")
+    .replace(/^\/registration-v2\/pricing-tiers\b/, "/org-admin/pricing-tiers")
+    .replace(/^\/registration-v2\/email-templates\b/, "/org-admin/email-templates")
+    .replace(
+      /^\/registration-v2\/pricing-tier-divisions\b/,
+      "/org-admin/pricing-tier-divisions"
+    );
+}
+
+/**
  * Server-side fetch wrapper. Pulls the Supabase access token from the
  * cookie session and attaches it as Bearer. Used by server components +
  * route handlers.
@@ -17,8 +33,9 @@ export async function apiFetch<T = unknown>(
     data: { session }
   } = await supabase.auth.getSession();
 
+  const finalPath = rewriteForOrgAdmin(path);
   const hasBody = init?.body !== undefined && init.body !== null;
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API}${finalPath}`, {
     ...init,
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),

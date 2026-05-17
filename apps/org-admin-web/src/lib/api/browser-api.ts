@@ -13,6 +13,28 @@ function redirectToSignIn(reason: "session_expired" | "signed_out") {
   window.location.assign(`/sign-in?error=${reason}&next=${next}`);
 }
 
+/**
+ * Path rewriter for the forms-builder package (BUG-043). The shared
+ * @sportspulse/forms-builder calls /registration/forms/... and
+ * /registration-v2/... — those endpoints are super_admin-only. The
+ * org-admin proxy controller exposes the same handlers at /org-admin/*
+ * with inline scope checks; rewriting here keeps the shared package
+ * URL-agnostic.
+ *
+ * Reads on /league/seasons, /league/divisions, /orgs/:id stay on
+ * their original paths (already AuthorizedAccessGuard).
+ */
+function rewriteForOrgAdmin(path: string): string {
+  return path
+    .replace(/^\/registration\/forms\b/, "/org-admin/forms")
+    .replace(/^\/registration-v2\/pricing-tiers\b/, "/org-admin/pricing-tiers")
+    .replace(/^\/registration-v2\/email-templates\b/, "/org-admin/email-templates")
+    .replace(
+      /^\/registration-v2\/pricing-tier-divisions\b/,
+      "/org-admin/pricing-tier-divisions"
+    );
+}
+
 async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const supabase = createClient();
   const {
@@ -23,8 +45,9 @@ async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<
     throw new Error("Not authenticated");
   }
 
+  const finalPath = rewriteForOrgAdmin(path);
   const hasBody = init?.body !== undefined && init.body !== null;
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API}${finalPath}`, {
     ...init,
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
