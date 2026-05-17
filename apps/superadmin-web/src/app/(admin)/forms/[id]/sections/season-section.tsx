@@ -1,6 +1,6 @@
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { SeasonSectionForm } from "./season-section-form";
+import { SeasonSectionForm } from "@sportspulse/forms-builder";
 
 /**
  * Server entry — pulls prior seasons in the same org for the rollover

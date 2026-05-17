@@ -6,9 +6,9 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
-import { Badge } from "@/components/ui/badge";
-import { leagueMgmt, registration } from "@/lib/api/browser-api";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { Badge } from "@sportspulse/ui";
+import { useFormsBuilderApi } from "./context";
+import { SectionHeader } from "./section-header";
 
 const REGISTRATION_TYPES: { value: string; label: string }[] = [
   { value: "team_captain_led", label: "Team registration (captain-led)" },
@@ -44,6 +44,7 @@ export function SeasonSectionForm({
   season: Season | null;
   priorSeasons: Season[];
 }) {
+  const { leagueMgmt, registration } = useFormsBuilderApi();
   const router = useRouter();
   const [seasonId, setSeasonId] = useState<string>(form.seasonId ?? "");
   const [registrationType, setRegistrationType] = useState<string>(
