@@ -12,9 +12,9 @@ import {
   type FormWaiversConfig,
   type WaiverDocConfig
 } from "@sportspulse/kernel";
-import { registration } from "@/lib/api/browser-api";
-import { FormBuilder } from "@/components/forms/form-builder";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { useFormsBuilderApi } from "./context";
+import { FormBuilder } from "./form-builder";
+import { SectionHeader } from "./section-header";
 
 /**
  * Wraps the existing <FormBuilder> in the Registration setup chrome.
@@ -41,6 +41,7 @@ export function FormBuilderClient({
   isLocked: boolean;
   hasActiveVersion: boolean;
 }) {
+  const { registration } = useFormsBuilderApi();
   const router = useRouter();
   const [schema, setSchema] = useState<FormDefinition>(() => {
     if (initialSchema && typeof initialSchema === "object" && "questions" in initialSchema) {

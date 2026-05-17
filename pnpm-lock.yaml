@@ -500,6 +500,9 @@ importers:
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../kernel
+      '@sportspulse/registration-funnel':
+        specifier: workspace:*
+        version: link:../registration-funnel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../ui

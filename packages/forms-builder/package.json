@@ -15,6 +15,7 @@
   "dependencies": {
     "@sportspulse/api-client": "workspace:*",
     "@sportspulse/kernel": "workspace:*",
+    "@sportspulse/registration-funnel": "workspace:*",
     "@sportspulse/ui": "workspace:*",
     "framer-motion": "^11.11.17",
     "lucide-react": "^0.460.0"

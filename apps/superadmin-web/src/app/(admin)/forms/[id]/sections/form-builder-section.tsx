@@ -1,5 +1,5 @@
 import type { FormVersion, RegistrationForm } from "@sportspulse/api-client";
-import { FormBuilderClient } from "./form-builder-client";
+import { FormBuilderClient } from "@sportspulse/forms-builder";
 
 /**
  * Form builder section — questions + waivers/documents toggles.

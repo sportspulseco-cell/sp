@@ -20,5 +20,7 @@ export { EmailTemplatesClient } from "./email-templates-client";
 export { SubmissionsClient } from "./submissions-client";
 export { ReviewSection } from "./review-section";
 export { ReviewActions } from "./review-actions";
+export { FormBuilder } from "./form-builder";
+export { FormBuilderClient } from "./form-builder-client";
 export { RegistrationSetupShell } from "./setup-shell";
 export type { SectionKey, SectionStatus, SectionState } from "./setup-shell";

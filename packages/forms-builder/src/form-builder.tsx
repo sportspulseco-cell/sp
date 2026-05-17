@@ -19,10 +19,10 @@ import {
   type FormQuestion,
   type QuestionType
 } from "@sportspulse/kernel";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { cn } from "@sportspulse/ui";
+import { Button } from "@sportspulse/ui";
+import { Field, Input } from "@sportspulse/ui";
+import { Select } from "@sportspulse/ui";
 import { FormRenderer } from "@sportspulse/registration-funnel";
 
 /**
