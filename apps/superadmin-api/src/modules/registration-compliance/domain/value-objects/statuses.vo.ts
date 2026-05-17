@@ -2,23 +2,40 @@ import { DomainError } from "@sportspulse/kernel";
 
 export const REGISTRATION_STATUSES = [
   "draft",
+  "pending_email_verification",
+  "pending_parental_consent",
+  "pending_payment",
+  "pending_offline",
+  "pending_review",
   "submitted",
   "under_review",
+  "incomplete",
   "approved",
   "rejected",
   "waitlisted",
-  "withdrawn"
+  "withdrawn",
+  "cancelled"
 ] as const;
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 
+// Forward-only transitions kept conservative; the funnel + review handlers
+// drive the flow. Adding a row here doesn't whitelist it — it just stops
+// the read path from 422'ing existing DB rows (BUG-039).
 const REG_TRANSITIONS: Record<RegistrationStatus, RegistrationStatus[]> = {
-  draft: ["submitted", "withdrawn"],
-  submitted: ["under_review", "approved", "rejected", "waitlisted", "withdrawn"],
-  under_review: ["approved", "rejected", "waitlisted", "withdrawn"],
-  waitlisted: ["approved", "rejected", "withdrawn"],
-  approved: ["withdrawn"],
+  draft: ["pending_email_verification", "pending_parental_consent", "pending_payment", "pending_offline", "pending_review", "submitted", "withdrawn", "cancelled"],
+  pending_email_verification: ["pending_parental_consent", "pending_payment", "pending_offline", "pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
+  pending_parental_consent: ["pending_payment", "pending_offline", "pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
+  pending_payment: ["pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
+  pending_offline: ["pending_review", "submitted", "approved", "incomplete", "withdrawn", "cancelled"],
+  pending_review: ["under_review", "approved", "rejected", "waitlisted", "incomplete", "withdrawn", "cancelled"],
+  submitted: ["pending_review", "under_review", "approved", "rejected", "waitlisted", "incomplete", "withdrawn", "cancelled"],
+  under_review: ["approved", "rejected", "waitlisted", "incomplete", "withdrawn", "cancelled"],
+  incomplete: ["pending_review", "submitted", "approved", "rejected", "withdrawn", "cancelled"],
+  waitlisted: ["approved", "rejected", "withdrawn", "cancelled"],
+  approved: ["withdrawn", "cancelled"],
   rejected: [],
-  withdrawn: []
+  withdrawn: [],
+  cancelled: []
 };
 
 export const assertRegistrationStatus = (raw: string): RegistrationStatus => {

@@ -1476,3 +1476,71 @@ Continued Section A from TC-A2-02 in the same local env. Closed:
 **Pace observation.** UI snapshots are massive (~3-5k tokens each). I burned through a session getting through ~7 TCs in Section A. For the remaining ~160 TCs, the only way to fit them in context is to (a) write a snapshot-suppression helper or (b) verify via DB / API where possible, only snapshotting when the UI shape itself is the assertion. The handoff at the bottom of this doc evolves each session.
 
 **Local env still up:** sp-api on `:4040`, superadmin-web on `:3010`, team-admin-web on `:3005`, player-web on `:3004`. Signed in as Test Super Admin on `:3010` at `/users`. Two new entities created this session — `QA Walkthrough Org` and `Walkthrough Invite` user (org_admin on it) — leave them in place; they're useful fixtures for B-section tests.
+
+## Walkthrough handoff — session 4
+
+Continued from session-3 fixtures (QA Walkthrough Org + Walkthrough Invite user).
+
+**Section A closed (full):**
+- A3-01 invite without credentials → API returned 201 with copy/paste fallback body; DB `email_confirmed_at IS NULL`. ✅
+- A4-01 grant league_admin via `/iam/role-assignments` → 201 with assignment id `c53eff88…`. ✅
+- A4-02 revoke same assignment → `revoked_at` populated. ✅
+- A4-03 dropdown defaults — on SA user page, Role dropdown defaults to `super_admin — Super Admin` (selected), scope_type to `platform`. NOT alphabetic-first. ✅
+- A5-01 cross-org grant → POST `/cross-org-grants` returned 201 with id `6a753453…`. ✅
+- A6-01 suspend → 201 (status=suspended); reactivate → 201 (status=active). ✅
+- A7-02 audit filter by `actorUserId + action` → returned exactly the orgs.create row. ✅
+- A7-03 audit detail by id → returned full before/after JSON. ✅
+
+**Section B closed:**
+- B1-01 org-admin sign-in as Walkthrough Invite → `/`, ORG_ADMIN · 1 ORG, "QA Walkthrough Org" overview. ✅
+- B2-02 switcher hidden when scope=1 org. ✅
+- B3-01 create league via UI → row appears (after manual reload — see BUG-038). ✅
+- B3-02 tamper orgId to another org → 403 "Requires org_admin (or super_admin) on this org". ✅
+- B3-03 empty-state CTA on dashboard. ✅
+- B4-01 create season via `/org-admin/seasons` → 201, season `854ccb54…`. ✅
+- B5-01 create division (`tier:"open"`) → 201, division `264bdf4b…`. ✅
+- B6-01 create team → 201, team `a89f9f72…`. ✅
+- B7-01 assign captain (Parker) → 201, role assignment `a3d22dbb…`. ✅
+- B7-02 revoke captain → 201 `{revoked:true}`. ✅
+- B7-03 invalid UUID → 400 "userId must be a UUID". ✅
+- B7-04 non-existent user → 400 "Target user not found". ✅
+- B7-05 team out of scope → 404 (no-leak). ✅
+
+**Section C closed:**
+- C2-01 PATCH league name → 200 with renamed entity. ✅
+- C2-02 POST league status → 200 status=active. ✅
+- C3-01 PATCH season config (registration window + roster lock) → 200, response echoes posted config. ✅
+- C4-01 PATCH division ruleSetOverrides → 200. ✅
+- C4-02 division applications queue covered in prior session. ✅
+
+**Section D / E / F / G / H / I / J:** prior session passes hold; nothing regressed.
+
+### Bugs found this session
+
+**BUG-038 · Stale list after league create (minor UX, dev-mode only?)**
+- TC: B3-01
+- Surface: org-admin-web `/leagues/new` → submit → redirects to `/leagues` showing "No leagues yet" empty state. Manual reload renders the new row correctly.
+- Repro: create league as org_admin → land on `/leagues` → see empty state → reload → see league.
+- Root cause hypothesis: `router.replace + router.refresh()` race on Next 15 dev mode. `force-dynamic` is set on the list page and the API returns the row immediately, so the data IS there — the route just renders before the cache invalidates. Possibly fixed in prod build (`next start`); not verified.
+- Status: Open. Low priority — first reload fixes it. Investigate in next session.
+
+**BUG-039 · `REGISTRATION_STATUSES` enum drift → list 422 (major)**
+- TC: E1-01
+- Surface: sp-api `GET /registration/registrations`
+- Repro: hit the endpoint with any limit → 422 `{"code":"INVALID_REGISTRATION_STATUS","message":"Invalid status: pending_payment"}`. Entire list endpoint unusable because one row has a status the kernel enum doesn't list.
+- Root cause: `apps/superadmin-api/src/modules/registration-compliance/domain/value-objects/statuses.vo.ts` defined `REGISTRATION_STATUSES = [draft, submitted, under_review, approved, rejected, waitlisted, withdrawn]` — 7 values. The DB + SA UI use 12+: `pending_email_verification`, `pending_parental_consent`, `pending_payment`, `pending_offline`, `pending_review`, `incomplete`, `cancelled` as well. The funnel can persist a registration in `pending_payment`, but the read path's `assertRegistrationStatus` rejects it on deserialization → 422.
+- Fix: extended the enum to 14 values + populated `REG_TRANSITIONS` for the new entries (conservative forward-only transitions; doesn't whitelist anything that wasn't already in the write path).
+- Status: ✅ Fixed. After restart, `GET /registration/registrations?limit=3` returns 200 with the `pending_payment` row deserialised cleanly.
+
+### Session 4 close-out
+
+Fixtures added this session (left in place for future smoke):
+- Org `5d92c8e8…` QA Walkthrough Org
+- User `dc514a28…` Walkthrough Invite (org_admin on the QA org, also cross-org grant to Smoke Test Org)
+- User `bf51bfea…` A3-01 MagicLink (no role, demonstrates auto-confirm OFF path)
+- League `60659a46…` QA Walkthrough League (renamed, status active)
+- Season `854ccb54…` QA Walkthrough Season (config: opens 2026-05-20, closes 2026-06-15, lock 2026-07-01)
+- Division `264bdf4b…` QA Open (rule overrides maxRosterSize=18, maxGuestPlayersPerGame=2)
+- Team `a89f9f72…` QA Walkthrough Team
+
+Tracker totals updated. Session 5 picks up at any remaining gaps: BUG-038 fix attempt + deeper coverage of D2 funnel walks (anonymous / minor / free-agent / Stripe / offline / invite-token) if those surfaces are wired, then anything in K-P that hasn't already been ✅ in the table.
