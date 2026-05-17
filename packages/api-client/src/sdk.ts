@@ -2731,6 +2731,24 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // BUG-043 follow-up — org-admin read-only forms surface.
+    orgAdminForms: {
+      list: (q: { orgId: string; seasonId?: string }) =>
+        f<{
+          items: Array<{
+            id: string;
+            orgId: string;
+            seasonId: string | null;
+            name: string;
+            description: string | null;
+            purpose: string;
+            createdAt: string;
+            updatedAt: string;
+            seasonName: string | null;
+          }>;
+        }>(`/org-admin/forms${qs(q)}`)
+    },
+
     // Backlog #6 · org-admin write surfaces (seasons).
     orgAdminSeasons: {
       create: (body: {

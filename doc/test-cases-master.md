@@ -1779,3 +1779,32 @@ Found **three more sites** with identical bugs, all in superadmin-web:
 - P4 concurrency races at deterministic level (needs parallel-request harness)
 
 **Total bug arc this multi-session walkthrough:** BUG-032 → BUG-045 (14 bugs, all fixed). The remaining deferrals are all infrastructure-bound. Local test surface for this codebase is now exhaustively walked.
+
+## BUG-043 ✅ fixed — org-admin /forms + /finance dead-end external links
+
+**Surface:** org-admin-web `/forms` and `/finance` pages.
+**Before:** Both pages exposed an "Open form builder" / "AR Dashboard" external button pointing at `sp-superadmin.vercel.app/...`. Org-admin users have no super_admin grant, so clicking either button bounced them to `/sign-in?error=wrong_role`. Dead end.
+**Root cause family:** god-app architecture — features land in super-admin first, other consoles inherit via role gating. But sp-superadmin's wrong-role gate rejects all non-super_admin sign-ins, so the inheritance never works in practice. Form-builder edit + AR-aging are genuinely super-admin-only for now.
+**Fix:**
+1. **New endpoint** `GET /api/org-admin/forms?orgId=...` — read-only, scope-checked (caller must hold super_admin or org_admin on the orgId). Returns id / orgId / seasonId / name / description / purpose / createdAt / updatedAt / seasonName.
+2. **Page rewrite** `apps/org-admin-web/src/app/(app)/forms/page.tsx` — fetches `orgAdminForms.list()` for the active org; renders a real table of bound forms (Name / Season / Purpose / Updated). External "Edit in super-admin" link demoted to a small header affordance with a tooltip explaining it requires super_admin. Empty state copy honestly says "Forms are created by a super-admin against one of your org's seasons. Once a form is bound, it shows up here."
+3. **Finance page** `apps/org-admin-web/src/app/(app)/finance/page.tsx` — dropped the dead-end "AR Dashboard" external button. The page already renders KPI cards + invoice table inline, so removing the button is a clean honesty fix. Description now reads "Aging-bucket reporting lives in the super-admin console (super_admin role)" rather than dangling an unreachable link.
+4. **SDK** — added `orgAdminForms.list()` to `packages/api-client/src/sdk.ts` + bound in `apps/org-admin-web/src/lib/api/server-api.ts`.
+
+**Files touched:**
+- new: `apps/superadmin-api/src/modules/org-admin/interface/org-admin-forms.controller.ts`
+- `apps/superadmin-api/src/modules/org-admin/org-admin.module.ts`
+- `packages/api-client/src/sdk.ts`
+- `apps/org-admin-web/src/lib/api/server-api.ts`
+- `apps/org-admin-web/src/app/(app)/forms/page.tsx` (full rewrite from empty-state-with-external-link to inline list)
+- `apps/org-admin-web/src/app/(app)/finance/page.tsx` (dropped AR Dashboard external button)
+
+**Verified end-to-end:**
+- `curl GET /api/org-admin/forms?orgId=abeb5b4d-...` as `walkthrough-invite@gmail.com` (org_admin) → 200 `{items: []}` (Smoke Test Org has no forms yet).
+- Browser at `localhost:3003/forms` renders "No registration forms yet" empty state with the honest "created by a super-admin" copy — no external link to a dead-end.
+- Browser at `localhost:3003/finance` renders KPI cards + invoice table inline. No external "AR Dashboard" button. Description text explains the super-admin gating.
+
+**Architectural caveat:** This is a tactical fix for the immediate dead-end UX. The strategic fix per CLAUDE.md cardinal rule ("Superadmin is the god app — every app is just filtered-by-role") would either:
+  - move the form-builder + AR-aging features into a shared `@sportspulse/*` package consumed by both apps, or
+  - relax the wrong-role gate on sp-superadmin to admit org_admin behind a scope filter.
+Both are larger investments; this PR removes the broken UX surface and gives org_admin a useful read-only path until the shared-package option lands.
