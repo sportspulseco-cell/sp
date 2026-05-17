@@ -87,10 +87,13 @@ export function NewLeagueForm({
         sportCode: code,
         format
       });
-      router.replace(`/leagues`);
-      router.refresh();
-      // Fallback if router.replace doesn't navigate immediately.
+      // Hard-nav to `/leagues` so the destination renders fresh data
+      // (BUG-038). router.replace + router.refresh raced with Next 15's
+      // client Router Cache and landed on a stale "no leagues yet" view
+      // on first paint.
       console.info("Created league", res.league.id);
+      window.location.replace("/leagues");
+      return;
     } catch (e) {
       setError((e as Error).message);
     } finally {

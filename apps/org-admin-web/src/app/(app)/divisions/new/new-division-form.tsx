@@ -58,8 +58,9 @@ export function NewDivisionForm({ seasons }: { seasons: SeasonOption[] }) {
         genderEligibility,
         maxTeams: maxTeamsNum
       });
-      router.replace("/divisions");
-      router.refresh();
+      // Hard-nav so the list renders fresh data (BUG-038).
+      window.location.replace("/divisions");
+      return;
     } catch (e) {
       setError((e as Error).message);
     } finally {

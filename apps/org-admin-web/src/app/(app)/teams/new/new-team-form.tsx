@@ -54,8 +54,9 @@ export function NewTeamForm({ orgId }: { orgId: string }) {
         shortName: shortName.trim() || undefined,
         logoUrl: logoUrl.trim() || undefined
       });
-      router.replace(`/teams/${res.team.id}`);
-      router.refresh();
+      // Hard-nav so the destination page renders fresh data (BUG-038).
+      window.location.replace(`/teams/${res.team.id}`);
+      return;
     } catch (e) {
       setError((e as Error).message);
     } finally {

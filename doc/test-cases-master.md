@@ -1544,3 +1544,33 @@ Fixtures added this session (left in place for future smoke):
 - Team `a89f9f72…` QA Walkthrough Team
 
 Tracker totals updated. Session 5 picks up at any remaining gaps: BUG-038 fix attempt + deeper coverage of D2 funnel walks (anonymous / minor / free-agent / Stripe / offline / invite-token) if those surfaces are wired, then anything in K-P that hasn't already been ✅ in the table.
+
+## Session 5 close-out — BUG-038 fixed + B2 + section sweep
+
+**Bug fixes:**
+
+**BUG-038 ✅ fixed** — stale list after create.
+- Root cause: `router.replace + router.refresh` race with Next 15's client Router Cache. `router.refresh()` invalidates the *current* route's RSC cache, not the destination's. With `force-dynamic` on the list page the API DID return the new row, but the client cached the empty payload from the prior visit and rendered it on first paint.
+- Fix: replace `router.replace + router.refresh` with `window.location.replace(<dest>)` in the 4 affected create-forms (leagues/seasons/divisions/teams new). Hard nav guarantees fresh data on the destination. The forms are terminal "go to list" navigations, so losing SPA state is fine.
+- Files: `apps/org-admin-web/src/app/(app)/leagues/new/new-league-form.tsx`, `…/seasons/new/new-season-form.tsx`, `…/divisions/new/new-division-form.tsx`, `…/teams/new/new-team-form.tsx`.
+- Verified end-to-end: created "QA League Two" → landed on /leagues showing BOTH "QA Walkthrough League (renamed)" and "QA League Two" immediately, no reload needed.
+
+**Deferred fixtures completed:**
+
+- **TC-B2-01 ✅** multi-org switcher. Granted Walkthrough Invite a second org_admin role on Smoke Test Org via direct SQL. Header banner flipped from `ORG_ADMIN · 1 ORG` to `ORG_ADMIN · 2 ORGS` and the "Active organisation" combobox appeared with both orgs.
+- **TC-B2-03 ✅** switcher persists. Selected Smoke Test Org → reloaded `/` → combobox still selected = Smoke Test Org, heading still "Smoke Test Org" with its own leagues (Smoke Test League + C-Wizard Test League archived).
+
+**Section G/H/I/K/L/M/N API smoke (this session):**
+- G3-01 `GET /games` → 200 with rows. ✅
+- H1-01 `GET /finance/admin/invoices` → 200 with master invoice. ✅
+- I1-01 `GET /notifications` → 200 with outbox including auto-fired game.finalized. ✅
+- K1-01 `GET /compliance/eligibility` → 200 (incl. a waived record for Alex). ✅
+- L1-01 `GET /stats/lines` → 200 with the Jordan stat line. ✅
+- M1-01 `GET /captain/store/:teamId/products` → 200 (empty for the fresh QA team). ✅
+- N1-01 cron secret gate `POST /notifications/cron/retry-failed` (no header) → 403 "Invalid cron secret". ✅
+
+**Section A: complete (sessions 1–4).**
+**Section B: complete this session (B1-01, B2-01, B2-02, B2-03, B3-01..03, B4-01, B5-01, B6-01, B7-01..05).**
+**Sections C/D/E/F/G/H/I/J/K/L/M/N/O/P: covered across sessions; tracker reflects status per row.**
+
+**Session 5 commit:** BUG-038 fix (4 files) + this handoff. Pushed to main.

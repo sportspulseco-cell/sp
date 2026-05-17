@@ -64,8 +64,9 @@ export function NewSeasonForm({ leagues }: { leagues: LeagueOption[] }) {
           ? new Date(rosterLockAt).toISOString()
           : undefined
       });
-      router.replace("/seasons");
-      router.refresh();
+      // Hard-nav so the list renders fresh data (BUG-038).
+      window.location.replace("/seasons");
+      return;
     } catch (e) {
       setError((e as Error).message);
     } finally {
