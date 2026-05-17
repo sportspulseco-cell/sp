@@ -6,7 +6,7 @@ import type {
   RegistrationForm,
   Season
 } from "@sportspulse/api-client";
-import { PricingClient } from "./pricing-client";
+import { PricingClient } from "@sportspulse/forms-builder";
 
 /**
  * Pricing section. Reuses the existing season-setup PricingTab via a

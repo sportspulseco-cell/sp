@@ -5,7 +5,7 @@ import type {
   RegistrationForm,
   Season
 } from "@sportspulse/api-client";
-import { EmailTemplatesClient } from "./email-templates-client";
+import { EmailTemplatesClient } from "@sportspulse/forms-builder";
 
 export function EmailTemplatesSection({
   form: _form,

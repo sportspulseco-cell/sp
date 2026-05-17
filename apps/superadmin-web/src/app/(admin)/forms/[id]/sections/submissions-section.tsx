@@ -1,6 +1,6 @@
 import type { Division, RegistrationForm } from "@sportspulse/api-client";
 import { registration } from "@/lib/api/server-api";
-import { SubmissionsClient } from "./submissions-client";
+import { SubmissionsClient } from "@sportspulse/forms-builder";
 
 /**
  * Submissions section. Server fetches the current set so we can paint

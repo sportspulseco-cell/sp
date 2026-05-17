@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Download, Loader2 } from "lucide-react";
 import { Badge, Button } from "@sportspulse/ui";
 import type { Division, Registration } from "@sportspulse/api-client";
-import { registration as regApi } from "@/lib/api/browser-api";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { useFormsBuilderApi } from "./context";
+import { SectionHeader } from "./section-header";
 
 const STATUS_TONE: Record<
   string,
@@ -48,7 +48,7 @@ const STATUS_FILTERS = [
 /**
  * Mockup's Submissions panel. Status dropdown filter + CSV export +
  * row actions (Approve, Reject, Email). Hits registration.reviewRegistration
- * for status changes.
+ * via the injected SDK context.
  */
 export function SubmissionsClient({
   registrations,
@@ -57,6 +57,7 @@ export function SubmissionsClient({
   registrations: Registration[];
   divisions: Division[];
 }) {
+  const { registration: regApi } = useFormsBuilderApi();
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]["value"]>(
     "all"
