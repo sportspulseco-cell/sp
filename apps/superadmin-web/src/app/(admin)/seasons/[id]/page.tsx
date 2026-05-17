@@ -1,7 +1,7 @@
 import { ArrowLeft, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, registration } from "@/lib/api/server-api";
 import { Badge } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -34,10 +34,20 @@ export default async function SeasonDetailPage({
   const season = await leagueMgmt.getSeason(id).catch(() => null);
   if (!season) notFound();
 
-  const [parentLeague, divisionsPage] = await Promise.all([
+  const [parentLeague, divisionsPage, formsPage] = await Promise.all([
     leagueMgmt.getLeague(season.leagueId).catch(() => null),
-    leagueMgmt.listDivisions({ seasonId: season.id }).catch(() => ({ items: [] }))
+    leagueMgmt.listDivisions({ seasonId: season.id }).catch(() => ({ items: [] })),
+    registration
+      .listForms({ orgId: season.orgId })
+      .catch(() => ({ items: [], nextCursor: null }))
   ]);
+
+  // Form-builder lives at /forms/[id] (canonical surface). If this
+  // season has exactly one form bound to it, deep-link straight there.
+  // Otherwise fall back to /forms — admin picks the right one.
+  const seasonForms = formsPage.items.filter((f) => f.seasonId === season.id);
+  const setupHref =
+    seasonForms.length === 1 ? `/forms/${seasonForms[0]!.id}` : "/forms";
 
   const cfg = (season.config ?? {}) as {
     requireUsaHockeyId?: boolean;
@@ -82,7 +92,7 @@ export default async function SeasonDetailPage({
             currentStatus={season.status}
           />
           <Link
-            href={`/registrations/seasons/${season.id}/setup`}
+            href={setupHref}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
           >
             Open registration setup →

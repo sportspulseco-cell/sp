@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
+import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
+import { Badge } from "@/components/ui/badge";
 import { leagueMgmt, registration } from "@/lib/api/browser-api";
 import { SectionHeader } from "./section-header";
 
@@ -335,8 +337,68 @@ export function SeasonSectionForm({
         ) : null}
       </section>
 
+      <EligibilityPanel form={form} />
+
       <FieldStyle />
     </div>
+  );
+}
+
+/**
+ * Read-only display of who this form is shown to. Ported here from the
+ * old version-wizard's EligibilityStep when the wizard was removed
+ * (CLAUDE.md "reuse over silos" — no parallel implementations). Pure
+ * metadata view; edits happen on form create.
+ */
+function EligibilityPanel({ form }: { form: RegistrationForm }) {
+  const roles =
+    form.appliesToRoles.length === 0
+      ? [{ code: "*", name: "All roles in scope" }]
+      : form.appliesToRoles.map((c) => ({
+          code: c,
+          name: SYSTEM_ROLE_BY_CODE[c]?.name ?? c
+        }));
+  return (
+    <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          // Eligibility
+        </p>
+        <p className="mt-1 text-[13px] text-fg-muted">
+          Who this form is shown to when admins or registrants land on the
+          funnel. Set on the form metadata at creation; edit on the forms
+          list page if you need to re-scope.
+        </p>
+      </div>
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            Scope type
+          </p>
+          <p className="mt-1 font-mono uppercase text-fg">{form.scope}</p>
+        </div>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            Scope ID
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-fg-muted">
+            {form.scopeId ?? "—"}
+          </p>
+        </div>
+      </dl>
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          Applies to roles
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {roles.map((r) => (
+            <Badge key={r.code} mono>
+              {r.name}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
