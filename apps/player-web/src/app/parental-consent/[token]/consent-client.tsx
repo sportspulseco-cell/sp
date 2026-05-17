@@ -39,8 +39,17 @@ export function ParentalConsentClient({
         }
       );
       if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`API ${res.status}: ${errBody}`);
+        // Friendly message rather than raw JSON (BUG-045 family).
+        let msg = `API ${res.status}`;
+        const body = await res.text();
+        try {
+          const p = JSON.parse(body);
+          msg =
+            p?.error?.message ?? p?.message ?? p?.error?.code ?? msg;
+        } catch {
+          if (body) msg = `${msg}: ${body}`;
+        }
+        throw new Error(msg);
       }
       setOutcome(action === "confirm" ? "confirmed" : "declined");
     } catch (e) {

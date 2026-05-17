@@ -29,8 +29,34 @@ async function apiFetch<T = unknown>(
     }
   });
   if (!res.ok) {
+    // Pull the human-readable message out of the API's error envelope
+    // instead of throwing the raw JSON at the user (BUG-045, parallel
+    // to BUG-008 fix in the admin apps). The envelope is one of:
+    //   { error: { code, message } }  ← canonical (DomainExceptionFilter)
+    //   { message, error, statusCode } ← Nest default
+    let msg = `API ${res.status}`;
+    let parsed: unknown = null;
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    try {
+      parsed = JSON.parse(body);
+    } catch {}
+    if (parsed && typeof parsed === "object") {
+      const p = parsed as Record<string, unknown>;
+      const inner = (p.error ?? {}) as Record<string, unknown>;
+      const innerMsg = typeof inner.message === "string" ? inner.message : null;
+      const topMsg = typeof p.message === "string" ? p.message : null;
+      const innerCode = typeof inner.code === "string" ? inner.code : null;
+      msg = innerMsg ?? topMsg ?? innerCode ?? msg;
+    } else if (body) {
+      msg = `${msg}: ${body}`;
+    }
+    const err = new Error(msg) as Error & {
+      status?: number;
+      body?: unknown;
+    };
+    err.status = res.status;
+    err.body = parsed ?? body;
+    throw err;
   }
   return (await res.json()) as T;
 }
