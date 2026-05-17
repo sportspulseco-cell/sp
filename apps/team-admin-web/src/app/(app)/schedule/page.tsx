@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Schedule - Team Admin" };
 
 function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-US", {
     weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
   });
 }

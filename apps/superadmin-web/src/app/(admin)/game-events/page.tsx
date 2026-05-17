@@ -17,7 +17,7 @@ import {
 export const metadata = { title: "Game events — SportsPulse" };
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     hour: "numeric",

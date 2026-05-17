@@ -48,7 +48,7 @@ function fmtMoney(cents: number, currency = "USD"): string {
 }
 
 function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",

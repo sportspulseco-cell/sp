@@ -275,7 +275,7 @@ async function RecentMovesCard({
               </p>
             </div>
             <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-              {new Date(m.effectiveAt).toLocaleString(undefined, {
+              {new Date(m.effectiveAt).toLocaleString("en-US", {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",

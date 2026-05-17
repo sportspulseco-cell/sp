@@ -253,7 +253,7 @@ function ResultPanel({
           </p>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-          {new Date(result.rankedAt).toLocaleString(undefined, {
+          {new Date(result.rankedAt).toLocaleString("en-US", {
             month: "short",
             day: "numeric",
             hour: "numeric",

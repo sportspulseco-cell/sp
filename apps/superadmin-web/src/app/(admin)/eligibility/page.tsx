@@ -197,7 +197,7 @@ export default async function EligibilityPage({
                   {e.waiverReason ?? "—"}
                 </TD>
                 <TD className="font-mono text-[11px] text-fg-muted">
-                  {new Date(e.evaluatedAt).toLocaleString(undefined, {
+                  {new Date(e.evaluatedAt).toLocaleString("en-US", {
                     month: "short",
                     day: "numeric",
                     hour: "numeric",

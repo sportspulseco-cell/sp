@@ -7,7 +7,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 export const metadata = { title: "Audit event — SportsPulse" };
 
 function fmt(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

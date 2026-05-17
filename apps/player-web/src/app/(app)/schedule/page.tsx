@@ -23,7 +23,7 @@ export const revalidate = 0;
 export const metadata = { title: "Schedule — SportsPulse" };
 
 function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
