@@ -154,7 +154,11 @@ function TopBar({
   onPublish: () => void;
 }) {
   const router = useRouter();
-  const previewHref = `/registration/${season.id}`;
+  // Absolute URL into player-web — title says "Open the public
+  // registration funnel in a new tab" but a relative path stayed on
+  // superadmin's mirror route and showed the admin's signed-in view
+  // (BUG-044c, family of BUG-042).
+  const previewHref = `${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app"}/register/${season.id}`;
   // Use a dropdown when at least 2 seasons exist in the same league;
   // single-season leagues just show the name (no point picking).
   const showPicker = availableSeasons.length > 1;
@@ -201,7 +205,7 @@ function TopBar({
           <ClipboardList className="h-3.5 w-3.5" strokeWidth={1.75} />
           Submissions
         </Link>
-        <Link
+        <a
           href={previewHref}
           target="_blank"
           rel="noopener noreferrer"
@@ -211,7 +215,7 @@ function TopBar({
           <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
           Preview form
           <ExternalLink className="h-3 w-3 opacity-60" strokeWidth={1.75} />
-        </Link>
+        </a>
         <button
           type="button"
           onClick={onPublish}

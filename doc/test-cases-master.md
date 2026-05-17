@@ -1699,3 +1699,40 @@ Tracker totals updated. Session 5 picks up at any remaining gaps: BUG-038 fix at
 **Repro:** Sign in as org_admin → visit `/forms`. The page renders an "Open form builder" button whose `href={SUPERADMIN_URL}/forms`. Clicking it sends the user to sp-superadmin, where the wrong-role gate bounces them — they end up at `/sign-in?error=wrong_role` because org_admin doesn't have super_admin grant.
 **Root cause:** Architectural — per CLAUDE.md "Superadmin is the god app — every app is just filtered-by-role", but the wrong-role gate on sp-superadmin currently rejects any non-super_admin login. Until either (a) the form builder is moved into a shared package consumed by both apps, or (b) the wrong-role gate is relaxed for org_admin reads, the external link is dead.
 **Status:** Logged. Not fixed this session — the proper fix is non-trivial (carve out a shared `@sportspulse/forms-builder` package or admit org_admin into the super_admin app behind a scope filter). Filed as BUG-043 for a follow-up sprint.
+
+## Cross-app URL leakage sweep — BUG-044 family
+
+After BUG-042 was found, did a repo-wide grep for the same anti-pattern:
+1. `target="_blank"` + relative `href` (pretends to open another app)
+2. Any reference to `/registration/${seasonId}` or similar that should hit player-web's `/register/${seasonId}`
+
+Found **three more sites** with identical bugs, all in superadmin-web:
+
+**BUG-044a · `/registrations` page "Public funnel" button (major)**
+- File: `apps/superadmin-web/src/app/(admin)/registrations/page.tsx:161`
+- Label: "Public funnel"
+- Was: `<Link href={`/registration/${activeForm.seasonId}`} target="_blank">` — relative, stayed on sp-superadmin
+- Now: plain `<a>` with absolute `NEXT_PUBLIC_PLAYER_WEB_URL/register/${seasonId}`
+
+**BUG-044b · `/registrations` page row "preview" link (major)**
+- File: `apps/superadmin-web/src/app/(admin)/registrations/page.tsx:408`
+- Label: "preview"
+- Same fix as 044a.
+
+**BUG-044c · `season-setup-shell` "Preview form" button (major)**
+- File: `apps/superadmin-web/src/components/registrations/season-setup-shell.tsx:157,205`
+- Label: "Preview form" with tooltip "Open the public registration funnel in a new tab"
+- `previewHref` was relative; now uses `NEXT_PUBLIC_PLAYER_WEB_URL/register/${seasonId}` and a plain `<a>`.
+
+**Already correct (no fix needed):**
+- `superadmin-web/components/registrations/tabs/form-builder-tab.tsx:69` — already used `NEXT_PUBLIC_PLAYER_WEB_URL` + `/register/`. Original author had the right pattern; just missed 4 sites.
+- `superadmin-web/components/registrations/tabs/review-publish-tab.tsx:79` — intentional dual link, shows BOTH the player-web URL (`playerLink`) and an "Admin preview" URL (`adminPreviewLink`) inside the SA's own funnel mirror. Labelled clearly so admins know which is which.
+- `player-web/components/captain-console-banner.tsx` — uses `NEXT_PUBLIC_TEAM_ADMIN_URL`. ✅
+- `player-web/.../payments-client.tsx` — same. ✅
+- landing-web nav + section-cta — hardcoded URLs to each role app; intentional (landing page is supposed to know all role-app URLs to direct users).
+- API services with `SUPERADMIN_WEB_URL` / `PLAYER_WEB_URL` env reads — correct.
+
+**Still architecturally broken (BUG-043 family, not fixed):**
+- `org-admin-web/finance/page.tsx:39` → external link to `SUPERADMIN_URL/finance/ar`. Org_admin gets bounced by sp-superadmin's wrong-role gate. Same root cause as BUG-043 (org-admin /forms): the god-app pattern requires either (a) moving the relevant features to a shared package or (b) admitting org_admin into sp-superadmin behind a scope filter. Logged.
+
+**Verified in browser:** Opened `/registrations` on sp-superadmin → "PUBLIC FUNNEL" + "PREVIEW" buttons both now render with `http://localhost:3004/register/<seasonId>` URL. Live wizard verified on form-builder page already (BUG-042).

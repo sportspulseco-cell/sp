@@ -157,15 +157,19 @@ export default async function RegistrationsPage() {
               </Link>
             ) : null}
             {activeForm?.seasonId ? (
-              <Link
-                href={`/registration/${activeForm.seasonId}`}
+              <a
+                // Absolute URL into player-web; relative path stayed on
+                // superadmin and showed the admin's session view of the
+                // funnel rather than the fresh-visitor experience the
+                // tooltip promised (BUG-044a, family of BUG-042).
+                href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app"}/register/${activeForm.seasonId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-bg-subtle px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
               >
                 <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
                 Public funnel
-              </Link>
+              </a>
             ) : null}
             <Link
               href="/forms"
@@ -404,15 +408,16 @@ function FormBindingCard({
           edit
         </Link>
         {form.seasonId ? (
-          <Link
-            href={`/registration/${form.seasonId}`}
+          <a
+            // Absolute URL into player-web (BUG-044b, family of BUG-042).
+            href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app"}/register/${form.seasonId}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted hover:border-fg-muted hover:text-fg"
           >
             <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
             preview
-          </Link>
+          </a>
         ) : null}
       </div>
     </article>
