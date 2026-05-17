@@ -6,7 +6,7 @@ import type {
   RegistrationForm,
   Season
 } from "@sportspulse/api-client";
-import { DivisionsClient } from "./divisions-client";
+import { DivisionsClient } from "@sportspulse/forms-builder";
 
 /**
  * Divisions & eligibility section. Two cards:

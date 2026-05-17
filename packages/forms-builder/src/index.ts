@@ -23,5 +23,6 @@ export { ReviewActions } from "./review-actions";
 export { FormBuilder } from "./form-builder";
 export { FormBuilderClient } from "./form-builder-client";
 export { SeasonSectionForm } from "./season-section-form";
+export { DivisionsClient } from "./divisions-client";
 export { RegistrationSetupShell } from "./setup-shell";
 export type { SectionKey, SectionStatus, SectionState } from "./setup-shell";

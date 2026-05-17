@@ -9,9 +9,9 @@ import type {
   PricingTier,
   Season
 } from "@sportspulse/api-client";
-import { leagueMgmt, registrationV2 } from "@/lib/api/browser-api";
-import { cn } from "@/lib/utils";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { useFormsBuilderApi } from "./context";
+import { cn } from "@sportspulse/ui";
+import { SectionHeader } from "./section-header";
 
 /**
  * Divisions & eligibility client. Two cards:
@@ -34,6 +34,7 @@ export function DivisionsClient({
   divisions: Division[];
   tierAssignments: Record<string, string[]>;
 }) {
+  const { leagueMgmt, registrationV2 } = useFormsBuilderApi();
   const router = useRouter();
   const [activeTierId, setActiveTierId] = useState<string | null>(
     tiers[0]?.id ?? null
