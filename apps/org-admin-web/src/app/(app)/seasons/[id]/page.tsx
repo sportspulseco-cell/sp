@@ -1,22 +1,23 @@
 import { notFound } from "next/navigation";
 import { SeasonDetail } from "@sportspulse/admin-pages";
-import { leagueMgmt, registration } from "@/lib/api/server-api";
-import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
+import { iam, leagueMgmt, registration } from "@/lib/api/server-api";
+import { getActiveOrgId } from "@/lib/active-org";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
 
-export const metadata = { title: "Season — SportsPulse" };
+export const metadata = { title: "Season — Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
- * View-only season detail. Body is rendered by the shared
- * @sportspulse/admin-pages SeasonDetail — org-admin-web mounts the
- * same component (BUG-043 family). The status-change dropdown is
- * passed as a slot, bound to sa-web's browser-api leagueMgmt.
+ * Org-admin's read-only season detail. Mirrors sa-web's
+ * /seasons/[id]/page.tsx by mounting the same shared component
+ * (@sportspulse/admin-pages — SeasonDetail). No role-assignment
+ * panel here (sa-only for now); the rest of the body is identical.
  *
- * Role-assignment panel (sa-only for now) goes through `extras`.
+ * Reads + status change flow through endpoints already accepting
+ * org_admin via AuthorizedAccessGuard — no proxy endpoints needed.
  */
-export default async function SeasonDetailPage({
+export default async function OrgAdminSeasonDetailPage({
   params
 }: {
   params: Promise<{ id: string }>;
@@ -24,6 +25,13 @@ export default async function SeasonDetailPage({
   const { id } = await params;
   const season = await leagueMgmt.getSeason(id).catch(() => null);
   if (!season) notFound();
+
+  // Defense in depth — the API already 404s out-of-scope seasons for
+  // org_admin reads, but verify the season belongs to the caller's
+  // active org before rendering.
+  const scope = await iam.meScope().catch(() => null);
+  const activeOrgId = await getActiveOrgId(scope);
+  if (activeOrgId && season.orgId !== activeOrgId) notFound();
 
   const [parentLeague, divisionsPage, formsPage] = await Promise.all([
     leagueMgmt.getLeague(season.leagueId).catch(() => null),
@@ -33,9 +41,6 @@ export default async function SeasonDetailPage({
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 
-  // Form-builder lives at /forms/[id] (canonical surface). If this
-  // season has exactly one form bound to it, deep-link straight there.
-  // Otherwise fall back to /forms — admin picks the right one.
   const seasonForms = formsPage.items.filter((f) => f.seasonId === season.id);
   const setupHref =
     seasonForms.length === 1 ? `/forms/${seasonForms[0]!.id}` : "/forms";
@@ -47,15 +52,6 @@ export default async function SeasonDetailPage({
       divisions={divisionsPage.items}
       setupHref={setupHref}
       statusControl={<ChangeSeasonStatusButton season={season} />}
-      extras={
-        <ResourceAdminsSection
-          scopeType="season"
-          scopeId={season.id}
-          resourceLabel={season.name}
-          allowedRoleCodes={["season_admin", "registrar"]}
-          description="Season admins manage registrations and roster locks for this season."
-        />
-      }
     />
   );
 }

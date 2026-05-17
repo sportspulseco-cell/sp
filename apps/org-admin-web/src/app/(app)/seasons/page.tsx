@@ -69,7 +69,11 @@ export default async function SeasonsPage() {
           <TBody>
             {page.items.map((s) => (
               <TR key={s.id}>
-                <TD className="font-medium text-fg">{s.name}</TD>
+                <TD className="font-medium text-fg">
+                  <Link href={`/seasons/${s.id}`} className="hover:underline">
+                    {s.name}
+                  </Link>
+                </TD>
                 <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{s.sportCode}</TD>
                 <TD className="text-[12px] text-fg-muted">
                   {fmt(s.startDate)} - {fmt(s.endDate)}

@@ -3,19 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { leagueMgmt } from "@/lib/api/browser-api";
+import { Badge, statusTone } from "@sportspulse/ui";
 
 const STATUSES: Array<{
   value: string;
   label: string;
   hint: string;
 }> = [
-  {
-    value: "draft",
-    label: "Draft",
-    hint: "Captains can't see it yet."
-  },
+  { value: "draft", label: "Draft", hint: "Captains can't see it yet." },
   {
     value: "registration_open",
     label: "Registration open",
@@ -36,19 +31,23 @@ const STATUSES: Array<{
     label: "Completed",
     hint: "Final results in. Read-only."
   },
-  {
-    value: "archived",
-    label: "Archived",
-    hint: "Hidden from default lists."
-  }
+  { value: "archived", label: "Archived", hint: "Hidden from default lists." }
 ];
 
+/**
+ * Dropdown to change a season's status. Transport-agnostic — the
+ * consuming app passes a `changeStatus(seasonId, status)` callback
+ * that hits its own SDK binding. Used by both sa-web and
+ * org-admin-web's season detail pages.
+ */
 export function SeasonStatusControl({
   seasonId,
-  currentStatus
+  currentStatus,
+  changeStatus
 }: {
   seasonId: string;
   currentStatus: string;
+  changeStatus: (seasonId: string, status: string) => Promise<unknown>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -63,7 +62,7 @@ export function SeasonStatusControl({
     setBusy(status);
     setError(null);
     try {
-      await leagueMgmt.changeSeasonStatus(seasonId, status);
+      await changeStatus(seasonId, status);
       setOpen(false);
       router.refresh();
     } catch (e) {
@@ -98,9 +97,7 @@ export function SeasonStatusControl({
                     disabled={busy !== null}
                     className={[
                       "flex w-full items-start gap-2 px-3 py-2 text-left text-[13px] transition disabled:opacity-50",
-                      active
-                        ? "bg-accent/10 text-accent"
-                        : "hover:bg-bg-subtle"
+                      active ? "bg-accent/10 text-accent" : "hover:bg-bg-subtle"
                     ].join(" ")}
                   >
                     <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center">

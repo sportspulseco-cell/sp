@@ -3,6 +3,7 @@ import { ArrowLeft, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Badge, Eyebrow, IconTile, statusTone } from "@sportspulse/ui";
 import type { League, Org, Season } from "@sportspulse/api-client";
+import { Field } from "./field";
 
 const PRIVACY_LABEL: Record<string, string> = {
   public: "Public — visible in league directory",
@@ -217,36 +218,3 @@ export function LeagueDetail({
   );
 }
 
-function Field({
-  label,
-  tag,
-  mono,
-  children
-}: {
-  label: string;
-  tag?: string;
-  mono?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          {label}
-        </dt>
-        {tag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {tag}
-          </span>
-        ) : null}
-      </div>
-      <dd
-        className={
-          mono ? "mt-1 font-mono text-[12px] text-fg" : "mt-1 text-[13px] text-fg"
-        }
-      >
-        {children}
-      </dd>
-    </div>
-  );
-}
