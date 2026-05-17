@@ -16,3 +16,4 @@ export { SeasonDetail } from "./season-detail";
 export { SeasonStatusControl } from "./season-status-control";
 export { DivisionDetail } from "./division-detail";
 export type { DivisionTeamRow } from "./division-detail";
+export { TeamDetail } from "./team-detail";
