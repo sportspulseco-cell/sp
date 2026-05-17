@@ -12,6 +12,7 @@
   "dependencies": {
     "@sportspulse/api-client": "workspace:*",
     "@sportspulse/auth": "workspace:*",
+    "@sportspulse/forms-builder": "workspace:*",
     "@sportspulse/kernel": "workspace:*",
     "@sportspulse/registration-funnel": "workspace:*",
     "@sportspulse/ui": "workspace:*",

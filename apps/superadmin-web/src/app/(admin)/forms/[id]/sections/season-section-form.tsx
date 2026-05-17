@@ -8,7 +8,7 @@ import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
 import { Badge } from "@/components/ui/badge";
 import { leagueMgmt, registration } from "@/lib/api/browser-api";
-import { SectionHeader } from "./section-header";
+import { SectionHeader } from "@sportspulse/forms-builder";
 
 const REGISTRATION_TYPES: { value: string; label: string }[] = [
   { value: "team_captain_led", label: "Team registration (captain-led)" },

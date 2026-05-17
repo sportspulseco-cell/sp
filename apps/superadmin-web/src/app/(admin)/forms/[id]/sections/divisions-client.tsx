@@ -11,7 +11,7 @@ import type {
 } from "@sportspulse/api-client";
 import { leagueMgmt, registrationV2 } from "@/lib/api/browser-api";
 import { cn } from "@/lib/utils";
-import { SectionHeader } from "./section-header";
+import { SectionHeader } from "@sportspulse/forms-builder";
 
 /**
  * Divisions & eligibility client. Two cards:

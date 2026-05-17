@@ -6,7 +6,7 @@ import { Download, Loader2 } from "lucide-react";
 import { Badge, Button } from "@sportspulse/ui";
 import type { Division, Registration } from "@sportspulse/api-client";
 import { registration as regApi } from "@/lib/api/browser-api";
-import { SectionHeader } from "./section-header";
+import { SectionHeader } from "@sportspulse/forms-builder";
 
 const STATUS_TONE: Record<
   string,

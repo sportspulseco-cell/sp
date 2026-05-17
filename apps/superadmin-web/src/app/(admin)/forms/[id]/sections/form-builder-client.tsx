@@ -14,7 +14,7 @@ import {
 } from "@sportspulse/kernel";
 import { registration } from "@/lib/api/browser-api";
 import { FormBuilder } from "@/components/forms/form-builder";
-import { SectionHeader } from "./section-header";
+import { SectionHeader } from "@sportspulse/forms-builder";
 
 /**
  * Wraps the existing <FormBuilder> in the Registration setup chrome.
