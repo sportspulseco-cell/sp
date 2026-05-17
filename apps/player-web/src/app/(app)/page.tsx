@@ -183,6 +183,30 @@ export default async function PlayerHome() {
     )
     .slice(0, 4);
 
+  // Resolve opponent team names for next-game + recent-games rows
+  // (BUG-037). Fan out one getTeam per unique opponent across the
+  // dashboard's visible games — small bounded set.
+  const opponentIdSet = new Set<string>();
+  if (nextGame && myTeamId) {
+    const id =
+      nextGame.homeTeamId === myTeamId ? nextGame.awayTeamId : nextGame.homeTeamId;
+    if (id) opponentIdSet.add(id);
+  }
+  for (const g of recent) {
+    const id = g.homeTeamId === myTeamId ? g.awayTeamId : g.homeTeamId;
+    if (id) opponentIdSet.add(id);
+  }
+  const opponentNameEntries = await Promise.all(
+    Array.from(opponentIdSet).map(
+      async (id) =>
+        [id, await leagueMgmt.getTeamSummary(id).catch(() => null)] as const
+    )
+  );
+  const opponentNames = new Map<string, string>();
+  for (const [id, t] of opponentNameEntries) {
+    if (t?.name) opponentNames.set(id, t.name);
+  }
+
   // -- Team record from finals (we don't pull standings here to keep
   //    the home view to a single batch — Stats view pulls those) --
   const record = recent.reduce(
@@ -269,6 +293,7 @@ export default async function PlayerHome() {
         nextGame={nextGame}
         teamId={myTeamId}
         teamName={team?.name ?? "Your team"}
+        opponentNames={opponentNames}
       />
 
       {/* 4 KPI cards */}
@@ -319,7 +344,11 @@ export default async function PlayerHome() {
 
       {/* Row 1 — Recent games + Registrations card */}
       <section className="grid gap-4 lg:grid-cols-2">
-        <RecentGamesCard recent={recent} myTeamId={myTeamId} />
+        <RecentGamesCard
+          recent={recent}
+          myTeamId={myTeamId}
+          opponentNames={opponentNames}
+        />
         <RegistrationsPreview regs={regPage.items} />
       </section>
 
@@ -345,11 +374,13 @@ export default async function PlayerHome() {
 function NextGameHero({
   nextGame,
   teamId,
-  teamName
+  teamName,
+  opponentNames
 }: {
   nextGame: Game | undefined;
   teamId: string | null;
   teamName: string;
+  opponentNames: Map<string, string>;
 }) {
   if (!nextGame) {
     return (
@@ -376,9 +407,13 @@ function NextGameHero({
           <Eyebrow className="!text-[#B5D4F4]">// Next game</Eyebrow>
           <p className="text-[22px] font-semibold tracking-tight">
             {teamName} <span className="text-[#85B7EB]">vs.</span>{" "}
-            <span className="font-mono text-[18px] uppercase">
-              {opponent.slice(0, 8)}
-            </span>
+            {opponentNames.get(opponent) ? (
+              <span>{opponentNames.get(opponent)}</span>
+            ) : (
+              <span className="font-mono text-[18px] uppercase">
+                {opponent.slice(0, 8)}
+              </span>
+            )}
           </p>
           <p className="flex items-center gap-2 text-[13px] text-[#85B7EB]">
             <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -426,10 +461,12 @@ function NextGameHero({
 
 function RecentGamesCard({
   recent,
-  myTeamId
+  myTeamId,
+  opponentNames
 }: {
   recent: Game[];
   myTeamId: string | null;
+  opponentNames: Map<string, string>;
 }) {
   return (
     <div className="rounded-xl border border-border bg-surface-1">
@@ -483,8 +520,13 @@ function RecentGamesCard({
                     {result}
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-[12px] text-fg">
-                      vs. {opponentId.slice(0, 8)}
+                    <p className="truncate text-[12px] text-fg">
+                      vs.{" "}
+                      {opponentNames.get(opponentId) ?? (
+                        <span className="font-mono">
+                          {opponentId.slice(0, 8)}
+                        </span>
+                      )}
                     </p>
                     <p className="text-[11px] text-fg-muted">
                       {fmtDate(g.scheduledStartTsUtc)}

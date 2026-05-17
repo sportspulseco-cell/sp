@@ -121,6 +121,28 @@ export default async function SchedulePage({
                 new Date(a.scheduledStartTsUtc).getTime()
             );
 
+  // Resolve opponent team names so the row reads "vs. Boston Gold Kings"
+  // instead of "vs. D99BA8FD" (BUG-037). One getTeam call per unique
+  // opponent across the visible list — at most ~20-30 calls per page
+  // load, all in parallel.
+  const opponentIds = Array.from(
+    new Set(
+      list
+        .map((g) => (g.homeTeamId === myTeamId ? g.awayTeamId : g.homeTeamId))
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const opponentEntries = await Promise.all(
+    opponentIds.map(
+      async (id) =>
+        [id, await leagueMgmt.getTeamSummary(id).catch(() => null)] as const
+    )
+  );
+  const opponentNames = new Map<string, string>();
+  for (const [id, t] of opponentEntries) {
+    if (t?.name) opponentNames.set(id, t.name);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -186,9 +208,13 @@ export default async function SchedulePage({
                   <TD>
                     <p className="text-[13px] font-medium text-fg">
                       vs.{" "}
-                      <span className="font-mono uppercase">
-                        {oppId.slice(0, 8)}
-                      </span>
+                      {opponentNames.get(oppId) ? (
+                        <span>{opponentNames.get(oppId)}</span>
+                      ) : (
+                        <span className="font-mono uppercase">
+                          {oppId.slice(0, 8)}
+                        </span>
+                      )}
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
                       <Clock className="h-3 w-3" strokeWidth={1.75} />

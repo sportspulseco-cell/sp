@@ -1413,6 +1413,15 @@ export function createApi(f: Fetcher) {
         } = {}
       ) => f<Page<Team>>(`/league/teams${qs(q)}`),
       getTeam: (id: string) => f<Team>(`/league/teams/${id}`),
+      /**
+       * Minimal team identifier (id/name/shortName/logoUrl). Auth-only, no
+       * scope filter — use this from role-targeted apps (player, team-admin)
+       * to render an opponent's name without league scope (BUG-037).
+       */
+      getTeamSummary: (id: string) =>
+        f<{ id: string; name: string; shortName: string | null; logoUrl: string | null }>(
+          `/league/teams/${id}/summary`
+        ),
       createTeam: (body: {
         orgId: string;
         name: string;
