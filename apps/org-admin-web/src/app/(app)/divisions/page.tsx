@@ -70,7 +70,11 @@ export default async function DivisionsPage() {
           <TBody>
             {all.map((d: Division) => (
               <TR key={d.id}>
-                <TD className="font-medium text-fg">{d.name}</TD>
+                <TD className="font-medium text-fg">
+                  <Link href={`/divisions/${d.id}`} className="hover:underline">
+                    {d.name}
+                  </Link>
+                </TD>
                 <TD className="text-fg-muted">{d.tier ?? "-"}</TD>
                 <TD>
                   <Badge mono tone="neutral">{d.genderEligibility ?? "open"}</Badge>

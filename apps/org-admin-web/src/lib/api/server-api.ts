@@ -15,6 +15,11 @@ export const gameOps = api.gameOps;
 export const finance = api.finance;
 export const communications = api.communications;
 export const audit = api.audit;
+// /admin/divisions/:id/teams + /admin/seasons/:id/applications —
+// gated by RolesGuard(super_admin, org_admin, league_admin) +
+// AuthorizedAccessGuard, so org_admin can hit them directly. Used by
+// the shared <DivisionDetail> on org-admin's /divisions/[id].
+export const adminTransfers = api.adminTransfers;
 export const orgAdminTeams = api.orgAdminTeams;
 export const orgAdminRefundAssessments = api.orgAdminRefundAssessments;
 export const orgAdminLeagues = api.orgAdminLeagues;
