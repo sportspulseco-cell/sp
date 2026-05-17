@@ -10,9 +10,8 @@ import {
   MoreHorizontal,
   Send
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@sportspulse/ui";
 import type { ReactNode } from "react";
-import { LiveDot } from "@/components/motion/kinetic";
 
 export type SectionKey =
   | "season"
@@ -47,6 +46,49 @@ const SECTION_DEFS: {
   { key: "email_templates", index: 5, label: "Email templates" },
   { key: "review", index: 6, label: "Review & publish" }
 ];
+
+/**
+ * Inlined LiveDot (was in sa-web's components/motion/kinetic). Tiny
+ * pinging-ring status dot. Kept local to the package so consumers
+ * don't need to import a separate motion primitive.
+ */
+function LiveDot({
+  tone = "accent",
+  className
+}: {
+  tone?: "accent" | "success" | "error" | "cyan";
+  className?: string;
+}) {
+  const ringByTone: Record<string, string> = {
+    accent: "bg-[--accent]/70",
+    success: "bg-emerald-500/70",
+    error: "bg-rose-500/70",
+    cyan: "bg-cyan-500/70"
+  };
+  const dotByTone: Record<string, string> = {
+    accent: "bg-[--accent]",
+    success: "bg-emerald-500",
+    error: "bg-rose-500",
+    cyan: "bg-cyan-500"
+  };
+  return (
+    <span className={cn("relative inline-flex h-2 w-2", className)}>
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inline-flex h-full w-full animate-ping rounded-full",
+          ringByTone[tone]
+        )}
+      />
+      <span
+        className={cn(
+          "relative inline-flex h-2 w-2 rounded-full",
+          dotByTone[tone]
+        )}
+      />
+    </span>
+  );
+}
 
 /**
  * Sticky chrome + 6-section sidebar nav matching the mockups, in the

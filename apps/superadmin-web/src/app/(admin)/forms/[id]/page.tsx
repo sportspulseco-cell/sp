@@ -7,7 +7,11 @@ import {
   registration,
   registrationV2
 } from "@/lib/api/server-api";
-import { RegistrationSetupShell, type SectionKey, type SectionState } from "./setup-shell";
+import {
+  RegistrationSetupShell,
+  type SectionKey,
+  type SectionState
+} from "@sportspulse/forms-builder";
 import { FormsBuilderProviderClient } from "./forms-builder-provider-client";
 import { SeasonSection } from "./sections/season-section";
 import { PricingSection } from "./sections/pricing-section";
