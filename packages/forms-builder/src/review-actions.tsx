@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@sportspulse/ui";
-import { registration } from "@/lib/api/browser-api";
+import { useFormsBuilderApi } from "./context";
 
 /**
  * Visibility dropdown + Publish button. "Publish registration" only
@@ -21,6 +21,7 @@ export function ReviewActions({
   publishable: boolean;
   hasActiveVersion: boolean;
 }) {
+  const { registration } = useFormsBuilderApi();
   const router = useRouter();
   const [visibility, setVisibility] = useState<"draft" | "live">(
     hasActiveVersion ? "live" : "draft"

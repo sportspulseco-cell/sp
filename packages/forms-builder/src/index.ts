@@ -18,5 +18,7 @@ export { EmailTemplatesTab } from "./email-templates-tab";
 export { PricingClient } from "./pricing-client";
 export { EmailTemplatesClient } from "./email-templates-client";
 export { SubmissionsClient } from "./submissions-client";
+export { ReviewSection } from "./review-section";
+export { ReviewActions } from "./review-actions";
 export { RegistrationSetupShell } from "./setup-shell";
 export type { SectionKey, SectionStatus, SectionState } from "./setup-shell";

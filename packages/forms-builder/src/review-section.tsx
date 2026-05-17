@@ -7,7 +7,7 @@ import type {
   RegistrationForm,
   Season
 } from "@sportspulse/api-client";
-import { SectionHeader } from "@sportspulse/forms-builder";
+import { SectionHeader } from "./section-header";
 import { ReviewActions } from "./review-actions";
 
 function fmtDate(iso: string | null): string {

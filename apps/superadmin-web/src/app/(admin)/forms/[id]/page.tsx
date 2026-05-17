@@ -18,7 +18,7 @@ import { PricingSection } from "./sections/pricing-section";
 import { DivisionsSection } from "./sections/divisions-section";
 import { FormBuilderSection } from "./sections/form-builder-section";
 import { EmailTemplatesSection } from "./sections/email-templates-section";
-import { ReviewSection } from "./sections/review-section";
+import { ReviewSection } from "@sportspulse/forms-builder";
 import { SubmissionsSection } from "./sections/submissions-section";
 
 export const dynamic = "force-dynamic";
