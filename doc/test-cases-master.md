@@ -1425,3 +1425,32 @@ Past walks live alongside this doc:
 If a test case here contradicts current behaviour, the **code** is the
 truth. Update this doc in the same commit that changes the behaviour,
 or open a follow-up referencing the failing TC-id.
+
+## Walkthrough handoff — 2026-05-17 (session 2)
+
+Live re-walk after BUGs 033-037 fixes. Status this session:
+
+**Section A (super-admin foundation) — partial**
+
+| TC | Status | Notes |
+|---|---|---|
+| A1-01 sign-in happy path | ✅ | localhost:3010 with smoketest+sa, lands on /dashboard, no console errors |
+| A1-02 wrong password | ✅ | inline "Invalid login credentials" error, no redirect |
+| A1-03 wrong role | ✅ | +ta user → bounced to /sign-in?error=wrong_role with "Sign out and try a different account" recovery panel |
+| A1-04 sign-out cleared session across apps | ✅ | signing out on player-web (:3004) required re-auth when revisiting superadmin-web (:3010) — no silent re-auth |
+| A1-05 magic-link sign-in | ⏭️ N/A-local | needs real email delivery (Resend not wired locally) |
+| A1-06 /auth/callback exchange | ⏭️ N/A-local | needs magic-link |
+| A1-07 session expiry mid-flow | ⏭️ N/A-local | needs JWT TTL force-expire or time-warp |
+| A2-01 create org | ✅ | "QA Walkthrough Org" created, row appears, count 4→5, id `5d92c8e8-299f-472e-a4a9-98e60717475e` |
+| A2-02 legal name uniqueness | ⏳ | not yet exercised this session — BUG-007 prior pass validates the path |
+| A3-01..03 invite | ⏳ | not yet exercised |
+| A4-01..03 role assign / revoke / context defaults | ⏳ | not yet exercised |
+| A5-01 cross-org grant | ⏳ | not yet exercised |
+| A6-01 suspend/reactivate | ⏳ | not yet exercised |
+| A7-01 audit log records mutations | ✅ | DB verified — `audit_events` row written for the A2-01 org-create with correct actor_user_id + resource_id |
+| A7-02 audit filter | ⏳ | not yet exercised |
+| A7-03 audit detail view | ⏳ | not yet exercised |
+
+**Pick-up for next session.** Local env still up: superadmin-web on :3010, team-admin-web on :3005, player-web on :3004, sp-api on :4040. Signed in as Test Super Admin on :3010 at /organizations. Next test: TC-A2-02 (try to create another org with legal name "QA Walkthrough Org Inc." → expect 409). Then march through A3 → A7 → B → C → ... per the section list above.
+
+Bugs fixed this session: BUG-032/033/034/035/036/037 (see bug log entries).
