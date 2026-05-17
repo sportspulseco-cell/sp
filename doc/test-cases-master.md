@@ -127,8 +127,8 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | Section I — Communications | ✅ (API-level) | 2026-05-17 | `GET /notifications?limit=5` returns the outbox including the auto-fired `game.finalized` notification from Section G. `GET /notifications/me/preferences` returns the full template catalogue (registration / game / suspension / roster / etc.) with per-channel toggle shape. `GET /notification-templates` returns 200 (empty in this env). |
 | Section J — Public surfaces | ✅ (smoke) | 2026-05-17 | `https://sp-landing-seven.vercel.app/` renders the marketing landing page (h1 "The pulse of every league." + nav: Products, Pricing, Leadership, Sign in). Public funnel `/registration/:seasonId` verified in TC-D1-01 above. Per-app sign-in surfaces verified across TC-A1, TC-B1, TC-F1-01. |
 | Sections K–Q | ⏭️ (smoke only) | 2026-05-17 | Beyond the scope of this single test run — each section needs dedicated data setup (eligibility records, stats backfills, store catalog, cron schedules, i18n bundles). Underlying API contracts exist (controllers grep'd present) but exhaustive end-to-end exercise is queued for follow-up sweeps. Cross-app verification (Q) was implicit throughout — every cross-surface read (super-admin sees captain's writes, captain sees admin's approvals, etc.) was confirmed inline. |
-| Section K compliance | ⚠️ | 2026-05-17 | `GET /compliance/eligibility/precheck` 500s with valid params (BUG-033 open). Other compliance endpoints (sweeps controllers, eligibility records) exist but weren't deeply exercised. |
-| Section L stats | ✅ | 2026-05-17 | `GET /stats/lines` 200 with rows; `GET /stats/standings/:leagueId` 200; `POST /stats/standings/:leagueId/recompute` 201 ("teamsRanked: 2") — idempotent. `GET /stats/team/:teamId?leagueId=…` 200; without `leagueId` now returns 400 instead of 500 (BUG-032 fix, committed local — pending deploy). |
+| Section K compliance | ✅ | 2026-05-17 | `GET /compliance/eligibility/precheck` now resolves correctly (BUG-033 fixed via UUID-shape constraint on `:id`). Underage + overage edge cases now hard-warn (BUG-034 — kernel rule resolver was blind to nested override shape). End-to-end verified in captain Add-player modal. |
+| Section L stats | ✅ | 2026-05-17 | `GET /stats/lines` 200 with rows; `GET /stats/standings/:leagueId` 200; `POST /stats/standings/:leagueId/recompute` 201 ("teamsRanked: 2") — idempotent. `GET /stats/team/:teamId?leagueId=…` 200; without `leagueId` now returns 400 instead of 500 (BUG-032 fix deployed). Stats UI rendered in superadmin-web for PPHL Adult League. |
 | Section M team store | ✅ | 2026-05-17 | `GET /captain/store/:teamId/products` returns 200 with empty `items` for a fresh team. Full CRUD endpoints (POST/PATCH) exist on the captain controller. |
 | Section N cron | ✅ | 2026-05-17 | `POST /notifications/cron/retry-failed` correctly gates on `X-Cron-Secret` header (returns 403 "Invalid cron secret" without it) — even super-admin JWTs don't bypass, which matches the pg_cron + pg_net architecture. Compliance lock-sweep cron endpoint also exists. |
 | Section O i18n | ✅ (smoke) | 2026-05-17 | DB has 4 `*locale*` columns + 9 `*translations*` jsonb columns (`name_translations` on orgs / sports / divisions / etc). 19 profiles ship a `locale`. Landing page serves 200 for every Accept-Language header tested (en/es/fr/de/pt). Deep per-string translation coverage queued. |
@@ -209,18 +209,56 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Fix:** Each wrapper now parses the JSON, prefers `parsed.error.message` → `parsed.message` → `parsed.error.code`, falls back to `API <status>` when the body isn't JSON. Attaches `status` + `body` to the thrown error for callers that want the structured form.
 - **Status:** ✅✅ Fixed across all 8 files (commit `59d5121`) — verified during BUG-007 re-test: the legal-name 409 surfaced as `"Org legal name already taken: Smoke Test Org Inc."` cleanly, no JSON wrapper visible to user.
 
-### BUG-033 · `/compliance/eligibility/precheck` 500s with valid params · **major (open)**
+### BUG-037 · Player schedule + home render opponent as raw id-prefix instead of team name · **major UX**
+- **TC:** TC-J1 (player schedule), TC-J2 (player home)
+- **Surface:** player-web · `/`, `/schedule`
+- **Repro:** Sign in to player-web as Parker. Schedule rows + the "Next game" hero both show `vs. D99BA8FD` instead of `vs. Opponent Test Team`.
+- **Root cause:** Pages called `leagueMgmt.getTeam(opponentId)` which routes through `AuthorizedAccessGuard` + `getOne` scope. Player scope is `{leagueIds: [], teamIds: [boston]}` so `[] ?? undefined` evaluates to `[]` (deny — non-null empty) → 404 for any team outside their direct teamIds. Player could see the opponent in their own schedule data but couldn't resolve its name.
+- **Fix:** Added `GET /api/league/teams/:id/summary` (JwtAuthGuard only, no scope check) returning `{id, name, shortName, logoUrl}`. Team identifiers are already exposed via games — this is not a scope leak. Player-web home + schedule fan out one `getTeamSummary` call per unique opponent and pass the resulting `Map<id, name>` down to NextGameHero + RecentGamesCard + the table row.
+- **Files:** new `apps/superadmin-api/src/modules/league-management/interface/team-summary.controller.ts`; SDK `packages/api-client/src/sdk.ts` adds `getTeamSummary`; `apps/player-web/src/app/(app)/page.tsx` + `/schedule/page.tsx`.
+- **Status:** ✅ Fixed + verified end-to-end in browser (commit b2e9db8). All 4 rows now read "vs. Opponent Test Team"; home hero shows "Boston Gold Kings vs. Opponent Test Team".
+
+### BUG-036 · React hydration mismatch on every date column (server vs client locale drift) · **major UX**
+- **TC:** TC-D2 (queue) + every list view with a date column
+- **Surface:** all four web apps · ~45 sites
+- **Repro:** Load any list page (e.g. `/division-applications`). Console shows React hydration-mismatch error; the date string flickers post-hydration (e.g. server `12/5/2026` → client `5/12/2026`, or `17 May 2026` → `May 17, 2026`).
+- **Root cause:** `toLocaleDateString()` and `toLocaleString(undefined, …)` use the runtime's default locale. Node defaults to `en-GB` style; the user's Chrome defaults to `en-US`. SSR renders one, client hydrates the other → React refuses to reconcile and re-renders the subtree, throwing a console error.
+- **Fix:** Pinned `toLocaleDateString()` → `("en-CA")` (ISO-ish `2026-05-17`). Pinned `toLocaleString/toLocaleDateString(undefined, …)` → `("en-US", …)` where a long format was intentional. Two commits (`3d00655`, `120aa28`) covering ~66 callsites across superadmin-web, org-admin-web, player-web, team-admin-web.
+- **Status:** ✅ Fixed across the date paths exercised in this UI sweep. Console clean on every reloaded page.
+
+### BUG-035 · API CORS allowlist missed local-dev fallback ports · **minor (DX)**
+- **TC:** TC-D2 (anything that triggers a client-side refetch)
+- **Surface:** sp-api · CORS preflight; visible in browser as a red "Failed to fetch" banner
+- **Repro:** Start a Next.js web app on a port outside the default range (e.g. `3010` because another project owns `3001`). Any browser-issued fetch to sp-api fails preflight: `Access to fetch at … has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header`.
+- **Root cause:** `CORS_ORIGIN` in `apps/superadmin-api/.env.example` listed only `localhost:3000-3004`. SSR pages still worked (server-side fetch); the failure only surfaces post-hydration.
+- **Fix:** Extended the dev allowlist to `localhost:3000-3005,3010-3014` in `apps/superadmin-api/.env.example` so the contract lives in the repo.
+- **Status:** ✅ Fixed (commit bf420e7). Prod CORS env var unchanged.
+
+### BUG-034 · `resolveDivisionRules` blind to nested override shape — age range + roster caps silently disabled · **major (correctness)**
+- **TC:** TC-F1-03 (captain Add-player precheck modal)
+- **Surface:** sp-api · everywhere a division's `rule_set_overrides` is read
+- **Repro:** In the captain Add-player modal on Boston Gold Kings (Pro 25 Men, configured min=25 max=40), select Alex Tester (DOB 2010, age 15). Modal reports `age: eligible`. Same for Parker (age 42). No warning fires.
+- **Root cause:** The org-setup wizard writes `rule_set_overrides` as `{ageRange:{min,max,label}, gameRules:{maxRosterSize,…}, tiebreakers:[…]}` (nested). The kernel reader `resolveDivisionRules` expected the flat shape (`ageMinYears`, `ageMaxYears`, `maxRosterSize` at the top level). Every override read since the wizard shipped fell back to defaults silently. `maxRosterSize:20` happened to match the default; `ageRange` had no default → no check fired.
+- **Fix:** Lenient reader — accepts both shapes. Reads `raw.X ?? raw.gameRules?.X` for `maxRosterSize` / `minGamesForPlayoffs` / `maxGuestPlayersPerGame` / `guestPlayerSeasonLimit`, and `raw.ageMinYears ?? raw.ageRange?.min` / `raw.ageMaxYears ?? raw.ageRange?.max` for the age range.
+- **File:** `packages/kernel/src/roster-rules.ts`.
+- **Status:** ✅ Fixed + verified end-to-end in captain Add-player modal (commit 3d00655). Alex (15) and Parker (42) now both render `out_of_range` with `minYears:25, maxYears:40`; Brett (26) remains `eligible`.
+
+### BUG-033 · `/compliance/eligibility/precheck` 500s with valid params · **major**
 - **TC:** TC-F1-03 alt path (captain "Add player" precheck modal)
 - **Surface:** sp-api · `ComplianceController.precheck`
-- **Repro:** `GET /compliance/eligibility/precheck?personId=<valid>&divisionId=<valid>&teamId=<valid>` returns `500 INTERNAL_ERROR` even when all three params reference existing rows. Tested with Mike Patterson + Pro 25 Men + Boston Gold Kings.
-- **Diagnosis:** A diag try/catch was added (commit 21d9b16) but Vercel's free-tier daily deploy limit (100/day) was exhausted before the diag could land. The diag commit has been reverted on `main` so it won't slip into prod when the limit resets.
-- **Status:** Open. Re-add the diag wrapper in the next session and surface the underlying pg error. Likely candidates: a Date binding pattern matching BUG-023 / BUG-031 (raw `sql\`COUNT(*)::int\`` is fine; nothing else uses raw sql in this handler — so possibly somewhere upstream in DB/connection).
+- **Repro:** `GET /compliance/eligibility/precheck?personId=<valid>&divisionId=<valid>&teamId=<valid>` returned `500 INTERNAL_ERROR` even when all three params referenced existing rows.
+- **Root cause (local repro):** Express first-match route collision. `EligibilityController` (in `RegistrationComplianceModule`) registers `GET /api/compliance/eligibility/:id` BEFORE `ComplianceController` (in `CaptainModule`) registers `GET /api/compliance/eligibility/precheck`. Express matched the param route first with `:id="precheck"`. The `EligibilityRecordId` value-object then threw `Error("Invalid UUID: precheck")` → 500 via DomainExceptionFilter. The actual precheck handler never ran.
+- **Fix:** Constrain `:id` to UUID shape — `@Get(":id([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")`. `precheck` no longer matches → Express moves on to the precheck route.
+- **File:** `apps/superadmin-api/src/modules/registration-compliance/interface/eligibility.controller.ts`.
+- **Status:** ✅ Fixed + verified locally (commit 3d00655). Bogus UUIDs return 404 "Division not found"; valid IDs return the full precheck payload.
 
 ### BUG-032 · `/stats/team/:teamId` 500 when `leagueId` query missing · **minor**
 - **TC:** TC-L (smoke)
 - **Surface:** sp-api · `StatsController.teamStanding`
-- **Observation:** Handler signature `@Query("leagueId") leagueId: string` doesn't validate or default; passing only `teamId` results in 500 instead of 400. Returns 200 correctly when `leagueId` is supplied.
-- **Status:** Open. One-line `class-validator` fix on the query DTO.
+- **Root cause:** Handler signature `@Query("leagueId") leagueId: string` didn't validate; missing query crashed the downstream JOIN.
+- **Fix:** Throw `BadRequestException("leagueId query parameter is required")` at the boundary.
+- **File:** `apps/superadmin-api/src/modules/stats/interface/stats.controller.ts`.
+- **Status:** ✅ Fixed + deployed (commit 7088f74).
 
 ### BUG-031 · `GET /finance/invoices` 500 — raw `sql\`= ANY(${ids})\`` binding · **major**
 - **TC:** TC-H1-01
