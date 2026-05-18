@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, ilike, sql } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -38,6 +38,22 @@ export class DrizzleSeasonRepository implements SeasonRepository {
     if (q.status) cs.push(eq(schema.seasons.status, q.status));
     if (q.search) cs.push(ilike(schema.seasons.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.seasons.id, q.cursor));
+
+    // Scope filter: union of leagueIdsFilter and orgIdsFilter.
+    const hasLeagueFilter =
+      q.leagueIdsFilter !== undefined && q.leagueIdsFilter.length > 0;
+    const hasOrgFilter =
+      q.orgIdsFilter !== undefined && q.orgIdsFilter.length > 0;
+    if (hasLeagueFilter || hasOrgFilter) {
+      const branches = [];
+      if (hasLeagueFilter) {
+        branches.push(inArray(schema.seasons.leagueId, q.leagueIdsFilter!));
+      }
+      if (hasOrgFilter) {
+        branches.push(inArray(schema.seasons.orgId, q.orgIdsFilter!));
+      }
+      cs.push(branches.length === 1 ? branches[0]! : or(...branches)!);
+    }
 
     const rows = await this.db
       .select()

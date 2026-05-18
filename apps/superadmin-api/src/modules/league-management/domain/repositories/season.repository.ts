@@ -10,6 +10,9 @@ export interface ListSeasonsQuery extends PageQuery {
   sportCode?: string;
   status?: string;
   search?: string;
+  /** Scope whitelist (union'd): league_id ∈ leagueIdsFilter OR org_id ∈ orgIdsFilter. */
+  leagueIdsFilter?: string[];
+  orgIdsFilter?: string[];
 }
 
 export interface SeasonRepository {

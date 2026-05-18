@@ -602,20 +602,12 @@ export function RegisterWizard({
                   setSubmittedDte(result.divisionTeamEntryId);
                 } catch (err) {
                   const e = err as Error;
-                  // Pull the validation message out of "API 4XX: <json>"
-                  const match = /API \d+: (.+)$/.exec(e.message);
-                  if (match) {
-                    try {
-                      const parsed = JSON.parse(match[1]!);
-                      setSubmitError(
-                        parsed?.message ?? parsed?.error ?? e.message
-                      );
-                    } catch {
-                      setSubmitError(match[1]!);
-                    }
-                  } else {
-                    setSubmitError(e.message);
-                  }
+                  // API client already rewrites Error#message to the
+                  // server's human-readable string — surface it as-is.
+                  // (Earlier code regex'd against "API 4XX: <json>",
+                  // but the client hasn't returned that format for a
+                  // while; dead code removed.)
+                  setSubmitError(e.message);
                   setSubmitting(false);
                 }
               }}

@@ -24,6 +24,24 @@ export class DrizzleDivisionRepository implements DivisionRepository {
     return row ? this.toDomain(row) : null;
   }
 
+  async loadScopeContext(
+    id: DivisionId
+  ): Promise<{ leagueId: string; orgId: string } | null> {
+    const [row] = await this.db
+      .select({
+        leagueId: schema.seasons.leagueId,
+        orgId: schema.seasons.orgId
+      })
+      .from(schema.divisions)
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .where(eq(schema.divisions.id, id.value))
+      .limit(1);
+    return row ?? null;
+  }
+
   async list(q: ListDivisionsQuery): Promise<Page<Division>> {
     const cs = [];
     if (q.seasonId) cs.push(eq(schema.divisions.seasonId, q.seasonId));

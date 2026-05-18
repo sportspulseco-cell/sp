@@ -31,6 +31,14 @@ export interface ListSeasonsInput {
   sportCode?: string;
   status?: string;
   search?: string;
+  /**
+   * Scope whitelist from the principal. A season is in scope if its
+   * league_id ∈ leagueIdsFilter OR its org_id ∈ orgIdsFilter. Union
+   * mirrors the teams scope fix (ba73ee2). Pass undefined when the
+   * caller is unrestricted (super_admin / platform-scoped).
+   */
+  leagueIdsFilter?: string[];
+  orgIdsFilter?: string[];
 }
 
 @Injectable()
@@ -40,6 +48,14 @@ export class ListSeasonsHandler
   constructor(@Inject(SEASON_REPOSITORY) private readonly seasons: SeasonRepository) {}
 
   async execute(input: ListSeasonsInput): Promise<SeasonPageDto> {
+    // Zero visibility on both scope dimensions → empty page.
+    const leagueEmpty =
+      input.leagueIdsFilter !== undefined && input.leagueIdsFilter.length === 0;
+    const orgEmpty =
+      input.orgIdsFilter !== undefined && input.orgIdsFilter.length === 0;
+    if (leagueEmpty && orgEmpty) {
+      return { items: [], nextCursor: null };
+    }
     const page = await this.seasons.list({
       limit: clampLimit(input.limit),
       cursor: input.cursor,
@@ -47,7 +63,9 @@ export class ListSeasonsHandler
       orgId: input.orgId,
       sportCode: input.sportCode,
       status: input.status,
-      search: input.search
+      search: input.search,
+      leagueIdsFilter: input.leagueIdsFilter,
+      orgIdsFilter: input.orgIdsFilter
     });
     return {
       items: page.items.map(SeasonDto.fromDomain),
@@ -57,12 +75,37 @@ export class ListSeasonsHandler
 }
 
 @Injectable()
-export class GetSeasonHandler implements QueryHandler<{ id: string }, SeasonDto> {
+export class GetSeasonHandler
+  implements
+    QueryHandler<
+      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[] },
+      SeasonDto
+    >
+{
   constructor(@Inject(SEASON_REPOSITORY) private readonly seasons: SeasonRepository) {}
 
-  async execute(input: { id: string }): Promise<SeasonDto> {
+  async execute(input: {
+    id: string;
+    leagueIdsFilter?: string[];
+    orgIdsFilter?: string[];
+  }): Promise<SeasonDto> {
     const season = await this.seasons.findById(SeasonId.of(input.id));
     if (!season) throw new NotFoundError("Season", input.id);
+
+    // Scope check: accept if either filter accepts. 404 (not 403) on
+    // miss so we never leak existence across orgs.
+    const hasLeagueFilter = input.leagueIdsFilter !== undefined;
+    const hasOrgFilter = input.orgIdsFilter !== undefined;
+    if (hasLeagueFilter || hasOrgFilter) {
+      const snap = season.toSnapshot();
+      const inLeagueScope =
+        hasLeagueFilter && input.leagueIdsFilter!.includes(snap.leagueId);
+      const inOrgScope =
+        hasOrgFilter && input.orgIdsFilter!.includes(snap.orgId);
+      if (!inLeagueScope && !inOrgScope) {
+        throw new NotFoundError("Season", input.id);
+      }
+    }
     return SeasonDto.fromDomain(season);
   }
 }

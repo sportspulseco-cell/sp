@@ -51,7 +51,11 @@ export class DivisionsController {
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<DivisionDto> {
-    return this.getH.execute({ id, leagueIdsFilter: scope.leagueIds ?? undefined });
+    return this.getH.execute({
+      id,
+      leagueIdsFilter: scope.leagueIds ?? undefined,
+      orgIdsFilter: scope.orgIds ?? undefined
+    });
   }
   @Post() create(@Body() body: CreateDivisionBodyDto): Promise<DivisionDto> {
     return this.createH.execute(body);

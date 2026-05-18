@@ -54,13 +54,27 @@ export class SeasonsController {
   ) {}
 
   @Get() @ApiOperation({ summary: "List seasons" })
-  list(@Query() q: ListSeasonsQueryDto): Promise<SeasonPageDto> {
-    return this.listH.execute(q);
+  list(
+    @Query() q: ListSeasonsQueryDto,
+    @UserScope() scope: UserScopeType
+  ): Promise<SeasonPageDto> {
+    return this.listH.execute({
+      ...q,
+      leagueIdsFilter: scope.leagueIds ?? undefined,
+      orgIdsFilter: scope.orgIds ?? undefined
+    });
   }
 
   @Get(":id") @ApiOperation({ summary: "Get a season" })
-  getOne(@Param("id") id: string): Promise<SeasonDto> {
-    return this.getH.execute({ id });
+  getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<SeasonDto> {
+    return this.getH.execute({
+      id,
+      leagueIdsFilter: scope.leagueIds ?? undefined,
+      orgIdsFilter: scope.orgIds ?? undefined
+    });
   }
 
   @Post() @ApiOperation({ summary: "Create a season" })

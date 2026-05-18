@@ -16,6 +16,15 @@ export interface ListDivisionsQuery extends PageQuery {
 
 export interface DivisionRepository {
   findById(id: DivisionId): Promise<Division | null>;
+  /**
+   * Returns the parent season's leagueId + orgId for the given
+   * division. Used by GetDivisionHandler's scope check (the division
+   * row itself has only seasonId; the league + org live one hop away).
+   * `null` when the division doesn't exist.
+   */
+  loadScopeContext(
+    id: DivisionId
+  ): Promise<{ leagueId: string; orgId: string } | null>;
   list(q: ListDivisionsQuery): Promise<Page<Division>>;
   insert(division: Division): Promise<void>;
   save(division: Division): Promise<void>;

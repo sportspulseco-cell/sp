@@ -54,18 +54,38 @@ export class ListDivisionsHandler
 @Injectable()
 export class GetDivisionHandler
   implements
-    QueryHandler<{ id: string; leagueIdsFilter?: string[] }, DivisionDto>
+    QueryHandler<
+      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[] },
+      DivisionDto
+    >
 {
   constructor(@Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository) {}
-  async execute(input: { id: string; leagueIdsFilter?: string[] }): Promise<DivisionDto> {
+  async execute(input: {
+    id: string;
+    leagueIdsFilter?: string[];
+    orgIdsFilter?: string[];
+  }): Promise<DivisionDto> {
     const d = await this.divisions.findById(DivisionId.of(input.id));
     if (!d) throw new NotFoundError("Division", input.id);
-    if (input.leagueIdsFilter && input.leagueIdsFilter.length > 0) {
-      // post-flip: division → season → league. We could re-query the
-      // season here for its leagueId; for now do the cheap path —
-      // the list endpoint already enforces the filter via SQL join.
-      // Detail endpoints get coarser handling: skip the check until
-      // we plumb season→league through the read.
+
+    // Scope check: division → parent season has leagueId + orgId.
+    // Accept when either filter accepts; 404 (not 403) on miss so we
+    // never leak existence. Previously this was an explicit TODO
+    // skip — every authenticated user could read every division.
+    const hasLeagueFilter = input.leagueIdsFilter !== undefined;
+    const hasOrgFilter = input.orgIdsFilter !== undefined;
+    if (hasLeagueFilter || hasOrgFilter) {
+      const ctx = await this.divisions.loadScopeContext(
+        DivisionId.of(input.id)
+      );
+      if (!ctx) throw new NotFoundError("Division", input.id);
+      const inLeagueScope =
+        hasLeagueFilter && input.leagueIdsFilter!.includes(ctx.leagueId);
+      const inOrgScope =
+        hasOrgFilter && input.orgIdsFilter!.includes(ctx.orgId);
+      if (!inLeagueScope && !inOrgScope) {
+        throw new NotFoundError("Division", input.id);
+      }
     }
     return DivisionDto.fromDomain(d);
   }
