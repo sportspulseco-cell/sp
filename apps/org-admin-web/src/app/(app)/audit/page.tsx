@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { FileBarChart } from "lucide-react";
 import {
   Badge,
@@ -73,7 +74,9 @@ export default async function AuditPage() {
             {page.items.map((e) => (
               <TR key={e.id}>
                 <TD className="font-mono text-[11px] text-fg-muted">
-                  {fmt(e.createdAt)}
+                  <Link href={`/audit/${e.id}`} className="hover:underline">
+                    {fmt(e.createdAt)}
+                  </Link>
                 </TD>
                 <TD className="font-mono text-[11px] text-fg-muted">
                   {e.actorUserId
