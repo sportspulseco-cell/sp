@@ -66,8 +66,10 @@ export default async function AuditPage({
   // Recent events for the marquee rail
   const marqueeItems = page.items.slice(0, 12).map((e) => ({
     key: e.id,
+    // React's dev key check fires on any JSX returned from .map(),
+    // even when wrapped in an object — attach key directly.
     node: (
-      <span className="inline-flex items-center gap-2">
+      <span key={e.id} className="inline-flex items-center gap-2">
         <span className="font-mono">{e.action}</span>
         <span className="text-fg-subtle">·</span>
         <span>{e.resourceType}</span>

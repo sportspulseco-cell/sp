@@ -95,8 +95,12 @@ export default async function RegistrationsPage() {
     recentSorted.length > 0
       ? recentSorted.map((r) => ({
           key: r.id,
+          // React's dev key check fires on any JSX returned from .map(),
+          // even when wrapped in an object that the consumer uses for
+          // its own keying. Attach `key` directly to the JSX so the
+          // false-positive warning stays silent.
           node: (
-            <span className="inline-flex items-center gap-2">
+            <span key={r.id} className="inline-flex items-center gap-2">
               <span className="font-mono">{r.id.slice(0, 8)}</span>
               <span className="text-fg-subtle">·</span>
               <span>{r.status.replace(/_/g, " ")}</span>
