@@ -890,6 +890,84 @@ export class CaptainController {
       };
     });
 
+    // ----- STEP 5.5 — captain self-roster -----
+    // The wizard's playerSplits is for the OTHER players the captain is
+    // inviting; the captain themselves wasn't ending up on the roster.
+    // Insert the captain's team_membership row and the denormalised
+    // teams.captain_user_id pointer here so:
+    //   - Dues table + roster views surface the captain as a member.
+    //   - leagueMgmt.getTeam consumers (captain console, sa-web team
+    //     detail) see the captain_user_id without a separate query.
+    // Idempotent: skips inserts if rows already exist.
+    try {
+      // Resolve or auto-create the captain's persons row. Captains
+      // who completed their profile already have one keyed by user_id;
+      // edge cases (sign-in via SSO, admin-created accounts) might not.
+      // Fall back to display_name from profiles so the membership
+      // surfaces with a real name.
+      let [captainPerson] = await this.db
+        .select({ id: schema.persons.id })
+        .from(schema.persons)
+        .where(eq(schema.persons.userId, user.userId))
+        .limit(1);
+      if (!captainPerson) {
+        const [captainProfile] = await this.db
+          .select({
+            email: schema.profiles.email,
+            displayName: schema.profiles.displayName
+          })
+          .from(schema.profiles)
+          .where(eq(schema.profiles.id, user.userId))
+          .limit(1);
+        if (captainProfile) {
+          const dn = captainProfile.displayName?.trim() ?? "";
+          const sep = dn.indexOf(" ");
+          const firstName = (sep > 0 ? dn.slice(0, sep) : dn) || "Captain";
+          const lastName = (sep > 0 ? dn.slice(sep + 1) : "") || "—";
+          const [created] = await this.db
+            .insert(schema.persons)
+            .values({
+              userId: user.userId,
+              legalFirstName: firstName,
+              legalLastName: lastName
+            })
+            .returning({ id: schema.persons.id });
+          captainPerson = created;
+        }
+      }
+
+      if (captainPerson) {
+        await this.db
+          .insert(schema.teamMemberships)
+          .values({
+            teamId: team.id,
+            personId: captainPerson.id,
+            seasonId: season.id,
+            membershipType: "primary",
+            effectiveFrom: now,
+            currentStatus: "active"
+          })
+          .onConflictDoNothing();
+      }
+
+      // Set the denormalised captain pointer on teams (only if unset
+      // so we don't trample an explicit reassignment).
+      if (team.captainUserId === null) {
+        await this.db
+          .update(schema.teams)
+          .set({ captainUserId: user.userId, updatedAt: now })
+          .where(eq(schema.teams.id, team.id));
+      }
+    } catch (e) {
+      // Don't fail the registration on roster bookkeeping. Log and
+      // continue — admin can fix-forward by re-running on retry.
+      this.log.warn(
+        `captain self-roster step failed (team=${team.id}, user=${user.userId}): ${
+          (e as Error).message
+        }`
+      );
+    }
+
     // ----- STEP 6 — batch notifications (fire-and-forget, post-tx) -----
     for (const inv of result.invites) {
       this.notify.queue({

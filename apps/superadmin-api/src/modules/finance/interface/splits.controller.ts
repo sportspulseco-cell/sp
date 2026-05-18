@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
   NotFoundException,
@@ -14,11 +15,14 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { IsIn, IsInt, IsOptional, IsUUID, Min } from "class-validator";
+import type { AuthPrincipal } from "@sportspulse/auth";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 
 class CreateSplitBodyDto {
   @IsUUID() invoiceId!: string;
@@ -78,11 +82,12 @@ interface SplitWithPersonDto extends SplitDto {
 @ApiTags("finance/splits")
 @ApiBearerAuth()
 @Controller("finance/splits")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+@UseGuards(JwtAuthGuard)
 export class FinanceSplitsController {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
   @Get()
+  @UseGuards(SuperAdminGuard)
   async list(@Query() q: ListSplitsQueryDto): Promise<SplitWithPersonDto[]> {
     if (!q.invoiceId && !q.teamId && !q.playerPersonId) {
       throw new BadRequestException(
@@ -173,6 +178,7 @@ export class FinanceSplitsController {
   }
 
   @Post()
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: "Create one split row" })
   async create(@Body() body: CreateSplitBodyDto): Promise<SplitDto> {
     const [row] = await this.db
@@ -188,6 +194,7 @@ export class FinanceSplitsController {
   }
 
   @Post("batch-equal")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Create equal splits across N players. Allocates the un-allocated remainder of the invoice (totalCents minus existing splits)."
@@ -237,6 +244,7 @@ export class FinanceSplitsController {
   }
 
   @Patch(":id")
+  @UseGuards(SuperAdminGuard)
   async patch(
     @Param("id") id: string,
     @Body() body: PatchSplitBodyDto
@@ -258,9 +266,42 @@ export class FinanceSplitsController {
   @Post(":id/remind")
   @ApiOperation({
     summary:
-      "Stamp last_reminder_at. Real reminder dispatch lives in the notifications worker — this is the audit anchor for it."
+      "Stamp last_reminder_at on a per-player split. Captain-friendly: super_admin or the captain of the split's team can call this. The real reminder dispatch lives in the notifications worker — this is the audit anchor."
   })
-  async remind(@Param("id") id: string): Promise<SplitDto> {
+  async remind(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("id") id: string
+  ): Promise<SplitDto> {
+    // Look up the split's team so we can authorize. 404 if missing
+    // (don't reveal which UUIDs exist if the caller has no scope).
+    const [existing] = await this.db
+      .select({ teamId: schema.teamInvoiceSplits.teamId })
+      .from(schema.teamInvoiceSplits)
+      .where(eq(schema.teamInvoiceSplits.id, id))
+      .limit(1);
+    if (!existing) throw new NotFoundException("Split not found");
+
+    // Captain-of-team or super_admin passes. userIsCaptainOfTeam
+    // checks the user_role_assignments table; super_admin is
+    // handled implicitly (their scope is unrestricted).
+    const [profile] = await this.db
+      .select({ isSuperAdmin: schema.profiles.isSuperAdmin })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
+    if (!profile?.isSuperAdmin) {
+      const ok = await userIsCaptainOfTeam(
+        this.db,
+        user.userId,
+        existing.teamId
+      );
+      if (!ok) {
+        throw new ForbiddenException(
+          "Only the team captain can remind players on this team"
+        );
+      }
+    }
+
     const [row] = await this.db
       .update(schema.teamInvoiceSplits)
       .set({ lastReminderAt: sql`now()`, updatedAt: sql`now()` })
