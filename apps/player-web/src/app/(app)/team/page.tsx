@@ -192,6 +192,39 @@ export default async function TeamPage() {
   // to derive it.
   const memberships: TeamMembership[] = membershipsPage.items;
 
+  // TeamMembership rows carry person_id but no name. Fan out a
+  // getPerson() per row to resolve display names. Small rosters
+  // make the N+1 fine; the persons endpoint is JwtAuthGuard'd so
+  // any signed-in user can hit it.
+  const personIds = Array.from(new Set(memberships.map((m) => m.personId)));
+  const personEntries = await Promise.all(
+    personIds.map(async (id) => {
+      const p = await iam.getPerson(id).catch(() => null);
+      return [id, p] as const;
+    })
+  );
+  const personById = new Map(personEntries);
+
+  function nameFor(personId: string): string {
+    const p = personById.get(personId);
+    if (!p) return personId.slice(0, 8).toUpperCase();
+    return (
+      p.preferredName ||
+      [p.legalFirstName, p.legalLastName].filter(Boolean).join(" ") ||
+      personId.slice(0, 8).toUpperCase()
+    );
+  }
+  function initialsFor(personId: string): string {
+    const p = personById.get(personId);
+    if (p) {
+      const first = (p.preferredName || p.legalFirstName || "")[0] ?? "";
+      const last = (p.legalLastName || "")[0] ?? "";
+      const out = (first + last).trim().toUpperCase();
+      if (out) return out;
+    }
+    return personId.slice(0, 2).toUpperCase();
+  }
+
   // Fetch standings once we know the league. We'll use the first
   // membership row's seasonId as a hint.
   const seasonId = memberships[0]?.seasonId ?? null;
@@ -239,7 +272,6 @@ export default async function TeamPage() {
             <ul className="divide-y divide-border">
               {memberships.map((m: TeamMembership) => {
                 const isMe = m.personId === myPersonId;
-                const initials = m.personId.slice(0, 2).toUpperCase();
                 return (
                   <li
                     key={m.id}
@@ -257,13 +289,11 @@ export default async function TeamPage() {
                             : "bg-surface-2 text-fg-muted")
                         }
                       >
-                        {initials}
+                        {initialsFor(m.personId)}
                       </span>
                       <div className="min-w-0">
                         <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-fg">
-                          <span className="font-mono uppercase">
-                            {m.personId.slice(0, 8)}
-                          </span>
+                          <span className="truncate">{nameFor(m.personId)}</span>
                           {isMe ? (
                             <Badge mono tone="info">
                               you
