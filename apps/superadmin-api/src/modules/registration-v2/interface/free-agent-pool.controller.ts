@@ -1,8 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
   Get,
+  Inject,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -19,6 +22,10 @@ import {
   IsString,
   IsUUID
 } from "class-validator";
+import { eq } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
@@ -54,11 +61,45 @@ class ListFreeAgentsQueryDto {
 @Controller("registration-v2/free-agent-pool")
 @UseGuards(JwtAuthGuard, AuthorizedAccessGuard)
 export class FreeAgentPoolController {
-  constructor(private readonly svc: RegistrationV2Service) {}
+  constructor(
+    private readonly svc: RegistrationV2Service,
+    @Inject(DRIZZLE) private readonly db: Database
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "List active free agents (filter by season)" })
-  list(@Query() q: ListFreeAgentsQueryDto) {
+  async list(
+    @Query() q: ListFreeAgentsQueryDto,
+    @UserScope() scope: UserScopeType
+  ) {
+    // Require seasonId for non-super-admin callers so we can scope-check
+    // the result set. The free-agent pool exposes player PII + skill
+    // levels; without a seasonId we'd return the entire platform pool.
+    if (!scope.isSuperAdmin) {
+      if (!q.seasonId) {
+        throw new BadRequestException(
+          "seasonId is required for non-super-admin callers"
+        );
+      }
+      const [season] = await this.db
+        .select({
+          leagueId: schema.seasons.leagueId,
+          orgId: schema.seasons.orgId
+        })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, q.seasonId))
+        .limit(1);
+      if (!season) {
+        throw new NotFoundException(`Season not found: ${q.seasonId}`);
+      }
+      const inLeagueScope =
+        scope.leagueIds === null || scope.leagueIds.includes(season.leagueId);
+      const inOrgScope =
+        scope.orgIds === null || scope.orgIds.includes(season.orgId);
+      if (!inLeagueScope && !inOrgScope) {
+        throw new NotFoundException(`Season not found: ${q.seasonId}`);
+      }
+    }
     return this.svc.listFreeAgentPool({ seasonId: q.seasonId });
   }
 
