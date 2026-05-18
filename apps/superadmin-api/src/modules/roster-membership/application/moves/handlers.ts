@@ -135,6 +135,10 @@ export interface ListRosterMovesInput {
   personId?: string;
   seasonId?: string;
   moveType?: string;
+  /** Scope whitelists, union'd at the team level. */
+  leagueIdsFilter?: string[];
+  orgIdsFilter?: string[];
+  teamIdsFilter?: string[];
 }
 
 @Injectable()
@@ -145,6 +149,21 @@ export class ListRosterMovesHandler
     @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository
   ) {}
   async execute(input: ListRosterMovesInput): Promise<RosterMovePageDto> {
+    // Zero visibility on every dimension → empty page.
+    const leagueEmpty =
+      input.leagueIdsFilter !== undefined &&
+      input.leagueIdsFilter.length === 0;
+    const orgEmpty =
+      input.orgIdsFilter !== undefined && input.orgIdsFilter.length === 0;
+    const teamEmpty =
+      input.teamIdsFilter !== undefined && input.teamIdsFilter.length === 0;
+    const allDefined =
+      input.leagueIdsFilter !== undefined &&
+      input.orgIdsFilter !== undefined &&
+      input.teamIdsFilter !== undefined;
+    if (allDefined && leagueEmpty && orgEmpty && teamEmpty) {
+      return { items: [], nextCursor: null };
+    }
     const page = await this.moves.list({
       ...input,
       limit: clampLimit(input.limit)
@@ -158,14 +177,60 @@ export class ListRosterMovesHandler
 
 @Injectable()
 export class GetRosterMoveHandler
-  implements QueryHandler<{ id: string }, RosterMoveDto>
+  implements
+    QueryHandler<
+      {
+        id: string;
+        leagueIdsFilter?: string[];
+        orgIdsFilter?: string[];
+        teamIdsFilter?: string[];
+      },
+      RosterMoveDto
+    >
 {
   constructor(
     @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository
   ) {}
-  async execute(input: { id: string }): Promise<RosterMoveDto> {
+  async execute(input: {
+    id: string;
+    leagueIdsFilter?: string[];
+    orgIdsFilter?: string[];
+    teamIdsFilter?: string[];
+  }): Promise<RosterMoveDto> {
     const m = await this.moves.findById(RosterMoveId.of(input.id));
     if (!m) throw new NotFoundError("RosterMove", input.id);
+
+    // Scope check via the move's parent team. 404 on miss so we
+    // don't leak existence.
+    const hasOrgFilter = input.orgIdsFilter !== undefined;
+    const hasTeamFilter = input.teamIdsFilter !== undefined;
+    const hasLeagueFilter = input.leagueIdsFilter !== undefined;
+    if (hasOrgFilter || hasTeamFilter || hasLeagueFilter) {
+      const ctx = await this.moves.loadScopeContext(
+        RosterMoveId.of(input.id)
+      );
+      if (!ctx) throw new NotFoundError("RosterMove", input.id);
+      const inOrgScope =
+        hasOrgFilter && input.orgIdsFilter!.includes(ctx.orgId);
+      const inTeamScope =
+        hasTeamFilter && input.teamIdsFilter!.includes(ctx.teamId);
+      // League scope reached via DTE — easier to delegate to the
+      // moves repo list with a single-row filter than re-query DTE
+      // here. Use the existing teamIdsFilter shortcut: if league
+      // scope contains a team that includes ctx.teamId via DTE, the
+      // controller would have populated teamIdsFilter already. For
+      // pure league scope (no direct team) we accept via the list
+      // path; here just allow when orgFilter or teamFilter matches.
+      const inLeagueScope =
+        hasLeagueFilter &&
+        (await this.moves.teamReachableViaLeagues(
+          ctx.teamId,
+          input.leagueIdsFilter!
+        ));
+      if (!inOrgScope && !inTeamScope && !inLeagueScope) {
+        throw new NotFoundError("RosterMove", input.id);
+      }
+    }
     return RosterMoveDto.fromDomain(m);
   }
 }

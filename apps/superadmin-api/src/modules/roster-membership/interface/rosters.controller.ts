@@ -81,6 +81,7 @@ export class RostersController {
       "Active memberships with cross-path source attribution. Backed by v_active_season_membership. Hourly refresh — use /roster/memberships for write-path freshness."
   })
   async activeBySeason(
+    @UserScope() scope: UserScopeType,
     @Query("seasonId") seasonId?: string,
     @Query("teamId") teamId?: string,
     @Query("personId") personId?: string
@@ -101,9 +102,39 @@ export class RostersController {
       );
     }
     const filters: ReturnType<typeof sql>[] = [];
-    if (seasonId) filters.push(sql`season_id = ${seasonId}`);
-    if (teamId) filters.push(sql`team_id = ${teamId}`);
-    if (personId) filters.push(sql`person_id = ${personId}`);
+    if (seasonId) filters.push(sql`v.season_id = ${seasonId}`);
+    if (teamId) filters.push(sql`v.team_id = ${teamId}`);
+    if (personId) filters.push(sql`v.person_id = ${personId}`);
+
+    // Scope guard — restrict rows to the caller's reach via team or
+    // league. super_admin / platform-scoped principals (every scope
+    // field null) skip this. Otherwise the row's team must be in
+    // scope by ANY of: direct teamId, team.org in scope, or
+    // team.id reachable via active DTE under a league in scope.
+    if (!scope.isSuperAdmin) {
+      const branches: ReturnType<typeof sql>[] = [];
+      if (scope.orgIds !== null) {
+        if (scope.orgIds.length === 0) {
+          // explicit no-visibility on org axis — still allow other
+          // branches; only kill the row if every scope dimension
+          // also rejects it (encoded by branches array below).
+        } else {
+          branches.push(sql`t.org_id = ANY(${scope.orgIds})`);
+        }
+      }
+      if (scope.teamIds !== null && scope.teamIds.length > 0) {
+        branches.push(sql`t.id = ANY(${scope.teamIds})`);
+      }
+      if (scope.leagueIds !== null && scope.leagueIds.length > 0) {
+        branches.push(sql`s.league_id = ANY(${scope.leagueIds})`);
+      }
+      if (branches.length === 0) {
+        // Zero visibility across every dimension → empty result.
+        return { items: [] };
+      }
+      filters.push(sql`(${sql.join(branches, sql` OR `)})`);
+    }
+
     const whereClause = sql.join(filters, sql` AND `);
     const rows = await this.db.execute<{
       membership_id: string;
@@ -114,11 +145,13 @@ export class RostersController {
       effective_from: Date | string;
       source: string;
     }>(sql`
-      SELECT membership_id, person_id, season_id, team_id,
-             membership_type, effective_from, source
-      FROM v_active_season_membership
+      SELECT v.membership_id, v.person_id, v.season_id, v.team_id,
+             v.membership_type, v.effective_from, v.source
+      FROM v_active_season_membership v
+      INNER JOIN teams t ON t.id = v.team_id
+      INNER JOIN seasons s ON s.id = v.season_id
       WHERE ${whereClause}
-      ORDER BY effective_from DESC
+      ORDER BY v.effective_from DESC
       LIMIT 500
     `);
     const items = (rows as unknown as Array<{

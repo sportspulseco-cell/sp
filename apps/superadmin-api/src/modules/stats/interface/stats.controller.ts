@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -10,6 +11,10 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { eq } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
@@ -49,7 +54,8 @@ export class StatsController {
     private readonly recomputeH: RecomputeStandingsHandler,
     private readonly listStandingsH: ListStandingsHandler,
     private readonly leaderboardH: BuildLeaderboardHandler,
-    private readonly teamStandingH: TeamStandingHandler
+    private readonly teamStandingH: TeamStandingHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   // ---------- Stat lines ----------
@@ -58,7 +64,34 @@ export class StatsController {
     return this.listLinesH.execute(q);
   }
   @Get("lines/for-game/:gameId")
-  forGame(@Param("gameId") gameId: string): Promise<StatLineDto[]> {
+  async forGame(
+    @Param("gameId") gameId: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<StatLineDto[]> {
+    // Verify the caller can see this game before returning stats.
+    // 404 (not 403) on miss — no-leak rule. Mirrors games.controller's
+    // getOne scope check (league OR either-team match).
+    if (!scope.isSuperAdmin) {
+      const [game] = await this.db
+        .select({
+          leagueId: schema.games.leagueId,
+          homeTeamId: schema.games.homeTeamId,
+          awayTeamId: schema.games.awayTeamId
+        })
+        .from(schema.games)
+        .where(eq(schema.games.id, gameId))
+        .limit(1);
+      if (!game) throw new NotFoundException(`Game not found: ${gameId}`);
+      const inLeagueScope =
+        scope.leagueIds === null || scope.leagueIds.includes(game.leagueId);
+      const onEitherTeam =
+        !!scope.teamIds &&
+        (scope.teamIds.includes(game.homeTeamId) ||
+          scope.teamIds.includes(game.awayTeamId));
+      if (!inLeagueScope && !onEitherTeam) {
+        throw new NotFoundException(`Game not found: ${gameId}`);
+      }
+    }
     return this.forGameH.execute({ gameId });
   }
 

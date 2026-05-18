@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, lte } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -33,6 +33,48 @@ export class DrizzleRosterMoveRepository implements RosterMoveRepository {
     return row ? this.toDomain(row) : null;
   }
 
+  async loadScopeContext(
+    id: RosterMoveId
+  ): Promise<{ teamId: string; orgId: string } | null> {
+    const [row] = await this.db
+      .select({
+        teamId: schema.rosterMoves.teamId,
+        orgId: schema.teams.orgId
+      })
+      .from(schema.rosterMoves)
+      .innerJoin(schema.teams, eq(schema.teams.id, schema.rosterMoves.teamId))
+      .where(eq(schema.rosterMoves.id, id.value))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async teamReachableViaLeagues(
+    teamId: string,
+    leagueIds: string[]
+  ): Promise<boolean> {
+    if (leagueIds.length === 0) return false;
+    const [row] = await this.db
+      .select({ id: schema.divisionTeamEntries.id })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .where(
+        and(
+          eq(schema.divisionTeamEntries.teamId, teamId),
+          isNull(schema.divisionTeamEntries.leftAt),
+          inArray(schema.seasons.leagueId, leagueIds)
+        )
+      )
+      .limit(1);
+    return !!row;
+  }
+
   async list(q: ListRosterMovesQuery): Promise<Page<RosterMove>> {
     const cs = [];
     if (q.teamId) cs.push(eq(schema.rosterMoves.teamId, q.teamId));
@@ -40,6 +82,54 @@ export class DrizzleRosterMoveRepository implements RosterMoveRepository {
     if (q.seasonId) cs.push(eq(schema.rosterMoves.seasonId, q.seasonId));
     if (q.moveType) cs.push(eq(schema.rosterMoves.moveType, q.moveType));
     if (q.cursor) cs.push(gt(schema.rosterMoves.id, q.cursor));
+
+    // Scope filter: a move is in scope when its team is in the
+    // caller's team-scope. Union of orgIdsFilter, teamIdsFilter, and
+    // teams reachable via active DTE in leagueIdsFilter.
+    const hasOrgFilter =
+      q.orgIdsFilter !== undefined && q.orgIdsFilter.length > 0;
+    const hasTeamFilter =
+      q.teamIdsFilter !== undefined && q.teamIdsFilter.length > 0;
+    const hasLeagueFilter =
+      q.leagueIdsFilter !== undefined && q.leagueIdsFilter.length > 0;
+    if (hasOrgFilter || hasTeamFilter || hasLeagueFilter) {
+      const allowedTeamIds = this.db
+        .select({ id: schema.teams.id })
+        .from(schema.teams);
+      const branches = [];
+      if (hasOrgFilter) {
+        branches.push(inArray(schema.teams.orgId, q.orgIdsFilter!));
+      }
+      if (hasTeamFilter) {
+        branches.push(inArray(schema.teams.id, q.teamIdsFilter!));
+      }
+      if (hasLeagueFilter) {
+        // Team is in league scope if it has an active DTE under one of
+        // those leagues. Same pattern as the teams repo list.
+        const dteAllowed = this.db
+          .select({ teamId: schema.divisionTeamEntries.teamId })
+          .from(schema.divisionTeamEntries)
+          .innerJoin(
+            schema.divisions,
+            eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+          )
+          .innerJoin(
+            schema.seasons,
+            eq(schema.seasons.id, schema.divisions.seasonId)
+          )
+          .where(
+            and(
+              isNull(schema.divisionTeamEntries.leftAt),
+              inArray(schema.seasons.leagueId, q.leagueIdsFilter!)
+            )
+          );
+        branches.push(inArray(schema.teams.id, dteAllowed));
+      }
+      const allowedScopeTeams = allowedTeamIds.where(
+        branches.length === 1 ? branches[0] : or(...branches)
+      );
+      cs.push(inArray(schema.rosterMoves.teamId, allowedScopeTeams));
+    }
 
     const rows = await this.db
       .select()

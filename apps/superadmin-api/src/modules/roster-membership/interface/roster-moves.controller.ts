@@ -44,12 +44,28 @@ export class RosterMovesController {
   ) {}
 
   @Get() @ApiOperation({ summary: "List roster moves (event log)" })
-  list(@Query() q: ListMovesQueryDto): Promise<RosterMovePageDto> {
-    return this.listH.execute(q);
+  list(
+    @Query() q: ListMovesQueryDto,
+    @UserScope() scope: UserScopeType
+  ): Promise<RosterMovePageDto> {
+    return this.listH.execute({
+      ...q,
+      leagueIdsFilter: scope.leagueIds ?? undefined,
+      orgIdsFilter: scope.orgIds ?? undefined,
+      teamIdsFilter: scope.teamIds ?? undefined
+    });
   }
   @Get(":id") @ApiOperation({ summary: "Get a roster move" })
-  getOne(@Param("id") id: string): Promise<RosterMoveDto> {
-    return this.getH.execute({ id });
+  getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<RosterMoveDto> {
+    return this.getH.execute({
+      id,
+      leagueIdsFilter: scope.leagueIds ?? undefined,
+      orgIdsFilter: scope.orgIds ?? undefined,
+      teamIdsFilter: scope.teamIds ?? undefined
+    });
   }
 
   @Post("add")
