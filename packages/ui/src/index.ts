@@ -12,6 +12,7 @@ export * from "./table";
 export * from "./phase-progress";
 export * from "./stat-number";
 export * from "./card";
+export * from "./route-progress";
 // section-rail + command-palette stay in each app (they import
 // next/link + next/navigation, which would couple this package to
 // Next.js). If we ever need a framework-neutral version, factor here.

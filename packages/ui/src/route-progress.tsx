@@ -4,10 +4,15 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Top-of-page indeterminate progress bar — the Google-OAuth/nProgress style.
- * Mounts once at the layout level. Tracks pathname + searchParams changes:
- * fades up to ~85% while route transition is in flight, completes to 100%
- * once the new pathname has been stable for one frame.
+ * Top-of-page indeterminate progress bar — the Google-OAuth/nProgress
+ * style. Mounts once at each app's root layout. Tracks pathname +
+ * searchParams changes: fades up to ~85% while a route transition is
+ * in flight, completes to 100% once the new pathname has been stable
+ * for one frame.
+ *
+ * Shared across every SportsPulse web app (sa-web, org-admin, player,
+ * team-admin, landing) so the loading affordance is consistent and
+ * stays in one place when we iterate on it.
  */
 export function RouteProgress() {
   const pathname = usePathname();

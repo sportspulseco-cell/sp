@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { RouteProgress } from "@sportspulse/ui";
 import "./globals.css";
 import { Heartbeat } from "@/components/landing/heartbeat";
 
@@ -47,6 +49,9 @@ export default async function RootLayout({
       className={`${inter.variable} ${jetbrains.variable} dark`}
     >
       <body className="bg-bg text-fg antialiased">
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>
