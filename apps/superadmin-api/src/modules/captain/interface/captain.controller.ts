@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -528,9 +529,27 @@ export class CaptainController {
       if (
         e instanceof NotFoundException ||
         e instanceof ForbiddenException ||
-        e instanceof BadRequestException
+        e instanceof BadRequestException ||
+        e instanceof ConflictException
       ) {
         throw e;
+      }
+      // Duplicate DTE — captain hit the wizard twice (or browser
+      // resubmitted). The unique constraint
+      // `dte_team_division_active_uniq` (one active entry per
+      // team+division) is the canonical guard. Convert PG 23505 on
+      // that index to a clean 409 so the wizard surfaces a friendly
+      // "already registered" message instead of a generic 500.
+      const pgErr = e as { code?: string; constraint_name?: string };
+      if (
+        pgErr?.code === "23505" &&
+        pgErr?.constraint_name === "dte_team_division_active_uniq"
+      ) {
+        throw new ConflictException({
+          error: "already_registered",
+          message:
+            "This team is already registered for this division. Open the existing entry to manage it."
+        });
       }
       // BUG-026 has been closed; the logger.error remains so any
       // future unexpected throw surfaces in Vercel runtime logs.
