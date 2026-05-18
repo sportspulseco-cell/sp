@@ -160,14 +160,15 @@ export function NewTeamForm({
     } catch (err) {
       const e = err as Error & {
         status?: number;
-        response?: unknown;
+        body?: string;
       };
-      // Best-effort parse for the 409 duplicate guard. Our API client
-      // throws an Error("API 409: <json>") — extract the body.
-      const match = /API 409: (.+)$/.exec(e.message);
-      if (match) {
+      // 409 duplicate guard. The API client rewrites Error#message to
+      // the server's human string ("A team with this name…") and
+      // stashes the raw body on err.body — parse THAT so we can pull
+      // existingTeamId and render the "Use existing team" deep link.
+      if (e.status === 409 && typeof e.body === "string") {
         try {
-          const parsed = JSON.parse(match[1]!);
+          const parsed = JSON.parse(e.body);
           const dup = (parsed?.errors as Array<{ existingTeamId?: string }>)?.[0];
           if (dup?.existingTeamId) {
             setExistingTeamId(dup.existingTeamId);
@@ -178,7 +179,7 @@ export function NewTeamForm({
             return;
           }
         } catch {
-          // fall through
+          // fall through to generic error
         }
       }
       setError(e.message || "Could not create team.");

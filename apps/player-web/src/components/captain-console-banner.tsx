@@ -20,30 +20,43 @@ export function CaptainConsoleBanner() {
     process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://sp-team-admin.vercel.app";
 
   return (
-    <a
-      href={`${teamAdminBase}/`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex items-center gap-4 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/[0.10]"
-    >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-        <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+          <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+            // captain console
+          </p>
+          <p className="mt-0.5 text-[14px] font-medium text-fg">
+            You&apos;re a captain — manage your team in the team admin console
+          </p>
+          <p className="mt-0.5 text-[12px] text-fg-muted">
+            Roster, invites, dues, compliance, and team registration all live there. Opens in a new tab.
+          </p>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-          // captain console
-        </p>
-        <p className="mt-0.5 text-[14px] font-medium text-fg">
-          You&apos;re a captain — open the team admin console
-        </p>
-        <p className="mt-0.5 text-[12px] text-fg-muted">
-          Roster, invites, dues, compliance, and team registration all live there. Opens in a new tab.
-        </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2 pl-14">
+        <a
+          href={`${teamAdminBase}/captain/register`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-white hover:bg-emerald-700"
+        >
+          Register your team
+          <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
+        </a>
+        <a
+          href={`${teamAdminBase}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-bg/40 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"
+        >
+          Open team console
+          <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
+        </a>
       </div>
-      <ArrowUpRight
-        className="h-4 w-4 shrink-0 text-fg-muted transition-colors group-hover:text-fg"
-        strokeWidth={1.75}
-      />
-    </a>
+    </div>
   );
 }
