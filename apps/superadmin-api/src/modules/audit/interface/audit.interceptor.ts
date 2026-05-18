@@ -98,9 +98,18 @@ export class AuditInterceptor implements NestInterceptor {
     const after =
       response && typeof response === "object" ? response : null;
 
+    // Pull orgId off the response when the DTO carries it (most
+    // domain DTOs do: leagues, seasons, divisions, teams, invoices…).
+    // Without this, the org-admin audit list — which filters by
+    // orgId — hides every mutation the user just performed.
+    const orgIdFromResponse =
+      after && typeof (after as { orgId?: unknown }).orgId === "string"
+        ? ((after as { orgId: string }).orgId)
+        : null;
+
     await this.writer.write({
       actorUserId: principal?.userId ?? null,
-      orgId: null,
+      orgId: orgIdFromResponse,
       action,
       resourceType,
       resourceId,
