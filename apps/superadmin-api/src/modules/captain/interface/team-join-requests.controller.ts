@@ -226,9 +226,9 @@ export class TeamJoinRequestsController {
     const person = await this.resolvePerson(user.userId);
     if (!person) return { items: [] };
 
-    // Player's approved registrations with an assigned division. We
-    // accept both `approved` and `submitted` so a player who's mid-
-    // review can still see what they'll be eligible for.
+    // Player's approved registrations. We accept both `approved` and
+    // `submitted` so a player who's mid-review can still see what
+    // they'll be eligible for.
     const myRegs = await this.db
       .select({
         seasonId: schema.registrations.seasonId,
@@ -241,14 +241,33 @@ export class TeamJoinRequestsController {
           inArray(schema.registrations.status, ["approved", "submitted"])
         )
       );
+    if (myRegs.length === 0) return { items: [] };
 
-    const divisionIds = Array.from(
-      new Set(
-        myRegs
-          .map((r) => r.divisionId)
-          .filter((v): v is string => typeof v === "string")
-      )
-    );
+    // Two-tier scope:
+    //   1) registrations that already have division_id assigned —
+    //      these scope to that exact division.
+    //   2) registrations that are season-level only (no division
+    //      yet, e.g. admin approved before assigning a division) —
+    //      these scope to every division in the registered season.
+    //      The team's division is implied at apply time.
+    const directDivisionIds = new Set<string>();
+    const fallbackSeasonIds = new Set<string>();
+    for (const r of myRegs) {
+      if (r.divisionId) directDivisionIds.add(r.divisionId);
+      else if (r.seasonId) fallbackSeasonIds.add(r.seasonId);
+    }
+
+    if (fallbackSeasonIds.size > 0) {
+      const expanded = await this.db
+        .select({ id: schema.divisions.id })
+        .from(schema.divisions)
+        .where(
+          inArray(schema.divisions.seasonId, Array.from(fallbackSeasonIds))
+        );
+      for (const row of expanded) directDivisionIds.add(row.id);
+    }
+
+    const divisionIds = Array.from(directDivisionIds);
     if (divisionIds.length === 0) return { items: [] };
 
     // Active DTE rows in those divisions, joined to teams + season +
