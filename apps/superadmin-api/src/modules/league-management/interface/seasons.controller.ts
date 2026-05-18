@@ -18,7 +18,10 @@ import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { SeasonDto, SeasonPageDto } from "../application/dtos/season.dto";
 import {
   CreateSeasonHandler,
@@ -97,11 +100,27 @@ export class SeasonsController {
     return this.updateH.execute({ id, ...body });
   }
 
-  @Post(":id/status") @ApiOperation({ summary: "Change season status" })
-  changeStatus(
+  @Post(":id/status")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Change season status" })
+  async changeStatus(
     @Param("id") id: string,
-    @Body() body: ChangeSeasonStatusBodyDto
+    @Body() body: ChangeSeasonStatusBodyDto,
+    @UserScope() scope: UserScopeType
   ): Promise<SeasonDto> {
+    // Org-scope check — super_admin / unrestricted callers pass through;
+    // org_admin must hold a role on the season's parent org. 404 (not
+    // 403) when out of scope so we don't leak existence.
+    if (!scope.isSuperAdmin && scope.orgIds !== null) {
+      const [row] = await this.db
+        .select({ orgId: schema.seasons.orgId })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, id))
+        .limit(1);
+      if (!row || !scope.orgIds.includes(row.orgId)) {
+        throw new NotFoundException("Season not found");
+      }
+    }
     return this.statusH.execute({ id, status: body.status });
   }
 
