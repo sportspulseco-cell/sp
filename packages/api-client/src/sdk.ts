@@ -1599,6 +1599,29 @@ export function createApi(f: Fetcher) {
             seasonId: string | null;
           }>;
         }>("/me/team-join-requests"),
+      /**
+       * Teams the player can apply to join, derived from their
+       * approved registrations. Powers the player-web /team empty
+       * state. Excludes teams the player is already on and teams
+       * with an open application from the same player.
+       */
+      listJoinableTeams: () =>
+        f<{
+          items: Array<{
+            teamId: string;
+            teamName: string;
+            teamShortName: string | null;
+            teamLogoUrl: string | null;
+            teamColors: Record<string, unknown>;
+            seasonId: string;
+            seasonName: string;
+            divisionId: string;
+            divisionName: string;
+            divisionTier: string | null;
+            orgName: string | null;
+            entryStatus: string;
+          }>;
+        }>("/me/joinable-teams"),
       captainListJoinRequests: (
         teamId: string,
         status?: "all" | "pending"

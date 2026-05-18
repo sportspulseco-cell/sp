@@ -207,6 +207,146 @@ export class TeamJoinRequestsController {
   }
 
   // -------------------------------------------------------------------
+  // GET /me/joinable-teams (teams the player can apply to)
+  // -------------------------------------------------------------------
+  // Powers the player-web /team empty state: "you registered for this
+  // season/division — here are the teams you can apply to." Built
+  // from the caller's APPROVED registrations (which have division_id
+  // assigned), then joined to active DTE rows in that division. Teams
+  // the player is already rostered on, or has a pending join request
+  // for, are filtered out — the UI surfaces those separately via
+  // /me/team-join-requests and /roster/memberships.
+  // -------------------------------------------------------------------
+  @Get("me/joinable-teams")
+  @ApiOperation({
+    summary:
+      "Teams the caller can apply to join, derived from their approved registrations. Returns active-DTE teams in the registered division, minus teams the player is already on or already applied to."
+  })
+  async listJoinableTeams(@CurrentUser() user: AuthPrincipal) {
+    const person = await this.resolvePerson(user.userId);
+    if (!person) return { items: [] };
+
+    // Player's approved registrations with an assigned division. We
+    // accept both `approved` and `submitted` so a player who's mid-
+    // review can still see what they'll be eligible for.
+    const myRegs = await this.db
+      .select({
+        seasonId: schema.registrations.seasonId,
+        divisionId: schema.registrations.divisionId
+      })
+      .from(schema.registrations)
+      .where(
+        and(
+          eq(schema.registrations.subjectPersonId, person.id),
+          inArray(schema.registrations.status, ["approved", "submitted"])
+        )
+      );
+
+    const divisionIds = Array.from(
+      new Set(
+        myRegs
+          .map((r) => r.divisionId)
+          .filter((v): v is string => typeof v === "string")
+      )
+    );
+    if (divisionIds.length === 0) return { items: [] };
+
+    // Active DTE rows in those divisions, joined to teams + season +
+    // division for display. entry_status filter mirrors the captain's
+    // division-detail "approved teams" query.
+    const rows = await this.db
+      .select({
+        teamId: schema.teams.id,
+        teamName: schema.teams.name,
+        teamShortName: schema.teams.shortName,
+        teamLogoUrl: schema.teams.logoUrl,
+        teamColors: schema.teams.colors,
+        seasonId: schema.divisions.seasonId,
+        seasonName: schema.seasons.name,
+        divisionId: schema.divisions.id,
+        divisionName: schema.divisions.name,
+        divisionTier: schema.divisions.tier,
+        orgName: schema.orgs.displayName,
+        entryStatus: schema.divisionTeamEntries.entryStatus
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .innerJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.divisionTeamEntries.teamId)
+      )
+      .leftJoin(schema.orgs, eq(schema.orgs.id, schema.teams.orgId))
+      .where(
+        and(
+          inArray(schema.divisionTeamEntries.divisionId, divisionIds),
+          inArray(schema.divisionTeamEntries.entryStatus, [
+            "applied",
+            "accepted",
+            "confirmed"
+          ])
+        )
+      );
+
+    if (rows.length === 0) return { items: [] };
+
+    // Exclude teams the player is already on (any season) and teams
+    // with an open application from this player. We resolve once for
+    // all teams to keep the query count flat.
+    const teamIds = Array.from(new Set(rows.map((r) => r.teamId)));
+    const [alreadyMember, openApps] = await Promise.all([
+      this.db
+        .select({ teamId: schema.teamMemberships.teamId })
+        .from(schema.teamMemberships)
+        .where(
+          and(
+            eq(schema.teamMemberships.personId, person.id),
+            inArray(schema.teamMemberships.teamId, teamIds)
+          )
+        ),
+      this.db
+        .select({ teamId: schema.teamJoinRequests.teamId })
+        .from(schema.teamJoinRequests)
+        .where(
+          and(
+            eq(schema.teamJoinRequests.playerPersonId, person.id),
+            eq(schema.teamJoinRequests.status, "pending"),
+            inArray(schema.teamJoinRequests.teamId, teamIds)
+          )
+        )
+    ]);
+    const exclude = new Set([
+      ...alreadyMember.map((r) => r.teamId),
+      ...openApps.map((r) => r.teamId)
+    ]);
+
+    return {
+      items: rows
+        .filter((r) => !exclude.has(r.teamId))
+        .map((r) => ({
+          teamId: r.teamId,
+          teamName: r.teamName,
+          teamShortName: r.teamShortName,
+          teamLogoUrl: r.teamLogoUrl,
+          teamColors: (r.teamColors ?? {}) as Record<string, unknown>,
+          seasonId: r.seasonId,
+          seasonName: r.seasonName,
+          divisionId: r.divisionId,
+          divisionName: r.divisionName,
+          divisionTier: r.divisionTier,
+          orgName: r.orgName,
+          entryStatus: r.entryStatus
+        }))
+    };
+  }
+
+  // -------------------------------------------------------------------
   // GET /captain/team-join-requests?teamId=…  (captain inbox)
   // -------------------------------------------------------------------
   @Get("captain/team-join-requests")

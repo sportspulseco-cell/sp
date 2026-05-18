@@ -1,4 +1,4 @@
-import { UsersRound } from "lucide-react";
+import { Clock, UsersRound } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -11,12 +11,21 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Standing, TeamMembership } from "@sportspulse/api-client";
-import { iam, leagueMgmt, roster, stats } from "@/lib/api/server-api";
+import { iam, leagueMgmt, registration, roster, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { JoinTeamButton } from "./join-team-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Team — SportsPulse" };
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
 
 export default async function TeamPage() {
   const scope = await iam.meScope().catch(() => null);
@@ -24,6 +33,56 @@ export default async function TeamPage() {
   const myPersonId = scope?.personId ?? null;
 
   if (!myTeamId) {
+    // Player has no team yet. Pull their open applications + the teams
+    // they can apply to (derived from their approved registrations).
+    type JoinableTeam = Awaited<
+      ReturnType<typeof registration.listJoinableTeams>
+    >["items"][number];
+    type JoinRequest = Awaited<
+      ReturnType<typeof registration.listMyJoinRequests>
+    >["items"][number];
+    const [joinable, joinRequests] = await Promise.all([
+      registration
+        .listJoinableTeams()
+        .catch(() => ({ items: [] as JoinableTeam[] })),
+      registration
+        .listMyJoinRequests()
+        .catch(() => ({ items: [] as JoinRequest[] }))
+    ]);
+
+    const pending = joinRequests.items.filter((r) => r.status === "pending");
+
+    // Group joinable teams by division for a clean section per
+    // registration the player has open.
+    const byDivision = new Map<
+      string,
+      {
+        divisionId: string;
+        divisionName: string;
+        divisionTier: string | null;
+        seasonName: string;
+        orgName: string | null;
+        teams: typeof joinable.items;
+      }
+    >();
+    for (const t of joinable.items) {
+      const group = byDivision.get(t.divisionId);
+      if (group) {
+        group.teams.push(t);
+      } else {
+        byDivision.set(t.divisionId, {
+          divisionId: t.divisionId,
+          divisionName: t.divisionName,
+          divisionTier: t.divisionTier,
+          seasonName: t.seasonName,
+          orgName: t.orgName,
+          teams: [t]
+        });
+      }
+    }
+
+    const hasAnything = pending.length > 0 || byDivision.size > 0;
+
     return (
       <div className="space-y-6">
         <PageHeader
@@ -31,11 +90,90 @@ export default async function TeamPage() {
           title="Team"
           description="Roster + division standings."
         />
-        <EmptyState
-          icon={UsersRound}
-          title="Not on a roster yet"
-          description="Once an admin adds you to a team, the roster + standings will appear here."
-        />
+
+        {pending.length > 0 ? (
+          <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-5">
+            <Eyebrow>// awaiting captain approval</Eyebrow>
+            <p className="mt-1 text-[13px] text-fg-muted">
+              {pending.length} application{pending.length === 1 ? "" : "s"} sitting in a captain&apos;s inbox.
+            </p>
+            <ul className="mt-3 space-y-2">
+              {pending.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-bg px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-medium text-fg">
+                      {p.teamName}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-fg-muted">
+                      {p.orgName ?? "—"} · applied {fmtDate(p.appliedAt)}
+                    </p>
+                  </div>
+                  <Badge mono tone="warning">
+                    <Clock className="mr-1 h-3 w-3" strokeWidth={1.75} />
+                    pending
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {byDivision.size > 0 ? (
+          Array.from(byDivision.values()).map((group) => (
+            <section
+              key={group.divisionId}
+              className="rounded-xl border border-border bg-surface-1"
+            >
+              <header className="border-b border-border px-5 py-3">
+                <Eyebrow>// teams accepting players</Eyebrow>
+                <p className="mt-1 text-[14px] font-medium text-fg">
+                  {group.divisionName}
+                  {group.divisionTier ? (
+                    <span className="ml-1 text-fg-muted">· {group.divisionTier}</span>
+                  ) : null}
+                </p>
+                <p className="mt-0.5 text-[11px] text-fg-muted">
+                  {group.orgName ?? "—"} · {group.seasonName}
+                </p>
+              </header>
+              <ul className="divide-y divide-border">
+                {group.teams.map((t) => (
+                  <li
+                    key={t.teamId}
+                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-medium text-fg">
+                        {t.teamName}
+                      </p>
+                      {t.teamShortName ? (
+                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                          {t.teamShortName}
+                        </p>
+                      ) : null}
+                    </div>
+                    <JoinTeamButton
+                      teamId={t.teamId}
+                      teamName={t.teamName}
+                      seasonId={t.seasonId}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        ) : null}
+
+        {!hasAnything ? (
+          <EmptyState
+            icon={UsersRound}
+            title="Not on a roster yet"
+            description="Register for an open season (Open registrations in the sidebar) and once approved you'll see teams here to apply to."
+          />
+        ) : null}
       </div>
     );
   }
