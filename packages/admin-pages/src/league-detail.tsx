@@ -40,7 +40,11 @@ export function LeagueDetail({
   seasons: Season[];
   /** Where the "← All leagues" link points. Default `/leagues`. */
   backHref?: string;
-  /** Where the "Edit in Org setup →" CTA points. Default `/org-setup`. */
+  /**
+   * Where the "Edit in Org setup →" CTA points. Only rendered when
+   * explicitly provided — sa-web passes `/org-setup`, org-admin omits
+   * it (the wizard surface is sa-only).
+   */
   editHref?: string;
   /** "View all →" link target for the seasons section. Default `/seasons?leagueId=...`. */
   seasonsListHref?: string;
@@ -56,7 +60,6 @@ export function LeagueDetail({
     timezone?: string;
   };
   const backTo = backHref ?? "/leagues";
-  const editTo = editHref ?? "/org-setup";
   const seasonsListTo = seasonsListHref ?? `/seasons?leagueId=${league.id}`;
   const seasonHref = seasonHrefBase ?? "/seasons";
 
@@ -86,12 +89,14 @@ export function LeagueDetail({
             {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
           </div>
         </div>
-        <Link
-          href={editTo}
-          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-        >
-          Edit in Org setup →
-        </Link>
+        {editHref ? (
+          <Link
+            href={editHref}
+            className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+          >
+            Edit in Org setup →
+          </Link>
+        ) : null}
       </header>
 
       <section className="rounded-xl border border-border bg-surface-1 p-5">

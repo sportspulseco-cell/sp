@@ -39,6 +39,7 @@ export default async function LeagueDetailPage({
       org={org}
       governingBodyName={govBody?.name ?? null}
       seasons={seasonsPage.items}
+      editHref="/org-setup"
       extras={
         <ResourceAdminsSection
           scopeType="league"

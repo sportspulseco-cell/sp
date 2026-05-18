@@ -43,6 +43,7 @@ export default async function DivisionDetailPage({
       division={division}
       parentSeason={parentSeason}
       divisionTeams={divisionTeams.items}
+      editHref="/org-setup"
       applicationsQueueHref={`/seasons/${division.seasonId}/applications`}
       pendingApplications={
         <DivisionPendingApplications
