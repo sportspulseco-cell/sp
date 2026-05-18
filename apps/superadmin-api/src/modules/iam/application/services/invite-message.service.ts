@@ -28,6 +28,17 @@ export interface RenderInviteInput {
 }
 
 /**
+ * Maps role codes to the canonical app surface the invitee should
+ * sign in on. Keeps the sp-superadmin URL out of invites sent to
+ * player / captain / org_admin recipients — CLAUDE.md cardinal rule:
+ * the sa-web URL is confidential and must not appear in non-SA users'
+ * mailboxes.
+ */
+const PLAYER_ROLES = new Set(["player", "parent", "spectator", "free_agent"]);
+const TEAM_ROLES = new Set(["team_admin", "captain", "coach"]);
+const ORG_ROLES = new Set(["org_admin"]);
+
+/**
  * Renders the invite message we send (and that the admin also gets a
  * clipboard copy of for manual delivery via Slack/WhatsApp/SMS).
  *
@@ -41,9 +52,7 @@ export class InviteMessageService {
   constructor(private readonly config: ConfigService) {}
 
   render(input: RenderInviteInput): RenderedInviteMessage {
-    const appUrl =
-      this.config.get<string>("SUPERADMIN_WEB_URL") ??
-      "https://sp-superadmin.vercel.app";
+    const appUrl = this.resolveAppUrl(input.role?.roleCode);
 
     const greeting = input.displayName
       ? `Hi ${input.displayName.split(" ")[0]},`
@@ -91,6 +100,33 @@ export class InviteMessageService {
       : "You're invited to SportsPulse";
 
     return { subject, body, recipient: input.email };
+  }
+
+  private resolveAppUrl(roleCode: string | undefined): string {
+    if (roleCode && PLAYER_ROLES.has(roleCode)) {
+      return (
+        this.config.get<string>("PLAYER_WEB_URL") ??
+        "https://sp-player-red.vercel.app"
+      );
+    }
+    if (roleCode && TEAM_ROLES.has(roleCode)) {
+      return (
+        this.config.get<string>("TEAM_ADMIN_WEB_URL") ??
+        "https://sp-team-admin.vercel.app"
+      );
+    }
+    if (roleCode && ORG_ROLES.has(roleCode)) {
+      return (
+        this.config.get<string>("ORG_ADMIN_WEB_URL") ??
+        "https://sp-org-admin.vercel.app"
+      );
+    }
+    // Every remaining role (super_admin, league_admin, registrar, referee,
+    // scorekeeper, et al) lives on sa-web per the post-P5-D consolidation.
+    return (
+      this.config.get<string>("SUPERADMIN_WEB_URL") ??
+      "https://sp-superadmin.vercel.app"
+    );
   }
 }
 
