@@ -22,6 +22,14 @@ export interface ListTeamsInput {
   status?: string;
   search?: string;
   leagueIdsFilter?: string[];
+  /**
+   * Org-scope whitelist. Honoured *together with* `leagueIdsFilter` —
+   * a team is in scope if its org_id ∈ orgIdsFilter OR it has an
+   * active DTE under a league in leagueIdsFilter. Lets org_admin see
+   * orphan teams (no division entry yet) that still belong to their
+   * org.
+   */
+  orgIdsFilter?: string[];
 }
 
 @Injectable()
@@ -30,7 +38,14 @@ export class ListTeamsHandler
 {
   constructor(@Inject(TEAM_REPOSITORY) private readonly teams: TeamRepository) {}
   async execute(input: ListTeamsInput): Promise<TeamPageDto> {
-    if (input.leagueIdsFilter && input.leagueIdsFilter.length === 0) {
+    // Zero visibility on *both* dimensions → empty page. Empty on just
+    // one is fine: the union may still surface rows.
+    const leagueEmpty =
+      input.leagueIdsFilter !== undefined &&
+      input.leagueIdsFilter.length === 0;
+    const orgEmpty =
+      input.orgIdsFilter !== undefined && input.orgIdsFilter.length === 0;
+    if (leagueEmpty && orgEmpty) {
       return { items: [], nextCursor: null };
     }
     const page = await this.teams.list({
@@ -40,7 +55,8 @@ export class ListTeamsHandler
       sportCode: input.sportCode,
       status: input.status,
       search: input.search,
-      leagueIdsFilter: input.leagueIdsFilter
+      leagueIdsFilter: input.leagueIdsFilter,
+      orgIdsFilter: input.orgIdsFilter
     });
     return {
       items: page.items.map(TeamDto.fromDomain),
@@ -51,18 +67,40 @@ export class ListTeamsHandler
 
 @Injectable()
 export class GetTeamHandler
-  implements QueryHandler<{ id: string; leagueIdsFilter?: string[] }, TeamDto>
+  implements
+    QueryHandler<
+      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[] },
+      TeamDto
+    >
 {
   constructor(@Inject(TEAM_REPOSITORY) private readonly teams: TeamRepository) {}
-  async execute(input: { id: string; leagueIdsFilter?: string[] }): Promise<TeamDto> {
+  async execute(input: {
+    id: string;
+    leagueIdsFilter?: string[];
+    orgIdsFilter?: string[];
+  }): Promise<TeamDto> {
     const t = await this.teams.findById(TeamId.of(input.id));
     if (!t) throw new NotFoundError("Team", input.id);
-    if (input.leagueIdsFilter) {
-      const inScope = await this.teams.existsInLeagues(
-        TeamId.of(input.id),
-        input.leagueIdsFilter
-      );
-      if (!inScope) throw new NotFoundError("Team", input.id);
+
+    // Scope check: pass when either filter accepts. Org-level visibility
+    // covers orphan teams (no division entry yet); the league check
+    // covers teams reached via active DTE.
+    const hasLeagueFilter = input.leagueIdsFilter !== undefined;
+    const hasOrgFilter = input.orgIdsFilter !== undefined;
+    if (hasLeagueFilter || hasOrgFilter) {
+      const inOrgScope =
+        hasOrgFilter &&
+        input.orgIdsFilter!.includes(t.toSnapshot().orgId);
+      const inLeagueScope =
+        hasLeagueFilter &&
+        input.leagueIdsFilter!.length > 0 &&
+        (await this.teams.existsInLeagues(
+          TeamId.of(input.id),
+          input.leagueIdsFilter!
+        ));
+      if (!inOrgScope && !inLeagueScope) {
+        throw new NotFoundError("Team", input.id);
+      }
     }
     return TeamDto.fromDomain(t);
   }

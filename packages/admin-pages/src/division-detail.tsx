@@ -74,7 +74,11 @@ export function DivisionDetail({
   teamHrefBase?: string;
   /** Default `/org-setup`. */
   editHref?: string;
-  /** "the season's applications queue" link target. */
+  /**
+   * Target for the "season's applications queue" link in the empty
+   * state. Only rendered when explicitly provided — sa-web passes it,
+   * org-admin omits it today (route doesn't exist there yet).
+   */
   applicationsQueueHref?: string;
   /** Optional pending-applications card (sa-web today). */
   pendingApplications?: ReactNode;
@@ -109,8 +113,6 @@ export function DivisionDetail({
   const seasonHref = seasonHrefBase ?? "/seasons";
   const teamHref = teamHrefBase ?? "/teams";
   const editTo = editHref ?? "/org-setup";
-  const applicationsTo =
-    applicationsQueueHref ?? `${seasonHref}/${division.seasonId}/applications`;
 
   return (
     <div className="space-y-8">
@@ -298,14 +300,19 @@ export function DivisionDetail({
         </p>
         {divisionTeams.length === 0 ? (
           <p className="mt-4 rounded-md border border-dashed border-border bg-bg-subtle px-3 py-6 text-center text-[13px] text-fg-muted">
-            No approved teams yet. Pending applications live at{" "}
-            <Link
-              href={applicationsTo}
-              className="text-accent hover:underline"
-            >
-              the season's applications queue
-            </Link>
-            .
+            No approved teams yet.
+            {applicationsQueueHref ? (
+              <>
+                {" "}Pending applications live at{" "}
+                <Link
+                  href={applicationsQueueHref}
+                  className="text-accent hover:underline"
+                >
+                  the season's applications queue
+                </Link>
+                .
+              </>
+            ) : null}
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-border rounded-md border border-border bg-bg-subtle">

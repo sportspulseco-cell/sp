@@ -10,8 +10,15 @@ export interface ListTeamsQuery extends PageQuery {
   /**
    * When set, restricts results to teams that have an active entry in a
    * division of one of these leagues. Resolved via division_team_entries.
+   *
+   * Used together with `orgIdsFilter`: a team is included if it matches
+   * EITHER (a team's org is in the org whitelist OR it has an active
+   * DTE under a league in this whitelist). Org admins use this to see
+   * orphan teams in their orgs.
    */
   leagueIdsFilter?: string[];
+  /** Org-scope whitelist; union'd with `leagueIdsFilter` (see above). */
+  orgIdsFilter?: string[];
 }
 
 export interface TeamRepository {

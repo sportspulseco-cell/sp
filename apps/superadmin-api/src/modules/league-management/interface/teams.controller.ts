@@ -61,7 +61,16 @@ export class TeamsController {
       scope.leagueIds && scope.leagueIds.length === 0 && (scope.teamIds?.length ?? 0) > 0
         ? undefined
         : (scope.leagueIds ?? undefined);
-    const page = await this.listH.execute({ ...q, leagueIdsFilter: filter });
+    // Pass scope.orgIds alongside leagueIds — handler union's them so
+    // org admins also see orphan teams (no division entry) in their
+    // orgs. `null` orgIds is unrestricted, so leave undefined in that
+    // case.
+    const orgFilter = scope.orgIds ?? undefined;
+    const page = await this.listH.execute({
+      ...q,
+      leagueIdsFilter: filter,
+      orgIdsFilter: orgFilter
+    });
     if (page.items.length === 0) return page;
 
     // P2-2 — narrow to teams with an active DTE in the requested
@@ -103,7 +112,11 @@ export class TeamsController {
     const inDirectTeamScope = scope.teamIds?.includes(id) ?? false;
     const dto = await this.getH.execute({
       id,
-      leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
+      leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined),
+      // Org admins should reach orphan teams in their orgs even when
+      // those teams aren't in any league. Handler union's the two
+      // filters; a team is in scope if either accepts.
+      orgIdsFilter: inDirectTeamScope ? undefined : (scope.orgIds ?? undefined)
     });
     return this.enrichWithLifecycle(dto);
   }

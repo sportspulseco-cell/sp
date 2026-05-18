@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -57,25 +57,40 @@ export class DrizzleTeamRepository implements TeamRepository {
     if (q.status) cs.push(eq(schema.teams.status, q.status));
     if (q.search) cs.push(ilike(schema.teams.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.teams.id, q.cursor));
-    if (q.leagueIdsFilter) {
-      const allowedTeamIds = this.db
-        .select({ teamId: schema.divisionTeamEntries.teamId })
-        .from(schema.divisionTeamEntries)
-        .innerJoin(
-          schema.divisions,
-          eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-        )
-        .innerJoin(
-          schema.seasons,
-          eq(schema.seasons.id, schema.divisions.seasonId)
-        )
-        .where(
-          and(
-            isNull(schema.divisionTeamEntries.leftAt),
-            inArray(schema.seasons.leagueId, q.leagueIdsFilter)
+    // Scope filter: orgIdsFilter and leagueIdsFilter union together.
+    // A team is in scope when (a) its org is in the org whitelist, or
+    // (b) it has an active DTE under a league in the league whitelist.
+    // Org admins use the org branch to see orphan teams in their orgs.
+    const hasLeagueFilter =
+      q.leagueIdsFilter !== undefined && q.leagueIdsFilter.length > 0;
+    const hasOrgFilter =
+      q.orgIdsFilter !== undefined && q.orgIdsFilter.length > 0;
+    if (hasLeagueFilter || hasOrgFilter) {
+      const branches = [];
+      if (hasOrgFilter) {
+        branches.push(inArray(schema.teams.orgId, q.orgIdsFilter!));
+      }
+      if (hasLeagueFilter) {
+        const allowedTeamIds = this.db
+          .select({ teamId: schema.divisionTeamEntries.teamId })
+          .from(schema.divisionTeamEntries)
+          .innerJoin(
+            schema.divisions,
+            eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
           )
-        );
-      cs.push(inArray(schema.teams.id, allowedTeamIds));
+          .innerJoin(
+            schema.seasons,
+            eq(schema.seasons.id, schema.divisions.seasonId)
+          )
+          .where(
+            and(
+              isNull(schema.divisionTeamEntries.leftAt),
+              inArray(schema.seasons.leagueId, q.leagueIdsFilter!)
+            )
+          );
+        branches.push(inArray(schema.teams.id, allowedTeamIds));
+      }
+      cs.push(branches.length === 1 ? branches[0]! : or(...branches)!);
     }
 
     const rows = await this.db
