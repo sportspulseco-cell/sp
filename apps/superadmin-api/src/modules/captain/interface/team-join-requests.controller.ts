@@ -510,6 +510,50 @@ export class TeamJoinRequestsController {
             currentStatus: "active"
           })
           .onConflictDoNothing();
+
+        // Grant a team-scoped `player` role so the player's JWT
+        // principal scope picks up the team. Without this row,
+        // loadUserScope returns scope.teamIds=[] and player-web's
+        // /team page stays on the "Not on a roster yet" empty state
+        // even though the membership row exists.
+        const [linkedPerson] = await tx
+          .select({ userId: schema.persons.userId })
+          .from(schema.persons)
+          .where(eq(schema.persons.id, row.playerPersonId))
+          .limit(1);
+        if (linkedPerson?.userId) {
+          const [playerRole] = await tx
+            .select({ id: schema.roles.id })
+            .from(schema.roles)
+            .where(eq(schema.roles.code, "player"))
+            .limit(1);
+          if (playerRole) {
+            // De-dup: skip if an active team-scoped player role
+            // already exists for this user+team.
+            const [existing] = await tx
+              .select({ id: schema.userRoleAssignments.id })
+              .from(schema.userRoleAssignments)
+              .where(
+                and(
+                  eq(schema.userRoleAssignments.userId, linkedPerson.userId),
+                  eq(schema.userRoleAssignments.roleId, playerRole.id),
+                  eq(schema.userRoleAssignments.scopeType, "team"),
+                  eq(schema.userRoleAssignments.scopeId, row.teamId)
+                )
+              )
+              .limit(1);
+            if (!existing) {
+              await tx.insert(schema.userRoleAssignments).values({
+                userId: linkedPerson.userId,
+                roleId: playerRole.id,
+                scopeType: "team",
+                scopeId: row.teamId,
+                effectiveFrom: new Date(),
+                grantedByUserId: user.userId
+              });
+            }
+          }
+        }
       }
     });
 
