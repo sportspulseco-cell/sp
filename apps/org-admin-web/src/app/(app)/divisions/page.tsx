@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, Plus } from "lucide-react";
+import { Layers, Wand2 } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -40,14 +40,14 @@ export default async function DivisionsPage() {
       <PageHeader
         eyebrow="// Divisions"
         title="Divisions"
-        description="Divisions across every season in your org. Add new tiers / age groups here as seasons need them."
+        description="Divisions across every season in your org. New divisions are created through Org setup alongside their league and season."
         action={
           <Link
-            href="/divisions/new"
+            href="/org-setup"
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            New division
+            <Wand2 className="h-3.5 w-3.5" strokeWidth={2} />
+            Open org setup
           </Link>
         }
       />
@@ -55,7 +55,7 @@ export default async function DivisionsPage() {
         <EmptyState
           icon={Layers}
           title="No divisions yet"
-          description="Create a division to start taking team applications."
+          description="Head to Org setup to set up a league, season, and divisions in one flow."
         />
       ) : (
         <Table>

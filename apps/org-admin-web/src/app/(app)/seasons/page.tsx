@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarRange, Plus } from "lucide-react";
+import { CalendarRange, Wand2 } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -39,14 +39,14 @@ export default async function SeasonsPage() {
       <PageHeader
         eyebrow="// Seasons"
         title="Seasons"
-        description="Seasons across every league in your org. Add new seasons here; divisions still need the super-admin console for now."
+        description="Seasons across every league in your org. New seasons are created through Org setup alongside their league and divisions."
         action={
           <Link
-            href="/seasons/new"
+            href="/org-setup"
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            New season
+            <Wand2 className="h-3.5 w-3.5" strokeWidth={2} />
+            Open org setup
           </Link>
         }
       />
@@ -54,7 +54,7 @@ export default async function SeasonsPage() {
         <EmptyState
           icon={CalendarRange}
           title="No seasons yet"
-          description="Create your first season to open registration."
+          description="Head to Org setup to spin up your first league, season, and divisions in one flow."
         />
       ) : (
         <Table>

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
-import { cn } from "@/lib/utils";
+import { cn } from "@sportspulse/ui";
 import {
   slugify,
   type LeagueDraft,

@@ -1,13 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, Loader2, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@sportspulse/ui";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
-import { admin, leagueMgmt } from "@/lib/api/browser-api";
-import { LiveDot } from "@/components/motion/kinetic";
 import {
   DEFAULT_TIEBREAKERS,
   emptyDivision,
@@ -56,9 +53,6 @@ function defaultLeagueDraft(firstSportCode: string): LeagueDraft {
   return {
     name: "",
     slug: "",
-    // Pre-select whatever the seeded sports table actually has — using a
-    // hard-coded "ice_hockey" would FK-fail on insert because the seed
-    // uses HOCKEY_ICE. Empty string falls through to "pick a sport".
     sportCode: firstSportCode,
     format: "regular",
     governingBodyId: null,
@@ -79,19 +73,70 @@ function defaultSeasonDraft(): SeasonDraft {
   };
 }
 
+/**
+ * Shared 4-phase Org Setup wizard. Pure presentational + state —
+ * transport is injected via callback props so the same component
+ * mounts in sa-web (with its full-scope browser-api bindings) and
+ * org-admin-web (with org-scoped proxy bindings), no parallel
+ * implementations.
+ *
+ * Per CLAUDE.md cardinal rule: reuse over silos. Per repo owner
+ * 2026-05-19: org-admin's wizard should lock step 1 to the user's
+ * own orgs, and `onComplete` lets the consuming app push to its
+ * own /leagues/[id] route (no relative URLs that would route to
+ * the confidential sp-superadmin URL).
+ */
 export function OrgSetupWizard({
   orgs,
   sports,
-  governingBodies
+  governingBodies,
+  createLeague,
+  createSeason,
+  createDivision,
+  changeLeagueStatus,
+  onComplete
 }: {
+  /** Pre-filtered to the orgs the caller is allowed to write to. */
   orgs: Org[];
   sports: Sport[];
   governingBodies: GoverningBody[];
+  createLeague: (input: {
+    orgId: string;
+    sportCode: string;
+    name: string;
+    format: string;
+    governingBodyId: string | null;
+    metadata: Record<string, unknown>;
+  }) => Promise<{ id: string }>;
+  createSeason: (input: {
+    leagueId: string;
+    name: string;
+    sportCode: string;
+    startDate: string;
+    endDate: string;
+    timezone: string;
+    registrationOpensAt: string | null;
+    registrationClosesAt: string | null;
+    rosterLockAt: string | null;
+  }) => Promise<{ id: string }>;
+  createDivision: (input: {
+    seasonId: string;
+    name: string;
+    tier: string | null;
+    ageGroupId: string | null;
+    genderEligibility: "open" | "male" | "female" | "mixed";
+    maxTeams: number;
+    ruleSetOverrides: Record<string, unknown>;
+    playoffConfig: Record<string, unknown>;
+  }) => Promise<{ id: string }>;
+  changeLeagueStatus: (leagueId: string, status: string) => Promise<unknown>;
+  /** Called after a successful run. Consuming app decides where to send the admin. */
+  onComplete: (result: { leagueId: string }) => void;
 }) {
-  const router = useRouter();
   const [state, setState] = useState<WizardState>(() => ({
     step: 1,
-    orgId: null,
+    // Auto-select when there's only one option (org-admin case).
+    orgId: orgs.length === 1 ? orgs[0]!.id : null,
     league: defaultLeagueDraft(sports[0]?.code ?? ""),
     season: defaultSeasonDraft(),
     divisions: [emptyDivision(crypto.randomUUID())]
@@ -99,7 +144,6 @@ export function OrgSetupWizard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-fill slug + season name + season sport from earlier picks.
   function patchLeague(patch: Partial<LeagueDraft>) {
     setState((s) => {
       const next = { ...s.league, ...patch };
@@ -175,7 +219,12 @@ export function OrgSetupWizard({
   }
 
   async function submit({ publish }: { publish: boolean }) {
-    if (!stepValidation[1] || !stepValidation[2] || !stepValidation[3] || !stepValidation[4]) {
+    if (
+      !stepValidation[1] ||
+      !stepValidation[2] ||
+      !stepValidation[3] ||
+      !stepValidation[4]
+    ) {
       setError("Some steps are incomplete — go back and finish them first.");
       return;
     }
@@ -183,8 +232,7 @@ export function OrgSetupWizard({
     setBusy(true);
     setError(null);
     try {
-      // 1. League
-      const league = await leagueMgmt.createLeague({
+      const league = await createLeague({
         orgId: state.orgId,
         sportCode: state.league.sportCode,
         name: state.league.name,
@@ -198,8 +246,7 @@ export function OrgSetupWizard({
         }
       });
 
-      // 2. Season
-      const season = await leagueMgmt.createSeason({
+      const season = await createSeason({
         leagueId: league.id,
         name: state.season.name,
         sportCode: state.league.sportCode,
@@ -217,14 +264,16 @@ export function OrgSetupWizard({
           : null
       });
 
-      // 3. Divisions
       for (const d of state.divisions) {
-        await leagueMgmt.createDivision({
+        await createDivision({
           seasonId: season.id,
           name: d.name,
           tier: d.tier,
           ageGroupId: d.ageGroupId,
-          genderEligibility: d.genderEligibility === "open" ? "open" : (d.genderEligibility as "male" | "female" | "mixed"),
+          genderEligibility:
+            d.genderEligibility === "open"
+              ? "open"
+              : (d.genderEligibility as "male" | "female" | "mixed"),
           maxTeams: d.maxTeams,
           ruleSetOverrides: {
             gameRules: d.gameRules,
@@ -239,13 +288,11 @@ export function OrgSetupWizard({
         });
       }
 
-      // 4. Publish (optional) — flips league status from draft to active.
       if (publish) {
-        await leagueMgmt.changeLeagueStatus(league.id, "active");
+        await changeLeagueStatus(league.id, "active");
       }
 
-      router.push(`/leagues/${league.id}`);
-      router.refresh();
+      onComplete({ leagueId: league.id });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -255,8 +302,6 @@ export function OrgSetupWizard({
 
   return (
     <div className="space-y-8">
-      {/* Chapter header — editorial mono eyebrow + display headline that
-          cycles per step. Mirrors the other admin surfaces. */}
       <header className="relative pb-6">
         <motion.div
           initial={{ opacity: 0, y: 6 }}
@@ -264,7 +309,10 @@ export function OrgSetupWizard({
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted"
         >
-          <LiveDot tone="accent" />
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
+          </span>
           <span className="text-fg/80">// org · setup</span>
           <span className="text-fg-subtle">·</span>
           <span>chapter {String(state.step).padStart(2, "0")} / 04</span>
@@ -295,7 +343,6 @@ export function OrgSetupWizard({
         >
           {STEP_SUBTITLES[state.step]}
         </motion.p>
-        {/* Chapter rule — accent stub + hairline */}
         <div className="absolute inset-x-0 bottom-0 flex items-center">
           <span className="h-px w-6 bg-[--accent]" />
           <span className="h-px flex-1 bg-border" />

@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import type { Org } from "@sportspulse/api-client";
-import { cn } from "@/lib/utils";
+import { cn } from "@sportspulse/ui";
 
 /**
  * Phase 0 — Select organisation. The single-select list maps directly

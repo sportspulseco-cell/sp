@@ -9,6 +9,9 @@ const api = createApi(apiFetch);
 export const iam = api.iam;
 export const orgs = api.orgs;
 export const leagueMgmt = api.leagueMgmt;
+// `admin.listSports()` is JwtAuthGuard'd (sports is public catalog
+// data); the OrgSetupWizard needs it to populate the sport picker.
+export const admin = api.admin;
 export const registration = api.registration;
 export const roster = api.roster;
 export const gameOps = api.gameOps;

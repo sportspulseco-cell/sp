@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Trophy } from "lucide-react";
+import { Wand2, Trophy } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -30,14 +30,14 @@ export default async function LeaguesPage() {
       <PageHeader
         eyebrow="// Leagues"
         title="Leagues"
-        description="Every league owned by your org. Add a league here; seasons + divisions still happen in the super-admin console for now."
+        description="Every league owned by your org. New leagues, seasons, and divisions are all created through Org setup."
         action={
           <Link
-            href="/leagues/new"
+            href="/org-setup"
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            New league
+            <Wand2 className="h-3.5 w-3.5" strokeWidth={2} />
+            Open org setup
           </Link>
         }
       />
@@ -45,7 +45,7 @@ export default async function LeaguesPage() {
         <EmptyState
           icon={Trophy}
           title="No leagues yet"
-          description="Create your first league to start setting up the season."
+          description="Head to Org setup to spin up your first league, season, and divisions in one flow."
         />
       ) : (
         <Table>

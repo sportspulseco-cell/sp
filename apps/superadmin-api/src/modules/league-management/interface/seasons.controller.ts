@@ -77,10 +77,13 @@ export class SeasonsController {
     });
   }
 
-  @Post() @ApiOperation({ summary: "Create a season" })
+  @Post()
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Create a season" })
   async create(
     @Body() body: CreateSeasonBodyDto,
-    @CurrentUser() user: AuthPrincipal
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
   ): Promise<SeasonDto> {
     // Resolve the parent league's orgId so the handler can store the
     // denormalised value on the season row. Trigger in migration 0015
@@ -91,6 +94,13 @@ export class SeasonsController {
       .where(eq(schema.leagues.id, body.leagueId))
       .limit(1);
     if (!league) throw new NotFoundException("League not found");
+    // Org-scope check for non-super_admin callers (org_admin via the
+    // org-setup wizard). 404 not 403 — don't leak existence.
+    if (!scope.isSuperAdmin && scope.orgIds !== null) {
+      if (!scope.orgIds.includes(league.orgId)) {
+        throw new NotFoundException("League not found");
+      }
+    }
     return this.createH.execute({
       leagueId: body.leagueId,
       orgId: league.orgId,

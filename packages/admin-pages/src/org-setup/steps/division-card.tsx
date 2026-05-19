@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@sportspulse/ui";
-import { cn } from "@/lib/utils";
+import { cn } from "@sportspulse/ui";
 import {
   TIEBREAKER_LABELS,
   type BodyChecking,

@@ -15,6 +15,7 @@ import {
   ScrollText,
   Trophy,
   Wallet,
+  Wand2,
   X,
   type LucideIcon
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/org-setup", label: "Org setup", icon: Wand2 },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/seasons", label: "Seasons", icon: CalendarRange },
   { href: "/divisions", label: "Divisions", icon: Layers },

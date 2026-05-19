@@ -40,7 +40,7 @@ import {
 @ApiTags("admin")
 @ApiBearerAuth()
 @Controller("admin")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+@UseGuards(JwtAuthGuard)
 export class AdminController {
   constructor(
     private readonly listSettingsH: ListSettingsHandler,
@@ -53,11 +53,12 @@ export class AdminController {
     private readonly healthH: HealthHandler
   ) {}
 
-  // ---- Settings ----
-  @Get("settings") list(@Query() q: ListSettingsQueryDto): Promise<SystemSettingDto[]> {
+  // ---- Settings (sa-only) ----
+  @Get("settings") @UseGuards(SuperAdminGuard)
+  list(@Query() q: ListSettingsQueryDto): Promise<SystemSettingDto[]> {
     return this.listSettingsH.execute(q);
   }
-  @Post("settings")
+  @Post("settings") @UseGuards(SuperAdminGuard)
   upsertSetting(
     @Body() body: UpsertSettingBodyDto,
     @CurrentUser() user: AuthPrincipal
@@ -68,11 +69,12 @@ export class AdminController {
     });
   }
 
-  // ---- Flags ----
-  @Get("flags") flags(): Promise<FeatureFlagDto[]> {
+  // ---- Flags (sa-only) ----
+  @Get("flags") @UseGuards(SuperAdminGuard)
+  flags(): Promise<FeatureFlagDto[]> {
     return this.listFlagsH.execute();
   }
-  @Post("flags")
+  @Post("flags") @UseGuards(SuperAdminGuard)
   upsertFlag(
     @Body() body: UpsertFlagBodyDto,
     @CurrentUser() user: AuthPrincipal
@@ -82,15 +84,19 @@ export class AdminController {
       updatedByUserId: user.userId
     });
   }
-  @Delete("flags/:key") deleteFlag(@Param("key") key: string) {
+  @Delete("flags/:key") @UseGuards(SuperAdminGuard)
+  deleteFlag(@Param("key") key: string) {
     return this.deleteFlagH.execute({ key });
   }
 
   // ---- Sports ----
+  // listSports is read-only public-catalog data (used by the shared
+  // OrgSetupWizard on every admin app) — JwtAuthGuard alone is fine.
+  // Mutations stay sa-only.
   @Get("sports") sports(): Promise<SportDto[]> {
     return this.listSportsH.execute();
   }
-  @Patch("sports/:code")
+  @Patch("sports/:code") @UseGuards(SuperAdminGuard)
   updateSport(
     @Param("code") code: string,
     @Body() body: UpdateSportBodyDto
@@ -98,8 +104,9 @@ export class AdminController {
     return this.updateSportH.execute({ code, ...body });
   }
 
-  // ---- Health ----
-  @Get("health") @ApiOperation({ summary: "Platform health check (db ping + module list)" })
+  // ---- Health (sa-only) ----
+  @Get("health") @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: "Platform health check (db ping + module list)" })
   health(): Promise<HealthDto> {
     return this.healthH.execute();
   }
