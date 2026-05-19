@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { RouteProgress } from "@sportspulse/ui";
+import { Heartbeat, RouteProgress } from "@sportspulse/ui";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,6 +37,7 @@ export default function RootLayout({
           <RouteProgress />
         </Suspense>
         {children}
+        <Heartbeat />
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft, Layers } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
 import type { Division, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -127,7 +127,7 @@ export function DivisionDetail({
         All divisions
       </Link>
 
-      <header className="flex items-start gap-5 border-b border-border pb-8">
+      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Layers} tint="cyan" size="lg" />
         <div className="space-y-2">
           <Eyebrow dot>DIVISION · {division.id.slice(0, 8)}</Eyebrow>
@@ -158,9 +158,9 @@ export function DivisionDetail({
             Edit in Org setup →
           </Link>
         ) : null}
-      </header>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Identity
         </p>
@@ -190,9 +190,9 @@ export function DivisionDetail({
             {division.status}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Game rules
           <span className="ml-2 normal-case text-fg">
@@ -229,9 +229,9 @@ export function DivisionDetail({
             {rules.gameRules?.maxRosterSize ?? "—"}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Tiebreaker order
         </p>
@@ -251,9 +251,9 @@ export function DivisionDetail({
         ) : (
           <p className="mt-2 text-[12px] text-fg-muted">Not configured.</p>
         )}
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Post-season
           <span className="ml-2 normal-case text-fg">
@@ -291,11 +291,11 @@ export function DivisionDetail({
             Playoffs disabled for this division.
           </p>
         )}
-      </section>
+      </Reveal>
 
       {pendingApplications}
 
-      <section className="rounded-xl border border-border bg-surface-1 p-6">
+      <Reveal as="section" delay={0.25} className="rounded-xl border border-border bg-surface-1 p-6">
         <Eyebrow>// teams registered in this division</Eyebrow>
         <p className="mt-1 text-[13px] text-fg-muted">
           Captains apply via{" "}
@@ -360,7 +360,7 @@ export function DivisionDetail({
             })}
           </ul>
         )}
-      </section>
+      </Reveal>
 
       {extras}
     </div>

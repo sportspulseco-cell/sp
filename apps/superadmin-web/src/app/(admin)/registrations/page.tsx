@@ -9,7 +9,7 @@ import {
 import type { PublicSeasonContext } from "@sportspulse/registration-funnel";
 import { ReviewQueue } from "@/components/registrations/review-queue";
 import { registration } from "@/lib/api/server-api";
-import { Reveal } from "@/components/motion/reveal";
+import { Reveal } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
   EkgLine,

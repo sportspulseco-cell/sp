@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Eyebrow } from "@sportspulse/ui";
+import { Eyebrow, Reveal } from "@sportspulse/ui";
 import type { AuditEvent } from "@sportspulse/api-client";
 
 function fmt(iso: string) {
@@ -39,7 +39,7 @@ export function AuditEventDetail({
         All audit events
       </Link>
 
-      <header className="space-y-2 border-b border-border pb-6">
+      <Reveal as="header" className="space-y-2 border-b border-border pb-6">
         <Eyebrow>AUDIT · {event.id.slice(0, 8)}</Eyebrow>
         <h1 className="font-mono text-[28px] font-semibold tracking-tight text-fg">
           {event.action}
@@ -54,9 +54,9 @@ export function AuditEventDetail({
           ) : null}
           <span className="ml-2 text-fg-muted">at {fmt(event.tsUtc)}</span>
         </p>
-      </header>
+      </Reveal>
 
-      <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <Reveal as="section" delay={0.05} className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <DetailRow label="Actor user" value={event.actorUserId} />
         <DetailRow label="On behalf of" value={event.onBehalfOfUserId} />
         <DetailRow label="Org" value={event.orgId} />
@@ -64,12 +64,12 @@ export function AuditEventDetail({
         <DetailRow label="IP" value={event.ipAddr} />
         <DetailRow label="User agent" value={event.userAgent} truncate />
         <DetailRow label="Retention class" value={event.retentionClass} />
-      </section>
+      </Reveal>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <Reveal as="section" delay={0.1} className="grid gap-6 lg:grid-cols-2">
         <DiffPanel title="Before" payload={event.before} />
         <DiffPanel title="After" payload={event.after} />
-      </section>
+      </Reveal>
     </div>
   );
 }

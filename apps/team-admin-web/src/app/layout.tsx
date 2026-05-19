@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { RouteProgress } from "@sportspulse/ui";
+import { Heartbeat, RouteProgress } from "@sportspulse/ui";
 import "./globals.css";
 
 const inter = Inter({
@@ -37,6 +37,7 @@ export default function RootLayout({
           <RouteProgress />
         </Suspense>
         {children}
+        <Heartbeat />
       </body>
     </html>
   );

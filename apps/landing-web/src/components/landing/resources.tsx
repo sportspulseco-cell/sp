@@ -12,7 +12,7 @@ import {
   GraduationCap
 } from "lucide-react";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Reveal } from "@/components/ui/reveal";
+import { Reveal } from "@sportspulse/ui";
 
 interface ResourceItem {
   title: string;

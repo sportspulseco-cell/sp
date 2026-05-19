@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/server-api";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Reveal } from "@/components/motion/reveal";
+import { Reveal } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
   EkgLine,

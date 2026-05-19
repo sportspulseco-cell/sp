@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Section } from "@/components/ui/section";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Reveal } from "@/components/ui/reveal";
+import { Reveal } from "@sportspulse/ui";
 import { cn } from "@/lib/utils";
 
 type Kid = "ALL" | "LEO" | "AVA" | "SAM";

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, RefreshCw } from "lucide-react";
 import { Section } from "@/components/ui/section";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Reveal } from "@/components/ui/reveal";
+import { Reveal } from "@sportspulse/ui";
 
 const BULLETS = [
   "98% automated collection rate",

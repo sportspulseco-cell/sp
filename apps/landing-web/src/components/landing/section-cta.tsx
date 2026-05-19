@@ -10,7 +10,7 @@ import {
   UsersRound
 } from "lucide-react";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Reveal } from "@/components/ui/reveal";
+import { Reveal } from "@sportspulse/ui";
 
 const SUPERADMIN = "https://sp-superadmin.vercel.app";
 const ORG_ADMIN = "https://sp-org-admin.vercel.app";

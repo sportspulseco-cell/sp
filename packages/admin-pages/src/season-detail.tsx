@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft, CalendarRange } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, Reveal } from "@sportspulse/ui";
 import type { Division, League, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -74,7 +74,7 @@ export function SeasonDetail({
         All seasons
       </Link>
 
-      <header className="flex items-start gap-5 border-b border-border pb-8">
+      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={CalendarRange} tint="violet" size="lg" />
         <div className="space-y-2">
           <Eyebrow dot>SEASON · {season.id.slice(0, 8)}</Eyebrow>
@@ -104,9 +104,9 @@ export function SeasonDetail({
             </Link>
           ) : null}
         </div>
-      </header>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Season identity
         </p>
@@ -128,9 +128,9 @@ export function SeasonDetail({
             {season.status.replace(/_/g, " ")}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Registration window
         </p>
@@ -145,9 +145,9 @@ export function SeasonDetail({
             {fmtDate(season.rosterLockAt)}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Eligibility &amp; roster rules
         </p>
@@ -184,9 +184,9 @@ export function SeasonDetail({
             {cfg.parentalConsentRequired ? "Yes" : "No"}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             // Divisions in this season
@@ -225,7 +225,7 @@ export function SeasonDetail({
             ))}
           </ul>
         )}
-      </section>
+      </Reveal>
 
       {extras}
     </div>

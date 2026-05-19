@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { MapPin } from "lucide-react";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Reveal } from "@/components/ui/reveal";
+import { Reveal } from "@sportspulse/ui";
 
 export interface TeamMember {
   id: string;

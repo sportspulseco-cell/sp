@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft, Network } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -45,7 +45,7 @@ export function TeamDetail({
         All teams
       </Link>
 
-      <header className="flex items-start gap-5 border-b border-border pb-8">
+      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Network} tint="rose" size="lg" />
         <div className="space-y-2">
           <Eyebrow dot>TEAM · {team.id.slice(0, 8)}</Eyebrow>
@@ -60,9 +60,9 @@ export function TeamDetail({
             </Badge>
           </div>
         </div>
-      </header>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Identity
         </p>
@@ -93,9 +93,9 @@ export function TeamDetail({
             {fmtCents(team.confirmationThresholdCents)}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Branding
         </p>
@@ -139,7 +139,7 @@ export function TeamDetail({
             </span>
           </Field>
         </div>
-      </section>
+      </Reveal>
 
       {extras}
     </div>

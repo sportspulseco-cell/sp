@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Reveal } from "@/components/motion/reveal";
+import { Reveal } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import { LiveDot, ScanSheen } from "@/components/motion/kinetic";
 

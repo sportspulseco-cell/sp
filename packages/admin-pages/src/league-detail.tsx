@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
 import type { League, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -73,7 +73,7 @@ export function LeagueDetail({
         All leagues
       </Link>
 
-      <header className="flex items-start gap-5 border-b border-border pb-8">
+      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Trophy} tint="amber" size="lg" />
         <div className="space-y-2">
           <Eyebrow dot>LEAGUE · {league.id.slice(0, 8)}</Eyebrow>
@@ -97,9 +97,9 @@ export function LeagueDetail({
             Edit in Org setup →
           </Link>
         ) : null}
-      </header>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Identity
         </p>
@@ -125,9 +125,9 @@ export function LeagueDetail({
             {league.status}
           </Field>
         </dl>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Branding
         </p>
@@ -164,9 +164,9 @@ export function LeagueDetail({
             </span>
           </Field>
         </div>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Privacy
         </p>
@@ -175,9 +175,9 @@ export function LeagueDetail({
             ? PRIVACY_LABEL[md.privacy] ?? md.privacy
             : "Not configured"}
         </p>
-      </section>
+      </Reveal>
 
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             // Seasons in this league
@@ -216,7 +216,7 @@ export function LeagueDetail({
             ))}
           </ul>
         )}
-      </section>
+      </Reveal>
 
       {extras}
     </div>
