@@ -126,14 +126,19 @@ export class CaptainDuesController {
         dueAt: schema.invoices.dueAt,
         firstName: schema.persons.legalFirstName,
         lastName: schema.persons.legalLastName,
-        captainUserIdForRow: schema.teams.captainUserId
+        preferredName: schema.persons.preferredName,
+        personUserId: schema.persons.userId,
+        profileDisplayName: schema.profiles.displayName
       })
       .from(schema.invoices)
       .leftJoin(
         schema.persons,
         eq(schema.persons.id, schema.invoices.recipientPersonId)
       )
-      .leftJoin(schema.teams, eq(schema.teams.id, teamId))
+      .leftJoin(
+        schema.profiles,
+        eq(schema.profiles.id, schema.persons.userId)
+      )
       .where(
         and(
           eq(schema.invoices.parentInvoiceId, masterInvoiceId),
@@ -158,15 +163,11 @@ export class CaptainDuesController {
       entryStatus: activeRow?.entryStatus ?? null,
       subInvoices: subs.map((s) => {
         const isCaptain =
-          s.recipientPersonId &&
-          s.captainUserIdForRow &&
-          // best-effort: persons.userId vs teams.captainUserId resolves
-          // captain-vs-player distinction. Currently a noop because we
-          // didn't select persons.userId — fall back to false.
-          false;
+          !!s.personUserId && s.personUserId === team.captainUserId;
         const owe = Math.max(0, s.totalCents - s.paidCents);
         const overdue =
           owe > 0 && !!s.dueAt && new Date(s.dueAt as unknown as string) < now;
+        const fullName = [s.firstName, s.lastName].filter(Boolean).join(" ");
         return {
           id: s.id,
           invoiceNumber: s.invoiceNumber,
@@ -180,7 +181,9 @@ export class CaptainDuesController {
           isOverdue: overdue,
           isCaptain,
           playerName:
-            [s.firstName, s.lastName].filter(Boolean).join(" ") ||
+            s.preferredName ||
+            fullName ||
+            s.profileDisplayName ||
             s.recipientEmail
         };
       })

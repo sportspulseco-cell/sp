@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CircleDollarSign,
@@ -35,6 +35,20 @@ export function DuesScreen({
   const [error, setError] = useState<string | null>(null);
   const [splitMode, setSplitMode] = useState<SplitMode>("even");
   const [includeCaptain, setIncludeCaptain] = useState(true);
+  // Per-row custom amount overrides (cents), keyed by sub-invoice id.
+  // Seeded from backend totals so editing starts from the current value.
+  const [customSplits, setCustomSplits] = useState<Record<string, number>>(
+    () => Object.fromEntries(initial.subInvoices.map((s) => [s.id, s.totalCents]))
+  );
+  useEffect(() => {
+    setCustomSplits((prev) => {
+      const next = { ...prev };
+      for (const s of data.subInvoices) {
+        if (next[s.id] === undefined) next[s.id] = s.totalCents;
+      }
+      return next;
+    });
+  }, [data.subInvoices]);
 
   const currency = data.subInvoices[0]?.currency ?? "USD";
   const outstanding = Math.max(0, data.totalCents - data.collectedCents);
@@ -52,6 +66,29 @@ export function DuesScreen({
     if (includeCaptain) return data.subInvoices;
     return data.subInvoices.filter((r) => !r.isCaptain);
   }, [data.subInvoices, includeCaptain]);
+
+  // Even-split share: total divided over visible rows. Remainder cents
+  // go to the first row so the splits sum exactly to the master total.
+  const evenShares = useMemo(() => {
+    const n = visibleRows.length;
+    if (n === 0) return {} as Record<string, number>;
+    const base = Math.floor(data.totalCents / n);
+    const remainder = data.totalCents - base * n;
+    const out: Record<string, number> = {};
+    visibleRows.forEach((r, i) => {
+      out[r.id] = base + (i === 0 ? remainder : 0);
+    });
+    return out;
+  }, [visibleRows, data.totalCents]);
+
+  function displayedSplit(id: string, fallbackCents: number): number {
+    if (splitMode === "even") return evenShares[id] ?? 0;
+    return customSplits[id] ?? fallbackCents;
+  }
+
+  function setCustomSplitFor(id: string, cents: number) {
+    setCustomSplits((prev) => ({ ...prev, [id]: Math.max(0, cents) }));
+  }
 
   async function refresh() {
     try {
@@ -334,6 +371,8 @@ export function DuesScreen({
                   sub={s}
                   currency={currency}
                   splitDisabled={splitMode !== "custom"}
+                  splitCents={displayedSplit(s.id, s.totalCents)}
+                  onSplitChange={(cents) => setCustomSplitFor(s.id, cents)}
                   busy={busy === s.id}
                   onRemind={() => remindOne(s)}
                 />
@@ -350,12 +389,16 @@ function PlayerRow({
   sub,
   currency,
   splitDisabled,
+  splitCents,
+  onSplitChange,
   busy,
   onRemind
 }: {
   sub: SubInvoice;
   currency: string;
   splitDisabled: boolean;
+  splitCents: number;
+  onSplitChange: (cents: number) => void;
   busy: boolean;
   onRemind: () => void;
 }) {
@@ -396,8 +439,18 @@ function PlayerRow({
       <td className="px-3 py-3 text-right">
         <input
           type="number"
+          step="0.01"
+          min={0}
           readOnly={splitDisabled}
-          value={(sub.totalCents / 100).toFixed(2)}
+          value={(splitCents / 100).toFixed(2)}
+          onChange={(e) => {
+            const dollars = parseFloat(e.target.value);
+            if (Number.isFinite(dollars)) {
+              onSplitChange(Math.round(dollars * 100));
+            } else {
+              onSplitChange(0);
+            }
+          }}
           className={[
             "h-8 w-24 rounded-md border border-border bg-bg px-2 text-right font-mono tabular-nums text-fg focus:border-accent focus:outline-none",
             splitDisabled && "cursor-not-allowed opacity-70"
