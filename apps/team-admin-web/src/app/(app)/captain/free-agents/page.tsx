@@ -20,9 +20,21 @@ export const metadata = { title: "Free agents — SportsPulse" };
 
 const LEVEL_COPY: Record<string, string> = {
   A: "Elite",
-  B: "Competitive",
+  B: "Intermediate",
+  C1: "Rec — experienced",
+  C2: "Rec — improving",
+  C3: "Rec — beginner",
+  // Legacy values from the original C/D enum — kept so historical pool
+  // rows still render a label instead of a raw code.
   C: "Recreational",
   D: "Beginner"
+};
+const POSITION_LABEL: Record<string, string> = {
+  C: "Center",
+  LW: "Left Wing",
+  RW: "Right Wing",
+  D: "Defense",
+  G: "Goalie"
 };
 const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -137,7 +149,7 @@ export default async function CaptainFreeAgentsPage() {
                   <TD>
                     {e.positions.map((p: string) => (
                       <Badge key={p} mono tone="info" className="mr-1">
-                        {p}
+                        {POSITION_LABEL[p] ?? p}
                       </Badge>
                     ))}
                   </TD>

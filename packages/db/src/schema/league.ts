@@ -213,6 +213,15 @@ export const seasons = pgTable(
       .references(() => sports.code),
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
+    /**
+     * Playoff window — both optional for seasons that don't run a
+     * separate post-season. When set, the org-setup wizard + the API
+     * enforce: startDate ≤ playoffStartDate ≤ playoffEndDate ≤ endDate.
+     * The day before playoffStartDate is the implicit "regular season
+     * finale" so admins don't have to track a fourth date.
+     */
+    playoffStartDate: date("playoff_start_date"),
+    playoffEndDate: date("playoff_end_date"),
     registrationOpensAt: timestamp("registration_opens_at", {
       withTimezone: true
     }),
@@ -267,6 +276,20 @@ export const seasons = pgTable(
     datesCheck: check(
       "season_dates_check",
       sql`${t.endDate} >= ${t.startDate}`
+    ),
+    playoffDatesCheck: check(
+      "season_playoff_dates_check",
+      sql`(
+        ${t.playoffStartDate} IS NULL
+        OR (${t.playoffStartDate} >= ${t.startDate} AND ${t.playoffStartDate} <= ${t.endDate})
+      ) AND (
+        ${t.playoffEndDate} IS NULL
+        OR (${t.playoffEndDate} >= ${t.startDate} AND ${t.playoffEndDate} <= ${t.endDate})
+      ) AND (
+        ${t.playoffStartDate} IS NULL
+        OR ${t.playoffEndDate} IS NULL
+        OR ${t.playoffEndDate} >= ${t.playoffStartDate}
+      )`
     ),
     orgIdx: index("season_org_idx").on(t.orgId),
     sportIdx: index("season_sport_idx").on(t.sportCode),

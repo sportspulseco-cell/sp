@@ -19,6 +19,10 @@ export interface SeasonSnapshot {
   registrationOpensAt: Date | null;
   registrationClosesAt: Date | null;
   rosterLockAt: Date | null;
+  /** Optional playoff window (date-only, no time). Controller enforces
+   *  the cross-field check; entity just persists. */
+  playoffStartDate: string | null;
+  playoffEndDate: string | null;
   timezone: string;
   status: SeasonStatus;
   metadata: Record<string, unknown>;
@@ -41,6 +45,8 @@ export class Season extends AggregateRoot<SeasonId> {
     private _registrationOpensAt: Date | null,
     private _registrationClosesAt: Date | null,
     private _rosterLockAt: Date | null,
+    private _playoffStartDate: string | null,
+    private _playoffEndDate: string | null,
     private _timezone: string,
     private _status: SeasonStatus,
     private _metadata: Record<string, unknown>,
@@ -83,6 +89,8 @@ export class Season extends AggregateRoot<SeasonId> {
       null,
       null,
       null,
+      null,
+      null,
       input.timezone ?? "UTC",
       "draft",
       {},
@@ -104,6 +112,8 @@ export class Season extends AggregateRoot<SeasonId> {
       s.registrationOpensAt,
       s.registrationClosesAt,
       s.rosterLockAt,
+      s.playoffStartDate,
+      s.playoffEndDate,
       s.timezone,
       assertSeasonStatus(s.status),
       s.metadata,
@@ -150,6 +160,32 @@ export class Season extends AggregateRoot<SeasonId> {
     this._touch();
   }
 
+  setPlayoffWindow(start: string | null, end: string | null): void {
+    if ((start && !end) || (!start && end)) {
+      throw new DomainError(
+        "INVALID_PLAYOFF_WINDOW",
+        "Both playoff dates required when one is set"
+      );
+    }
+    if (start && end) {
+      if (end < start) {
+        throw new DomainError(
+          "INVALID_PLAYOFF_WINDOW",
+          "Playoff end must be on or after start"
+        );
+      }
+      if (start < this._startDate || end > this._endDate) {
+        throw new DomainError(
+          "INVALID_PLAYOFF_WINDOW",
+          "Playoff window must sit inside the season window"
+        );
+      }
+    }
+    this._playoffStartDate = start;
+    this._playoffEndDate = end;
+    this._touch();
+  }
+
   setTimezone(tz: string): void {
     if (!tz) throw new DomainError("INVALID_TIMEZONE", "Timezone required");
     this._timezone = tz;
@@ -187,6 +223,8 @@ export class Season extends AggregateRoot<SeasonId> {
   get registrationOpensAt(): Date | null { return this._registrationOpensAt; }
   get registrationClosesAt(): Date | null { return this._registrationClosesAt; }
   get rosterLockAt(): Date | null { return this._rosterLockAt; }
+  get playoffStartDate(): string | null { return this._playoffStartDate; }
+  get playoffEndDate(): string | null { return this._playoffEndDate; }
   get timezone(): string { return this._timezone; }
   get status(): SeasonStatus { return this._status; }
   get metadata(): Record<string, unknown> { return this._metadata; }
@@ -206,6 +244,8 @@ export class Season extends AggregateRoot<SeasonId> {
       registrationOpensAt: this._registrationOpensAt,
       registrationClosesAt: this._registrationClosesAt,
       rosterLockAt: this._rosterLockAt,
+      playoffStartDate: this._playoffStartDate,
+      playoffEndDate: this._playoffEndDate,
       timezone: this._timezone,
       status: this._status,
       metadata: this._metadata,

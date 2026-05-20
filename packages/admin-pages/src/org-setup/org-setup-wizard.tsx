@@ -67,6 +67,8 @@ function defaultSeasonDraft(): SeasonDraft {
     name: "",
     startDate: "",
     endDate: "",
+    playoffStartDate: "",
+    playoffEndDate: "",
     registrationOpensAt: "",
     registrationClosesAt: "",
     rosterLockAt: ""
@@ -114,6 +116,8 @@ export function OrgSetupWizard({
     sportCode: string;
     startDate: string;
     endDate: string;
+    playoffStartDate: string | null;
+    playoffEndDate: string | null;
     timezone: string;
     registrationOpensAt: string | null;
     registrationClosesAt: string | null;
@@ -199,15 +203,30 @@ export function OrgSetupWizard({
         !!state.league.sportCode &&
         !!state.league.format &&
         !!state.league.timezone,
-      3:
-        state.season.name.trim().length > 0 &&
-        isFutureOrToday(state.season.startDate) &&
-        isFutureOrToday(state.season.endDate) &&
-        state.season.endDate >= state.season.startDate &&
-        isFutureOrToday(state.season.registrationOpensAt) &&
-        isFutureOrToday(state.season.registrationClosesAt) &&
-        state.season.registrationClosesAt >= state.season.registrationOpensAt &&
-        (!state.season.rosterLockAt || state.season.rosterLockAt >= today),
+      3: (() => {
+        const s = state.season;
+        if (s.name.trim().length === 0) return false;
+        if (!isFutureOrToday(s.startDate)) return false;
+        if (!isFutureOrToday(s.endDate)) return false;
+        if (s.endDate < s.startDate) return false;
+        if (!isFutureOrToday(s.registrationOpensAt)) return false;
+        if (!isFutureOrToday(s.registrationClosesAt)) return false;
+        if (s.registrationClosesAt < s.registrationOpensAt) return false;
+        if (s.rosterLockAt && s.rosterLockAt < today) return false;
+        // Playoff dates are optional, but if one is set, both must be
+        // set and they must sit inside the season window with start <=
+        // end. The day before playoffStartDate is the implicit
+        // "regular season finale", so we don't ask the admin for a
+        // separate finale date.
+        const hasAnyPlayoff = !!s.playoffStartDate || !!s.playoffEndDate;
+        if (hasAnyPlayoff) {
+          if (!s.playoffStartDate || !s.playoffEndDate) return false;
+          if (s.playoffStartDate < s.startDate) return false;
+          if (s.playoffEndDate > s.endDate) return false;
+          if (s.playoffEndDate < s.playoffStartDate) return false;
+        }
+        return true;
+      })(),
       4:
         state.divisions.length > 0 &&
         state.divisions.every((d) => d.name.trim().length > 0)
@@ -260,6 +279,8 @@ export function OrgSetupWizard({
         sportCode: state.league.sportCode,
         startDate: state.season.startDate,
         endDate: state.season.endDate,
+        playoffStartDate: state.season.playoffStartDate || null,
+        playoffEndDate: state.season.playoffEndDate || null,
         timezone: state.league.timezone,
         registrationOpensAt: state.season.registrationOpensAt
           ? new Date(state.season.registrationOpensAt + "T00:00:00").toISOString()

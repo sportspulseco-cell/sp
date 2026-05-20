@@ -80,6 +80,8 @@ export class DrizzleSeasonRepository implements SeasonRepository {
       sportCode: x.sportCode,
       startDate: x.startDate,
       endDate: x.endDate,
+      playoffStartDate: x.playoffStartDate,
+      playoffEndDate: x.playoffEndDate,
       registrationOpensAt: x.registrationOpensAt,
       registrationClosesAt: x.registrationClosesAt,
       rosterLockAt: x.rosterLockAt,
@@ -98,6 +100,8 @@ export class DrizzleSeasonRepository implements SeasonRepository {
         name: x.name,
         startDate: x.startDate,
         endDate: x.endDate,
+        playoffStartDate: x.playoffStartDate,
+        playoffEndDate: x.playoffEndDate,
         registrationOpensAt: x.registrationOpensAt,
         registrationClosesAt: x.registrationClosesAt,
         rosterLockAt: x.rosterLockAt,
@@ -128,6 +132,12 @@ export class DrizzleSeasonRepository implements SeasonRepository {
       registrationOpensAt: r.registrationOpensAt,
       registrationClosesAt: r.registrationClosesAt,
       rosterLockAt: r.rosterLockAt,
+      playoffStartDate: r.playoffStartDate
+        ? isoDate(r.playoffStartDate as unknown as string)
+        : null,
+      playoffEndDate: r.playoffEndDate
+        ? isoDate(r.playoffEndDate as unknown as string)
+        : null,
       timezone: r.timezone,
       status: r.status as never,
       metadata: r.metadata as Record<string, unknown>,

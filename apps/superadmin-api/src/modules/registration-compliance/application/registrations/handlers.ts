@@ -344,7 +344,7 @@ export class ReviewRegistrationHandler
       // pool entry.
       if (
         skillLevel &&
-        ["A", "B", "C", "D"].includes(skillLevel) &&
+        ["A", "B", "C1", "C2", "C3"].includes(skillLevel) &&
         positions.length > 0
       ) {
         await this.regV2.upsertFreeAgentEntry({

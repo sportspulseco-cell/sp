@@ -125,6 +125,10 @@ export interface CreateSeasonInput {
   sportCode: string;
   startDate: string;
   endDate: string;
+  /** Optional playoff window. Controller already ran the cross-field
+   *  check; here we just persist the values via the repository. */
+  playoffStartDate?: string | null;
+  playoffEndDate?: string | null;
   timezone?: string;
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
@@ -162,6 +166,12 @@ export class CreateSeasonHandler
     if (input.rosterLockAt !== undefined) {
       season.setRosterLock(
         input.rosterLockAt ? new Date(input.rosterLockAt) : null
+      );
+    }
+    if (input.playoffStartDate !== undefined || input.playoffEndDate !== undefined) {
+      season.setPlayoffWindow(
+        input.playoffStartDate ?? null,
+        input.playoffEndDate ?? null
       );
     }
     await this.seasons.insert(season);

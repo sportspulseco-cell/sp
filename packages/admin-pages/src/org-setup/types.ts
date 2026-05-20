@@ -60,6 +60,14 @@ export interface SeasonDraft {
   name: string;
   startDate: string;
   endDate: string;
+  /**
+   * Playoff window. Both optional; when one is set, both must be set
+   * and must satisfy startDate ≤ playoffStartDate ≤ playoffEndDate ≤
+   * endDate. Empty string = unset. The day before playoffStartDate is
+   * the implicit "regular season finale" — no separate field.
+   */
+  playoffStartDate: string;
+  playoffEndDate: string;
   registrationOpensAt: string;
   registrationClosesAt: string;
   rosterLockAt: string;

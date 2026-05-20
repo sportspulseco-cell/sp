@@ -39,9 +39,9 @@ class UpsertFreeAgentBodyDto {
   @ApiProperty({ type: [String] }) @IsArray() @IsString({ each: true })
   positions!: string[];
   @ApiPropertyOptional() @IsOptional() availability?: Record<string, unknown>;
-  @ApiProperty({ enum: ["A", "B", "C", "D"] })
-  @IsIn(["A", "B", "C", "D"])
-  levelPrimary!: "A" | "B" | "C" | "D";
+  @ApiProperty({ enum: ["A", "B", "C1", "C2", "C3"] })
+  @IsIn(["A", "B", "C1", "C2", "C3"])
+  levelPrimary!: "A" | "B" | "C1" | "C2" | "C3";
   @ApiPropertyOptional({ type: [String] })
   @IsOptional() @IsArray() @IsString({ each: true })
   levelFlexibility?: string[];

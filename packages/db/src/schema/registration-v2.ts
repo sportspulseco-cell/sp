@@ -351,9 +351,14 @@ export const freeAgentPoolEntries = pgTable(
       "fa_pool_status_check",
       sql`${t.status} IN ('active','placed','withdrawn')`
     ),
+    // Allowed skill levels per the 2026-05 spec: A (elite),
+    // B (intermediate), C1/C2/C3 (recreational tiers — experienced /
+    // improving / beginner). Legacy "C" and "D" stay accepted so we
+    // can backfill historical rows in a follow-up; new writes from
+    // the funnel + player-web use only the five canonical codes.
     levelCheck: check(
       "fa_pool_level_check",
-      sql`${t.levelPrimary} IN ('A','B','C','D')`
+      sql`${t.levelPrimary} IN ('A','B','C','C1','C2','C3','D')`
     )
   })
 );

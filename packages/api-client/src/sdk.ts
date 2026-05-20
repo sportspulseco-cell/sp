@@ -1295,6 +1295,10 @@ export function createApi(f: Fetcher) {
         sportCode: string;
         startDate: string;
         endDate: string;
+        /** Optional playoff window; must satisfy
+         *  startDate <= playoffStartDate <= playoffEndDate <= endDate. */
+        playoffStartDate?: string | null;
+        playoffEndDate?: string | null;
         timezone?: string;
         registrationOpensAt?: string | null;
         registrationClosesAt?: string | null;
@@ -2202,7 +2206,7 @@ export function createApi(f: Fetcher) {
         seasonId: string;
         positions: string[];
         availability?: Record<string, unknown>;
-        levelPrimary: "A" | "B" | "C" | "D";
+        levelPrimary: "A" | "B" | "C1" | "C2" | "C3";
         levelFlexibility?: string[];
         note?: string;
       }) =>

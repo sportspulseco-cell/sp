@@ -1926,12 +1926,11 @@ function QuestionsStep({
     });
   }
 
-  function setPositionsCsv(csv: string) {
-    const arr = csv
-      .split(",")
-      .map((s) => s.trim().toUpperCase())
-      .filter((s) => s.length > 0);
-    patchAnswers({ positions: arr });
+  function togglePosition(code: string) {
+    const has = positions.includes(code);
+    patchAnswers({
+      positions: has ? positions.filter((p) => p !== code) : [...positions, code]
+    });
   }
 
   const playerProfileValid =
@@ -2020,7 +2019,7 @@ function QuestionsStep({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
               label="Skill level *"
-              hint="A = Elite · B = Competitive · C = Recreational · D = Beginner"
+              hint="A = elite / competitive · B = intermediate · C1 = experienced rec · C2 = improving novice · C3 = beginner"
             >
               <select
                 value={skillLevel}
@@ -2029,22 +2028,44 @@ function QuestionsStep({
                 className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent"
               >
                 <option value="">Pick a level…</option>
-                <option value="A">A — Elite</option>
-                <option value="B">B — Competitive</option>
-                <option value="C">C — Recreational</option>
-                <option value="D">D — Beginner</option>
+                <option value="A">A — Elite / competitive</option>
+                <option value="B">B — Intermediate</option>
+                <option value="C1">C1 — Experienced recreational</option>
+                <option value="C2">C2 — Improving / novice</option>
+                <option value="C3">C3 — Beginner</option>
               </select>
             </Field>
             <Field
               label="Preferred positions *"
-              hint="Comma-separated codes, e.g. F, D, G (hockey) or GK, DF, MF, FW (soccer). Order = preference."
+              hint="Tick every position you'd play. Captains see all your picks."
             >
-              <Input
-                value={positions.join(", ")}
-                onChange={(e) => setPositionsCsv(e.target.value)}
-                placeholder="F, D"
-                required
-              />
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { code: "C", label: "Center" },
+                    { code: "LW", label: "Left Wing" },
+                    { code: "RW", label: "Right Wing" },
+                    { code: "D", label: "Defense" },
+                    { code: "G", label: "Goalie" }
+                  ] as const
+                ).map((pos) => {
+                  const on = positions.includes(pos.code);
+                  return (
+                    <button
+                      key={pos.code}
+                      type="button"
+                      onClick={() => togglePosition(pos.code)}
+                      className={
+                        on
+                          ? "h-9 rounded-md border border-accent bg-accent/10 px-3 text-[12px] font-medium text-accent"
+                          : "h-9 rounded-md border border-border bg-bg-subtle px-3 text-[12px] font-medium text-fg-muted hover:border-border-strong hover:text-fg"
+                      }
+                    >
+                      {pos.label}
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
           </div>
           <div className="mt-4">

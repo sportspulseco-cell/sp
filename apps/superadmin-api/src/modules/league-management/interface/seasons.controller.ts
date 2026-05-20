@@ -11,7 +11,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
-import { Inject, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, NotFoundException } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -101,6 +101,33 @@ export class SeasonsController {
         throw new NotFoundException("League not found");
       }
     }
+    // Cross-field playoff window check. Individual @IsFutureOrToday
+    // already runs on each date; here we verify the order. Throws a
+    // 400 so the wizard's error pane surfaces a clean message.
+    const ps = body.playoffStartDate ?? null;
+    const pe = body.playoffEndDate ?? null;
+    if ((ps && !pe) || (!ps && pe)) {
+      throw new BadRequestException(
+        "Both playoff start and end dates are required when one is set."
+      );
+    }
+    if (ps && pe) {
+      if (ps < body.startDate) {
+        throw new BadRequestException(
+          "Playoff start must be on or after the season start."
+        );
+      }
+      if (pe > body.endDate) {
+        throw new BadRequestException(
+          "Playoff end must be on or before the season end."
+        );
+      }
+      if (pe < ps) {
+        throw new BadRequestException(
+          "Playoff end must be on or after the playoff start."
+        );
+      }
+    }
     return this.createH.execute({
       leagueId: body.leagueId,
       orgId: league.orgId,
@@ -108,6 +135,8 @@ export class SeasonsController {
       sportCode: body.sportCode,
       startDate: body.startDate,
       endDate: body.endDate,
+      playoffStartDate: ps,
+      playoffEndDate: pe,
       timezone: body.timezone,
       registrationOpensAt: body.registrationOpensAt,
       registrationClosesAt: body.registrationClosesAt,

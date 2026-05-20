@@ -55,6 +55,13 @@ export class CreateSeasonBodyDto {
   @IsDateString() @IsFutureOrToday() startDate!: string;
   @ApiProperty({ description: "ISO date YYYY-MM-DD" })
   @IsDateString() @IsFutureOrToday() endDate!: string;
+  /** Optional playoff window. Cross-field check
+   *  (startDate ≤ playoffStartDate ≤ playoffEndDate ≤ endDate)
+   *  runs in the handler — DTOs validate fields individually. */
+  @ApiPropertyOptional({ description: "ISO date YYYY-MM-DD" })
+  @IsOptional() @IsDateString() @IsFutureOrToday() playoffStartDate?: string | null;
+  @ApiPropertyOptional({ description: "ISO date YYYY-MM-DD" })
+  @IsOptional() @IsDateString() @IsFutureOrToday() playoffEndDate?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() timezone?: string;
   @ApiPropertyOptional({ description: "ISO timestamp" })
   @IsOptional() @IsDateString() @IsFutureOrToday() registrationOpensAt?: string | null;

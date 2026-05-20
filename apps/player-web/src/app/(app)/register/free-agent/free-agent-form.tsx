@@ -7,17 +7,22 @@ import { Badge, Button } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
 import { registrationV2 } from "@/lib/api/browser-api";
 
+type SkillLevel = "A" | "B" | "C1" | "C2" | "C3";
+
 const POSITIONS: { value: string; label: string }[] = [
-  { value: "forward", label: "Forward" },
-  { value: "defense", label: "Defense" },
-  { value: "goalie", label: "Goalie" }
+  { value: "C", label: "Center" },
+  { value: "LW", label: "Left Wing" },
+  { value: "RW", label: "Right Wing" },
+  { value: "D", label: "Defense" },
+  { value: "G", label: "Goalie" }
 ];
 
-const LEVELS: { value: "A" | "B" | "C" | "D"; label: string; hint: string }[] = [
-  { value: "A", label: "Elite", hint: "Junior / college / former pro" },
-  { value: "B", label: "Competitive", hint: "Travel + adult competitive league" },
-  { value: "C", label: "Recreational", hint: "Casual league regular" },
-  { value: "D", label: "Beginner", hint: "Just learning the game" }
+const LEVELS: { value: SkillLevel; label: string; hint: string }[] = [
+  { value: "A", label: "Elite / competitive", hint: "Junior / college / former pro" },
+  { value: "B", label: "Intermediate", hint: "Solid fundamentals + travel experience" },
+  { value: "C1", label: "Rec — experienced", hint: "Years of play; prefers intermediate pace" },
+  { value: "C2", label: "Rec — improving", hint: "Novice / intermediate learning the game" },
+  { value: "C3", label: "Rec — beginner", hint: "Just learning to skate + play" }
 ];
 
 const DAYS = [
@@ -56,7 +61,7 @@ export function FreeAgentForm({
   const placed = existing?.status === "placed";
 
   const [positions, setPositions] = useState<string[]>([]);
-  const [levelPrimary, setLevelPrimary] = useState<"A" | "B" | "C" | "D">("C");
+  const [levelPrimary, setLevelPrimary] = useState<SkillLevel>("C2");
   const [flex, setFlex] = useState<string[]>([]);
   const [availability, setAvailability] = useState<Availability>({});
   const [note, setNote] = useState("");
@@ -68,15 +73,18 @@ export function FreeAgentForm({
   useEffect(() => {
     if (!existing) {
       setPositions([]);
-      setLevelPrimary("C");
+      setLevelPrimary("C2");
       setFlex([]);
       setAvailability({});
       setNote("");
       return;
     }
     setPositions(existing.positions ?? []);
+    // Legacy "C" → "C2" so old entries still land on a valid level.
     setLevelPrimary(
-      (existing.levelPrimary as "A" | "B" | "C" | "D") ?? "C"
+      existing.levelPrimary === "C"
+        ? "C2"
+        : ((existing.levelPrimary as SkillLevel) ?? "C2")
     );
     setFlex(existing.levelFlexibility ?? []);
     setAvailability(

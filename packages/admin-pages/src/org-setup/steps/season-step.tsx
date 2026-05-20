@@ -22,6 +22,16 @@ function todayIso(): string {
   return `${y}-${m}-${day}`;
 }
 
+function dayBefore(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() - 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Phase 2 — Season identity. Season fields are required; the read-only
  * "season window" summary at the bottom mirrors the dates in plain
@@ -174,6 +184,42 @@ export function SeasonStep({
               className="input"
             />
           </Field>
+
+          <Field
+            label="Playoff start date"
+            schemaTag="seasons.playoffStartDate"
+            hint="When playoffs begin. The day before is the implicit regular-season finale. Optional — leave blank for seasons with no separate playoff."
+          >
+            <input
+              type="date"
+              value={draft.playoffStartDate}
+              onChange={(e) =>
+                onChange({ playoffStartDate: e.target.value })
+              }
+              min={draft.startDate || today}
+              max={draft.endDate || undefined}
+              className="input"
+            />
+          </Field>
+
+          <Field
+            label="Playoff end date"
+            schemaTag="seasons.playoffEndDate"
+            hint="Last playoff game. Must be on or before the season end date."
+          >
+            <input
+              type="date"
+              value={draft.playoffEndDate}
+              onChange={(e) =>
+                onChange({ playoffEndDate: e.target.value })
+              }
+              min={
+                draft.playoffStartDate || draft.startDate || today
+              }
+              max={draft.endDate || undefined}
+              className="input"
+            />
+          </Field>
         </div>
       </section>
 
@@ -191,6 +237,24 @@ export function SeasonStep({
           <SummaryRow
             label="Playing window"
             value={`${fmt(draft.startDate)} → ${fmt(draft.endDate)}`}
+          />
+          <SummaryRow
+            label="Regular season finale"
+            value={
+              draft.playoffStartDate
+                ? fmt(dayBefore(draft.playoffStartDate))
+                : draft.endDate
+                  ? fmt(draft.endDate)
+                  : "—"
+            }
+          />
+          <SummaryRow
+            label="Playoff window"
+            value={
+              draft.playoffStartDate || draft.playoffEndDate
+                ? `${fmt(draft.playoffStartDate)} → ${fmt(draft.playoffEndDate)}`
+                : "—"
+            }
           />
           <SummaryRow
             label="Roster lock"
