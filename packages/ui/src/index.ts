@@ -11,6 +11,8 @@ export * from "./skeleton";
 export * from "./table";
 export * from "./phase-progress";
 export * from "./stat-number";
+export * from "./stat-tile";
+export * from "./section-rail";
 export * from "./card";
 export * from "./route-progress";
 export * from "./reveal";

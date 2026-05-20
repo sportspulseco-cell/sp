@@ -5,6 +5,7 @@ import { LogOut, Menu, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useNav } from "./nav-context";
 import { OrgSwitcher } from "./org-switcher";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export function TopBar({
   email,
@@ -50,6 +51,7 @@ export function TopBar({
       </div>
       <div className="flex items-center gap-3">
         <OrgSwitcher orgs={orgs} activeOrgId={activeOrgId} />
+        <ThemeToggle />
         <div className="hidden text-right sm:block">
           <p className="text-[13px] font-medium leading-none text-fg">
             {displayName ?? email}
