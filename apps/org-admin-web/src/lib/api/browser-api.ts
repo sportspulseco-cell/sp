@@ -21,11 +21,19 @@ function redirectToSignIn(reason: "session_expired" | "signed_out") {
  * with inline scope checks; rewriting here keeps the shared package
  * URL-agnostic.
  *
- * Reads on /league/seasons, /league/divisions, /orgs/:id stay on
- * their original paths (already AuthorizedAccessGuard).
+ * Method-aware for /league/seasons:
+ *   - GET reads use the original path (AuthorizedAccessGuard already
+ *     gates org-admin into their own seasons).
+ *   - PATCH (and PUT) writes get redirected to /org-admin/seasons/:id
+ *     so the proxy controller's @AllowScopedWrite + assertScope can
+ *     run. Without this redirect, the Divisions & eligibility tab's
+ *     "Save eligibility rules" save bombs with "Write operations
+ *     require super_admin" (caught 2026-05-20).
+ *
+ * Reads on /league/divisions, /orgs/:id stay on their original paths.
  */
-function rewriteForOrgAdmin(path: string): string {
-  return path
+function rewriteForOrgAdmin(path: string, method: string): string {
+  let out = path
     .replace(/^\/registration\/forms\b/, "/org-admin/forms")
     .replace(/^\/registration-v2\/pricing-tiers\b/, "/org-admin/pricing-tiers")
     .replace(/^\/registration-v2\/email-templates\b/, "/org-admin/email-templates")
@@ -33,6 +41,22 @@ function rewriteForOrgAdmin(path: string): string {
       /^\/registration-v2\/pricing-tier-divisions\b/,
       "/org-admin/pricing-tier-divisions"
     );
+
+  // Season config patches — this path is mutation-only, always proxy.
+  out = out.replace(
+    /^\/league\/seasons\/([^/?]+)\/config\b/,
+    "/org-admin/seasons/$1/config"
+  );
+
+  // Bare season PATCH (rosterLockAt, name, dates). Only mutating
+  // requests; the GET /league/seasons/:id read path stays put.
+  if (
+    (method === "PATCH" || method === "PUT") &&
+    /^\/league\/seasons\/[^/?]+(\?|$)/.test(out)
+  ) {
+    out = out.replace(/^\/league\/seasons/, "/org-admin/seasons");
+  }
+  return out;
 }
 
 async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
@@ -45,7 +69,8 @@ async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<
     throw new Error("Not authenticated");
   }
 
-  const finalPath = rewriteForOrgAdmin(path);
+  const method = ((init?.method ?? "GET") + "").toUpperCase();
+  const finalPath = rewriteForOrgAdmin(path, method);
   const hasBody = init?.body !== undefined && init.body !== null;
   const res = await fetch(`${API}${finalPath}`, {
     ...init,

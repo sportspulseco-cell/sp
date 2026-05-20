@@ -35,6 +35,8 @@ import {
   UpdateFormBodyDto,
   CreateFormVersionBodyDto
 } from "../../registration-compliance/interface/dto/registration.dto";
+import { UpdateSeasonHandler } from "../../league-management/application/seasons/handlers";
+import { UpdateSeasonBodyDto } from "../../league-management/interface/dto/season.dto";
 import {
   CreatePricingTierBodyDto,
   UpdatePricingTierBodyDto
@@ -73,7 +75,8 @@ export class OrgAdminFormBuilderController {
     private readonly createFormH: CreateFormHandler,
     private readonly updateFormH: UpdateFormHandler,
     private readonly createVersionH: CreateFormVersionHandler,
-    private readonly publishVersionH: PublishFormVersionHandler
+    private readonly publishVersionH: PublishFormVersionHandler,
+    private readonly updateSeasonH: UpdateSeasonHandler
   ) {}
 
   // ----- forms -----
@@ -398,6 +401,56 @@ export class OrgAdminFormBuilderController {
         .from(schema.pricingTierDivisions)
         .where(eq(schema.pricingTierDivisions.pricingTierId, tierId));
     });
+  }
+
+  // ----- seasons (form-builder Divisions tab writes) -----
+
+  @Patch("seasons/:id")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Update a season's metadata (org-admin scoped). Delegates to the league-management UpdateSeasonHandler after scope-checking the season's org."
+  })
+  async updateSeason(
+    @Param("id") id: string,
+    @Body() body: UpdateSeasonBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    const season = await this.loadSeason(id);
+    await this.assertScope(user, season.orgId);
+    return this.updateSeasonH.execute({ id, ...body });
+  }
+
+  @Patch("seasons/:id/config")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Patch the season's per-season config JSONB (eligibility toggles, roster cap, etc) — org-admin scoped. Merges with the existing config so partial updates preserve unrelated keys."
+  })
+  async patchSeasonConfig(
+    @Param("id") id: string,
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<{ id: string; config: Record<string, unknown> }> {
+    const [row] = await this.db
+      .select({
+        orgId: schema.seasons.orgId,
+        config: schema.seasons.config
+      })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, id))
+      .limit(1);
+    if (!row) throw new NotFoundException("Season not found");
+    await this.assertScope(user, row.orgId);
+    const merged = {
+      ...((row.config as Record<string, unknown>) ?? {}),
+      ...body
+    };
+    await this.db
+      .update(schema.seasons)
+      .set({ config: merged, updatedAt: new Date() })
+      .where(eq(schema.seasons.id, id));
+    return { id, config: merged };
   }
 
   // ----- helpers -----
