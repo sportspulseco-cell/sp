@@ -14,7 +14,9 @@ export const metadata = { title: "New invoice — SportsPulse" };
  */
 export default async function NewInvoicePage() {
   const [orgsPage, leaguesPage, seasonsPage, teamsPage] = await Promise.all([
-    orgs.list({ limit: 500 }).catch(() => ({ items: [], nextCursor: null })),
+    // orgs.list caps at @Max(100); 500 throws ValidationError and the
+    // catch swallows it to {} — leaving the org picker empty (bug).
+    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt
       .listLeagues({})
       .catch(() => ({ items: [], nextCursor: null })),
