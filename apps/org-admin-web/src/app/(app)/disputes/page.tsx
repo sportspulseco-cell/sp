@@ -1,5 +1,8 @@
+/* Hallmark · page: list (disputes) · genre: editorial · theme: project
+ * pre-emit critique: P5 H4 E5 S4 R5 V4
+ */
 import { Gavel } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, SectionRail } from "@sportspulse/ui";
 import { iam, orgAdminRefundAssessments } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -9,13 +12,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Disputes — Org admin" };
 
-/**
- * Backlog #17c — org-admin dispute resolution.
- *
- * Refund assessments are created by the captain drop / admin reject /
- * transfer-approve flows. Pending ones queue up here for org-admins
- * to adjudicate: full refund, partial refund, no refund, or void.
- */
 export default async function DisputesPage({
   searchParams
 }: {
@@ -35,8 +31,8 @@ export default async function DisputesPage({
 
   if (!orgId) {
     return (
-      <div className="space-y-6">
-        <PageHeader eyebrow="// Disputes" title="Disputes" />
+      <div className="space-y-12">
+        <PageHeader eyebrow="Disputes" title="Disputes" />
         <EmptyState
           icon={Gavel}
           title="No org in scope"
@@ -51,17 +47,26 @@ export default async function DisputesPage({
     .catch(() => ({ items: [] }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       <PageHeader
-        eyebrow="// Disputes"
+        eyebrow="Disputes"
         title="Refund disputes"
         description="When a player is dropped from a paid roster or a team's application is rejected, the system queues a refund assessment. Adjudicate them here — issue a refund, decline, or void."
       />
-      <DisputesScreen
-        orgId={orgId}
-        status={status}
-        initialItems={data.items}
-      />
+
+      <section className="space-y-6">
+        <SectionRail
+          index="01"
+          label="Queue"
+          subtitle="Filtered by status. Decisions made here propagate to the player's wallet / refund channel via the same path Stripe webhooks travel."
+          meta={`${data.items.length} ${status}`}
+        />
+        <DisputesScreen
+          orgId={orgId}
+          status={status}
+          initialItems={data.items}
+        />
+      </section>
     </div>
   );
 }

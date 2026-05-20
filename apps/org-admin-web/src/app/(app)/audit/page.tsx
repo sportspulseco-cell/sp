@@ -1,8 +1,12 @@
+/* Hallmark · page: list (audit) · genre: editorial · theme: project
+ * pre-emit critique: P5 H4 E5 S4 R5 V4
+ */
 import Link from "next/link";
 import { FileBarChart } from "lucide-react";
 import {
   Badge,
   EmptyState,
+  SectionRail,
   TBody,
   TD,
   TH,
@@ -27,14 +31,6 @@ function fmt(iso: string): string {
   });
 }
 
-/**
- * Audit log scoped to the caller's org. Same listing the platform
- * console uses, filtered by the orgId query param. The audit
- * interceptor records every successful 2xx mutation; this is the
- * read-only viewer.
- *
- * P5-D part 2 — alongside other org-admin-web surfaces.
- */
 export default async function AuditPage() {
   const scope = await iam.meScope().catch(() => null);
   const orgId = await getActiveOrgId(scope);
@@ -47,65 +43,77 @@ export default async function AuditPage() {
     : { items: [], nextCursor: null };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       <PageHeader
-        eyebrow="// Audit"
+        eyebrow="Audit"
         title="Audit log"
         description="Every mutation recorded for this org — who, what, when. Read-only; corrections happen through the canonical write path that created the row."
       />
 
-      {page.items.length === 0 ? (
-        <EmptyState
-          icon={FileBarChart}
-          title="No audit events yet"
-          description="As soon as someone makes a change in your org, it'll be recorded here."
+      <section className="space-y-6">
+        <SectionRail
+          index="01"
+          label="Trail"
+          subtitle="Captured by the global audit interceptor. Tap a row's timestamp to see the full before/after payload."
+          meta={`${page.items.length} loaded`}
         />
-      ) : (
-        <Table>
-          <THead>
-            <TR>
-              <TH>When</TH>
-              <TH>Actor</TH>
-              <TH>Action</TH>
-              <TH>Resource</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {page.items.map((e) => (
-              <TR key={e.id}>
-                <TD className="font-mono text-[11px] text-fg-muted">
-                  <Link href={`/audit/${e.id}`} className="hover:underline">
-                    {fmt(e.createdAt)}
-                  </Link>
-                </TD>
-                <TD className="font-mono text-[11px] text-fg-muted">
-                  {e.actorUserId
-                    ? e.actorUserId.slice(0, 8)
-                    : <span className="italic">system</span>}
-                </TD>
-                <TD>
-                  <Badge mono tone="info">
-                    {e.action}
-                  </Badge>
-                </TD>
-                <TD className="text-[12px] text-fg">
-                  <span className="font-mono text-fg-muted">
-                    {e.resourceType}
-                  </span>
-                  {e.resourceId && (
-                    <>
-                      <span className="px-1.5 text-fg-muted/40">·</span>
-                      <span className="font-mono text-[11px] text-fg-muted">
-                        {e.resourceId.slice(0, 8)}
+        <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
+          {page.items.length === 0 ? (
+            <div className="px-6 py-12">
+              <EmptyState
+                icon={FileBarChart}
+                title="No audit events yet"
+                description="As soon as someone makes a change in your org, it'll be recorded here."
+              />
+            </div>
+          ) : (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>When</TH>
+                  <TH>Actor</TH>
+                  <TH>Action</TH>
+                  <TH>Resource</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {page.items.map((e) => (
+                  <TR key={e.id}>
+                    <TD className="font-mono text-[11px] text-fg-muted">
+                      <Link href={`/audit/${e.id}`} className="hover:text-accent">
+                        {fmt(e.createdAt)}
+                      </Link>
+                    </TD>
+                    <TD className="font-mono text-[11px] text-fg-muted">
+                      {e.actorUserId
+                        ? e.actorUserId.slice(0, 8)
+                        : <span className="italic">system</span>}
+                    </TD>
+                    <TD>
+                      <Badge mono tone="info">
+                        {e.action}
+                      </Badge>
+                    </TD>
+                    <TD className="text-[12px] text-fg">
+                      <span className="font-mono text-fg-muted">
+                        {e.resourceType}
                       </span>
-                    </>
-                  )}
-                </TD>
-              </TR>
-            ))}
-          </TBody>
-        </Table>
-      )}
+                      {e.resourceId && (
+                        <>
+                          <span className="px-1.5 text-fg-muted/40">·</span>
+                          <span className="font-mono text-[11px] text-fg-muted">
+                            {e.resourceId.slice(0, 8)}
+                          </span>
+                        </>
+                      )}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
