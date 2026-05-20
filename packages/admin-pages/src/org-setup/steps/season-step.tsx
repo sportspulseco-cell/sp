@@ -13,6 +13,15 @@ function fmt(d: string): string {
   });
 }
 
+function todayIso(): string {
+  // Local-date ISO (YYYY-MM-DD) — matches the format <input type="date"> emits.
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Phase 2 — Season identity. Season fields are required; the read-only
  * "season window" summary at the bottom mirrors the dates in plain
@@ -27,6 +36,7 @@ export function SeasonStep({
   leagueName: string;
   onChange: (patch: Partial<SeasonDraft>) => void;
 }) {
+  const today = todayIso();
   return (
     <div className="space-y-6">
       <PhaseHeader
@@ -95,6 +105,7 @@ export function SeasonStep({
               type="date"
               value={draft.startDate}
               onChange={(e) => onChange({ startDate: e.target.value })}
+              min={today}
               className="input"
               required
             />
@@ -110,7 +121,7 @@ export function SeasonStep({
               type="date"
               value={draft.endDate}
               onChange={(e) => onChange({ endDate: e.target.value })}
-              min={draft.startDate || undefined}
+              min={draft.startDate || today}
               className="input"
               required
             />
@@ -126,6 +137,7 @@ export function SeasonStep({
               type="date"
               value={draft.registrationOpensAt}
               onChange={(e) => onChange({ registrationOpensAt: e.target.value })}
+              min={today}
               className="input"
               required
             />
@@ -143,7 +155,7 @@ export function SeasonStep({
               onChange={(e) =>
                 onChange({ registrationClosesAt: e.target.value })
               }
-              min={draft.registrationOpensAt || undefined}
+              min={draft.registrationOpensAt || today}
               className="input"
               required
             />
@@ -158,6 +170,7 @@ export function SeasonStep({
               type="date"
               value={draft.rosterLockAt}
               onChange={(e) => onChange({ rosterLockAt: e.target.value })}
+              min={today}
               className="input"
             />
           </Field>

@@ -464,6 +464,9 @@ importers:
       '@sportspulse/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@sportspulse/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../ui

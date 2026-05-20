@@ -456,6 +456,7 @@ export function RegistrationFunnel({
             password={password}
             confirmPassword={confirmPassword}
             phone={phone}
+            dobDate={dobDate}
             submitting={submitting}
             error={error}
             onEmailChange={setEmail}
@@ -464,6 +465,7 @@ export function RegistrationFunnel({
             onPasswordChange={setPassword}
             onConfirmPasswordChange={setConfirmPassword}
             onPhoneChange={setPhone}
+            onDobChange={setDobDate}
             onBack={back}
             onSubmit={submitAccount}
             onSignIn={submitSignIn}
@@ -938,6 +940,7 @@ function AccountStep({
   password,
   confirmPassword,
   phone,
+  dobDate,
   submitting,
   error,
   onEmailChange,
@@ -946,6 +949,7 @@ function AccountStep({
   onPasswordChange,
   onConfirmPasswordChange,
   onPhoneChange,
+  onDobChange,
   onBack,
   onSubmit,
   onSignIn
@@ -956,6 +960,7 @@ function AccountStep({
   password: string;
   confirmPassword: string;
   phone: string;
+  dobDate: string;
   submitting: boolean;
   error: string | null;
   onEmailChange: (v: string) => void;
@@ -964,6 +969,7 @@ function AccountStep({
   onPasswordChange: (v: string) => void;
   onConfirmPasswordChange: (v: string) => void;
   onPhoneChange: (v: string) => void;
+  onDobChange: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
   onSignIn: (emailOverride?: string) => void;
@@ -975,11 +981,17 @@ function AccountStep({
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
 
+  // Today (local YYYY-MM-DD) — drives both the date input's `max` and
+  // the DOB validation. DOB has to be a real past date; an empty value
+  // is also invalid because the eligibility checks depend on it.
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const emailOk = /.+@.+\..+/.test(email.trim());
   const nameOk = firstName.trim().length > 0 && lastName.trim().length > 0;
   const pwOk = password.length >= 8;
   const pwMatches = password === confirmPassword;
-  const valid = emailOk && nameOk && pwOk && pwMatches;
+  const dobOk = !!dobDate && dobDate < todayIso;
+  const valid = emailOk && nameOk && pwOk && pwMatches && dobOk;
   const signInEmailOk = /.+@.+\..+/.test(signInEmail.trim());
 
   return (
@@ -1127,6 +1139,20 @@ function AccountStep({
                 value={phone}
                 onChange={(e) => onPhoneChange(e.target.value)}
                 placeholder="+1 (617) 555-0100"
+              />
+            </Field>
+          </div>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Date of birth *"
+              hint="Required for age verification, division-eligibility checks, and parental-consent rules for minors."
+            >
+              <Input
+                type="date"
+                value={dobDate}
+                onChange={(e) => onDobChange(e.target.value)}
+                max={todayIso}
+                required
               />
             </Field>
           </div>

@@ -104,6 +104,44 @@ export class SupabaseAdminService {
   }
 
   /**
+   * Trigger Supabase's password-recovery flow for an existing user. The
+   * service-role admin client mints a recovery link AND Supabase mails it
+   * to the user's email automatically (auth.admin.generateLink emails when
+   * SMTP is configured; otherwise the link is returned for manual delivery).
+   *
+   * Returns the user's email so the UI can confirm where the link went. We
+   * intentionally do NOT return the link itself — admins should not bypass
+   * the email channel.
+   */
+  async sendRecoveryEmail(
+    userId: string
+  ): Promise<{ email: string }> {
+    const c = this.get();
+    const { data: userData, error: readErr } =
+      await c.auth.admin.getUserById(userId);
+    if (readErr || !userData?.user?.email) {
+      this.log.warn(
+        `sendRecoveryEmail: cannot resolve email for ${userId}: ${readErr?.message ?? "no email"}`
+      );
+      throw new Error(
+        readErr?.message ?? "User has no email address on file."
+      );
+    }
+    const email = userData.user.email;
+    const { error: linkErr } = await c.auth.admin.generateLink({
+      type: "recovery",
+      email
+    });
+    if (linkErr) {
+      this.log.warn(
+        `sendRecoveryEmail.generateLink failed for ${userId}: ${linkErr.message}`
+      );
+      throw new Error(linkErr.message);
+    }
+    return { email };
+  }
+
+  /**
    * Flip `app_metadata.profile_complete = true` (or false) so the
    * per-app middleware knows whether to redirect first-time sign-ins
    * to /onboarding. Merges with existing metadata so other keys (e.g.

@@ -165,6 +165,11 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify({ password })
         }),
+      sendRecoveryEmail: (id: string) =>
+        f<{ ok: true; email: string }>(
+          `/iam/users/${id}/send-recovery-email`,
+          { method: "POST" }
+        ),
       getRoleProfile: (id: string, code: string) =>
         f<{ data: Record<string, unknown> }>(
           `/iam/users/${id}/role-profile${qs({ code })}`

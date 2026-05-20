@@ -130,6 +130,7 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
   exports: [
     // Re-export form handlers so the org-admin proxy controller
     // (BUG-043) can delegate to them after its scope check.
+    CreateFormHandler,
     UpdateFormHandler,
     CreateFormVersionHandler,
     PublishFormVersionHandler

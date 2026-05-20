@@ -186,6 +186,11 @@ export function OrgSetupWizard({
   );
 
   const stepValidation = useMemo(() => {
+    // Local-date today (YYYY-MM-DD) so we can compare against <input type="date">
+    // values without timezone weirdness.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const isFutureOrToday = (d: string) => !!d && d >= today;
     return {
       1: !!state.orgId,
       2:
@@ -196,10 +201,13 @@ export function OrgSetupWizard({
         !!state.league.timezone,
       3:
         state.season.name.trim().length > 0 &&
-        !!state.season.startDate &&
-        !!state.season.endDate &&
-        !!state.season.registrationOpensAt &&
-        !!state.season.registrationClosesAt,
+        isFutureOrToday(state.season.startDate) &&
+        isFutureOrToday(state.season.endDate) &&
+        state.season.endDate >= state.season.startDate &&
+        isFutureOrToday(state.season.registrationOpensAt) &&
+        isFutureOrToday(state.season.registrationClosesAt) &&
+        state.season.registrationClosesAt >= state.season.registrationOpensAt &&
+        (!state.season.rosterLockAt || state.season.rosterLockAt >= today),
       4:
         state.divisions.length > 0 &&
         state.divisions.every((d) => d.name.trim().length > 0)

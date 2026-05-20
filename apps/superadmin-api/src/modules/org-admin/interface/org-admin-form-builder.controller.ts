@@ -25,11 +25,13 @@ import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-w
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { RegistrationV2Service } from "../../registration-v2/application/registration-v2.service";
 import {
+  CreateFormHandler,
   CreateFormVersionHandler,
   PublishFormVersionHandler,
   UpdateFormHandler
 } from "../../registration-compliance/application/registration-forms/handlers";
 import {
+  CreateFormBodyDto,
   UpdateFormBodyDto,
   CreateFormVersionBodyDto
 } from "../../registration-compliance/interface/dto/registration.dto";
@@ -68,6 +70,7 @@ export class OrgAdminFormBuilderController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly regV2: RegistrationV2Service,
+    private readonly createFormH: CreateFormHandler,
     private readonly updateFormH: UpdateFormHandler,
     private readonly createVersionH: CreateFormVersionHandler,
     private readonly publishVersionH: PublishFormVersionHandler
@@ -81,6 +84,63 @@ export class OrgAdminFormBuilderController {
     const form = await this.loadForm(id);
     await this.assertScope(user, form.orgId);
     return form;
+  }
+
+  @Post("forms")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Create a registration form (org-admin scoped). Org admins can only create forms for orgs they manage."
+  })
+  async createForm(
+    @Body() body: CreateFormBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    // Org-scope check on the requested orgId; if the form is league- or
+    // division-scoped, also confirm that league/division actually belongs
+    // to the same orgId (prevents an org_admin from binding their form
+    // to a league outside their org).
+    await this.assertScope(user, body.orgId);
+    if (body.scope === "league" && body.scopeId) {
+      const [league] = await this.db
+        .select({ orgId: schema.leagues.orgId })
+        .from(schema.leagues)
+        .where(eq(schema.leagues.id, body.scopeId))
+        .limit(1);
+      if (!league || league.orgId !== body.orgId) {
+        throw new NotFoundException("League not found");
+      }
+    }
+    if (body.scope === "division" && body.scopeId) {
+      const [division] = await this.db
+        .select({ orgId: schema.seasons.orgId })
+        .from(schema.divisions)
+        .innerJoin(
+          schema.seasons,
+          eq(schema.seasons.id, schema.divisions.seasonId)
+        )
+        .where(eq(schema.divisions.id, body.scopeId))
+        .limit(1);
+      if (!division || division.orgId !== body.orgId) {
+        throw new NotFoundException("Division not found");
+      }
+    }
+    if (body.scope === "season" && body.scopeId) {
+      const season = await this.loadSeason(body.scopeId);
+      if (season.orgId !== body.orgId) {
+        throw new NotFoundException("Season not found");
+      }
+    }
+    return this.createFormH.execute({
+      orgId: body.orgId,
+      scope: body.scope,
+      scopeId: body.scopeId,
+      seasonId: body.seasonId,
+      name: body.name,
+      description: body.description,
+      purpose: body.purpose,
+      appliesToRoles: body.appliesToRoles
+    });
   }
 
   @Patch("forms/:id")

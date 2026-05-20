@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@sportspulse/api-client": "workspace:*",
+    "@sportspulse/kernel": "workspace:*",
     "@sportspulse/ui": "workspace:*",
     "lucide-react": "^0.460.0"
   },

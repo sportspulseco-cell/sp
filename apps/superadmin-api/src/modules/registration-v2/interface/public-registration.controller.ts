@@ -1142,8 +1142,11 @@ export class PublicRegistrationController {
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     const flags: string[] = [];
 
-    // Age vs season — coarse check until divisions get min/max age
-    // columns. We just flag if age < 5 or > 80 as obvious typos.
+    // Age vs season — coarse sanity check first (catches typos like
+    // dob=2999-…). Then a division-level check that compares the
+    // registrant's birth year against the division's bound age_group
+    // (BUG-058). Two distinct flags: `age_out_of_range:<n>` for the
+    // sanity bucket; `age_division_mismatch` for the structural fit.
     const dob = meta.dobDate as string | null;
     if (dob) {
       const age = ageFromDob(dob);
@@ -1152,6 +1155,43 @@ export class PublicRegistrationController {
       }
     } else {
       flags.push("dob_missing");
+    }
+
+    // Age / division fit. Skipped when:
+    //   - the registration isn't bound to a division (rare, but the
+    //     funnel allows season-only path-= signals like free_agent);
+    //   - the division has no ageGroupId (the admin hasn't picked an
+    //     age window — there's nothing to compare against);
+    //   - the ageGroup has neither birthYearMin nor birthYearMax (the
+    //     window is open-ended, so every birth year fits).
+    // Otherwise: compare the registrant's birth year against the
+    // configured min/max and flag if outside.
+    if (row.divisionId && dob) {
+      const [ageWindow] = await this.db
+        .select({
+          birthYearMin: schema.ageGroups.birthYearMin,
+          birthYearMax: schema.ageGroups.birthYearMax
+        })
+        .from(schema.divisions)
+        .innerJoin(
+          schema.ageGroups,
+          eq(schema.ageGroups.id, schema.divisions.ageGroupId)
+        )
+        .where(eq(schema.divisions.id, row.divisionId))
+        .limit(1);
+      if (
+        ageWindow &&
+        (ageWindow.birthYearMin !== null || ageWindow.birthYearMax !== null)
+      ) {
+        const birthYear = Number(dob.slice(0, 4));
+        if (Number.isFinite(birthYear)) {
+          const tooYoung =
+            ageWindow.birthYearMax !== null && birthYear > ageWindow.birthYearMax;
+          const tooOld =
+            ageWindow.birthYearMin !== null && birthYear < ageWindow.birthYearMin;
+          if (tooYoung || tooOld) flags.push("age_division_mismatch");
+        }
+      }
     }
 
     // Duplicate detection — same email + season already has another

@@ -28,6 +28,7 @@ import {
   type InviteUserResult
 } from "../application/commands/invite-user.command";
 import { SetUserPasswordHandler } from "../application/commands/set-user-password.command";
+import { SendRecoveryEmailHandler } from "../application/commands/send-recovery-email.command";
 import { SetRoleProfileHandler } from "../application/commands/set-role-profile.command";
 import { GetRoleProfileHandler } from "../application/queries/get-role-profile.query";
 import { ProfileDto, ProfilePageDto } from "../application/dtos/profile.dto";
@@ -50,6 +51,7 @@ export class IamController {
     private readonly updateProfile: UpdateProfileHandler,
     private readonly inviteUser: InviteUserHandler,
     private readonly setUserPassword: SetUserPasswordHandler,
+    private readonly sendRecoveryEmailH: SendRecoveryEmailHandler,
     private readonly setRoleProfile: SetRoleProfileHandler,
     private readonly getRoleProfile: GetRoleProfileHandler,
     @Inject(DRIZZLE) private readonly db: Database
@@ -406,6 +408,18 @@ export class IamController {
       password: body.password
     });
     return { ok: true };
+  }
+
+  @Post("users/:id/send-recovery-email")
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Trigger a Supabase password-recovery email (super admin only). The user receives a reset link in their inbox and chooses a new password themselves."
+  })
+  async sendRecoveryEmail(
+    @Param("id") id: string
+  ): Promise<{ ok: true; email: string }> {
+    return this.sendRecoveryEmailH.execute({ userId: id });
   }
 
   @Get("users/:id/role-profile")

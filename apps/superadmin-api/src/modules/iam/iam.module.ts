@@ -10,6 +10,7 @@ import { UpdateProfileHandler } from "./application/commands/update-profile.comm
 import { InviteUserHandler } from "./application/commands/invite-user.command";
 import { InviteMessageService } from "./application/services/invite-message.service";
 import { SetUserPasswordHandler } from "./application/commands/set-user-password.command";
+import { SendRecoveryEmailHandler } from "./application/commands/send-recovery-email.command";
 import { SetRoleProfileHandler } from "./application/commands/set-role-profile.command";
 import { GetRoleProfileHandler } from "./application/queries/get-role-profile.query";
 import {
@@ -49,6 +50,7 @@ import { DrizzleRoleRepository } from "./infrastructure/repositories/drizzle-rol
     InviteUserHandler,
     InviteMessageService,
     SetUserPasswordHandler,
+    SendRecoveryEmailHandler,
     SetRoleProfileHandler,
     GetRoleProfileHandler,
     // Person use cases

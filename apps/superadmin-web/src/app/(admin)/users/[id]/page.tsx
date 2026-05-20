@@ -10,6 +10,8 @@ import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { RevokeAssignmentButton } from "@/components/roles/revoke-assignment-button";
 import { EditUserButton } from "@/components/users/edit-user-button";
 import { SuspendUserButton } from "@/components/users/suspend-user-button";
+import { SetPasswordButton } from "@/components/users/set-password-button";
+import { SendRecoveryEmailButton } from "@/components/users/send-recovery-email-button";
 import { resolvePrimaryRole } from "@/components/users/primary-role";
 
 export const metadata = { title: "User — SportsPulse" };
@@ -76,8 +78,10 @@ export default async function UserDetailPage({
               joined {fmtDate(user.createdAt)}
             </span>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <EditUserButton user={user} />
+            <SetPasswordButton userId={user.id} email={user.email} />
+            <SendRecoveryEmailButton userId={user.id} email={user.email} />
             <SuspendUserButton
               userId={user.id}
               suspended={user.status === "suspended"}

@@ -11,8 +11,9 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import { iam, orgAdminForms } from "@/lib/api/server-api";
+import { iam, orgAdminForms, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { CreateFormButton } from "@/components/forms/create-form-button";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +33,22 @@ export default async function FormsPage() {
   const scope = await iam.meScope().catch(() => null);
   const orgId = await getActiveOrgId(scope);
 
-  const formsPage = orgId
-    ? await orgAdminForms.list({ orgId }).catch(() => ({ items: [] }))
-    : { items: [] };
+  const [formsPage, orgList] = await Promise.all([
+    orgId
+      ? orgAdminForms.list({ orgId }).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] as Array<{
+          id: string;
+          name: string;
+          description: string | null;
+          seasonName: string | null;
+          purpose: string;
+          updatedAt: string;
+        }> }),
+    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
+  ]);
+  const activeOrg = orgId
+    ? orgList.items.find((o) => o.id === orgId) ?? null
+    : null;
 
   return (
     <div className="space-y-6">
@@ -42,13 +56,21 @@ export default async function FormsPage() {
         eyebrow="// Forms"
         title="Registration forms"
         description="Forms bound to your org's seasons. Click any row to edit."
+        action={
+          activeOrg ? (
+            <CreateFormButton
+              activeOrgId={activeOrg.id}
+              activeOrgName={activeOrg.displayName}
+            />
+          ) : null
+        }
       />
 
       {formsPage.items.length === 0 ? (
         <EmptyState
           icon={FileSignature}
           title="No registration forms yet"
-          description="Once your platform admin (or your own org-admin via the builder below) creates a form against one of your org's seasons, it shows up here."
+          description="Create your first registration form for one of your org's seasons. New forms can be created here directly — no need to wait for the platform admin."
         />
       ) : (
         <div className="rounded-xl border border-border bg-surface-1">
