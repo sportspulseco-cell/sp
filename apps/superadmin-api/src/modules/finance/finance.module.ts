@@ -11,6 +11,7 @@ import { FinanceArActionsController } from "./interface/ar-actions.controller";
 import { CaptainDuesController } from "./interface/captain-dues.controller";
 import { FinanceInvoicingController } from "./interface/invoicing.controller";
 import { FinanceService } from "./application/finance.service";
+import { InvoicingService } from "./application/services/invoicing.service";
 import {
   GetInvoiceHandler,
   ListFeeSchedulesHandler,
@@ -48,6 +49,7 @@ import {
   ],
   providers: [
     FinanceService,
+    InvoicingService,
     ListFeeSchedulesHandler,
     UpsertFeeScheduleHandler,
     ListInvoicesHandler,
@@ -63,6 +65,11 @@ import {
     // changing this single provider line.
     { provide: PAYMENT_PROCESSOR, useClass: MockPaymentProcessor }
   ],
-  exports: [FinanceService, PAYMENT_PROCESSOR, RecordPaymentHandler]
+  exports: [
+    FinanceService,
+    InvoicingService,
+    PAYMENT_PROCESSOR,
+    RecordPaymentHandler
+  ]
 })
 export class FinanceModule {}

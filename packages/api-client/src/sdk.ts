@@ -2807,7 +2807,10 @@ export function createApi(f: Fetcher) {
         )
     },
 
-    // Backlog #6 · org-admin manual payment recording.
+    // Backlog #6 · org-admin manual payment recording + org-scoped
+    // invoice creation. The createBulkInvoice path mirrors the sa-only
+    // `finance.createBulkInvoice` body shape exactly; the proxy adds an
+    // org-scope check before delegating to the same InvoicingService.
     orgAdminFinance: {
       recordPayment: (
         invoiceId: string,
@@ -2828,7 +2831,45 @@ export function createApi(f: Fetcher) {
         f<{ payment: Payment }>(
           `/org-admin/finance/invoices/${invoiceId}/payments`,
           { method: "POST", body: JSON.stringify(body) }
-        )
+        ),
+      createBulkInvoice: (
+        body: {
+          orgId: string;
+          billingScope:
+            | "individual"
+            | "team"
+            | "division"
+            | "league"
+            | "season"
+            | "org";
+          targetId: string;
+          invoiceType?: string;
+          items: Array<{
+            kind: string;
+            description: string;
+            quantity?: number;
+            unitAmountCents: number;
+          }>;
+          dueAt: string;
+          notes?: string | null;
+          feeScheduleId?: string;
+          paymentPlanEnabled?: boolean;
+          depositCents?: number;
+          installmentCount?: number;
+          installmentStartDate?: string | null;
+        },
+        idempotencyKey: string
+      ) =>
+        f<{
+          invoices: Invoice[];
+          bulkJobId: string | null;
+          count: number;
+          idempotent?: boolean;
+        }>(`/org-admin/finance/invoices/bulk`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: { "X-Idempotency-Key": idempotencyKey }
+        })
     },
 
     // Backlog #6 · org-admin broadcast composer.

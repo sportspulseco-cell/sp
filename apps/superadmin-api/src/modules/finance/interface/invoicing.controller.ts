@@ -40,49 +40,12 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
+import { InvoicingService } from "../application/services/invoicing.service";
+import { BulkCreateInvoiceBodyDto } from "./dto/bulk-invoice.dto";
 
 // =====================================================================
 // DTOs
 // =====================================================================
-
-class InvoiceItemDto {
-  @IsString() @MinLength(1) description!: string;
-  @IsOptional() @IsInt() @Min(1) quantity?: number;
-  @IsInt() @Min(1) unitAmountCents!: number;
-  @IsString()
-  @IsIn([
-    "registration_fee",
-    "jersey",
-    "equipment",
-    "late_fee",
-    "discount",
-    "other"
-  ])
-  kind!: string;
-}
-
-class CreateInvoiceBodyDto {
-  @IsUUID() orgId!: string;
-  @IsString()
-  @IsIn(["individual", "team", "division", "league", "season", "org"])
-  billingScope!: string;
-  @IsUUID() targetId!: string;
-  @IsOptional()
-  @IsString()
-  @IsIn(["manual", "registration", "team_dues", "sub_invoice", "referee_payroll"])
-  invoiceType?: string;
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => InvoiceItemDto)
-  items!: InvoiceItemDto[];
-  @IsDateString() dueAt!: string;
-  @IsOptional() @IsString() notes?: string;
-  @IsOptional() @IsUUID() feeScheduleId?: string;
-  @IsOptional() paymentPlanEnabled?: boolean;
-  @IsOptional() @IsInt() @Min(1) depositCents?: number;
-  @IsOptional() @IsInt() @Min(1) @Max(12) installmentCount?: number;
-  @IsOptional() @IsDateString() installmentStartDate?: string;
-}
 
 class ApplyWalletCreditBodyDto {
   @IsInt() @Min(1) walletCents!: number;
@@ -123,7 +86,10 @@ class TeamSplitBodyDto {
 @ApiBearerAuth()
 @Controller("finance")
 export class FinanceInvoicingController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly invoicing: InvoicingService
+  ) {}
 
   // -------------------------------------------------------------------
   // GET /finance/dashboard-summary?orgId=…
@@ -311,180 +277,11 @@ export class FinanceInvoicingController {
       "Bulk-aware invoice creation. Resolves billingScope+targetId to a set of personIds and creates one invoice per person inside one transaction. Idempotent on X-Idempotency-Key header."
   })
   async createBulkInvoice(
-    @CurrentUser() user: AuthPrincipal,
+    @CurrentUser() _user: AuthPrincipal,
     @Headers("x-idempotency-key") idemKey: string,
-    @Body() body: CreateInvoiceBodyDto
+    @Body() body: BulkCreateInvoiceBodyDto
   ) {
-    if (!idemKey) {
-      throw new BadRequestException("X-Idempotency-Key header is required");
-    }
-    // Idempotency short-circuit
-    const existing = await this.db
-      .select()
-      .from(schema.invoices)
-      .where(
-        or(
-          eq(schema.invoices.idempotencyKey, idemKey),
-          ilike(schema.invoices.idempotencyKey, `${idemKey}-%`)
-        )!
-      );
-    if (existing.length > 0) {
-      return {
-        invoices: existing,
-        bulkJobId: existing[0]?.bulkJobId ?? null,
-        count: existing.length,
-        idempotent: true
-      };
-    }
-
-    // Org exists?
-    const [org] = await this.db
-      .select()
-      .from(schema.orgs)
-      .where(eq(schema.orgs.id, body.orgId))
-      .limit(1);
-    if (!org) throw new NotFoundException("Org not found");
-
-    // Resolve targetId → personIds
-    const personIds = await this.resolveScopeTargets(
-      body.billingScope,
-      body.targetId,
-      body.orgId
-    );
-    if (personIds.length === 0) {
-      throw new BadRequestException(
-        "No active members found for the selected target."
-      );
-    }
-
-    // Compute total
-    const subtotalCents = body.items.reduce(
-      (a, i) => a + (i.unitAmountCents ?? 0) * (i.quantity ?? 1),
-      0
-    );
-    const totalCents = subtotalCents;
-    const isBulk = personIds.length > 1;
-    const bulkJobId = isBulk ? randomUUID() : null;
-    const currency = "USD";
-
-    // One transaction, fan out
-    const created = await this.db.transaction(async (tx) => {
-      const year = new Date().getFullYear();
-      const [yc] = await tx.execute<{ count: number }>(sql`
-        SELECT COUNT(*)::int AS count FROM invoices
-        WHERE org_id = ${body.orgId}
-          AND EXTRACT(YEAR FROM created_at) = ${year}
-      `);
-      let nextSeq = (yc?.count ?? 0) + 1;
-      const rows: typeof schema.invoices.$inferSelect[] = [];
-
-      for (const personId of personIds) {
-        const [person] = await tx
-          .select({ email: schema.profiles.email })
-          .from(schema.persons)
-          .leftJoin(
-            schema.profiles,
-            eq(schema.profiles.id, schema.persons.userId)
-          )
-          .where(eq(schema.persons.id, personId))
-          .limit(1);
-
-        const invoiceNumber = `INV-${year}-${String(nextSeq++).padStart(
-          5,
-          "0"
-        )}`;
-
-        const [inv] = await tx
-          .insert(schema.invoices)
-          .values({
-            orgId: body.orgId,
-            invoiceNumber,
-            invoiceType: body.invoiceType ?? "manual",
-            billingScope: body.billingScope,
-            recipientPersonId: personId,
-            recipientEmail: person?.email ?? null,
-            teamId: body.billingScope === "team" ? body.targetId : null,
-            divisionId: body.billingScope === "division" ? body.targetId : null,
-            leagueId: body.billingScope === "league" ? body.targetId : null,
-            seasonId: body.billingScope === "season" ? body.targetId : null,
-            bulkJobId,
-            subtotalCents,
-            totalCents,
-            paidCents: 0,
-            currency,
-            status: "draft",
-            dueAt: new Date(body.dueAt),
-            notes: body.notes ?? null,
-            idempotencyKey: isBulk ? `${idemKey}-${personId}` : idemKey,
-            feeScheduleId: body.feeScheduleId ?? null,
-            issuedAt: new Date()
-          })
-          .returning();
-        if (!inv) continue;
-
-        for (const item of body.items) {
-          const qty = item.quantity ?? 1;
-          await tx.insert(schema.invoiceItems).values({
-            invoiceId: inv.id,
-            kind: item.kind,
-            description: item.description,
-            quantity: qty,
-            unitAmountCents: item.unitAmountCents,
-            amountCents: item.unitAmountCents * qty,
-            feeScheduleId: body.feeScheduleId ?? null
-          });
-        }
-
-        // Optional payment plan
-        if (
-          body.paymentPlanEnabled &&
-          body.depositCents != null &&
-          body.installmentCount != null &&
-          body.installmentCount > 0
-        ) {
-          const remainingCents = totalCents - body.depositCents;
-          const baseInstallment = Math.floor(
-            remainingCents / body.installmentCount
-          );
-          const remainder = remainingCents % body.installmentCount;
-          const startDate = body.installmentStartDate
-            ? new Date(body.installmentStartDate)
-            : new Date();
-
-          await tx.insert(schema.installmentSchedules).values({
-            invoiceId: inv.id,
-            installmentNumber: 0,
-            amountCents: body.depositCents,
-            dueDate: new Date(),
-            status: "scheduled"
-          });
-          for (let i = 1; i <= body.installmentCount; i++) {
-            const amount =
-              i === body.installmentCount
-                ? baseInstallment + remainder
-                : baseInstallment;
-            const dueDate = new Date(startDate);
-            dueDate.setDate(dueDate.getDate() + (i - 1) * 30);
-            await tx.insert(schema.installmentSchedules).values({
-              invoiceId: inv.id,
-              installmentNumber: i,
-              amountCents: amount,
-              dueDate,
-              status: "scheduled"
-            });
-          }
-        }
-
-        rows.push(inv);
-      }
-      return rows;
-    });
-
-    return {
-      invoices: created,
-      bulkJobId,
-      count: created.length
-    };
+    return this.invoicing.createBulkInvoice(idemKey, body);
   }
 
   // -------------------------------------------------------------------
@@ -1122,121 +919,4 @@ export class FinanceInvoicingController {
     return p?.id ?? null;
   }
 
-  private async resolveScopeTargets(
-    scope: string,
-    targetId: string,
-    orgId: string
-  ): Promise<string[]> {
-    if (scope === "individual") {
-      const [p] = await this.db
-        .select({ id: schema.persons.id })
-        .from(schema.persons)
-        .where(eq(schema.persons.id, targetId))
-        .limit(1);
-      if (!p) throw new NotFoundException("Person not found in this org");
-      return [p.id];
-    }
-    if (scope === "team") {
-      const rows = await this.db
-        .select({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .where(
-          and(
-            eq(schema.teamMemberships.teamId, targetId),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return [...new Set(rows.map((r) => r.personId))];
-    }
-    if (scope === "division") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.divisionTeamEntries,
-          eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId)
-        )
-        .where(
-          and(
-            eq(schema.divisionTeamEntries.divisionId, targetId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "confirmed"
-            ]),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    if (scope === "league") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.divisionTeamEntries,
-          eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId)
-        )
-        .innerJoin(
-          schema.divisions,
-          eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-        )
-        .innerJoin(
-          schema.seasons,
-          eq(schema.seasons.id, schema.divisions.seasonId)
-        )
-        .where(
-          and(
-            eq(schema.seasons.leagueId, targetId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "confirmed"
-            ]),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    if (scope === "season") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.divisionTeamEntries,
-          eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId)
-        )
-        .innerJoin(
-          schema.divisions,
-          eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-        )
-        .where(
-          and(
-            eq(schema.divisions.seasonId, targetId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "confirmed"
-            ]),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    if (scope === "org") {
-      // Persons with at least one active membership in any team in this org
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.teams,
-          eq(schema.teams.id, schema.teamMemberships.teamId)
-        )
-        .where(
-          and(
-            eq(schema.teams.orgId, orgId),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    throw new BadRequestException(`Unknown billingScope: ${scope}`);
-  }
 }

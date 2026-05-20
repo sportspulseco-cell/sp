@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
+  Headers,
   Inject,
   NotFoundException,
   Param,
@@ -30,6 +32,8 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { RecordPaymentHandler } from "../../finance/application/handlers/commands";
+import { InvoicingService } from "../../finance/application/services/invoicing.service";
+import { BulkCreateInvoiceBodyDto } from "../../finance/interface/dto/bulk-invoice.dto";
 
 type PaymentMethod =
   | "cash"
@@ -66,8 +70,92 @@ class RecordPaymentBodyDto {
 export class OrgAdminFinanceController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly recordPayH: RecordPaymentHandler
+    private readonly recordPayH: RecordPaymentHandler,
+    private readonly invoicing: InvoicingService
   ) {}
+
+  @Post("invoices/bulk")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Create invoices for one or more people inside the caller's org. Delegates to the same InvoicingService the sa-only endpoint uses; the extra guard here is the org-scope check that prevents an org_admin from billing across orgs (404 on mismatch — no existence leak)."
+  })
+  async createBulkInvoice(
+    @Headers("x-idempotency-key") idemKey: string,
+    @Body() body: BulkCreateInvoiceBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    if (!scope.isSuperAdmin) {
+      if (scope.orgIds !== null && !scope.orgIds.includes(body.orgId)) {
+        throw new NotFoundException("Org not found");
+      }
+      const ok = await this.userHasOrgAdminOnOrg(user.userId, body.orgId);
+      if (!ok) {
+        throw new ForbiddenException(
+          "Requires org_admin (or super_admin) on this org"
+        );
+      }
+    }
+    // For non-individual scopes, the targetId (team / division / league
+    // / season) must itself belong to the caller's org. Block cross-org
+    // fan-out before the service walks the memberships.
+    await this.assertTargetInOrg(body.billingScope, body.targetId, body.orgId);
+    return this.invoicing.createBulkInvoice(idemKey, body);
+  }
+
+  private async assertTargetInOrg(
+    scope: string,
+    targetId: string,
+    orgId: string
+  ): Promise<void> {
+    if (scope === "individual" || scope === "org") return;
+    if (scope === "team") {
+      const [row] = await this.db
+        .select({ orgId: schema.teams.orgId })
+        .from(schema.teams)
+        .where(eq(schema.teams.id, targetId))
+        .limit(1);
+      if (!row || row.orgId !== orgId)
+        throw new NotFoundException("Target not found in org");
+      return;
+    }
+    if (scope === "league") {
+      const [row] = await this.db
+        .select({ orgId: schema.leagues.orgId })
+        .from(schema.leagues)
+        .where(eq(schema.leagues.id, targetId))
+        .limit(1);
+      if (!row || row.orgId !== orgId)
+        throw new NotFoundException("Target not found in org");
+      return;
+    }
+    if (scope === "season") {
+      const [row] = await this.db
+        .select({ orgId: schema.seasons.orgId })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, targetId))
+        .limit(1);
+      if (!row || row.orgId !== orgId)
+        throw new NotFoundException("Target not found in org");
+      return;
+    }
+    if (scope === "division") {
+      const [row] = await this.db
+        .select({ orgId: schema.seasons.orgId })
+        .from(schema.divisions)
+        .innerJoin(
+          schema.seasons,
+          eq(schema.seasons.id, schema.divisions.seasonId)
+        )
+        .where(eq(schema.divisions.id, targetId))
+        .limit(1);
+      if (!row || row.orgId !== orgId)
+        throw new NotFoundException("Target not found in org");
+      return;
+    }
+    throw new BadRequestException(`Unknown billingScope: ${scope}`);
+  }
 
   @Post("invoices/:invoiceId/payments")
   @AllowScopedWrite()

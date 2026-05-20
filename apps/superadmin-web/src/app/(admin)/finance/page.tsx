@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Receipt } from "lucide-react";
 import { finance, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ArDashboardClient } from "@/components/finance/ar-dashboard-client";
@@ -50,6 +52,15 @@ export default async function FinancePage({
         eyebrow="finance"
         title="Invoices & AR"
         description="Every invoice across the platform — issued, collected, outstanding, and overdue. Create new invoices, drill into any row, and resolve AR escalations."
+        action={
+          <Link
+            href="/finance/create"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
+          >
+            <Receipt className="h-3.5 w-3.5" strokeWidth={2} />
+            New invoice
+          </Link>
+        }
       />
       <ArDashboardClient
         summary={summary}
