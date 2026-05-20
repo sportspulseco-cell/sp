@@ -88,37 +88,50 @@ export function OrgStep({
   );
 }
 
+/**
+ * Compact editorial phase header — same rhythm as the dashboard's
+ * SectionRail. Used inside every wizard step to introduce the form
+ * sections without competing with the wizard's own top header.
+ *
+ * No big circle, no rounded panel, no `Y table` accent chip. The
+ * left edge is the schema-name in mono (e.g. "orgs table"), the
+ * label sits beside it, and the description threads under in
+ * text-balance to keep descenders even at mobile widths.
+ */
 export function PhaseHeader({
-  index,
   title,
   description,
   tableTag
 }: {
-  index: number;
+  /** Kept for backward-compat with existing callers; unused now. */
+  index?: number;
   title: string;
   description: string;
   tableTag: string;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-bg-subtle p-5">
-      <div className="flex items-start gap-4">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent font-mono text-[14px] font-bold text-bg">
-          {index}
+    <header className="flex flex-col gap-3 border-b border-border pb-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
+          <span className="text-fg">// </span>
+          {title}
+        </p>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-fg-subtle">
+          {tableTag}
         </span>
-        <div>
-          <p className="text-[18px] font-semibold tracking-tight text-fg">
-            {title}
-          </p>
-          <p className="mt-1 text-[13px] text-fg-muted">{description}</p>
-        </div>
       </div>
-      <span className="rounded-full bg-accent/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-accent">
-        {tableTag}
-      </span>
-    </div>
+      <p className="max-w-2xl text-balance text-[14px] leading-relaxed text-fg-muted">
+        {description}
+      </p>
+    </header>
   );
 }
 
+/**
+ * Section divider with optional required/optional chip. Tokens only:
+ * required uses --tint-rose-* (the canonical caution pair), optional
+ * uses bg-bg-subtle text-fg-muted. No hardcoded Tailwind hues.
+ */
 export function SectionHeader({
   title,
   hint,
@@ -139,11 +152,11 @@ export function SectionHeader({
         ) : null}
       </div>
       {required ? (
-        <span className="rounded-full bg-rose-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+        <span className="rounded-full bg-[var(--tint-rose-bg)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
           Required
         </span>
       ) : optional ? (
-        <span className="rounded-full bg-fg-muted/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        <span className="rounded-full border border-border bg-bg-subtle px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           Optional
         </span>
       ) : null}
