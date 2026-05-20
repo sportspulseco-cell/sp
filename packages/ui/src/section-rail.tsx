@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Editorial section rail — mirrors the landing-web rhythm of
  *   // 01 · Autonomous Logistics

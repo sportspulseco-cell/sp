@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Editorial KPI card. Composed of:
  *   - top row: Eyebrow label (mono, uppercase) ↔ IconTile (tinted)
