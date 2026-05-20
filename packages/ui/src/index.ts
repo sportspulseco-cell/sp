@@ -1,4 +1,5 @@
 // Auto-generated barrel — extend by hand if you add a new primitive.
+export * from "./alert";
 export * from "./badge";
 export * from "./button";
 export * from "./dialog";

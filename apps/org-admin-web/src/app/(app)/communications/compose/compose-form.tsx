@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import { orgAdminBroadcast } from "@/lib/api/browser-api";
 
 type Audience = "captains" | "team_admins" | "players" | "all_admins";
@@ -174,13 +174,9 @@ export function ComposeForm({ orgId }: { orgId: string }) {
         </div>
       </Field>
 
-      {error ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-600 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       {result ? (
-        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success">
           Queued {result.queued} notification{result.queued === 1 ? "" : "s"} for{" "}
           {result.audiencesResolved} recipient{result.audiencesResolved === 1 ? "" : "s"}.
           {result.queued !== result.audiencesResolved ? (
@@ -189,7 +185,7 @@ export function ComposeForm({ orgId }: { orgId: string }) {
               the row already existed or the recipient opted out.)
             </>
           ) : null}
-        </div>
+        </Alert>
       ) : null}
 
       <div className="flex items-center justify-end gap-2 pt-2">

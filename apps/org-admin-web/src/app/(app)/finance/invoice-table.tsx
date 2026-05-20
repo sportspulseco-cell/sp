@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
-import { Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import type { Invoice } from "@sportspulse/api-client";
 import { orgAdminFinance } from "@/lib/api/browser-api";
 
@@ -235,11 +235,7 @@ function RecordPaymentForm({
           />
         </Field>
       </div>
-      {error ? (
-        <div className="mt-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-600 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
+      {error ? <Alert tone="error" className="mt-3">{error}</Alert> : null}
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onDone} disabled={busy}>
           Cancel

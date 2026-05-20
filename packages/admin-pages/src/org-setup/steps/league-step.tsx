@@ -352,7 +352,7 @@ export function Field({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
           {label}
-          {required ? <span className="ml-1 text-rose-500">*</span> : null}
+          {required ? <span className="ml-1 text-[var(--error)]">*</span> : null}
         </label>
         {schemaTag ? (
           <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">

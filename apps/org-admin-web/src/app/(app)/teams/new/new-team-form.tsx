@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
+import { Alert, Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
 import { orgAdminTeams } from "@/lib/api/browser-api";
 
 // Mirrors the `public.sports` seed — same list as the new-league form
@@ -106,11 +106,7 @@ export function NewTeamForm({ orgId }: { orgId: string }) {
         />
       </Field>
 
-      {error ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-600 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
       <div className="flex items-center justify-end gap-2 pt-2">
         <Button

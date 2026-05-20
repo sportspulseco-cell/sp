@@ -163,7 +163,7 @@ export function DivisionCard({
           <button
             type="button"
             onClick={onRemove}
-            className="flex items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 hover:bg-rose-500/10 dark:text-rose-300"
+            className="flex items-center gap-1.5 rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-rose-fg)] transition-colors hover:border-[var(--tint-rose-fg)]/50"
           >
             <Trash2 className="h-3 w-3" strokeWidth={2} />
             Remove
@@ -551,7 +551,7 @@ function TiebreakersBlock({
         <div>
           <p className="text-[13px] font-semibold tracking-tight text-fg">
             Tiebreaker rules
-            <span className="ml-2 rounded-full bg-rose-500/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+            <span className="ml-2 rounded-full bg-[var(--tint-rose-bg)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
               Required
             </span>
           </p>
@@ -626,7 +626,7 @@ function PostSeasonBlock({
         <div>
           <p className="text-[13px] font-semibold tracking-tight text-fg">
             Post-season
-            <span className="ml-2 rounded-full bg-rose-500/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+            <span className="ml-2 rounded-full bg-[var(--tint-rose-bg)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
               Required
             </span>
           </p>

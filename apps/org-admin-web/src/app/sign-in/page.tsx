@@ -2,7 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Field, Input, Eyebrow } from "@sportspulse/ui";
+import { Alert, Button, Field, Input, Eyebrow } from "@sportspulse/ui";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -90,11 +90,7 @@ function SignInForm() {
             required
           />
         </Field>
-        {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
-            {error}
-          </p>
-        )}
+        {error && <Alert tone="error">{error}</Alert>}
         <Button type="submit" disabled={submitting || !email || !password}>
           {submitting ? "Signing in…" : "Sign in"}
         </Button>

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button } from "@sportspulse/ui";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import {
   DEFAULT_TIEBREAKERS,
@@ -385,11 +385,7 @@ export function OrgSetupWizard({
         onNavigate={(s) => setState((p) => ({ ...p, step: s }))}
       />
 
-      {error ? (
-        <p className="rounded-md bg-rose-500/10 px-4 py-3 text-[13px] text-rose-700 dark:text-rose-300">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
       <motion.div
         key={`step-${state.step}`}

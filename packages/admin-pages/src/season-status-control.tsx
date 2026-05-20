@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
-import { Badge, statusTone } from "@sportspulse/ui";
+import { Alert, Badge, statusTone } from "@sportspulse/ui";
 
 const STATUSES: Array<{
   value: string;
@@ -117,9 +117,9 @@ export function SeasonStatusControl({
             })}
           </ul>
           {error && (
-            <p className="border-t border-border bg-rose-500/10 px-3 py-2 text-[11px] text-rose-600 dark:text-rose-400">
+            <Alert tone="error" className="rounded-none border-0 border-t border-border">
               {error}
-            </p>
+            </Alert>
           )}
         </div>
       )}

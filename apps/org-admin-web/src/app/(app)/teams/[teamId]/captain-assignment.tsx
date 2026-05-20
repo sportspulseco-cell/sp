@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Star, UserPlus, X } from "lucide-react";
-import { Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import { orgAdminTeams } from "@/lib/api/browser-api";
 
 interface Captain {
@@ -96,16 +96,8 @@ export function CaptainAssignment({
         ) : null}
       </header>
 
-      {flash ? (
-        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-          {flash}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-600 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
+      {flash ? <Alert tone="success">{flash}</Alert> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
       {showAssign ? (
         <div className="rounded-xl border border-border bg-surface-1 p-4">
@@ -174,7 +166,7 @@ export function CaptainAssignment({
               className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 px-4 py-3"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]">
                   <Star className="h-4 w-4" strokeWidth={2} />
                 </span>
                 <div className="min-w-0">

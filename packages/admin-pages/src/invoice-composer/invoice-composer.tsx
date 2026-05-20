@@ -16,7 +16,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { Button, Field, Input, Select } from "@sportspulse/ui";
+import { Alert, Button, Field, Input, Select } from "@sportspulse/ui";
 
 export type BillingScope =
   | "individual"
@@ -482,7 +482,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                     setItems((xs) => xs.filter((_, idx) => idx !== i))
                   }
                   disabled={items.length === 1}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-surface-1 px-2 text-fg-muted hover:border-rose-500/50 hover:text-rose-600 disabled:opacity-40 dark:hover:text-rose-400"
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-surface-1 px-2 text-fg-muted transition-colors hover:border-[var(--tint-rose-fg)]/40 hover:text-[var(--tint-rose-fg)] disabled:opacity-40"
                   aria-label="Remove line"
                 >
                   <Trash2 className="h-4 w-4" strokeWidth={1.75} />
@@ -530,11 +530,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         </div>
       </section>
 
-      {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
       <div className="flex items-center justify-end gap-3">
         {props.onCancel ? (

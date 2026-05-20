@@ -59,7 +59,7 @@ export function ProgressBar({
                   className={cn(
                     "relative flex h-8 w-8 items-center justify-center rounded-full border-2 font-mono text-[11px] font-medium tabular-nums transition-colors",
                     isActive && "border-[--accent] bg-[--accent] text-bg",
-                    isDone && "border-emerald-500 bg-emerald-500 text-white",
+                    isDone && "border-[var(--success)] bg-[var(--success)] text-bg",
                     isFuture &&
                       "border-border bg-bg-subtle text-fg-muted group-hover:border-fg-muted"
                   )}
@@ -75,7 +75,7 @@ export function ProgressBar({
                 className={cn(
                   "hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.22em] transition-colors sm:inline",
                   isActive && "text-fg",
-                  isDone && "text-emerald-600",
+                  isDone && "text-[var(--success)]",
                   isFuture && "text-fg-muted group-hover:text-fg"
                 )}
               >
@@ -88,7 +88,7 @@ export function ProgressBar({
                   initial={false}
                   animate={{ width: s < step ? "100%" : "0%" }}
                   transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute inset-y-0 left-0 bg-emerald-500"
+                  className="absolute inset-y-0 left-0 bg-[var(--success)]"
                 />
               </div>
             ) : null}

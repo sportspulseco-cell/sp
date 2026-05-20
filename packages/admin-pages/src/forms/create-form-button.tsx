@@ -21,6 +21,7 @@ import {
   type FormPurpose
 } from "@sportspulse/kernel";
 import {
+  Alert,
   Button,
   Dialog,
   DialogActions,
@@ -386,11 +387,7 @@ function CreateFormDialog({
           />
         </Field>
 
-        {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
-            {error}
-          </p>
-        ) : null}
+        {error ? <Alert tone="error">{error}</Alert> : null}
 
         <DialogActions>
           <Button type="button" variant="ghost" onClick={onClose}>

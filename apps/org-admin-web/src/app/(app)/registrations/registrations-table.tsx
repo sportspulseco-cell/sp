@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, X } from "lucide-react";
 import {
+  Alert,
   Badge,
   Button,
   TBody,
@@ -64,11 +65,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
 
   return (
     <div className="space-y-3">
-      {error ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-600 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <Table>
         <THead>
           <TR>
@@ -123,7 +120,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
                         variant="outline"
                         onClick={() => setOpenId(r.id)}
                         disabled={busy === r.id}
-                        className="text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                        className="text-[var(--tint-rose-fg)] hover:bg-[var(--tint-rose-bg)]"
                       >
                         <X className="mr-1 h-3 w-3" strokeWidth={2} />
                         Reject
@@ -169,7 +166,7 @@ function RejectReason({
         size="sm"
         onClick={() => onSubmit(reason.trim())}
         disabled={busy}
-        className="text-red-600 dark:text-red-400"
+        className="text-[var(--tint-rose-fg)]"
       >
         {busy ? (
           <Loader2 className="mr-1 h-3 w-3 animate-spin" strokeWidth={2} />
