@@ -1,6 +1,11 @@
 import { Building2 } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, leagueMgmt, orgs } from "@/lib/api/server-api";
+import {
+  iam,
+  leagueMgmt,
+  orgAdminPersons,
+  orgs
+} from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
@@ -32,18 +37,20 @@ export default async function NewInvoicePage() {
     );
   }
 
-  const [orgsPage, leaguesPage, seasonsPage, teamsPage] = await Promise.all([
-    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listLeagues({ orgId: activeOrgId })
-      .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listSeasons({ orgId: activeOrgId })
-      .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listTeams({ orgId: activeOrgId })
-      .catch(() => ({ items: [], nextCursor: null }))
-  ]);
+  const [orgsPage, leaguesPage, seasonsPage, teamsPage, personsList] =
+    await Promise.all([
+      orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
+      leagueMgmt
+        .listLeagues({ orgId: activeOrgId })
+        .catch(() => ({ items: [], nextCursor: null })),
+      leagueMgmt
+        .listSeasons({ orgId: activeOrgId })
+        .catch(() => ({ items: [], nextCursor: null })),
+      leagueMgmt
+        .listTeams({ orgId: activeOrgId })
+        .catch(() => ({ items: [], nextCursor: null })),
+      orgAdminPersons.list({ orgId: activeOrgId }).catch(() => [])
+    ]);
 
   // Divisions are filtered by seasonId; fan out across the org's
   // seasons. Caps at 100 seasons since the listSeasons call already
@@ -105,6 +112,13 @@ export default async function NewInvoicePage() {
           id: t.id,
           name: t.name,
           orgId: t.orgId
+        }))}
+        persons={personsList.map((p) => ({
+          id: p.id,
+          orgId: p.orgId,
+          displayName: p.email
+            ? `${p.displayName} · ${p.email}`
+            : p.displayName
         }))}
       />
     </div>

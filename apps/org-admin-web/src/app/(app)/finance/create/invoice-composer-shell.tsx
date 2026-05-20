@@ -13,7 +13,8 @@ import {
   type InvoiceComposerLeague,
   type InvoiceComposerSeason,
   type InvoiceComposerDivision,
-  type InvoiceComposerTeam
+  type InvoiceComposerTeam,
+  type InvoiceComposerPerson
 } from "@sportspulse/admin-pages";
 import { orgAdminFinance } from "@/lib/api/browser-api";
 
@@ -23,7 +24,8 @@ export function InvoiceComposerShell({
   leagues,
   seasons,
   divisions,
-  teams
+  teams,
+  persons
 }: {
   activeOrgId: string;
   activeOrgName: string;
@@ -31,6 +33,7 @@ export function InvoiceComposerShell({
   seasons: InvoiceComposerSeason[];
   divisions: InvoiceComposerDivision[];
   teams: InvoiceComposerTeam[];
+  persons: InvoiceComposerPerson[];
 }) {
   const router = useRouter();
   return (
@@ -40,6 +43,7 @@ export function InvoiceComposerShell({
       seasons={seasons}
       divisions={divisions}
       teams={teams}
+      persons={persons}
       createBulkInvoice={(body, key) =>
         orgAdminFinance.createBulkInvoice(body, key)
       }

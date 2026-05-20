@@ -15,6 +15,7 @@ import { OrgAdminFinanceController } from "./interface/org-admin-finance.control
 import { OrgAdminRegistrationsController } from "./interface/org-admin-registrations.controller";
 import { OrgAdminFormsController } from "./interface/org-admin-forms.controller";
 import { OrgAdminFormBuilderController } from "./interface/org-admin-form-builder.controller";
+import { OrgAdminPersonsController } from "./interface/org-admin-persons.controller";
 
 /**
  * Backlog #17 — org-admin extended actions module.
@@ -47,7 +48,8 @@ import { OrgAdminFormBuilderController } from "./interface/org-admin-form-builde
     OrgAdminFinanceController,
     OrgAdminRegistrationsController,
     OrgAdminFormsController,
-    OrgAdminFormBuilderController
+    OrgAdminFormBuilderController,
+    OrgAdminPersonsController
   ]
 })
 export class OrgAdminModule {}

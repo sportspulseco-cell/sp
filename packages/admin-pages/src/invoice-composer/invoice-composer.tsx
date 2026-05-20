@@ -333,7 +333,9 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
           htmlFor="target"
           hint={
             targets.length === 0
-              ? "No matching records loaded — pass the relevant list to InvoiceComposer."
+              ? billingScope === "individual"
+                ? "No people loaded yet for this org. A person shows up here once they hold an active membership, registration, or role assignment in your org."
+                : `No ${billingScope}s exist for this org yet — pick another scope or seed the data first.`
               : undefined
           }
         >

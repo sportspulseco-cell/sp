@@ -2897,6 +2897,21 @@ export function createApi(f: Fetcher) {
         })
     },
 
+    // Org-admin person directory — used by the invoice composer's
+    // individual-scope picker. Returns persons reachable from the org
+    // via memberships, registrations, or org-scoped role assignments.
+    orgAdminPersons: {
+      list: (q: { orgId: string }) =>
+        f<
+          Array<{
+            id: string;
+            orgId: string;
+            displayName: string;
+            email: string | null;
+          }>
+        >(`/org-admin/persons${qs(q)}`)
+    },
+
     // Backlog #6 · org-admin write surfaces (divisions).
     orgAdminDivisions: {
       create: (body: {
