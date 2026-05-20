@@ -201,18 +201,104 @@ export class RegistrationV2Service {
 
   // ================= FREE AGENT POOL =================
 
-  async listFreeAgentPool(opts: { seasonId?: string }) {
-    const where = opts.seasonId
+  /**
+   * List active free-agent pool entries.
+   *
+   * - `seasonId`  — direct filter on the pool's season.
+   * - `forTeamId` — captain helper. Resolves the team's currently-active
+   *   division entry (status in applied/accepted/confirmed) to its
+   *   division → season and lists that season's pool. Empty when the
+   *   team isn't placed yet.
+   *
+   * Rows are enriched with the player's displayName + email + DOB by
+   * joining persons → profiles. The captain UI needs these to render a
+   * usable picker (BUG-058 close — pool-only ids weren't actionable).
+   */
+  async listFreeAgentPool(opts: {
+    seasonId?: string;
+    forTeamId?: string;
+  }) {
+    let seasonId = opts.seasonId ?? null;
+    if (!seasonId && opts.forTeamId) {
+      const [entry] = await this.db
+        .select({ seasonId: schema.divisions.seasonId })
+        .from(schema.divisionTeamEntries)
+        .innerJoin(
+          schema.divisions,
+          eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+        )
+        .where(eq(schema.divisionTeamEntries.teamId, opts.forTeamId))
+        .orderBy(desc(schema.divisionTeamEntries.createdAt))
+        .limit(1);
+      if (!entry) return [];
+      seasonId = entry.seasonId;
+    }
+
+    const where = seasonId
       ? and(
-          eq(schema.freeAgentPoolEntries.seasonId, opts.seasonId),
+          eq(schema.freeAgentPoolEntries.seasonId, seasonId),
           eq(schema.freeAgentPoolEntries.status, "active")
         )
       : eq(schema.freeAgentPoolEntries.status, "active");
-    return this.db
-      .select()
+
+    const rows = await this.db
+      .select({
+        id: schema.freeAgentPoolEntries.id,
+        playerPersonId: schema.freeAgentPoolEntries.playerPersonId,
+        seasonId: schema.freeAgentPoolEntries.seasonId,
+        positions: schema.freeAgentPoolEntries.positions,
+        availability: schema.freeAgentPoolEntries.availability,
+        levelPrimary: schema.freeAgentPoolEntries.levelPrimary,
+        levelFlexibility: schema.freeAgentPoolEntries.levelFlexibility,
+        note: schema.freeAgentPoolEntries.note,
+        noShowRate: schema.freeAgentPoolEntries.noShowRate,
+        status: schema.freeAgentPoolEntries.status,
+        placedTeamId: schema.freeAgentPoolEntries.placedTeamId,
+        placedAt: schema.freeAgentPoolEntries.placedAt,
+        metadata: schema.freeAgentPoolEntries.metadata,
+        createdAt: schema.freeAgentPoolEntries.createdAt,
+        updatedAt: schema.freeAgentPoolEntries.updatedAt,
+        playerFirstName: schema.persons.legalFirstName,
+        playerLastName: schema.persons.legalLastName,
+        playerPreferred: schema.persons.preferredName,
+        playerDob: schema.persons.dobDate,
+        playerEmail: schema.profiles.email
+      })
       .from(schema.freeAgentPoolEntries)
+      .leftJoin(
+        schema.persons,
+        eq(schema.persons.id, schema.freeAgentPoolEntries.playerPersonId)
+      )
+      .leftJoin(
+        schema.profiles,
+        eq(schema.profiles.id, schema.persons.userId)
+      )
       .where(where)
       .orderBy(desc(schema.freeAgentPoolEntries.createdAt));
+
+    return rows.map((r) => ({
+      id: r.id,
+      playerPersonId: r.playerPersonId,
+      seasonId: r.seasonId,
+      positions: r.positions,
+      availability: r.availability as Record<string, unknown>,
+      levelPrimary: r.levelPrimary,
+      levelFlexibility: r.levelFlexibility,
+      note: r.note,
+      noShowRate: r.noShowRate,
+      status: r.status as "active" | "placed" | "withdrawn",
+      placedTeamId: r.placedTeamId,
+      placedAt: r.placedAt ? r.placedAt.toISOString() : null,
+      metadata: r.metadata as Record<string, unknown>,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      playerName:
+        (r.playerPreferred && r.playerPreferred.trim()) ||
+        [r.playerFirstName, r.playerLastName].filter(Boolean).join(" ").trim() ||
+        null,
+      playerEmail: r.playerEmail ?? null,
+      playerDob: r.playerDob ?? null
+    }));
   }
 
   async upsertFreeAgentEntry(

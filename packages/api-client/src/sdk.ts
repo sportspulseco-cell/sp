@@ -2191,7 +2191,9 @@ export function createApi(f: Fetcher) {
       // Free-agent pool — captains read + place; players upsert their
       // own entry to advertise themselves between seasons. The pool
       // table is the Path 2C marketplace from registration-v2 schema.
-      listFreeAgentPool: (q: { seasonId?: string } = {}) =>
+      listFreeAgentPool: (
+        q: { seasonId?: string; forTeamId?: string } = {}
+      ) =>
         f<FreeAgentPoolEntry[]>(
           `/registration-v2/free-agent-pool${qs(q)}`
         ),

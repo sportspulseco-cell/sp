@@ -24,11 +24,23 @@ const LEVEL_COPY: Record<string, string> = {
   C: "Recreational",
   D: "Beginner"
 };
+const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 function fmtAvailability(av: Record<string, unknown>): string {
-  const days = Object.keys(av).filter((k) => av[k]);
+  const days = DAY_ORDER.filter((d) => av[d]);
   if (days.length === 0) return "—";
-  return days.slice(0, 3).join(", ");
+  return days.map((d) => d.toUpperCase()).join(", ");
+}
+
+function ageFromDob(dob: string | null): number | null {
+  if (!dob) return null;
+  const d = new Date(dob + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
 }
 
 export default async function CaptainFreeAgentsPage() {
@@ -62,10 +74,13 @@ export default async function CaptainFreeAgentsPage() {
     );
   }
 
+  // Pass forTeamId so the server resolves the team's division → season
+  // and only returns the pool for that season. Avoids leaking pools the
+  // captain's team isn't part of.
   const [team, raw] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
     registrationV2
-      .listFreeAgentPool({})
+      .listFreeAgentPool({ forTeamId: myTeamId })
       .catch(() => [] as FreeAgentPoolEntry[])
   ]);
 
@@ -93,6 +108,7 @@ export default async function CaptainFreeAgentsPage() {
           <THead>
             <TR>
               <TH>Player</TH>
+              <TH>Age</TH>
               <TH>Positions</TH>
               <TH>Level</TH>
               <TH>Availability</TH>
@@ -101,39 +117,52 @@ export default async function CaptainFreeAgentsPage() {
             </TR>
           </THead>
           <TBody>
-            {active.map((e: FreeAgentPoolEntry) => (
-              <TR key={e.id}>
-                <TD className="font-mono text-[11px] text-fg-muted">
-                  {e.playerPersonId.slice(0, 8)}
-                </TD>
-                <TD>
-                  {e.positions.map((p: string) => (
-                    <Badge key={p} mono tone="info" className="mr-1">
-                      {p}
+            {active.map((e: FreeAgentPoolEntry) => {
+              const age = ageFromDob(e.playerDob);
+              return (
+                <TR key={e.id}>
+                  <TD>
+                    <div className="font-medium text-fg">
+                      {e.playerName ?? "—"}
+                    </div>
+                    {e.playerEmail ? (
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                        {e.playerEmail}
+                      </div>
+                    ) : null}
+                  </TD>
+                  <TD className="font-mono text-[11px] text-fg-muted">
+                    {age != null ? `${age}` : "—"}
+                  </TD>
+                  <TD>
+                    {e.positions.map((p: string) => (
+                      <Badge key={p} mono tone="info" className="mr-1">
+                        {p}
+                      </Badge>
+                    ))}
+                  </TD>
+                  <TD>
+                    <Badge mono tone="neutral">
+                      {LEVEL_COPY[e.levelPrimary] ?? e.levelPrimary}
                     </Badge>
-                  ))}
-                </TD>
-                <TD>
-                  <Badge mono tone="neutral">
-                    {LEVEL_COPY[e.levelPrimary] ?? e.levelPrimary}
-                  </Badge>
-                  {e.levelFlexibility?.length ? (
-                    <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                      ± {e.levelFlexibility.join(", ")}
-                    </span>
-                  ) : null}
-                </TD>
-                <TD className="text-[12px] text-fg-muted">
-                  {fmtAvailability(e.availability)}
-                </TD>
-                <TD className="max-w-[18ch] truncate text-[12px] text-fg-muted">
-                  {e.note ?? "—"}
-                </TD>
-                <TD className="text-right">
-                  <ClaimFreeAgentButton entryId={e.id} teamId={myTeamId} />
-                </TD>
-              </TR>
-            ))}
+                    {e.levelFlexibility?.length ? (
+                      <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                        ± {e.levelFlexibility.join(", ")}
+                      </span>
+                    ) : null}
+                  </TD>
+                  <TD className="text-[12px] text-fg-muted">
+                    {fmtAvailability(e.availability)}
+                  </TD>
+                  <TD className="max-w-[18ch] truncate text-[12px] text-fg-muted">
+                    {e.note ?? "—"}
+                  </TD>
+                  <TD className="text-right">
+                    <ClaimFreeAgentButton entryId={e.id} teamId={myTeamId} />
+                  </TD>
+                </TR>
+              );
+            })}
           </TBody>
         </Table>
       )}

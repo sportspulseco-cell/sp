@@ -1889,9 +1889,56 @@ function QuestionsStep({
   onNext: () => void;
 }) {
   const showTeamCard = submissionType === "team";
+  // Player-profile card runs on every solo path: free agents NEED these
+  // for the captain pool, and regular individual players need them so
+  // their /roster profile shows up populated. Reserved answer keys
+  // mirror the freeAgentPoolEntries columns 1:1 so the approve handler
+  // can upsert without a translation layer.
+  const showPlayerProfile =
+    submissionType === "free_agent" || submissionType === "individual";
   const teamValid =
     !showTeamCard ||
     (teamName.trim().length > 0 && teamDivision.trim().length > 0);
+
+  // Reserved keys live in the shared answers map so the funnel's
+  // existing persistence covers them (mergeMetadata in startSubmission).
+  const skillLevel =
+    typeof initialAnswers.skill_level === "string"
+      ? (initialAnswers.skill_level as string)
+      : "";
+  const positions = Array.isArray(initialAnswers.positions)
+    ? (initialAnswers.positions as string[])
+    : [];
+  const availability =
+    (initialAnswers.availability as Record<string, boolean> | undefined) ?? {};
+  const faNote =
+    typeof initialAnswers.fa_note === "string"
+      ? (initialAnswers.fa_note as string)
+      : "";
+
+  function patchAnswers(patch: Record<string, unknown>) {
+    onChange({ ...initialAnswers, ...patch });
+  }
+
+  function toggleDay(day: string) {
+    patchAnswers({
+      availability: { ...availability, [day]: !availability[day] }
+    });
+  }
+
+  function setPositionsCsv(csv: string) {
+    const arr = csv
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
+    patchAnswers({ positions: arr });
+  }
+
+  const playerProfileValid =
+    !showPlayerProfile ||
+    (skillLevel.length > 0 &&
+      positions.length > 0 &&
+      Object.values(availability).some((v) => v === true));
 
   return (
     <div className="space-y-5">
@@ -1955,11 +2002,99 @@ function QuestionsStep({
         </div>
       </section>
 
+      {showPlayerProfile ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              Player profile
+            </p>
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+              {submissionType === "free_agent" ? "Free-agent pool" : "Roster"}
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] text-fg-muted">
+            {submissionType === "free_agent"
+              ? "Captains in your division use this to evaluate fit before claiming you. All four are required."
+              : "Your skill level, position, and availability — used by your team's captain to slot you in lineups."}
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Skill level *"
+              hint="A = Elite · B = Competitive · C = Recreational · D = Beginner"
+            >
+              <select
+                value={skillLevel}
+                onChange={(e) => patchAnswers({ skill_level: e.target.value })}
+                required
+                className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent"
+              >
+                <option value="">Pick a level…</option>
+                <option value="A">A — Elite</option>
+                <option value="B">B — Competitive</option>
+                <option value="C">C — Recreational</option>
+                <option value="D">D — Beginner</option>
+              </select>
+            </Field>
+            <Field
+              label="Preferred positions *"
+              hint="Comma-separated codes, e.g. F, D, G (hockey) or GK, DF, MF, FW (soccer). Order = preference."
+            >
+              <Input
+                value={positions.join(", ")}
+                onChange={(e) => setPositionsCsv(e.target.value)}
+                placeholder="F, D"
+                required
+              />
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field
+              label="Availability *"
+              hint="Tick every day you can typically play. Captains use this to match practice + game schedules."
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const
+                ).map((d) => {
+                  const on = !!availability[d];
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleDay(d)}
+                      className={
+                        on
+                          ? "h-9 rounded-md border border-accent bg-accent/10 px-3 font-mono text-[11px] uppercase tracking-widest text-accent"
+                          : "h-9 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[11px] uppercase tracking-widest text-fg-muted hover:border-border-strong hover:text-fg"
+                      }
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field
+              label="Note to captains"
+              hint="Optional context, e.g. 'Travelling May 12-19, available rest of month.'"
+            >
+              <Input
+                value={faNote}
+                onChange={(e) => patchAnswers({ fa_note: e.target.value })}
+                placeholder="Optional"
+              />
+            </Field>
+          </div>
+        </section>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button onClick={onNext} disabled={!teamValid}>
+        <Button onClick={onNext} disabled={!teamValid || !playerProfileValid}>
           Next: Compliance <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

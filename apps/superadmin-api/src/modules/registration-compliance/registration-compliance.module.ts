@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CommunicationsModule } from "../communications/communications.module";
 import { FinanceModule } from "../finance/finance.module";
+import { RegistrationV2Module } from "../registration-v2/registration-v2.module";
 
 import { RegistrationFormsController } from "./interface/registration-forms.controller";
 import { RegistrationsController } from "./interface/registrations.controller";
@@ -59,7 +60,7 @@ import { DrizzleEligibilityRecordRepository } from "./infrastructure/repositorie
 import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle-document.repository";
 
 @Module({
-  imports: [CommunicationsModule, FinanceModule],
+  imports: [CommunicationsModule, FinanceModule, RegistrationV2Module],
   controllers: [
     RegistrationFormsController,
     RegistrationsController,

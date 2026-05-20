@@ -54,6 +54,12 @@ class PlaceFreeAgentBodyDto {
 
 class ListFreeAgentsQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
+  /**
+   * Captain helper — server resolves the team's currently-active division
+   * entry, then returns the pool for that division's season. Use either
+   * seasonId OR forTeamId, not both.
+   */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() forTeamId?: string;
 }
 
 @ApiTags("registration-v2/free-agent-pool")
@@ -72,13 +78,27 @@ export class FreeAgentPoolController {
     @Query() q: ListFreeAgentsQueryDto,
     @UserScope() scope: UserScopeType
   ) {
+    // Captains hit this from /captain/free-agents with `forTeamId`. The
+    // server resolves the team's season + division automatically; we
+    // verify the caller actually holds the team in their scope first
+    // (no leak of pools the captain doesn't have a team in).
+    if (q.forTeamId) {
+      if (!scope.isSuperAdmin) {
+        const inTeamScope = scope.teamIds?.includes(q.forTeamId) ?? false;
+        if (!inTeamScope) {
+          throw new NotFoundException(`Team not found: ${q.forTeamId}`);
+        }
+      }
+      return this.svc.listFreeAgentPool({ forTeamId: q.forTeamId });
+    }
+
     // Require seasonId for non-super-admin callers so we can scope-check
     // the result set. The free-agent pool exposes player PII + skill
     // levels; without a seasonId we'd return the entire platform pool.
     if (!scope.isSuperAdmin) {
       if (!q.seasonId) {
         throw new BadRequestException(
-          "seasonId is required for non-super-admin callers"
+          "seasonId or forTeamId is required for non-super-admin callers"
         );
       }
       const [season] = await this.db

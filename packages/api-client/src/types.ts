@@ -1016,6 +1016,12 @@ export interface FreeAgentPoolEntry {
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  /** Player's display / legal name, joined from persons. Nullable when
+   *  the persons row is missing for any reason. */
+  playerName: string | null;
+  playerEmail: string | null;
+  /** ISO date YYYY-MM-DD if present on the persons row. */
+  playerDob: string | null;
 }
 
 // ----- Team Store (Backlog #11) -----

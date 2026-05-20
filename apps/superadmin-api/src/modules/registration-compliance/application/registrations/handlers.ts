@@ -1,6 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -23,6 +23,8 @@ import { RegistrationDto, RegistrationPageDto } from "../dtos/registration.dto";
 import { NotificationService } from "../../../communications/application/notification.service";
 import type { TemplateCode } from "../../../communications/domain/templates/catalog";
 import { FinanceService } from "../../../finance/application/finance.service";
+import { RegistrationV2Service } from "../../../registration-v2/application/registration-v2.service";
+import { SupabaseAdminService } from "../../../../shared/auth/supabase-admin.service";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 
 export interface ListRegistrationsInput {
@@ -136,11 +138,14 @@ export interface ReviewRegistrationInput {
 export class ReviewRegistrationHandler
   implements CommandHandler<ReviewRegistrationInput, RegistrationDto>
 {
+  private readonly log = new Logger(ReviewRegistrationHandler.name);
   constructor(
     @Inject(REGISTRATION_REPOSITORY)
     private readonly registrations: RegistrationRepository,
     private readonly notify: NotificationService,
     private readonly finance: FinanceService,
+    private readonly regV2: RegistrationV2Service,
+    private readonly supabase: SupabaseAdminService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
   async execute(input: ReviewRegistrationInput): Promise<RegistrationDto> {
@@ -205,9 +210,158 @@ export class ReviewRegistrationHandler
         feeSchedule: null,
         fallbackDescription: "Registration fee"
       });
+      // Free-agent + individual player paths: grant the `player` role at
+      // division scope so the player's dashboard surfaces correctly,
+      // and (for free agents) seed the free-agent pool row that
+      // captains in matching divisions browse. Both side-effects are
+      // best-effort — a failure here must not block approval, since
+      // the registration row itself already moved to approved.
+      await this.applyApprovalSideEffects(input.id).catch((err) =>
+        this.log.warn(
+          `[approve sideeffects] registration=${input.id}: ${(err as Error).message}`
+        )
+      );
     }
 
     return RegistrationDto.fromDomain(r);
+  }
+
+  /**
+   * Post-approval bookkeeping:
+   *   1. Resolve the submitter's auth user + the registration's
+   *      division + season + metadata.
+   *   2. Assign the `player` role at scope=division (no-op when an
+   *      active assignment for the same role+scope already exists).
+   *   3. Refresh the Supabase JWT role_codes so middleware sees the
+   *      new code without an extra round-trip.
+   *   4. For free-agent submissions, upsert into freeAgentPoolEntries
+   *      with positions/availability/skill_level pulled from the
+   *      funnel's reserved `answers` keys.
+   */
+  private async applyApprovalSideEffects(registrationId: string): Promise<void> {
+    const [reg] = await this.db
+      .select({
+        id: schema.registrations.id,
+        submittedByUserId: schema.registrations.submittedByUserId,
+        subjectPersonId: schema.registrations.subjectPersonId,
+        seasonId: schema.registrations.seasonId,
+        divisionId: schema.registrations.divisionId,
+        metadata: schema.registrations.metadata
+      })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, registrationId))
+      .limit(1);
+    if (!reg) return;
+    const meta = (reg.metadata as Record<string, unknown>) ?? {};
+    const submissionType = (meta.submissionType as string) ?? "individual";
+    const answers = (meta.answers as Record<string, unknown>) ?? {};
+    const userId = reg.submittedByUserId;
+    if (!userId) return; // can't assign a role without an auth user
+
+    // --- (1/2) player role assignment ---
+    if (reg.divisionId) {
+      const [playerRole] = await this.db
+        .select({ id: schema.roles.id })
+        .from(schema.roles)
+        .where(
+          and(eq(schema.roles.code, "player"), isNull(schema.roles.orgId))
+        )
+        .limit(1);
+      if (playerRole) {
+        // Idempotency — skip when an active player assignment for the
+        // same division already exists.
+        const existing = await this.db
+          .select({ id: schema.userRoleAssignments.id })
+          .from(schema.userRoleAssignments)
+          .where(
+            and(
+              eq(schema.userRoleAssignments.userId, userId),
+              eq(schema.userRoleAssignments.roleId, playerRole.id),
+              eq(schema.userRoleAssignments.scopeType, "division"),
+              eq(schema.userRoleAssignments.scopeId, reg.divisionId),
+              isNull(schema.userRoleAssignments.revokedAt)
+            )
+          )
+          .limit(1);
+        if (existing.length === 0) {
+          await this.db.insert(schema.userRoleAssignments).values({
+            userId,
+            roleId: playerRole.id,
+            scopeType: "division",
+            scopeId: reg.divisionId,
+            effectiveFrom: new Date()
+          });
+          // Mirror the new role_code into the Supabase JWT app_metadata
+          // so middleware sees `player` next refresh.
+          const rows = await this.db
+            .select({ code: schema.roles.code })
+            .from(schema.userRoleAssignments)
+            .innerJoin(
+              schema.roles,
+              eq(schema.roles.id, schema.userRoleAssignments.roleId)
+            )
+            .where(
+              and(
+                eq(schema.userRoleAssignments.userId, userId),
+                isNull(schema.userRoleAssignments.revokedAt)
+              )
+            );
+          const codes = Array.from(new Set(rows.map((r) => r.code)));
+          await this.supabase
+            .setRoleCodes(userId, codes)
+            .catch((err) =>
+              this.log.warn(
+                `[approve sideeffects] role_codes sync failed user=${userId}: ${(err as Error).message}`
+              )
+            );
+        }
+      }
+    }
+
+    // --- (3) free-agent pool entry ---
+    if (submissionType === "free_agent" && reg.seasonId) {
+      const skillLevel =
+        typeof answers.skill_level === "string"
+          ? (answers.skill_level as string).toUpperCase()
+          : null;
+      const positions = Array.isArray(answers.positions)
+        ? (answers.positions as unknown[]).filter(
+            (p): p is string => typeof p === "string" && p.trim().length > 0
+          )
+        : [];
+      const availability =
+        typeof answers.availability === "object" &&
+        answers.availability !== null
+          ? (answers.availability as Record<string, unknown>)
+          : {};
+      const note =
+        typeof answers.fa_note === "string" && answers.fa_note.trim().length > 0
+          ? (answers.fa_note as string).trim()
+          : null;
+      // Skip when the funnel didn't capture the required pool fields
+      // (e.g. legacy submissions made before BUG-058). The captain
+      // dashboard will still show the registration, just not as a
+      // pool entry.
+      if (
+        skillLevel &&
+        ["A", "B", "C", "D"].includes(skillLevel) &&
+        positions.length > 0
+      ) {
+        await this.regV2.upsertFreeAgentEntry({
+          playerPersonId: reg.subjectPersonId,
+          seasonId: reg.seasonId,
+          positions,
+          availability,
+          levelPrimary: skillLevel,
+          levelFlexibility: null,
+          note,
+          status: "active",
+          // Stash the divisionId in metadata so captains can filter
+          // by division until the table grows a typed column for it.
+          metadata: { divisionId: reg.divisionId ?? null }
+        });
+      }
+    }
   }
 
   /**
