@@ -1,21 +1,23 @@
+/* Hallmark · page: dashboard · genre: editorial · theme: project (sp-org-admin)
+ * pre-emit critique: P5 H4 E5 S4 R5 V4
+ */
 import Link from "next/link";
 import {
   ArrowUpRight,
   Building2,
   CalendarRange,
-  CircleDollarSign,
   ClipboardList,
   Layers,
   ScrollText,
   Trophy,
-  Wallet,
-  type LucideIcon
+  Wallet
 } from "lucide-react";
 import {
   Badge,
-  Eyebrow,
   EmptyState,
-  IconTile,
+  Eyebrow,
+  SectionRail,
+  StatTile,
   TBody,
   TD,
   TH,
@@ -30,6 +32,7 @@ import {
   orgs,
   registration
 } from "@/lib/api/server-api";
+import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
@@ -42,8 +45,6 @@ function formatMoney(cents: number, currency = "USD"): string {
 }
 
 export default async function OrgAdminHome() {
-  // 1) figure out which org the signed-in user is currently looking
-  // at — cookie-backed switcher with `scope.orgIds[0]` fallback.
   const scope = await iam.meScope().catch(() => null);
   const myOrgId = await getActiveOrgId(scope);
   const myOrg = myOrgId ? await orgs.get(myOrgId).catch(() => null) : null;
@@ -60,7 +61,6 @@ export default async function OrgAdminHome() {
     );
   }
 
-  // 2) parallel-fetch the data we want to render
   const [leaguesPage, seasonsPage, registrationsPage, invoicesPage] =
     await Promise.all([
       leagueMgmt
@@ -77,11 +77,6 @@ export default async function OrgAdminHome() {
         .catch(() => ({ items: [], nextCursor: null }))
     ]);
 
-  // 3) derive KPIs — `status` types here come from the SDK's static
-  // unions, which lag behind the v2 state machine the API ships
-  // (registrations gained `pending_*` states in migration 0014, and
-  // some season statuses not yet narrowed). Cast to string so the
-  // filters match real runtime values without the SDK churn.
   const activeLeagues = leaguesPage.items.filter(
     (l) => (l.status as string) === "active"
   );
@@ -107,178 +102,182 @@ export default async function OrgAdminHome() {
   ).length;
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
-        <div className="space-y-2">
-          <Eyebrow>// Overview</Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-tight tracking-tighter text-fg">
-            {myOrg?.displayName ?? "Your organization"}
-          </h1>
-          <p className="text-[14px] text-fg-muted">
-            Welcome back. Here's what's happening across your organization.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/seasons"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
-          >
-            Manage seasons
-            <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-          </Link>
-          <Link
-            href="/finance"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
-          >
-            Finance
-            <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-          </Link>
-        </div>
-      </header>
-
-      {/* KPI tiles */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon={Trophy}
-          label="Active leagues"
-          value={String(activeLeagues.length)}
-          hint={`${leaguesPage.items.length} total`}
-          tint="blue"
-        />
-        <Kpi
-          icon={CalendarRange}
-          label="Open seasons"
-          value={String(openSeasons.length)}
-          hint={`${seasonsPage.items.length} total`}
-          tint="violet"
-        />
-        <Kpi
-          icon={ClipboardList}
-          label="Registrations to review"
-          value={String(pendingRegs.length)}
-          hint={`${registrationsPage.items.length} total submissions`}
-          tint="amber"
-        />
-        <Kpi
-          icon={Wallet}
-          label="Outstanding AR"
-          value={formatMoney(outstandingCents, currency)}
-          hint={`${overdueCount} overdue`}
-          tint={overdueCount > 0 ? "rose" : "emerald"}
-        />
-      </section>
-
-      {/* Leagues */}
-      <section className="rounded-xl border border-border bg-surface-1">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div>
-            <Eyebrow>Leagues</Eyebrow>
-            <p className="mt-1 text-[13px] text-fg-muted">
-              Every league owned by {myOrg?.displayName ?? "your org"}.
-            </p>
+    <div className="space-y-14">
+      <PageHeader
+        eyebrow="// Overview"
+        title={myOrg?.displayName ?? "Your organization"}
+        description="Welcome back. Here's what's happening across your organization."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/seasons"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors duration-fast ease-ease hover:border-fg-muted hover:text-fg"
+            >
+              Manage seasons
+              <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+            </Link>
+            <Link
+              href="/finance"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors duration-fast ease-ease hover:border-fg-muted hover:text-fg"
+            >
+              Finance
+              <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+            </Link>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-            {leaguesPage.items.length} total
-          </span>
-        </header>
-        {leaguesPage.items.length === 0 ? (
-          <div className="px-6 py-10">
-            <EmptyState
-              icon={Layers}
-              title="No leagues yet"
-              description="Kick off setup by creating your first league."
-            />
-            <div className="mt-4 flex justify-center">
-              <Link
-                href="/leagues/new"
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
-              >
-                Create league
-                <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <Table>
-            <THead>
-              <TR>
-                <TH>League</TH>
-                <TH>Sport</TH>
-                <TH>Format</TH>
-                <TH>Status</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {leaguesPage.items.map((l) => (
-                <TR key={l.id}>
-                  <TD className="font-medium text-fg">{l.name}</TD>
-                  <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">
-                    {l.sportCode}
-                  </TD>
-                  <TD className="text-fg-muted">{l.format ?? "—"}</TD>
-                  <TD>
-                    <Badge mono tone={l.status === "active" ? "success" : "neutral"}>
-                      {l.status.replace(/_/g, " ")}
-                    </Badge>
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
-        )}
-      </section>
+        }
+      />
 
-      {/* Recent registrations */}
-      <section className="rounded-xl border border-border bg-surface-1">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div>
-            <Eyebrow>Recent registrations</Eyebrow>
-            <p className="mt-1 text-[13px] text-fg-muted">
-              Newest registrations across every season in this org.
-            </p>
-          </div>
-          <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-            {registrationsPage.items.length} loaded
-          </span>
-        </header>
-        {registrationsPage.items.length === 0 ? (
-          <EmptyState
-            icon={ScrollText}
-            title="No registrations yet"
-            description="Registrations submitted via the public funnel will land here."
+      {/* 01 · Pulse — KPI grid */}
+      <section className="space-y-6">
+        <SectionRail
+          index="01"
+          label="Pulse"
+          subtitle="The four numbers that matter today — leagues, seasons, registrations waiting, and money outstanding."
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatTile
+            icon={Trophy}
+            label="Active leagues"
+            value={String(activeLeagues.length)}
+            hint={`${leaguesPage.items.length} total`}
+            tone="blue"
           />
-        ) : (
-          <Table>
-            <THead>
-              <TR>
-                <TH>ID</TH>
-                <TH>Subject</TH>
-                <TH>Status</TH>
-                <TH>Created</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {registrationsPage.items.slice(0, 10).map((r) => (
-                <TR key={r.id}>
-                  <TD className="font-mono text-[11px] text-fg-muted">
-                    {r.id.slice(0, 8)}
-                  </TD>
-                  <TD className="font-mono text-[11px] text-fg-muted">
-                    {r.subjectPersonId.slice(0, 8)}
-                  </TD>
-                  <TD>
-                    <Badge mono tone={statusToneFor(r.status)}>
-                      {r.status.replace(/_/g, " ")}
-                    </Badge>
-                  </TD>
-                  <TD className="text-[12px] text-fg-muted">
-                    {new Date(r.createdAt).toLocaleDateString("en-CA")}
-                  </TD>
+          <StatTile
+            icon={CalendarRange}
+            label="Open seasons"
+            value={String(openSeasons.length)}
+            hint={`${seasonsPage.items.length} total`}
+            tone="violet"
+          />
+          <StatTile
+            icon={ClipboardList}
+            label="Registrations to review"
+            value={String(pendingRegs.length)}
+            hint={`${registrationsPage.items.length} total submissions`}
+            tone="amber"
+          />
+          <StatTile
+            icon={Wallet}
+            label="Outstanding AR"
+            value={formatMoney(outstandingCents, currency)}
+            hint={
+              overdueCount > 0
+                ? `${overdueCount} overdue`
+                : "No overdue invoices"
+            }
+            tone={overdueCount > 0 ? "rose" : "emerald"}
+          />
+        </div>
+      </section>
+
+      {/* 02 · Leagues — table shell */}
+      <section className="space-y-6">
+        <SectionRail
+          index="02"
+          label="Leagues"
+          subtitle={`Every league owned by ${myOrg?.displayName ?? "your org"}. Drill in to manage seasons, divisions, and rosters.`}
+          meta={`// ${leaguesPage.items.length} total`}
+        />
+        <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
+          {leaguesPage.items.length === 0 ? (
+            <div className="px-6 py-12">
+              <EmptyState
+                icon={Layers}
+                title="No leagues yet"
+                description="Kick off setup by creating your first league."
+              />
+            </div>
+          ) : (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>League</TH>
+                  <TH>Sport</TH>
+                  <TH>Format</TH>
+                  <TH>Status</TH>
                 </TR>
-              ))}
-            </TBody>
-          </Table>
-        )}
+              </THead>
+              <TBody>
+                {leaguesPage.items.map((l) => (
+                  <TR key={l.id}>
+                    <TD className="font-medium text-fg">
+                      <Link
+                        href={`/leagues/${l.id}`}
+                        className="hover:text-accent"
+                      >
+                        {l.name}
+                      </Link>
+                    </TD>
+                    <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">
+                      {l.sportCode}
+                    </TD>
+                    <TD className="text-fg-muted">{l.format ?? "—"}</TD>
+                    <TD>
+                      <Badge
+                        mono
+                        tone={l.status === "active" ? "success" : "neutral"}
+                      >
+                        {l.status.replace(/_/g, " ")}
+                      </Badge>
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
+        </div>
+      </section>
+
+      {/* 03 · Activity — recent registrations */}
+      <section className="space-y-6">
+        <SectionRail
+          index="03"
+          label="Activity"
+          subtitle="The newest registrations across every season in this org. Approve them from the registrations queue when they're ready."
+          meta={`// ${registrationsPage.items.length} loaded`}
+        />
+        <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
+          {registrationsPage.items.length === 0 ? (
+            <div className="px-6 py-12">
+              <EmptyState
+                icon={ScrollText}
+                title="No registrations yet"
+                description="Registrations submitted via the public funnel will land here."
+              />
+            </div>
+          ) : (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>ID</TH>
+                  <TH>Subject</TH>
+                  <TH>Status</TH>
+                  <TH className="text-right">Created</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {registrationsPage.items.slice(0, 10).map((r) => (
+                  <TR key={r.id}>
+                    <TD className="font-mono text-[11px] text-fg-muted">
+                      {r.id.slice(0, 8)}
+                    </TD>
+                    <TD className="font-mono text-[11px] text-fg-muted">
+                      {r.subjectPersonId.slice(0, 8)}
+                    </TD>
+                    <TD>
+                      <Badge mono tone={statusToneFor(r.status)}>
+                        {r.status.replace(/_/g, " ")}
+                      </Badge>
+                    </TD>
+                    <TD className="text-right text-[12px] text-fg-muted">
+                      {new Date(r.createdAt).toLocaleDateString("en-CA")}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
+        </div>
       </section>
     </div>
   );
@@ -291,34 +290,6 @@ function statusToneFor(
   if (status === "rejected" || status === "cancelled") return "danger";
   if (status.startsWith("pending")) return "warning";
   return "info";
-}
-
-function Kpi({
-  icon,
-  label,
-  value,
-  hint,
-  tint
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint: string;
-  tint: "blue" | "violet" | "amber" | "rose" | "emerald" | "cyan" | "neutral";
-}) {
-  const Icon = icon;
-  return (
-    <div className="rounded-xl border border-border bg-surface-1 p-5">
-      <div className="flex items-center justify-between">
-        <Eyebrow>{label}</Eyebrow>
-        <IconTile icon={Icon} tint={tint} size="sm" />
-      </div>
-      <p className="mt-5 font-mono text-[28px] font-semibold tabular-nums tracking-tight text-fg">
-        {value}
-      </p>
-      <p className="mt-1 text-[12px] text-fg-muted">{hint}</p>
-    </div>
-  );
 }
 
 function ShellWithoutOrg({ message }: { message: string }) {
@@ -336,10 +307,6 @@ function ShellWithoutOrg({ message }: { message: string }) {
       <p className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
         // contact your platform admin
       </p>
-      <div className="hidden">
-        {/* keep the symbol referenced so tree-shaking doesn't drop it */}
-        <CircleDollarSign className="h-3 w-3" />
-      </div>
     </main>
   );
 }
