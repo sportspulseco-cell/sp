@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { Org } from "@sportspulse/api-client";
 import type { DivisionDraft, LeagueDraft, SeasonDraft } from "../types";
-import { PhaseHeader } from "./org-step";
 import { DivisionCard } from "./division-card";
 
 /**
@@ -40,14 +39,7 @@ export function DivisionsStep({
   }
 
   return (
-    <div className="space-y-6">
-      <PhaseHeader
-        index={3}
-        title="Configure divisions"
-        description="Add one or more divisions — each can have different rules, age groups, and post-season settings"
-        tableTag="divisions table"
-      />
-
+    <div className="space-y-8">
       <div className="space-y-4">
         {divisions.map((d, i) => (
           <DivisionCard

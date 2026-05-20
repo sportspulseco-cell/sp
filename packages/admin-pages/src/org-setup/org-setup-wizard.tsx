@@ -330,7 +330,7 @@ export function OrgSetupWizard({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <header className="relative pb-6">
         <motion.div
           initial={{ opacity: 0, y: 6 }}

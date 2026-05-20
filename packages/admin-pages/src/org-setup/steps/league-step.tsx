@@ -9,7 +9,7 @@ import {
   type LeagueFormat,
   type Privacy
 } from "../types";
-import { PhaseHeader, SectionHeader } from "./org-step";
+import { SectionHeader } from "./org-step";
 
 const FORMATS: { value: LeagueFormat; label: string }[] = [
   { value: "regular", label: "Regular season" },
@@ -89,14 +89,7 @@ export function LeagueStep({
   );
 
   return (
-    <div className="space-y-6">
-      <PhaseHeader
-        index={1}
-        title="Create league"
-        description="League identity — permanent. Seasons and divisions are added after."
-        tableTag="leagues table"
-      />
-
+    <div className="space-y-8">
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
         <SectionHeader title="Identity" required />
 

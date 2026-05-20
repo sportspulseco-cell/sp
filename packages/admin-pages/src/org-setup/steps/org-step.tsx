@@ -18,17 +18,10 @@ export function OrgStep({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="space-y-6">
-      <PhaseHeader
-        index={0}
-        title="Select organisation"
-        description="Choose the org this league belongs to — cannot be changed after creation"
-        tableTag="orgs table"
-      />
-
+    <div className="space-y-8">
       <SectionHeader
         title="Organisation"
-        hint="All orgs you have access to"
+        hint="All orgs you have access to · orgs table"
         required
       />
 

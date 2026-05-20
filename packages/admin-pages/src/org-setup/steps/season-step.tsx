@@ -1,7 +1,7 @@
 "use client";
 
 import type { SeasonDraft } from "../types";
-import { PhaseHeader, SectionHeader } from "./org-step";
+import { SectionHeader } from "./org-step";
 import { Field, FieldStyle } from "./league-step";
 
 function fmt(d: string): string {
@@ -48,14 +48,7 @@ export function SeasonStep({
 }) {
   const today = todayIso();
   return (
-    <div className="space-y-6">
-      <PhaseHeader
-        index={2}
-        title="Create season"
-        description="Season-level configuration — repeats each season via rollover"
-        tableTag="seasons table"
-      />
-
+    <div className="space-y-8">
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
         <SectionHeader title="Season identity" required />
 
