@@ -17,7 +17,7 @@ export default async function ComposePage() {
   if (!orgId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Compose" title="Send a broadcast" />
+        <PageHeader eyebrow="Compose" title="Send a broadcast" />
         <EmptyState
           icon={Building2}
           title="No org in scope"
@@ -37,7 +37,7 @@ export default async function ComposePage() {
         Outbox
       </Link>
       <PageHeader
-        eyebrow="// Compose"
+        eyebrow="Compose"
         title="Send a broadcast"
         description="Queue a notification to a scoped audience inside this org. Each recipient gets one idempotent row — re-send is safe."
       />

@@ -138,7 +138,7 @@ export function LeagueDetail({
                 href={md.branding.logoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-300"
+                className="text-accent hover:underline"
               >
                 {md.branding.logoUrl.length > 60
                   ? md.branding.logoUrl.slice(0, 60) + "…"

@@ -17,7 +17,7 @@ export default async function NewTeamPage() {
   if (!orgId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// New team" title="Create a team" />
+        <PageHeader eyebrow="New team" title="Create a team" />
         <EmptyState
           icon={Building2}
           title="No org in scope"
@@ -39,7 +39,7 @@ export default async function NewTeamPage() {
         All teams
       </Link>
       <PageHeader
-        eyebrow="// New team"
+        eyebrow="New team"
         title={`Add a team to ${org?.displayName ?? "your org"}`}
         description="Teams stay loose under the org; entering a division happens later via the captain's registration flow."
       />

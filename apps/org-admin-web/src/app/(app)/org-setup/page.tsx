@@ -46,7 +46,7 @@ export default async function OrgAdminOrgSetupPage() {
   if (ordered.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Org setup" title="Org setup" />
+        <PageHeader eyebrow="Org setup" title="Org setup" />
         <EmptyState
           icon={Building2}
           title="No organization you can set up under"

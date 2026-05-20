@@ -106,7 +106,7 @@ export function TeamDetail({
                 href={team.logoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-300"
+                className="text-accent hover:underline"
               >
                 {team.logoUrl.length > 60
                   ? team.logoUrl.slice(0, 60) + "…"

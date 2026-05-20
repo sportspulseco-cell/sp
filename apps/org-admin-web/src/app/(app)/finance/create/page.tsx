@@ -27,7 +27,7 @@ export default async function NewInvoicePage() {
   if (!activeOrgId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Finance" title="New invoice" />
+        <PageHeader eyebrow="Finance" title="New invoice" />
         <EmptyState
           icon={Building2}
           title="No organization in scope"
@@ -69,7 +69,7 @@ export default async function NewInvoicePage() {
   if (!activeOrg) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Finance" title="New invoice" />
+        <PageHeader eyebrow="Finance" title="New invoice" />
         <EmptyState
           icon={Building2}
           title="Active org not visible"
@@ -82,7 +82,7 @@ export default async function NewInvoicePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Finance"
+        eyebrow="Finance"
         title="New invoice"
         description="Bill an individual, a team, a division, a league, a season, or the whole org. Fanout creates one invoice per recipient inside a single transaction."
       />
