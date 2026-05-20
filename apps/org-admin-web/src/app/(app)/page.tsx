@@ -104,7 +104,7 @@ export default async function OrgAdminHome() {
   return (
     <div className="space-y-14">
       <PageHeader
-        eyebrow="// Overview"
+        eyebrow="Overview"
         title={myOrg?.displayName ?? "Your organization"}
         description="Welcome back. Here's what's happening across your organization."
         action={
