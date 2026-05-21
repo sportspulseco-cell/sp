@@ -106,7 +106,8 @@ function LiveGameCard() {
   // Animated tick-by-tick clock for the demo card.
   const [clock, setClock] = useState({ q: 3, mm: 18, ss: 42 });
   useEffect(() => {
-    const t = setInterval(() => {
+    let t: ReturnType<typeof setInterval> | null = null;
+    const tick = () => {
       setClock((c) => {
         let { q, mm, ss } = c;
         ss--;
@@ -120,8 +121,30 @@ function LiveGameCard() {
         }
         return { q, mm, ss };
       });
-    }, 1000);
-    return () => clearInterval(t);
+    };
+    const start = () => {
+      if (t === null) t = setInterval(tick, 1000);
+    };
+    const stop = () => {
+      if (t !== null) {
+        clearInterval(t);
+        t = null;
+      }
+    };
+    // Pause whenever the tab is hidden (iOS background) or the OS asks
+    // for reduced motion. Otherwise the clock keeps repainting and
+    // wakes the GPU on low-power devices.
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    if (reducedMotion) return;
+    start();
+    const onVis = () => (document.hidden ? stop() : start());
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      stop();
+    };
   }, []);
   const pad = (n: number) => String(n).padStart(2, "0");
   return (

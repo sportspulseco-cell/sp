@@ -18,7 +18,16 @@ export function FooterTicker() {
   // Duplicate the list so the marquee loops seamlessly without a visible jump.
   const all = [...ITEMS, ...ITEMS];
   return (
-    <div className="overflow-hidden border-t border-border bg-bg-subtle py-5">
+    <div
+      className="overflow-hidden border-t border-border bg-bg-subtle py-5"
+      style={{
+        // Lets the browser skip layout + paint when this section is far
+        // off-screen. Critical on iOS where the 40s marquee otherwise
+        // composites every frame even when the user is at the hero.
+        contentVisibility: "auto",
+        containIntrinsicSize: "0 56px"
+      }}
+    >
       <div className="flex w-fit animate-ticker items-center whitespace-nowrap will-change-transform">
         {all.map((it, i) => (
           <span

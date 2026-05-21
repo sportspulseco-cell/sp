@@ -89,15 +89,22 @@
     scrollbar-width: none;
   }
 
-  /* Editorial Futurism — glassmorphic surface */
+  /* Editorial Futurism — glassmorphic surface.
+   *
+   * iOS Safari can lock up or refuse to paint when several
+   * `backdrop-filter: blur() saturate()` surfaces stack on a scrolling
+   * page (the home page mounts the nav, hero card, and several Glass
+   * panels at once). The desktop look keeps the cinematic blur; small
+   * viewports fall back to a solid translucent surface that paints
+   * with zero GPU cost. Same visual contract, no Safari freeze. */
   .glass {
     background: linear-gradient(
       180deg,
       rgba(255, 255, 255, 0.04) 0%,
       rgba(255, 255, 255, 0.015) 100%
     );
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(0, 242, 255, 0.08);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -110,9 +117,23 @@
       rgba(0, 27, 58, 0.5) 0%,
       rgba(0, 16, 42, 0.65) 100%
     );
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 1px solid rgba(0, 242, 255, 0.12);
+  }
+
+  @media (max-width: 767px) {
+    .glass,
+    .glass-strong {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .glass {
+      background: rgba(20, 20, 24, 0.85);
+    }
+    .glass-strong {
+      background: rgba(0, 16, 42, 0.92);
+    }
   }
 
   .navy-radial {
@@ -201,5 +222,17 @@
 
   .animate-electric-pulse {
     animation: electric-pulse 2.4s ease-out infinite;
+  }
+
+  /* Honour OS-level reduced-motion (iOS Low Power Mode flips this on)
+   * by pausing every infinite animation on the landing page. The
+   * marquee ticker + scanline + electric pulse don't carry meaning,
+   * so freezing them is a net win on battery-constrained devices. */
+  @media (prefers-reduced-motion: reduce) {
+    .scanline::after,
+    .animate-electric-pulse,
+    .animate-ticker {
+      animation: none !important;
+    }
   }
 }
