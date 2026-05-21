@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, Loader2 } from "lucide-react";
 import type { AnswerMap, FormWaiversConfig } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
@@ -523,6 +523,7 @@ export function RegistrationFunnel({
             requiredKinds={requiredKinds}
             signedVersionIds={signedVersionIds}
             fullName={fullName}
+            sportCode={context.season.sportCode}
             eligibilityFlags={eligibilityFlags}
             formWaivers={formWaivers}
             codeOfConductAccepted={codeOfConductAccepted}
@@ -577,6 +578,8 @@ export function RegistrationFunnel({
             initialAnswers={answers}
             onChange={setAnswers}
             submissionType={submissionType}
+            sportCode={context.season.sportCode}
+            dobDate={dobDate}
             teamName={teamName}
             teamDivision={teamDivision}
             teamColor={teamColor}
@@ -1383,6 +1386,7 @@ function WaiversStep({
   requiredKinds,
   signedVersionIds,
   fullName,
+  sportCode,
   eligibilityFlags,
   formWaivers,
   codeOfConductAccepted,
@@ -1397,6 +1401,7 @@ function WaiversStep({
   requiredKinds: string[];
   signedVersionIds: Set<string>;
   fullName: string;
+  sportCode: string;
   eligibilityFlags: string[] | null;
   formWaivers: FormWaiversConfig | null;
   codeOfConductAccepted: boolean;
@@ -1451,39 +1456,60 @@ function WaiversStep({
       !signedVersionIds.has(d.versionId)
   );
   const flags = eligibilityFlags ?? [];
-  const checks = [
+  const isHockey = sportCode === "HOCKEY_ICE";
+  // Three-state model — the previous 2-state showed green ✓ for checks
+  // whose flag is never populated, which lied to the player. `pending`
+  // is for checks the platform can't automate yet (manual admin review).
+  type CheckState = "pass" | "fail" | "pending";
+  type CheckRow = { label: string; state: CheckState; body: string };
+  const ageFail =
+    flags.includes("age_division_mismatch") ||
+    flags.includes("dob_missing") ||
+    flags.some((f) => f.startsWith("age_out_of_range"));
+  const checks: CheckRow[] = [
     {
       label: "Age / division fit",
-      flagKey: "age_division_mismatch",
-      okBody: "You're within the allowed age range for this division.",
-      warnBody: "Age may not match the configured division range. Admin will review."
+      state: ageFail ? "fail" : "pass",
+      body: ageFail
+        ? flags.includes("dob_missing")
+          ? "Date of birth is missing — go back and add it in the Account step."
+          : "Age may not match the configured division range. Admin will review."
+        : "You're within the allowed age range for this division."
     },
     {
       label: "No duplicate account",
-      flagKey: "duplicate_subject",
-      okBody: "No existing profile with matching name + DOB found.",
-      warnBody: "Possible duplicate found — admin will review manually."
-    },
-    {
-      label: "USA Hockey ID format",
-      flagKey: "usa_hockey_id_format_invalid",
-      okBody: "Format valid.",
-      warnBody: "USA Hockey ID format is invalid (6–12 alphanumeric)."
-    },
-    {
-      label: "USA Hockey ID — governing body verification",
-      flagKey: "usa_hockey_id_unverified",
-      okBody: "Verified against USA Hockey roster.",
-      warnBody:
-        "API verification pending. Admin will review manually. You may continue."
-    },
-    {
-      label: "Level / division match",
-      flagKey: "level_division_mismatch",
-      okBody: "Level within allowed range for this division.",
-      warnBody: "Self-reported level may not match division — admin will review."
+      state: flags.includes("duplicate_subject") ? "fail" : "pass",
+      body: flags.includes("duplicate_subject")
+        ? "Possible duplicate found — admin will review manually."
+        : "No existing profile with matching name + DOB found."
     }
   ];
+  if (isHockey) {
+    const idMissing = flags.includes("usa_hockey_id_missing");
+    const idInvalid = flags.includes("usa_hockey_id_format_invalid");
+    checks.push({
+      label: "USA Hockey ID",
+      state: idMissing || idInvalid ? "fail" : "pass",
+      body: idMissing
+        ? "USA Hockey ID is missing — add it on the Player details step."
+        : idInvalid
+          ? "USA Hockey ID format is invalid (6–12 alphanumeric)."
+          : "Format valid."
+    });
+    // Governing-body lookup + level/division match are both pending —
+    // there is no automated verification yet, and showing a fake green
+    // tick was lying to the player. Admin review picks both up.
+    checks.push({
+      label: "Governing body verification",
+      state: "pending",
+      body: "Will be verified against the USA Hockey roster during admin review."
+    });
+    checks.push({
+      label: "Level / division match",
+      state: "pending",
+      body: "Self-reported level will be reviewed against the division during admin review."
+    });
+  }
 
   const continueDisabled =
     requiredOutstanding.length > 0 ||
@@ -1498,26 +1524,29 @@ function WaiversStep({
         </p>
         <ul className="mt-4 divide-y divide-border">
           {checks.map((c) => {
-            const failed = flags.includes(c.flagKey);
+            const iconClass =
+              c.state === "fail"
+                ? "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]"
+                : c.state === "pending"
+                  ? "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-muted"
+                  : "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)]";
             return (
               <li
-                key={c.flagKey}
+                key={c.label}
                 className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
               >
-                <span
-                  className={
-                    failed
-                      ? "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                      : "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                  }
-                >
-                  {failed ? "!" : <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
+                <span className={iconClass}>
+                  {c.state === "fail" ? (
+                    "!"
+                  ) : c.state === "pending" ? (
+                    <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  )}
                 </span>
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-fg">{c.label}</p>
-                  <p className="mt-0.5 text-[12px] text-fg-muted">
-                    {failed ? c.warnBody : c.okBody}
-                  </p>
+                  <p className="mt-0.5 text-[12px] text-fg-muted">{c.body}</p>
                 </div>
               </li>
             );
@@ -1866,6 +1895,8 @@ function QuestionsStep({
   initialAnswers,
   onChange,
   submissionType,
+  sportCode,
+  dobDate,
   teamName,
   teamDivision,
   teamColor,
@@ -1879,6 +1910,8 @@ function QuestionsStep({
   initialAnswers: AnswerMap;
   onChange: (next: AnswerMap) => void;
   submissionType: SubmissionType | null;
+  sportCode: string;
+  dobDate: string;
   teamName: string;
   teamDivision: string;
   teamColor: string;
@@ -1896,6 +1929,9 @@ function QuestionsStep({
   // can upsert without a translation layer.
   const showPlayerProfile =
     submissionType === "free_agent" || submissionType === "individual";
+  // USA Hockey ID is hockey-only. Other sports get neither the input
+  // nor the corresponding eligibility check rows downstream.
+  const isHockey = sportCode === "HOCKEY_ICE";
   const teamValid =
     !showTeamCard ||
     (teamName.trim().length > 0 && teamDivision.trim().length > 0);
@@ -1915,6 +1951,27 @@ function QuestionsStep({
     typeof initialAnswers.fa_note === "string"
       ? (initialAnswers.fa_note as string)
       : "";
+  const usaHockeyIdRaw =
+    typeof initialAnswers.usa_hockey_id === "string"
+      ? (initialAnswers.usa_hockey_id as string)
+      : "";
+  const usaHockeyId = usaHockeyIdRaw.trim();
+  const usaHockeyIdValid =
+    !isHockey || /^[A-Z0-9]{6,12}$/i.test(usaHockeyId);
+
+  // Computed age display — DOB was collected on the Account step and
+  // travels with the submission's metadata, so here we surface it
+  // readonly so the player sees what the eligibility check will use.
+  const age = (() => {
+    if (!dobDate) return null;
+    const d = new Date(`${dobDate}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    const now = new Date();
+    let a = now.getFullYear() - d.getFullYear();
+    const m = now.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
+    return a;
+  })();
 
   function patchAnswers(patch: Record<string, unknown>) {
     onChange({ ...initialAnswers, ...patch });
@@ -1937,7 +1994,8 @@ function QuestionsStep({
     !showPlayerProfile ||
     (skillLevel.length > 0 &&
       positions.length > 0 &&
-      Object.values(availability).some((v) => v === true));
+      Object.values(availability).some((v) => v === true) &&
+      usaHockeyIdValid);
 
   return (
     <div className="space-y-5">
@@ -2016,6 +2074,46 @@ function QuestionsStep({
               ? "Captains in your division use this to evaluate fit before claiming you. All four are required."
               : "Your skill level, position, and availability — used by your team's captain to slot you in lineups."}
           </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Date of birth"
+              hint="From the Account step. Edit there if it's wrong — the eligibility check reads this value."
+            >
+              <div className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg">
+                <span className="font-mono tabular-nums">
+                  {dobDate || "—"}
+                </span>
+                {age !== null ? (
+                  <span className="font-mono text-[11px] uppercase tracking-widest text-fg-muted">
+                    age {age}
+                  </span>
+                ) : null}
+              </div>
+            </Field>
+            {isHockey ? (
+              <Field
+                label="USA Hockey ID *"
+                hint="6–12 alphanumeric. We re-verify against the USA Hockey roster after submission."
+              >
+                <Input
+                  value={usaHockeyIdRaw}
+                  onChange={(e) =>
+                    patchAnswers({ usa_hockey_id: e.target.value.toUpperCase() })
+                  }
+                  placeholder="e.g. 1234567890"
+                  required
+                  aria-invalid={
+                    usaHockeyId.length > 0 && !usaHockeyIdValid ? true : undefined
+                  }
+                />
+                {usaHockeyId.length > 0 && !usaHockeyIdValid ? (
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
+                    Format must be 6–12 letters or digits.
+                  </p>
+                ) : null}
+              </Field>
+            ) : null}
+          </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
               label="Skill level *"

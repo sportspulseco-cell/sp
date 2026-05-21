@@ -1204,11 +1204,28 @@ export class PublicRegistrationController {
       .where(eq(schema.registrations.subjectPersonId, row.subjectPersonId));
     if (dupes.length > 1) flags.push("duplicate_subject");
 
-    // USA Hockey ID format — if present in answers, validate format.
+    // USA Hockey ID — hockey-only. Missing raises `usa_hockey_id_missing`
+    // (the funnel collects it as a built-in field, so blank means the
+    // player navigated around or the season is non-hockey). When present,
+    // validate the 6–12 alphanumeric format the governing body uses.
     const answers = (meta.answers as Record<string, unknown>) ?? {};
+    const seasonRow = row.seasonId
+      ? (
+          await this.db
+            .select({ sportCode: schema.seasons.sportCode })
+            .from(schema.seasons)
+            .where(eq(schema.seasons.id, row.seasonId))
+            .limit(1)
+        )[0]
+      : null;
+    const isHockey = seasonRow?.sportCode === "HOCKEY_ICE";
     const usaHockeyId = answers["usa_hockey_id"];
-    if (typeof usaHockeyId === "string" && usaHockeyId.trim()) {
-      if (!/^[A-Z0-9]{6,12}$/i.test(usaHockeyId.trim())) {
+    const usaHockeyIdStr =
+      typeof usaHockeyId === "string" ? usaHockeyId.trim() : "";
+    if (isHockey) {
+      if (!usaHockeyIdStr) {
+        flags.push("usa_hockey_id_missing");
+      } else if (!/^[A-Z0-9]{6,12}$/i.test(usaHockeyIdStr)) {
         flags.push("usa_hockey_id_format_invalid");
       }
     }
