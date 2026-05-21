@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { Heartbeat, RouteProgress } from "@sportspulse/ui";
+import { Heartbeat, RouteProgress, ThemeProvider } from "@sportspulse/ui";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,11 +33,13 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-bg font-sans text-fg antialiased">
-        <Suspense fallback={null}>
-          <RouteProgress />
-        </Suspense>
-        {children}
-        <Heartbeat />
+        <ThemeProvider storageKey="sp-player-theme">
+          <Suspense fallback={null}>
+            <RouteProgress />
+          </Suspense>
+          {children}
+          <Heartbeat />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -5,7 +5,7 @@ import { LogOut, Menu, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useNav } from "./nav-context";
 import { OrgSwitcher } from "./org-switcher";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { ThemeToggle } from "@sportspulse/ui";
 
 export function TopBar({
   email,

@@ -18,6 +18,8 @@ export * from "./card";
 export * from "./route-progress";
 export * from "./reveal";
 export * from "./heartbeat";
+export * from "./theme-provider";
+export * from "./theme-toggle";
 // section-rail + command-palette stay in each app (they import
 // next/link + next/navigation, which would couple this package to
 // Next.js). If we ever need a framework-neutral version, factor here.

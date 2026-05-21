@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * Sun ↔ moon toggle. Sits in the TopBar so it's always reachable.
- * Mounted client-side; first render shows a neutral placeholder so
- * Tailwind hydration doesn't flash the wrong icon.
+ * Sun ↔ moon toggle. Sits in each app's TopBar so it's always
+ * reachable. First render shows a neutral placeholder so Tailwind
+ * hydration doesn't flash the wrong icon.
  *
  * 8-state contract per Hallmark component spec:
  *   default · hover · focus-visible · active · disabled · loading
- *   (loading rolls into the unmounted state — same placeholder)
+ *   (loading collapses into the unmounted state — same placeholder)
  *   error / success: n/a for a stateless toggle.
  */
+
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
