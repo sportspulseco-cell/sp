@@ -79,7 +79,7 @@ export function NotificationRow({ notif }: { notif: Notification }) {
       onClick={onClick}
       className={
         "flex cursor-pointer items-start gap-3 px-5 py-4 transition-colors " +
-        (isRead ? "hover:bg-surface-2" : "bg-blue-500/5 hover:bg-blue-500/10") +
+        (isRead ? "hover:bg-surface-2" : "bg-[var(--tint-blue-bg)] hover:bg-[var(--tint-blue-bg)]") +
         (pending ? " opacity-70" : "")
       }
     >
@@ -87,7 +87,7 @@ export function NotificationRow({ notif }: { notif: Notification }) {
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           {!isRead ? (
-            <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--tint-blue-fg)]" />
           ) : null}
           <p className={isRead ? "text-[13px] text-fg-muted" : "text-[13px] font-medium text-fg"}>
             {notif.subject ?? notif.templateCode}

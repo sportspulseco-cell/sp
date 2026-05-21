@@ -27,7 +27,7 @@ export function PostSeasonView({
       <section className="rounded-2xl bg-gradient-to-br from-[#0C447C] to-[#185FA5] px-8 py-10 text-white">
         <Eyebrow className="text-white/70">// post-season</Eyebrow>
         <div className="mt-1 flex items-center gap-3">
-          <Trophy className="h-7 w-7 text-amber-200" strokeWidth={1.75} />
+          <Trophy className="h-7 w-7 text-[var(--tint-amber-fg)]" strokeWidth={1.75} />
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
             {team.name} — playoffs
           </h1>
@@ -43,7 +43,7 @@ export function PostSeasonView({
         </Link>
       </section>
 
-      <section className="rounded-xl border border-amber-400/40 bg-amber-50 p-4 text-[13px] text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
+      <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] p-4 text-[13px] text-[var(--tint-amber-fg)] dark:bg-[var(--tint-amber-bg)] dark:text-[var(--tint-amber-fg)]">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
           <p className="font-medium">Roster changes are locked</p>

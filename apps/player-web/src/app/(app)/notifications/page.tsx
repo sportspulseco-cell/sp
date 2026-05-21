@@ -56,14 +56,14 @@ export default async function NotificationsPage() {
       ) : (
         <div className="rounded-xl border border-border bg-surface-1">
           {unread > 0 ? (
-            <div className="flex items-center gap-2 border-b border-border bg-blue-500/5 px-5 py-2.5 text-[12px] text-blue-700 dark:text-blue-300">
+            <div className="flex items-center gap-2 border-b border-border bg-[var(--tint-blue-bg)] px-5 py-2.5 text-[12px] text-[var(--tint-blue-fg)]">
               <Bell className="h-3.5 w-3.5" strokeWidth={2} />
               <span>
                 {unread} unread notification{unread === 1 ? "" : "s"}
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 border-b border-border bg-emerald-500/5 px-5 py-2.5 text-[12px] text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center gap-2 border-b border-border bg-[var(--tint-emerald-bg)] px-5 py-2.5 text-[12px] text-[var(--tint-emerald-fg)]">
               <CheckCheck className="h-3.5 w-3.5" strokeWidth={2} />
               <span>All read.</span>
             </div>

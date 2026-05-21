@@ -74,7 +74,7 @@ export function TeamProfileForm({
       </Field>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       ) : null}
@@ -94,7 +94,7 @@ export function TeamProfileForm({
           )}
         </Button>
         {savedAt ? (
-          <span className="font-mono text-[10px] uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
             Saved {savedAt.toLocaleTimeString()}
           </span>
         ) : null}

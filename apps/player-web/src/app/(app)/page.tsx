@@ -384,12 +384,12 @@ function NextGameHero({
 }) {
   if (!nextGame) {
     return (
-      <section className="rounded-xl bg-[#185FA5] p-6 text-white">
-        <Eyebrow className="!text-white/60">// Next game</Eyebrow>
+      <section className="rounded-xl bg-accent p-6 text-accent-fg">
+        <Eyebrow className="!text-accent-fg/70">// Next game</Eyebrow>
         <p className="mt-3 text-[20px] font-semibold tracking-tight">
           Nothing scheduled
         </p>
-        <p className="mt-1 text-[13px] text-white/70">
+        <p className="mt-1 text-[13px] text-accent-fg/75">
           When the league publishes games for {teamName}, they'll show up here.
         </p>
       </section>
@@ -401,12 +401,12 @@ function NextGameHero({
   const now = new Date();
 
   return (
-    <section className="rounded-xl bg-[#185FA5] p-6 text-white">
+    <section className="rounded-xl bg-accent p-6 text-accent-fg">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2 min-w-0">
-          <Eyebrow className="!text-[#B5D4F4]">// Next game</Eyebrow>
+          <Eyebrow className="!text-accent-fg/70">// Next game</Eyebrow>
           <p className="text-[22px] font-semibold tracking-tight">
-            {teamName} <span className="text-[#85B7EB]">vs.</span>{" "}
+            {teamName} <span className="text-accent-fg/80">vs.</span>{" "}
             {opponentNames.get(opponent) ? (
               <span>{opponentNames.get(opponent)}</span>
             ) : (
@@ -415,7 +415,7 @@ function NextGameHero({
               </span>
             )}
           </p>
-          <p className="flex items-center gap-2 text-[13px] text-[#85B7EB]">
+          <p className="flex items-center gap-2 text-[13px] text-accent-fg/80">
             <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
             {fmtDateTime(nextGame.scheduledStartTsUtc)}
             {nextGame.venueName ? (
@@ -511,9 +511,9 @@ function RecentGamesCard({
                     className={
                       "flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-medium " +
                       (tone === "success"
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        ? "bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)]"
                         : tone === "danger"
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                          ? "bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]"
                           : "bg-surface-2 text-fg-muted")
                     }
                   >
@@ -671,7 +671,7 @@ function PaymentsSummary({
         <div className="px-5 py-6">
           <p className="text-[13px] text-fg">
             <Check
-              className="mr-1.5 inline h-4 w-4 text-emerald-600 dark:text-emerald-400"
+              className="mr-1.5 inline h-4 w-4 text-[var(--tint-emerald-fg)]"
               strokeWidth={2.25}
             />
             Paid in full
@@ -687,8 +687,8 @@ function PaymentsSummary({
               className={
                 "rounded-md px-3 py-2 text-[12px] " +
                 (isOverdue
-                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400")
+                  ? "bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]"
+                  : "bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]")
               }
             >
               <p className="flex items-center gap-1.5 font-medium">
@@ -710,10 +710,10 @@ function PaymentsSummary({
                     className={
                       "h-2 w-2 shrink-0 rounded-full " +
                       (inv.status === "overdue"
-                        ? "bg-rose-500"
+                        ? "bg-[var(--error)]"
                         : inv.status === "partial"
-                          ? "bg-amber-500"
-                          : "bg-blue-500")
+                          ? "bg-[var(--warning)]"
+                          : "bg-[var(--tint-blue-fg)]")
                     }
                   />
                   <span className="truncate font-mono text-[11px] text-fg">
@@ -733,7 +733,7 @@ function PaymentsSummary({
           </ul>
           <p className="border-t border-border pt-3 text-[11px] text-fg-muted">
             Paid so far:{" "}
-            <span className="text-emerald-600 dark:text-emerald-400">
+            <span className="text-[var(--tint-emerald-fg)]">
               {fmtMoney(totalReceived, currency)}
             </span>
           </p>
@@ -891,13 +891,13 @@ function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
       ? "A league is accepting registrations"
       : `${items.length} leagues are accepting registrations`;
   return (
-    <section className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5">
+    <section className="relative overflow-hidden rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
+          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--tint-emerald-fg)]">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
             </span>
             <span>// open · for signup</span>
           </p>
@@ -907,7 +907,7 @@ function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
         </div>
         <Link
           href="/register"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white hover:bg-emerald-700"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--success)] px-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white hover:bg-[var(--success)]"
         >
           See all
           <ArrowRight className="h-3 w-3" strokeWidth={2} />
@@ -918,7 +918,7 @@ function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
           <li key={r.seasonId}>
             <Link
               href={`/register/${r.seasonId}`}
-              className="group flex h-full flex-col gap-2 rounded-lg border border-border bg-bg p-4 hover:border-emerald-500/50"
+              className="group flex h-full flex-col gap-2 rounded-lg border border-border bg-bg p-4 hover:border-[var(--tint-emerald-fg)]/30"
             >
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
                 {r.orgName}
@@ -933,7 +933,7 @@ function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
                   <CalendarRange className="h-3 w-3" strokeWidth={1.75} />
                   {relClosesCopy(r.registrationClosesAt) ?? "open"}
                 </span>
-                <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-700">
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tint-emerald-fg)]">
                   Sign up{" "}
                   <ArrowRight className="h-3 w-3" strokeWidth={2} />
                 </span>

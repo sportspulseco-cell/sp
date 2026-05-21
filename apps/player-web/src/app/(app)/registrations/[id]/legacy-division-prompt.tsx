@@ -42,9 +42,9 @@ export function LegacyDivisionPrompt({
   }
 
   return (
-    <section className="rounded-xl border border-amber-400/40 bg-amber-50/70 p-5 dark:border-amber-700/40 dark:bg-amber-950/30">
+    <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] p-5 dark:bg-[var(--tint-amber-bg)]">
       <header className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 ring-1 ring-amber-500/40 dark:text-amber-300">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)] ring-1 ring-[var(--tint-amber-fg)]/40">
           <Layers className="h-4 w-4" strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1">
@@ -80,7 +80,7 @@ export function LegacyDivisionPrompt({
           type="button"
           onClick={save}
           disabled={saving || !picked}
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--warning)] px-3 py-2 text-[13px] font-medium text-white hover:bg-[var(--warning)] disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -91,7 +91,7 @@ export function LegacyDivisionPrompt({
       </div>
 
       {error && (
-        <p className="mt-3 rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-400">
+        <p className="mt-3 rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}

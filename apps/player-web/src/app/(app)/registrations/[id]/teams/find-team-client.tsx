@@ -63,7 +63,7 @@ export function FindTeamClient({
   return (
     <div className="space-y-3">
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
           {flash}
         </p>
       )}
@@ -108,7 +108,7 @@ export function FindTeamClient({
 
               <div className="mt-4 flex justify-end">
                 {pending ? (
-                  <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                  <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] px-3 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">
                     <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
                     Application pending
                   </span>
@@ -191,7 +191,7 @@ function ApplyDialog({
         </span>
       </label>
       {error && (
-        <p className="mt-2 rounded-md bg-rose-500/10 px-3 py-2 text-[13px] text-rose-600 dark:text-rose-400">
+        <p className="mt-2 rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[13px] text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}

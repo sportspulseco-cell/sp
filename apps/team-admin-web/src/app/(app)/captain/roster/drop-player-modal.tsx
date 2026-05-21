@@ -94,13 +94,13 @@ export function DropPlayerModal({
           </span>
         </label>
 
-        <div className="rounded-md border border-amber-400/40 bg-amber-50 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-700/50 dark:bg-amber-950 dark:text-amber-200">
+        <div className="rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] px-3 py-2 text-[12px] text-[var(--tint-amber-fg)] dark:text-[var(--tint-amber-fg)]">
           If this player has paid any amount, a refund will be assessed by the
           league admin — no immediate refund is issued.
         </div>
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
             {error}
           </p>
         )}

@@ -44,7 +44,7 @@ export function ClaimFreeAgentButton({
         </span>
       </Button>
       {err ? (
-        <p className="text-[10px] text-rose-600 dark:text-rose-400">{err}</p>
+        <p className="text-[10px] text-[var(--tint-rose-fg)]">{err}</p>
       ) : null}
     </div>
   );

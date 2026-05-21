@@ -61,10 +61,10 @@ export function ParentalConsentClient({
 
   if (outcome === "confirmed") {
     return (
-      <section className="mt-8 rounded-2xl border border-emerald-400/40 bg-emerald-50/70 p-6 dark:border-emerald-700/40 dark:bg-emerald-950/30">
+      <section className="mt-8 rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-6 dark:bg-[var(--tint-emerald-bg)]">
         <div className="flex items-start gap-3">
           <CheckCircle2
-            className="h-6 w-6 shrink-0 text-emerald-700 dark:text-emerald-300"
+            className="h-6 w-6 shrink-0 text-[var(--tint-emerald-fg)]"
             strokeWidth={1.75}
           />
           <div>
@@ -83,10 +83,10 @@ export function ParentalConsentClient({
 
   if (outcome === "declined") {
     return (
-      <section className="mt-8 rounded-2xl border border-rose-400/40 bg-rose-50/70 p-6 dark:border-rose-700/40 dark:bg-rose-950/30">
+      <section className="mt-8 rounded-2xl border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] p-6 dark:bg-[var(--tint-rose-bg)]">
         <div className="flex items-start gap-3">
           <XCircle
-            className="h-6 w-6 shrink-0 text-rose-700 dark:text-rose-300"
+            className="h-6 w-6 shrink-0 text-[var(--tint-rose-fg)]"
             strokeWidth={1.75}
           />
           <div>
@@ -134,7 +134,7 @@ export function ParentalConsentClient({
       </p>
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -144,7 +144,7 @@ export function ParentalConsentClient({
           type="button"
           onClick={() => submit("confirm")}
           disabled={busy !== null}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-[14px] font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[var(--success)] px-4 py-2.5 text-[14px] font-medium text-white hover:bg-[var(--success)] disabled:opacity-50"
         >
           {busy === "confirm" ? (
             <Loader2 className="h-4 w-4 animate-spin" />

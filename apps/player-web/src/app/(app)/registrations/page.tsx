@@ -135,7 +135,7 @@ function RegistrationRow({ r }: { r: Row }) {
       className={[
         "rounded-xl border bg-surface-1 p-5",
         isApproved
-          ? "border-emerald-500/40 bg-emerald-500/[0.04]"
+          ? "border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.04]"
           : "border-border"
       ].join(" ")}
     >
@@ -145,7 +145,7 @@ function RegistrationRow({ r }: { r: Row }) {
             className={[
               "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
               isApproved
-                ? "bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/40 dark:text-emerald-400"
+                ? "bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)] ring-1 ring-[var(--tint-emerald-fg)]/40 dark:text-[var(--tint-emerald-fg)]"
                 : "bg-fg-muted/10 text-fg-muted"
             ].join(" ")}
           >
@@ -230,7 +230,7 @@ function RegistrationRow({ r }: { r: Row }) {
         {isApproved ? (
           <Link
             href={`/registrations/${r.id}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-emerald-700"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--success)] px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-[var(--success)]"
           >
             View details
             <ArrowRight className="h-3 w-3" strokeWidth={2} />
@@ -238,7 +238,7 @@ function RegistrationRow({ r }: { r: Row }) {
         ) : isDraftish ? (
           <Link
             href={`/register?resume=${r.id}`}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] px-3 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)] hover:bg-[var(--tint-amber-bg)] dark:text-[var(--tint-amber-fg)]"
           >
             Resume
             <ArrowRight className="h-3 w-3" strokeWidth={2} />

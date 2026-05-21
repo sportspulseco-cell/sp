@@ -146,11 +146,11 @@ export function FreeAgentForm({
 
   if (placed) {
     return (
-      <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6">
+      <section className="rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-6">
         <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-emerald-fg)]" />
           <div className="space-y-1">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
               // Placed
             </p>
             <p className="text-[14px] font-medium text-fg">
@@ -355,13 +355,13 @@ export function FreeAgentForm({
       </fieldset>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
           {error}
         </p>
       ) : null}
 
       {success ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
           {existing ? "Entry updated." : "You're in the pool — captains can see you now."}
         </p>
       ) : null}

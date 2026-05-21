@@ -32,7 +32,7 @@ export function WithdrawButton({ entryId }: { entryId: string }) {
         Withdraw
       </Button>
       {error && (
-        <p className="text-[11px] text-rose-700 dark:text-rose-400">{error}</p>
+        <p className="text-[11px] text-[var(--tint-rose-fg)]">{error}</p>
       )}
     </div>
   );

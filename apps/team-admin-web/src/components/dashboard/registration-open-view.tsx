@@ -28,8 +28,8 @@ export function RegistrationOpenView({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-emerald-400/40 bg-emerald-50 px-8 py-7 dark:border-emerald-700/40 dark:bg-emerald-950/30">
-        <Eyebrow className="text-emerald-700 dark:text-emerald-300">
+      <section className="rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] px-8 py-7 dark:bg-[var(--tint-emerald-bg)]">
+        <Eyebrow className="text-[var(--tint-emerald-fg)]">
           // registration open
         </Eyebrow>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-fg md:text-3xl">
@@ -43,7 +43,7 @@ export function RegistrationOpenView({
           <div className="mt-4">
             <Link
               href="/captain/register"
-              className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              className="inline-flex items-center gap-2 rounded-md bg-[var(--success)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--success)]"
             >
               Register {team.name} <ArrowRight className="h-4 w-4" />
             </Link>
@@ -57,7 +57,7 @@ export function RegistrationOpenView({
 
         {isApplied ? (
           <div className="mt-4 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+            <Clock className="h-4 w-4 text-[var(--tint-amber-fg)]" />
             <span className="text-sm text-fg">
               Registration submitted — awaiting confirmation
             </span>
@@ -69,7 +69,7 @@ export function RegistrationOpenView({
 
         {isConfirmed ? (
           <div className="mt-4 flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
+            <CheckCircle2 className="h-5 w-5 text-[var(--tint-emerald-fg)]" />
             <span className="text-sm font-medium text-fg">
               {team.name} is confirmed for {state.seasonName}!
             </span>
@@ -129,7 +129,7 @@ function ProgressBar({
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-bg-subtle">
         <div
-          className="h-full rounded-full bg-emerald-500 transition-all"
+          className="h-full rounded-full bg-[var(--success)] transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>

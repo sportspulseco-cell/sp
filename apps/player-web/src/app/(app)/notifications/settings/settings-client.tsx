@@ -189,7 +189,7 @@ export function SettingsClient({
   return (
     <div className="space-y-6">
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -264,7 +264,7 @@ function ToggleCell({
       className={[
         "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors",
         enabled
-          ? "border-emerald-500/60 bg-emerald-500/30"
+          ? "border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)]"
           : "border-border bg-bg-subtle"
       ].join(" ")}
     >

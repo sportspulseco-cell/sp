@@ -115,11 +115,11 @@ function Card({
   body: string;
 }) {
   const toneClass: Record<typeof tone, string> = {
-    rose: "border-rose-400/40 bg-rose-50/70 dark:border-rose-700/40 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300",
+    rose: "border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] dark:bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]",
     emerald:
-      "border-emerald-400/40 bg-emerald-50/70 dark:border-emerald-700/40 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300",
+      "border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] dark:bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)]",
     amber:
-      "border-amber-400/40 bg-amber-50/70 dark:border-amber-700/40 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+      "border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] dark:bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]"
   };
   return (
     <section className={`mt-8 rounded-2xl border p-6 ${toneClass[tone]}`}>

@@ -75,16 +75,16 @@ export function PaymentsClient({
   return (
     <div className="space-y-6">
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
           {flash}
         </p>
       )}
 
       {/* Wallet card — mock 3 */}
-      <section className="flex items-center justify-between rounded-xl border border-sky-400/40 bg-sky-50/60 px-5 py-4 dark:border-sky-700/40 dark:bg-sky-950/30">
+      <section className="flex items-center justify-between rounded-xl border border-[var(--tint-cyan-fg)]/30 bg-[var(--tint-cyan-bg)] px-5 py-4 dark:bg-[var(--tint-cyan-bg)]">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/15 ring-1 ring-sky-500/40">
-            <WalletIcon className="h-5 w-5 text-sky-600 dark:text-sky-400" strokeWidth={1.75} />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tint-cyan-bg)] ring-1 ring-[var(--tint-cyan-fg)]/40">
+            <WalletIcon className="h-5 w-5 text-[var(--tint-cyan-fg)]" strokeWidth={1.75} />
           </div>
           <div>
             <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
@@ -215,7 +215,7 @@ function InvoiceCard({
       </header>
 
       {oldestFailed && (
-        <div className="mx-5 mb-3 flex items-start gap-2 rounded-md border border-rose-400/40 bg-rose-50/70 px-3 py-2 text-[12px] text-rose-700 dark:border-rose-700/40 dark:bg-rose-950/30 dark:text-rose-300">
+        <div className="mx-5 mb-3 flex items-start gap-2 rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)] dark:bg-[var(--tint-rose-bg)] dark:text-[var(--tint-rose-fg)]">
           <AlertOctagon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <span>
             Your{" "}
@@ -286,9 +286,9 @@ function InvoiceCard({
                       className={[
                         "font-mono text-[12px] font-semibold tabular-nums",
                         ins.status === "succeeded"
-                          ? "text-emerald-600 dark:text-emerald-400"
+                          ? "text-[var(--tint-emerald-fg)]"
                           : ins.status === "failed"
-                            ? "text-rose-600 dark:text-rose-400"
+                            ? "text-[var(--tint-rose-fg)]"
                             : "text-fg"
                       ].join(" ")}
                     >
@@ -367,8 +367,8 @@ function BreakdownRow({
       <span
         className={[
           "font-mono tabular-nums",
-          tone === "emerald" && "text-emerald-600 dark:text-emerald-400",
-          tone === "rose" && "text-rose-600 dark:text-rose-400",
+          tone === "emerald" && "text-[var(--tint-emerald-fg)]",
+          tone === "rose" && "text-[var(--tint-rose-fg)]",
           !tone && (emphasis ? "text-fg" : "text-fg")
         ]
           .filter(Boolean)
@@ -389,14 +389,14 @@ function InstallmentDot({
 }) {
   if (status === "succeeded") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-700 ring-1 ring-emerald-500/40 dark:text-emerald-300">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)] ring-1 ring-[var(--tint-emerald-fg)]/40 dark:text-[var(--tint-emerald-fg)]">
         <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2} />
       </span>
     );
   }
   if (status === "failed") {
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500/20 text-rose-700 ring-1 ring-rose-500/40 dark:text-rose-300">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)] ring-1 ring-[var(--tint-rose-fg)]/40 dark:text-[var(--tint-rose-fg)]">
         <AlertOctagon className="h-3.5 w-3.5" strokeWidth={2} />
       </span>
     );
@@ -625,7 +625,7 @@ function PayDialog({
         )}
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-400">
+          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
             {error}
           </p>
         )}
@@ -715,7 +715,7 @@ function RetryDialog({
         </label>
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-400">
+          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
             {error}
           </p>
         )}

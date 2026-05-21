@@ -241,7 +241,7 @@ function SearchPanel({
       )}
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -338,7 +338,7 @@ function InvitePanel({
       </label>
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -401,8 +401,8 @@ function PrecheckWarnings({
           key={idx}
           className={
             i.tone === "warn"
-              ? "text-amber-700 dark:text-amber-300"
-              : "text-emerald-700 dark:text-emerald-300"
+              ? "text-[var(--tint-amber-fg)]"
+              : "text-[var(--tint-emerald-fg)]"
           }
         >
           {i.tone === "warn" ? "⚠ " : "✓ "}

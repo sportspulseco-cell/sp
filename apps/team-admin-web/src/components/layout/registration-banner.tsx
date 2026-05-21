@@ -33,16 +33,16 @@ export function RegistrationBanner({
   const urgent = daysLeft !== null && daysLeft <= 3;
 
   return (
-    <div className="relative overflow-hidden border-b border-emerald-500/20 bg-emerald-500/[0.06]">
+    <div className="relative overflow-hidden border-b border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06]">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
         <div className="flex min-w-0 items-center gap-3">
           <span className="relative inline-flex h-2.5 w-2.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--success)]" />
           </span>
           <div className="min-w-0">
-            <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
-              <span className="text-emerald-700/70 dark:text-emerald-300/70">
+            <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--tint-emerald-fg)]">
+              <span className="text-[var(--tint-emerald-fg)]/70 dark:text-[var(--tint-emerald-fg)]/70">
                 //
               </span>
               <span>season · open</span>
@@ -60,8 +60,8 @@ export function RegistrationBanner({
             <span
               className={
                 urgent
-                  ? "inline-flex h-7 items-center gap-1.5 rounded-full bg-rose-500/15 px-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-rose-700 dark:text-rose-300"
-                  : "inline-flex h-7 items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300"
+                  ? "inline-flex h-7 items-center gap-1.5 rounded-full bg-[var(--tint-rose-bg)] px-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tint-rose-fg)]"
+                  : "inline-flex h-7 items-center gap-1.5 rounded-full bg-[var(--tint-emerald-bg)] px-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tint-emerald-fg)]"
               }
             >
               <CalendarRange className="h-3 w-3" strokeWidth={2} />
@@ -72,7 +72,7 @@ export function RegistrationBanner({
           ) : null}
           <Link
             href="/captain/register"
-            className="group inline-flex h-8 items-center gap-2 rounded-full bg-emerald-600 px-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white transition-transform hover:scale-[1.02] hover:bg-emerald-700"
+            className="group inline-flex h-8 items-center gap-2 rounded-full bg-[var(--success)] px-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white transition-transform hover:scale-[1.02] hover:bg-[var(--success)]"
           >
             <Sparkles className="h-3 w-3" strokeWidth={2} />
             Register the team

@@ -154,12 +154,12 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         </div>
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
             {error}
           </p>
         ) : null}
         {saved ? (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+          <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
             Saved.
           </p>
         ) : null}

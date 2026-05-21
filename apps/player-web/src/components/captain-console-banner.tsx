@@ -20,13 +20,13 @@ export function CaptainConsoleBanner() {
     process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://sp-team-admin.vercel.app";
 
   return (
-    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+    <div className="rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] p-4">
       <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)]">
           <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--tint-emerald-fg)]">
             // captain console
           </p>
           <p className="mt-0.5 text-[14px] font-medium text-fg">
@@ -42,7 +42,7 @@ export function CaptainConsoleBanner() {
           href={`${teamAdminBase}/captain/register`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-white hover:bg-emerald-700"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--success)] px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-white hover:bg-[var(--success)]"
         >
           Register your team
           <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
@@ -51,7 +51,7 @@ export function CaptainConsoleBanner() {
           href={`${teamAdminBase}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-bg/40 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--tint-emerald-fg)]/30 bg-bg/40 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--tint-emerald-fg)] hover:bg-[var(--tint-emerald-bg)] dark:text-[var(--tint-emerald-fg)]"
         >
           Open team console
           <ArrowUpRight className="h-3 w-3" strokeWidth={2} />

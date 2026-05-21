@@ -110,7 +110,7 @@ export default async function CompliancePage() {
 
       {/* Overall banner */}
       {blocking.length > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-rose-500/10 px-4 py-3 text-rose-700 dark:text-rose-300">
+        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-rose-bg)] px-4 py-3 text-[var(--tint-rose-fg)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           <div>
             <p className="text-[13px] font-medium">
@@ -123,7 +123,7 @@ export default async function CompliancePage() {
           </div>
         </div>
       ) : pending.length > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-amber-500/10 px-4 py-3 text-amber-700 dark:text-amber-300">
+        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-amber-bg)] px-4 py-3 text-[var(--tint-amber-fg)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           <div>
             <p className="text-[13px] font-medium">
@@ -136,7 +136,7 @@ export default async function CompliancePage() {
           </div>
         </div>
       ) : items.length > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-emerald-500/10 px-4 py-3 text-emerald-700 dark:text-emerald-300">
+        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-emerald-bg)] px-4 py-3 text-[var(--tint-emerald-fg)]">
           <Check className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
           <div>
             <p className="text-[13px] font-medium">
@@ -197,7 +197,7 @@ export default async function CompliancePage() {
                 {rec.status === "ineligible" || rec.status === "expired" ? (
                   <Link
                     href="/onboarding"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-rose-fg)] hover:bg-[var(--tint-rose-bg)] dark:text-[var(--tint-rose-fg)]"
                   >
                     <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
                     Take action
@@ -206,7 +206,7 @@ export default async function CompliancePage() {
                 ) : rec.status === "pending" ? (
                   <Link
                     href="/onboarding"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10px] uppercase tracking-widest text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] px-3 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)] hover:bg-[var(--tint-amber-bg)] dark:text-[var(--tint-amber-fg)]"
                   >
                     Resubmit
                     <ArrowRight className="h-3 w-3" strokeWidth={2} />

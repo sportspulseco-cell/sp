@@ -92,7 +92,7 @@ export default async function TeamPage() {
         />
 
         {pending.length > 0 ? (
-          <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-5">
+          <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--warning)]/[0.06] p-5">
             <Eyebrow>// awaiting captain approval</Eyebrow>
             <p className="mt-1 text-[13px] text-fg-muted">
               {pending.length} application{pending.length === 1 ? "" : "s"} sitting in a captain&apos;s inbox.
@@ -277,7 +277,7 @@ export default async function TeamPage() {
                     key={m.id}
                     className={
                       "flex items-center justify-between gap-3 px-5 py-3 " +
-                      (isMe ? "bg-blue-500/5" : "")
+                      (isMe ? "bg-[var(--tint-blue-bg)]" : "")
                     }
                   >
                     <div className="flex min-w-0 items-center gap-3">
@@ -285,7 +285,7 @@ export default async function TeamPage() {
                         className={
                           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium " +
                           (isMe
-                            ? "bg-blue-500 text-white"
+                            ? "bg-[var(--tint-blue-fg)] text-white"
                             : "bg-surface-2 text-fg-muted")
                         }
                       >
@@ -346,7 +346,7 @@ export default async function TeamPage() {
                   return (
                     <TR
                       key={s.id}
-                      className={mine ? "bg-blue-500/5" : undefined}
+                      className={mine ? "bg-[var(--tint-blue-bg)]" : undefined}
                     >
                       <TD className="font-mono tabular-nums text-fg-muted">
                         {s.rank ?? "—"}
@@ -354,7 +354,7 @@ export default async function TeamPage() {
                       <TD
                         className={
                           mine
-                            ? "font-semibold text-blue-600 dark:text-blue-400"
+                            ? "font-semibold text-[var(--tint-blue-fg)]"
                             : "text-fg"
                         }
                       >

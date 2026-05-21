@@ -159,8 +159,8 @@ function SidebarFooter() {
     <div className="border-t border-border px-4 py-3 text-[11px] text-fg-muted">
       <span className="flex items-center gap-2">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/50" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
         </span>
         All systems operational
       </span>

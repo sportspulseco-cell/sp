@@ -64,12 +64,12 @@ function detectState(regs: Registration[]): RegState {
 
 function NewPlayerBanner() {
   return (
-    <section className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-5">
+    <section className="rounded-xl border border-[var(--tint-blue-fg)]/30 bg-[var(--tint-blue-bg)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={1.75} />
+          <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-blue-fg)]" strokeWidth={1.75} />
           <div className="space-y-1">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-blue-700 dark:text-blue-300">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-blue-fg)]">
               // New here?
             </p>
             <p className="text-[14px] font-medium text-fg">
@@ -83,7 +83,7 @@ function NewPlayerBanner() {
         </div>
         <Link
           href="/register"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-blue-600 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-blue-700"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--tint-blue-fg)] px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-[var(--tint-blue-fg)]"
         >
           Register
           <ArrowRight className="h-3 w-3" strokeWidth={2} />
@@ -95,12 +95,12 @@ function NewPlayerBanner() {
 
 function ReturningBanner() {
   return (
-    <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5">
+    <section className="rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
+          <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-emerald-fg)]" strokeWidth={1.75} />
           <div className="space-y-1">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
               // Welcome back
             </p>
             <p className="text-[14px] font-medium text-fg">
@@ -114,7 +114,7 @@ function ReturningBanner() {
         </div>
         <Link
           href="/register"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-600 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-emerald-700"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--success)] px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-[var(--success)]"
         >
           Register
           <ArrowRight className="h-3 w-3" strokeWidth={2} />
@@ -137,12 +137,12 @@ function ResumeBanner({ registration }: { registration: Registration }) {
             ? "Identity verification pending"
             : "Some steps remain";
   return (
-    <section className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
+    <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" strokeWidth={1.75} />
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-amber-fg)]" strokeWidth={1.75} />
           <div className="space-y-1">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">
               // Registration in progress
             </p>
             <p className="text-[14px] font-medium text-fg">
@@ -157,7 +157,7 @@ function ResumeBanner({ registration }: { registration: Registration }) {
         </div>
         <Link
           href={`/register?resume=${registration.id}`}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-amber-600 px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-amber-700"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--warning)] px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-white hover:bg-[var(--warning)]"
         >
           Resume
           <ArrowRight className="h-3 w-3" strokeWidth={2} />

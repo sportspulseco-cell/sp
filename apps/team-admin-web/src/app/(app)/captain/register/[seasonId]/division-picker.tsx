@@ -89,7 +89,7 @@ export function DivisionPicker({
       </ul>
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -225,7 +225,7 @@ function DivisionCard({
             <span
               className={
                 full
-                  ? "font-mono text-rose-600 dark:text-rose-400"
+                  ? "font-mono text-[var(--tint-rose-fg)]"
                   : "font-mono text-fg-muted"
               }
             >
@@ -240,7 +240,7 @@ function DivisionCard({
             <div
               className={
                 full
-                  ? "h-full bg-rose-500/70"
+                  ? "h-full bg-[var(--tint-rose-bg)]"
                   : selected
                     ? "h-full bg-accent"
                     : "h-full bg-fg-muted/40"

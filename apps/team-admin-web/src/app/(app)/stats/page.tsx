@@ -75,9 +75,9 @@ export default async function TeamAdminStatsPage() {
             {standings.map((s: Standing) => {
               const mine = s.teamId === teamId;
               return (
-                <TR key={s.id} className={mine ? "bg-blue-500/5" : undefined}>
+                <TR key={s.id} className={mine ? "bg-[var(--tint-blue-bg)]" : undefined}>
                   <TD className="font-mono tabular-nums text-fg-muted">{s.rank ?? "-"}</TD>
-                  <TD className={mine ? "font-semibold text-blue-600 dark:text-blue-400" : "text-fg"}>
+                  <TD className={mine ? "font-semibold text-[var(--tint-blue-fg)]" : "text-fg"}>
                     <span className="font-mono uppercase">{s.teamId.slice(0, 8)}</span>
                     {mine ? " <-" : ""}
                   </TD>

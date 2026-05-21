@@ -111,9 +111,9 @@ export function RosterScreen({
         <div
           className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm ${
             lockMeta.tone === "red"
-              ? "border-rose-400 bg-rose-50 text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200"
+              ? "border-[var(--tint-rose-fg)]/50 bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]"
               : lockMeta.tone === "amber"
-                ? "border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                ? "border-[var(--tint-amber-fg)]/50 bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]"
                 : "border-border bg-bg-subtle text-fg-muted"
           }`}
         >
@@ -127,7 +127,7 @@ export function RosterScreen({
       )}
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
           {flash}
         </p>
       )}
@@ -206,17 +206,17 @@ export function RosterScreen({
       {memberships.length > 0 && (
         <div className="flex flex-wrap items-center gap-4 rounded-md border border-border bg-surface-1 px-4 py-2.5 text-[12px]">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="h-2 w-2 rounded-full bg-[var(--success)]" />
             <span className="font-medium text-fg">{memberships.length}</span>
             <span className="text-fg-muted">all clear</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            <span className="h-2 w-2 rounded-full bg-[var(--warning)]" />
             <span className="font-medium text-fg">0</span>
             <span className="text-fg-muted">expiring</span>
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-rose-500" />
+            <span className="h-2 w-2 rounded-full bg-[var(--error)]" />
             <span className="font-medium text-fg">0</span>
             <span className="text-fg-muted">action required</span>
           </span>

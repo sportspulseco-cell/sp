@@ -80,12 +80,12 @@ export function JoinRequestsClient({
   return (
     <div className="space-y-3">
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
           {flash}
         </p>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -100,7 +100,7 @@ export function JoinRequestsClient({
           return (
             <li
               key={item.id}
-              className="rounded-xl border border-amber-400/40 bg-amber-50/40 p-5 dark:border-amber-700/40 dark:bg-amber-950/20"
+              className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] p-5 dark:bg-[var(--tint-amber-bg)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">

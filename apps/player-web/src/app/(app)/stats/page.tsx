@@ -300,9 +300,9 @@ export default async function StatsPage({
                         className={
                           "text-right font-mono tabular-nums " +
                           (pm > 0
-                            ? "text-emerald-600 dark:text-emerald-400"
+                            ? "text-[var(--tint-emerald-fg)]"
                             : pm < 0
-                              ? "text-rose-600 dark:text-rose-400"
+                              ? "text-[var(--tint-rose-fg)]"
                               : "text-fg-muted")
                         }
                       >

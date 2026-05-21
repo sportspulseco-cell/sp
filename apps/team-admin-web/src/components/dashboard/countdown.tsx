@@ -29,14 +29,14 @@ export function Countdown({ targetIso }: { targetIso: string | null }) {
 
   if (diff === 0) {
     return (
-      <p className="font-mono text-[11px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+      <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
         Registration is now open — refresh the page
       </p>
     );
   }
 
   return (
-    <div className="inline-flex items-baseline gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+    <div className="inline-flex items-baseline gap-2 rounded-md bg-[var(--tint-amber-bg)] px-3 py-1.5 text-[var(--tint-amber-fg)] dark:bg-[var(--tint-amber-bg)] dark:text-[var(--tint-amber-fg)]">
       <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
         Next registration opens in
       </span>

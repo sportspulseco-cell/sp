@@ -142,14 +142,14 @@ function RegistrationCta() {
       <Link
         href="/captain/register"
         onClick={() => setOpen(false)}
-        className="group relative flex items-center gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2.5 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/[0.12]"
+        className="group relative flex items-center gap-2.5 rounded-lg border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.08] px-3 py-2.5 transition-all hover:border-[var(--tint-emerald-fg)]/30 hover:bg-[var(--success)]/[0.12]"
       >
         <span className="relative inline-flex h-2 w-2 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+          <p className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tint-emerald-fg)]">
             <Sparkles className="h-2.5 w-2.5" strokeWidth={2} />
             season open
           </p>
@@ -183,8 +183,8 @@ function SidebarFooter() {
     <div className="border-t border-border px-4 py-3 text-[11px] text-fg-muted">
       <span className="flex items-center gap-2">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/50" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
         </span>
         All systems operational
       </span>

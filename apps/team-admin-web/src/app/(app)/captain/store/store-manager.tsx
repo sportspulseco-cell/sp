@@ -185,7 +185,7 @@ export function StoreManager({
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-600 dark:text-red-300">
+        <div className="rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-4 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </div>
       ) : null}
@@ -338,7 +338,7 @@ function ProductRow({
             variant="outline"
             onClick={onDelete}
             disabled={busy}
-            className="ml-auto text-red-600 hover:bg-red-500/10 dark:text-red-400"
+            className="ml-auto text-[var(--tint-rose-fg)] hover:bg-[var(--tint-rose-bg)] dark:text-[var(--tint-rose-fg)]"
           >
             {busy ? (
               <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} />

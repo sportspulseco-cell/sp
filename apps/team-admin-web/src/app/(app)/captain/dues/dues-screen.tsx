@@ -239,7 +239,7 @@ export function DuesScreen({
               <span
                 aria-label="confirmation threshold"
                 title={`Threshold ${fmt(data.thresholdCents, currency)}`}
-                className="absolute -top-1 h-4 w-px bg-emerald-500"
+                className="absolute -top-1 h-4 w-px bg-[var(--success)]"
                 style={{ left: `${thresholdPct}%` }}
               />
             )}
@@ -249,7 +249,7 @@ export function DuesScreen({
             <span>{pct}% collected</span>
             <span aria-hidden>·</span>
             {thresholdReached ? (
-              <span className="text-emerald-600 dark:text-emerald-400">
+              <span className="text-[var(--tint-emerald-fg)]">
                 Confirmation threshold reached ✓
               </span>
             ) : (
@@ -305,12 +305,12 @@ export function DuesScreen({
       </section>
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
           {flash}
         </p>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-400">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
@@ -465,9 +465,9 @@ function PlayerRow({
             <div
               className={
                 fullyPaid
-                  ? "h-full bg-emerald-500"
+                  ? "h-full bg-[var(--success)]"
                   : partial
-                    ? "h-full bg-amber-500"
+                    ? "h-full bg-[var(--warning)]"
                     : "h-full bg-fg-muted/40"
               }
               style={{ width: `${pct}%` }}
@@ -498,7 +498,7 @@ function PlayerRow({
         <span
           className={
             overdue
-              ? "font-mono text-[12px] text-rose-600 dark:text-rose-400"
+              ? "font-mono text-[12px] text-[var(--tint-rose-fg)]"
               : "font-mono text-[12px] text-fg-muted"
           }
         >

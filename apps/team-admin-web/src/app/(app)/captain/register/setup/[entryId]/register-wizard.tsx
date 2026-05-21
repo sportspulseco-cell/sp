@@ -285,7 +285,7 @@ export function RegisterWizard({
                 onSave={() => saveTeamField("homeRink", homeRink.trim())}
                 onChange={setHomeRink}
               />
-              <div className="mt-2 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+              <div className="mt-2 flex items-center gap-2 rounded-md border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
                 <Check className="h-3.5 w-3.5" strokeWidth={2} />
                 Captain: <span className="font-medium">that's you</span> ·
                 already assigned — no re-entry needed.
@@ -330,10 +330,10 @@ export function RegisterWizard({
                   <div
                     className={
                       rosterCount >= maxRoster
-                        ? "h-full bg-rose-500 transition-all"
+                        ? "h-full bg-[var(--error)] transition-all"
                         : rosterCount >= maxRoster - 3
-                          ? "h-full bg-amber-500 transition-all"
-                          : "h-full bg-emerald-500 transition-all"
+                          ? "h-full bg-[var(--warning)] transition-all"
+                          : "h-full bg-[var(--success)] transition-all"
                     }
                     style={{
                       width: `${Math.min(100, (rosterCount / maxRoster) * 100)}%`
@@ -511,10 +511,10 @@ export function RegisterWizard({
                   <span
                     className={
                       balanced
-                        ? "text-emerald-700"
+                        ? "text-[var(--tint-emerald-fg)]"
                         : remainingCents < 0
-                          ? "text-rose-700"
-                          : "text-amber-700"
+                          ? "text-[var(--tint-rose-fg)]"
+                          : "text-[var(--tint-amber-fg)]"
                     }
                   >
                     {balanced
@@ -528,10 +528,10 @@ export function RegisterWizard({
                   <div
                     className={
                       balanced
-                        ? "h-full bg-emerald-500 transition-all"
+                        ? "h-full bg-[var(--success)] transition-all"
                         : remainingCents < 0
-                          ? "h-full bg-rose-500 transition-all"
-                          : "h-full bg-amber-500 transition-all"
+                          ? "h-full bg-[var(--error)] transition-all"
+                          : "h-full bg-[var(--warning)] transition-all"
                     }
                     style={{
                       width: `${Math.min(100, totalFeeCents > 0 ? (allocatedCents / totalFeeCents) * 100 : 0)}%`
@@ -550,14 +550,14 @@ export function RegisterWizard({
                   you submit.
                 </p>
               ) : (
-                <p className="rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+                <p className="rounded-md border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
                   Threshold is $0 — your team auto-confirms the moment you
                   submit. No deposit collection needed first.
                 </p>
               )}
 
               {submitError ? (
-                <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+                <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
                   <AlertCircle
                     className="mr-1 inline h-3.5 w-3.5 align-text-bottom"
                     strokeWidth={1.75}
@@ -655,7 +655,7 @@ function StepRail({
                 <span
                   className={
                     isDone
-                      ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 font-mono text-[10px] tabular-nums text-white"
+                      ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--success)] font-mono text-[10px] tabular-nums text-white"
                       : isActive
                         ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[--accent] font-mono text-[10px] tabular-nums text-bg"
                         : "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-bg-subtle font-mono text-[10px] tabular-nums text-fg-muted"
@@ -854,7 +854,7 @@ function PricingTimeline({ division }: { division: DivisionItem }) {
   const p = division.pricing;
   if (!p) {
     return (
-      <p className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+      <p className="rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--warning)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-amber-fg)]">
         No pricing tier configured for this division. League admin must add
         one before you can submit.
       </p>
@@ -1103,7 +1103,7 @@ function ConfirmationProgress({
   }
   if (err) {
     return (
-      <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+      <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
         {err}
       </p>
     );
@@ -1117,12 +1117,12 @@ function ConfirmationProgress({
     <div className="space-y-4">
       <div className="flex items-center gap-3 rounded-lg border border-border bg-bg-subtle px-4 py-3">
         {confirmed ? (
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--success)] text-white">
             <Check className="h-4 w-4" strokeWidth={2.5} />
           </span>
         ) : (
-          <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-700">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500/30" />
+          <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-amber-bg)]" />
             <Sparkles className="relative h-4 w-4" strokeWidth={2} />
           </span>
         )}
@@ -1151,7 +1151,7 @@ function ConfirmationProgress({
           </div>
           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
             <div
-              className="h-full bg-emerald-500 transition-all duration-700"
+              className="h-full bg-[var(--success)] transition-all duration-700"
               style={{ width: `${status.pct}%` }}
             />
           </div>

@@ -54,7 +54,7 @@ export function JoinTeamButton({
 
   if (done) {
     return (
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+      <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--tint-emerald-bg)] px-3 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
         <Check className="h-3 w-3" strokeWidth={2} />
         Application sent
       </span>
@@ -72,7 +72,7 @@ export function JoinTeamButton({
         Apply to join
       </Button>
       {error ? (
-        <p className="max-w-[240px] text-right text-[11px] text-rose-600 dark:text-rose-400">
+        <p className="max-w-[240px] text-right text-[11px] text-[var(--tint-rose-fg)]">
           {error}
         </p>
       ) : null}

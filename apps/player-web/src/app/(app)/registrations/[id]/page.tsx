@@ -93,10 +93,10 @@ export default async function RegistrationDetailPage({
         className={[
           "rounded-2xl border p-6",
           isApproved
-            ? "border-emerald-400/40 bg-emerald-50/70 dark:border-emerald-700/40 dark:bg-emerald-950/30"
+            ? "border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] dark:bg-[var(--tint-emerald-bg)]"
             : isRejected
-              ? "border-rose-400/40 bg-rose-50/70 dark:border-rose-700/40 dark:bg-rose-950/30"
-              : "border-amber-400/40 bg-amber-50/70 dark:border-amber-700/40 dark:bg-amber-950/30"
+              ? "border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] dark:bg-[var(--tint-rose-bg)]"
+              : "border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] dark:bg-[var(--tint-amber-bg)]"
         ].join(" ")}
       >
         <div className="flex flex-col items-center text-center">
@@ -104,10 +104,10 @@ export default async function RegistrationDetailPage({
             className={[
               "flex h-12 w-12 items-center justify-center rounded-full ring-1",
               isApproved
-                ? "bg-emerald-500/15 text-emerald-600 ring-emerald-500/40 dark:text-emerald-400"
+                ? "bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)] ring-[var(--tint-emerald-fg)]/40"
                 : isRejected
-                  ? "bg-rose-500/15 text-rose-600 ring-rose-500/40 dark:text-rose-400"
-                  : "bg-amber-500/15 text-amber-700 ring-amber-500/40 dark:text-amber-300"
+                  ? "bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)] ring-[var(--tint-rose-fg)]/40"
+                  : "bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)] ring-[var(--tint-amber-fg)]/40"
             ].join(" ")}
           >
             {isApproved ? (
@@ -202,7 +202,7 @@ export default async function RegistrationDetailPage({
               </StepFuture>
             </ol>
           ) : isRejected ? (
-            <p className="rounded-md border border-rose-500/30 bg-rose-100/60 px-3 py-2 text-[13px] text-fg dark:bg-rose-950/40">
+            <p className="rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 py-2 text-[13px] text-fg dark:bg-[var(--tint-rose-bg)]">
               Contact your league admin to discuss the decision. You can submit
               a fresh registration for a different season.
             </p>
@@ -232,7 +232,7 @@ export default async function RegistrationDetailPage({
           {isApproved ? (
             <Link
               href={`/registrations/${r.id}/teams`}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-emerald-700"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--success)] px-3 py-2 text-[13px] font-medium text-white hover:bg-[var(--success)]"
             >
               <Users className="h-3.5 w-3.5" strokeWidth={1.75} />
               Find a team
@@ -249,7 +249,7 @@ export default async function RegistrationDetailPage({
           ) : (
             <Link
               href={`/register?resume=${r.id}`}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-amber-700"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--warning)] px-3 py-2 text-[13px] font-medium text-white hover:bg-[var(--warning)]"
             >
               Resume registration
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -335,7 +335,7 @@ function DetailRow({
 function StepDone({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-700 ring-1 ring-emerald-500/40 dark:text-emerald-300">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)] ring-1 ring-[var(--tint-emerald-fg)]/40">
         <Check className="h-3.5 w-3.5" strokeWidth={2} />
       </span>
       <span className="pt-0.5 font-medium text-fg">{children}</span>

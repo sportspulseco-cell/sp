@@ -152,8 +152,8 @@ function SubmittedSuccessCard({
   return (
     <section className="rounded-2xl border border-border bg-surface-1 p-8">
       <div className="mx-auto flex max-w-md flex-col items-center text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/40">
-          <Send className="h-6 w-6 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--tint-emerald-bg)] ring-1 ring-[var(--tint-emerald-fg)]/40">
+          <Send className="h-6 w-6 text-[var(--tint-emerald-fg)]" strokeWidth={1.75} />
         </div>
         <h2 className="mt-4 text-[20px] font-semibold tracking-tight text-fg">
           Application submitted!
@@ -202,7 +202,7 @@ function SubmittedSuccessCard({
 
 function PendingApplicationCard({ app }: { app: Application }) {
   return (
-    <section className="rounded-2xl border border-amber-400/40 bg-amber-50/70 p-5 dark:border-amber-700/40 dark:bg-amber-950/30">
+    <section className="rounded-2xl border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] p-5 dark:bg-[var(--tint-amber-bg)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-[16px] font-semibold tracking-tight text-fg">
@@ -246,10 +246,10 @@ function ApprovedDetailCard({
   const isConfirmed = app.entryStatus === "confirmed";
   const setupHref = `/captain/register/setup/${app.id}`;
   return (
-    <section className="rounded-2xl border border-emerald-400/40 bg-emerald-50/70 p-6 dark:border-emerald-700/40 dark:bg-emerald-950/30">
+    <section className="rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-6 dark:bg-[var(--tint-emerald-bg)]">
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/40">
-          <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--tint-emerald-bg)] ring-1 ring-[var(--tint-emerald-fg)]/40">
+          <CheckCircle2 className="h-6 w-6 text-[var(--tint-emerald-fg)]" strokeWidth={1.75} />
         </div>
         <h2 className="mt-3 text-[18px] font-semibold tracking-tight text-fg">
           {isConfirmed ? "You're confirmed!" : "Application approved!"}
@@ -271,7 +271,7 @@ function ApprovedDetailCard({
         </p>
       </div>
 
-      <dl className="mt-5 divide-y divide-emerald-500/20 rounded-xl border border-emerald-500/20 bg-bg-subtle text-[13px]">
+      <dl className="mt-5 divide-y divide-emerald-500/20 rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-bg-subtle text-[13px]">
         <DetailRow label="Division" value={app.divisionName} />
         <DetailRow
           label="Fee"
@@ -318,7 +318,7 @@ function ApprovedDetailCard({
 
       <Link
         href={isConfirmed ? "/" : setupHref}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-2.5 text-[13px] font-medium text-white hover:bg-emerald-700"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-[var(--success)] px-3 py-2.5 text-[13px] font-medium text-white hover:bg-[var(--success)]"
       >
         {isConfirmed ? "Open team console" : "Set up roster & dues"}
         <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
@@ -333,10 +333,10 @@ function RejectionDetailCard({ app }: { app: Application }) {
     rejectedAt?: string;
   }) ?? {};
   return (
-    <section className="rounded-2xl border border-rose-400/40 bg-rose-50/70 p-6 dark:border-rose-700/40 dark:bg-rose-950/30">
+    <section className="rounded-2xl border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] p-6 dark:bg-[var(--tint-rose-bg)]">
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/15 ring-1 ring-rose-500/40">
-          <XCircle className="h-6 w-6 text-rose-600 dark:text-rose-400" strokeWidth={1.75} />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--tint-rose-bg)] ring-1 ring-[var(--tint-rose-fg)]/40">
+          <XCircle className="h-6 w-6 text-[var(--tint-rose-fg)]" strokeWidth={1.75} />
         </div>
         <h2 className="mt-3 text-[18px] font-semibold tracking-tight text-fg">
           Application not approved
@@ -349,8 +349,8 @@ function RejectionDetailCard({ app }: { app: Application }) {
       </div>
 
       {meta.rejectionReason && (
-        <div className="mt-5 rounded-xl border border-rose-500/30 bg-rose-100/60 p-4 dark:bg-rose-950/40">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+        <div className="mt-5 rounded-xl border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] p-4 dark:bg-[var(--tint-rose-bg)]">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
             Reason from admin
           </p>
           <p className="mt-1 text-[13px] leading-relaxed text-fg">
@@ -359,7 +359,7 @@ function RejectionDetailCard({ app }: { app: Application }) {
         </div>
       )}
 
-      <dl className="mt-4 divide-y divide-rose-500/20 rounded-xl border border-rose-500/20 bg-bg-subtle text-[13px]">
+      <dl className="mt-4 divide-y divide-rose-500/20 rounded-xl border border-[var(--tint-rose-fg)]/30 bg-bg-subtle text-[13px]">
         <DetailRow label="Division applied" value={app.divisionName} />
         <DetailRow
           label="Denied on"
@@ -521,7 +521,7 @@ function StepBullet({
 }) {
   if (status === "done") {
     return (
-      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-700 ring-1 ring-emerald-500/40 dark:text-emerald-300">
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)] ring-1 ring-[var(--tint-emerald-fg)]/40 dark:text-[var(--tint-emerald-fg)]">
         <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2} />
       </span>
     );

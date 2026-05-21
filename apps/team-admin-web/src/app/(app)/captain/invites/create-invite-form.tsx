@@ -157,12 +157,12 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
         </Button>
       </div>
       {err ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-600 dark:text-rose-400 sm:col-span-4">
+        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)] sm:col-span-4">
           {err}
         </p>
       ) : null}
       {okMsg ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300 sm:col-span-4">
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)] sm:col-span-4">
           {okMsg}
         </p>
       ) : null}
