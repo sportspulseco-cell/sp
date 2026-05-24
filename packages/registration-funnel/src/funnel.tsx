@@ -251,6 +251,65 @@ export function RegistrationFunnel({
     const i = stepOrder.indexOf(step);
     if (i < stepOrder.length - 1) setStep(stepOrder[i + 1]!);
   }
+
+  /**
+   * Details → next: persist the answers map and re-run eligibility so
+   * the Compliance step shows checks evaluated against the real input.
+   * Previously every Details-step answer lived in client state only —
+   * `startSubmission` runs at the Account step when answers is still
+   * `{}`, and nothing wrote them back, so the approve handler that
+   * upserts the free-agent pool entry from `meta.answers` saw nothing.
+   */
+  async function submitDetails() {
+    if (!submissionId) {
+      next();
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.updateSubmission(submissionId, {
+        email: email.trim(),
+        answers
+      });
+      const elig = await api
+        .runEligibilityCheck(submissionId, email.trim())
+        .catch(() => null);
+      if (elig) setEligibilityFlags(elig.flags);
+      next();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /**
+   * Tier → next: persist the pricing tier id so the Pay step's
+   * amount/currency resolution and the invoice row both see the right
+   * value. Otherwise `meta.pricingTierId` stays null and the offline
+   * branch records $0.
+   */
+  async function submitTier() {
+    if (!submissionId) {
+      next();
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.updateSubmission(submissionId, {
+        email: email.trim(),
+        pricingTierId: pricingTierId ?? null
+      });
+      next();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function back() {
     const i = stepOrder.indexOf(step);
     if (i > 0) setStep(stepOrder[i - 1]!);
@@ -568,7 +627,7 @@ export function RegistrationFunnel({
             value={pricingTierId}
             onChange={setPricingTierId}
             onBack={back}
-            onNext={next}
+            onNext={submitTier}
           />
         )}
 
@@ -587,7 +646,7 @@ export function RegistrationFunnel({
             onTeamDivisionChange={setTeamDivision}
             onTeamColorChange={setTeamColor}
             onBack={back}
-            onNext={next}
+            onNext={submitDetails}
           />
         )}
 
@@ -2729,7 +2788,13 @@ function DoneStep({
           <NextStep
             n={2}
             title="Approval confirmation"
-            body="Once approved, you'll appear on the team roster and schedule."
+            body={
+              submissionType === "free_agent"
+                ? "Once approved, you'll appear in your division's free-agent pool. Captains can then claim you onto their roster."
+                : submissionType === "team"
+                  ? "Once approved, your team will appear in the division and you can start inviting players."
+                  : "Once approved, you'll appear on the team roster and schedule."
+            }
           />
           <NextStep
             n={3}

@@ -129,6 +129,21 @@ export interface PublicRegistrationApi {
     id: string,
     email: string
   ): Promise<{ id: string; status: "cancelled" }>;
+  /**
+   * Persist later-stage funnel input back onto the registration row.
+   * Called at Details → Compliance (with answers) and at Pay (with
+   * pricingTierId) so the row reflects what the player actually
+   * entered. Without it, every Details-step field lives in client
+   * state only and the pay/approve handlers see {} for answers.
+   */
+  updateSubmission(
+    id: string,
+    body: {
+      email: string;
+      answers?: Record<string, unknown>;
+      pricingTierId?: string | null;
+    }
+  ): Promise<{ id: string; updated: boolean }>;
   listWaivers(seasonId: string): Promise<{
     requiredKinds: string[];
     documents: WaiverDoc[];
@@ -212,6 +227,11 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
       f(`/public/registration/submissions/${id}/cancel`, {
         method: "POST",
         body: JSON.stringify({ email })
+      }),
+    updateSubmission: (id, body) =>
+      f(`/public/registration/submissions/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body)
       }),
     listWaivers: (id) =>
       f(`/public/registration/seasons/${id}/waivers`),

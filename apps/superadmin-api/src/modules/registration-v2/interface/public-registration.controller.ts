@@ -6,9 +6,11 @@ import {
   Inject,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query
 } from "@nestjs/common";
+import { createHash } from "crypto";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
@@ -763,6 +765,21 @@ export class PublicRegistrationController {
       );
     }
 
+    // Inline (form-defined) waivers arrive with a synthetic versionId
+    // like `form:liability` / `form:code_of_conduct` / `form:photo_release`.
+    // Resolve to a real document_versions row (find-or-create) so the
+    // audit trail in consent_signatures is honest — previously these
+    // were tracked client-side only, which meant a signed waiver left
+    // ZERO trace in the DB.
+    let resolvedVersionId = body.documentVersionId;
+    if (resolvedVersionId.startsWith("form:")) {
+      resolvedVersionId = await this.resolveInlineWaiverVersionId(
+        row.seasonId,
+        row.orgId,
+        resolvedVersionId
+      );
+    }
+
     // Idempotent: if this person has already signed this version,
     // return the existing signature.
     const [existing] = await this.db
@@ -773,7 +790,7 @@ export class PublicRegistrationController {
           eq(schema.consentSignatures.personId, row.subjectPersonId),
           eq(
             schema.consentSignatures.documentVersionId,
-            body.documentVersionId
+            resolvedVersionId
           )
         )
       )
@@ -785,7 +802,7 @@ export class PublicRegistrationController {
         .insert(schema.consentSignatures)
         .values({
           personId: row.subjectPersonId,
-          documentVersionId: body.documentVersionId,
+          documentVersionId: resolvedVersionId,
           signedByUserId: row.submittedByUserId,
           // Store the typed name in metadata-ish fashion via geolocation
           // is gross — there's no signature_text column. Use the
@@ -1245,6 +1262,48 @@ export class PublicRegistrationController {
     return { passed: flags.length === 0, flags };
   }
 
+  @Patch("submissions/:id")
+  @ApiOperation({
+    summary:
+      "Persist later-stage funnel input back onto the registration row. The funnel calls this at Details → Compliance (with answers) and at the Pay step (with pricingTierId) so the row reflects what the player actually entered. Without it, every Details-step field lives in client state only and the pay/approve handlers see {} for answers."
+  })
+  async updateSubmission(
+    @Param("id") submissionId: string,
+    @Body()
+    body: {
+      email: string;
+      answers?: Record<string, unknown>;
+      pricingTierId?: string | null;
+    }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body.email);
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+
+    const patch: Record<string, unknown> = {};
+    if (body.answers && typeof body.answers === "object") {
+      // Merge — don't replace — so a re-submit of Details doesn't wipe
+      // partial answers from an earlier visit.
+      const existingAnswers =
+        (meta.answers as Record<string, unknown> | undefined) ?? {};
+      patch.answers = { ...existingAnswers, ...body.answers };
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "pricingTierId")) {
+      patch.pricingTierId = body.pricingTierId ?? null;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return { id: submissionId, updated: false };
+    }
+
+    const merged = mergeMetadata(meta, patch);
+    await this.db
+      .update(schema.registrations)
+      .set({ metadata: merged, updatedAt: new Date() })
+      .where(eq(schema.registrations.id, submissionId));
+
+    return { id: submissionId, updated: true };
+  }
+
   @Post("submissions/:id/pay")
   @ApiOperation({
     summary:
@@ -1290,16 +1349,62 @@ export class PublicRegistrationController {
       }
     }
 
-    // Offline branch — no charge, admin marks paid later. Move to
-    // pending_offline; admin will toggle to pending_review.
+    // Offline branch — no card charge, admin marks paid later. We still
+    // create an invoice in `sent` status so Finance has a tracked record
+    // of who owes what; previously this branch wrote nothing to the
+    // invoices table and the league had to manually reconcile.
     if (outcome === "offline") {
       assertValidTransition(row.status, "pending_offline");
+      const idempotencyKey = `submission:${submissionId}`;
+      const [existing] = await this.db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.idempotencyKey, idempotencyKey))
+        .limit(1);
+      let offlineInvoiceId: string;
+      if (existing) {
+        offlineInvoiceId = existing.id;
+      } else {
+        const invoiceNumber = `INV-${Date.now().toString().slice(-9)}`;
+        const [inv] = await this.db
+          .insert(schema.invoices)
+          .values({
+            orgId: row.orgId,
+            invoiceNumber,
+            registrationId: submissionId,
+            recipientEmail: meta.email as string,
+            currency,
+            subtotalCents: amountCents,
+            totalCents: amountCents,
+            paidCents: 0,
+            status: "sent",
+            issuedAt: new Date(),
+            idempotencyKey,
+            metadata: { paymentMethod: "offline", tierId }
+          })
+          .returning();
+        offlineInvoiceId = inv!.id;
+        await this.db.insert(schema.invoiceItems).values({
+          invoiceId: offlineInvoiceId,
+          kind: "registration_fee",
+          description: tierName,
+          quantity: 1,
+          unitAmountCents: amountCents,
+          amountCents
+        });
+      }
+
       await this.db
         .update(schema.registrations)
         .set({
           status: "pending_offline",
           metadata: mergeMetadata(meta, {
-            payment: { outcome: "offline", amountCents, currency }
+            payment: {
+              outcome: "offline",
+              amountCents,
+              currency,
+              invoiceId: offlineInvoiceId
+            }
           }),
           updatedAt: new Date()
         })
@@ -1307,7 +1412,9 @@ export class PublicRegistrationController {
       return {
         id: submissionId,
         status: "pending_offline" as const,
-        invoiceId: null,
+        invoiceId: offlineInvoiceId,
+        amountCents,
+        currency,
         mock: true
       };
     }
@@ -1431,6 +1538,141 @@ export class PublicRegistrationController {
       .set({ status: "cancelled", updatedAt: new Date() })
       .where(eq(schema.registrations.id, id));
     return { id, status: "cancelled" as const };
+  }
+
+  /**
+   * Resolve a synthetic inline-waiver versionId (`form:liability`,
+   * `form:code_of_conduct`, `form:photo_release`, or any `form:<kind>:vN`
+   * variant) to a real `document_versions.id`.
+   *
+   * The form's inline waiver content is hashed; if a documents row for
+   * the org+kind already exists with a version matching that hash we
+   * reuse it, otherwise we provision both. Result: every inline-waiver
+   * signature lands in `consent_signatures` with a valid FK, and the
+   * audit trail is complete.
+   */
+  private async resolveInlineWaiverVersionId(
+    seasonId: string | null,
+    orgId: string,
+    syntheticId: string
+  ): Promise<string> {
+    if (!seasonId) {
+      throw new NotFoundException(
+        "Inline waiver sign requires a season-bound submission"
+      );
+    }
+    // syntheticId formats accepted: `form:<kind>` or `form:<kind>:<vN>`
+    const parts = syntheticId.split(":");
+    const kindToken = parts[1];
+    if (!kindToken) {
+      throw new NotFoundException(`Invalid inline waiver id ${syntheticId}`);
+    }
+    // Map funnel kind keys → canonical `documents.kind` codes.
+    const kindMap: Record<string, { docKind: string; configKey: keyof import("@sportspulse/kernel").FormWaiversConfig; label: string }> = {
+      liability: { docKind: "waiver", configKey: "liabilityWaiver", label: "Liability waiver" },
+      code_of_conduct: { docKind: "code_of_conduct", configKey: "codeOfConduct", label: "Code of conduct" },
+      photo_release: { docKind: "photo_release", configKey: "photoRelease", label: "Photo / media release" }
+    };
+    const mapped = kindMap[kindToken];
+    if (!mapped) {
+      throw new NotFoundException(`Unknown inline waiver kind ${kindToken}`);
+    }
+
+    // Pull the season's active form to grab the inline content.
+    const [formRow] = await this.db
+      .select({
+        formSchema: schema.registrationFormVersions.schema
+      })
+      .from(schema.registrationFormVersions)
+      .innerJoin(
+        schema.registrationForms,
+        eq(
+          schema.registrationForms.activeVersionId,
+          schema.registrationFormVersions.id
+        )
+      )
+      .where(eq(schema.registrationForms.seasonId, seasonId))
+      .limit(1);
+    const formDef = (formRow?.formSchema as { waivers?: Record<string, { enabled: boolean; content: string }> } | null) ?? null;
+    const waiverCfg = formDef?.waivers?.[mapped.configKey];
+    if (!waiverCfg?.enabled || !waiverCfg.content?.trim()) {
+      throw new NotFoundException(
+        `Inline ${mapped.configKey} is not enabled on this season's form`
+      );
+    }
+    const content = waiverCfg.content.trim();
+    const contentHash = createHash("sha256")
+      .update(`${mapped.docKind}\n${content}`)
+      .digest("hex");
+
+    // Find-or-create the documents row (one per org+kind+name).
+    const docName = `${mapped.label} (form)`;
+    const [existingDoc] = await this.db
+      .select()
+      .from(schema.documents)
+      .where(
+        and(
+          eq(schema.documents.orgId, orgId),
+          eq(schema.documents.kind, mapped.docKind),
+          eq(schema.documents.name, docName)
+        )
+      )
+      .limit(1);
+    let docId: string;
+    if (existingDoc) {
+      docId = existingDoc.id;
+    } else {
+      const [created] = await this.db
+        .insert(schema.documents)
+        .values({
+          orgId,
+          kind: mapped.docKind,
+          name: docName,
+          description: "Inline waiver authored on the registration form"
+        })
+        .returning();
+      docId = created!.id;
+    }
+
+    // Find-or-create the document_versions row keyed by content hash.
+    const [existingVer] = await this.db
+      .select()
+      .from(schema.documentVersions)
+      .where(
+        and(
+          eq(schema.documentVersions.documentId, docId),
+          eq(schema.documentVersions.contentHash, contentHash)
+        )
+      )
+      .limit(1);
+    if (existingVer) return existingVer.id;
+
+    const [maxVer] = await this.db
+      .select({ n: schema.documentVersions.versionNumber })
+      .from(schema.documentVersions)
+      .where(eq(schema.documentVersions.documentId, docId))
+      .orderBy(desc(schema.documentVersions.versionNumber))
+      .limit(1);
+    const nextVersionNumber = (maxVer?.n ?? 0) + 1;
+
+    const [newVer] = await this.db
+      .insert(schema.documentVersions)
+      .values({
+        documentId: docId,
+        versionNumber: nextVersionNumber,
+        contentHtml: content,
+        contentHash,
+        languageCode: "en",
+        effectiveFrom: new Date()
+      })
+      .returning();
+    // Keep documents.active_version_id pointed at the freshest version
+    // so the existing list-waivers endpoint surfaces this content too.
+    await this.db
+      .update(schema.documents)
+      .set({ activeVersionId: newVer!.id, updatedAt: new Date() })
+      .where(eq(schema.documents.id, docId));
+    return newVer!.id;
   }
 
   // ---------- internals ----------
