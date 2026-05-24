@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   visibleQuestions,
   type AnswerMap,
@@ -17,8 +16,13 @@ import { Field, Input, Select } from "@sportspulse/ui";
  *   2. Public registration funnel — Wave D will mount this inside the
  *      adaptive form-engine step.
  *
- * Single source of truth for how answers map to inputs. Conditional
- * logic is evaluated live via `visibleQuestions` from kernel.
+ * Fully controlled: the `initialAnswers` prop IS the answers map (the
+ * `initial` prefix is historical). Previously the component kept a
+ * local state copy seeded once at mount, which meant typing in any
+ * custom question dispatched an onChange with the stale-mount answers
+ * map — wiping every reserved key (positions / skill_level / usa_hockey_id
+ * etc.) the parent had set since the funnel started. Controlled mode
+ * means the parent's map is the truth on every keystroke.
  */
 export function FormRenderer({
   definition,
@@ -32,13 +36,11 @@ export function FormRenderer({
   /** Read-only preview mode (used by the admin builder). */
   disabled?: boolean;
 }) {
-  const [answers, setAnswers] = useState<AnswerMap>(initialAnswers ?? {});
+  const answers = initialAnswers ?? {};
   const visible = visibleQuestions(definition, answers);
 
   function setAnswer(key: string, value: unknown) {
-    const next = { ...answers, [key]: value };
-    setAnswers(next);
-    onChange?.(next);
+    onChange?.({ ...answers, [key]: value });
   }
 
   if (visible.length === 0) {
