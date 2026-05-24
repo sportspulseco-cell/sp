@@ -590,15 +590,12 @@ export function RegistrationFunnel({
             onCodeOfConductChange={setCodeOfConductAccepted}
             onPhotoReleaseChange={setPhotoReleaseAccepted}
             onSign={async (versionId, signatureName) => {
-              // Inline (form-defined) waivers carry a synthetic id —
-              // no backend round-trip; just track sign locally so the
-              // funnel can advance.
-              if (versionId.startsWith("form:")) {
-                setSignedVersionIds(
-                  (prev) => new Set([...prev, versionId])
-                );
-                return;
-              }
+              // Inline (form-defined) waivers carry a synthetic `form:`
+              // versionId; the server resolves it to a real
+              // document_versions row (find-or-create by content hash)
+              // and writes the consent_signatures row. Previously this
+              // branch returned early and the "sign" was tracked
+              // client-side only — zero audit trail.
               try {
                 const res = await api.signWaiver(submissionId!, {
                   email,
