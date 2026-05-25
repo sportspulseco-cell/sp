@@ -18,6 +18,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { loadUserScope } from "../../../shared/auth/scope";
 import { GetCurrentUserHandler } from "../application/queries/get-current-user.query";
 import { ListProfilesHandler } from "../application/queries/list-profiles.query";
 import { SuspendProfileHandler } from "../application/commands/suspend-profile.command";
@@ -153,25 +154,21 @@ export class IamController {
     // the same team (e.g. team_admin + coach) should count as one team
     // for UI purposes ("· 1 team", not "· 2 teams").
     const dedupe = (xs: string[]) => Array.from(new Set(xs));
+
+    // Resolve the projected scope through the canonical helper. The
+    // earlier inline projection here ignored `division`-scoped
+    // assignments entirely, so the player-app pages that filter by
+    // orgIds saw empty arrays for free-agent players. Single source
+    // of truth lives in loadUserScope — keep it that way.
+    const projected = await loadUserScope(this.db, principal.userId);
+
     return {
       userId: principal.userId,
       isSuperAdmin: profile?.isSuperAdmin ?? false,
       roleCodes: dedupe(assignments.map((a) => a.roleCode)),
-      orgIds: dedupe(
-        assignments
-          .filter((a) => a.scopeType === "org" && a.scopeId)
-          .map((a) => a.scopeId as string)
-      ),
-      leagueIds: dedupe(
-        assignments
-          .filter((a) => a.scopeType === "league" && a.scopeId)
-          .map((a) => a.scopeId as string)
-      ),
-      teamIds: dedupe(
-        assignments
-          .filter((a) => a.scopeType === "team" && a.scopeId)
-          .map((a) => a.scopeId as string)
-      ),
+      orgIds: projected.orgIds ?? [],
+      leagueIds: projected.leagueIds ?? [],
+      teamIds: projected.teamIds ?? [],
       personId: person?.id ?? null
     };
   }
