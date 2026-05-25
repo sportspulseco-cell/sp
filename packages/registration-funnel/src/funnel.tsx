@@ -416,6 +416,16 @@ export function RegistrationFunnel({
       setSubmissionStatus(result.status);
       setIsMinor(result.isMinor);
       setFullName(result.fullName);
+      // Hydrate the Details step from the prior submission so a
+      // returning user doesn't see a blank form. dobDate is shown
+      // readonly on the Player profile section, answers backs the
+      // FormRenderer + skill/positions/availability buttons, and
+      // pricingTierId pre-selects the Tier step.
+      if (result.dobDate) setDobDate(result.dobDate);
+      if (result.phone) setPhone(result.phone);
+      if (result.answers) setAnswers(result.answers);
+      if (result.pricingTierId) setPricingTierId(result.pricingTierId);
+      if (result.divisionId) setDivisionId(result.divisionId);
 
       const [waiverResp] = await Promise.all([
         api.listWaivers(context.season.id).catch(() => null),

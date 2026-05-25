@@ -109,6 +109,14 @@ export interface PublicRegistrationApi {
     userCreated: false;
     isMinor: boolean;
     fullName: string;
+    // Resume-only: hydrate the funnel from prior submission state so the
+    // Details step doesn't render blank for returning users. Omitted on
+    // the create-new branch (no prior row to load from).
+    dobDate?: string | null;
+    phone?: string | null;
+    answers?: Record<string, unknown>;
+    pricingTierId?: string | null;
+    divisionId?: string | null;
   }>;
   getSubmission(
     id: string,

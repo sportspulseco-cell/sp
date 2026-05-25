@@ -617,14 +617,30 @@ export class PublicRegistrationController {
       .where(eq(schema.registrations.idempotencyKey, idempotencyKey))
       .limit(1);
     if (existing) {
+      // Return the full prior state so the funnel can hydrate the
+      // Details step on resume. Previously this only returned
+      // { id, status, userId, isMinor: false, fullName } — meaning the
+      // returning user saw a blank Details form even though their
+      // answers were stored. Pull dob + answers from metadata and
+      // recompute isMinor from the stored DOB.
+      const existingMeta =
+        (existing.metadata as Record<string, unknown> | undefined) ?? {};
+      const storedDob = (existingMeta.dobDate as string | null) ?? null;
       return {
         id: existing.id,
         status: existing.status,
         resumed: true,
         userId,
         userCreated: false,
-        isMinor: false,
-        fullName
+        isMinor: storedDob ? computeIsMinor(storedDob) : false,
+        fullName: (existingMeta.fullName as string | undefined) ?? fullName,
+        dobDate: storedDob,
+        phone: (existingMeta.phone as string | null) ?? null,
+        answers:
+          (existingMeta.answers as Record<string, unknown> | undefined) ?? {},
+        pricingTierId:
+          (existingMeta.pricingTierId as string | null) ?? null,
+        divisionId: existing.divisionId ?? null
       };
     }
 
