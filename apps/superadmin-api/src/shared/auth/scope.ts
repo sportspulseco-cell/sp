@@ -132,6 +132,42 @@ export async function loadUserScope(
     projectedOrgIdsFromDivisions = rows2.map((r) => r.orgId);
   }
 
+  // Project team_memberships → teamIds. team_memberships is the
+  // canonical "is this person on this team" source; role assignments
+  // are about permission, not membership. A free-agent who got
+  // claimed by a captain has a team_memberships row but no team-scoped
+  // role assignment, so without this projection the player-app's
+  // /team page would correctly read scope.teamIds = [] and show
+  // "Not on a roster yet" while their DB says otherwise.
+  // Also project the team's org so scope.orgIds reflects reach.
+  let teamIdsFromMemberships: string[] = [];
+  let projectedOrgIdsFromMemberships: string[] = [];
+  const personRows = await db
+    .select({ id: schema.persons.id })
+    .from(schema.persons)
+    .where(eq(schema.persons.userId, userId));
+  if (personRows.length > 0) {
+    const personIds = personRows.map((p) => p.id);
+    const memberships = await db
+      .selectDistinct({
+        teamId: schema.teamMemberships.teamId,
+        orgId: schema.teams.orgId
+      })
+      .from(schema.teamMemberships)
+      .innerJoin(
+        schema.teams,
+        eq(schema.teams.id, schema.teamMemberships.teamId)
+      )
+      .where(
+        and(
+          inArray(schema.teamMemberships.personId, personIds),
+          eq(schema.teamMemberships.currentStatus, "active")
+        )
+      );
+    teamIdsFromMemberships = memberships.map((m) => m.teamId);
+    projectedOrgIdsFromMemberships = memberships.map((m) => m.orgId);
+  }
+
   const leagueIds = Array.from(
     new Set([
       ...directLeagueIds,
@@ -144,10 +180,13 @@ export async function loadUserScope(
       ...directOrgIds,
       ...projectedOrgIdsFromLeagues,
       ...projectedOrgIdsFromTeams,
-      ...projectedOrgIdsFromDivisions
+      ...projectedOrgIdsFromDivisions,
+      ...projectedOrgIdsFromMemberships
     ])
   );
-  const teamIds = Array.from(new Set(directTeamIds));
+  const teamIds = Array.from(
+    new Set([...directTeamIds, ...teamIdsFromMemberships])
+  );
 
   return {
     isSuperAdmin: false,
