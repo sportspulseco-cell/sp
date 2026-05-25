@@ -270,7 +270,17 @@ export function RegistrationFunnel({
     try {
       await api.updateSubmission(submissionId, {
         email: email.trim(),
-        answers
+        answers,
+        // Team-reg captain edits team name / division on this step, so
+        // we have to roundtrip them too. Without this branch a captain
+        // who changes their mind on Details never reaches the server.
+        ...(submissionType === "team"
+          ? {
+              teamName: teamName.trim() || null,
+              teamColor: teamColor || null,
+              divisionId: teamDivision || null
+            }
+          : {})
       });
       const elig = await api
         .runEligibilityCheck(submissionId, email.trim())
@@ -339,7 +349,13 @@ export function RegistrationFunnel({
           pricingTierId: pricingTierId ?? undefined,
           submissionType,
           divisionId: divisionId ?? undefined,
-          answers
+          answers,
+          teamName:
+            submissionType === "team" && teamName.trim()
+              ? teamName.trim()
+              : undefined,
+          teamColor:
+            submissionType === "team" && teamColor ? teamColor : undefined
         }
       );
       setSubmissionId(result.id);
@@ -649,6 +665,7 @@ export function RegistrationFunnel({
             teamName={teamName}
             teamDivision={teamDivision}
             teamColor={teamColor}
+            divisions={context.divisions}
             onTeamNameChange={setTeamName}
             onTeamDivisionChange={setTeamDivision}
             onTeamColorChange={setTeamColor}
@@ -1966,6 +1983,7 @@ function QuestionsStep({
   teamName,
   teamDivision,
   teamColor,
+  divisions,
   onTeamNameChange,
   onTeamDivisionChange,
   onTeamColorChange,
@@ -1979,8 +1997,10 @@ function QuestionsStep({
   sportCode: string;
   dobDate: string;
   teamName: string;
+  /** Now holds the division UUID, not free text. */
   teamDivision: string;
   teamColor: string;
+  divisions: PublicSeasonContext["divisions"];
   onTeamNameChange: (v: string) => void;
   onTeamDivisionChange: (v: string) => void;
   onTeamColorChange: (v: string) => void;
@@ -2086,13 +2106,33 @@ function QuestionsStep({
             </Field>
           </div>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Field label="Division *">
-              <Input
+            <Field
+              label="Division *"
+              hint={
+                divisions.length === 0
+                  ? "This season has no divisions configured yet."
+                  : "Pick the division your team will play in."
+              }
+            >
+              <select
                 value={teamDivision}
                 onChange={(e) => onTeamDivisionChange(e.target.value)}
-                placeholder="e.g. AHL"
                 required
-              />
+                disabled={divisions.length === 0}
+                className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent disabled:opacity-50"
+              >
+                <option value="">
+                  {divisions.length === 0
+                    ? "No divisions available"
+                    : "Pick a division…"}
+                </option>
+                {divisions.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                    {d.tier ? ` · ${d.tier}` : ""}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Team colour">
               <input

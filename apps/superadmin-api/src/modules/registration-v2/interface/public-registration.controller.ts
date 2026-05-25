@@ -92,6 +92,23 @@ class StartSubmissionBodyDto {
   @IsOptional()
   @IsObject()
   answers?: Record<string, unknown>;
+
+  /**
+   * Team registration only — name + primary colour collected on the
+   * Team information card of the Details step. Persisted into
+   * metadata.team so the approve handler can create the teams row.
+   * The captain still uses divisionId (above) to bind the team to a
+   * division on approval.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  teamName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  teamColor?: string;
 }
 
 /**
@@ -426,7 +443,14 @@ export class PublicRegistrationController {
         phone: body.phone ?? null,
         dobDate: body.dobDate ?? null,
         answers: body.answers ?? {},
-        isMinor
+        isMinor,
+        team:
+          body.teamName || body.teamColor
+            ? {
+                name: body.teamName ?? null,
+                color: body.teamColor ?? null
+              }
+            : undefined
       });
       await this.db
         .update(schema.registrations)
@@ -485,7 +509,14 @@ export class PublicRegistrationController {
             phone: body.phone ?? null,
             dobDate: body.dobDate ?? null,
             answers: body.answers ?? {},
-            isMinor
+            isMinor,
+            team:
+              body.teamName || body.teamColor
+                ? {
+                    name: body.teamName ?? null,
+                    color: body.teamColor ?? null
+                  }
+                : undefined
           }
         })
         .returning();
@@ -1305,6 +1336,9 @@ export class PublicRegistrationController {
       email: string;
       answers?: Record<string, unknown>;
       pricingTierId?: string | null;
+      teamName?: string | null;
+      teamColor?: string | null;
+      divisionId?: string | null;
     }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
@@ -1321,15 +1355,42 @@ export class PublicRegistrationController {
     if (Object.prototype.hasOwnProperty.call(body, "pricingTierId")) {
       patch.pricingTierId = body.pricingTierId ?? null;
     }
+    if (
+      Object.prototype.hasOwnProperty.call(body, "teamName") ||
+      Object.prototype.hasOwnProperty.call(body, "teamColor")
+    ) {
+      const existingTeam =
+        (meta.team as Record<string, unknown> | undefined) ?? {};
+      patch.team = {
+        ...existingTeam,
+        ...(Object.prototype.hasOwnProperty.call(body, "teamName")
+          ? { name: body.teamName ?? null }
+          : {}),
+        ...(Object.prototype.hasOwnProperty.call(body, "teamColor")
+          ? { color: body.teamColor ?? null }
+          : {})
+      };
+    }
 
-    if (Object.keys(patch).length === 0) {
+    // divisionId is a real column, not metadata.
+    const dbPatch: Record<string, unknown> = {};
+    if (Object.prototype.hasOwnProperty.call(body, "divisionId")) {
+      dbPatch.divisionId = body.divisionId ?? null;
+    }
+
+    if (Object.keys(patch).length === 0 && Object.keys(dbPatch).length === 0) {
       return { id: submissionId, updated: false };
     }
 
-    const merged = mergeMetadata(meta, patch);
     await this.db
       .update(schema.registrations)
-      .set({ metadata: merged, updatedAt: new Date() })
+      .set({
+        ...(Object.keys(patch).length > 0
+          ? { metadata: mergeMetadata(meta, patch) }
+          : {}),
+        ...dbPatch,
+        updatedAt: new Date()
+      })
       .where(eq(schema.registrations.id, submissionId));
 
     return { id: submissionId, updated: true };

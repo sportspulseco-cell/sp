@@ -83,6 +83,9 @@ export interface PublicRegistrationApi {
       /** P2-2: division the player is registering into. */
       divisionId?: string;
       answers?: Record<string, unknown>;
+      /** Team registration only — captured on the Team information card. */
+      teamName?: string;
+      teamColor?: string;
     }
   ): Promise<{
     id: string;
@@ -150,6 +153,9 @@ export interface PublicRegistrationApi {
       email: string;
       answers?: Record<string, unknown>;
       pricingTierId?: string | null;
+      teamName?: string | null;
+      teamColor?: string | null;
+      divisionId?: string | null;
     }
   ): Promise<{ id: string; updated: boolean }>;
   listWaivers(seasonId: string): Promise<{

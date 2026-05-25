@@ -525,6 +525,120 @@ export class RegistrationV2Service {
   }
 
   /**
+   * Create the captain's team on approval of a team-registration
+   * submission. Idempotent — if `registrations.team_id` is already set
+   * we trust it as the prior result and skip.
+   *
+   * Steps:
+   *   1. insert teams row (org_id from season, name from
+   *      metadata.team.name, captain_user_id = submitter)
+   *   2. division_team_entries row to bind the team to its division
+   *   3. captain role assignment @ team scope
+   *   4. team_memberships row for the captain themselves (they play too)
+   *   5. write the new team_id back onto registrations.team_id so this
+   *      stays idempotent
+   */
+  async createTeamFromRegistration(input: {
+    registrationId: string;
+    submitterUserId: string;
+    captainPersonId: string;
+    orgId: string;
+    seasonId: string;
+    divisionId: string | null;
+    teamName: string;
+    teamColor: string | null;
+  }): Promise<{ teamId: string; created: boolean }> {
+    // Short-circuit if the registration already has a team_id.
+    const [reg] = await this.db
+      .select({ teamId: schema.registrations.teamId })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, input.registrationId))
+      .limit(1);
+    if (reg?.teamId) return { teamId: reg.teamId, created: false };
+
+    // 1. teams row
+    const [team] = await this.db
+      .insert(schema.teams)
+      .values({
+        orgId: input.orgId,
+        name: input.teamName,
+        sportCode: "HOCKEY_ICE",
+        captainUserId: input.submitterUserId,
+        colors: input.teamColor
+          ? { primary: input.teamColor }
+          : ({} as Record<string, unknown>),
+        status: "active"
+      })
+      .returning({ id: schema.teams.id });
+
+    // 2. division_team_entries (when a division was picked)
+    if (input.divisionId) {
+      await this.db.insert(schema.divisionTeamEntries).values({
+        teamId: team!.id,
+        divisionId: input.divisionId,
+        entryStatus: "applied"
+      });
+    }
+
+    // 3. captain role at team scope
+    const [captainRole] = await this.db
+      .select({ id: schema.roles.id })
+      .from(schema.roles)
+      .where(eq(schema.roles.code, "captain"))
+      .limit(1);
+    if (captainRole) {
+      await this.db.insert(schema.userRoleAssignments).values({
+        userId: input.submitterUserId,
+        roleId: captainRole.id,
+        scopeType: "team",
+        scopeId: team!.id,
+        effectiveFrom: new Date(),
+        metadata: { source: "team_registration_approval" }
+      });
+      // Refresh JWT role_codes
+      try {
+        const rows = await this.db
+          .select({ code: schema.roles.code })
+          .from(schema.userRoleAssignments)
+          .innerJoin(
+            schema.roles,
+            eq(schema.userRoleAssignments.roleId, schema.roles.id)
+          )
+          .where(
+            and(
+              eq(schema.userRoleAssignments.userId, input.submitterUserId),
+              isNull(schema.userRoleAssignments.revokedAt)
+            )
+          );
+        const codes = Array.from(new Set(rows.map((r) => r.code)));
+        await this.supabase.setRoleCodes(input.submitterUserId, codes);
+      } catch (e) {
+        this.log.warn(
+          `setRoleCodes after team creation failed: ${(e as Error).message}`
+        );
+      }
+    }
+
+    // 4. captain's own team_memberships row
+    await this.db.insert(schema.teamMemberships).values({
+      teamId: team!.id,
+      personId: input.captainPersonId,
+      seasonId: input.seasonId,
+      membershipType: "primary",
+      currentStatus: "active",
+      effectiveFrom: new Date()
+    });
+
+    // 5. stamp team_id on the registration for idempotency.
+    await this.db
+      .update(schema.registrations)
+      .set({ teamId: team!.id, updatedAt: new Date() })
+      .where(eq(schema.registrations.id, input.registrationId));
+
+    return { teamId: team!.id, created: true };
+  }
+
+  /**
    * Upsert a free-agent pool entry from an approved free-agent
    * registration's metadata.answers. Called from the admin approve
    * handler (single + bulk). Idempotent on (player_person_id,

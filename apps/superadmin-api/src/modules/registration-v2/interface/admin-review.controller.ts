@@ -486,6 +486,33 @@ export class AdminReviewController {
           answers
         });
       }
+      if (
+        submissionType === "team" &&
+        row.submittedByUserId &&
+        row.subjectPersonId &&
+        row.seasonId &&
+        row.orgId
+      ) {
+        const team =
+          (meta.team as { name?: string; color?: string } | undefined) ?? {};
+        const teamName = team.name?.trim();
+        if (teamName) {
+          await this.v2.createTeamFromRegistration({
+            registrationId: row.id,
+            submitterUserId: row.submittedByUserId,
+            captainPersonId: row.subjectPersonId,
+            orgId: row.orgId,
+            seasonId: row.seasonId,
+            divisionId: row.divisionId ?? null,
+            teamName,
+            teamColor: team.color ?? null
+          });
+        } else {
+          console.warn(
+            `[applyApprovalSideEffects] team-registration ${row.id} has no metadata.team.name; skipping team creation`
+          );
+        }
+      }
     } catch (e) {
       // Don't fail the approval if a side-effect stumbles — admin can
       // re-trigger via override_flag or re-approve. Log loudly.
