@@ -16,11 +16,12 @@ import { CronSecretGuard } from "../../../shared/auth/guards/cron-secret.guard";
  *
  *   draft              → registration_open
  *      when registration_opens_at <= now()
- *       AND (registration_closes_at IS NULL OR registration_closes_at > now())
+ *      (independent of registration_closes_at — if the close has also
+ *       passed, the next stage promotion below will pick it up in the
+ *       same cron pass)
  *
  *   registration_open  → in_progress
  *      when (registration_closes_at <= now()) OR (start_date <= today)
- *       AND the season has at least one team in any of its divisions
  *
  * We deliberately do NOT auto-transition to playoffs / completed /
  * archived — those are admin-driven (season finale ceremony, archive
@@ -47,6 +48,8 @@ export class SeasonCronController {
     promotedToInProgress: number;
   }> {
     // ---- draft → registration_open
+    // Honour reg_opens regardless of whether reg_closes has also passed
+    // — the in_progress promotion below catches up in the same pass.
     const opened = await this.db
       .update(schema.seasons)
       .set({
@@ -57,11 +60,7 @@ export class SeasonCronController {
         and(
           eq(schema.seasons.status, "draft"),
           isNotNull(schema.seasons.registrationOpensAt),
-          lte(schema.seasons.registrationOpensAt, sql`now()`),
-          or(
-            sql`${schema.seasons.registrationClosesAt} IS NULL`,
-            sql`${schema.seasons.registrationClosesAt} > now()`
-          )
+          lte(schema.seasons.registrationOpensAt, sql`now()`)
         )
       )
       .returning({ id: schema.seasons.id, name: schema.seasons.name });
