@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 // Interface
 import { SeasonsController } from "./interface/seasons.controller";
+import { SeasonCronController } from "./interface/season-cron.controller";
 import { LeaguesController } from "./interface/leagues.controller";
 import { DivisionsController } from "./interface/divisions.controller";
 import { TeamsController } from "./interface/teams.controller";
@@ -54,6 +55,7 @@ import { DrizzleTeamRepository } from "./infrastructure/repositories/drizzle-tea
 @Module({
   controllers: [
     SeasonsController,
+    SeasonCronController,
     LeaguesController,
     DivisionsController,
     TeamsController,
