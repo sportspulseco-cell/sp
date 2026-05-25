@@ -67,6 +67,14 @@ export async function loadUserScope(
   const directTeamIds = rows
     .filter((r) => r.scopeType === "team" && r.scopeId)
     .map((r) => r.scopeId as string);
+  // Added 2026-05-25 — the registration funnel grants `player` role at
+  // division scope. Without projecting division → season → league →
+  // org, the player's scope reads as empty (orgIds=[], leagueIds=[])
+  // and surfaces like player-web's "Join free-agent pool" page (which
+  // filters seasons by orgId) render an empty state.
+  const directDivisionIds = rows
+    .filter((r) => r.scopeType === "division" && r.scopeId)
+    .map((r) => r.scopeId as string);
 
   // Project org-scoped assignments → every league owned by the org.
   let projectedLeagueIds: string[] = [];
@@ -101,14 +109,42 @@ export async function loadUserScope(
     projectedOrgIdsFromTeams = os.map((r) => r.orgId);
   }
 
+  // Project division-scoped assignments → the season's league + the
+  // league's org. Used by the free-agent player role granted on
+  // registration: scope=division so the player only sees their own
+  // division's surfaces, but downstream queries that filter by orgId
+  // or leagueId still need those derived values.
+  let projectedLeagueIdsFromDivisions: string[] = [];
+  let projectedOrgIdsFromDivisions: string[] = [];
+  if (directDivisionIds.length > 0) {
+    const rows2 = await db
+      .selectDistinct({
+        leagueId: schema.seasons.leagueId,
+        orgId: schema.seasons.orgId
+      })
+      .from(schema.divisions)
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .where(inArray(schema.divisions.id, directDivisionIds));
+    projectedLeagueIdsFromDivisions = rows2.map((r) => r.leagueId);
+    projectedOrgIdsFromDivisions = rows2.map((r) => r.orgId);
+  }
+
   const leagueIds = Array.from(
-    new Set([...directLeagueIds, ...projectedLeagueIds])
+    new Set([
+      ...directLeagueIds,
+      ...projectedLeagueIds,
+      ...projectedLeagueIdsFromDivisions
+    ])
   );
   const orgIds = Array.from(
     new Set([
       ...directOrgIds,
       ...projectedOrgIdsFromLeagues,
-      ...projectedOrgIdsFromTeams
+      ...projectedOrgIdsFromTeams,
+      ...projectedOrgIdsFromDivisions
     ])
   );
   const teamIds = Array.from(new Set(directTeamIds));

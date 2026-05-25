@@ -38,6 +38,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { RegistrationV2Service } from "../application/registration-v2.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 
 class ReviewActionBodyDto {
@@ -131,7 +132,8 @@ class ListSubmissionsQueryDto {
 export class AdminReviewController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly email: EmailDispatcherService
+    private readonly email: EmailDispatcherService,
+    private readonly v2: RegistrationV2Service
   ) {}
 
   @Get("submissions")
@@ -222,6 +224,7 @@ export class AdminReviewController {
           updatedAt: new Date()
         })
         .where(eq(schema.registrations.id, id));
+      await this.applyApprovalSideEffects(row, meta);
       if (recipient) {
         await this.email.send({
           to: recipient,
@@ -421,6 +424,9 @@ export class AdminReviewController {
         .where(eq(schema.registrations.id, r.id));
       applied++;
       const meta = (r.metadata as Record<string, unknown>) ?? {};
+      if (target === "approved") {
+        await this.applyApprovalSideEffects(r, meta);
+      }
       const recipient = meta.email as string | undefined;
       if (recipient) {
         const rendered = renderEmail(meta);
@@ -434,6 +440,60 @@ export class AdminReviewController {
       }
     }
     return { matched: rows.length, applied, skipped, emailDelivered };
+  }
+
+  /**
+   * Hooks that fire after a registration row flips to `approved` —
+   * single approve, bulk approve, anywhere a row enters that state.
+   *
+   *   1. Grant the `player` role (scope = division when known, else
+   *      org). Idempotent. Pushed into Supabase JWT app_metadata so
+   *      the player can sign into the player app without a 'wrong
+   *      role' bounce.
+   *   2. For free-agent submissions: upsert a free_agent_pool_entries
+   *      row from metadata.answers (positions / availability /
+   *      skill_level / fa_note). Without this the player never
+   *      surfaces on the captain's Free agents list.
+   *
+   * Failures are logged but don't roll back the approval — the
+   * approval is the binding decision; side-effects are mechanical
+   * sync.
+   */
+  private async applyApprovalSideEffects(
+    row: typeof schema.registrations.$inferSelect,
+    meta: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      if (row.submittedByUserId && row.orgId) {
+        await this.v2.ensurePlayerRoleForRegistration({
+          userId: row.submittedByUserId,
+          divisionId: row.divisionId ?? null,
+          orgId: row.orgId
+        });
+      }
+      const submissionType = meta.submissionType as string | undefined;
+      if (
+        submissionType === "free_agent" &&
+        row.seasonId &&
+        row.subjectPersonId
+      ) {
+        const answers =
+          (meta.answers as Record<string, unknown> | undefined) ?? {};
+        await this.v2.upsertFreeAgentPoolFromRegistration({
+          registrationId: row.id,
+          seasonId: row.seasonId,
+          playerPersonId: row.subjectPersonId,
+          answers
+        });
+      }
+    } catch (e) {
+      // Don't fail the approval if a side-effect stumbles — admin can
+      // re-trigger via override_flag or re-approve. Log loudly.
+      console.error(
+        `[AdminReviewController.applyApprovalSideEffects] registration=${row.id}`,
+        (e as Error).message
+      );
+    }
   }
 }
 

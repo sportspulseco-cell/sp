@@ -1,9 +1,10 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -13,7 +14,11 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
  */
 @Injectable()
 export class RegistrationV2Service {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  private readonly log = new Logger(RegistrationV2Service.name);
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly supabase: SupabaseAdminService
+  ) {}
 
   // ================= PRICING TIERS =================
 
@@ -400,5 +405,169 @@ export class RegistrationV2Service {
       copiedPricingTiers: copiedTiers,
       copiedEmailTemplates: copiedTemplates
     };
+  }
+
+  // ================= REGISTRATION SIDE-EFFECTS =================
+
+  /**
+   * Grant the `player` role to a registrant. Called at funnel
+   * submission (so the player can sign into the player app while their
+   * registration is pending) and again at approval (idempotent).
+   *
+   * Scope follows the repo owner's directive (2026-05-25): scope by
+   * division when known, otherwise org. Never team — free-agents are
+   * not bound to a team until a captain claims them.
+   *
+   * The active set of role codes is mirrored into Supabase JWT
+   * `app_metadata.role_codes` so per-app middleware can role-gate
+   * without an API roundtrip. The player app's middleware accepts
+   * `player` or `free_agent`; either is enough for sign-in.
+   */
+  async ensurePlayerRoleForRegistration(input: {
+    userId: string;
+    divisionId: string | null;
+    orgId: string;
+  }): Promise<void> {
+    const [playerRole] = await this.db
+      .select({ id: schema.roles.id })
+      .from(schema.roles)
+      .where(eq(schema.roles.code, "player"))
+      .limit(1);
+    if (!playerRole) {
+      this.log.warn(
+        "ensurePlayerRoleForRegistration: no `player` role in DB; skipping"
+      );
+      return;
+    }
+
+    const scopeType = input.divisionId ? "division" : "org";
+    const scopeId = input.divisionId ?? input.orgId;
+
+    // Idempotency — skip when an active assignment with this exact
+    // (user, role, scope) already exists. Avoids piling up duplicate
+    // rows on re-submission / re-approval.
+    const [existing] = await this.db
+      .select({ id: schema.userRoleAssignments.id })
+      .from(schema.userRoleAssignments)
+      .where(
+        and(
+          eq(schema.userRoleAssignments.userId, input.userId),
+          eq(schema.userRoleAssignments.roleId, playerRole.id),
+          eq(schema.userRoleAssignments.scopeType, scopeType),
+          eq(schema.userRoleAssignments.scopeId, scopeId),
+          isNull(schema.userRoleAssignments.revokedAt)
+        )
+      )
+      .limit(1);
+    if (!existing) {
+      await this.db.insert(schema.userRoleAssignments).values({
+        userId: input.userId,
+        roleId: playerRole.id,
+        scopeType,
+        scopeId,
+        effectiveFrom: new Date(),
+        metadata: { source: "registration_funnel" }
+      });
+    }
+
+    // Mirror full active role-code set into JWT app_metadata. Pull the
+    // codes after the insert so the new `player` row is included.
+    try {
+      const rows = await this.db
+        .select({ code: schema.roles.code })
+        .from(schema.userRoleAssignments)
+        .innerJoin(
+          schema.roles,
+          eq(schema.userRoleAssignments.roleId, schema.roles.id)
+        )
+        .where(
+          and(
+            eq(schema.userRoleAssignments.userId, input.userId),
+            isNull(schema.userRoleAssignments.revokedAt)
+          )
+        );
+      const codes = Array.from(new Set(rows.map((r) => r.code)));
+      await this.supabase.setRoleCodes(input.userId, codes);
+    } catch (e) {
+      // Mirror is an optimisation — assignments are the truth. Log but
+      // don't fail registration if Supabase metadata sync stumbles.
+      this.log.warn(
+        `setRoleCodes failed for ${input.userId}: ${(e as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Upsert a free-agent pool entry from an approved free-agent
+   * registration's metadata.answers. Called from the admin approve
+   * handler (single + bulk). Idempotent on (player_person_id,
+   * season_id) — re-approval just refreshes the row.
+   *
+   * Reserved answer keys mirror the column set 1:1 so the funnel can
+   * write them as-is and we don't need a translation layer.
+   */
+  async upsertFreeAgentPoolFromRegistration(input: {
+    registrationId: string;
+    seasonId: string;
+    playerPersonId: string;
+    answers: Record<string, unknown>;
+  }): Promise<{ id: string; created: boolean }> {
+    const positions = Array.isArray(input.answers.positions)
+      ? (input.answers.positions as string[])
+      : [];
+    const availability =
+      (input.answers.availability as Record<string, boolean> | undefined) ?? {};
+    const levelPrimary =
+      typeof input.answers.skill_level === "string"
+        ? (input.answers.skill_level as string)
+        : "B";
+    const note =
+      typeof input.answers.fa_note === "string"
+        ? (input.answers.fa_note as string)
+        : null;
+
+    const [existing] = await this.db
+      .select({ id: schema.freeAgentPoolEntries.id })
+      .from(schema.freeAgentPoolEntries)
+      .where(
+        and(
+          eq(
+            schema.freeAgentPoolEntries.playerPersonId,
+            input.playerPersonId
+          ),
+          eq(schema.freeAgentPoolEntries.seasonId, input.seasonId)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      await this.db
+        .update(schema.freeAgentPoolEntries)
+        .set({
+          positions,
+          availability,
+          levelPrimary,
+          note,
+          status: "active",
+          updatedAt: new Date()
+        })
+        .where(eq(schema.freeAgentPoolEntries.id, existing.id));
+      return { id: existing.id, created: false };
+    }
+
+    const [created] = await this.db
+      .insert(schema.freeAgentPoolEntries)
+      .values({
+        playerPersonId: input.playerPersonId,
+        seasonId: input.seasonId,
+        positions,
+        availability,
+        levelPrimary,
+        note,
+        status: "active",
+        metadata: { sourceRegistrationId: input.registrationId }
+      })
+      .returning({ id: schema.freeAgentPoolEntries.id });
+    return { id: created!.id, created: true };
   }
 }

@@ -436,6 +436,11 @@ export class PublicRegistrationController {
           updatedAt: new Date()
         })
         .where(eq(schema.registrations.id, existing.id));
+      await this.v2.ensurePlayerRoleForRegistration({
+        userId,
+        divisionId: body.divisionId ?? existing.divisionId ?? null,
+        orgId: season.orgId
+      });
       return {
         id: existing.id,
         status: existing.status,
@@ -493,6 +498,16 @@ export class PublicRegistrationController {
       if (conflict) throw conflict;
       throw e;
     }
+
+    // Grant the player role immediately so the player can sign into the
+    // player app while their registration is pending. Approval re-runs
+    // the same helper (idempotent) and additionally creates the
+    // free-agent pool entry for the captain pool view.
+    await this.v2.ensurePlayerRoleForRegistration({
+      userId,
+      divisionId: body.divisionId ?? null,
+      orgId: season.orgId
+    });
 
     return {
       id: reg!.id,
