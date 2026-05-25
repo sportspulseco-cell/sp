@@ -350,6 +350,33 @@ export class RegistrationV2Service {
       .where(eq(schema.freeAgentPoolEntries.id, id))
       .returning();
     if (!row) throw new NotFoundException(`Free agent entry ${id} not found`);
+
+    // The "place" used to stop at the pool-entry flip — but flipping
+    // status='placed' alone never put the player on the roster. The
+    // captain's roster view + the player's "My team" view both read
+    // from team_memberships, which stayed empty. Insert it here as
+    // part of the same operation (idempotent on the natural key).
+    const [existing] = await this.db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, input.teamId),
+          eq(schema.teamMemberships.personId, row.playerPersonId),
+          eq(schema.teamMemberships.seasonId, row.seasonId)
+        )
+      )
+      .limit(1);
+    if (!existing) {
+      await this.db.insert(schema.teamMemberships).values({
+        teamId: input.teamId,
+        personId: row.playerPersonId,
+        seasonId: row.seasonId,
+        membershipType: "primary",
+        currentStatus: "active",
+        effectiveFrom: new Date()
+      });
+    }
     return row;
   }
 
