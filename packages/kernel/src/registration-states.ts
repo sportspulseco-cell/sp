@@ -72,7 +72,11 @@ export const REGISTRATION_TRANSITIONS: Record<
   RegistrationState,
   ReadonlyArray<RegistrationState>
 > = {
-  draft: ["pending_verification", "pending_payment", "cancelled"],
+  // `pending_consent` allowed straight from `draft` for the mock flow
+  // that auto-confirms email (no separate pending_verification phase).
+  // Without this, minor registrations error out with "An unexpected
+  // error occurred" when the funnel tries to insert the row.
+  draft: ["pending_verification", "pending_consent", "pending_payment", "cancelled"],
   pending_verification: ["pending_consent", "pending_payment", "cancelled"],
   pending_consent: ["pending_payment", "cancelled"],
   pending_payment: ["pending_review", "pending_offline", "cancelled"],
