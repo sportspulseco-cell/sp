@@ -751,7 +751,13 @@ export class PublicRegistrationController {
       phone: meta.phone ?? null,
       dobDate: meta.dobDate ?? null,
       isMinor: meta.isMinor ?? false,
-      answers: meta.answers ?? {}
+      answers: meta.answers ?? {},
+      // Team-only: the real team_id stamped by createTeamFromRegistration
+      // on approve. The funnel's confirmation page uses this for the
+      // split-pay share link (which previously rendered against a fake
+      // registration-id prefix and 404'd).
+      teamId: row.teamId ?? null,
+      divisionId: row.divisionId ?? null
     };
   }
 

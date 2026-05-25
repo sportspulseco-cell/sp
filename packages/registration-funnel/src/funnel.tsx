@@ -710,6 +710,7 @@ export function RegistrationFunnel({
             isMinor={isMinor}
             context={context}
             submissionType={submissionType}
+            api={api}
           />
         )}
       </div>
@@ -2721,7 +2722,8 @@ function DoneStep({
   status,
   isMinor,
   context,
-  submissionType
+  submissionType,
+  api
 }: {
   email: string;
   submissionId: string;
@@ -2730,6 +2732,7 @@ function DoneStep({
   isMinor: boolean;
   context: PublicSeasonContext;
   submissionType: SubmissionType | null;
+  api: PublicRegistrationApi;
 }) {
   const guidance = guidanceFor(status, isMinor);
   // Build a humane reference number — e.g. "PPHL-2025-NH-08841" from
@@ -2743,12 +2746,35 @@ function DoneStep({
   const yearPart = (context.season.startDate ?? "").slice(0, 4);
   const refNumber = `${seasonAbbrev || "REG"}-${yearPart}-${submissionId.slice(0, 8).toUpperCase()}`;
 
-  // Split-pay link for team captains — shareable URL their roster
-  // members hit to pay their own share. Empty for non-team paths.
+  // Real team_id (stamped by the approve handler) for the split-pay
+  // share link. Fetch via getSubmission — the registration row may
+  // already have it if the captain has been re-routed here post-approval.
+  const [teamId, setTeamId] = useState<string | null>(null);
+  useEffect(() => {
+    if (submissionType !== "team") return;
+    let cancelled = false;
+    api
+      .getSubmission(submissionId, email)
+      .then((s) => {
+        if (!cancelled) setTeamId(s.teamId);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [submissionType, submissionId, email, api]);
+
+  // Split-pay link only renders when admin has approved AND a real
+  // team exists. Previously the funnel built a URL from
+  // `submissionId.slice(0, 8)` as a fake team id and pointed at an
+  // invalid `/registration/.../player` path (BUG-J). The proper share
+  // link uses the canonical `/register/<seasonId>?team=<teamId>` slot
+  // so it can be used by the player funnel.
   const splitPayLink =
-    submissionType === "team"
-      ? `${typeof window !== "undefined" ? window.location.origin : ""}/registration/${context.season.id}/player?team=${submissionId.slice(0, 8)}`
+    submissionType === "team" && teamId
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/register/${context.season.id}?team=${teamId}`
       : null;
+  const splitPayPending = submissionType === "team" && !teamId;
 
   return (
     <div className="space-y-5">
@@ -2795,7 +2821,7 @@ function DoneStep({
             <p className="text-[14px] font-semibold tracking-tight text-fg">
               Share player invite link
             </p>
-            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+            <span className="rounded-full bg-[var(--tint-emerald-bg)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
               Split pay enabled
             </span>
           </div>
@@ -2804,7 +2830,7 @@ function DoneStep({
             payment share independently.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <code className="flex-1 truncate rounded-md border border-border bg-bg-subtle px-3 py-2 font-mono text-[11px] text-blue-600 dark:text-blue-300">
+            <code className="flex-1 truncate rounded-md border border-border bg-bg-subtle px-3 py-2 font-mono text-[11px] text-[var(--tint-blue-fg)]">
               {splitPayLink}
             </code>
             <button
@@ -2819,6 +2845,23 @@ function DoneStep({
               Copy
             </button>
           </div>
+        </section>
+      ) : splitPayPending ? (
+        <section className="rounded-xl border border-dashed border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[14px] font-semibold tracking-tight text-fg">
+              Player invite link
+            </p>
+            <span className="rounded-full bg-[var(--tint-amber-bg)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">
+              Pending approval
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] text-fg-muted">
+            Once admin approves your team registration we'll generate a
+            shareable invite link for your roster. Check the My
+            registrations tab in your player dashboard, or watch your
+            email — the link will land there too.
+          </p>
         </section>
       ) : null}
 

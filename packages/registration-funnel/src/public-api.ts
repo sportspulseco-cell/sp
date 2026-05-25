@@ -135,6 +135,8 @@ export interface PublicRegistrationApi {
     dobDate: string | null;
     isMinor: boolean;
     answers: Record<string, unknown>;
+    teamId: string | null;
+    divisionId: string | null;
   }>;
   cancelSubmission(
     id: string,
