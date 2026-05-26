@@ -38,21 +38,67 @@ export default async function FreeAgentPoolPage() {
 
   // Pull the seasons the player can register for. When the player has
   // an org scope (because they've registered for at least one season
-  // already), narrow by it. When they don't — fresh sign-up clicking
-  // "Join free-agent pool" — fall back to listing every open season
-  // platform-wide so they have somewhere to start.
-  const seasonsPage = orgId
-    ? await leagueMgmt
-        .listSeasons({ orgId })
-        .catch(() => ({ items: [] as Season[], nextCursor: null }))
-    : await leagueMgmt
-        .listSeasons({})
-        .catch(() => ({ items: [] as Season[], nextCursor: null }));
-
-  const eligibleSeasons: Season[] = (seasonsPage.items ?? [])
-    .filter((s) => s.status === "registration_open" || s.status === "in_progress")
-    .slice()
-    .sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? ""));
+  // already), narrow via the authenticated listSeasons. When they
+  // don't — fresh sign-up clicking "Join free-agent pool" — the
+  // AuthorizedAccessGuard rejects listSeasons with 403. Fall back to
+  // the anonymous /public/registration/open endpoint so the player
+  // has somewhere to start.
+  let eligibleSeasons: Season[] = [];
+  if (orgId) {
+    const seasonsPage = await leagueMgmt
+      .listSeasons({ orgId })
+      .catch(() => ({ items: [] as Season[], nextCursor: null }));
+    eligibleSeasons = (seasonsPage.items ?? [])
+      .filter(
+        (s) => s.status === "registration_open" || s.status === "in_progress"
+      )
+      .slice()
+      .sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? ""));
+  } else {
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+    type OpenSeason = {
+      seasonId: string;
+      seasonName: string;
+      sportCode: string;
+      leagueId: string;
+      registrationOpensAt: string | null;
+      registrationClosesAt: string | null;
+    };
+    try {
+      const res = await fetch(`${apiBase}/public/registration/open`, {
+        cache: "no-store"
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { items: OpenSeason[] };
+        eligibleSeasons = (data.items ?? []).map(
+          (s) =>
+            ({
+              id: s.seasonId,
+              name: s.seasonName,
+              sportCode: s.sportCode,
+              leagueId: s.leagueId,
+              orgId: "",
+              startDate: "",
+              endDate: "",
+              status: "registration_open",
+              registrationOpensAt: s.registrationOpensAt,
+              registrationClosesAt: s.registrationClosesAt,
+              rosterLockAt: null,
+              timezone: "UTC",
+              metadata: {},
+              createdAt: "",
+              updatedAt: "",
+              createdByUserId: null,
+              playoffStartDate: null,
+              playoffEndDate: null
+            }) as unknown as Season
+        );
+      }
+    } catch {
+      // Public endpoint missing → fall through to empty state.
+    }
+  }
 
   if (eligibleSeasons.length === 0) {
     return (
