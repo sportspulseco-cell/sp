@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsIn, IsInt, IsOptional, Max, Min } from "class-validator";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -123,13 +123,14 @@ export class PlayerPaymentsController {
     const invoices = rows.map((r) => ({ ...r.inv, teamName: r.teamName }));
 
     const invoiceIds = invoices.map((i) => i.id);
+    // inArray(...) — sql`ANY(${arr}::uuid[])` round-trips the array as
+    // a comma-joined string, which Postgres rejects as a malformed
+    // array literal (see commit 537f2ca for the same fix elsewhere).
     const installments = invoiceIds.length
       ? await this.db
           .select()
           .from(schema.installmentSchedules)
-          .where(
-            sql`${schema.installmentSchedules.invoiceId} = ANY(${invoiceIds}::uuid[])`
-          )
+          .where(inArray(schema.installmentSchedules.invoiceId, invoiceIds))
           .orderBy(schema.installmentSchedules.installmentNumber)
       : [];
 
