@@ -2038,6 +2038,10 @@ function QuestionsStep({
     typeof initialAnswers.fa_note === "string"
       ? (initialAnswers.fa_note as string)
       : "";
+  const jerseyNumberRaw =
+    initialAnswers.jersey_number !== undefined && initialAnswers.jersey_number !== null
+      ? String(initialAnswers.jersey_number)
+      : "";
   const usaHockeyIdRaw =
     typeof initialAnswers.usa_hockey_id === "string"
       ? (initialAnswers.usa_hockey_id as string)
@@ -2301,7 +2305,30 @@ function QuestionsStep({
               </div>
             </Field>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Jersey number preference"
+              hint="Optional. 0–99. Captains see this when assigning sweaters; conflicts are resolved at roster lock."
+            >
+              <Input
+                type="number"
+                min={0}
+                max={99}
+                value={jerseyNumberRaw}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") {
+                    patchAnswers({ jersey_number: undefined });
+                  } else {
+                    const n = Number(v);
+                    patchAnswers({
+                      jersey_number: Number.isFinite(n) ? Math.max(0, Math.min(99, n)) : undefined
+                    });
+                  }
+                }}
+                placeholder="e.g. 17"
+              />
+            </Field>
             <Field
               label="Note to captains"
               hint="Optional context, e.g. 'Travelling May 12-19, available rest of month.'"

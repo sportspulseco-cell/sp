@@ -36,14 +36,18 @@ export default async function FreeAgentPoolPage() {
     );
   }
 
-  // Pull the seasons the player can register for (org-scoped). Free-agent
-  // pool only makes sense while a season is open or running — surface
-  // those, hide draft / completed / archived.
+  // Pull the seasons the player can register for. When the player has
+  // an org scope (because they've registered for at least one season
+  // already), narrow by it. When they don't — fresh sign-up clicking
+  // "Join free-agent pool" — fall back to listing every open season
+  // platform-wide so they have somewhere to start.
   const seasonsPage = orgId
     ? await leagueMgmt
         .listSeasons({ orgId })
         .catch(() => ({ items: [] as Season[], nextCursor: null }))
-    : { items: [] as Season[], nextCursor: null };
+    : await leagueMgmt
+        .listSeasons({})
+        .catch(() => ({ items: [] as Season[], nextCursor: null }));
 
   const eligibleSeasons: Season[] = (seasonsPage.items ?? [])
     .filter((s) => s.status === "registration_open" || s.status === "in_progress")

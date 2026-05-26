@@ -356,6 +356,8 @@ export class RegistrationV2Service {
     // captain's roster view + the player's "My team" view both read
     // from team_memberships, which stayed empty. Insert it here as
     // part of the same operation (idempotent on the natural key).
+    // Pull jersey + primary position from the FA pool entry's
+    // positions[] + metadata.jersey_number (set at funnel approval).
     const [existing] = await this.db
       .select({ id: schema.teamMemberships.id })
       .from(schema.teamMemberships)
@@ -368,13 +370,22 @@ export class RegistrationV2Service {
       )
       .limit(1);
     if (!existing) {
+      const positions = Array.isArray(row.positions) ? (row.positions as string[]) : [];
+      const meta = (row.metadata as Record<string, unknown> | null) ?? {};
+      const jerseyRaw = meta.jersey_number;
+      const jerseyNumber =
+        typeof jerseyRaw === "number" && Number.isFinite(jerseyRaw)
+          ? Math.max(0, Math.min(99, Math.floor(jerseyRaw)))
+          : null;
       await this.db.insert(schema.teamMemberships).values({
         teamId: input.teamId,
         personId: row.playerPersonId,
         seasonId: row.seasonId,
         membershipType: "primary",
         currentStatus: "active",
-        effectiveFrom: new Date()
+        effectiveFrom: new Date(),
+        jerseyNumber,
+        positionCode: positions[0] ?? null
       });
     }
     return row;
@@ -619,14 +630,35 @@ export class RegistrationV2Service {
       }
     }
 
-    // 4. captain's own team_memberships row
+    // 4. captain's own team_memberships row. Pull jersey number +
+    // primary position from the registration's metadata.answers so the
+    // captain's preferred sweater + position land on the roster row
+    // they end up on.
+    const [regForAnswers] = await this.db
+      .select({ metadata: schema.registrations.metadata })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, input.registrationId))
+      .limit(1);
+    const ans = ((regForAnswers?.metadata as Record<string, unknown> | null) ?? {}).answers as
+      | Record<string, unknown>
+      | undefined;
+    const jerseyRaw = ans?.jersey_number;
+    const jerseyNumber =
+      typeof jerseyRaw === "number" && Number.isFinite(jerseyRaw)
+        ? Math.max(0, Math.min(99, Math.floor(jerseyRaw)))
+        : null;
+    const positions = Array.isArray(ans?.positions)
+      ? (ans!.positions as string[])
+      : [];
     await this.db.insert(schema.teamMemberships).values({
       teamId: team!.id,
       personId: input.captainPersonId,
       seasonId: input.seasonId,
       membershipType: "primary",
       currentStatus: "active",
-      effectiveFrom: new Date()
+      effectiveFrom: new Date(),
+      jerseyNumber,
+      positionCode: positions[0] ?? null
     });
 
     // 5. stamp team_id on the registration for idempotency.
@@ -666,9 +698,17 @@ export class RegistrationV2Service {
       typeof input.answers.fa_note === "string"
         ? (input.answers.fa_note as string)
         : null;
+    const jerseyRaw = input.answers.jersey_number;
+    const jerseyNumber =
+      typeof jerseyRaw === "number" && Number.isFinite(jerseyRaw)
+        ? Math.max(0, Math.min(99, Math.floor(jerseyRaw)))
+        : null;
 
     const [existing] = await this.db
-      .select({ id: schema.freeAgentPoolEntries.id })
+      .select({
+        id: schema.freeAgentPoolEntries.id,
+        metadata: schema.freeAgentPoolEntries.metadata
+      })
       .from(schema.freeAgentPoolEntries)
       .where(
         and(
@@ -682,6 +722,10 @@ export class RegistrationV2Service {
       .limit(1);
 
     if (existing) {
+      const mergedMeta = {
+        ...((existing.metadata as Record<string, unknown> | null) ?? {}),
+        jersey_number: jerseyNumber
+      };
       await this.db
         .update(schema.freeAgentPoolEntries)
         .set({
@@ -690,6 +734,7 @@ export class RegistrationV2Service {
           levelPrimary,
           note,
           status: "active",
+          metadata: mergedMeta,
           updatedAt: new Date()
         })
         .where(eq(schema.freeAgentPoolEntries.id, existing.id));
@@ -706,7 +751,10 @@ export class RegistrationV2Service {
         levelPrimary,
         note,
         status: "active",
-        metadata: { sourceRegistrationId: input.registrationId }
+        metadata: {
+          sourceRegistrationId: input.registrationId,
+          jersey_number: jerseyNumber
+        }
       })
       .returning({ id: schema.freeAgentPoolEntries.id });
     return { id: created!.id, created: true };

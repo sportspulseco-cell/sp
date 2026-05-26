@@ -150,6 +150,46 @@ export class IamController {
       }
     }
 
+    // Auto-provision for fresh players who signed up directly (no
+    // funnel registration to seed the persons row). Without this they
+    // hit "Finish onboarding first" on every player-app page that
+    // needs a personId, including /register/free-agent. Use the
+    // profile's display_name as a placeholder; user can refine later
+    // via the profile editor.
+    if (!person) {
+      const [profileRow] = await this.db
+        .select({
+          displayName: schema.profiles.displayName,
+          email: schema.profiles.email
+        })
+        .from(schema.profiles)
+        .where(eq(schema.profiles.id, principal.userId))
+        .limit(1);
+      if (profileRow) {
+        const display =
+          profileRow.displayName?.trim() ||
+          profileRow.email?.split("@")[0] ||
+          "Player";
+        const parts = display.split(/\s+/);
+        const fn = parts[0] || display;
+        const ln = parts.slice(1).join(" ") || "—";
+        const [created] = await this.db
+          .insert(schema.persons)
+          .values({
+            userId: principal.userId,
+            legalFirstName: fn,
+            legalLastName: ln,
+            externalIds: {
+              email: profileRow.email ?? null,
+              supabaseUserId: principal.userId,
+              source: "iam.meScope.auto"
+            }
+          })
+          .returning({ id: schema.persons.id });
+        if (created) person = { id: created.id };
+      }
+    }
+
     // Dedupe per scope dimension — a user holding multiple roles on
     // the same team (e.g. team_admin + coach) should count as one team
     // for UI purposes ("· 1 team", not "· 2 teams").
