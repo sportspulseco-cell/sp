@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "./cors.ts";
 
 /**
  * Edge-Function-side permission gate.
@@ -110,8 +111,11 @@ export async function userHasPermission(
 }
 
 export function forbidden(message = "forbidden"): Response {
+  // CORS headers are critical here — without them, browsers block the
+  // 403 response entirely and the SDK surfaces it as "Failed to send a
+  // request to the Edge Function" instead of the actual auth error.
   return new Response(JSON.stringify({ error: message }), {
     status: 403,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
