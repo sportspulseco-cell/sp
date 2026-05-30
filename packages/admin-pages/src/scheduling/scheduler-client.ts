@@ -355,6 +355,77 @@ export interface ApplyParityResponse {
   divisionsRegenerated: string[];
 }
 
+// Pain #3 — playoff brackets wire shapes.
+export interface BracketSlotView {
+  round: number;
+  position: number;
+  startTsUtc: string;
+  surfaceLabel: string;
+  venueName: string;
+  gameId: string | null;
+  gameStatus: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  seedA: number | null;
+  seedB: number | null;
+  teamAId: string | null;
+  teamBId: string | null;
+  teamAName: string | null;
+  teamBName: string | null;
+  winnerTeamId: string | null;
+  winnerTeamName: string | null;
+  nextSlotPosition: number | null;
+  nextSlotSide: "A" | "B" | null;
+}
+
+export interface BracketView {
+  id: string;
+  divisionId: string | null;
+  divisionName: string | null;
+  format: string;
+  state: string;
+  topN: number;
+  totalRounds: number;
+  slots: BracketSlotView[];
+  generatedAt: string | null;
+  championTeamId: string | null;
+  championTeamName: string | null;
+}
+
+export interface ListBracketsRequest { seasonId: string }
+export interface ListBracketsResponse {
+  seasonId: string;
+  brackets: BracketView[];
+}
+
+export interface GenerateBracketRequest {
+  seasonId: string;
+  divisionId: string;
+  format?: "single_elim";
+  topN?: 4 | 8 | 16;
+}
+
+export interface GenerateBracketResponse {
+  bracketId: string;
+  state: string;
+  topN: number;
+  slots: BracketSlotView[];
+}
+
+export interface AdvanceBracketRequest {
+  bracketId: string;
+  gameId: string;
+  winnerTeamId: string;
+}
+
+export interface AdvanceBracketResponse {
+  bracketId: string;
+  bracketState: string;
+  updatedSlot: { round: number; position: number };
+  nextSlot: { round: number; position: number; gameId: string | null } | null;
+  nextGameCreated: boolean;
+}
+
 async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
   const sb = browserClient();
   const { data, error } = await sb.functions.invoke<TRes>(name, {
@@ -408,6 +479,21 @@ export const scheduler = {
   applyParityWindow: (req: ApplyParityRequest) =>
     invoke<ApplyParityRequest, ApplyParityResponse>(
       "scheduler-parity-window-apply",
+      req
+    ),
+  listBrackets: (req: ListBracketsRequest) =>
+    invoke<ListBracketsRequest, ListBracketsResponse>(
+      "scheduler-brackets-list",
+      req
+    ),
+  generateBracket: (req: GenerateBracketRequest) =>
+    invoke<GenerateBracketRequest, GenerateBracketResponse>(
+      "scheduler-bracket-generate",
+      req
+    ),
+  advanceBracket: (req: AdvanceBracketRequest) =>
+    invoke<AdvanceBracketRequest, AdvanceBracketResponse>(
+      "scheduler-bracket-advance",
       req
     )
 };
