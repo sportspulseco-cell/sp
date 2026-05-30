@@ -31,6 +31,7 @@ export function SchedulingTabs({
     { href: `${base}/fairness`, label: "Fairness" },
     { href: `${base}/conflicts`, label: "Conflicts" },
     { href: `${base}/verify`, label: "Verify" },
+    { href: `${base}/parity`, label: "Parity" },
     { href: `${base}/runs`, label: "Runs" },
     { href: `${base}/rinks`, label: "Rinks" }
   ];

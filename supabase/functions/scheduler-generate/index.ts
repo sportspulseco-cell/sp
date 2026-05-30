@@ -283,12 +283,16 @@ Deno.serve(async (req) => {
   // 9a. Delete prior generated-and-not-locked games for this scope.
   // The DB-level `WHERE locked_at IS NULL` is the sacred invariant —
   // locked fixtures NEVER leave.
+  // The `status='scheduled'` filter is the partial-regen safety net —
+  // completed / in_play / forfeited games stay regardless of regen
+  // (parity-window apply, post-conflict regen, etc.).
   const { error: delErr } = await sb
     .from("games")
     .delete()
     .eq("season_id", body.seasonId)
     .eq("division_id", body.divisionId)
     .eq("source", "generated")
+    .eq("status", "scheduled")
     .is("locked_at", null);
   if (delErr) {
     await sb.from("schedule_runs").update({

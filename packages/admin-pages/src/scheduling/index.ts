@@ -6,5 +6,6 @@ export { SchedulingVerifyForm } from "./verify-form";
 export { ResolveConflictDialog } from "./resolve-conflict-dialog";
 export { SchedulingRunsList } from "./runs-list";
 export { SchedulingRinkNotifications } from "./rink-notifications";
+export { SchedulingParityWindows } from "./parity-windows";
 export { ScheduleRealtimeBridge } from "./schedule-realtime-bridge";
 export * from "./scheduler-client";

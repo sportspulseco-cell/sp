@@ -286,6 +286,75 @@ export interface DispatchRinkNotificationsResponse {
   noIntegration: number;
 }
 
+// Pain #6 — parity windows wire shapes.
+export interface ParityWindowView {
+  id: string;
+  seasonId: string;
+  windowIndex: number;
+  startDate: string;
+  endDate: string;
+  reviewDueDate: string | null;
+  state: "pending" | "review_open" | "applied" | "skipped" | "archived";
+  recommendationsCount: number;
+  decisionsCount: number;
+  appliedAt: string | null;
+  createdAt: string;
+}
+
+export interface ListParityWindowsRequest { seasonId: string }
+export interface ListParityWindowsResponse {
+  seasonId: string;
+  count: number;
+  windows: ParityWindowView[];
+}
+
+export interface ParityRecommendation {
+  teamId: string;
+  teamName: string;
+  currentDivisionId: string;
+  currentDivisionName: string;
+  currentTier: string | null;
+  recommendation: "move_up" | "stay" | "move_down";
+  reasoning: string;
+  targetDivisionId: string | null;
+  targetDivisionName: string | null;
+  points: number;
+  rankInDivision: number;
+  divisionSize: number;
+}
+
+export interface ComputeParityRequest {
+  seasonId: string;
+  windowId: string;
+  topFraction?: number;
+  bottomFraction?: number;
+}
+
+export interface ComputeParityResponse {
+  windowId: string;
+  state: string;
+  recommendations: ParityRecommendation[];
+  summary: { moveUp: number; stay: number; moveDown: number };
+}
+
+export interface ParityDecision {
+  teamId: string;
+  targetDivisionId: string;
+}
+
+export interface ApplyParityRequest {
+  seasonId: string;
+  windowId: string;
+  decisions: ParityDecision[];
+}
+
+export interface ApplyParityResponse {
+  windowId: string;
+  state: string;
+  movesApplied: number;
+  divisionsRegenerated: string[];
+}
+
 async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
   const sb = browserClient();
   const { data, error } = await sb.functions.invoke<TRes>(name, {
@@ -324,6 +393,21 @@ export const scheduler = {
   dispatchRinkNotifications: (req: DispatchRinkNotificationsRequest) =>
     invoke<DispatchRinkNotificationsRequest, DispatchRinkNotificationsResponse>(
       "rink-notify-dispatch",
+      req
+    ),
+  listParityWindows: (req: ListParityWindowsRequest) =>
+    invoke<ListParityWindowsRequest, ListParityWindowsResponse>(
+      "scheduler-parity-windows-list",
+      req
+    ),
+  computeParityWindow: (req: ComputeParityRequest) =>
+    invoke<ComputeParityRequest, ComputeParityResponse>(
+      "scheduler-parity-window-compute",
+      req
+    ),
+  applyParityWindow: (req: ApplyParityRequest) =>
+    invoke<ApplyParityRequest, ApplyParityResponse>(
+      "scheduler-parity-window-apply",
       req
     )
 };
