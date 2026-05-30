@@ -17,7 +17,7 @@ import { inet } from "./_helpers";
 import { authUsers } from "./auth";
 import { sports } from "./reference";
 import { persons } from "./iam";
-import { divisions, leagues, teams } from "./league";
+import { divisions, leagues, seasons, teams } from "./league";
 import { iceSlots, surfaces, scheduleRuns } from "./scheduling";
 
 // =====================================================================
@@ -30,6 +30,16 @@ export const games = pgTable(
     leagueId: uuid("league_id")
       .notNull()
       .references(() => leagues.id, { onDelete: "cascade" }),
+    /**
+     * Denormalised season pointer (migration 0046) — every scheduler
+     * read filters by season, every scheduler write knows the season,
+     * and the alternative is a JOIN through divisions on every query.
+     * Nullable to allow ad-hoc / cross-season games but the scheduler
+     * always populates it.
+     */
+    seasonId: uuid("season_id").references(() => seasons.id, {
+      onDelete: "cascade"
+    }),
     divisionId: uuid("division_id").references(() => divisions.id, {
       onDelete: "set null"
     }),
@@ -116,6 +126,8 @@ export const games = pgTable(
       sql`${t.homeTeamId} <> ${t.awayTeamId}`
     ),
     leagueIdx: index("game_league_idx").on(t.leagueId),
+    seasonIdx: index("game_season_idx").on(t.seasonId),
+    seasonDivisionIdx: index("game_season_division_idx").on(t.seasonId, t.divisionId),
     divisionIdx: index("game_division_idx").on(t.divisionId),
     homeIdx: index("game_home_idx").on(t.homeTeamId, t.scheduledStartTsUtc),
     awayIdx: index("game_away_idx").on(t.awayTeamId, t.scheduledStartTsUtc),

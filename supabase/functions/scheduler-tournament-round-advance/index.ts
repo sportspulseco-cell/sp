@@ -294,7 +294,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Load slots for next round window.
+  // Load slots for next round window. See -init for why we additionally
+  // filter out slots already pointed at by a non-cancelled game.
   let slotQ = sb
     .from("ice_slots")
     .select(`id, surface_id, start_ts_utc, surfaces!inner ( id, label, venues!inner ( id, name ) )`)
@@ -305,7 +306,17 @@ Deno.serve(async (req) => {
   if (body.newStartsAt) slotQ = slotQ.gte("start_ts_utc", body.newStartsAt);
   if (body.newEndsAt) slotQ = slotQ.lte("start_ts_utc", body.newEndsAt);
   const { data: slotRows } = await slotQ;
-  const slots = (slotRows ?? []) as IceSlot[];
+  const candidateSlots = (slotRows ?? []) as IceSlot[];
+  const { data: occupiedRows } = await sb
+    .from("games")
+    .select("slot_id")
+    .eq("season_id", body.seasonId)
+    .not("slot_id", "is", null)
+    .not("status", "in", "(cancelled,postponed)");
+  const occupied = new Set(
+    (occupiedRows ?? []).map((r) => r.slot_id as string),
+  );
+  const slots = candidateSlots.filter((s) => !occupied.has(s.id));
   if (matchups.length > slots.length) {
     return json(
       { error: "insufficient_slots", needed: matchups.length, have: slots.length, newRoundId },

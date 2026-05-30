@@ -137,9 +137,14 @@ Deno.serve(async (req) => {
     .insert(assignRows);
   if (assErr) return json({ error: "assignments_insert_failed", detail: assErr.message }, 500);
 
-  // Load available ice slots in window (or for the whole season if no
-  // window specified). Excludes playoff-reservation and non-available
-  // slots.
+  // Load candidate ice slots in window (or for the whole season if no
+  // window specified). Excludes playoff-reservation slots. ice_slots.status
+  // alone is NOT a reliable "free" signal — the regular-season scheduler
+  // creates games against slots without flipping the status to 'reserved',
+  // so we additionally drop any slot that is already pointed at by a
+  // non-cancelled game in this season. Without this filter the greedy
+  // assignment below would hand out an already-occupied slot and the
+  // games INSERT crashes the unique slot constraint.
   let slotQ = sb
     .from("ice_slots")
     .select(`id, surface_id, start_ts_utc, surfaces!inner ( id, label, venues!inner ( id, name ) )`)
@@ -150,7 +155,17 @@ Deno.serve(async (req) => {
   if (body.startsAt) slotQ = slotQ.gte("start_ts_utc", body.startsAt);
   if (body.endsAt) slotQ = slotQ.lte("start_ts_utc", body.endsAt);
   const { data: slotRows } = await slotQ;
-  const slots = (slotRows ?? []) as IceSlot[];
+  const candidateSlots = (slotRows ?? []) as IceSlot[];
+  const { data: occupiedRows } = await sb
+    .from("games")
+    .select("slot_id")
+    .eq("season_id", body.seasonId)
+    .not("slot_id", "is", null)
+    .not("status", "in", "(cancelled,postponed)");
+  const occupied = new Set(
+    (occupiedRows ?? []).map((r) => r.slot_id as string),
+  );
+  const slots = candidateSlots.filter((s) => !occupied.has(s.id));
 
   // Build per-tier teamId lists.
   const teamsByTier: Record<Tier, string[]> = { upper: [], middle: [], lower: [] };
