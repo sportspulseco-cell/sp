@@ -134,7 +134,29 @@ async function main() {
         name: "Org Admin",
         description: "Full control of one organization.",
         isSystem: true,
-        permissions: ["org.*"]
+        // Must mirror SYSTEM_ROLES.org_admin in
+        // packages/kernel/src/permissions.ts — see comment there.
+        permissions: [
+          "org.*",
+          "league.*",
+          "season.*",
+          "division.*",
+          "team.*",
+          "roster.*",
+          "lineup.*",
+          "registration.*",
+          "document.*",
+          "game.*",
+          "game_event.*",
+          "score.*",
+          "suspension.*",
+          "stats.*",
+          "scheduler.*",
+          "finance.*",
+          "communication.*",
+          "report.*",
+          "audit.read"
+        ]
       },
       {
         orgId: null,

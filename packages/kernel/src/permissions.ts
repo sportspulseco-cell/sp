@@ -301,7 +301,35 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Full control of one organization.",
     scopeType: "org",
     rank: 1,
-    defaultPermissions: ["org.*"]
+    // org_admin sits above league_admin / season_admin in the hierarchy
+    // (rank 1 vs 2/3) and per the cardinal rule "every app is just
+    // filtered by role" must be a superset of what those subordinate
+    // roles can do within their scope. Without these explicit module
+    // wildcards, an org_admin couldn't run the scheduler, manage
+    // divisions, or approve registrations in their own org while a
+    // league_admin below them could — a hierarchy inversion that broke
+    // the Generate flow.
+    defaultPermissions: [
+      "org.*",
+      "league.*",
+      "season.*",
+      "division.*",
+      "team.*",
+      "roster.*",
+      "lineup.*",
+      "registration.*",
+      "document.*",
+      "game.*",
+      "game_event.*",
+      "score.*",
+      "suspension.*",
+      "stats.*",
+      "scheduler.*",
+      "finance.*",
+      "communication.*",
+      "report.*",
+      "audit.read"
+    ]
   },
   {
     code: "league_admin",
