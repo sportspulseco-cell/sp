@@ -51,6 +51,7 @@ export default async function OrgAdminSeasonDetailPage({
       parentLeague={parentLeague}
       divisions={divisionsPage.items}
       setupHref={setupHref}
+      schedulingHref={`/scheduling/${season.id}/generate`}
       statusControl={<ChangeSeasonStatusButton season={season} />}
     />
   );

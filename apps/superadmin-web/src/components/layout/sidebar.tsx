@@ -13,6 +13,7 @@ import {
   Layers,
   Network,
   ListChecks,
+  CalendarClock,
   CalendarRange,
   ClipboardList,
   ScrollText,
@@ -73,6 +74,7 @@ const PROJECT_NAV: NavItem[] = [
   { href: "/eligibility", label: "Eligibility", icon: ShieldCheck },
 
   { section: "Operations" },
+  { href: "/scheduling", label: "Schedule", icon: CalendarClock },
   { href: "/games", label: "Games", icon: CircleDot },
   { href: "/game-events", label: "Game events", icon: Activity },
   { href: "/stats", label: "Stats", icon: BarChart3 },

@@ -46,6 +46,7 @@ export default async function SeasonDetailPage({
       parentLeague={parentLeague}
       divisions={divisionsPage.items}
       setupHref={setupHref}
+      schedulingHref={`/scheduling/${season.id}/generate`}
       statusControl={<ChangeSeasonStatusButton season={season} />}
       extras={
         <ResourceAdminsSection

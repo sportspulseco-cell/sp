@@ -14,6 +14,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
+import { ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -31,11 +32,19 @@ export default async function TeamAdminSchedulePage() {
   const teamId = scope?.teamIds[0] ?? null;
 
   const page = teamId
-    ? await gameOps.listGames({ teamId, limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
+    ? await gameOps.listGames({ teamId, limit: 100, publishedOnly: true }).catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 
   const games = (page.items as Game[]).slice().sort(
     (a, b) => new Date(b.scheduledStartTsUtc).getTime() - new Date(a.scheduledStartTsUtc).getTime()
+  );
+
+  const seasonIds = Array.from(
+    new Set(
+      games
+        .map((g) => (g as Game & { seasonId?: string }).seasonId)
+        .filter((id): id is string => Boolean(id))
+    )
   );
 
   return (
@@ -45,6 +54,11 @@ export default async function TeamAdminSchedulePage() {
         title="Schedule"
         description="Every scheduled and completed game for your team."
       />
+      {seasonIds.length > 0 && (
+        <div className="flex justify-end">
+          <ScheduleRealtimeBridge seasonIds={seasonIds} />
+        </div>
+      )}
       {games.length === 0 ? (
         <EmptyState icon={CalendarRange} title="No games scheduled" description="Games appear once the league publishes the season schedule." />
       ) : (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2,
+  CalendarClock,
   CalendarRange,
   FileBarChart,
   FileSignature,
@@ -35,6 +36,7 @@ const NAV: NavItem[] = [
   { href: "/seasons", label: "Seasons", icon: CalendarRange },
   { href: "/divisions", label: "Divisions", icon: Layers },
   { href: "/teams", label: "Teams", icon: Network },
+  { href: "/scheduling", label: "Schedule", icon: CalendarClock },
   { href: "/registrations", label: "Registrations", icon: ScrollText },
   { href: "/forms", label: "Forms", icon: FileSignature },
   { href: "/finance", label: "Finance", icon: Wallet },

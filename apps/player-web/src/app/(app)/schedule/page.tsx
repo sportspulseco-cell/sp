@@ -14,6 +14,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
+import { ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ICalExportButton } from "./ical-button";
@@ -83,7 +84,7 @@ export default async function SchedulePage({
   const [gamesPage, team] = await Promise.all([
     myTeamId
       ? gameOps
-          .listGames({ teamId: myTeamId, limit: 100 })
+          .listGames({ teamId: myTeamId, limit: 100, publishedOnly: true })
           .catch(() => ({ items: [], nextCursor: null }))
       : Promise.resolve({ items: [], nextCursor: null }),
     myTeamId
@@ -143,6 +144,17 @@ export default async function SchedulePage({
     if (t?.name) opponentNames.set(id, t.name);
   }
 
+  // Unique season ids across this team's games — drives the Realtime
+  // bridge below. If the team is in one active season, this is a single
+  // channel; multi-season players (rare) get one per season.
+  const seasonIds = Array.from(
+    new Set(
+      all
+        .map((g) => (g as Game & { seasonId?: string }).seasonId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -166,10 +178,15 @@ export default async function SchedulePage({
             </a>
           ))}
         </div>
-        <ICalExportButton
-          games={list}
-          teamLabel={team?.name ?? "My team"}
-        />
+        <div className="flex items-center gap-3">
+          {seasonIds.length > 0 && (
+            <ScheduleRealtimeBridge seasonIds={seasonIds} />
+          )}
+          <ICalExportButton
+            games={list}
+            teamLabel={team?.name ?? "My team"}
+          />
+        </div>
       </div>
 
       {list.length === 0 ? (
