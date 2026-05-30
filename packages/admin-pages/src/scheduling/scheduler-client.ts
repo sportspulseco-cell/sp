@@ -512,8 +512,27 @@ async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
     body: body as Record<string, unknown>
   });
   if (error) {
-    const ctx = error as { context?: { error?: string }; message?: string };
-    const msg = ctx?.context?.error ?? ctx?.message ?? "Unknown scheduler error";
+    // supabase-js wraps non-2xx as FunctionsHttpError where `context` is
+    // the raw Response. The Edge Function's body is `{"error": "..."}` —
+    // pull that out so the UI surfaces the real reason ("scheduler.run
+    // permission required") instead of the generic SDK wrapping
+    // ("Edge Function returned a non-2xx status code").
+    const ctx = (error as { context?: unknown }).context;
+    let extracted: string | null = null;
+    if (ctx instanceof Response) {
+      try {
+        const parsed = (await ctx.clone().json()) as { error?: unknown };
+        if (parsed && typeof parsed.error === "string") {
+          extracted = parsed.error;
+        }
+      } catch {
+        // body wasn't JSON; fall through
+      }
+    }
+    const msg =
+      extracted ??
+      (error as { message?: string })?.message ??
+      "Unknown scheduler error";
     throw new Error(String(msg));
   }
   return data as TRes;
