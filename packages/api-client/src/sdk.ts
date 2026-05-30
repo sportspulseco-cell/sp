@@ -1734,6 +1734,10 @@ export function createApi(f: Fetcher) {
           status?: GameStatus;
           fromTs?: string;
           toTs?: string;
+          /** When true, restrict to games whose admin has flipped to public
+           *  (published_at IS NOT NULL). Consumer apps (player, team-admin)
+           *  pass this so captains never see draft fixtures. */
+          publishedOnly?: boolean;
         } = {}
       ) => f<Page<Game>>(`/games${qs(q)}`),
       getGame: (id: string) => f<Game>(`/games/${id}`),

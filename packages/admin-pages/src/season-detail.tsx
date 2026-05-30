@@ -28,6 +28,7 @@ export function SeasonDetail({
   divisionHrefBase,
   divisionsListHref,
   setupHref,
+  schedulingHref,
   statusControl,
   extras
 }: {
@@ -44,6 +45,8 @@ export function SeasonDetail({
   divisionsListHref?: string;
   /** Where "Open registration setup →" points (forms list or specific form). */
   setupHref?: string;
+  /** Where "Schedule →" points — typically `/scheduling/<seasonId>/generate`. */
+  schedulingHref?: string;
   /** Status dropdown — pass a <SeasonStatusControl/> bound to the
    *  app's changeStatus callback. Omit to render no control. */
   statusControl?: ReactNode;
@@ -101,6 +104,14 @@ export function SeasonDetail({
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
             >
               Open registration setup →
+            </Link>
+          ) : null}
+          {schedulingHref ? (
+            <Link
+              href={schedulingHref}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+            >
+              Schedule →
             </Link>
           ) : null}
         </div>

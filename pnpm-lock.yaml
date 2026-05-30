@@ -154,6 +154,9 @@ importers:
 
   apps/player-web:
     dependencies:
+      '@sportspulse/admin-pages':
+        specifier: workspace:*
+        version: link:../../packages/admin-pages
       '@sportspulse/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
@@ -397,6 +400,9 @@ importers:
 
   apps/team-admin-web:
     dependencies:
+      '@sportspulse/admin-pages':
+        specifier: workspace:*
+        version: link:../../packages/admin-pages
       '@sportspulse/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
@@ -473,12 +479,18 @@ importers:
       '@sportspulse/api-client':
         specifier: workspace:*
         version: link:../api-client
+      '@sportspulse/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../kernel
       '@sportspulse/ui':
         specifier: workspace:*
         version: link:../ui
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.105.1
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@19.2.5)
@@ -629,6 +641,15 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.1
         version: 18.3.7(@types/react@18.3.28)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/scheduler-core:
+    devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
       typescript:
         specifier: ^5.6.3
         version: 5.9.3

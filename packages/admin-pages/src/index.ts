@@ -29,6 +29,7 @@ export type {
   CreateFormDivision
 } from "./forms/create-form-button";
 export { InvoiceComposer } from "./invoice-composer/invoice-composer";
+export * from "./scheduling";
 export type {
   InvoiceComposerProps,
   InvoiceComposerBody,

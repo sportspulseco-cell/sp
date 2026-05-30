@@ -14,8 +14,10 @@
   },
   "dependencies": {
     "@sportspulse/api-client": "workspace:*",
+    "@sportspulse/auth": "workspace:*",
     "@sportspulse/kernel": "workspace:*",
     "@sportspulse/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.45.0",
     "lucide-react": "^0.460.0"
   },
   "peerDependencies": {
