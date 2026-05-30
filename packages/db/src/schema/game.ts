@@ -18,6 +18,7 @@ import { authUsers } from "./auth";
 import { sports } from "./reference";
 import { persons } from "./iam";
 import { divisions, leagues, teams } from "./league";
+import { iceSlots, surfaces, scheduleRuns } from "./scheduling";
 
 // =====================================================================
 // GAMES — minimal seed; scheduling module will extend with venue/slot
@@ -48,6 +49,35 @@ export const games = pgTable(
     durationMin: smallint("duration_min").notNull().default(60),
     venueName: text("venue_name"),
     surfaceLabel: text("surface_label"),
+    // --- Scheduling foundation (migration 0044) -----------------------
+    /** The ice slot this game occupies. NULL for legacy/free-text games.
+     *  One game per slot is enforced by `game_slot_uniq` below — the
+     *  no-double-booking invariant. */
+    slotId: uuid("slot_id").references(() => iceSlots.id, {
+      onDelete: "set null"
+    }),
+    /** Denormalised from the slot's surface for fast schedule queries. */
+    surfaceId: uuid("surface_id").references(() => surfaces.id, {
+      onDelete: "set null"
+    }),
+    /** The generation run that placed this game (NULL = hand-created). */
+    scheduleRunId: uuid("schedule_run_id").references(() => scheduleRuns.id, {
+      onDelete: "set null"
+    }),
+    /** SACRED INVARIANT: when set, the engine must never mutate this row.
+     *  Every engine UPDATE carries `WHERE locked_at IS NULL`. Locked games
+     *  are manual fixtures (pain #7) or admin-pinned slots. */
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedByUserId: uuid("locked_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    /** Single source of truth for publish (pain #1): a game is public iff
+     *  published_at IS NOT NULL. No separate published snapshot. */
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    /** How this game entered the schedule. */
+    source: text("source").notNull().default("manual"),
+    /** Denormalised time band (early|mid|late) for the fairness pass (#8). */
+    timeBand: text("time_band"),
     status: text("status").notNull().default("scheduled"),
     /** Workflow 7C — regular | playoff | exhibition. Drives the playoff
      *  attendance eligibility guard in §4.1. */
@@ -77,6 +107,10 @@ export const games = pgTable(
       "game_type_check",
       sql`${t.gameType} IN ('regular','playoff','exhibition')`
     ),
+    sourceCheck: check(
+      "game_source_check",
+      sql`${t.source} IN ('manual','generated','manual_import','manual_override')`
+    ),
     notSelf: check(
       "game_not_self",
       sql`${t.homeTeamId} <> ${t.awayTeamId}`
@@ -86,7 +120,17 @@ export const games = pgTable(
     homeIdx: index("game_home_idx").on(t.homeTeamId, t.scheduledStartTsUtc),
     awayIdx: index("game_away_idx").on(t.awayTeamId, t.scheduledStartTsUtc),
     statusIdx: index("game_status_idx").on(t.status),
-    scheduleIdx: index("game_schedule_idx").on(t.scheduledStartTsUtc)
+    scheduleIdx: index("game_schedule_idx").on(t.scheduledStartTsUtc),
+    runIdx: index("game_schedule_run_idx").on(t.scheduleRunId),
+    lockedIdx: index("game_locked_idx").on(t.lockedAt),
+    publishedIdx: index("game_published_idx").on(t.publishedAt),
+    // No two live games may occupy the same slot — the no-double-booking
+    // invariant, enforced at the DB layer (synthesis doc, Karpathy's hill).
+    slotUniq: uniqueIndex("game_slot_uniq")
+      .on(t.slotId)
+      .where(
+        sql`slot_id IS NOT NULL AND status NOT IN ('cancelled','postponed')`
+      )
   })
 );
 

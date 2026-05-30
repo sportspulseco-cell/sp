@@ -29,6 +29,8 @@ export interface ListGamesInput {
   fromTs?: string;
   toTs?: string;
   leagueIdsFilter?: string[];
+  /** When true, restrict to games with `published_at IS NOT NULL`. */
+  publishedOnly?: boolean;
 }
 
 @Injectable()

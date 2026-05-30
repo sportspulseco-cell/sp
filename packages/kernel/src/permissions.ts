@@ -134,6 +134,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ["read", "Read", "View standings + leaderboards."],
     ["recompute", "Recompute", "Trigger standings recompute."]
   ]),
+  G("scheduler", "Scheduler", [
+    ["run", "Run generation", "Trigger schedule generation for a season/division."],
+    ["publish", "Publish", "Flip generated games to public (set published_at)."],
+    ["resolve_conflict", "Resolve conflicts", "Apply Z3-validated inline conflict-resolution options."],
+    ["verify", "Verify", "Run tiebreaker-ruleset proof + UNSAT-core diagnostics."],
+    ["report.read", "Read reports", "View fairness + standings reports."]
+  ]),
   G("finance", "Finance", [
     ["read", "Read", "View invoices and payments."],
     ["invoice.write", "Invoice", "Create / edit invoices."],
@@ -299,7 +306,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Manages a single league: divisions, teams, schedules.",
     scopeType: "league",
     rank: 2,
-    defaultPermissions: ["league.*", "division.*", "team.read"]
+    defaultPermissions: ["league.*", "division.*", "team.read", "scheduler.*"]
   },
   {
     code: "season_admin",
@@ -307,7 +314,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Manages registrations + roster locks for one season.",
     scopeType: "season",
     rank: 3,
-    defaultPermissions: ["season.*", "registration.review"]
+    defaultPermissions: ["season.*", "registration.review", "scheduler.*"]
   },
   {
     code: "division_admin",
@@ -315,7 +322,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Manages teams + games inside one division.",
     scopeType: "division",
     rank: 4,
-    defaultPermissions: ["division.*", "team.read", "game.read"]
+    defaultPermissions: ["division.*", "team.read", "game.read", "scheduler.report.read"]
   },
   {
     code: "team_admin",

@@ -1,0 +1,11 @@
+# Supabase CLI config — minimal stub.
+# Link to a remote project with:
+#   supabase link --project-ref <your-project-ref>
+# Then deploy functions with:
+#   supabase functions deploy scheduler-generate scheduler-publish
+
+[functions.scheduler-generate]
+verify_jwt = true
+
+[functions.scheduler-publish]
+verify_jwt = true

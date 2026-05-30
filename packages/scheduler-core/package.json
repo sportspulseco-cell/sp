@@ -1,0 +1,25 @@
+{
+  "name": "@sportspulse/scheduler-core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared scheduler domain — solver contracts, constraint catalogue, deterministic tiebreaker + fairness logic. Framework-agnostic; consumed by scheduling-api, the CP-SAT service contract, and web SDKs.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

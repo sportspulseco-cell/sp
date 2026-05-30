@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -12,6 +13,7 @@ import {
   Max,
   Min
 } from "class-validator";
+import { Transform } from "class-transformer";
 import {
   GAME_STATUSES,
   SUSPENSION_KINDS
@@ -56,6 +58,16 @@ export class ListGamesQueryDto {
   status?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() fromTs?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() toTs?: string;
+  /**
+   * When true, restrict to games with `published_at IS NOT NULL`.
+   * Consumer apps (player-web, team-admin-web) pass this so a captain
+   * never sees draft fixtures the admin hasn't released yet.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  publishedOnly?: boolean;
 }
 
 // Game events

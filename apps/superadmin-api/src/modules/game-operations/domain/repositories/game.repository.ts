@@ -11,6 +11,8 @@ export interface ListGamesQuery extends PageQuery {
   toTs?: Date;
   /** When set, restricts results to games whose leagueId is in this list. */
   leagueIdsFilter?: string[];
+  /** When true, restrict to games with `published_at IS NOT NULL`. */
+  publishedOnly?: boolean;
 }
 
 export interface GameRepository {
