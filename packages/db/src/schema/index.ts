@@ -5,6 +5,7 @@ export * from "./roster";
 export * from "./transfers";
 export * from "./game";
 export * from "./scheduling";
+export * from "./rink-notifications";
 export * from "./game-officials";
 export * from "./stats";
 export * from "./registration";

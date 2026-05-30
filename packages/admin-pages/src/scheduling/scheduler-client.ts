@@ -227,6 +227,65 @@ export interface ListRunsResponse {
   runs: ScheduleRunListItem[];
 }
 
+// Pain #2 — rink notifications wire shapes.
+export interface RinkIntegrationView {
+  id: string;
+  venueId: string;
+  venueName: string;
+  kind: string;
+  endpointUrl: string | null;
+  active: boolean;
+  circuitState: string;
+  failureCount: number;
+  lastDeliveryAt: string | null;
+  lastFailureAt: string | null;
+}
+
+export interface RinkOutboxView {
+  id: string;
+  gameId: string | null;
+  rinkIntegrationId: string;
+  venueName: string | null;
+  eventType: string;
+  status: string;
+  attemptCount: number;
+  lastError: string | null;
+  nextRetryAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+}
+
+export interface ListRinkNotificationsRequest {
+  seasonId: string;
+  limit?: number;
+}
+
+export interface ListRinkNotificationsResponse {
+  seasonId: string;
+  integrations: RinkIntegrationView[];
+  outbox: RinkOutboxView[];
+}
+
+export interface DispatchRinkNotificationsRequest {
+  gameIds: string[];
+  eventType:
+    | "game_scheduled"
+    | "game_rescheduled"
+    | "game_cancelled"
+    | "game_postponed";
+  dryRun?: boolean;
+}
+
+export interface DispatchRinkNotificationsResponse {
+  enqueued: number;
+  alreadyEnqueued: number;
+  delivered: number;
+  failed: number;
+  deadLettered: number;
+  noVenue: number;
+  noIntegration: number;
+}
+
 async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
   const sb = browserClient();
   const { data, error } = await sb.functions.invoke<TRes>(name, {
@@ -256,7 +315,17 @@ export const scheduler = {
   applyConflictResolution: (req: ApplyConflictRequest) =>
     invoke<ApplyConflictRequest, ApplyConflictResponse>("scheduler-conflict-apply", req),
   listRuns: (req: ListRunsRequest) =>
-    invoke<ListRunsRequest, ListRunsResponse>("scheduler-runs-list", req)
+    invoke<ListRunsRequest, ListRunsResponse>("scheduler-runs-list", req),
+  listRinkNotifications: (req: ListRinkNotificationsRequest) =>
+    invoke<ListRinkNotificationsRequest, ListRinkNotificationsResponse>(
+      "rink-notifications-list",
+      req
+    ),
+  dispatchRinkNotifications: (req: DispatchRinkNotificationsRequest) =>
+    invoke<DispatchRinkNotificationsRequest, DispatchRinkNotificationsResponse>(
+      "rink-notify-dispatch",
+      req
+    )
 };
 
 /** Browser supabase client used for Realtime channel subscriptions. */

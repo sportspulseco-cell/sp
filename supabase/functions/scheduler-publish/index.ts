@@ -53,6 +53,36 @@ async function broadcastPublish(
   }
 }
 
+/**
+ * Fire-and-forget rink notification dispatch (pain #2). Calls the
+ * rink-notify-dispatch Edge Function with the published game ids and
+ * event_type='game_scheduled'. Failures are logged but never roll
+ * back the publish — the outbox row still exists and the cron retry
+ * will eventually deliver.
+ */
+async function dispatchRinkNotifications(
+  env: SchedulerEnv,
+  authHeader: string,
+  gameIds: string[],
+): Promise<void> {
+  if (gameIds.length === 0) return;
+  try {
+    await fetch(`${env.supabaseUrl}/functions/v1/rink-notify-dispatch`, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        gameIds,
+        eventType: "game_scheduled",
+      }),
+    });
+  } catch (err) {
+    console.error("rink notify dispatch failed:", err);
+  }
+}
+
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
@@ -110,6 +140,7 @@ Deno.serve(async (req) => {
   }
 
   const gamesPublished = count ?? data?.length ?? 0;
+  const publishedGameIds = (data ?? []).map((g) => g.id as string);
   const payload = {
     seasonId: body.seasonId,
     divisionId: body.divisionId ?? null,
@@ -119,6 +150,7 @@ Deno.serve(async (req) => {
   };
 
   await broadcastPublish(env, `schedule:season:${body.seasonId}`, payload);
+  await dispatchRinkNotifications(env, authHeader, publishedGameIds);
 
   return json(payload);
 });

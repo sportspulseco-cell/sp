@@ -5,5 +5,6 @@ export { SchedulingConflictsClient } from "./conflicts-client";
 export { SchedulingVerifyForm } from "./verify-form";
 export { ResolveConflictDialog } from "./resolve-conflict-dialog";
 export { SchedulingRunsList } from "./runs-list";
+export { SchedulingRinkNotifications } from "./rink-notifications";
 export { ScheduleRealtimeBridge } from "./schedule-realtime-bridge";
 export * from "./scheduler-client";

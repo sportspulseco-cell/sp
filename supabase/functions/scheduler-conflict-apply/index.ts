@@ -73,6 +73,24 @@ async function broadcastUpdate(
   }
 }
 
+/** Fire-and-forget rink notification dispatch (pain #2). */
+async function dispatchRinkNotifications(
+  env: SchedulerEnv,
+  authHeader: string,
+  gameIds: string[],
+): Promise<void> {
+  if (gameIds.length === 0) return;
+  try {
+    await fetch(`${env.supabaseUrl}/functions/v1/rink-notify-dispatch`, {
+      method: "POST",
+      headers: { Authorization: authHeader, "Content-Type": "application/json" },
+      body: JSON.stringify({ gameIds, eventType: "game_rescheduled" }),
+    });
+  } catch (err) {
+    console.error("rink notify dispatch failed:", err);
+  }
+}
+
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
@@ -233,6 +251,7 @@ Deno.serve(async (req) => {
     movedAt: new Date().toISOString(),
     movedByUserId: userId,
   });
+  await dispatchRinkNotifications(env, authHeader, [game.id]);
 
   return json<ApplyResponse>({
     ok: true,

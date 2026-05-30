@@ -139,7 +139,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ["publish", "Publish", "Flip generated games to public (set published_at)."],
     ["resolve_conflict", "Resolve conflicts", "Apply Z3-validated inline conflict-resolution options."],
     ["verify", "Verify", "Run tiebreaker-ruleset proof + UNSAT-core diagnostics."],
-    ["report.read", "Read reports", "View fairness + standings reports."]
+    ["report.read", "Read reports", "View fairness + standings reports."],
+    ["rink_notify.read", "Read rink notifications", "View per-venue integrations + delivery outbox."],
+    ["rink_notify.write", "Configure rink integrations", "Create / edit per-venue notification endpoints."],
+    ["rink_notify.dispatch", "Dispatch rink notifications", "Run the outbox dispatcher (typically cron-driven)."]
   ]),
   G("finance", "Finance", [
     ["read", "Read", "View invoices and payments."],

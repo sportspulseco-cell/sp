@@ -31,7 +31,8 @@ export function SchedulingTabs({
     { href: `${base}/fairness`, label: "Fairness" },
     { href: `${base}/conflicts`, label: "Conflicts" },
     { href: `${base}/verify`, label: "Verify" },
-    { href: `${base}/runs`, label: "Runs" }
+    { href: `${base}/runs`, label: "Runs" },
+    { href: `${base}/rinks`, label: "Rinks" }
   ];
   return (
     <nav className="flex items-center gap-1 border-b border-border">
