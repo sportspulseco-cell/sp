@@ -426,6 +426,86 @@ export interface AdvanceBracketResponse {
   nextGameCreated: boolean;
 }
 
+// Pain #4 — dynamic tournament tiers wire shapes (Johnny's ask).
+export type TournamentTier = "upper" | "middle" | "lower";
+
+export interface TournamentTierAssignmentView {
+  teamId: string;
+  teamName: string;
+  tier: TournamentTier;
+  reasoning: string | null;
+}
+
+export interface TournamentRoundView {
+  id: string;
+  seasonId: string;
+  roundIndex: number;
+  label: string | null;
+  state: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  assignments: TournamentTierAssignmentView[];
+  fixtureCount: number;
+  completedCount: number;
+  createdAt: string;
+}
+
+export interface ListTournamentRoundsRequest { seasonId: string }
+export interface ListTournamentRoundsResponse {
+  seasonId: string;
+  count: number;
+  rounds: TournamentRoundView[];
+}
+
+export interface InitTournamentRoundRequest {
+  seasonId: string;
+  divisionId: string;
+  roundIndex: number;
+  label?: string;
+  startsAt?: string;
+  endsAt?: string;
+  assignments: Array<{ teamId: string; tier: TournamentTier }>;
+}
+
+export interface InitTournamentRoundResponse {
+  roundId: string;
+  roundIndex: number;
+  state: string;
+  fixturesCreated: number;
+  perTier: Record<TournamentTier, number>;
+}
+
+export interface TournamentAdvanceAssignment {
+  teamId: string;
+  teamName: string;
+  fromTier: TournamentTier;
+  toTier: TournamentTier;
+  wins: number;
+  losses: number;
+  rankInTier: number;
+  tierSize: number;
+  reasoning: string;
+}
+
+export interface AdvanceTournamentRoundRequest {
+  seasonId: string;
+  fromRoundId: string;
+  newLabel?: string;
+  newStartsAt?: string;
+  newEndsAt?: string;
+  topFraction?: number;
+  bottomFraction?: number;
+}
+
+export interface AdvanceTournamentRoundResponse {
+  newRoundId: string;
+  newRoundIndex: number;
+  state: string;
+  assignments: TournamentAdvanceAssignment[];
+  fixturesCreated: number;
+  perTier: Record<TournamentTier, number>;
+}
+
 async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
   const sb = browserClient();
   const { data, error } = await sb.functions.invoke<TRes>(name, {
@@ -494,6 +574,21 @@ export const scheduler = {
   advanceBracket: (req: AdvanceBracketRequest) =>
     invoke<AdvanceBracketRequest, AdvanceBracketResponse>(
       "scheduler-bracket-advance",
+      req
+    ),
+  listTournamentRounds: (req: ListTournamentRoundsRequest) =>
+    invoke<ListTournamentRoundsRequest, ListTournamentRoundsResponse>(
+      "scheduler-tournament-rounds-list",
+      req
+    ),
+  initTournamentRound: (req: InitTournamentRoundRequest) =>
+    invoke<InitTournamentRoundRequest, InitTournamentRoundResponse>(
+      "scheduler-tournament-round-init",
+      req
+    ),
+  advanceTournamentRound: (req: AdvanceTournamentRoundRequest) =>
+    invoke<AdvanceTournamentRoundRequest, AdvanceTournamentRoundResponse>(
+      "scheduler-tournament-round-advance",
       req
     )
 };

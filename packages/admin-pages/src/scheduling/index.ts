@@ -8,5 +8,6 @@ export { SchedulingRunsList } from "./runs-list";
 export { SchedulingRinkNotifications } from "./rink-notifications";
 export { SchedulingParityWindows } from "./parity-windows";
 export { SchedulingPlayoffBrackets } from "./playoff-brackets";
+export { SchedulingTournament } from "./tournament-rounds";
 export { ScheduleRealtimeBridge } from "./schedule-realtime-bridge";
 export * from "./scheduler-client";

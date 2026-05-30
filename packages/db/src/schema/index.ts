@@ -8,6 +8,7 @@ export * from "./scheduling";
 export * from "./rink-notifications";
 export * from "./parity-windows";
 export * from "./playoff-brackets";
+export * from "./tournament-tiers";
 export * from "./game-officials";
 export * from "./stats";
 export * from "./registration";
