@@ -205,9 +205,8 @@ export function SeasonSectionForm({
 
         <Field
           label="Season"
-          schemaTag="registration_forms.season_id → seasons"
           required
-          hint="Seasons are created in Org setup. Pick one to bind this registration form to it; the rest of the wizard reads its config from the seasons table."
+          hint="Seasons are created in Org setup. Pick one to bind this registration form to it; the rest of the wizard reads its config from the selected season."
         >
           {seasonsLoading ? (
             <div className="flex items-center gap-2 text-[12px] text-fg-muted">
@@ -245,39 +244,29 @@ export function SeasonSectionForm({
         {/* Auto-populated read-only summary */}
         {selectedSeason ? (
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 rounded-md border border-border bg-bg-subtle p-4">
-            <ReadOnly label="Season name" tag="seasons.name">
-              {selectedSeason.name}
-            </ReadOnly>
-            <ReadOnly label="Sport" tag="seasons.sport_code" mono>
+            <ReadOnly label="Season name">{selectedSeason.name}</ReadOnly>
+            <ReadOnly label="Sport" mono>
               {selectedSeason.sportCode}
             </ReadOnly>
-            <ReadOnly label="Time zone" tag="seasons.timezone" mono>
+            <ReadOnly label="Time zone" mono>
               {selectedSeason.timezone}
             </ReadOnly>
-            <ReadOnly label="Season start" tag="seasons.start_date" mono>
+            <ReadOnly label="Season start" mono>
               {fmtDate(selectedSeason.startDate)}
             </ReadOnly>
-            <ReadOnly label="Season end" tag="seasons.end_date" mono>
+            <ReadOnly label="Season end" mono>
               {fmtDate(selectedSeason.endDate)}
             </ReadOnly>
-            <ReadOnly label="Status" tag="seasons.status" mono>
+            <ReadOnly label="Status" mono>
               {selectedSeason.status.replace(/_/g, " ")}
             </ReadOnly>
-            <ReadOnly
-              label="Registration opens"
-              tag="seasons.registration_opens_at"
-              mono
-            >
+            <ReadOnly label="Registration opens" mono>
               {fmtDate(selectedSeason.registrationOpensAt)}
             </ReadOnly>
-            <ReadOnly
-              label="Registration closes"
-              tag="seasons.registration_closes_at"
-              mono
-            >
+            <ReadOnly label="Registration closes" mono>
               {fmtDate(selectedSeason.registrationClosesAt)}
             </ReadOnly>
-            <ReadOnly label="Roster lock" tag="seasons.roster_lock_at" mono>
+            <ReadOnly label="Roster lock" mono>
               {fmtDate(selectedSeason.rosterLockAt)}
             </ReadOnly>
           </dl>
@@ -292,11 +281,7 @@ export function SeasonSectionForm({
           </p>
         ) : null}
 
-        <Field
-          label="Registration type"
-          schemaTag="registration_forms.description (typed)"
-          required
-        >
+        <Field label="Registration type" required>
           <div className="flex items-center gap-2">
             <select
               value={registrationType}
@@ -405,30 +390,21 @@ function EligibilityPanel({ form }: { form: RegistrationForm }) {
 
 function Field({
   label,
-  schemaTag,
   hint,
   required,
   children
 }: {
   label: string;
-  schemaTag?: string;
   hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
-          {label}
-          {required ? <span className="ml-1 text-rose-500">*</span> : null}
-        </label>
-        {schemaTag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {schemaTag}
-          </span>
-        ) : null}
-      </div>
+      <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
+        {label}
+        {required ? <span className="ml-1 text-rose-500">*</span> : null}
+      </label>
       {children}
       {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
     </div>
@@ -437,27 +413,18 @@ function Field({
 
 function ReadOnly({
   label,
-  tag,
   mono,
   children
 }: {
   label: string;
-  tag?: string;
   mono?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          {label}
-        </dt>
-        {tag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {tag}
-          </span>
-        ) : null}
-      </div>
+      <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        {label}
+      </dt>
       <dd
         className={
           mono ? "mt-1 font-mono text-[12px] text-fg" : "mt-1 text-[13px] text-fg"

@@ -90,13 +90,12 @@ export function LeagueStep({
 
   return (
     <div className="space-y-8">
-      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
+      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
         <SectionHeader title="Identity" required />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field
             label="League name"
-            schemaTag="leagues.name"
             required
             hint="Public-facing name shown on all registration pages, emails, and dashboards. Max 80 chars."
           >
@@ -113,7 +112,6 @@ export function LeagueStep({
 
           <Field
             label="Unique ID (slug)"
-            schemaTag="leagues.id → slug"
             required
             hint="URL-safe identifier. Auto-generated from the league name. Used in API paths and registration URLs. Cannot be changed after first season is published."
           >
@@ -129,7 +127,6 @@ export function LeagueStep({
 
           <Field
             label="Sport"
-            schemaTag="leagues.sportCode"
             required
             hint="Determines which stat types, period models, and governing bodies are available downstream."
           >
@@ -154,7 +151,6 @@ export function LeagueStep({
 
           <Field
             label="Format"
-            schemaTag="leagues.format"
             required
             hint="Regular season = scheduled games + standings. Tournament = bracket event. This drives how the scheduler and standings engine behave."
           >
@@ -173,8 +169,7 @@ export function LeagueStep({
 
           <Field
             label="Governing body"
-            schemaTag="leagues.governingBodyId"
-            hint="Links to the governing_bodies table. Drives ID verification rules and SafeSport requirements for all seasons in this league. Leave blank if your league isn't sanctioned by one."
+            hint="Drives ID verification rules and SafeSport requirements for all seasons in this league. Leave blank if your league isn't sanctioned by one."
           >
             <select
               value={draft.governingBodyId ?? ""}
@@ -194,7 +189,6 @@ export function LeagueStep({
 
           <Field
             label="Time zone"
-            schemaTag="seasons.timezone (inherited)"
             required
             hint="All game times, registration windows, and notification sends are expressed in this time zone. Set it to where the games physically take place."
           >
@@ -216,9 +210,8 @@ export function LeagueStep({
         </div>
 
         <Field
-          label="Organisation ID"
-          schemaTag="leagues.orgId"
-          hint="Locked to the organisation selected in Phase 0. Cannot be changed after creation."
+          label="Organisation"
+          hint="Locked to the organisation selected in step 1. Cannot be changed after creation."
         >
           <input
             type="text"
@@ -230,17 +223,16 @@ export function LeagueStep({
         </Field>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
+      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
         <SectionHeader title="Branding" optional />
         <div className="grid gap-6 md:grid-cols-2">
           <Field
             label="League logo"
-            schemaTag="orgs.branding / metadata"
-            hint="Upload a 512×512 PNG or JPG (max 2 MB). Stored on metadata.branding.logoUrl."
+            hint="Upload a 512×512 PNG or JPG (max 2 MB)."
           >
             {/* Upload UI is a follow-up — Storage isn't wired yet. The
                 input accepts a URL for now so this field still threads
-                through to the metadata payload. */}
+                through to the stored branding payload. */}
             <input
               type="url"
               value={draft.branding.logoUrl ?? ""}
@@ -256,7 +248,6 @@ export function LeagueStep({
 
           <Field
             label="Primary colour"
-            schemaTag="orgs.branding"
             hint="Used as accent on registration pages and email templates."
           >
             <div className="flex flex-wrap gap-2">
@@ -287,7 +278,7 @@ export function LeagueStep({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
+      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
         <SectionHeader title="Privacy settings" required />
         <ul className="space-y-2">
           {PRIVACY_OPTIONS.map((p) => {
@@ -336,33 +327,24 @@ export function LeagueStep({
 
 export function Field({
   label,
-  schemaTag,
   hint,
   required,
   children
 }: {
   label: string;
-  schemaTag?: string;
   hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
-          {label}
-          {required ? <span className="ml-1 text-[var(--error)]">*</span> : null}
-        </label>
-        {schemaTag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {schemaTag}
-          </span>
-        ) : null}
-      </div>
+      <label className="block font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
+        {label}
+        {required ? <span className="ml-1 text-[var(--error)]">*</span> : null}
+      </label>
       {children}
       {hint ? (
-        <p className="text-[11px] text-fg-muted">{hint}</p>
+        <p className="text-[11px] leading-relaxed text-fg-muted">{hint}</p>
       ) : null}
     </div>
   );

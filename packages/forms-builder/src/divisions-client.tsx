@@ -245,7 +245,7 @@ export function DivisionsClient({
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Max roster size" schemaTag="seasons.config.maxRosterSize">
+          <Field label="Max roster size">
             <input
               type="number"
               min={1}
@@ -257,7 +257,7 @@ export function DivisionsClient({
               className="input"
             />
           </Field>
-          <Field label="Roster lock date" schemaTag="seasons.roster_lock_at">
+          <Field label="Roster lock date">
             <input
               type="date"
               value={rosterLockAt}
@@ -270,21 +270,18 @@ export function DivisionsClient({
         <ToggleRow
           label="Require USA Hockey ID"
           hint="Players must submit valid governing body ID + expiry"
-          schemaTag="seasons.config.requireUsaHockeyId"
           checked={requireUsaHockeyId}
           onChange={setRequireUsaHockeyId}
         />
         <ToggleRow
           label="Require liability waiver"
           hint="Hard block — registration cannot complete without signature"
-          schemaTag="seasons.config.requireLiabilityWaiver"
           checked={requireLiabilityWaiver}
           onChange={setRequireLiabilityWaiver}
         />
         {requireLiabilityWaiver ? (
           <DocBodyField
             label="Liability waiver text"
-            schemaTag="seasons.config.liabilityWaiverContent"
             placeholder="Paste the liability waiver text here. The registrant scrolls to the end then types their full legal name to sign…"
             value={liabilityWaiverContent}
             onChange={setLiabilityWaiverContent}
@@ -293,14 +290,12 @@ export function DivisionsClient({
         <ToggleRow
           label="Require code of conduct"
           hint="Hard block — registrant must check the acknowledgment"
-          schemaTag="seasons.config.requireCodeOfConduct"
           checked={requireCodeOfConduct}
           onChange={setRequireCodeOfConduct}
         />
         {requireCodeOfConduct ? (
           <DocBodyField
             label="Code of conduct text"
-            schemaTag="seasons.config.codeOfConductContent"
             placeholder="Paste the code of conduct text. The registrant sees this above the agreement checkbox in Phase 3…"
             value={codeOfConductContent}
             onChange={setCodeOfConductContent}
@@ -309,14 +304,12 @@ export function DivisionsClient({
         <ToggleRow
           label="Allow free agent registration"
           hint="Players can join a pool and wait for a captain invite"
-          schemaTag="seasons.config.allowFreeAgent"
           checked={allowFreeAgent}
           onChange={setAllowFreeAgent}
         />
         <ToggleRow
           label="Parental consent for minors"
           hint="Auto-triggered if DOB indicates age under 18"
-          schemaTag="seasons.config.parentalConsentRequired"
           checked={parentalConsent}
           onChange={setParentalConsent}
         />
@@ -352,25 +345,18 @@ export function DivisionsClient({
 function ToggleRow({
   label,
   hint,
-  schemaTag,
   checked,
   onChange
 }: {
   label: string;
   hint: string;
-  schemaTag: string;
   checked: boolean;
   onChange: (next: boolean) => void;
 }) {
   return (
     <div className="flex items-start justify-between gap-3 border-t border-border pt-3 first:border-t-0 first:pt-0">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[13px] font-medium text-fg">{label}</p>
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {schemaTag}
-          </span>
-        </div>
+        <p className="text-[13px] font-medium text-fg">{label}</p>
         <p className="mt-0.5 text-[12px] text-fg-muted">{hint}</p>
       </div>
       <button
@@ -402,27 +388,20 @@ function ToggleRow({
  */
 function DocBodyField({
   label,
-  schemaTag,
   placeholder,
   value,
   onChange
 }: {
   label: string;
-  schemaTag: string;
   placeholder: string;
   value: string;
   onChange: (next: string) => void;
 }) {
   return (
     <div className="ml-4 border-l-2 border-border/60 pl-4 -mt-1 pb-1">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          {label}
-        </label>
-        <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-          {schemaTag}
-        </span>
-      </div>
+      <label className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        {label}
+      </label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -440,25 +419,16 @@ function DocBodyField({
 
 function Field({
   label,
-  schemaTag,
   children
 }: {
   label: string;
-  schemaTag?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
-          {label}
-        </label>
-        {schemaTag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {schemaTag}
-          </span>
-        ) : null}
-      </div>
+      <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
+        {label}
+      </label>
       {children}
     </div>
   );

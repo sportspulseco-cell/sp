@@ -76,7 +76,7 @@ export function WalletForm({
         </p>
       </header>
 
-      <Field label="Player" schemaTag="wallet_accounts.person_id">
+      <Field label="Player">
         <input
           type="text"
           value={personId}
@@ -87,11 +87,7 @@ export function WalletForm({
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Credit amount ($)"
-          schemaTag="wallet_ledger.amount_cents"
-          required
-        >
+        <Field label="Credit amount ($)" required>
           <input
             type="number"
             min="0.01"
@@ -102,10 +98,7 @@ export function WalletForm({
             required
           />
         </Field>
-        <Field
-          label="Expires (optional)"
-          schemaTag="wallet_ledger.expires_at"
-        >
+        <Field label="Expires (optional)">
           <input
             type="date"
             value={expiresAt}
@@ -117,7 +110,6 @@ export function WalletForm({
 
       <Field
         label="Reason"
-        schemaTag="wallet_ledger.reason"
         required
         hint="Internal note — explain why this credit is being issued. Stored in audit trail."
       >
@@ -164,30 +156,21 @@ export function WalletForm({
 
 function Field({
   label,
-  schemaTag,
   hint,
   required,
   children
 }: {
   label: string;
-  schemaTag?: string;
   hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
-          {label}
-          {required ? <span className="ml-1 text-rose-500">*</span> : null}
-        </label>
-        {schemaTag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {schemaTag}
-          </span>
-        ) : null}
-      </div>
+      <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
+        {label}
+        {required ? <span className="ml-1 text-rose-500">*</span> : null}
+      </label>
       {children}
       {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
     </div>

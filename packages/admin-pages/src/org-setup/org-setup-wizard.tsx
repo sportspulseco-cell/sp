@@ -330,8 +330,8 @@ export function OrgSetupWizard({
   }
 
   return (
-    <div className="space-y-12">
-      <header className="relative pb-6">
+    <div className="space-y-8">
+      <header className="relative pb-5">
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -355,7 +355,7 @@ export function OrgSetupWizard({
             delay: 0.05,
             ease: [0.22, 1, 0.36, 1]
           }}
-          className="mt-3 max-w-[24ch] text-balance font-sans text-[clamp(32px,4.4vw,56px)] font-semibold leading-[0.96] tracking-tighter text-fg"
+          className="mt-2 max-w-[24ch] text-balance font-sans text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.02] tracking-tight text-fg"
         >
           {STEP_HEADLINES[state.step]}
         </motion.h1>

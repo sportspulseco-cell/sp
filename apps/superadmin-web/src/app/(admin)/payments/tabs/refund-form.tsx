@@ -127,11 +127,7 @@ export function RefundForm({
         </header>
 
         <div className="mt-4 space-y-4">
-          <Field
-            label="Refund type"
-            schemaTag="refunds.refund_type"
-            required
-          >
+          <Field label="Refund type" required>
             <select
               value={refundType}
               onChange={(e) => setRefundType(e.target.value as RefundType)}
@@ -147,7 +143,6 @@ export function RefundForm({
 
           <Field
             label="Refund amount ($)"
-            schemaTag="refunds.amount_cents"
             required
             hint={`Maximum refundable: ${fmtMoney(maxRefundableCents, currency)}`}
           >
@@ -165,7 +160,6 @@ export function RefundForm({
 
           <Field
             label="Reason"
-            schemaTag="refunds.reason"
             required
             hint="Required — document the reason for this refund (min 10 characters). Stored in audit trail."
           >
@@ -261,30 +255,21 @@ export function RefundForm({
 
 function Field({
   label,
-  schemaTag,
   hint,
   required,
   children
 }: {
   label: string;
-  schemaTag?: string;
   hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
-          {label}
-          {required ? <span className="ml-1 text-rose-500">*</span> : null}
-        </label>
-        {schemaTag ? (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent">
-            {schemaTag}
-          </span>
-        ) : null}
-      </div>
+      <label className="font-mono text-[11px] uppercase tracking-widest text-fg">
+        {label}
+        {required ? <span className="ml-1 text-rose-500">*</span> : null}
+      </label>
       {children}
       {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
     </div>

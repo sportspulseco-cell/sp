@@ -194,8 +194,8 @@ function IdentityBlock({
   onPatch: (patch: Partial<DivisionDraft>) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <Field label="Division name" schemaTag="divisions.name" required>
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <Field label="Division name" required>
         <input
           type="text"
           value={division.name}
@@ -209,7 +209,6 @@ function IdentityBlock({
 
       <Field
         label="Skill / tier"
-        schemaTag="divisions.tier"
         required
         hint="Self-reported skill bucket. Used to set skater player registrations and filter free agent picks searched into the same division."
       >
@@ -228,7 +227,6 @@ function IdentityBlock({
 
       <Field
         label="Gender eligibility"
-        schemaTag="divisions.genderEligibility"
         required
         hint="Who is eligible to register. Validated at registration and roster add."
       >
@@ -249,7 +247,6 @@ function IdentityBlock({
 
       <Field
         label="Min age"
-        schemaTag="divisions.ageRangeMin"
         hint="Youngest player allowed (years). Leave blank for no minimum."
       >
         <input
@@ -270,7 +267,6 @@ function IdentityBlock({
 
       <Field
         label="Max age"
-        schemaTag="divisions.ageRangeMax"
         hint="Oldest player allowed (years). Leave blank for no maximum."
       >
         <input
@@ -291,7 +287,6 @@ function IdentityBlock({
 
       <Field
         label="Age group label"
-        schemaTag="divisions.ageGroup (display)"
         hint='Friendly label shown on registration pages — e.g. "18+ adult", "U15", "Open age".'
       >
         <input
@@ -307,7 +302,6 @@ function IdentityBlock({
 
       <Field
         label="Max teams"
-        schemaTag="divisions.maxTeams"
         required
         hint="Hard cap on teams accepted into this division. Once reached, new team registrations are halted. Should be at least 4 to seed a tier."
       >
@@ -326,7 +320,6 @@ function IdentityBlock({
 
       <Field
         label="Min skaters to start"
-        schemaTag="divisions.minStartersToStart"
         hint="If a team can't ice this many skaters at puck drop, the game is forfeited."
       >
         <input
@@ -360,16 +353,11 @@ function GameRulesBlock({
 }) {
   const r = division.gameRules;
   return (
-    <div className="space-y-3 border-t border-border pt-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[13px] font-semibold tracking-tight text-fg">
-          Game rules
-        </p>
-        <span className="rounded-full bg-accent/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-accent">
-          divisions.ruleSetOverrides JSONB
-        </span>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-4 border-t border-border pt-4">
+      <p className="text-[13px] font-semibold tracking-tight text-fg">
+        Game rules
+      </p>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <Field
           label="Number of periods"
           required
@@ -547,22 +535,17 @@ function TiebreakersBlock({
   }
   return (
     <div className="space-y-3 border-t border-border pt-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-[13px] font-semibold tracking-tight text-fg">
-            Tiebreaker rules
-            <span className="ml-2 rounded-full bg-[var(--tint-rose-bg)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
-              Required
-            </span>
-          </p>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            Applied in order from top to bottom when two teams have equal points
-            in the standings. Reorder using the arrows.
-          </p>
-        </div>
-        <span className="rounded-full bg-accent/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-accent">
-          ruleSetOverrides.tiebreakers
-        </span>
+      <div>
+        <p className="text-[13px] font-semibold tracking-tight text-fg">
+          Tiebreaker rules
+          <span className="ml-2 rounded-full bg-[var(--tint-rose-bg)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
+            Required
+          </span>
+        </p>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Applied in order from top to bottom when two teams have equal points
+          in the standings. Reorder using the arrows.
+        </p>
       </div>
       <ol className="space-y-1">
         {division.tiebreakers.map((code, i) => (
@@ -622,22 +605,17 @@ function PostSeasonBlock({
   const p = division.playoffConfig;
   return (
     <div className="space-y-4 border-t border-border pt-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-[13px] font-semibold tracking-tight text-fg">
-            Post-season
-            <span className="ml-2 rounded-full bg-[var(--tint-rose-bg)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
-              Required
-            </span>
-          </p>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            Post-season / playoffs configuration. Determines when and how teams
-            meet in tournament-style elimination.
-          </p>
-        </div>
-        <span className="rounded-full bg-accent/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-accent">
-          divisions.playoffConfig JSONB
-        </span>
+      <div>
+        <p className="text-[13px] font-semibold tracking-tight text-fg">
+          Post-season
+          <span className="ml-2 rounded-full bg-[var(--tint-rose-bg)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[var(--tint-rose-fg)]">
+            Required
+          </span>
+        </p>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Post-season / playoffs configuration. Determines when and how teams
+          meet in tournament-style elimination.
+        </p>
       </div>
 
       <label className="flex items-center gap-3 rounded-md border border-border bg-bg-subtle p-3">
@@ -656,10 +634,9 @@ function PostSeasonBlock({
 
       {p.enabled ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-3">
             <Field
               label="Playoff spots"
-              schemaTag="playoffConfig.playoffSpots"
               required
               hint="How many teams qualify from the regular-season standings. Top 4 = only top 4 teams make playoffs. Top 8 = top 8 teams advance."
             >
@@ -682,7 +659,6 @@ function PostSeasonBlock({
 
             <Field
               label="Playoff start date"
-              schemaTag="playoffConfig.startDate"
               required
               hint="When the first playoff game can be played. Must be after the regular-season finale."
             >
@@ -698,7 +674,6 @@ function PostSeasonBlock({
 
             <Field
               label="Playoff end date"
-              schemaTag="playoffConfig.endDate"
               required
               hint="Championship game must be played on or before this date. Must not exceed the season end date."
             >
@@ -717,7 +692,6 @@ function PostSeasonBlock({
           <div>
             <Field
               label="Playoff type (series format)"
-              schemaTag="playoffConfig.seriesFormat"
               required
             >
               <ul className="mt-2 space-y-2">
@@ -765,10 +739,9 @@ function PostSeasonBlock({
             </Field>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="Bracket type"
-              schemaTag="playoffConfig.bracketType"
               hint={
                 BRACKETS.find((b) => b.value === p.bracketType)?.description ?? ""
               }
@@ -795,7 +768,6 @@ function PostSeasonBlock({
 
             <Field
               label="Home ice"
-              schemaTag="playoffConfig.homeIceRule"
               hint={
                 HOME_ICE.find((h) => h.value === p.homeIceRule)?.description ?? ""
               }

@@ -18,11 +18,10 @@ export function OrgStep({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <SectionHeader
         title="Organisation"
-        hint="All orgs you have access to · orgs table"
-        required
+        hint="All orgs you have access to"
       />
 
       <ul className="space-y-2">
@@ -78,45 +77,6 @@ export function OrgStep({
         })}
       </ul>
     </div>
-  );
-}
-
-/**
- * Compact editorial phase header — same rhythm as the dashboard's
- * SectionRail. Used inside every wizard step to introduce the form
- * sections without competing with the wizard's own top header.
- *
- * No big circle, no rounded panel, no `Y table` accent chip. The
- * left edge is the schema-name in mono (e.g. "orgs table"), the
- * label sits beside it, and the description threads under in
- * text-balance to keep descenders even at mobile widths.
- */
-export function PhaseHeader({
-  title,
-  description,
-  tableTag
-}: {
-  /** Kept for backward-compat with existing callers; unused now. */
-  index?: number;
-  title: string;
-  description: string;
-  tableTag: string;
-}) {
-  return (
-    <header className="flex flex-col gap-3 border-b border-border pb-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
-          <span className="text-fg">// </span>
-          {title}
-        </p>
-        <span className="font-mono text-[10px] uppercase tracking-widest text-fg-subtle">
-          {tableTag}
-        </span>
-      </div>
-      <p className="max-w-2xl text-balance text-[14px] leading-relaxed text-fg-muted">
-        {description}
-      </p>
-    </header>
   );
 }
 
