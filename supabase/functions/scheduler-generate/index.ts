@@ -305,11 +305,36 @@ Deno.serve(async (req) => {
   // 9b. Build games + game_provenance rows together with client-side
   // UUIDs so each provenance row references its game by id without an
   // ordering assumption on the insert's return shape.
+  //
+  // Skip any solver assignment that lands on a slot already held by a
+  // game that step 9a's delete preserves. "Persistent" = anything we
+  // didn't (and won't) delete: completed / in_play / forfeited games,
+  // manual games, locked games. Their rows survive the regen, so
+  // re-inserting on their slot would collide on game_slot_uniq.
+  // Caught by EC11 when a locked Bravo-Charlie game was in the DB but
+  // the solver kept placing other games on the same slot because
+  // ice_slots.status='available' regardless of game occupancy.
+  const { data: persistRows } = await sb
+    .from("games")
+    .select("slot_id, source, status, locked_at")
+    .eq("season_id", body.seasonId)
+    .eq("division_id", body.divisionId)
+    .not("slot_id", "is", null);
+  const persistentSlotIds = new Set(
+    (persistRows ?? [])
+      .filter((g) =>
+        g.status !== "cancelled" &&
+        g.status !== "postponed" &&
+        !(g.source === "generated" && g.status === "scheduled" && !g.locked_at),
+      )
+      .map((g) => g.slot_id as string),
+  );
   const gameRows: Record<string, unknown>[] = [];
   const provRows: Record<string, unknown>[] = [];
   for (const a of solveResp.assignments) {
     const meta = slotMetaById.get(a.slotId);
     if (!meta) continue; // defensive — solver returned a slot we didn't send
+    if (persistentSlotIds.has(a.slotId)) continue; // slot held by a pre-existing row that survived the delete
     const gameId = crypto.randomUUID();
     gameRows.push({
       id: gameId,
