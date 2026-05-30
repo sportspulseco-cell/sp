@@ -164,7 +164,12 @@ async function main() {
         name: "League Admin",
         description: "Manages a single league: divisions, teams, schedules.",
         isSystem: true,
-        permissions: ["league.*", "division.*", "team.read"]
+        // Must mirror SYSTEM_ROLES.league_admin in
+        // packages/kernel/src/permissions.ts. Includes scheduler.*
+        // so league_admins can drive the scheduler subsystem within
+        // their league — without this the league_admin can't even
+        // run a fairness report.
+        permissions: ["league.*", "division.*", "team.read", "scheduler.*"]
       },
       {
         orgId: null,
@@ -172,7 +177,9 @@ async function main() {
         name: "Season Admin",
         description: "Manages registrations + roster locks for one season.",
         isSystem: true,
-        permissions: ["season.*", "registration.review"]
+        // Must mirror SYSTEM_ROLES.season_admin in
+        // packages/kernel/src/permissions.ts (includes scheduler.*).
+        permissions: ["season.*", "registration.review", "scheduler.*"]
       },
       {
         orgId: null,
