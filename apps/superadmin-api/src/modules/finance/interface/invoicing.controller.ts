@@ -578,7 +578,7 @@ export class FinanceInvoicingController {
     }
 
     // Active members
-    const members = await this.db
+    const memberRows = await this.db
       .select({
         personId: schema.teamMemberships.personId,
         userId: schema.persons.userId
@@ -595,10 +595,31 @@ export class FinanceInvoicingController {
         )
       );
 
+    // Captain MUST be in the split list by default — they're on the
+    // hook for their share of the bill (repo owner directive
+    // 2026-06-04 — "for 1000 dollars, with even split, captain pays
+    // 500 and player 500"). Captains are not always rostered (no
+    // team_memberships row), so union the captain's person in
+    // explicitly if missing.
+    const captainPersonRow = team.captainUserId
+      ? await this.db
+          .select({
+            personId: schema.persons.id,
+            userId: schema.persons.userId
+          })
+          .from(schema.persons)
+          .where(eq(schema.persons.userId, team.captainUserId))
+          .limit(1)
+      : [];
+    const captainMember = captainPersonRow[0] ?? null;
+    const members =
+      captainMember &&
+      !memberRows.some((m) => m.personId === captainMember.personId)
+        ? [...memberRows, captainMember]
+        : memberRows;
+
     const includeCaption = body.includeCaption ?? true;
-    const captainPersonId = team.captainUserId
-      ? members.find((m) => m.userId === team.captainUserId)?.personId
-      : null;
+    const captainPersonId = captainMember?.personId ?? null;
     const players = includeCaption
       ? members
       : members.filter((m) => m.personId !== captainPersonId);

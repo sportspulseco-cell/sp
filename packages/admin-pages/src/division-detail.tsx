@@ -228,9 +228,6 @@ export function DivisionDetail({
       <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Game rules
-          <span className="ml-2 normal-case text-fg">
-            (divisions.ruleSetOverrides JSONB)
-          </span>
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Number of periods" mono>
@@ -289,9 +286,6 @@ export function DivisionDetail({
       <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           // Post-season
-          <span className="ml-2 normal-case text-fg">
-            (divisions.playoffConfig JSONB)
-          </span>
         </p>
         {playoff.enabled ? (
           <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

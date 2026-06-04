@@ -7,7 +7,7 @@ import {
   TrendingUp, XCircle
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, TBody, TD, TH, THead, TR, Table
+  Badge, Button, EmptyState, Field, Input, TBody, TD, TH, THead, TR, Table
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -64,6 +64,10 @@ export function SchedulingParityWindows({ seasonId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [computing, setComputing] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newStart, setNewStart] = useState("");
+  const [newEnd, setNewEnd] = useState("");
 
   async function loadWindows() {
     setLoading(true); setError(null);
@@ -86,6 +90,35 @@ export function SchedulingParityWindows({ seasonId }: Props) {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally { setComputing(null); }
+  }
+
+  async function onCreate() {
+    if (!newStart || !newEnd) {
+      setError("Start and end dates are required.");
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    try {
+      const nextIndex = windows.length > 0
+        ? Math.max(...windows.map((w) => w.windowIndex)) + 1
+        : 1;
+      const created = await scheduler.createParityWindow({
+        seasonId,
+        windowIndex: nextIndex,
+        startDate: newStart,
+        endDate: newEnd,
+      });
+      setShowCreate(false);
+      setNewStart("");
+      setNewEnd("");
+      await loadWindows();
+      setExpanded(created.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCreating(false);
+    }
   }
 
   if (loading && windows.length === 0) {
@@ -112,26 +145,87 @@ export function SchedulingParityWindows({ seasonId }: Props) {
     );
   }
 
+  const createForm = showCreate ? (
+    <div className="rounded-lg border border-border bg-bg p-4 space-y-3">
+      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        // New parity window
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Start date">
+          <Input
+            type="date"
+            value={newStart}
+            onChange={(e) => setNewStart(e.target.value)}
+            disabled={creating}
+          />
+        </Field>
+        <Field label="End date">
+          <Input
+            type="date"
+            value={newEnd}
+            onChange={(e) => setNewEnd(e.target.value)}
+            disabled={creating}
+          />
+        </Field>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setShowCreate(false);
+            setNewStart("");
+            setNewEnd("");
+          }}
+          disabled={creating}
+        >
+          Cancel
+        </Button>
+        <Button onClick={onCreate} disabled={creating || !newStart || !newEnd}>
+          {creating ? (
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+          ) : null}
+          Create
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   if (windows.length === 0) {
     return (
-      <EmptyState
-        icon={Clock}
-        title="No parity windows yet"
-        description="Windows open every N weeks per season config (cron). Until that cron is wired, insert one manually: INSERT INTO parity_windows (season_id, window_index, start_date, end_date, state) VALUES (...)."
-      />
+      <div className="space-y-3">
+        {createForm}
+        {!showCreate ? (
+          <EmptyState
+            icon={Clock}
+            title="No parity windows yet"
+            description="Create one manually below, or wait for the cron to open the next window per season config."
+            action={
+              <Button onClick={() => setShowCreate(true)}>Create window</Button>
+            }
+          />
+        ) : null}
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {createForm}
       <div className="flex items-center justify-between">
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           {windows.length} window{windows.length === 1 ? "" : "s"}
         </span>
-        <Button variant="secondary" onClick={loadWindows} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} strokeWidth={1.75} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {!showCreate ? (
+            <Button variant="secondary" onClick={() => setShowCreate(true)}>
+              Create window
+            </Button>
+          ) : null}
+          <Button variant="secondary" onClick={loadWindows} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} strokeWidth={1.75} />
+            Refresh
+          </Button>
+        </div>
       </div>
       <Table>
         <THead>

@@ -26,16 +26,20 @@ export function SchedulingTabs({
 }) {
   const pathname = usePathname() ?? "";
   const base = `${basePath}/${seasonId}`;
+  // Configure-then-generate order (repo owner directive 2026-06-04 —
+  // "define all options/parameters and then the system generates by
+  // taking everything into account"). Rinks + the periodic / post-gen
+  // tools come first; Generate sits at the end as the terminal action.
   const tabs: Tab[] = [
-    { href: `${base}/generate`, label: "Generate" },
-    { href: `${base}/fairness`, label: "Fairness" },
-    { href: `${base}/conflicts`, label: "Conflicts" },
-    { href: `${base}/verify`, label: "Verify" },
+    { href: `${base}/rinks`, label: "Rinks" },
     { href: `${base}/parity`, label: "Parity" },
     { href: `${base}/playoffs`, label: "Playoffs" },
     { href: `${base}/tournament`, label: "Tournament" },
     { href: `${base}/runs`, label: "Runs" },
-    { href: `${base}/rinks`, label: "Rinks" }
+    { href: `${base}/verify`, label: "Verify" },
+    { href: `${base}/conflicts`, label: "Conflicts" },
+    { href: `${base}/fairness`, label: "Fairness" },
+    { href: `${base}/generate`, label: "Generate" }
   ];
   return (
     <nav className="flex items-center gap-1 border-b border-border">

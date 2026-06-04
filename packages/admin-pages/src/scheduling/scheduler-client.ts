@@ -570,6 +570,17 @@ export const scheduler = {
       "scheduler-parity-windows-list",
       req
     ),
+  createParityWindow: (req: {
+    seasonId: string;
+    windowIndex: number;
+    startDate: string;
+    endDate: string;
+    reviewDueDate?: string | null;
+  }) =>
+    invoke<typeof req, { id: string; state: string }>(
+      "scheduler-parity-window-create",
+      req
+    ),
   computeParityWindow: (req: ComputeParityRequest) =>
     invoke<ComputeParityRequest, ComputeParityResponse>(
       "scheduler-parity-window-compute",
