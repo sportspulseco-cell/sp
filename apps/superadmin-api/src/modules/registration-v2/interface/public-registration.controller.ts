@@ -26,8 +26,9 @@ import {
 } from "class-validator";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
-import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { loadUserScope } from "../../../shared/auth/scope";
+import type { AuthPrincipal } from "@sportspulse/auth";
 import {
   assertValidTransition,
   isRegistrationState,
@@ -243,7 +244,7 @@ export class PublicRegistrationController {
     summary:
       "Authenticated variant of /open — returns ONLY open registrations whose owning org appears in the caller's scope.orgIds. Super-admin / platform-scoped users (scope.orgIds === null) get the unrestricted view. A signed-in player with zero org reach gets an empty list — this is the canonical 'Find a team' surface for player-web and prevents the cross-tenant leak the public endpoint exposed when used by an authenticated client."
   })
-  async listOpenForCurrentUser(@UserScope() scope: UserScopeType): Promise<{
+  async listOpenForCurrentUser(@CurrentUser() user: AuthPrincipal): Promise<{
     items: Array<{
       seasonId: string;
       seasonName: string;
@@ -258,6 +259,11 @@ export class PublicRegistrationController {
       registrationClosesAt: string | null;
     }>;
   }> {
+    // Load scope inline rather than via @UserScope — that decorator
+    // requires AuthorizedAccessGuard, which 403s a fresh player with
+    // zero league/org/team reach. This endpoint must return an empty
+    // list (not 403) for that persona.
+    const scope = await loadUserScope(this.db, user.userId);
     if (scope.orgIds !== null && scope.orgIds.length === 0) {
       return { items: [] };
     }
