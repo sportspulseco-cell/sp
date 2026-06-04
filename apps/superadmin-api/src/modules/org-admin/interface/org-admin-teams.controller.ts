@@ -4,6 +4,8 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpException,
+  HttpStatus,
   Inject,
   NotFoundException,
   Param,
@@ -249,13 +251,29 @@ export class OrgAdminTeamsController {
   ) {
     const team = await this.requireTeamInScope(teamId, user.userId, scope);
 
-    const result = await this.inviteUserH.execute({
-      email: body.email,
-      displayName: body.displayName ?? null,
-      role: { roleCode: "captain", scopeType: "team", scopeId: teamId },
-      scopeLabel: team.name,
-      invitedByUserId: user.userId
-    });
+    let result;
+    try {
+      result = await this.inviteUserH.execute({
+        email: body.email,
+        displayName: body.displayName ?? null,
+        role: { roleCode: "captain", scopeType: "team", scopeId: teamId },
+        scopeLabel: team.name,
+        invitedByUserId: user.userId
+      });
+    } catch (e) {
+      const msg = (e as Error).message || "";
+      if (/rate limit|429|exceeded/i.test(msg)) {
+        throw new HttpException(
+          {
+            code: "INVITE_RATE_LIMITED",
+            message:
+              "Supabase Auth rate-limited this invite — please try again in a few minutes, or pick an existing user via the search tab."
+          },
+          HttpStatus.TOO_MANY_REQUESTS
+        );
+      }
+      throw new BadRequestException(msg || "Invite failed");
+    }
 
     // Sync the legacy column so anything that still reads it stays correct.
     if (team.captainUserId !== result.userId) {
