@@ -38,10 +38,13 @@ export function CaptainAssignment({
 }) {
   const [captains, setCaptains] = useState<Captain[]>(initialCaptains);
   const [showAssign, setShowAssign] = useState(false);
+  const [mode, setMode] = useState<"pick" | "invite">("pick");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [people, setPeople] = useState<Candidate[] | null>(null);
   const [loadingPeople, setLoadingPeople] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -97,8 +100,11 @@ export function CaptainAssignment({
 
   function resetDialog() {
     setShowAssign(false);
+    setMode("pick");
     setQuery("");
     setSelected(null);
+    setInviteEmail("");
+    setInviteName("");
     setError(null);
   }
 
@@ -112,6 +118,33 @@ export function CaptainAssignment({
     try {
       await orgAdminTeams.assignCaptain(teamId, { userId: selected.userId });
       setFlash(`${selected.displayName} is now the captain.`);
+      resetDialog();
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleInvite() {
+    const email = inviteEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setError(null);
+    setBusy("invite");
+    try {
+      const res = await orgAdminTeams.inviteCaptain(teamId, {
+        email,
+        ...(inviteName.trim() ? { displayName: inviteName.trim() } : {})
+      });
+      setFlash(
+        res.created
+          ? `Invite sent to ${email} — they're now this team's captain.`
+          : `${email} already had an account — assigned as captain.`
+      );
       resetDialog();
       await refresh();
     } catch (e) {
@@ -178,7 +211,49 @@ export function CaptainAssignment({
               <X className="h-4 w-4" strokeWidth={1.75} />
             </button>
           </div>
-          {selected ? (
+          <div className="mb-3 inline-flex rounded-md border border-border bg-bg p-0.5 font-mono text-[10px] uppercase tracking-widest">
+            <button
+              type="button"
+              onClick={() => { setMode("pick"); setError(null); }}
+              disabled={busy !== null}
+              className={`rounded px-3 py-1 ${mode === "pick" ? "bg-fg text-bg" : "text-fg-muted hover:text-fg"}`}
+            >
+              Find existing user
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("invite"); setError(null); setSelected(null); }}
+              disabled={busy !== null}
+              className={`rounded px-3 py-1 ${mode === "invite" ? "bg-fg text-bg" : "text-fg-muted hover:text-fg"}`}
+            >
+              Invite by email
+            </button>
+          </div>
+          {mode === "invite" ? (
+            <div className="space-y-3">
+              <Field
+                label="Email"
+                hint="They'll receive a sign-up link and land as captain of this team the moment they accept."
+              >
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="captain@example.com"
+                  disabled={busy === "invite"}
+                  autoFocus
+                />
+              </Field>
+              <Field label="Display name (optional)">
+                <Input
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  placeholder="e.g. Sheriff Smith"
+                  disabled={busy === "invite"}
+                />
+              </Field>
+            </div>
+          ) : selected ? (
             <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-subtle px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-medium text-fg">
@@ -256,23 +331,33 @@ export function CaptainAssignment({
               variant="outline"
               size="sm"
               onClick={resetDialog}
-              disabled={busy === "assign"}
+              disabled={busy !== null}
             >
               Cancel
             </Button>
-            <Button
-              size="sm"
-              onClick={handleAssign}
-              disabled={!selected || busy === "assign"}
-            >
-              {busy === "assign" ? (
-                <Loader2
-                  className="mr-1 h-3.5 w-3.5 animate-spin"
-                  strokeWidth={2}
-                />
-              ) : null}
-              Assign
-            </Button>
+            {mode === "pick" ? (
+              <Button
+                size="sm"
+                onClick={handleAssign}
+                disabled={!selected || busy !== null}
+              >
+                {busy === "assign" ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                ) : null}
+                Assign
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleInvite}
+                disabled={!inviteEmail.trim() || busy !== null}
+              >
+                {busy === "invite" ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                ) : null}
+                Invite &amp; assign
+              </Button>
+            )}
           </div>
         </div>
       ) : null}

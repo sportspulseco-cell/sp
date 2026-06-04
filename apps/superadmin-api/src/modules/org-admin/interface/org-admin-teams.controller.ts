@@ -11,7 +11,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsOptional, IsString, IsUUID, Length } from "class-validator";
+import { IsEmail, IsOptional, IsString, IsUUID, Length } from "class-validator";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -24,10 +24,16 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { AssignRoleHandler } from "../../iam/application/roles/handlers";
+import { InviteUserHandler } from "../../iam/application/commands/invite-user.command";
 import { CreateTeamHandler } from "../../league-management/application/teams/handlers";
 
 class AssignCaptainBodyDto {
   @IsUUID() userId!: string;
+}
+
+class InviteCaptainBodyDto {
+  @IsEmail() email!: string;
+  @IsOptional() @IsString() @Length(1, 120) displayName?: string;
 }
 
 class CreateTeamBodyDto {
@@ -61,7 +67,8 @@ export class OrgAdminTeamsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly assignRoleH: AssignRoleHandler,
-    private readonly createTeamH: CreateTeamHandler
+    private readonly createTeamH: CreateTeamHandler,
+    private readonly inviteUserH: InviteUserHandler
   ) {}
 
   // -------------------------------------------------------------------
@@ -218,6 +225,53 @@ export class OrgAdminTeamsController {
     }
 
     return { assignment };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /org-admin/teams/:teamId/captain/invite
+  //
+  // Invite a new user by email AND grant them the captain role on this
+  // team in one transaction. Mirrors the "connected actions belong in
+  // connected dialogs" rule — the org-admin no longer has to ping
+  // super-admin to invite the user first.
+  // -------------------------------------------------------------------
+  @Post(":teamId/captain/invite")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Invite a user by email AND assign them the captain role on this team in one shot."
+  })
+  async inviteCaptain(
+    @Param("teamId") teamId: string,
+    @Body() body: InviteCaptainBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    const team = await this.requireTeamInScope(teamId, user.userId, scope);
+
+    const result = await this.inviteUserH.execute({
+      email: body.email,
+      displayName: body.displayName ?? null,
+      role: { roleCode: "captain", scopeType: "team", scopeId: teamId },
+      scopeLabel: team.name,
+      invitedByUserId: user.userId
+    });
+
+    // Sync the legacy column so anything that still reads it stays correct.
+    if (team.captainUserId !== result.userId) {
+      await this.db
+        .update(schema.teams)
+        .set({ captainUserId: result.userId, updatedAt: new Date() })
+        .where(eq(schema.teams.id, teamId));
+    }
+
+    return {
+      userId: result.userId,
+      created: result.created,
+      assignment: result.assignment,
+      emailDelivered: result.emailDelivered,
+      message: result.message
+    };
   }
 
   // -------------------------------------------------------------------

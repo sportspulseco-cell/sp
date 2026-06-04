@@ -74,6 +74,6 @@ import { DrizzleRoleRepository } from "./infrastructure/repositories/drizzle-rol
     { provide: PERSON_REPOSITORY, useClass: DrizzlePersonRepository },
     { provide: ROLE_REPOSITORY, useClass: DrizzleRoleRepository }
   ],
-  exports: [AssignRoleHandler, RevokeAssignmentHandler]
+  exports: [AssignRoleHandler, RevokeAssignmentHandler, InviteUserHandler]
 })
 export class IamModule {}

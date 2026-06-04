@@ -3140,6 +3140,21 @@ export function createApi(f: Fetcher) {
           `/org-admin/teams/${teamId}/captain`,
           { method: "POST", body: JSON.stringify(body) }
         ),
+      inviteCaptain: (teamId: string, body: { email: string; displayName?: string }) =>
+        f<{
+          userId: string;
+          created: boolean;
+          assignment: RoleAssignment;
+          emailDelivered: boolean;
+          message: {
+            subject: string;
+            body: string;
+            recipient: string;
+          };
+        }>(`/org-admin/teams/${teamId}/captain/invite`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       revokeCaptain: (teamId: string, assignmentId: string) =>
         f<{ id: string; revoked?: true; alreadyRevoked?: true }>(
           `/org-admin/teams/${teamId}/captain/${assignmentId}/revoke`,

@@ -27,7 +27,7 @@ export default async function OrgAdminRinksPage({
       <PageHeader
         eyebrow="schedule"
         title={`Notifications · ${season.name}`}
-        description="OUTBOUND webhook delivery + retry tracker for rink partner systems. Venue + surface + ice-slot management is NOT yet exposed in the UI — they are currently seeded via SQL while we build the admin surface."
+        description="OUTBOUND webhook delivery + retry tracker for rink partner systems. To configure venues, surfaces, and ice slots — the inputs the scheduler reads — use the Venues page."
         action={
           <Link
             href={`/seasons/${season.id}`}
