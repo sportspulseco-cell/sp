@@ -17,7 +17,7 @@ export default function OrgAdminVenuesPage() {
         const scope = await browser.iam.meScope();
         const ids = scope.orgIds ?? [];
         if (ids.length === 0) return;
-        const res = await browser.orgs.list({ limit: 200 });
+        const res = await browser.orgs.list({ limit: 100 });
         const mine = res.items.filter((o) => ids.includes(o.id));
         setOrgs(mine.map((o) => ({ id: o.id, name: o.displayName })));
         setActiveOrgId(mine[0]?.id);

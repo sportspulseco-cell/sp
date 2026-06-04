@@ -12,7 +12,7 @@ export default function VenuesAdminPage() {
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   useEffect(() => {
     browser.orgs
-      .list({ limit: 200 })
+      .list({ limit: 100 })
       .then((res) => setOrgs(res.items.map((o) => ({ id: o.id, name: o.displayName }))))
       .catch(() => setOrgs([]));
   }, []);
