@@ -166,13 +166,25 @@ export class SchedulingInventoryController {
         address: schema.venues.address,
         timezone: schema.venues.timezone,
         createdAt: schema.venues.createdAt,
-        surfacesCount: sql<number>`(
-          SELECT COUNT(*)::int FROM surfaces s
-          WHERE s.venue_id = ${schema.venues.id} AND s.deleted_at IS NULL
-        )`
+        surfacesCount: sql<number>`COUNT(${schema.surfaces.id})::int`.mapWith(Number)
       })
       .from(schema.venues)
+      .leftJoin(
+        schema.surfaces,
+        and(
+          eq(schema.surfaces.venueId, schema.venues.id),
+          isNull(schema.surfaces.deletedAt)
+        )
+      )
       .where(whereClause)
+      .groupBy(
+        schema.venues.id,
+        schema.venues.orgId,
+        schema.venues.name,
+        schema.venues.address,
+        schema.venues.timezone,
+        schema.venues.createdAt
+      )
       .orderBy(asc(schema.venues.name));
 
     return {
@@ -195,17 +207,24 @@ export class SchedulingInventoryController {
         venueId: schema.surfaces.venueId,
         label: schema.surfaces.label,
         createdAt: schema.surfaces.createdAt,
-        iceSlotsCount: sql<number>`(
-          SELECT COUNT(*)::int FROM ice_slots i
-          WHERE i.surface_id = ${schema.surfaces.id}
-        )`
+        iceSlotsCount: sql<number>`COUNT(${schema.iceSlots.id})::int`.mapWith(Number)
       })
       .from(schema.surfaces)
+      .leftJoin(
+        schema.iceSlots,
+        eq(schema.iceSlots.surfaceId, schema.surfaces.id)
+      )
       .where(
         and(
           eq(schema.surfaces.venueId, id),
           isNull(schema.surfaces.deletedAt)
         )
+      )
+      .groupBy(
+        schema.surfaces.id,
+        schema.surfaces.venueId,
+        schema.surfaces.label,
+        schema.surfaces.createdAt
       )
       .orderBy(asc(schema.surfaces.label));
     return {
