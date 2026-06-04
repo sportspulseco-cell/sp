@@ -786,11 +786,11 @@ export class PublicRegistrationController {
     // row exists (defensive — sign-up writes one).
     const [profileRow] = await this.db
       .select({
-        dobDate: schema.userProfiles.dobDate,
-        phoneE164: schema.userProfiles.phoneE164
+        dobDate: schema.profiles.dobDate,
+        phoneE164: schema.profiles.phoneE164
       })
-      .from(schema.userProfiles)
-      .where(eq(schema.userProfiles.id, userId))
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, userId))
       .limit(1);
     const profileDob = profileRow?.dobDate ?? null;
     const profilePhone = profileRow?.phoneE164 ?? null;
