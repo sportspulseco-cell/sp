@@ -158,7 +158,11 @@ export function RegisterWizard({
   }, [splitMode, invitedEmails, customCents, division, totalFeeCents]);
   const allocatedCents = splits.reduce((acc, s) => acc + s.amountCents, 0);
   const remainingCents = totalFeeCents - allocatedCents;
-  const balanced = remainingCents === 0 && allocatedCents > 0;
+  // Submit is enabled when splits sum to the fee. A $0 fee season is
+  // valid (the page even tells the captain "Threshold is $0 — your
+  // team auto-confirms"). The previous `allocatedCents > 0` guard
+  // locked out every free season — repo owner 2026-06-04.
+  const balanced = remainingCents === 0;
 
   function addEmail() {
     const e = emailDraft.trim().toLowerCase();

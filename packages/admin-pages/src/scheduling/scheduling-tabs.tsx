@@ -31,7 +31,7 @@ export function SchedulingTabs({
   // taking everything into account"). Rinks + the periodic / post-gen
   // tools come first; Generate sits at the end as the terminal action.
   const tabs: Tab[] = [
-    { href: `${base}/rinks`, label: "Rinks" },
+    { href: `${base}/rinks`, label: "Notifications" },
     { href: `${base}/parity`, label: "Parity" },
     { href: `${base}/playoffs`, label: "Playoffs" },
     { href: `${base}/tournament`, label: "Tournament" },

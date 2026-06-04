@@ -26,8 +26,8 @@ export default async function OrgAdminRinksPage({
     <div className="space-y-8">
       <PageHeader
         eyebrow="schedule"
-        title={`Rinks · ${season.name}`}
-        description="Per-venue notification endpoints + delivery outbox."
+        title={`Notifications · ${season.name}`}
+        description="OUTBOUND webhook delivery + retry tracker for rink partner systems. Venue + surface + ice-slot management is NOT yet exposed in the UI — they are currently seeded via SQL while we build the admin surface."
         action={
           <Link
             href={`/seasons/${season.id}`}

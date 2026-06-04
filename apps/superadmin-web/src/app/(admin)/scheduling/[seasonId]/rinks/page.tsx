@@ -28,8 +28,8 @@ export default async function RinksPage({
     <div className="space-y-8">
       <PageHeader
         eyebrow="schedule"
-        title={`Rinks · ${season.name}`}
-        description="Per-venue notification endpoints + delivery outbox. Publish + conflict-resolve fire-and-forget into this outbox; retries are automatic with exponential back-off and a circuit breaker per venue."
+        title={`Notifications · ${season.name}`}
+        description="OUTBOUND webhook delivery + retry tracker. This tab tracks notifications SENT to rink partner systems (SportsEngine, etc.) when games are published or rescheduled. Venue + surface + ice-slot management (the inputs the scheduler reads) is NOT yet exposed in the UI — they are currently seeded into venues / surfaces / ice_slots via SQL while we build the admin surface."
         action={
           <Link
             href={`/seasons/${season.id}`}
