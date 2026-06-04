@@ -37,6 +37,7 @@ const NAV: NavItem[] = [
   { href: "/divisions", label: "Divisions", icon: Layers },
   { href: "/teams", label: "Teams", icon: Network },
   { href: "/scheduling", label: "Schedule", icon: CalendarClock },
+  { href: "/venues", label: "Venues", icon: Building2 },
   { href: "/registrations", label: "Registrations", icon: ScrollText },
   { href: "/forms", label: "Forms", icon: FileSignature },
   { href: "/finance", label: "Finance", icon: Wallet },

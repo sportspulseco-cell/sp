@@ -29,6 +29,8 @@ export type {
   CreateFormDivision
 } from "./forms/create-form-button";
 export { InvoiceComposer } from "./invoice-composer/invoice-composer";
+export { VenuesPage } from "./venues/venues-page";
+export type { VenuesPageProps, VenuesApi } from "./venues/venues-page";
 export * from "./scheduling";
 export type {
   InvoiceComposerProps,

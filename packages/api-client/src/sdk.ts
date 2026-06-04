@@ -2942,6 +2942,151 @@ export function createApi(f: Fetcher) {
         >(`/org-admin/persons${qs(q)}`)
     },
 
+    // Scheduling inventory — venues / surfaces / ice_slots CRUD.
+    // The data the scheduler reads from. Previously seeded via SQL
+    // only; now mountable from the admin UI.
+    schedulingInventory: {
+      listVenues: (q?: { orgId?: string }) =>
+        f<{
+          items: Array<{
+            id: string;
+            orgId: string;
+            name: string;
+            address: Record<string, unknown>;
+            timezone: string;
+            surfacesCount: number;
+            createdAt: string;
+          }>;
+        }>(`/scheduling/venues${qs(q ?? {})}`),
+      getVenue: (id: string) =>
+        f<{
+          venue: {
+            id: string;
+            orgId: string;
+            name: string;
+            address: Record<string, unknown>;
+            timezone: string;
+            createdAt: string;
+            updatedAt: string;
+          };
+          surfaces: Array<{
+            id: string;
+            venueId: string;
+            label: string;
+            iceSlotsCount: number;
+            createdAt: string;
+          }>;
+        }>(`/scheduling/venues/${id}`),
+      createVenue: (body: {
+        orgId: string;
+        name: string;
+        address?: Record<string, unknown>;
+        timezone?: string;
+      }) =>
+        f<{ id: string }>(`/scheduling/venues`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      updateVenue: (
+        id: string,
+        body: {
+          name?: string;
+          address?: Record<string, unknown>;
+          timezone?: string;
+        }
+      ) =>
+        f<{ id: string }>(`/scheduling/venues/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      deleteVenue: (id: string) =>
+        f<{ ok: true }>(`/scheduling/venues/${id}`, { method: "DELETE" }),
+
+      createSurface: (venueId: string, body: { label: string }) =>
+        f<{ id: string }>(`/scheduling/venues/${venueId}/surfaces`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      updateSurface: (id: string, body: { label?: string }) =>
+        f<{ id: string }>(`/scheduling/surfaces/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      deleteSurface: (id: string) =>
+        f<{ ok: true }>(`/scheduling/surfaces/${id}`, { method: "DELETE" }),
+
+      listIceSlots: (
+        surfaceId: string,
+        q?: { fromTsUtc?: string; toTsUtc?: string; seasonId?: string }
+      ) =>
+        f<{
+          items: Array<{
+            id: string;
+            surfaceId: string;
+            seasonId: string | null;
+            startTsUtc: string;
+            durationMin: number;
+            tz: string;
+            band: string | null;
+            hourlyCostCents: number;
+            isPlayoffReservation: boolean;
+            status: string;
+          }>;
+        }>(`/scheduling/surfaces/${surfaceId}/ice-slots${qs(q ?? {})}`),
+      createIceSlot: (
+        surfaceId: string,
+        body: {
+          seasonId?: string | null;
+          startTsUtc: string;
+          durationMin: number;
+          tz?: string;
+          band?: "early" | "mid" | "late";
+          hourlyCostCents?: number;
+          isPlayoffReservation?: boolean;
+        }
+      ) =>
+        f<{ id: string }>(`/scheduling/surfaces/${surfaceId}/ice-slots`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      bulkIceSlots: (
+        surfaceId: string,
+        body: {
+          seasonId?: string | null;
+          startDate: string;
+          endDate: string;
+          weekdays: number[];
+          startLocalTime: string;
+          durationMin: number;
+          tz: string;
+          band?: "early" | "mid" | "late";
+          hourlyCostCents?: number;
+          isPlayoffReservation?: boolean;
+        }
+      ) =>
+        f<{ created: number; skipped: number }>(
+          `/scheduling/surfaces/${surfaceId}/ice-slots/bulk`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
+      updateIceSlot: (
+        id: string,
+        body: {
+          startTsUtc?: string;
+          durationMin?: number;
+          band?: "early" | "mid" | "late";
+          hourlyCostCents?: number;
+          isPlayoffReservation?: boolean;
+          status?: "available" | "assigned" | "blocked" | "returned";
+        }
+      ) =>
+        f<{ id: string }>(`/scheduling/ice-slots/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      deleteIceSlot: (id: string) =>
+        f<{ ok: true }>(`/scheduling/ice-slots/${id}`, { method: "DELETE" })
+    },
+
     // Backlog #6 · org-admin write surfaces (divisions).
     orgAdminDivisions: {
       create: (body: {

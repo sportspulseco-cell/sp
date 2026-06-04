@@ -23,6 +23,7 @@ import { TransfersModule } from "./modules/transfers/transfers.module";
 import { TeamApplicationsModule } from "./modules/team-applications/team-applications.module";
 import { TeamStoreModule } from "./modules/team-store/team-store.module";
 import { OrgAdminModule } from "./modules/org-admin/org-admin.module";
+import { SchedulingInventoryModule } from "./modules/scheduling-inventory/scheduling-inventory.module";
 
 @Module({
   imports: [
@@ -49,7 +50,8 @@ import { OrgAdminModule } from "./modules/org-admin/org-admin.module";
     TransfersModule,
     TeamApplicationsModule,
     TeamStoreModule,
-    OrgAdminModule
+    OrgAdminModule,
+    SchedulingInventoryModule
   ]
 })
 export class AppModule {}

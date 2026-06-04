@@ -75,6 +75,7 @@ const PROJECT_NAV: NavItem[] = [
 
   { section: "Operations" },
   { href: "/scheduling", label: "Schedule", icon: CalendarClock },
+  { href: "/venues", label: "Venues", icon: Building2 },
   { href: "/games", label: "Games", icon: CircleDot },
   { href: "/game-events", label: "Game events", icon: Activity },
   { href: "/stats", label: "Stats", icon: BarChart3 },

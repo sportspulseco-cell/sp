@@ -119,6 +119,8 @@ const api = createApi(apiFetch);
 // Re-export the SDK namespaces this app actually uses. Add more as
 // the app grows. Same pattern as superadmin-web.
 export const iam = api.iam;
+export const orgs = api.orgs;
+export const schedulingInventory = api.schedulingInventory;
 export const orgAdminPersons = api.orgAdminPersons;
 export const orgAdminTeams = api.orgAdminTeams;
 export const orgAdminRefundAssessments = api.orgAdminRefundAssessments;

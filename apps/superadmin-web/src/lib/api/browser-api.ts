@@ -94,4 +94,5 @@ export const registrationV2 = api.registrationV2;
 export const registrationV2Admin = api.registrationV2Admin;
 export const adminTransfers = api.adminTransfers;
 export const orgAdminPersons = api.orgAdminPersons;
+export const schedulingInventory = api.schedulingInventory;
 export const orgAdminTeams = api.orgAdminTeams;
