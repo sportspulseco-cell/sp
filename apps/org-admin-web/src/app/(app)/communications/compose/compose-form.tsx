@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { Alert, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import { orgAdminBroadcast } from "@/lib/api/browser-api";
 
-type Audience = "captains" | "team_admins" | "players" | "all_admins";
+type Audience = "captains" | "coaches" | "players" | "all_admins";
 type Channel = "email" | "in_app";
 
 const AUDIENCE_OPTIONS: Array<{
@@ -20,9 +20,9 @@ const AUDIENCE_OPTIONS: Array<{
     hint: "Users holding the captain role on any team in this org."
   },
   {
-    value: "team_admins",
-    label: "Team admins & coaches",
-    hint: "Anyone with team_admin or coach role on a team in this org."
+    value: "coaches",
+    label: "Coaches",
+    hint: "Anyone with the coach role on a team in this org."
   },
   {
     value: "players",

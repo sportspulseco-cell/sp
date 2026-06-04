@@ -158,6 +158,10 @@ export interface PublicRegistrationApi {
       teamName?: string | null;
       teamColor?: string | null;
       divisionId?: string | null;
+      /** ISO YYYY-MM-DD. Editable inline on the Details step for
+       * returning users who never set a DOB at sign-up. Server recomputes
+       * isMinor and the parental-consent step from this value. */
+      dobDate?: string | null;
     }
   ): Promise<{ id: string; updated: boolean }>;
   listWaivers(seasonId: string): Promise<{

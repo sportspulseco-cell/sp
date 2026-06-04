@@ -1,13 +1,13 @@
-/**
- * scheduler-conflicts-list — POST endpoint.
+﻿/**
+ * scheduler-conflicts-list â€” POST endpoint.
  *
  * Auto-detects team-overlap conflicts across a season's games. The
  * DB-level `game_slot_uniq` partial index already prevents slot
  * double-booking, so the only conflict class that can leak into prod
  * is "same team plays two games during overlapping time windows."
  *
- * Time-overlap is computed in-memory: O(n log n) sort + O(n × avg
- * concurrent) scan. PPHL-scale (≤ 1000 games) is sub-50ms.
+ * Time-overlap is computed in-memory: O(n log n) sort + O(n Ã— avg
+ * concurrent) scan. PPHL-scale (â‰¤ 1000 games) is sub-50ms.
  *
  * Returns ready-to-render shapes (team names, division name, locked
  * flags) so the UI doesn't have to re-join.
@@ -17,7 +17,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 const DEFAULT_DURATION_MIN = 60;
 
@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -104,7 +105,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.report.read permission required");
 
   let gq = sb
@@ -156,7 +157,7 @@ Deno.serve(async (req) => {
     for (let j = i + 1; j < sorted.length; j++) {
       const b = sorted[j]!;
       const bStart = Date.parse(b.scheduled_start_ts_utc);
-      if (bStart >= aEnd) break; // sorted — no further overlap possible
+      if (bStart >= aEnd) break; // sorted â€” no further overlap possible
       const aTeams = new Set([a.home_team_id, a.away_team_id]);
       const shared: string[] = [];
       if (aTeams.has(b.home_team_id)) shared.push(b.home_team_id);

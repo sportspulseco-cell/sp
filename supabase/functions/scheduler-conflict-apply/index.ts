@@ -1,5 +1,5 @@
-/**
- * scheduler-conflict-apply — POST endpoint.
+﻿/**
+ * scheduler-conflict-apply â€” POST endpoint.
  *
  * Applies a chosen resolution option from scheduler-conflict-resolve.
  *
@@ -7,7 +7,7 @@
  * available, no team overlap at the new time) because another admin
  * may have moved a game between propose and apply. The `locked_at IS
  * NULL` filter on the UPDATE re-asserts the sacred invariant at the
- * DB layer — if the game became locked between propose and apply, the
+ * DB layer â€” if the game became locked between propose and apply, the
  * UPDATE silently affects zero rows and we 409.
  *
  * On success:
@@ -22,7 +22,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv, type SchedulerEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 const DEFAULT_OTHER_DURATION_MIN = 60;
 
@@ -116,6 +116,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     orgId: season.org_id as string,
     leagueId: season.league_id as string,
     seasonId: season.id as string,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.resolve_conflict permission required");
 
   // Load the game.
@@ -207,7 +208,7 @@ Deno.serve(async (req) => {
   }
 
   // Apply the move. `locked_at IS NULL` re-asserts the sacred invariant
-  // at the DB layer; concurrent lock → 0 rows updated → 409.
+  // at the DB layer; concurrent lock â†’ 0 rows updated â†’ 409.
   const surface = slot.surfaces;
   const venue = surface.venues;
   const { data: updatedRows, error: updErr } = await sb
@@ -228,7 +229,7 @@ Deno.serve(async (req) => {
     return json({ error: "game_locked_or_missing" }, 409);
   }
 
-  // Provenance row. Schedule run is intentionally NULL — human-driven move.
+  // Provenance row. Schedule run is intentionally NULL â€” human-driven move.
   const { error: provErr } = await sb.from("game_provenance").insert({
     game_id: game.id,
     schedule_run_id: null,

@@ -1,5 +1,5 @@
-/**
- * scheduler-brackets-list — POST endpoint.
+﻿/**
+ * scheduler-brackets-list â€” POST endpoint.
  *
  * Hydrated read view over playoff_brackets for a season. For each
  * bracket: per-slot team names (resolved from seed_map + teamAId /
@@ -10,7 +10,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface ListBody { seasonId: string; }
 
@@ -80,6 +80,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
     orgId: season.org_id as string,
     leagueId: season.league_id as string,
     seasonId: season.id as string,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.report.read permission required");
 
   const { data: bracketRows } = await sb

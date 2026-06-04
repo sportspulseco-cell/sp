@@ -1,7 +1,7 @@
-/**
- * scheduler-publish — POST endpoint.
+﻿/**
+ * scheduler-publish â€” POST endpoint.
  *
- * Atomically flips published_at from NULL → now() for every game in
+ * Atomically flips published_at from NULL â†’ now() for every game in
  * the scope and broadcasts a Realtime event so connected clients
  * refresh without polling. Pain #1 fix.
  *
@@ -10,7 +10,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv, type SchedulerEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface PublishBody {
   seasonId: string;
@@ -48,7 +48,7 @@ async function broadcastPublish(
       }),
     });
   } catch (err) {
-    // Broadcast failure must not roll back the publish — log and move on.
+    // Broadcast failure must not roll back the publish â€” log and move on.
     console.error("realtime broadcast failed:", err);
   }
 }
@@ -57,7 +57,7 @@ async function broadcastPublish(
  * Fire-and-forget rink notification dispatch (pain #2). Calls the
  * rink-notify-dispatch Edge Function with the published game ids and
  * event_type='game_scheduled'. Failures are logged but never roll
- * back the publish — the outbox row still exists and the cron retry
+ * back the publish â€” the outbox row still exists and the cron retry
  * will eventually deliver.
  */
 async function dispatchRinkNotifications(
@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.publish permission required");
 
   const now = new Date().toISOString();

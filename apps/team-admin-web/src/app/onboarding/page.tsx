@@ -1,4 +1,4 @@
-import { OnboardingClient } from "./onboarding-client";
+﻿import { OnboardingClient } from "./onboarding-client";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -18,6 +18,6 @@ export default async function OnboardingPage() {
   } = await supabase.auth.getUser();
   if (!user) return null;
   const codes = (user.app_metadata?.role_codes ?? []) as string[];
-  const userType = codes[0] ?? "team_admin";
+  const userType = codes[0] ?? "captain";
   return <OnboardingClient userId={user.id} userType={userType} />;
 }

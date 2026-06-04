@@ -1,10 +1,10 @@
-/**
- * scheduler-tournament-round-advance — POST endpoint (pain #4).
+﻿/**
+ * scheduler-tournament-round-advance â€” POST endpoint (pain #4).
  *
  * Given a tournament round whose games are complete, evaluate each
  * team's W/L within their tier and create the NEXT round:
- *   - top topFraction of each tier → move to next-higher tier (capped at upper)
- *   - bottom bottomFraction → move to next-lower tier (capped at lower)
+ *   - top topFraction of each tier â†’ move to next-higher tier (capped at upper)
+ *   - bottom bottomFraction â†’ move to next-lower tier (capped at lower)
  *   - mid stays in current tier
  * Then mirror init: generate round-robin fixtures per tier, insert
  * games rows pointing at available ice slots in the (optional) next-
@@ -15,7 +15,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 type Tier = "upper" | "middle" | "lower";
 const TIER_ORDER: Tier[] = ["upper", "middle", "lower"];
@@ -33,8 +33,8 @@ interface AdvanceBody {
   newLabel?: string;
   newStartsAt?: string;
   newEndsAt?: string;
-  topFraction?: number; // default 0.25 — top quarter promotes
-  bottomFraction?: number; // default 0.25 — bottom quarter relegates
+  topFraction?: number; // default 0.25 â€” top quarter promotes
+  bottomFraction?: number; // default 0.25 â€” bottom quarter relegates
 }
 
 interface NewAssignment {
@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   // Read prior assignments + fixtures.
@@ -219,17 +220,17 @@ Deno.serve(async (req) => {
       const teamId = teams[i]!;
       const rank = i + 1;
       let toTier: Tier = tier;
-      let reasoning = `Mid-table in ${tier} (rank ${rank}/${n}) — stay.`;
+      let reasoning = `Mid-table in ${tier} (rank ${rank}/${n}) â€” stay.`;
       if (i < topCount) {
         toTier = tierUp(tier);
         reasoning = toTier === tier
-          ? `Top ${rank}/${n} in upper tier — already top, stay.`
-          : `Top ${rank}/${n} in ${tier} — promote to ${toTier}.`;
+          ? `Top ${rank}/${n} in upper tier â€” already top, stay.`
+          : `Top ${rank}/${n} in ${tier} â€” promote to ${toTier}.`;
       } else if (i >= n - bottomCount) {
         toTier = tierDown(tier);
         reasoning = toTier === tier
-          ? `Bottom ${rank}/${n} in lower tier — already bottom, stay.`
-          : `Bottom ${rank}/${n} in ${tier} — relegate to ${toTier}.`;
+          ? `Bottom ${rank}/${n} in lower tier â€” already bottom, stay.`
+          : `Bottom ${rank}/${n} in ${tier} â€” relegate to ${toTier}.`;
       }
       newAssignments.push({
         teamId,

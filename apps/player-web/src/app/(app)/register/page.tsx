@@ -9,6 +9,7 @@ import {
   Users
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { publicRegistration } from "@/lib/api/server-api";
 
 export const metadata = { title: "Find a team — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -27,15 +28,9 @@ interface OpenSeason {
   registrationClosesAt: string | null;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
-
 async function listOpen(): Promise<OpenSeason[]> {
   try {
-    const res = await fetch(`${API}/public/registration/open`, {
-      cache: "no-store"
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { items: OpenSeason[] };
+    const data = await publicRegistration.listOpenForMe();
     return data.items ?? [];
   } catch {
     return [];

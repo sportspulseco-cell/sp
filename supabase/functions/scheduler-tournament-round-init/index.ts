@@ -1,5 +1,5 @@
-/**
- * scheduler-tournament-round-init — POST endpoint (pain #4).
+﻿/**
+ * scheduler-tournament-round-init â€” POST endpoint (pain #4).
  *
  * Creates a new tournament round with initial tier assignments
  * (typically called for Round 1). Also generates the round-robin
@@ -20,7 +20,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 type Tier = "upper" | "middle" | "lower";
 const TIER_ORDER: Tier[] = ["upper", "middle", "lower"];
@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -103,7 +104,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   // Insert round row.
@@ -139,7 +140,7 @@ Deno.serve(async (req) => {
 
   // Load candidate ice slots in window (or for the whole season if no
   // window specified). Excludes playoff-reservation slots. ice_slots.status
-  // alone is NOT a reliable "free" signal — the regular-season scheduler
+  // alone is NOT a reliable "free" signal â€” the regular-season scheduler
   // creates games against slots without flipping the status to 'reserved',
   // so we additionally drop any slot that is already pointed at by a
   // non-cancelled game in this season. Without this filter the greedy
@@ -196,7 +197,7 @@ Deno.serve(async (req) => {
   const gameRows: Record<string, unknown>[] = [];
   const provRows: Record<string, unknown>[] = [];
   const usedSlotIds = new Set<string>();
-  const teamSlotTs = new Map<string, Set<string>>(); // teamId → set of start_ts already booked
+  const teamSlotTs = new Map<string, Set<string>>(); // teamId â†’ set of start_ts already booked
   for (const m of matchups) {
     let chosenSlot: IceSlot | null = null;
     for (const slot of slots) {
@@ -258,7 +259,7 @@ Deno.serve(async (req) => {
     await sb.from("game_provenance").insert(provRows);
   }
 
-  // Persist fixtures pointer + transition round → active.
+  // Persist fixtures pointer + transition round â†’ active.
   await sb
     .from("tournament_rounds")
     .update({

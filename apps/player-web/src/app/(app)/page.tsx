@@ -29,6 +29,7 @@ import {
   gameOps,
   iam,
   leagueMgmt,
+  publicRegistration,
   registration,
   roster
 } from "@/lib/api/server-api";
@@ -116,10 +117,10 @@ export default async function PlayerHome() {
     ? await leagueMgmt.getTeam(myTeamId).catch(() => null)
     : null;
 
-  // Open public registrations — independent of the player's scope; any
-  // signed-in user can see what's accepting registrations right now.
-  // Fetched here so the home page can surface a discovery card when
-  // anything is open (the user reported this gap explicitly).
+  // Open registrations scoped to the player's own orgs (server-side
+  // filter via scope.orgIds). Prevents the cross-tenant leak the
+  // anonymous /public/registration/open endpoint exposes when called
+  // from a signed-in surface.
   const openRegs = await fetchOpenRegistrations();
 
   // Single batch — Home view fetches everything in parallel.
@@ -859,14 +860,8 @@ interface OpenRegistration {
 }
 
 async function fetchOpenRegistrations(): Promise<OpenRegistration[]> {
-  const API =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
   try {
-    const res = await fetch(`${API}/public/registration/open`, {
-      cache: "no-store"
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { items: OpenRegistration[] };
+    const data = await publicRegistration.listOpenForMe();
     return data.items ?? [];
   } catch {
     return [];

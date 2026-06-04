@@ -1,11 +1,11 @@
-/**
- * rink-notify-dispatch — POST endpoint (pain #2).
+﻿/**
+ * rink-notify-dispatch â€” POST endpoint (pain #2).
  *
  * One endpoint, two jobs (idempotent in both):
  *   1. ENQUEUE: for each (gameId, active rink_integration on the game's
  *      venue) pair, insert a rink_notification_outbox row. The
  *      `idempotency_key` (sha256 of gameId|eventType|integrationId|
- *      currentSlotId) dedupes — re-running for the same game in the
+ *      currentSlotId) dedupes â€” re-running for the same game in the
  *      same slot is a no-op.
  *   2. DISPATCH: walk the venue's pending outbox rows, POST the
  *      payload to the rink's webhook endpoint (kind='webhook'),
@@ -13,18 +13,18 @@
  *      next_retry_at). Update the integration's circuit-breaker
  *      health.
  *
- * Replaces Avario's 3-vendor relay (Avario → Sea Coast → Horizon)
+ * Replaces Avario's 3-vendor relay (Avario â†’ Sea Coast â†’ Horizon)
  * that silently dropped notifications. Every send is visible,
  * retried automatically, and surfaced in the outbox.
  *
  * Permission: scheduler.rink_notify.dispatch (also accepts
- * scheduler.publish — publish fires this fire-and-forget after the
+ * scheduler.publish â€” publish fires this fire-and-forget after the
  * games update).
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 const MAX_ATTEMPTS = 5;
 const DEFAULT_DURATION_MIN = 60;
@@ -112,9 +112,10 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
-  // Load games + map to their venues (via surface → venue).
+  // Load games + map to their venues (via surface â†’ venue).
   const { data: games, error: gErr } = await sb
     .from("games")
     .select(
@@ -131,7 +132,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Permission check on the first game's season — assume all games are in the
+  // Permission check on the first game's season â€” assume all games are in the
   // same season (typical for publish + conflict-apply callers).
   const seasonId = rows[0]!.season_id;
   const { data: season } = await sb
@@ -146,12 +147,12 @@ Deno.serve(async (req) => {
       orgId: season.org_id as string,
       leagueId: season.league_id as string,
       seasonId: season.id as string,
-    })) ||
+    }, appMetadata)) ||
     (await userHasPermission(sb, userId, "scheduler.publish", {
       orgId: season.org_id as string,
       leagueId: season.league_id as string,
       seasonId: season.id as string,
-    }));
+    }, appMetadata));
   if (!allowed) return forbidden("scheduler.rink_notify.dispatch or scheduler.publish required");
 
   // Resolve venue per game via surface_id when set.
@@ -234,7 +235,7 @@ Deno.serve(async (req) => {
           status: "pending",
         });
       if (insErr) {
-        // 23505 = unique_violation (already enqueued — idempotency)
+        // 23505 = unique_violation (already enqueued â€” idempotency)
         if (insErr.code === "23505" || /duplicate key/i.test(insErr.message)) {
           result.alreadyEnqueued++;
         } else {
@@ -266,7 +267,7 @@ Deno.serve(async (req) => {
     if (!integration) continue;
     if (integration.kind !== "webhook" || !integration.endpoint_url) {
       // For now, only webhook delivery is implemented. Email / vendor
-      // adapters land in their own follow-up — see DEFERRED note.
+      // adapters land in their own follow-up â€” see DEFERRED note.
       await sb.from("rink_notification_outbox")
         .update({ status: "failed", last_error: `kind ${integration.kind} not implemented`, attempt_count: 1, updated_at: new Date().toISOString() })
         .eq("id", row.id);

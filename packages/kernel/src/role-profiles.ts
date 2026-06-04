@@ -140,12 +140,6 @@ export const ROLE_PROFILE_SCHEMAS: RoleProfileSchemas = {
     schemaVersion: 1,
     questions: [q({ key: "phone", type: "phone", label: "Phone" })]
   },
-  team_admin: {
-    schemaVersion: 1,
-    questions: [
-      q({ key: "phone", type: "phone", label: "Phone", required: true })
-    ]
-  },
   captain: {
     schemaVersion: 1,
     questions: [

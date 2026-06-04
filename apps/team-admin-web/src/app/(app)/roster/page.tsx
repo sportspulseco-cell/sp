@@ -1,4 +1,4 @@
-import { Users } from "lucide-react";
+﻿import { Users } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -35,7 +35,7 @@ export default async function TeamAdminRosterPage() {
     return (
       <div className="space-y-6">
         <PageHeader eyebrow="// Roster" title="Roster" />
-        <EmptyState icon={Users} title="No team in scope" description="You need a team_admin or coach role on a team to see its roster." />
+        <EmptyState icon={Users} title="No team in scope" description="You need a captain or coach role on a team to see its roster." />
       </div>
     );
   }
@@ -98,7 +98,7 @@ export default async function TeamAdminRosterPage() {
                     <div className="font-medium text-fg">{nameFor(m.personId)}</div>
                   </TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
-                    {age != null ? age : "—"}
+                    {age != null ? age : "â€”"}
                   </TD>
                   <TD className="text-right font-mono tabular-nums">{m.jerseyNumber ?? "-"}</TD>
                   <TD className="text-fg-muted">{m.positionCode ?? "-"}</TD>

@@ -1,6 +1,6 @@
-import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
+﻿import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
 import Link from "next/link";
-import { leagueMgmt, orgs } from "@/lib/api/server-api";
+import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,14 +15,10 @@ import {
 } from "@/components/ui/table";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
-export const metadata = { title: "Teams — SportsPulse" };
+export const metadata = { title: "Teams â€” SportsPulse" };
 
 export default async function TeamsPage() {
-  const [teams, orgList] = await Promise.all([
-    leagueMgmt.listTeams().catch(() => ({ items: [] })),
-    orgs.list({ limit: 500 }).catch(() => ({ items: [] }))
-  ]);
-  const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
+  const teams = await leagueMgmt.listTeams().catch(() => ({ items: [] }));
 
   const total = teams.items.length;
   const active = teams.items.filter((t) => t.status === "active").length;
@@ -99,7 +95,7 @@ export default async function TeamsPage() {
                     {t.name}
                   </Link>
                 </TD>
-                <TD className="text-muted-foreground">{t.shortName ?? "—"}</TD>
+                <TD className="text-muted-foreground">{t.shortName ?? "â€”"}</TD>
                 <TD className="text-muted-foreground">{t.sportCode}</TD>
                 <TD>
                   <Link
@@ -107,7 +103,7 @@ export default async function TeamsPage() {
                     className="inline-flex items-center gap-1 text-fg-muted hover:text-fg hover:underline"
                   >
                     <Building2 className="h-3 w-3" strokeWidth={1.75} />
-                    {orgMap.get(t.orgId) ?? t.orgId.slice(0, 8)}
+                    {t.ownerOrgName ?? "â€”"}
                   </Link>
                 </TD>
                 <TD>
@@ -118,7 +114,7 @@ export default async function TeamsPage() {
                     scopeType="team"
                     scopeId={t.id}
                     resourceLabel={t.name}
-                    allowedRoleCodes={["team_admin", "coach"]}
+                    allowedRoleCodes={["captain", "coach"]}
                   />
                 </TD>
               </TR>

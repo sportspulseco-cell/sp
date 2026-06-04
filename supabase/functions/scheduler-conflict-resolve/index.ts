@@ -1,11 +1,11 @@
-/**
- * scheduler-conflict-resolve — POST endpoint.
+﻿/**
+ * scheduler-conflict-resolve â€” POST endpoint.
  *
- * Pain #9 — inline conflict resolution with pre-validated options.
+ * Pain #9 â€” inline conflict resolution with pre-validated options.
  *
  * Given two conflicting games (same slot, or overlapping team-time),
  * propose up to 3 one-click resolution options. Each option is
- * validated against the rest of the schedule before being surfaced —
+ * validated against the rest of the schedule before being surfaced â€”
  * the admin clicks an option and it's guaranteed to be feasible
  * because we've already proved it doesn't break any other game.
  *
@@ -15,15 +15,15 @@
  * preview each option's diff before commit.
  *
  * VALIDATION STRATEGY:
- *   v1 — SQL feasibility check per candidate (correct + fast for
+ *   v1 â€” SQL feasibility check per candidate (correct + fast for
  *        single-fixture moves).
- *   next — Z3 push/pop for cascading repairs (when a move forces
+ *   next â€” Z3 push/pop for cascading repairs (when a move forces
  *        adjacent moves that may themselves conflict).
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface ResolveBody {
   seasonId: string;
@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -147,7 +148,7 @@ Deno.serve(async (req) => {
     orgId: season.org_id as string,
     leagueId: season.league_id as string,
     seasonId: season.id as string,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.resolve_conflict permission required");
 
   // Load both games.
@@ -163,12 +164,12 @@ Deno.serve(async (req) => {
   if (!gA || !gB) return json({ error: "games_not_found" }, 404);
   const { kind, diagnosis } = diagnose(gA, gB);
 
-  // Locked games can't be moved — surface that and exit if both are locked.
+  // Locked games can't be moved â€” surface that and exit if both are locked.
   const bothLocked = gA.locked_at && gB.locked_at;
   if (bothLocked) {
     return json<ResolveResponse>({
       conflictKind: kind,
-      diagnosis: `${diagnosis} Both games are LOCKED — engine cannot propose moves; unlock one in the admin UI first.`,
+      diagnosis: `${diagnosis} Both games are LOCKED â€” engine cannot propose moves; unlock one in the admin UI first.`,
       options: [],
       rejected: [],
     });
@@ -178,7 +179,7 @@ Deno.serve(async (req) => {
   const fixed = movable === gA ? gB : gA;
 
   // Load candidate slots: available + season-scoped + non-playoff. Filter
-  // for the same date as the conflicting time (±4 hours) OR same surface.
+  // for the same date as the conflicting time (Â±4 hours) OR same surface.
   const movableStart = parseTs(movable.scheduled_start_ts_utc);
   const dayStart = new Date(movableStart - 24 * 3600 * 1000).toISOString();
   const dayEnd = new Date(movableStart + 24 * 3600 * 1000).toISOString();
@@ -207,7 +208,7 @@ Deno.serve(async (req) => {
     status: s.status,
   }));
 
-  // Load games already using any candidate slot — feasibility check.
+  // Load games already using any candidate slot â€” feasibility check.
   const candidateIds = candidates.map((c) => c.id);
   const { data: occupiedRows } = await sb
     .from("games")
@@ -271,7 +272,7 @@ Deno.serve(async (req) => {
 
   const options: ResolutionOption[] = accepted.slice(0, 3).map((c, i) => ({
     optionId: `opt_${i + 1}`,
-    label: `Move game ${movable.id.slice(0, 6)} → ${c.surfaceLabel} @ ${c.startTsUtc}`,
+    label: `Move game ${movable.id.slice(0, 6)} â†’ ${c.surfaceLabel} @ ${c.startTsUtc}`,
     description:
       `Reassign the movable game to ${c.venueName} - ${c.surfaceLabel}, ` +
       `starting ${c.startTsUtc}. The fixed game (${fixed.id.slice(0, 6)}) keeps its current slot.`,

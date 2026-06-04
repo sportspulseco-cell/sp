@@ -1,27 +1,27 @@
-/**
- * scheduler-verify — POST endpoint.
+﻿/**
+ * scheduler-verify â€” POST endpoint.
  *
- * Pain #5 — formally verify the tiebreaker ruleset against the real
+ * Pain #5 â€” formally verify the tiebreaker ruleset against the real
  * standings for a season/division, and surface any teams that ended up
  * disambiguated only by the stable-teamId fallback (i.e. the ruleset
  * has nothing left to say about them).
  *
- * This is the deterministic verifier — it runs the canonical
+ * This is the deterministic verifier â€” it runs the canonical
  * `rankStandings` (mirrored from scheduler-core) against real data and
  * reports residual ambiguities concretely.
  *
- * NEXT ITERATION — Z3 abstract counter-example proof:
+ * NEXT ITERATION â€” Z3 abstract counter-example proof:
  *   import { init } from "npm:z3-solver";
  *   For a ruleset with no H2H, model two teams' metrics as Int vars,
  *   assert metric equality for each rule's tracked metric, and ask
  *   `check()`. Skipped for v1 because the naive model is trivially-SAT
  *   at zero and requires "realistic team data" constraints to be
- *   useful — that scaffolding belongs in its own focused turn.
+ *   useful â€” that scaffolding belongs in its own focused turn.
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 import {
   rankStandings,
   type H2HProvider,
@@ -73,15 +73,15 @@ function json(body: unknown, status = 200): Response {
 function staticAudit(ruleset: TiebreakerRule[]): string[] {
   const warnings: string[] = [];
   if (ruleset.length === 0) {
-    warnings.push("Ruleset is empty — primary-tied teams will always fall to teamId order.");
+    warnings.push("Ruleset is empty â€” primary-tied teams will always fall to teamId order.");
     return warnings;
   }
   const onlyHeadToHead = ruleset.length === 1 && ruleset[0] === "head_to_head";
   if (onlyHeadToHead) {
-    warnings.push("Only head_to_head — 3-way circular ties will fall to teamId (pain #5).");
+    warnings.push("Only head_to_head â€” 3-way circular ties will fall to teamId (pain #5).");
   }
   if (!ruleset.includes("goal_diff") && !ruleset.includes("goals_for")) {
-    warnings.push("No goal-based rule — many ties of equal wins will remain unresolved.");
+    warnings.push("No goal-based rule â€” many ties of equal wins will remain unresolved.");
   }
   return warnings;
 }
@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.verify permission required");
 
   // Load standings for the scope.
@@ -142,7 +143,7 @@ Deno.serve(async (req) => {
   if (standingsErr) return json({ error: "load_standings_failed", detail: standingsErr.message }, 500);
 
   const standings: TeamStanding[] = (rows ?? []).map((r) => {
-    // away/home goals live in the tiebreakers jsonb — pull them out if present.
+    // away/home goals live in the tiebreakers jsonb â€” pull them out if present.
     // deno-lint-ignore no-explicit-any
     const tb = (r as any).tiebreakers ?? {};
     return {
@@ -157,7 +158,7 @@ Deno.serve(async (req) => {
     };
   });
 
-  // H2H provider — currently unsupported; tells the resolver to skip rule.
+  // H2H provider â€” currently unsupported; tells the resolver to skip rule.
   // Wire when packages/db has the per-group H2H aggregation view.
   const h2h: H2HProvider | undefined = undefined;
 
@@ -180,7 +181,7 @@ Deno.serve(async (req) => {
     teamName: teamNameById.get(r.teamId) ?? r.teamId,
   }));
 
-  // Group consecutive teams that landed on the teamId fallback — those are
+  // Group consecutive teams that landed on the teamId fallback â€” those are
   // the ruleset's *real* residual ambiguities in this season's data.
   const ambiguities: AmbiguousGroup[] = [];
   let cursor = 0;

@@ -1,4 +1,4 @@
-import { ShieldCheck, Sparkles, Layers } from "lucide-react";
+﻿import { ShieldCheck, Sparkles, Layers } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -19,7 +19,7 @@ import { CreateRoleButton } from "@/components/roles/create-role-button";
 import { DeleteRoleButton } from "@/components/roles/delete-role-button";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 
-export const metadata = { title: "Roles — SportsPulse" };
+export const metadata = { title: "Roles â€” SportsPulse" };
 
 const HIERARCHY = [
   "super_admin",
@@ -27,7 +27,7 @@ const HIERARCHY = [
   "league_admin",
   "season_admin",
   "division_admin",
-  "team_admin",
+  "captain",
   "coach",
   "registrar",
   "referee",
@@ -62,7 +62,7 @@ export default async function RolesPage() {
       <PageHeader
         eyebrow="iam"
         title="Roles"
-        description="System roles cascade top-down — super_admin inherits everything below it. Custom roles attach to a single org and live alongside the system catalog."
+        description="System roles cascade top-down â€” super_admin inherits everything below it. Custom roles attach to a single org and live alongside the system catalog."
         action={<CreateRoleButton />}
       />
       <KineticStrip
@@ -96,7 +96,7 @@ export default async function RolesPage() {
             <Eyebrow>Hierarchy</Eyebrow>
             <p className="text-[13px] text-fg-muted">
               Each level inherits the capabilities of the levels below it,
-              scoped to its own resource. A league_admin gets all team_admin /
+              scoped to its own resource. A league_admin gets all captain /
               coach / referee abilities <em>within</em> their league.
             </p>
             <ol className="mt-2 flex flex-wrap items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
@@ -106,7 +106,7 @@ export default async function RolesPage() {
                     {code}
                   </span>
                   {i < HIERARCHY.length - 1 ? (
-                    <span aria-hidden>→</span>
+                    <span aria-hidden>â†’</span>
                   ) : null}
                 </li>
               ))}
@@ -120,7 +120,7 @@ export default async function RolesPage() {
         <header>
           <Eyebrow>System roles</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Seeded with the platform. Read-only — names + permissions are
+            Seeded with the platform. Read-only â€” names + permissions are
             managed via migrations.
           </p>
         </header>
@@ -158,7 +158,7 @@ export default async function RolesPage() {
                     </Link>
                   </TD>
                   <TD className="text-fg-muted">
-                    {r.description ?? <span className="text-fg-muted">—</span>}
+                    {r.description ?? <span className="text-fg-muted">â€”</span>}
                   </TD>
                   <TD>
                     <PermissionBadges permissions={r.permissions} />
@@ -219,7 +219,7 @@ export default async function RolesPage() {
                   </TD>
                   <TD className="text-fg">{r.name}</TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
-                    {r.orgId?.slice(0, 8) ?? "—"}
+                    {r.orgId?.slice(0, 8) ?? "â€”"}
                   </TD>
                   <TD>
                     <PermissionBadges permissions={r.permissions} />

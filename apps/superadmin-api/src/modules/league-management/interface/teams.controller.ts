@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   ConflictException,
   Controller,
@@ -61,7 +61,7 @@ export class TeamsController {
       scope.leagueIds && scope.leagueIds.length === 0 && (scope.teamIds?.length ?? 0) > 0
         ? undefined
         : (scope.leagueIds ?? undefined);
-    // Pass scope.orgIds alongside leagueIds — handler union's them so
+    // Pass scope.orgIds alongside leagueIds â€” handler union's them so
     // org admins also see orphan teams (no division entry) in their
     // orgs. `null` orgIds is unrestricted, so leave undefined in that
     // case.
@@ -73,9 +73,9 @@ export class TeamsController {
     });
     if (page.items.length === 0) return page;
 
-    // P2-2 — narrow to teams with an active DTE in the requested
+    // P2-2 â€” narrow to teams with an active DTE in the requested
     // division. Done at the controller level so the underlying list
-    // handler stays unchanged. Non-terminal statuses only — a team
+    // handler stays unchanged. Non-terminal statuses only â€” a team
     // whose DTE is rejected/withdrawn shouldn't show up to players.
     let items = page.items;
     if (q.divisionId) {
@@ -129,7 +129,7 @@ export class TeamsController {
   async create(@Body() body: CreateTeamBodyDto): Promise<TeamDto> {
     // ARCH 2: only super_admin / org_admin can create teams. The
     // controller-level AuthorizedAccessGuard already enforces that
-    // mutations require non-scoped access — captains are blocked here.
+    // mutations require non-scoped access â€” captains are blocked here.
 
     // Duplicate-name guard. Case-insensitive per org. Returns 422 with
     // the existing team's id so the UI can deep-link to it.
@@ -158,7 +158,7 @@ export class TeamsController {
       });
     }
 
-    // Create the core team via the existing handler — keeps domain
+    // Create the core team via the existing handler â€” keeps domain
     // invariants intact (id format, name trim, status default).
     const team = await this.createH.execute({
       orgId: body.orgId,
@@ -215,8 +215,8 @@ export class TeamsController {
     if (!allowed) throw new ForbiddenException("Cannot edit this team");
 
     // Core fields go through the domain handler. Captain-scoped users
-    // (captain / team_admin) get their team-profile edits via this
-    // path — same dual-role pattern as before.
+    // (captain / captain) get their team-profile edits via this
+    // path â€” same dual-role pattern as before.
     await this.updateH.execute({
       id,
       name: body.name,
@@ -226,7 +226,7 @@ export class TeamsController {
     });
 
     // Workflow-7A extensions. Only super/org admins get to move the
-    // threshold — captains can edit branding but not billing knobs.
+    // threshold â€” captains can edit branding but not billing knobs.
     if (
       body.homeRink !== undefined ||
       body.confirmationThresholdCents !== undefined
@@ -263,7 +263,7 @@ export class TeamsController {
   }
 
   // -------------------------------------------------------------------
-  // Workflow 7A · Phase 1 — captain assignment + status transition
+  // Workflow 7A Â· Phase 1 â€” captain assignment + status transition
   // -------------------------------------------------------------------
 
   @Post(":id/captain")
@@ -322,6 +322,7 @@ export class TeamsController {
         confirmationThresholdCents: number;
         homeRink: string | null;
         colors: Record<string, unknown>;
+        ownerOrgName: string | null;
       }
     >
   > {
@@ -332,9 +333,11 @@ export class TeamsController {
         captainUserId: schema.teams.captainUserId,
         confirmationThresholdCents: schema.teams.confirmationThresholdCents,
         externalIds: schema.teams.externalIds,
-        colors: schema.teams.colors
+        colors: schema.teams.colors,
+        ownerOrgName: schema.orgs.displayName
       })
       .from(schema.teams)
+      .leftJoin(schema.orgs, eq(schema.orgs.id, schema.teams.orgId))
       .where(inArray(schema.teams.id, teamIds));
     const out = new Map<
       string,
@@ -343,6 +346,7 @@ export class TeamsController {
         confirmationThresholdCents: number;
         homeRink: string | null;
         colors: Record<string, unknown>;
+        ownerOrgName: string | null;
       }
     >();
     for (const r of rows) {
@@ -351,7 +355,8 @@ export class TeamsController {
         captainUserId: r.captainUserId ?? null,
         confirmationThresholdCents: r.confirmationThresholdCents ?? 0,
         homeRink: (external.homeRink as string | null | undefined) ?? null,
-        colors: (r.colors as Record<string, unknown>) ?? {}
+        colors: (r.colors as Record<string, unknown>) ?? {},
+        ownerOrgName: r.ownerOrgName ?? null
       });
     }
     return out;
@@ -365,6 +370,7 @@ export class TeamsController {
           confirmationThresholdCents: number;
           homeRink: string | null;
           colors: Record<string, unknown>;
+          ownerOrgName: string | null;
         }
       | undefined
   ): TeamDto {
@@ -374,7 +380,8 @@ export class TeamsController {
       captainUserId: extras.captainUserId,
       confirmationThresholdCents: extras.confirmationThresholdCents,
       homeRink: extras.homeRink,
-      colors: extras.colors
+      colors: extras.colors,
+      ownerOrgName: extras.ownerOrgName
     };
   }
 
@@ -401,7 +408,7 @@ export class TeamsController {
       .limit(1);
     if (!captainRole) {
       throw new NotFoundException(
-        "captain role not seeded — run pnpm --filter @sportspulse/db seed first"
+        "captain role not seeded â€” run pnpm --filter @sportspulse/db seed first"
       );
     }
 
@@ -442,7 +449,7 @@ export class TeamsController {
         .set({ captainUserId: userId, updatedAt: new Date() })
         .where(eq(schema.teams.id, teamId));
 
-      // 4. Workflow 7B · Case 8 — append-only audit on roster_moves.
+      // 4. Workflow 7B Â· Case 8 â€” append-only audit on roster_moves.
       //    Skip when no current season is on file (team in off-season).
       if (currentSeasonId && newCaptainPersonId) {
         if (previousCaptainPersonId) {

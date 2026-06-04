@@ -1,5 +1,5 @@
-/**
- * rink-notifications-list — POST endpoint (pain #2 read view).
+﻿/**
+ * rink-notifications-list â€” POST endpoint (pain #2 read view).
  *
  * One call returns everything the admin UI needs:
  *   - per-venue integrations with health (circuit_state, last delivery,
@@ -11,7 +11,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface ListBody {
   seasonId: string;
@@ -80,6 +80,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -93,10 +94,10 @@ Deno.serve(async (req) => {
     orgId: season.org_id as string,
     leagueId: season.league_id as string,
     seasonId: season.id as string,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.rink_notify.read permission required");
 
-  // Find every venue used by this season's games (via surface_id → venue).
+  // Find every venue used by this season's games (via surface_id â†’ venue).
   const { data: gameRows } = await sb
     .from("games")
     .select("surface_id, surfaces!inner ( venue_id, venues!inner ( id, name ) )")

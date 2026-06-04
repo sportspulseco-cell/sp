@@ -1,5 +1,5 @@
-/**
- * scheduler-parity-window-apply — POST endpoint.
+﻿/**
+ * scheduler-parity-window-apply â€” POST endpoint.
  *
  * Applies admin-confirmed parity decisions:
  *   1. For each move: withdraw the team's current
@@ -19,7 +19,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv, type SchedulerEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface Decision {
   teamId: string;
@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
     orgId: season.org_id as string,
     leagueId: season.league_id as string,
     seasonId: season.id as string,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   const { data: window } = await sb

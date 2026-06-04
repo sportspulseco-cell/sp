@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
@@ -57,7 +57,7 @@ export class GamesController {
   ): Promise<GamePageDto> {
     // Same team-scope bypass as rosters/teams: when the query narrows
     // to a team the user holds directly, drop the league filter so
-    // team_admin / coach / player sessions can read their own schedule.
+    // captain / coach / player sessions can read their own schedule.
     const inDirectTeamScope =
       q.teamId && (scope.teamIds?.includes(q.teamId) ?? false);
     return this.listH.execute({
@@ -69,7 +69,7 @@ export class GamesController {
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<GameDto> {
-    // Mirror the list endpoint's "direct team-scope bypass" — when the
+    // Mirror the list endpoint's "direct team-scope bypass" â€” when the
     // game's home OR away team is one the caller holds directly (e.g.
     // captain on the team), don't gate on leagueIds (captains never
     // have any). Otherwise team-scoped users got 404 on every game

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft, Layers } from "lucide-react";
 import Link from "next/link";
 import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
-import type { Division, Season } from "@sportspulse/api-client";
+import type { Division, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
 const TIEBREAKER_LABELS: Record<string, string> = {
@@ -54,10 +54,12 @@ export type DivisionTeamRow = {
 export function DivisionDetail({
   division,
   parentSeason,
+  parentOrg,
   divisionTeams,
   backHref,
   seasonHrefBase,
   teamHrefBase,
+  orgHrefBase,
   editHref,
   applicationsQueueHref,
   pendingApplications,
@@ -65,6 +67,10 @@ export function DivisionDetail({
 }: {
   division: Division;
   parentSeason: Season | null;
+  /** Parent org — surfaced in the Identity card so admins can confirm
+   * the division's tenant context at a glance. Null when the owning
+   * org row has been deleted. */
+  parentOrg: Org | null;
   divisionTeams: DivisionTeamRow[];
   /** Default `/divisions`. */
   backHref?: string;
@@ -72,6 +78,8 @@ export function DivisionDetail({
   seasonHrefBase?: string;
   /** Default `/teams`. */
   teamHrefBase?: string;
+  /** Default `/organizations`. The org row in Identity links here. */
+  orgHrefBase?: string;
   /**
    * Where the "Edit in Org setup →" CTA points. Only rendered when
    * explicitly provided — sa-web passes `/org-setup`, org-admin omits
@@ -116,6 +124,7 @@ export function DivisionDetail({
   const backTo = backHref ?? "/divisions";
   const seasonHref = seasonHrefBase ?? "/seasons";
   const teamHref = teamHrefBase ?? "/teams";
+  const orgHref = orgHrefBase ?? "/organizations";
 
   return (
     <div className="space-y-8">
@@ -165,6 +174,30 @@ export function DivisionDetail({
           // Identity
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Organization" tag="orgs.display_name">
+            {parentOrg ? (
+              <Link
+                href={`${orgHref}/${parentOrg.id}`}
+                className="text-accent hover:underline"
+              >
+                {parentOrg.displayName}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </Field>
+          <Field label="Season" tag="seasons.name">
+            {parentSeason ? (
+              <Link
+                href={`${seasonHref}/${parentSeason.id}`}
+                className="text-accent hover:underline"
+              >
+                {parentSeason.name}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </Field>
           <Field label="Division name" tag="divisions.name">
             {division.name}
           </Field>

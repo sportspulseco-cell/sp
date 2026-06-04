@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { DivisionDetail } from "@sportspulse/admin-pages";
-import { adminTransfers, iam, leagueMgmt } from "@/lib/api/server-api";
+import { adminTransfers, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const metadata = { title: "Division — Org Admin" };
@@ -27,8 +27,13 @@ export default async function OrgAdminDivisionDetailPage({
   const division = await leagueMgmt.getDivision(id).catch(() => null);
   if (!division) notFound();
 
-  const [parentSeason, divisionTeams] = await Promise.all([
-    leagueMgmt.getSeason(division.seasonId).catch(() => null),
+  const parentSeason = await leagueMgmt
+    .getSeason(division.seasonId)
+    .catch(() => null);
+  const [parentOrg, divisionTeams] = await Promise.all([
+    parentSeason
+      ? orgs.get(parentSeason.orgId).catch(() => null)
+      : Promise.resolve(null),
     adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] }))
   ]);
 
@@ -45,6 +50,7 @@ export default async function OrgAdminDivisionDetailPage({
     <DivisionDetail
       division={division}
       parentSeason={parentSeason}
+      parentOrg={parentOrg}
       divisionTeams={divisionTeams.items}
     />
   );

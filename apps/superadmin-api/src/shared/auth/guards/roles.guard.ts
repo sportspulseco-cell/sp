@@ -20,8 +20,8 @@ import {
  * Hierarchy: any of these roles satisfies a check for any role at-or-below
  * its level. super_admin always wins. Mirrors the locked top-down hierarchy:
  * super_admin → org_admin → league_admin → season_admin → division_admin →
- * team_admin → coach → registrar → referee → scorekeeper → player → parent →
- * spectator.
+ * captain → coach → registrar → referee → scorekeeper → player → parent →
+ * spectator. (captain absorbed the former team_admin role 2026-06-04.)
  */
 const HIERARCHY: string[] = [
   "super_admin",
@@ -29,7 +29,7 @@ const HIERARCHY: string[] = [
   "league_admin",
   "season_admin",
   "division_admin",
-  "team_admin",
+  "captain",
   "coach",
   "registrar",
   "referee",

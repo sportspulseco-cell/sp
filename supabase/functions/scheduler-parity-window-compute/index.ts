@@ -1,5 +1,5 @@
-/**
- * scheduler-parity-window-compute — POST endpoint.
+﻿/**
+ * scheduler-parity-window-compute â€” POST endpoint.
  *
  * Given a parity_windows row, compute per-team move-up / stay /
  * move-down recommendations from current standings. Sets the
@@ -8,9 +8,9 @@
  *
  * Tier ordering: divisions are ranked by `divisions.tier` text
  * compared lexicographically (PPHL conventional 'A' < 'B' < 'C' is
- * "A is the highest"). Top topFraction of a division → recommend
- * move to the next tier UP (if any exists); bottom bottomFraction →
- * move DOWN (if any exists); rest → stay.
+ * "A is the highest"). Top topFraction of a division â†’ recommend
+ * move to the next tier UP (if any exists); bottom bottomFraction â†’
+ * move DOWN (if any exists); rest â†’ stay.
  *
  * Permission: scheduler.run.
  *
@@ -19,7 +19,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface ComputeBody {
   seasonId: string;
@@ -80,6 +80,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
     orgId: season.org_id as string,
     leagueId: season.league_id as string,
     seasonId: season.id as string,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   const { data: window } = await sb
@@ -189,16 +190,16 @@ Deno.serve(async (req) => {
       const t = ranked[i]!;
       const rank = i + 1;
       let rec: Recommendation["recommendation"] = "stay";
-      let reasoning = "Mid-table performance — keep in current division.";
+      let reasoning = "Mid-table performance â€” keep in current division.";
       let target: { id: string; name: string } | null = null;
       if (i < topCount && higher) {
         rec = "move_up";
         target = { id: higher.id, name: higher.name };
-        reasoning = `Top ${(topFraction * 100).toFixed(0)}% (${rank}/${total}) in ${division.name} — promote to ${higher.name}.`;
+        reasoning = `Top ${(topFraction * 100).toFixed(0)}% (${rank}/${total}) in ${division.name} â€” promote to ${higher.name}.`;
       } else if (i >= total - bottomCount && lower) {
         rec = "move_down";
         target = { id: lower.id, name: lower.name };
-        reasoning = `Bottom ${(bottomFraction * 100).toFixed(0)}% (${rank}/${total}) in ${division.name} — relegate to ${lower.name}.`;
+        reasoning = `Bottom ${(bottomFraction * 100).toFixed(0)}% (${rank}/${total}) in ${division.name} â€” relegate to ${lower.name}.`;
       } else if (i < topCount && !higher) {
         reasoning = `Top ${(topFraction * 100).toFixed(0)}% (${rank}/${total}) but already in top tier ${division.name}.`;
       } else if (i >= total - bottomCount && !lower) {

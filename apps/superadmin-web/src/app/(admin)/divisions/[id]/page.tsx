@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { DivisionDetail } from "@sportspulse/admin-pages";
-import { adminTransfers, leagueMgmt } from "@/lib/api/server-api";
+import { adminTransfers, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 import { DivisionPendingApplications } from "@/components/divisions/division-pending-applications";
 
@@ -23,8 +23,13 @@ export default async function DivisionDetailPage({
   const division = await leagueMgmt.getDivision(id).catch(() => null);
   if (!division) notFound();
 
-  const [parentSeason, divisionTeams, pendingForSeason] = await Promise.all([
-    leagueMgmt.getSeason(division.seasonId).catch(() => null),
+  const parentSeason = await leagueMgmt
+    .getSeason(division.seasonId)
+    .catch(() => null);
+  const [parentOrg, divisionTeams, pendingForSeason] = await Promise.all([
+    parentSeason
+      ? orgs.get(parentSeason.orgId).catch(() => null)
+      : Promise.resolve(null),
     adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] })),
     adminTransfers
       .listApplications(division.seasonId, "pending")
@@ -42,6 +47,7 @@ export default async function DivisionDetailPage({
     <DivisionDetail
       division={division}
       parentSeason={parentSeason}
+      parentOrg={parentOrg}
       divisionTeams={divisionTeams.items}
       editHref="/org-setup"
       applicationsQueueHref={`/seasons/${division.seasonId}/applications`}

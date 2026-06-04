@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   Body,
   Controller,
@@ -47,7 +47,7 @@ export class TeamInvitesController {
     @UserScope() scope: UserScopeType
   ) {
     // Team invites carry the invitee's email (PII). Non-super-admin
-    // callers must scope to a team they can see — captain/team_admin via
+    // callers must scope to a team they can see â€” captain/captain via
     // scope.teamIds, league/org admins via team's org+league. We require
     // teamId (or seasonId routed via the team's league) and verify
     // access before returning.

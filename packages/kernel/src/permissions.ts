@@ -356,29 +356,22 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     defaultPermissions: ["division.*", "team.read", "game.read", "scheduler.report.read"]
   },
   {
-    code: "team_admin",
-    name: "Team Admin",
-    description:
-      "League/club-installed manager for one team. Handles paperwork, fees, and league communications. Not necessarily on the roster.",
-    scopeType: "team",
-    rank: 5,
-    defaultPermissions: ["team.*", "roster.write"]
-  },
-  {
-    // Captains are a *player + extra responsibility* dual role: they
-    // hold a team_memberships row (so they show up on the roster +
-    // accumulate stats) AND administrative powers over their team.
-    // Distinct from team_admin (which is administrative-only and may
-    // not be a player). League admin or team admin grants this.
+    // Captain is the canonical team-scope admin role since the
+    // team_admin/captain merge (2026-06-04 — repo owner: "team admin
+    // and captain roles are becoming too confusing, best we merge them
+    // both into one captain role itself"). Captains run the team:
+    // roster, lineups, invites, store, dues, paperwork, comms. They
+    // are typically rostered players themselves but the role no longer
+    // requires it — a non-player admin (formerly a team_admin) holds
+    // exactly the same role row.
     code: "captain",
     name: "Captain",
     description:
-      "Rostered player elected to lead the team. Admin powers over their own team's roster, profile, and invites — same as team_admin in scope, but the captain is themselves a player on the roster.",
+      "Team-scope admin — runs roster, lineups, invites, store, dues, and team profile. Replaces the former team_admin role; rostered players elected to lead and non-player team managers share the same captain role.",
     scopeType: "team",
-    rank: 6,
+    rank: 5,
     defaultPermissions: [
-      "team.read",
-      "team.write",
+      "team.*",
       "roster.read",
       "roster.write",
       "lineup.write",

@@ -4,6 +4,9 @@ import type { Team } from "../../domain/entities/team.entity";
 export class TeamDto {
   @ApiProperty() id!: string;
   @ApiProperty() orgId!: string;
+  /** Display name of the owning org — denormalised so list rows don't
+   * have to client-join. Null when the org row is gone (defensive). */
+  @ApiPropertyOptional({ nullable: true }) ownerOrgName!: string | null;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) shortName!: string | null;
   @ApiProperty() sportCode!: string;
@@ -25,6 +28,7 @@ export class TeamDto {
     return {
       id: x.id,
       orgId: x.orgId,
+      ownerOrgName: null,
       name: x.name,
       shortName: x.shortName,
       sportCode: x.sportCode,

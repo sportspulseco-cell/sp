@@ -173,6 +173,93 @@ vars directly via the dashboard for changes a teammate also needs — adjust
 - The global `AuditInterceptor` records every successful 2xx mutation. **Do not** add per-handler audit emits unless you need richer before/after diffs.
 - Action labels follow `<resource>.<verb>` (`leagues.create`, `games.finalize`, etc.). Keep this convention.
 
+## Cardinal rule — clicking beats curling
+
+> "You ran 40 fetch() calls in one tab and called it commercial
+> fitness. I clicked through three flows in three browsers and found
+> ten bugs you missed. fetch() is not testing."
+> — repo owner, 2026-06-04
+
+**An HTTP probe is not a user test.** A 200 response proves the API
+contract; it proves nothing about the dialog that opens, the row that
+should refresh, the org-B row that should NOT appear in org-A's list,
+or the readonly field the spec said was editable. Every bug class the
+testers find first lives in the gap between the API response and the
+user's screen. **If a test names a Surface other than `api`, the test
+MUST be executed in an MCP browser (chrome-devtools or playwright)
+signed into that surface — not by reusing the current tab's JWT.**
+This rule extends "test like the testers test" with the methodology
+the testers actually use.
+
+The bugs that triggered this rule:
+- **scheduler-generate 403'd `super_admin`** with zero
+  `user_role_assignments` rows because the Edge Function gate only
+  read assignments. A fetch with a super-admin JWT looked clean to a
+  scripted run; the bug was visible the first time anyone clicked
+  Generate as the repo owner.
+- **`/public/registration/open` leaked every org's open seasons** to
+  every signed-in player on sp-player-red. Per-player fetch returned
+  the leak with a 200; only opening the "Find a team" page as a
+  one-org player and reading the list made it obvious.
+- **Assign Captain dialog shipped a raw-UUID `<input>`** with
+  placeholder `00000000-...`. A scripted fetch with a valid UUID
+  succeeded; opening the dialog as an org_admin who doesn't memorise
+  UUIDs made the affordance violation instant.
+- **Waiver Sign button silently no-op'd** — parent funnel swallowed
+  the api.signWaiver 404. The POST returned 404 to fetch; the user
+  saw the spinner clear and the "NOT SIGNED" pill stay frozen.
+
+### Concrete clicking-beats-curling rules
+
+1. **Surface column is binding.** Any test case with
+   `Surface: sp-team-admin` (or sp-org-admin / sp-player-red /
+   sp-superadmin) requires a Playwright or chrome-devtools session
+   signed into that URL. fetch() with the role's JWT from a different
+   tab is **Blocked**, not Pass. Marking it Pass without opening the
+   named surface is methodological forgery.
+2. **Per-test evidence kind.** Every test declares evidence ∈
+   `{http-response, dom-snapshot, screenshot, db-row, console-message,
+   cross-tab-realtime}`. A Deep test with `evidence=http-response` only
+   is automatically Blocked. The agent must name what it actually
+   captured.
+3. **Destination verification in a fresh session.** After every
+   mutation that produces a user-visible row, sign out of the
+   originating session, open a fresh browser context, sign in as the
+   role on the receiving surface, navigate to the page that should
+   display the row, and snapshot it. Same-tab JWT swap does not count
+   — the three role-targeted apps each maintain their own Supabase
+   session.
+4. **Assert what the role CAN'T see.** Every list endpoint test
+   seeds at least two orgs (A and B) with distinct names, signs in as
+   a user assigned to org A only, and asserts no org-B row appears in
+   the rendered list AND no org-B id appears in the network payload.
+   An empty list is a valid pass; a populated list with a foreign-org
+   row is a blocker.
+5. **Inputs that resolve to an entity MUST be pickers — type a name,
+   not an ID.** Smoke tests type the first three characters of the
+   entity's NAME (not its UUID) and assert a dropdown of matches
+   renders. If no dropdown appears, the field is a raw text input and
+   the test fails — regardless of whether the form submits.
+6. **Post-mutation same-surface refresh.** Capture the pre-action
+   badge/status text into a variable, perform the action, wait for
+   the toast, then re-query the same DOM node WITHOUT reloading. If
+   the visible state is unchanged, the bug is shipped. A manual
+   reload that fixes the badge does not count — users don't reload.
+7. **Authorization gates must be tested against every truth source.**
+   Super_admin status lives on `profile.is_super_admin` AND in JWT
+   `app_metadata.role_codes` AND (sometimes) `user_role_assignments`.
+   Any gate touched in a PR must be exercised by (a) a super_admin
+   with only the profile flag, zero assignments, (b) a super_admin
+   with both, (c) a non-super user with only assignments. All three
+   must hit the expected verdict.
+8. **The verdict "commercial fitness" is banned.** Replace with a
+   rubric: % of Deep tests with destination verification, % with
+   DOM-snapshot evidence, count of unhappy-path personas exercised
+   (super_admin with no scoped role, org_admin viewing another org,
+   returning user, minor, user with no profile), count of cross-
+   surface flows completed. The agent reports the rubric; the human
+   decides fitness.
+
 ## Cardinal rule — test like the testers test
 
 > The repo owner records audio transcripts where they walk a real

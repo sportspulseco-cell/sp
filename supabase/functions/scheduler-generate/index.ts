@@ -1,5 +1,5 @@
-/**
- * scheduler-generate — POST endpoint.
+﻿/**
+ * scheduler-generate â€” POST endpoint.
  *
  * End-to-end pipeline:
  *   1. Validate the caller (JWT verified by the platform).
@@ -7,11 +7,11 @@
  *   3. Build the SolveRequest, hash inputs (determinism contract).
  *   4. Insert schedule_runs row (status='running').
  *   5. POST to the HF Spaces CP-SAT solver.
- *   6. On success — delete prior generated-and-not-locked games for
+ *   6. On success â€” delete prior generated-and-not-locked games for
  *      this scope (preserving locked fixtures and manual rows), then
  *      batch-insert new games + game_provenance, then close out the
  *      schedule_runs row with the full solution.
- *   7. On infeasibility / timeout — write the infeasibility report to
+ *   7. On infeasibility / timeout â€” write the infeasibility report to
  *      the schedule_runs row and return it to the caller.
  *
  * Pains covered: #7 (locked fixtures preserved by SQL filter),
@@ -27,7 +27,7 @@ import { loadEnv } from "../_shared/env.ts";
 import { sha256Hex } from "../_shared/hash.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
 import { callSolver, SolverError } from "../_shared/solver-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 import {
   DEFAULT_WEIGHTS,
   type LockedFixture,
@@ -74,11 +74,12 @@ Deno.serve(async (req) => {
   const env = loadEnv();
   const sb = serviceRoleClient(env);
 
-  // Resolve the caller's user id from the JWT — for schedule_runs.ran_by_user_id.
+  // Resolve the caller's user id from the JWT â€” for schedule_runs.ran_by_user_id.
   const authHeader = req.headers.get("Authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id ?? null;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
 
   // ===== 1. Load season (for league_id / sport_code / org_id) =====
   const { data: season, error: seasonErr } = await sb
@@ -97,7 +98,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   // ===== 2. Load teams in the division =====
@@ -177,7 +178,7 @@ Deno.serve(async (req) => {
     };
   });
 
-  // ===== 4. Load locked fixtures (pain #7 — never moved by the engine) =====
+  // ===== 4. Load locked fixtures (pain #7 â€” never moved by the engine) =====
   const { data: lockedGames, error: lockedErr } = await sb
     .from("games")
     .select("id, home_team_id, away_team_id, slot_id")
@@ -259,7 +260,7 @@ Deno.serve(async (req) => {
     return json({ runId, status: "FAILED", error: message }, 502);
   }
 
-  // ===== 8. INFEASIBLE / TIMEOUT — record the report and bail out =====
+  // ===== 8. INFEASIBLE / TIMEOUT â€” record the report and bail out =====
   if (solveResp.status === "INFEASIBLE" || solveResp.status === "TIMEOUT") {
     await sb
       .from("schedule_runs")
@@ -279,11 +280,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  // ===== 9. OPTIMAL / FEASIBLE — persist =====
+  // ===== 9. OPTIMAL / FEASIBLE â€” persist =====
   // 9a. Delete prior generated-and-not-locked games for this scope.
-  // The DB-level `WHERE locked_at IS NULL` is the sacred invariant —
+  // The DB-level `WHERE locked_at IS NULL` is the sacred invariant â€”
   // locked fixtures NEVER leave.
-  // The `status='scheduled'` filter is the partial-regen safety net —
+  // The `status='scheduled'` filter is the partial-regen safety net â€”
   // completed / in_play / forfeited games stay regardless of regen
   // (parity-window apply, post-conflict regen, etc.).
   const { error: delErr } = await sb
@@ -333,7 +334,7 @@ Deno.serve(async (req) => {
   const provRows: Record<string, unknown>[] = [];
   for (const a of solveResp.assignments) {
     const meta = slotMetaById.get(a.slotId);
-    if (!meta) continue; // defensive — solver returned a slot we didn't send
+    if (!meta) continue; // defensive â€” solver returned a slot we didn't send
     if (persistentSlotIds.has(a.slotId)) continue; // slot held by a pre-existing row that survived the delete
     const gameId = crypto.randomUUID();
     gameRows.push({
@@ -354,8 +355,8 @@ Deno.serve(async (req) => {
       time_band: meta.band,
       game_type: "regular",
       status: "scheduled",
-      // locked_at intentionally NULL — engine output is never auto-locked.
-      // published_at intentionally NULL — flip via scheduler-publish.
+      // locked_at intentionally NULL â€” engine output is never auto-locked.
+      // published_at intentionally NULL â€” flip via scheduler-publish.
     });
     provRows.push({
       game_id: gameId,
@@ -376,14 +377,14 @@ Deno.serve(async (req) => {
     }
     const { error: provErr } = await sb.from("game_provenance").insert(provRows);
     if (provErr) {
-      // Not fatal for the schedule but we must surface it — provenance is
+      // Not fatal for the schedule but we must surface it â€” provenance is
       // the explainability spine.
       console.error("provenance insert failed (games kept):", provErr);
     }
   }
 
   // 9c. Close out the schedule_runs row with the full solution
-  // (decision #4 — determinism by persistence).
+  // (decision #4 â€” determinism by persistence).
   await sb
     .from("schedule_runs")
     .update({

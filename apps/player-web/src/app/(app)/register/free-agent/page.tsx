@@ -55,49 +55,11 @@ export default async function FreeAgentPoolPage() {
       .slice()
       .sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? ""));
   } else {
-    const apiBase =
-      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
-    type OpenSeason = {
-      seasonId: string;
-      seasonName: string;
-      sportCode: string;
-      leagueId: string;
-      registrationOpensAt: string | null;
-      registrationClosesAt: string | null;
-    };
-    try {
-      const res = await fetch(`${apiBase}/public/registration/open`, {
-        cache: "no-store"
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { items: OpenSeason[] };
-        eligibleSeasons = (data.items ?? []).map(
-          (s) =>
-            ({
-              id: s.seasonId,
-              name: s.seasonName,
-              sportCode: s.sportCode,
-              leagueId: s.leagueId,
-              orgId: "",
-              startDate: "",
-              endDate: "",
-              status: "registration_open",
-              registrationOpensAt: s.registrationOpensAt,
-              registrationClosesAt: s.registrationClosesAt,
-              rosterLockAt: null,
-              timezone: "UTC",
-              metadata: {},
-              createdAt: "",
-              updatedAt: "",
-              createdByUserId: null,
-              playoffStartDate: null,
-              playoffEndDate: null
-            }) as unknown as Season
-        );
-      }
-    } catch {
-      // Public endpoint missing → fall through to empty state.
-    }
+    // Player has no org reach yet (fresh sign-up). The authenticated
+    // /open-for-me endpoint correctly returns an empty list for them —
+    // they need to come through a captain's invite URL or an org-issued
+    // public link, not a global directory. Fall through to the
+    // EmptyState below.
   }
 
   if (eligibleSeasons.length === 0) {

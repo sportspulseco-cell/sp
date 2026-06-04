@@ -1,4 +1,4 @@
-import {
+﻿import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -13,9 +13,9 @@ import { loadUserScope } from "../scope";
 
 /**
  * Tiered authorization:
- *   - super_admin → all methods allowed
- *   - any active user_role_assignment → GET / read-only methods allowed
- *   - else → 403
+ *   - super_admin â†’ all methods allowed
+ *   - any active user_role_assignment â†’ GET / read-only methods allowed
+ *   - else â†’ 403
  *
  * This is the transitional guard that unblocks role-scoped clients (the
  * league-admin app) until each controller migrates to the explicit
@@ -52,7 +52,7 @@ export class AuthorizedAccessGuard implements CanActivate {
 
     // Reads require an active assignment. `null` = unrestricted (platform); a
     // non-null but empty array on ALL three dimensions means no active
-    // assignment. Team scope counts here so team_admin / coach / player
+    // assignment. Team scope counts here so captain / coach / player
     // sessions on the role-targeted apps clear the gate.
     const noLeagueAccess = scope.leagueIds !== null && scope.leagueIds.length === 0;
     const noOrgAccess = scope.orgIds !== null && scope.orgIds.length === 0;

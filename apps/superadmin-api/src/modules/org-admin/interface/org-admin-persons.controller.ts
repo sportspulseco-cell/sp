@@ -61,6 +61,11 @@ export class OrgAdminPersonsController {
     Array<{
       id: string;
       orgId: string;
+      /** Auth user id — null when the person row isn't bound to a
+       * sign-in account yet. Required by the captain-assignment dialog
+       * (POST /org-admin/teams/:teamId/captain takes userId, not
+       * personId) so the picker can filter to assignable rows. */
+      userId: string | null;
       displayName: string;
       email: string | null;
     }>
@@ -128,10 +133,11 @@ export class OrgAdminPersonsController {
     );
     if (personIds.length === 0) return [];
 
-    // Enrich with name + email (left-join on profiles via persons.userId).
+    // Enrich with name + email + userId (left-join on profiles via persons.userId).
     const rows = await this.db
       .select({
         id: schema.persons.id,
+        userId: schema.persons.userId,
         firstName: schema.persons.legalFirstName,
         lastName: schema.persons.legalLastName,
         preferredName: schema.persons.preferredName,
@@ -145,6 +151,7 @@ export class OrgAdminPersonsController {
     return rows.map((r) => ({
       id: r.id,
       orgId: q.orgId,
+      userId: r.userId ?? null,
       displayName:
         (r.preferredName && r.preferredName.trim()) ||
         [r.firstName, r.lastName].filter(Boolean).join(" ").trim() ||

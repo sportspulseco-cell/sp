@@ -1,7 +1,7 @@
-/**
- * scheduler-fairness-report — POST endpoint.
+﻿/**
+ * scheduler-fairness-report â€” POST endpoint.
  *
- * Pain #8 — per-team time-slot fairness as a first-class deliverable.
+ * Pain #8 â€” per-team time-slot fairness as a first-class deliverable.
  *
  * Loads games for a scope (season, optionally division), aggregates
  * games per team per band (early/mid/late), runs the canonical
@@ -13,7 +13,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 import {
   computeFairness,
   TIME_BANDS,
@@ -26,7 +26,7 @@ interface ReportBody {
   divisionId?: string;
   /** Max allowed proportion-deviation from the league average; default 0.10 = 10%. */
   tolerance?: number;
-  /** Hard cap on any team's late fraction (e.g. 0.30 = "≤30% after 9pm"). */
+  /** Hard cap on any team's late fraction (e.g. 0.30 = "â‰¤30% after 9pm"). */
   maxLateFraction?: number;
 }
 
@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -75,10 +76,10 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.report.read permission required");
 
-  // Load games carrying a time_band — anything else is unscheduled or legacy.
+  // Load games carrying a time_band â€” anything else is unscheduled or legacy.
   let q = sb
     .from("games")
     .select("home_team_id, away_team_id, time_band")

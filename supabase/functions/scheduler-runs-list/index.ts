@@ -1,21 +1,21 @@
-/**
- * scheduler-runs-list — POST endpoint.
+﻿/**
+ * scheduler-runs-list â€” POST endpoint.
  *
  * Read view of the schedule_runs table for a season (optionally
  * scoped to a division). Used by the admin /scheduling/[id]/runs
- * page for forensics: "why did the engine put X here?" — the
+ * page for forensics: "why did the engine put X here?" â€” the
  * stored `solution` + `constraint_snapshot` are the answer.
  *
  * Returns ready-to-render rows with the division name hydrated
  * server-side. The full `solution` jsonb is NOT included (potentially
- * large) — fetch a single run via /scheduler-runs-get if you need it.
+ * large) â€” fetch a single run via /scheduler-runs-get if you need it.
  *
  * Permission: scheduler.report.read.
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface ListBody {
   seasonId: string;
@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season, error: seasonErr } = await sb
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.report.read permission required");
 
   const limit = Math.min(Math.max(body.limit ?? 50, 1), 200);

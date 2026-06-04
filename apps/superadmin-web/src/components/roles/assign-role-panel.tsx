@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -30,7 +30,7 @@ const ROLE_DEFAULT_SCOPE: Record<string, RoleScopeType> = {
   league_admin: "league",
   season_admin: "season",
   division_admin: "division",
-  team_admin: "team",
+  captain: "team",
   coach: "team",
   registrar: "org",
   referee: "league",
@@ -54,7 +54,7 @@ export function AssignRolePanel({
   roles: Role[];
   /**
    * Pre-select this role on open. When the panel is launched from a
-   * specific user row, this MUST be the user's current primary role —
+   * specific user row, this MUST be the user's current primary role â€”
    * defaulting to alphabetic-first ("coach" first in our catalog) is
    * a misleading default that callers shouldn't have to think about.
    */
@@ -73,7 +73,7 @@ export function AssignRolePanel({
 
   // Resolve the initial selection.
   // - When `defaultRoleCode` matches a known role, land on that role
-  //   (the panel was launched from a row with context — e.g. a super-
+  //   (the panel was launched from a row with context â€” e.g. a super-
   //   admin's "Change user type" should default to super_admin).
   // - When no context is provided, render an empty state instead of
   //   silently defaulting to alphabetic-first ("captain" first in our
@@ -118,7 +118,7 @@ export function AssignRolePanel({
       switch (scopeType) {
         case "org": {
           // Server caps limit at 100 (see /orgs ListOrgsQueryDto). Was 200
-          // and 400'd silently — the catch swallowed the error and the
+          // and 400'd silently â€” the catch swallowed the error and the
           // user saw "No orgs found" even when orgs existed.
           const p = await orgsApi.list({ limit: 100 });
           return p.items.map((o) => ({ id: o.id, label: o.displayName }));
@@ -127,14 +127,14 @@ export function AssignRolePanel({
           const p = await leagueMgmt.listLeagues({});
           return p.items.map((l) => ({
             id: l.id,
-            label: `${l.name} · ${l.sportCode}`
+            label: `${l.name} Â· ${l.sportCode}`
           }));
         }
         case "season": {
           const p = await leagueMgmt.listSeasons({});
           return p.items.map((s) => ({
             id: s.id,
-            label: `${s.name} · ${s.sportCode}`
+            label: `${s.name} Â· ${s.sportCode}`
           }));
         }
         case "division": {
@@ -157,7 +157,7 @@ export function AssignRolePanel({
             );
             return {
               id: g.id,
-              label: `${d} · ${g.awayTeamId.slice(0, 6)} @ ${g.homeTeamId.slice(0, 6)}`
+              label: `${d} Â· ${g.awayTeamId.slice(0, 6)} @ ${g.homeTeamId.slice(0, 6)}`
             };
           });
         }
@@ -232,13 +232,13 @@ export function AssignRolePanel({
           value={roleId}
           onChange={(e) => onRoleChange(e.target.value)}
         >
-          {/* Placeholder option keeps "Select a role…" as the visible
+          {/* Placeholder option keeps "Select a roleâ€¦" as the visible
               default when no contextual role was passed in. Forces the
               admin to pick consciously rather than silently landing on
               alphabetic-first. */}
           {roleId === "" ? (
             <option value="" disabled hidden>
-              Select a role…
+              Select a roleâ€¦
             </option>
           ) : null}
           <optgroup label="System">
@@ -246,7 +246,7 @@ export function AssignRolePanel({
               .filter((r) => r.isSystem)
               .map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.code} — {r.name}
+                  {r.code} â€” {r.name}
                 </option>
               ))}
           </optgroup>
@@ -256,7 +256,7 @@ export function AssignRolePanel({
                 .filter((r) => !r.isSystem)
                 .map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.code} — {r.name}
+                    {r.code} â€” {r.name}
                   </option>
                 ))}
             </optgroup>
@@ -283,9 +283,9 @@ export function AssignRolePanel({
           scopeType === "platform"
             ? "Platform scope has no ID."
             : scopeLoading
-              ? "Loading…"
+              ? "Loadingâ€¦"
               : scopeOptions.length === 0
-                ? `No ${scopeType}s available — create one first.`
+                ? `No ${scopeType}s available â€” create one first.`
                 : `${scopeOptions.length} available`
         }
       >
@@ -297,9 +297,9 @@ export function AssignRolePanel({
           onChange={(e) => setScopeId(e.target.value)}
         >
           {scopeType === "platform" ? (
-            <option value="">—</option>
+            <option value="">â€”</option>
           ) : scopeLoading ? (
-            <option value="">Loading…</option>
+            <option value="">Loadingâ€¦</option>
           ) : scopeOptions.length === 0 ? (
             <option value="">No {scopeType}s found</option>
           ) : (
@@ -315,7 +315,7 @@ export function AssignRolePanel({
         <Button type="submit" disabled={submitDisabled}>
           {loading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assigning…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assigningâ€¦
             </>
           ) : (
             <>

@@ -1,4 +1,4 @@
-import { ChartBar } from "lucide-react";
+﻿import { ChartBar } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -24,13 +24,13 @@ export default async function TeamAdminStatsPage() {
     return (
       <div className="space-y-6">
         <PageHeader eyebrow="// Stats" title="Stats" />
-        <EmptyState icon={ChartBar} title="No team in scope" description="You need a team_admin or coach role on a team to see its stats." />
+        <EmptyState icon={ChartBar} title="No team in scope" description="You need a captain or coach role on a team to see its stats." />
       </div>
     );
   }
 
   // Find any membership to get the seasonId, then derive league for standings.
-  // Limited but works for the team_admin's primary team. League-wide stats
+  // Limited but works for the captain's primary team. League-wide stats
   // are exposed via the super-admin console.
   let standings: Standing[] = [];
   let leagueId: string | null = null;

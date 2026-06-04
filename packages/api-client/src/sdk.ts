@@ -2263,6 +2263,30 @@ export function createApi(f: Fetcher) {
             registrationClosesAt: string | null;
           }>;
         }>(`/public/registration/open`),
+      /**
+       * Authenticated variant — server filters by the caller's
+       * scope.orgIds so a signed-in player only sees registrations
+       * from orgs they belong to. The anonymous /open path leaks
+       * cross-org registrations to signed-in users; signed-in surfaces
+       * (player-web "Find a team", home dashboard, free-agent fallback)
+       * MUST use this endpoint.
+       */
+      listOpenForMe: () =>
+        f<{
+          items: Array<{
+            seasonId: string;
+            seasonName: string;
+            sportCode: string;
+            leagueId: string;
+            leagueName: string;
+            orgId: string;
+            orgName: string;
+            formId: string;
+            formName: string;
+            registrationOpensAt: string | null;
+            registrationClosesAt: string | null;
+          }>;
+        }>(`/public/registration/open-for-me`),
       getSeasonContext: (seasonId: string) =>
         f<PublicSeasonContext>(`/public/registration/seasons/${seasonId}`),
       startSubmission: (
@@ -2886,7 +2910,7 @@ export function createApi(f: Fetcher) {
     orgAdminBroadcast: {
       send: (body: {
         orgId: string;
-        audiences: Array<"captains" | "team_admins" | "players" | "all_admins">;
+        audiences: Array<"captains" | "coaches" | "players" | "all_admins">;
         subject: string;
         body: string;
         channel: "email" | "in_app";
@@ -2902,14 +2926,16 @@ export function createApi(f: Fetcher) {
     },
 
     // Org-admin person directory — used by the invoice composer's
-    // individual-scope picker. Returns persons reachable from the org
-    // via memberships, registrations, or org-scoped role assignments.
+    // individual-scope picker AND the captain-assignment dialog
+    // (returns userId so the dialog can submit POST /captain by id
+    // without forcing the admin to look it up in superadmin-web).
     orgAdminPersons: {
       list: (q: { orgId: string }) =>
         f<
           Array<{
             id: string;
             orgId: string;
+            userId: string | null;
             displayName: string;
             email: string | null;
           }>

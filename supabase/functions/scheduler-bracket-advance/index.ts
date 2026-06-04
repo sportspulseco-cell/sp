@@ -1,5 +1,5 @@
-/**
- * scheduler-bracket-advance — POST endpoint (pain #3 part 2).
+﻿/**
+ * scheduler-bracket-advance â€” POST endpoint (pain #3 part 2).
  *
  * Given a finished bracket game + the winner, advance the winner into
  * the next round's slot. If the next slot now has both teams set,
@@ -12,7 +12,7 @@
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface AdvanceBody {
   bracketId: string;
@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: bracket } = await sb
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: bracket.division_id as string | null,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   // deno-lint-ignore no-explicit-any

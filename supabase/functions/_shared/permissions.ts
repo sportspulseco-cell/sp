@@ -27,6 +27,23 @@ export interface ScopeContext {
   teamId?: string | null;
 }
 
+export interface AppMetadata {
+  role_codes?: string[];
+  [k: string]: unknown;
+}
+
+/**
+ * JWT-only super-admin shortcut. Mirrors packages/auth role-gate.ts
+ * isSuperAdmin() and apps/superadmin-api SuperAdminGuard / RolesGuard
+ * step 1. Lets a super_admin whose status lives only on the JWT (and
+ * profile.is_super_admin) pass any permission check without requiring
+ * a redundant platform-scope row in user_role_assignments.
+ */
+export function isSuperAdminMetadata(meta: AppMetadata | null | undefined): boolean {
+  const raw = meta?.role_codes;
+  return Array.isArray(raw) && raw.includes("super_admin");
+}
+
 /** Match the kernel's `expandPermissions` semantics without materialising the full list. */
 function hasPermission(rolePerms: unknown, required: string): boolean {
   if (!Array.isArray(rolePerms)) return false;
@@ -88,7 +105,14 @@ export async function userHasPermission(
   userId: string,
   required: string,
   scope: ScopeContext = {},
+  appMetadata?: AppMetadata | null,
 ): Promise<boolean> {
+  // 1. JWT shortcut — super_admin is the platform god role. Mirrors
+  //    apps/superadmin-api SuperAdminGuard + RolesGuard step 1 and
+  //    packages/auth web role-gate isSuperAdmin().
+  if (isSuperAdminMetadata(appMetadata ?? null)) return true;
+
+  // 2. Fallback: assignment-row scan.
   const nowIso = new Date().toISOString();
   const { data, error } = await sb
     .from("user_role_assignments")

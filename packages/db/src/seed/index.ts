@@ -191,23 +191,13 @@ async function main() {
       },
       {
         orgId: null,
-        code: "team_admin",
-        name: "Team Admin",
-        description:
-          "League/club-installed manager for one team. Handles paperwork, fees, and league communications.",
-        isSystem: true,
-        permissions: ["team.*", "roster.write"]
-      },
-      {
-        orgId: null,
         code: "captain",
         name: "Captain",
         description:
-          "Rostered player elected to lead the team. Admin powers over roster + invites + lineups; appears in roster + stats as a player.",
+          "Team-scope admin — runs roster, lineups, invites, store, dues, and team profile. Replaces the former team_admin role.",
         isSystem: true,
         permissions: [
-          "team.read",
-          "team.write",
+          "team.*",
           "roster.read",
           "roster.write",
           "lineup.write",

@@ -1,5 +1,5 @@
-/**
- * scheduler-bracket-generate — POST endpoint.
+﻿/**
+ * scheduler-bracket-generate â€” POST endpoint.
  *
  * One-click bracket generation for a division (pain #3). Reads
  * standings, picks the top N teams (where N is a power of 2 in
@@ -12,12 +12,12 @@
  * Permission: scheduler.run.
  *
  * Idempotent-ish: if an active bracket already exists for the
- * season+division, returns 409 — caller must archive it first.
+ * season+division, returns 409 â€” caller must archive it first.
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
-import { forbidden, userHasPermission } from "../_shared/permissions.ts";
+import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 const SUPPORTED_N = [4, 8, 16] as const;
 type SupportedN = typeof SUPPORTED_N[number];
@@ -62,7 +62,7 @@ function json(body: unknown, status = 200): Response {
 
 /**
  * Standard tournament seed ordering. For N=8 returns
- * [1, 8, 4, 5, 2, 7, 3, 6] — pairs of two are the R1 matchups in
+ * [1, 8, 4, 5, 2, 7, 3, 6] â€” pairs of two are the R1 matchups in
  * order so #1's path never meets #2's path before the final.
  */
 function seedOrdering(n: number): number[] {
@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
+  const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
   if (!userId) return forbidden("unauthenticated");
 
   const { data: season } = await sb
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
     leagueId: season.league_id as string,
     seasonId: season.id as string,
     divisionId: body.divisionId,
-  });
+  }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
   // Refuse to overwrite an active bracket.

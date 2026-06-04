@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Inject,
@@ -50,7 +50,7 @@ export class RostersController {
     @UserScope() scope: UserScopeType
   ): Promise<TeamMembershipPageDto> {
     // If the request narrows to a team that's in the user's direct team
-    // scope, bypass the league filter — team-scoped users (team_admin /
+    // scope, bypass the league filter â€” team-scoped users (captain /
     // coach / player) typically have leagueIds=[] but explicit team
     // access via their assignment.
     const inDirectTeamScope =
@@ -66,19 +66,19 @@ export class RostersController {
    * `v_active_season_membership` materialized view (P2-3 part B).
    *
    * Use this endpoint when the caller cares about HOW each player
-   * got onto the team — `source` ∈ {team_join_request, team_invite,
+   * got onto the team â€” `source` âˆˆ {team_join_request, team_invite,
    * free_agent, admin_direct}. Refreshed hourly via the materialized
    * views cron, so it is **not** suitable for write-path freshness
    * checks (e.g. "is this player on the team RIGHT NOW after I
    * just added them"). Use /roster/memberships for those.
    *
-   * Filter by `seasonId`, `teamId`, or `personId` — at least one is
+   * Filter by `seasonId`, `teamId`, or `personId` â€” at least one is
    * required to keep query cost bounded.
    */
   @Get("active-by-season")
   @ApiOperation({
     summary:
-      "Active memberships with cross-path source attribution. Backed by v_active_season_membership. Hourly refresh — use /roster/memberships for write-path freshness."
+      "Active memberships with cross-path source attribution. Backed by v_active_season_membership. Hourly refresh â€” use /roster/memberships for write-path freshness."
   })
   async activeBySeason(
     @UserScope() scope: UserScopeType,
@@ -106,7 +106,7 @@ export class RostersController {
     if (teamId) filters.push(sql`v.team_id = ${teamId}`);
     if (personId) filters.push(sql`v.person_id = ${personId}`);
 
-    // Scope guard — restrict rows to the caller's reach via team or
+    // Scope guard â€” restrict rows to the caller's reach via team or
     // league. super_admin / platform-scoped principals (every scope
     // field null) skip this. Otherwise the row's team must be in
     // scope by ANY of: direct teamId, team.org in scope, or
@@ -115,7 +115,7 @@ export class RostersController {
       const branches: ReturnType<typeof sql>[] = [];
       if (scope.orgIds !== null) {
         if (scope.orgIds.length === 0) {
-          // explicit no-visibility on org axis — still allow other
+          // explicit no-visibility on org axis â€” still allow other
           // branches; only kill the row if every scope dimension
           // also rejects it (encoded by branches array below).
         } else {
@@ -129,7 +129,7 @@ export class RostersController {
         branches.push(sql`s.league_id = ANY(${scope.leagueIds})`);
       }
       if (branches.length === 0) {
-        // Zero visibility across every dimension → empty result.
+        // Zero visibility across every dimension â†’ empty result.
         return { items: [] };
       }
       filters.push(sql`(${sql.join(branches, sql` OR `)})`);

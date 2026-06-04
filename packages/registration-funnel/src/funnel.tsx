@@ -271,6 +271,7 @@ export function RegistrationFunnel({
       await api.updateSubmission(submissionId, {
         email: email.trim(),
         answers,
+        dobDate: dobDate || null,
         // Team-reg captain edits team name / division on this step, so
         // we have to roundtrip them too. Without this branch a captain
         // who changes their mind on Details never reaches the server.
@@ -615,6 +616,7 @@ export function RegistrationFunnel({
             photoReleaseAccepted={photoReleaseAccepted}
             onCodeOfConductChange={setCodeOfConductAccepted}
             onPhotoReleaseChange={setPhotoReleaseAccepted}
+            error={error}
             onSign={async (versionId, signatureName) => {
               // Inline (form-defined) waivers carry a synthetic `form:`
               // versionId; the server resolves it to a real
@@ -637,6 +639,11 @@ export function RegistrationFunnel({
                 }
               } catch (e) {
                 setError((e as Error).message);
+                // Re-throw so the WaiverCard's inner catch (added for
+                // BUG-WAIVER-SIGN-NOOP) can surface the failure inline
+                // instead of silently clearing the spinner while the
+                // status pill stays NOT SIGNED.
+                throw e;
               }
             }}
             onBack={back}
@@ -662,6 +669,7 @@ export function RegistrationFunnel({
             submissionType={submissionType}
             sportCode={context.season.sportCode}
             dobDate={dobDate}
+            onDobChange={setDobDate}
             teamName={teamName}
             teamDivision={teamDivision}
             teamColor={teamColor}
@@ -1479,7 +1487,8 @@ function WaiversStep({
   onPhotoReleaseChange,
   onSign,
   onBack,
-  onNext
+  onNext,
+  error
 }: {
   documents: WaiverDoc[];
   requiredKinds: string[];
@@ -1495,12 +1504,16 @@ function WaiversStep({
   onSign: (versionId: string, signatureName: string) => Promise<void>;
   onBack: () => void;
   onNext: () => void;
+  error: string | null;
 }) {
   // Synthesise a WaiverDoc for the form-configured liability waiver
-  // when enabled. Synthetic versionId carries the `form:` prefix so
-  // the parent's onSign handler skips the backend round-trip.
+  // when enabled AND content is non-empty. The API's
+  // resolveInlineWaiverVersionId requires non-empty content.trim()
+  // and 404s otherwise — without this guard the funnel would render
+  // a signable card that's guaranteed to fail at submit time.
   const inlineLiability: WaiverDoc | null =
-    formWaivers?.liabilityWaiver.enabled
+    formWaivers?.liabilityWaiver.enabled &&
+    formWaivers.liabilityWaiver.content?.trim()
       ? {
           documentId: "form:liability",
           versionId: "form:liability:v1",
@@ -1729,6 +1742,15 @@ function WaiversStep({
         </section>
       ) : null}
 
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[13px] text-rose-700 dark:text-rose-300"
+        >
+          Couldn't sign waiver: {error}
+        </p>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -1795,6 +1817,7 @@ function WaiverCard({
   const [scrolled, setScrolled] = useState(false);
   const [typed, setTyped] = useState("");
   const [signing, setSigning] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
   const docRef = useRef<HTMLDivElement | null>(null);
   const namesMatch =
     typed.trim().toLowerCase() === fullName.trim().toLowerCase();
@@ -1856,8 +1879,11 @@ function WaiverCard({
               disabled={!scrolled || !namesMatch || signing}
               onClick={async () => {
                 setSigning(true);
+                setSignError(null);
                 try {
                   await onSign(typed.trim());
+                } catch (e) {
+                  setSignError((e as Error).message);
                 } finally {
                   setSigning(false);
                 }
@@ -1870,6 +1896,14 @@ function WaiverCard({
               )}
             </Button>
           </div>
+          {signError ? (
+            <p
+              role="alert"
+              className="mt-2 text-[12px] text-rose-700 dark:text-rose-300"
+            >
+              Couldn't sign: {signError}
+            </p>
+          ) : null}
         </>
       )}
     </li>
@@ -1981,6 +2015,7 @@ function QuestionsStep({
   submissionType,
   sportCode,
   dobDate,
+  onDobChange,
   teamName,
   teamDivision,
   teamColor,
@@ -1997,6 +2032,10 @@ function QuestionsStep({
   submissionType: SubmissionType | null;
   sportCode: string;
   dobDate: string;
+  /** Edit-through to the parent funnel's dobDate. Lets returning users
+   * who never set a DOB at sign-up correct it here without going back
+   * to the Account step (which only exists in create mode). */
+  onDobChange: (v: string) => void;
   teamName: string;
   /** Now holds the division UUID, not free text. */
   teamDivision: string;
@@ -2187,13 +2226,19 @@ function QuestionsStep({
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
-              label="Date of birth"
-              hint="From the Account step. Edit there if it's wrong — the eligibility check reads this value."
+              label="Date of birth *"
+              hint="Used for the eligibility check and parental-consent rules. Editable here so a returning user can correct a missing or wrong DOB without going back."
             >
-              <div className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg">
-                <span className="font-mono tabular-nums">
-                  {dobDate || "—"}
-                </span>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="date"
+                  value={dobDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => onDobChange(e.target.value)}
+                  required
+                  aria-invalid={!dobDate ? true : undefined}
+                  className="flex-1"
+                />
                 {age !== null ? (
                   <span className="font-mono text-[11px] uppercase tracking-widest text-fg-muted">
                     age {age}

@@ -8,10 +8,11 @@ import {
   Param,
   Patch,
   Post,
-  Query
+  Query,
+  UseGuards
 } from "@nestjs/common";
 import { createHash } from "crypto";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -23,7 +24,10 @@ import {
   Matches,
   MinLength
 } from "class-validator";
-import { and, desc, eq, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import {
   assertValidTransition,
   isRegistrationState,
@@ -198,6 +202,107 @@ export class PublicRegistrationController {
     // Deduplicate by seasonId — if both a season-bound form and a
     // league-scope form match, the season-bound one wins (it appears
     // first in the join).
+    const seen = new Set<string>();
+    const items: Array<{
+      seasonId: string;
+      seasonName: string;
+      sportCode: string;
+      leagueId: string;
+      leagueName: string;
+      orgId: string;
+      orgName: string;
+      formId: string;
+      formName: string;
+      registrationOpensAt: string | null;
+      registrationClosesAt: string | null;
+    }> = [];
+    for (const r of rows) {
+      if (seen.has(r.seasonId)) continue;
+      seen.add(r.seasonId);
+      items.push({
+        seasonId: r.seasonId,
+        seasonName: r.seasonName,
+        sportCode: r.sportCode,
+        leagueId: r.leagueId,
+        leagueName: r.leagueName,
+        orgId: r.orgId,
+        orgName: r.orgName,
+        formId: r.formId,
+        formName: r.formName,
+        registrationOpensAt: r.registrationOpensAt?.toISOString() ?? null,
+        registrationClosesAt: r.registrationClosesAt?.toISOString() ?? null
+      });
+    }
+    return { items };
+  }
+
+  @Get("open-for-me")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      "Authenticated variant of /open — returns ONLY open registrations whose owning org appears in the caller's scope.orgIds. Super-admin / platform-scoped users (scope.orgIds === null) get the unrestricted view. A signed-in player with zero org reach gets an empty list — this is the canonical 'Find a team' surface for player-web and prevents the cross-tenant leak the public endpoint exposed when used by an authenticated client."
+  })
+  async listOpenForCurrentUser(@UserScope() scope: UserScopeType): Promise<{
+    items: Array<{
+      seasonId: string;
+      seasonName: string;
+      sportCode: string;
+      leagueId: string;
+      leagueName: string;
+      orgId: string;
+      orgName: string;
+      formId: string;
+      formName: string;
+      registrationOpensAt: string | null;
+      registrationClosesAt: string | null;
+    }>;
+  }> {
+    if (scope.orgIds !== null && scope.orgIds.length === 0) {
+      return { items: [] };
+    }
+    const now = new Date();
+    const baseFilters = and(
+      lte(schema.seasons.registrationOpensAt, now),
+      gte(schema.seasons.registrationClosesAt, now),
+      sql`${schema.seasons.status} IN ('draft','registration_open')`
+    );
+    const whereClause =
+      scope.orgIds === null
+        ? baseFilters
+        : and(baseFilters, inArray(schema.orgs.id, scope.orgIds));
+    const rows = await this.db
+      .select({
+        seasonId: schema.seasons.id,
+        seasonName: schema.seasons.name,
+        sportCode: schema.seasons.sportCode,
+        registrationOpensAt: schema.seasons.registrationOpensAt,
+        registrationClosesAt: schema.seasons.registrationClosesAt,
+        leagueId: schema.leagues.id,
+        leagueName: schema.leagues.name,
+        orgId: schema.orgs.id,
+        orgName: schema.orgs.displayName,
+        formId: schema.registrationForms.id,
+        formName: schema.registrationForms.name
+      })
+      .from(schema.seasons)
+      .innerJoin(
+        schema.leagues,
+        eq(schema.leagues.id, schema.seasons.leagueId)
+      )
+      .innerJoin(schema.orgs, eq(schema.orgs.id, schema.leagues.orgId))
+      .innerJoin(
+        schema.registrationForms,
+        and(
+          eq(schema.registrationForms.purpose, "season_registration"),
+          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR ${schema.registrationForms.scope} = 'league')`,
+          isNotNull(schema.registrationForms.activeVersionId),
+          isNull(schema.registrationForms.deletedAt)
+        )
+      )
+      .where(whereClause)
+      .orderBy(schema.seasons.registrationClosesAt);
+
     const seen = new Set<string>();
     const items: Array<{
       seasonId: string;
@@ -675,6 +780,21 @@ export class PublicRegistrationController {
       };
     }
 
+    // Hydrate dobDate + phone from the user's profile so a returning
+    // user who set those at first sign-up sees them pre-filled on the
+    // Details step instead of "—". Falls back to nulls if no profile
+    // row exists (defensive — sign-up writes one).
+    const [profileRow] = await this.db
+      .select({
+        dobDate: schema.userProfiles.dobDate,
+        phoneE164: schema.userProfiles.phoneE164
+      })
+      .from(schema.userProfiles)
+      .where(eq(schema.userProfiles.id, userId))
+      .limit(1);
+    const profileDob = profileRow?.dobDate ?? null;
+    const profilePhone = profileRow?.phoneE164 ?? null;
+
     let reg: typeof schema.registrations.$inferSelect | undefined;
     try {
       [reg] = await this.db
@@ -692,10 +812,10 @@ export class PublicRegistrationController {
             pricingTierId: null,
             email,
             fullName,
-            phone: null,
-            dobDate: null,
+            phone: profilePhone,
+            dobDate: profileDob,
             answers: {},
-            isMinor: false
+            isMinor: profileDob ? computeIsMinor(profileDob) : false
           }
         })
         .returning();
@@ -715,8 +835,13 @@ export class PublicRegistrationController {
       resumed: false,
       userId,
       userCreated: false,
-      isMinor: false,
-      fullName
+      isMinor: profileDob ? computeIsMinor(profileDob) : false,
+      fullName,
+      dobDate: profileDob,
+      phone: profilePhone,
+      answers: {} as Record<string, unknown>,
+      pricingTierId: null as string | null,
+      divisionId: null as string | null
     };
   }
 
@@ -1345,6 +1470,7 @@ export class PublicRegistrationController {
       teamName?: string | null;
       teamColor?: string | null;
       divisionId?: string | null;
+      dobDate?: string | null;
     }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
@@ -1360,6 +1486,13 @@ export class PublicRegistrationController {
     }
     if (Object.prototype.hasOwnProperty.call(body, "pricingTierId")) {
       patch.pricingTierId = body.pricingTierId ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "dobDate")) {
+      // Editable inline on Details — write DOB onto metadata and
+      // recompute isMinor so the dynamic parental-consent step
+      // re-renders correctly on the next stepper transition.
+      patch.dobDate = body.dobDate ?? null;
+      patch.isMinor = body.dobDate ? computeIsMinor(body.dobDate) : false;
     }
     if (
       Object.prototype.hasOwnProperty.call(body, "teamName") ||

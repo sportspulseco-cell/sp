@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+﻿import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -25,7 +25,7 @@ import {
 } from "./league";
 
 // =====================================================================
-// REGISTRATION FORMS — versioned forms used for player/team registration
+// REGISTRATION FORMS â€” versioned forms used for player/team registration
 // =====================================================================
 export const registrationForms = pgTable(
   "registration_forms",
@@ -50,7 +50,7 @@ export const registrationForms = pgTable(
     purpose: text("purpose").notNull().default("season_registration"),
     /**
      * Role codes the form's questions apply to (e.g. ['player'] or
-     * ['coach','team_admin']). Empty array = applies to all roles in
+     * ['coach','captain']). Empty array = applies to all roles in
      * scope. Used by the role-profile editor to pick the right form
      * for the user's primary role.
      */
@@ -61,7 +61,7 @@ export const registrationForms = pgTable(
     /**
      * When set, the form is the registration shell for this season.
      * Drives the 6-section "Registration setup" wizard at /forms/[id]
-     * — pricing tiers, divisions assignment, email templates all key
+     * â€” pricing tiers, divisions assignment, email templates all key
      * off this seasonId. Nullable so org / league / division-scoped
      * forms (role profiles, team applications, etc.) keep working.
      */
@@ -90,7 +90,7 @@ export const registrationForms = pgTable(
     scopeIdx: index("form_scope_idx").on(t.scope, t.scopeId),
     seasonIdx: index("form_season_idx").on(t.seasonId),
     purposeIdx: index("registration_forms_purpose_idx").on(t.purpose)
-    // applies_to_roles GIN index lives in migration 0016 — Drizzle
+    // applies_to_roles GIN index lives in migration 0016 â€” Drizzle
     // doesn't have first-class GIN support yet. Querying via && or
     // ANY works whether the index is here in code or only in the DB.
   })
@@ -121,7 +121,7 @@ export const registrationFormVersions = pgTable(
 );
 
 // =====================================================================
-// REGISTRATIONS — submission of a form for a subject person
+// REGISTRATIONS â€” submission of a form for a subject person
 // =====================================================================
 export const registrations = pgTable(
   "registrations",
@@ -156,7 +156,7 @@ export const registrations = pgTable(
      *
      * Drives the partial unique index `registrations_active_uniq`
      * that idempotency-checks (subject_person_id, season_id) for
-     * non-cancelled statuses (P2-3 / audit §4.1 + §8.2). Nullable
+     * non-cancelled statuses (P2-3 / audit Â§4.1 + Â§8.2). Nullable
      * to support org-only registrations that aren't season-bound.
      */
     seasonId: uuid("season_id").references(() => seasons.id, {
@@ -183,7 +183,7 @@ export const registrations = pgTable(
   (t) => ({
     statusCheck: check(
       "registration_status_check",
-      // Workflow 1 v2.0 §10 state machine + legacy v1 values kept for
+      // Workflow 1 v2.0 Â§10 state machine + legacy v1 values kept for
       // back-compat. Single source of truth: kernel/registration-states.ts.
       sql`${t.status} IN (
         'draft','pending_verification','pending_consent','pending_payment',
@@ -221,7 +221,7 @@ export const registrationItems = pgTable(
 );
 
 // =====================================================================
-// DOCUMENTS — versioned waivers, consents, codes of conduct
+// DOCUMENTS â€” versioned waivers, consents, codes of conduct
 // =====================================================================
 export const documents = pgTable(
   "documents",
@@ -318,7 +318,7 @@ export const consentSignatures = pgTable(
 );
 
 // =====================================================================
-// ELIGIBILITY RECORDS — per (person, season, governing body)
+// ELIGIBILITY RECORDS â€” per (person, season, governing body)
 // =====================================================================
 export const eligibilityRecords = pgTable(
   "eligibility_records",
@@ -377,7 +377,7 @@ export const eligibilityRecords = pgTable(
 );
 
 // =====================================================================
-// BACKGROUND CHECKS — Sterling/Checkr/local provider tracking
+// BACKGROUND CHECKS â€” Sterling/Checkr/local provider tracking
 // =====================================================================
 export const backgroundChecks = pgTable(
   "background_checks",
@@ -413,7 +413,7 @@ export const backgroundChecks = pgTable(
 );
 
 // =====================================================================
-// IDENTITY VERIFICATIONS — governing body credentials (USA Hockey #, etc.)
+// IDENTITY VERIFICATIONS â€” governing body credentials (USA Hockey #, etc.)
 // =====================================================================
 export const identityVerifications = pgTable(
   "identity_verifications",

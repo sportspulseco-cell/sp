@@ -167,6 +167,10 @@ export interface Division {
 export interface Team {
   id: string;
   orgId: string;
+  /** Display name of the owning org — denormalised by the API list/get
+   * handlers so consumers don't have to client-join orgs.list(). Null
+   * when the org row has been deleted. */
+  ownerOrgName: string | null;
   name: string;
   shortName: string | null;
   sportCode: string;

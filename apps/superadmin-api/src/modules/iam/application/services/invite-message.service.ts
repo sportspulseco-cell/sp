@@ -1,11 +1,11 @@
-import { Injectable } from "@nestjs/common";
+﻿import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
 
 export interface RenderedInviteMessage {
   /** Email subject line. */
   subject: string;
-  /** Plain-text body — what we'll feed Resend, also what the admin copies to clipboard. */
+  /** Plain-text body â€” what we'll feed Resend, also what the admin copies to clipboard. */
   body: string;
   /** Where the message should go (email). */
   recipient: string;
@@ -14,14 +14,14 @@ export interface RenderedInviteMessage {
 export interface RenderInviteInput {
   email: string;
   displayName?: string | null;
-  /** Set when admin chose "also set initial credentials" — included verbatim in the message. */
+  /** Set when admin chose "also set initial credentials" â€” included verbatim in the message. */
   password?: string | null;
   role?: {
     roleCode: string;
     scopeType: string;
     scopeId?: string | null;
   };
-  /** Human label for the resource the role is granted on, e.g. "PPHL · Adult League". */
+  /** Human label for the resource the role is granted on, e.g. "PPHL Â· Adult League". */
   scopeLabel?: string | null;
   /** Recorded as the inviter's name in the signature. */
   inviterDisplayName?: string | null;
@@ -30,19 +30,19 @@ export interface RenderInviteInput {
 /**
  * Maps role codes to the canonical app surface the invitee should
  * sign in on. Keeps the sp-superadmin URL out of invites sent to
- * player / captain / org_admin recipients — CLAUDE.md cardinal rule:
+ * player / captain / org_admin recipients â€” CLAUDE.md cardinal rule:
  * the sa-web URL is confidential and must not appear in non-SA users'
  * mailboxes.
  */
 const PLAYER_ROLES = new Set(["player", "parent", "spectator", "free_agent"]);
-const TEAM_ROLES = new Set(["team_admin", "captain", "coach"]);
+const TEAM_ROLES = new Set(["captain", "captain", "coach"]);
 const ORG_ROLES = new Set(["org_admin"]);
 
 /**
  * Renders the invite message we send (and that the admin also gets a
  * clipboard copy of for manual delivery via Slack/WhatsApp/SMS).
  *
- * Plain text only — easier to paste, easier to read, and lets a future
+ * Plain text only â€” easier to paste, easier to read, and lets a future
  * Resend wiring drop in without a template engine. Kept inline (no
  * Handlebars, no MJML) because the message is short and varies on a
  * handful of switches.
@@ -76,8 +76,8 @@ export class InviteMessageService {
         ].join("\n");
 
     const signOff = input.inviterDisplayName
-      ? `— ${input.inviterDisplayName}, on behalf of SportsPulse`
-      : "— SportsPulse";
+      ? `â€” ${input.inviterDisplayName}, on behalf of SportsPulse`
+      : "â€” SportsPulse";
 
     const body = [
       greeting,
@@ -94,7 +94,7 @@ export class InviteMessageService {
     ].join("\n");
 
     const subject = input.role
-      ? `You're invited to SportsPulse — ${
+      ? `You're invited to SportsPulse â€” ${
           SYSTEM_ROLE_BY_CODE[input.role.roleCode]?.name ?? input.role.roleCode
         }`
       : "You're invited to SportsPulse";

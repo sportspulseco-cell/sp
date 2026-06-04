@@ -35,7 +35,11 @@ export default async function OrgAdminTeamDetailPage({
     <TeamDetail
       team={team}
       extras={
-        <CaptainAssignment teamId={team.id} initialCaptains={detail.captains} />
+        <CaptainAssignment
+          teamId={team.id}
+          orgId={team.orgId}
+          initialCaptains={detail.captains}
+        />
       }
     />
   );

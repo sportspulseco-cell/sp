@@ -1,4 +1,4 @@
-import type { Database } from "@sportspulse/db";
+﻿import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
@@ -10,12 +10,12 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
  * empty array means the principal has zero visibility for that dimension.
  *
  * Projection rules:
- *   - org-scoped role  → that org + every league owned by it
- *   - league-scoped    → that league + its parent org
- *   - team-scoped      → that team + its parent org (read-only access for the
- *                        team_admin / coach / player apps)
+ *   - org-scoped role  â†’ that org + every league owned by it
+ *   - league-scoped    â†’ that league + its parent org
+ *   - team-scoped      â†’ that team + its parent org (read-only access for the
+ *                        captain / coach / player apps)
  *
- * Updated 2026-05-07 — added `teamIds` so the team-targeted apps
+ * Updated 2026-05-07 â€” added `teamIds` so the team-targeted apps
  * (team-admin-web, player-web) can hit existing scoped endpoints
  * without a full role-and-scope DSL migration.
  */
@@ -67,8 +67,8 @@ export async function loadUserScope(
   const directTeamIds = rows
     .filter((r) => r.scopeType === "team" && r.scopeId)
     .map((r) => r.scopeId as string);
-  // Added 2026-05-25 — the registration funnel grants `player` role at
-  // division scope. Without projecting division → season → league →
+  // Added 2026-05-25 â€” the registration funnel grants `player` role at
+  // division scope. Without projecting division â†’ season â†’ league â†’
   // org, the player's scope reads as empty (orgIds=[], leagueIds=[])
   // and surfaces like player-web's "Join free-agent pool" page (which
   // filters seasons by orgId) render an empty state.
@@ -76,7 +76,7 @@ export async function loadUserScope(
     .filter((r) => r.scopeType === "division" && r.scopeId)
     .map((r) => r.scopeId as string);
 
-  // Project org-scoped assignments → every league owned by the org.
+  // Project org-scoped assignments â†’ every league owned by the org.
   let projectedLeagueIds: string[] = [];
   if (directOrgIds.length > 0) {
     const ls = await db
@@ -86,7 +86,7 @@ export async function loadUserScope(
     projectedLeagueIds = ls.map((r) => r.id);
   }
 
-  // Project league-scoped assignments → the org each league belongs to.
+  // Project league-scoped assignments â†’ the org each league belongs to.
   let projectedOrgIdsFromLeagues: string[] = [];
   if (directLeagueIds.length > 0) {
     const os = await db
@@ -96,7 +96,7 @@ export async function loadUserScope(
     projectedOrgIdsFromLeagues = os.map((r) => r.orgId);
   }
 
-  // Project team-scoped assignments → the org owning each team. Teams sit
+  // Project team-scoped assignments â†’ the org owning each team. Teams sit
   // under orgs directly (per the 2026-05-09 hierarchy flip), so a team
   // scope grants read-only access to that org's data, scope-filtered
   // further by `teamIds` when handlers care about per-team narrowing.
@@ -109,7 +109,7 @@ export async function loadUserScope(
     projectedOrgIdsFromTeams = os.map((r) => r.orgId);
   }
 
-  // Project division-scoped assignments → the season's league + the
+  // Project division-scoped assignments â†’ the season's league + the
   // league's org. Used by the free-agent player role granted on
   // registration: scope=division so the player only sees their own
   // division's surfaces, but downstream queries that filter by orgId
@@ -132,7 +132,7 @@ export async function loadUserScope(
     projectedOrgIdsFromDivisions = rows2.map((r) => r.orgId);
   }
 
-  // Project team_memberships → teamIds. team_memberships is the
+  // Project team_memberships â†’ teamIds. team_memberships is the
   // canonical "is this person on this team" source; role assignments
   // are about permission, not membership. A free-agent who got
   // claimed by a captain has a team_memberships row but no team-scoped

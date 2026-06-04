@@ -29,12 +29,12 @@ import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator"
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { NotificationService } from "../../communications/application/notification.service";
 
-type Audience = "captains" | "team_admins" | "players" | "all_admins";
+type Audience = "captains" | "coaches" | "players" | "all_admins";
 
 class BroadcastBodyDto {
   @IsUUID() orgId!: string;
   @IsArray()
-  @IsIn(["captains", "team_admins", "players", "all_admins"], { each: true })
+  @IsIn(["captains", "coaches", "players", "all_admins"], { each: true })
   audiences!: Audience[];
   @IsString() @Length(1, 200) subject!: string;
   @IsString() @Length(1, 5000) @MaxLength(5000) body!: string;
@@ -50,7 +50,9 @@ class BroadcastBodyDto {
  * Audiences:
  *   - captains      → users with active captain role scoped to a team
  *                     whose org_id = body.orgId
- *   - team_admins   → users with active team_admin role on such a team
+ *   - coaches       → users with active coach role on such a team
+ *                     (the former team_admin audience was folded into
+ *                     captains in the 2026-06-04 role merge)
  *   - players       → distinct persons holding an active membership in
  *                     a team in this org
  *   - all_admins    → super_admin / org_admin / league_admin /
@@ -137,10 +139,10 @@ export class OrgAdminBroadcastController {
   ): Promise<Array<{ personId: string; email: string | null }>> {
     const personIds = new Set<string>();
 
-    if (audiences.includes("captains") || audiences.includes("team_admins")) {
+    if (audiences.includes("captains") || audiences.includes("coaches")) {
       const codes: string[] = [];
       if (audiences.includes("captains")) codes.push("captain");
-      if (audiences.includes("team_admins")) codes.push("team_admin", "coach");
+      if (audiences.includes("coaches")) codes.push("coach");
       const rows = await this.db
         .select({
           userId: schema.userRoleAssignments.userId
