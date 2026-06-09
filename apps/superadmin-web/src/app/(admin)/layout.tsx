@@ -24,7 +24,23 @@ export default async function AdminLayout({
     .eq("id", user.id)
     .single();
 
-  if (!profile?.is_super_admin) {
+  // Accept any platform/league/org/season/division admin. league-admin-web
+  // was deleted in P5-D — league admins land here and see a role-scoped
+  // filter (CLAUDE.md "every app is just filtered by role"). Reading the
+  // JWT role_codes mirrors the Edge-Function permission shortcut so the
+  // three sources-of-truth (profile flag, role assignments, JWT) all
+  // grant access consistently.
+  const roleCodes = ((user.app_metadata as Record<string, unknown> | null)
+    ?.role_codes ?? []) as string[];
+  const ALLOWED_ADMIN_CODES = new Set([
+    "super_admin",
+    "org_admin",
+    "league_admin",
+    "season_admin",
+    "division_admin"
+  ]);
+  const hasAdminCode = roleCodes.some((c) => ALLOWED_ADMIN_CODES.has(c));
+  if (!profile?.is_super_admin && !hasAdminCode) {
     redirect("/sign-in?error=wrong_role");
   }
 
@@ -34,8 +50,8 @@ export default async function AdminLayout({
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
-            email={profile.email ?? user.email ?? ""}
-            displayName={profile.display_name ?? null}
+            email={profile?.email ?? user.email ?? ""}
+            displayName={profile?.display_name ?? null}
           />
           <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
             <div className="mx-auto max-w-container">{children}</div>
