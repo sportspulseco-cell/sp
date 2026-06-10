@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   Get,
+  HttpException,
   Inject,
   NotFoundException,
   Param,
@@ -1554,13 +1556,32 @@ export class PublicRegistrationController {
       mockOutcome?: "succeeded" | "failed" | "offline";
     }
   ) {
+    try {
+      return await this.payInner(submissionId, body);
+    } catch (e) {
+      // NestJS's default filter swallows plain Errors as 500 "An
+      // unexpected error occurred." Re-raise with the real message so
+      // the funnel can surface a useful banner.
+      if (e instanceof HttpException) throw e;
+      const msg = (e as Error).message ?? "Payment submission failed";
+      throw new BadRequestException(msg);
+    }
+  }
+
+  private async payInner(
+    submissionId: string,
+    body: {
+      email: string;
+      mockOutcome?: "succeeded" | "failed" | "offline";
+    }
+  ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
     if (!isRegistrationState(row.status)) {
-      throw new Error("Invalid submission state");
+      throw new BadRequestException(`Invalid submission state: ${row.status}`);
     }
     if (row.status !== "pending_payment") {
-      throw new Error(
-        `Cannot pay from state=${row.status}; expected pending_payment.`
+      throw new BadRequestException(
+        `Cannot pay from state=${row.status}; expected pending_payment. Re-open the funnel from the start so the state advances.`
       );
     }
     const meta = (row.metadata as Record<string, unknown>) ?? {};
