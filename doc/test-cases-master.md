@@ -521,6 +521,157 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - [O. i18n](#o-i18n)
 - [P. Cross-cutting non-functional](#p-cross-cutting-non-functional)
 - [Q. Cross-app verification matrix](#q-cross-app-verification-matrix)
+- [R. Scheduling inventory — venues, surfaces, ice slots](#r-scheduling-inventory--venues-surfaces-ice-slots) ⭐ **NEW**
+- [S. Scheduler operations — generate, parity, brackets, tournament, conflicts, notifications](#s-scheduler-operations--generate-parity-brackets-tournament-conflicts-notifications) ⭐ **NEW**
+- [v2 Changelog — what changed since this doc was written](#v2-changelog--what-changed-since-this-doc-was-written) ⭐ **READ FIRST**
+
+---
+
+# v2 Changelog — what changed since this doc was written
+
+This doc was written 2026-05-16. A lot has shipped since. **Skim this block
+before running anything** — a few existing TCs have stale role names,
+audience labels, and tab labels that will fail by-the-letter even though
+the underlying flow works.
+
+## Apps + roles
+
+- **`league-admin-web` was DELETED** (P5-D, 2026-05-15). League admins now
+  sign in to `sp-superadmin.vercel.app` and see a league-scoped filter
+  applied via their role assignment.
+  - sa-web's `(admin)/layout.tsx` now admits **any** of
+    `super_admin / org_admin / league_admin / season_admin / division_admin`
+    (commit `ab8c83f`). Reading the JWT `app_metadata.role_codes` mirrors
+    the Edge-Function permission shortcut.
+  - Affects TC-A1-03 (wrong-role test must use a non-admin role like
+    `player` or `captain`, not `org_admin` — that one now passes the gate).
+- **`team_admin` role MERGED into `captain`** (migration `0047`, commit
+  `4657de5`). Active assignments were re-pointed to `captain`; the
+  `team_admin` row was deleted from `roles`.
+  - sp-team-admin middleware `REQUIRED_ROLE_CODES = ["captain", "coach"]`
+    (was `["team_admin", "coach"]`).
+  - Affects every TC that mentions the `team_admin` role string — replace
+    with `captain`.
+- **`team_admins` broadcast audience renamed to `coaches`** (the
+  former bucket was just captain+coach, captain is already its own
+  audience). Affects **TC-I3-05** (broadcast empty-audience error message),
+  the SDK type for `orgAdminBroadcast.send`, and the compose-form chip
+  labels in `apps/org-admin-web/src/app/(app)/communications/compose/`.
+
+## New API + UI
+
+- **Venues / surfaces / ice slots admin UI** — NEW section R below.
+  Module: `apps/superadmin-api/src/modules/scheduling-inventory/`.
+  Pages: `/venues` on sa-web AND org-admin-web. Both apps mount the
+  shared `VenuesPage` from `@sportspulse/admin-pages`. The sidebar gets
+  a `Venues` item under Operations.
+- **Scheduler tabs reordered**: was `Generate / Fairness / Conflicts /
+  Verify / Parity / Playoffs / Tournament / Runs / Rinks`. Now
+  `Notifications / Parity / Playoffs / Tournament / Runs / Verify /
+  Conflicts / Fairness / Generate` (configure → generate flow). The
+  former "Rinks" tab is now labelled **Notifications** — the page is
+  the outbound webhook tracker, not where venues are configured.
+- **Parity sub-tab**: NEW "Create window" button + form (start date /
+  end date / auto-incremented window_index). Hits the new Edge
+  Function `scheduler-parity-window-create`.
+- **Captain assign dialog** (org-admin AND sa-web team detail) is now
+  a TWO-MODE picker: "Find existing user" (org-scoped name search)
+  and "Invite by email" (email + display name → creates user + assigns
+  captain role in one shot). The old raw-UUID input is gone. SDK:
+  `orgAdminTeams.assignCaptain(teamId, { userId })` AND
+  `orgAdminTeams.inviteCaptain(teamId, { email, displayName? })`.
+  - The invite endpoint surfaces Supabase Auth's 429 as a friendly
+    `INVITE_RATE_LIMITED` message instead of the generic 500 (commit
+    `a05e7f0`).
+
+## Registration funnel — Player
+
+- **Cross-org leak fixed.** `/public/registration/open` still exists
+  but is no longer the source for signed-in players. Player-web now
+  uses the NEW authenticated `GET /public/registration/open-for-me`
+  which filters by the caller's `scope.orgIds`. Three call-sites
+  rewired: `apps/player-web/src/app/(app)/register/page.tsx`,
+  `apps/player-web/src/app/(app)/page.tsx` (home dashboard), and the
+  free-agent fallback. Test: TC-D1-06 below.
+- **DOB now editable** on the Details step (was read-only with caption
+  "From the Account step. Edit there if it's wrong"). Backed by a new
+  `dobDate` field on `PATCH /public/registration/submissions/:id`.
+  Resume submission also hydrates `dobDate` + `phone` from the user's
+  profile, so returning users see their existing values pre-filled.
+  Test: TC-D1-07.
+- **Waiver Sign feedback.** Previously, when `api.signWaiver` failed
+  the parent funnel swallowed the error and the WaiverCard's spinner
+  cleared with no signal — the pill stayed `NOT SIGNED` forever.
+  Now both the inline WaiverCard AND the funnel-level banner surface
+  `"Couldn't sign: <reason>"`. Test: TC-D1-08.
+- **Payment step error surfacing.** The `/pay` endpoint used to throw
+  plain JS Errors which Nest converted to generic `500 An unexpected
+  error occurred`. Now state-machine errors throw `BadRequestException`
+  with the real message (`Cannot pay from state=approved; expected
+  pending_payment. Re-open the funnel from the start so the state
+  advances.`). Commit `0d47fc8`. Test: TC-D1-09.
+
+## Captain console
+
+- **Team Dues — even-split now includes the captain by default**
+  (`includeCaption=true` default), AND the API unions the captain's
+  person into the member list even when they have no
+  `team_memberships` row. Before the fix, a non-rostered captain
+  caused `BadRequestException("No members to split this invoice
+  across.")` on a team with zero active members. Commit `4657de5`.
+  Test: TC-F3-04 (NEW).
+
+## Detail pages
+
+- **Teams list** now shows `Owner Org` column as the **org name**
+  (was the first 8 chars of the UUID like `5d92c8e8`). Joined
+  `orgs.displayName` into `TeamDto.ownerOrgName` in
+  `loadLifecycle()`. Test: TC-B6-04 (NEW).
+- **Division Identity card** now leads with **Organization** and
+  **Season** name rows before the per-division fields. Wired
+  `parentOrg` prop through both consumers (sa-web + org-admin-web
+  `divisions/[id]/page.tsx`). Test: TC-B5-03 (NEW).
+
+## Edge Functions (Supabase)
+
+- **`super_admin` JWT shortcut** added to
+  `supabase/functions/_shared/permissions.ts`. A super_admin whose
+  status lives only on `profile.is_super_admin` + JWT
+  `role_codes:["super_admin"]` (zero `user_role_assignments` rows)
+  now passes the permission gate. Mirrors NestJS `SuperAdminGuard`.
+  Caller change applied to all 19 scheduler / rink Edge Functions
+  (commits `4657de5`, `e35b373`). Test: TC-A8-01 (NEW).
+- **NEW Edge Function** `scheduler-parity-window-create` — POST inserts
+  a `parity_windows` row in state=`pending` for manual admin testing.
+
+## Methodology (CLAUDE.md addition)
+
+- **NEW cardinal rule: "Clicking beats curling"** in CLAUDE.md.
+  Bottom line: if a test names a Surface other than `api`, the test
+  MUST be executed in an MCP browser (Playwright / chrome-devtools)
+  signed into that URL. fetch() with the role's JWT from a different
+  tab is **Blocked**, not Pass. Eight concrete rules follow
+  (per-test evidence-kind, destination verification in a fresh
+  session, assert what the role CAN'T see, etc.). Re-read CLAUDE.md
+  before authoring TCs going forward.
+
+## Stale-reference patch list (search-replace these as you read v1)
+
+| Stale | Now reads |
+|---|---|
+| `team_admin` (role string) | `captain` |
+| `REQUIRED_ROLE_CODES = ["team_admin", "coach"]` | `["captain", "coach"]` |
+| `team_admins` (broadcast audience label) | `coaches` |
+| Scheduler "Rinks" tab | "Notifications" tab |
+| Scheduler tab order Generate-first | Notifications-first, Generate-last |
+| Captain assign dialog "User ID" UUID input | Two-mode picker (Find / Invite) |
+| Owner Org column shows UUID prefix | Owner Org column shows org name |
+| sa-web admin layout requires `is_super_admin=true` | Admits any of super_admin/org_admin/league_admin/season_admin/division_admin |
+| Player "Find a team" anonymous | Authenticated `open-for-me`, org-scoped |
+| Funnel DOB readonly with "Edit there if it's wrong" caption | Editable `<input type="date">` |
+| Waiver Sign silent no-op on error | Inline + banner "Couldn't sign: <reason>" |
+| `/pay` returns generic `An unexpected error occurred` | Returns the real state-machine reason as 400 |
+| `league-admin-web` (`sp-league-admin.vercel.app`) | DELETED — league admins use sp-superadmin |
 
 ---
 
@@ -539,9 +690,13 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Expected:** Inline error "Invalid login credentials". No redirect.
 
 ### TC-A1-03 · Sign-in failure (wrong role)
-- **Role:** org_admin (no super_admin grant)
-- **Steps:** Sign in at `sp-superadmin.vercel.app/sign-in` as `org@sp.test`.
-- **Expected:** Bounced to `/sign-in?error=wrong_role` with the matching banner. **Cross-surface:** signing in at `sp-org-admin.vercel.app/sign-in` with the same account works.
+- **Role:** **player** or **captain** (no admin grant)  
+  *(v2: was `org_admin`. sa-web's admin layout now admits any of
+  super_admin/org_admin/league_admin/season_admin/division_admin per
+  CLAUDE.md "every app is just filtered by role" — so a non-admin
+  role like player is the persona that bounces.)*
+- **Steps:** Sign in at `sp-superadmin.vercel.app/sign-in` as `player1@sp.test`.
+- **Expected:** Bounced to `/sign-in?error=wrong_role` with the matching banner. **Cross-surface:** signing in at `sp-player-red.vercel.app/sign-in` with the same account works.
 
 ### TC-A1-04 · Sign-out clears every app
 - **Steps:** Signed in to super-admin and org-admin in same browser → click sign-out on super-admin.
@@ -619,6 +774,26 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 ### TC-A7-03 · Audit detail view
 - **Steps:** Click any audit row.
 - **Expected:** Detail page shows before/after JSON. `resourceId` null-guarded — never crashes when no resource id is recorded.
+
+### TC-A8-01 · super_admin JWT shortcut (Edge Functions) ⭐ NEW
+- **Role:** super_admin whose status lives ONLY on `profile.is_super_admin=true` + JWT `app_metadata.role_codes:["super_admin"]`, with ZERO rows in `user_role_assignments`.
+- **Steps:** Sign in to sp-superadmin → Scheduling → pick a season → click Generate.
+- **Expected:** Returns OPTIMAL (or another normal solver verdict), NOT 403 `scheduler.run permission required`.
+- **Why:** `supabase/functions/_shared/permissions.ts` was reading `user_role_assignments` only. Now checks JWT `role_codes` first (mirroring `SuperAdminGuard` in NestJS). Verified across 19 Edge Functions.
+- **Negative:** A non-super user with NO assignments STILL gets 403.
+
+### TC-A8-02 · sa-web layout admits league/org/season/division admins ⭐ NEW
+- **Role:** league_admin (assignment exists, JWT `role_codes:["league_admin"]`, `profile.is_super_admin=false`).
+- **Steps:** Sign in at `sp-superadmin.vercel.app/sign-in`.
+- **Expected:** Lands on `/dashboard`, sidebar visible, role-scoped data only. NOT bounced to `/sign-in?error=wrong_role`.
+- **Why:** `league-admin-web` was deleted (P5-D). Layout admit-list expanded in `ab8c83f` per "every app is just filtered by role".
+- **Negative:** A user with role_codes `["player"]` or `["captain"]` STILL bounces.
+
+### TC-A8-03 · profile.is_super_admin sync ⭐ NEW (known gap)
+- **Role:** super_admin assigned via SQL/admin panel (writes `user_role_assignments` row + syncs `setRoleCodes` to JWT).
+- **Steps:** Sign in to sp-superadmin.
+- **Expected:** Sign-in succeeds AND the admin dashboard renders.
+- **Actual today (gap):** The `setRoleCodes` sync touches JWT but does NOT flip `profile.is_super_admin`. Three sources-of-truth diverge silently. If only the JWT/assignment are written, the user passes the TC-A8-02 expanded gate BUT some sa-web pages that explicitly read `profile.is_super_admin` still kick them out. Follow-up: have the role-assignment write also flip the boolean, OR replace the boolean with a derived view over assignments. Mitigation in v2: TC-A8-02 layout already accepts JWT role_codes; check downstream pages.
 
 ---
 
@@ -710,6 +885,47 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 ### TC-B7-05 · Assign captain — out of scope
 - **Steps:** Tamper with `:teamId` to a team in Org-B.
 - **Expected:** 404 (not 403).
+
+### TC-B5-03 · Division Identity card shows Org + Season ⭐ NEW (v2)
+- **Role:** super_admin OR org_admin
+- **Steps:** sa-web (or org-admin-web) `/divisions/[id]` → look at the Identity card.
+- **Expected:** Card LEADS with two new rows: `Organization: <org name>` and `Season: <season name>` — clickable links to `/organizations/[id]` and `/seasons/[id]`. Per-division fields (Tier, Gender eligibility, etc.) follow.
+- **Why:** Tester reported: "When I click on a division, it should show the org and season which it is under under identity." Wired via `parentOrg` prop in `packages/admin-pages/src/division-detail.tsx`.
+- **Cardinal rule:** Walk this on BOTH sa-web AND org-admin-web — the shared component must render the same on both consumers.
+
+### TC-B6-04 · Teams list "Owner Org" shows org NAME, not UUID prefix ⭐ NEW (v2)
+- **Role:** super_admin
+- **Steps:** sa-web `/teams` → look at every row's "Owner Org" column.
+- **Expected:** Each cell renders the org's `displayName` (e.g. "USA Hockey", "QA Walkthrough Org") — NOT the first 8 chars of the org UUID (e.g. "5d92c8e8").
+- **Why:** `TeamDto.ownerOrgName` is now denormalised by `loadLifecycle()` joining `orgs.displayName`. The old client-side `orgs.list({ limit:500 })` + `orgMap` join is gone.
+- **Negative:** If `orgs.list` is still called with `limit > 100` anywhere, it returns 400 (the API caps at 100). Search the codebase for `orgs.list({ limit: 200 })` — should be zero matches.
+
+### TC-B8-01 · Captain assign — name picker (Find existing user) ⭐ NEW (v2)
+- **Role:** org_admin
+- **Steps:** org-admin-web `/teams/[id]` → Captain console → click **Assign captain** → ModeChip should default to **Find existing user**.
+- **Expected:**
+  - Search input with placeholder `e.g. Sheriff Smith` (NOT `00000000-0000-0000-0000-000000000000`).
+  - Typing 2-3 chars of a known person's name returns a dropdown of matches scoped to the team's org.
+  - Each result shows display name + email; no UUIDs visible.
+  - Picking a result fills a selected-user pill; clicking the pill's X clears it.
+  - Submit "Assign" → DB writes `user_role_assignments` (scope=team) + syncs `teams.captain_user_id` + audit row.
+- **Why:** Cardinal-rule fix — "Inputs that resolve to an entity MUST be pickers."
+
+### TC-B8-02 · Captain assign — Invite by email tab ⭐ NEW (v2)
+- **Role:** org_admin
+- **Steps:** Same dialog → flip ModeChip to **Invite by email** → fill email + display name → submit **Invite & assign**.
+- **Expected:** Single transaction: Supabase auth user created (or reused if email already exists), captain role assigned scoped to this team, `teams.captain_user_id` synced. Flash banner reads e.g. "Invite sent to … — they're now this team's captain."
+- **Edge — rate limit:** If Supabase Auth `/auth/v1/invite` 429s, the UI surfaces:
+  > "Supabase Auth rate-limited this invite — please try again in a few minutes, or pick an existing user via the search tab."
+  Status code is **429** (not 500). Banner text contains `rate-limited`. The dialog does NOT show "An unexpected error occurred."
+- **Cross-surface:** The invited user receives an invite email (or magic-link). After they sign in to sp-team-admin, they see the team as their captain dashboard.
+- **Why:** Cardinal-rule fix — "Connected actions belong in connected dialogs" (no more "invite-via-super-admin then come back to assign" five-click dance).
+
+### TC-B8-03 · Captain assign — sa-web parity ⭐ NEW (v2)
+- **Role:** super_admin
+- **Steps:** sa-web `/teams/[id]` → same dialog should mount with both tabs.
+- **Expected:** Identical to TC-B8-01/02. super_admin clears the `userHasOrgAdminOnOrg` check via `scope.isSuperAdmin`. Picker shows the broader candidate set (every person in the team's org).
+- **Why:** God-app rule — superadmin-web ships every feature; never a parallel implementation.
 
 ---
 
@@ -820,6 +1036,48 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 - **Role:** player (signed-in, no team)
 - **Steps:** Sign in to player-web → land on overview.
 - **Expected:** A surface lists open forms / open registrations they can submit. **Important regression:** CLAUDE.md bug #3 ("Player can log in but no discoverable path to any published form") — this surface MUST exist.
+
+### TC-D1-06 · Cross-org filter on "Find a team" ⭐ NEW (v2)
+- **Role:** player signed in, scoped to ONE org only (e.g. `azmathtest2@gmail.com` on org X)
+- **Steps:** sp-player-red → `/register` ("Find a team") → look at the "Leagues accepting registrations right now" list.
+- **Expected:** ONLY registrations whose `seasons.orgId` is in the caller's `scope.orgIds`. No PPHL rows for a Sheriff-only player; no Sheriff rows for a PPHL-only player.
+- **Negative:** Hit `/api/public/registration/open` (the anonymous endpoint) directly — it STILL returns the union. The anonymous route is intentionally kept; the fix is that signed-in surfaces use the new authenticated `/api/public/registration/open-for-me` route which loads `scope.orgIds` inline.
+- **Edge — fresh player with zero orgs:** Should return an empty list cleanly (200 with `items:[]`), NOT 403 / 500. The handler explicitly returns `{ items: [] }` when `scope.orgIds` is `[]`.
+- **Cross-surface:** Also exercised on `/(app)/page.tsx` (home dashboard "Open registrations" panel) and `/(app)/register/free-agent/page.tsx` fallback — all three call sites must use the new SDK method `publicRegistration.listOpenForMe()`.
+- **Why:** Cross-tenant data leak the tester reported in the original B6 bug bundle.
+
+### TC-D1-07 · Funnel DOB is editable on Details step ⭐ NEW (v2)
+- **Role:** player (fresh signup OR returning user)
+- **Steps:** Open the funnel → Account step → Details step → scroll to Player profile card.
+- **Expected:**
+  - "Date of birth *" field renders as `<input type="date">` (NOT a read-only `<div>` showing "—").
+  - For a returning user, the field is pre-filled from `profiles.dobDate`.
+  - For a fresh signup, the value already typed in Account step carries through.
+  - Editing the date and clicking "Next: Compliance" persists the new DOB via `PATCH /public/registration/submissions/:id` body `{dobDate: "<ISO>"}`.
+  - Caption no longer says "From the Account step. Edit there if it's wrong" — that dead pointer is gone.
+- **Why:** Tester complaint #7 from the original bug bundle. Editable inline so returning users can correct a missing/wrong DOB without going back to a step that doesn't exist on the sign-in tab.
+- **Cross-step effect:** Setting a DOB that makes the subject a minor activates the parental-consent step dynamically.
+
+### TC-D1-08 · Waiver Sign surfaces errors inline + at the funnel banner ⭐ NEW (v2)
+- **Role:** player
+- **Steps:** Reach Compliance step → scroll the waiver to the end → type your name to enable Sign → click **Sign** on a waiver that is misconfigured (e.g. inline waiver enabled on form config but `content` is blank, OR the network fails).
+- **Expected:**
+  - WaiverCard renders an inline error directly under the Sign button: `"Couldn't sign: <real reason from API>"`.
+  - The funnel-level banner ALSO renders: `"Couldn't sign waiver: <real reason>"`.
+  - The status pill stays "NOT SIGNED" (correct — sign genuinely failed).
+  - Continue stays disabled: "Sign N more required".
+- **Negative:** No silent no-op. The old failure mode (spinner clears, pill stays red, zero error surface) cannot recur.
+- **Defensive guard:** Funnel does NOT synthesize an inline-liability WaiverCard when `formWaivers.liabilityWaiver.enabled=true` but `content` is empty — the card itself doesn't render. Prevents the doomed-from-the-start 404.
+- **Why:** Tester complaint #8. Originally `api.signWaiver` errors were caught + dropped in the parent funnel.
+
+### TC-D1-09 · Payment step surfaces real error reason ⭐ NEW (v2)
+- **Role:** player whose submission is in a non-`pending_payment` state (e.g. `approved`, `pending_consent`, `pending_review`)
+- **Steps:** Reach the Payment step → click "Submit for offline payment" (or any pay button).
+- **Expected:** Banner renders with the actual state message:
+  > `Cannot pay from state=<actual>; expected pending_payment. Re-open the funnel from the start so the state advances.`
+  Status code is **400** (not 500). Banner does NOT show "An unexpected error occurred".
+- **Edge — DB constraint failure:** Any other unexpected error (FK violation, unique-key collision on `invoice_idempotency_uniq`) surfaces the actual SQL message instead of generic 500.
+- **Why:** `/pay` endpoint state-machine guards used to throw plain `new Error(...)` which Nest's default filter swallowed.
 
 ---
 
@@ -938,6 +1196,23 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 ### TC-F3-03 · Cover outstanding (mock Stripe)
 - **Steps:** Click "Cover outstanding" → mock-pay full balance.
 - **Expected:** Single payment recorded against master. Sub-invoice paidCents advanced for every covered player. `DUES_COVERED_BY_CAPTAIN` queued per covered player.
+
+### TC-F3-04 · Captain included in even-split by default ⭐ NEW (v2)
+- **Role:** captain (whose person row may or may NOT have an active `team_memberships` row for this team)
+- **Pre-conditions:** Team has a `team_dues` master invoice with `team_id` set.
+- **Steps:** `POST /finance/team-invoices/:id/split` with `{method: "even", includeCaption: true}` (the default).
+- **Expected:**
+  - Captain's person appears as a sub-invoice recipient even when the captain has NO active `team_memberships` row for this team. The controller now unions the captain's person into the members list explicitly.
+  - For a $1000 invoice with 2 members + 1 captain (3 total), each sub-invoice = $333 (last one absorbs the +1c remainder).
+  - For a $1000 invoice with 0 members + 1 captain, the captain gets the full $1000 sub-invoice (not BadRequestException "No members").
+- **Negative:** Submit with `{includeCaption: false}` → captain is filtered out of the split list (`players = members.filter(m => m.personId !== captainPersonId)`). Verify the captain has no sub_invoice in that scenario.
+- **Why:** Repo owner directive: "For 1000 dollars, with even split, captain pays 500 and player 500." Captains are not always rostered, so the controller can't rely on `team_memberships` alone.
+
+### TC-F4-01 · Team-admin sign-in (captain console) ⭐ AMEND v1
+- **Role:** **captain** (no longer team_admin — that role was merged)
+- **Steps:** Sign in at `sp-team-admin.vercel.app/sign-in` as a captain.
+- **Expected:** Lands on `/`. Sidebar shows the captain console items (Manage team / Roster / Invites / Join requests / Free agents / Dues / Compliance / Team store).
+- **Negative:** A user whose JWT role_codes are `["coach"]` (only) still passes the middleware `REQUIRED_ROLE_CODES = ["captain", "coach"]` and sees the same surface. **DO NOT** test with `team_admin` — that role no longer exists (migration 0047 deleted it).
 
 ---
 
@@ -1058,7 +1333,8 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 
 ### TC-I3-01 · Compose broadcast (org-admin)
 - **Role:** org_admin · **NEW** (Backlog #6 — commit `841e4c4`)
-- **Steps:** `/communications/compose` → tick `captains` + `team_admins` → subject + body → channel `email` → Send.
+- **Steps:** `/communications/compose` → tick `captains` + `coaches` → subject + body → channel `email` → Send.
+  *(v2 amendment: was `team_admins`. The audience was renamed to `coaches` when the `team_admin` role merged into `captain` — coaches are now their own audience because the old "team_admins" bucket was just captain+coach conflated.)*
 - **Expected:** API `POST /org-admin/broadcast` returns `queued: N, audiencesResolved: M`. `notifications` rows inserted with `templateCode=org.broadcast` (1 per resolved recipient). Idempotency key `broadcast-<id>-<personId>`.
 
 ### TC-I3-02 · Compose broadcast — multi-audience union
@@ -1076,7 +1352,7 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 
 ### TC-I3-05 · Compose broadcast — empty audience
 - **Steps:** Untick all audiences → submit.
-- **Expected:** Client block + server 400 "Pick at least one audience".
+- **Expected:** Client block + server 400 "Pick at least one audience". DTO validator message reads `audiences must be one of ['captains','coaches','players','all_admins']` *(v2: was `'team_admins'`; renamed `coaches`).*
 
 ### TC-I3-06 · Compose broadcast — out of scope
 - **Steps:** Tamper with `orgId` to Org-B.
@@ -1400,6 +1676,175 @@ Live run started **2026-05-16** with the smoke-test credentials provided by the 
 | **Q-15** | captain edits lineup → game starts | lineup locks; player-web `/schedule` shows correct game state |
 | **Q-16** | super-admin finalizes a game | standings update on player-web `/team`; stat lines aggregate on `/stats` |
 | **Q-17** | captain registers a push subscription (NEW) | API `GET /communications/push` lists it; opt-out toggle from preferences works |
+| **Q-18** | super_admin adds a venue → surface → bulk weekly slots (NEW v2) | sa-web `/scheduling/[seasonId]/generate` picks the new slots; bulk skip count = 0 on first run, > 0 on re-run (idempotent) |
+| **Q-19** | org_admin invites a new captain by email from team detail (NEW v2) | invited user receives email → signs in to sp-team-admin → lands on captain dashboard for that team |
+| **Q-20** | super_admin opens scheduling for a season where they have no role_assignments rows (NEW v2) | Generate fires successfully (JWT super_admin shortcut active across all 19 Edge Functions) |
+
+---
+
+# R. Scheduling inventory — venues, surfaces, ice slots
+
+> Owner: super_admin OR org_admin (scoped to `scope.orgIds`).
+> Surface: `apps/superadmin-web/src/app/(admin)/venues` AND
+> `apps/org-admin-web/src/app/(app)/venues`. Both apps mount the same
+> shared `VenuesPage` from `@sportspulse/admin-pages`. New API module:
+> `apps/superadmin-api/src/modules/scheduling-inventory/`.
+>
+> This section is ENTIRELY NEW in v2. Before this module shipped, the
+> only way to insert venues / surfaces / ice_slots was via direct SQL.
+> Scheduler tests in section S below all assume venue / surface / slot
+> data exists — set them up via R first.
+
+### TC-R1-01 · Venues page loads + sidebar nav
+- **Role:** super_admin
+- **Steps:** Sign in to sa-web → click "Venues" in the sidebar (under Operations, between Schedule and Games).
+- **Expected:** Lands on `/venues`. Page header reads "Venues, surfaces, ice slots". List shows all existing venues across all orgs (super_admin scope is unrestricted). KPI shows `N venues`. Each row collapsible to surfaces. Each surface collapsible to ice slots.
+- **Cross-surface:** Same nav item visible on org-admin-web under Operations. As `org_admin`, the list filters to `scope.orgIds`.
+
+### TC-R1-02 · Add venue (super_admin global)
+- **Role:** super_admin
+- **Steps:** Click "Add venue" → org picker (defaults to first ownable org) → name `"R-Test Arena"` → timezone `"America/New_York"` → Create.
+- **Expected:**
+  - `POST /scheduling/venues` returns 201.
+  - DB: `venues` row inserted with `orgId, name, timezone=America/New_York`.
+  - UI re-fetches the venue list; new row appears with `0 surfaces` badge.
+  - Org picker rendered via `browser.orgs.list({ limit: 100 })` (NOT 200 — API caps at 100; bug `c178895` fixed).
+- **Negative:** Org picker not rendered when `ownableOrgs.length === 0`.
+
+### TC-R1-03 · Add venue (org_admin within their org)
+- **Role:** org_admin scoped to Org-A
+- **Steps:** Same flow. Org picker defaults to Org-A.
+- **Expected:** Same as TC-R1-02 but `scope.orgIds=[Org-A]`. Attempt to override `orgId` in the request body to Org-B → 403 "Org not in scope".
+
+### TC-R1-04 · Edit venue
+- **Steps:** Click venue row → edit pencil → change name and timezone → save.
+- **Expected:** `PATCH /scheduling/venues/:id` returns 200. Row updates inline. `updatedAt` advances.
+
+### TC-R1-05 · Delete venue (soft-delete)
+- **Steps:** Venue row → delete → confirm.
+- **Expected:** `DELETE /scheduling/venues/:id` returns 200. `venues.deletedAt` populated (NOT row removal). UI omits the venue from the list. Subsequent `GET /scheduling/venues` does NOT include it.
+- **Negative:** Surfaces and ice slots under the deleted venue should NOT appear in any scheduler query that drives generation.
+
+### TC-R2-01 · Add surface to venue
+- **Steps:** Click a venue → "Add surface" → label `"Verify Rink A"` → Create.
+- **Expected:** `POST /scheduling/venues/:venueId/surfaces` returns 201. Surface row appears under the venue with `0 ice slots` badge. The venue's `Surfaces count` increments (verify it shows `1 surface`, NOT `0` — bug `f75b9e5` was the surfacesCount subquery returning 0; now uses LEFT JOIN + GROUP BY).
+- **Negative — duplicate label:** Add a second surface with the same label → 400 `A surface labeled "Verify Rink A" already exists at this venue` (unique index `surface_venue_label_uniq` enforces).
+
+### TC-R2-02 · Delete surface
+- **Steps:** Surface row → delete → confirm.
+- **Expected:** Soft-delete (`surfaces.deletedAt` populated). Hidden from list. Cascade: all `ice_slots` rows under this surface get hard-deleted by FK cascade (the safety net per CLAUDE.md "Don't add fallbacks for scenarios that can't happen").
+
+### TC-R3-01 · Add a single ice slot
+- **Steps:** Surface → "Single slot" → start datetime-local `"2027-02-01T19:00"` → duration 60 → band `late` → Create.
+- **Expected:**
+  - `POST /scheduling/surfaces/:surfaceId/ice-slots` returns 201.
+  - Slot displayed with formatted local time per the venue's timezone.
+  - Surface's "ice slots count" badge increments.
+- **Negative — duplicate start:** Create another slot with the same start_ts on the same surface → 400 `Another slot already starts at this exact time on this surface` (unique index `ice_slot_surface_start_uniq`).
+
+### TC-R3-02 · Bulk weekly recurrence ⭐ key flow
+- **Steps:** Surface → "Bulk weekly" → form:
+  - Start date: `2027-02-01`
+  - End date: `2027-02-28` (4 weeks)
+  - Start time (local, in venue tz): `19:00`
+  - Duration: 60 min
+  - Weekdays: Mon (1), Wed (3), Fri (5) — three days
+  - Band: `late`
+  → Submit.
+- **Expected:**
+  - `POST /scheduling/surfaces/:surfaceId/ice-slots/bulk` returns 201.
+  - Response: `{ created: 12, skipped: 0 }` (4 weeks × 3 days = 12 slots).
+  - DB confirms 12 rows at exactly `19:00 America/New_York` on each Mon/Wed/Fri.
+- **Idempotency check:** Submit the SAME form again → `{ created: 0, skipped: 12 }`. The `onConflictDoNothing` against `ice_slot_surface_start_uniq` makes the bulk endpoint safe to re-run.
+- **Negative — bad date range:** `endDate <= startDate` → 400 "endDate must be after startDate."
+- **Cardinal rule:** Verify in DB that the UTC `start_ts_utc` correctly back-converts to `19:00` in the venue's tz — not 19:00 UTC. The local-time interpretation logic uses `Intl` round-trip via `tzOffsetMs(local, tz)`.
+
+### TC-R3-03 · Delete a single ice slot
+- **Steps:** Slot row → X → confirm.
+- **Expected:** `DELETE /scheduling/ice-slots/:id` returns 200. Hard delete (FK from `games.slot_id` is `ON DELETE SET NULL` per schema — review behavior on referenced slots).
+
+### TC-R4-01 · Scope filtering — org_admin can't reach other orgs
+- **Role:** org_admin scoped to Org-A
+- **Steps:** GET `/scheduling/venues?orgId=<Org-B-id>` directly.
+- **Expected:** 404 "Org not found" (NOT 403 — no-leak rule).
+
+### TC-R4-02 · Scope filtering — list view auto-narrows
+- **Role:** org_admin scoped to Org-A + Org-B
+- **Steps:** Visit `/venues` with no query param.
+- **Expected:** List shows only venues with `orgId IN (Org-A, Org-B)`. Super-admin in same env sees all venues across all orgs.
+
+---
+
+# S. Scheduler operations — generate, parity, brackets, tournament, conflicts, notifications
+
+> Owner: super_admin OR scoped admin with `scheduler.run` permission.
+> Surface: `apps/superadmin-web/src/app/(admin)/scheduling/[seasonId]/*`
+> AND `apps/org-admin-web/src/app/(app)/scheduling/[seasonId]/*`.
+> Companion: [`doc/scheduler-test-cases.md`](scheduler-test-cases.md) — the
+> deep playbook with the full bug log and the deep / light / shallow split.
+> This section is the master-doc index; cross-reference scheduler-test-cases.md
+> for end-to-end execution.
+
+### TC-S0-01 · Scheduler tabs render in configure-then-generate order ⭐ v2 reorder
+- **Role:** super_admin
+- **Steps:** sa-web `/scheduling/[seasonId]/generate` → look at the sub-tabs in the page header.
+- **Expected:** Exact order, left → right:
+  `Notifications · Parity · Playoffs · Tournament · Runs · Verify · Conflicts · Fairness · Generate`
+- **Negative:** "Rinks" must NOT appear as a tab label — renamed to "Notifications" because the page is the outbound webhook tracker (NOT where venues are configured — that's section R).
+- **Why:** Repo owner directive: "Generate is happening first and then all the options. Should be the other way — define all options/parameters, then generate."
+
+### TC-S1-01 · Generate a regular-season schedule (happy path)
+- **Steps:** Pick a season + division → Generate → leave defaults → submit.
+- **Expected:** Run inserts a `schedule_runs` row, calls the CP-SAT solver, persists `games` + `game_provenance`. Status `OPTIMAL` or `FEASIBLE`. Realtime channel `schedule:season:<id>` broadcasts `schedule_published` events to subscribed admin sessions.
+- **Pre-req:** Venues + surfaces + ice slots seeded for the season (section R).
+- **See:** `doc/scheduler-test-cases.md` TC-D-01.
+
+### TC-S2-01 · Parity — Create window button ⭐ NEW v2
+- **Role:** super_admin or org_admin (scheduler.run scope)
+- **Steps:** sa-web `/scheduling/[seasonId]/parity` → click **Create window** → fill start date + end date → submit.
+- **Expected:**
+  - `POST /functions/v1/scheduler-parity-window-create` returns `201 { id, state: "pending" }`.
+  - DB: new `parity_windows` row with `state='pending'`, `window_index = max(existing) + 1`, dates as provided.
+  - UI expands the newly created window for review.
+- **Negative — missing dates:** Submit empty → "Start and end dates are required."
+- **Empty-state CTA:** If no windows exist for the season, the empty-state shows the "Create window" button directly (no requirement to seed via SQL anymore).
+- **Why:** Tester reported "In parity, should be able to create window" — the previous version told the admin to insert via SQL.
+
+### TC-S2-02 · Parity — Compute / review / apply
+- **Steps:** `Create window` → click **Compute** → wait → review recommendations → tick decisions → **Apply selected**.
+- **Expected:** Window state advances `pending → review_open → applied`. Affected divisions trigger partial-regen via the kicker call to `scheduler-generate`.
+- **See:** `doc/scheduler-test-cases.md` TC-D-06.
+
+### TC-S3-01 · Brackets — Generate + Advance
+- **Steps:** Standings ready → generate bracket (topN=4) → advance SF winners → final advance.
+- **See:** `doc/scheduler-test-cases.md` TC-D-04.
+
+### TC-S4-01 · Tournament rounds — Init / Advance with tier moves
+- **Steps:** Round 1 → tier assignments → init → score → advance to round 2 with topFraction/bottomFraction.
+- **See:** `doc/scheduler-test-cases.md` TC-D-05.
+
+### TC-S5-01 · Conflict resolve + apply
+- **See:** `doc/scheduler-test-cases.md` TC-D-03.
+
+### TC-S6-01 · Notifications tab is the outbound webhook tracker ⭐ v2 rename
+- **Role:** super_admin
+- **Steps:** `/scheduling/[seasonId]/rinks` → the tab label and page heading.
+- **Expected:**
+  - Tab label: **"Notifications"** (NOT "Rinks").
+  - Page heading: `Notifications · <season name>` (NOT `Rinks · <season name>`).
+  - Description includes the phrase `"use the Venues page"` pointing at `/venues` (NOT `"NOT yet exposed"` — that copy was stale once the Venues UI shipped).
+  - Body shows the rink integration table + recent outbox rows, as before.
+- **Cross-surface:** Same rename on org-admin-web `/scheduling/[seasonId]/rinks`.
+
+### TC-S6-02 · Rink notification dispatch — all kinds
+- **See:** `doc/scheduler-test-cases.md` TC-S-23 (sportsengine/crossbar/horizon/manual all return `kind X not implemented`).
+
+### TC-S7-01 · Super_admin without role assignments can Generate ⭐ v2 fix
+- **Role:** super_admin whose status lives ONLY on `profile.is_super_admin=true` + JWT `role_codes:["super_admin"]` (zero `user_role_assignments` rows).
+- **Steps:** Click Generate.
+- **Expected:** Returns OPTIMAL (or relevant solver verdict). NOT 403.
+- **Edge — every other Edge Function:** Same persona must clear EVERY scheduler / rink Edge Function (publish, conflict-resolve, conflict-apply, bracket-generate/advance, tournament-round-init/advance, parity-window-compute/apply/create, fairness-report, conflicts-list, runs-list, verify, rink-notifications-list, rink-notify-dispatch). 19 functions total.
+- **See:** TC-A8-01.
 
 ---
 
