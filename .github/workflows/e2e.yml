@@ -6,7 +6,12 @@ on:
   push:
     branches: [main]
 
-# Production browser tests run only after every app serves this commit.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+# Production browser tests run after affected apps deploy or Vercel skips
+# them because their code and workspace dependencies did not change.
 jobs:
   playwright:
     name: Playwright (production aliases)
