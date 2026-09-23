@@ -15,10 +15,14 @@ for (const workspace of workspaces) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`${workspace.base}${workspace.path}`);
       await expect(page.locator("h1").first()).toBeVisible();
-      const overflow = await page.evaluate(() =>
-        document.documentElement.scrollWidth - window.innerWidth
-      );
-      expect(overflow, `${workspace.name} root overflow at ${width}px`).toBeLessThanOrEqual(1);
+      const { overflow, offenders } = await page.evaluate(() => ({
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+        offenders: [...document.querySelectorAll("body *")]
+          .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 1)
+          .slice(0, 5)
+          .map((element) => `${element.tagName.toLowerCase()}.${String(element.className).slice(0, 60)}`)
+      }));
+      expect(overflow, `${workspace.name} root overflow at ${width}px: ${offenders.join(", ")}`).toBeLessThanOrEqual(1);
     }
   });
 }

@@ -77,9 +77,4 @@ test.describe("player + captain (Parker holds dual role)", () => {
     await expect(page.getByText(/Captain/, { exact: true }).first()).toBeVisible();
   });
 
-  for (const route of ROUTES.playerCaptain) {
-    test(`captain route ${route.path} renders`, async ({ page }) => {
-      await assertRouteRenders(page, E2E_URLS.player, route);
-    });
-  }
 });

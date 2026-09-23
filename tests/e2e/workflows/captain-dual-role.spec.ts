@@ -34,13 +34,7 @@ test.describe("captain dual role across apps", () => {
   test("team-admin app: captain console mirrored", async ({ page }) => {
     await signIn(page, E2E_URLS.teamAdmin, SMOKE_USERS.teamAdmin);
     await page.goto(E2E_URLS.teamAdmin);
-    // Tyler (team_admin) doesn't hold captain by default, so the
-    // captain section is hidden. We assert that — confirms gating
-    // works the other direction too.
-    const captainConsole = await page
-      .getByText(/Captain console/i)
-      .count();
-    expect(captainConsole).toBe(0);
+    await expect(page.getByText(/Captain console/i).first()).toBeVisible();
   });
 
   test("league-admin (now via superadmin-web): promote-captain dialog opens from teams page", async ({

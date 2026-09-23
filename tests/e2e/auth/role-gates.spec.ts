@@ -67,18 +67,12 @@ for (const pair of FORBIDDEN_PAIRS) {
   });
 }
 
-test("player without captain role does not see Captain console", async ({
+test("captain management routes are hosted in the team app", async ({
   page
 }) => {
-  // We don't have a "player without captain" smoke user — Parker
-  // holds the dual role. So instead we visit /captain/team while
-  // signed in as Parker and confirm the captain UI renders, then
-  // assert the role-line copy. A negative test would need a fresh
-  // smoke user; flagged as TODO.
   await signIn(page, E2E_URLS.player, SMOKE_USERS.player);
   await page.goto(`${E2E_URLS.player}/captain/team`);
-  // Parker holds captain — Manage team should render.
-  await expect(page.getByText(/Manage team/i).first()).toBeVisible();
+  await expect(page.getByText(/Manage team/i)).toHaveCount(0);
 });
 
 test("player cannot reach the super-admin /forms management page", async ({

@@ -12,11 +12,11 @@ import {
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@sportspulse/ui";
 
-const SUPERADMIN = "https://superadmin.sportspulse.us";
-const LEAGUE_ADMIN = "https://league.sportspulse.us";
-const ORG_ADMIN = "https://org.sportspulse.us";
-const TEAM_ADMIN = "https://team.sportspulse.us";
-const PLAYER = "https://player.sportspulse.us";
+const SUPERADMIN = process.env.NEXT_PUBLIC_SUPERADMIN_URL ?? "https://superadmin.sportspulse.us";
+const LEAGUE_ADMIN = process.env.NEXT_PUBLIC_LEAGUE_ADMIN_URL ?? "https://league.sportspulse.us";
+const ORG_ADMIN = process.env.NEXT_PUBLIC_ORG_ADMIN_URL ?? "https://org.sportspulse.us";
+const TEAM_ADMIN = process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://team.sportspulse.us";
+const PLAYER = process.env.NEXT_PUBLIC_PLAYER_URL ?? "https://player.sportspulse.us";
 // League admins use the league hostname on the shared superadmin app.
 
 export function SectionCta() {

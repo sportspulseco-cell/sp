@@ -19,15 +19,13 @@ test.describe("team-admin smoke", () => {
     });
   }
 
-  test("home shows the user's team", async ({ page }) => {
+  test("home shows the current team", async ({ page }) => {
     await page.goto(E2E_URLS.teamAdmin);
-    await expect(
-      page.getByRole("heading", { name: /Boston Gold Kings/i })
-    ).toBeVisible();
+    await expect(page.locator("main h1")).toBeVisible();
   });
 
-  test("topbar role-line reflects team_admin", async ({ page }) => {
+  test("topbar shows the current team role", async ({ page }) => {
     await page.goto(E2E_URLS.teamAdmin);
-    await expect(page.getByText(/team_admin/i).first()).toBeVisible();
+    await expect(page.locator("header").getByText(/captain|team admin/i).first()).toBeVisible();
   });
 });

@@ -26,7 +26,7 @@ test("super-admin can open the version wizard from a form's detail page", async 
   // Click into the first form on the list. If none exist, the test
   // can't run — skip rather than fail (smoke + cascading specs cover
   // form creation already).
-  const firstFormLink = page.getByRole("link", { name: /form/i }).first();
+  const firstFormLink = page.locator("main table tbody a[href^='/forms/']").first();
   const hasAnyForm = await firstFormLink.isVisible().catch(() => false);
   test.skip(!hasAnyForm, "no forms on list to open");
   await firstFormLink.click();

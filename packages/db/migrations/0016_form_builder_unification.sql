@@ -66,6 +66,4 @@ ALTER TABLE seasons
   ADD COLUMN IF NOT EXISTS config jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 COMMENT ON COLUMN seasons.config IS
-  'Per-season admin toggles. Schema lives in @sportspulse/kernel SeasonConfig. ' ||
-  'Keys: requireUsaHockeyId, allowFreeAgent, parentalConsentRequired, ' ||
-  'requireLiabilityWaiver, maxRosterSize, rosterLockAt.';
+  'Per-season admin toggles. Schema lives in @sportspulse/kernel SeasonConfig. Keys: requireUsaHockeyId, allowFreeAgent, parentalConsentRequired, requireLiabilityWaiver, maxRosterSize, rosterLockAt.';

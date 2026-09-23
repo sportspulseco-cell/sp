@@ -83,7 +83,7 @@ export default async function DashboardPage() {
     { key: "orgs", node: <>{orgsPage.items.length} organizations</> },
     { key: "users", node: <>{usersPage.items.length} users</> },
     { key: "seasons", node: <>{seasonsPage.items.length} seasons tracked</> },
-    { key: "ops", node: <>all systems operational</> }
+    { key: "ops", node: <Link href="/admin">View platform health</Link> }
   ];
 
   return (

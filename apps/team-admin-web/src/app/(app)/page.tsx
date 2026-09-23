@@ -72,17 +72,29 @@ export default async function TeamAdminHome() {
     );
   }
 
+  let dashboard;
   switch (state.mode) {
     case "off_season":
-      return <OffSeasonView team={team} state={state} />;
+      dashboard = <OffSeasonView team={team} state={state} />;
+      break;
     case "registration_open":
-      return <RegistrationOpenView team={team} state={state} />;
+      dashboard = <RegistrationOpenView team={team} state={state} />;
+      break;
     case "applied":
     case "in_season":
-      return <InSeasonView team={team} state={state} />;
+      dashboard = <InSeasonView team={team} state={state} />;
+      break;
     case "post_season":
-      return <PostSeasonView team={team} state={state} />;
+      dashboard = <PostSeasonView team={team} state={state} />;
+      break;
     default:
-      return <OffSeasonView team={team} state={state} />;
+      dashboard = <OffSeasonView team={team} state={state} />;
   }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="// Team workspace" title={team.name} />
+      {dashboard}
+    </div>
+  );
 }

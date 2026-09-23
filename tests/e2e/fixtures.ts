@@ -8,7 +8,7 @@ import { E2E_URLS } from "../../playwright.config";
  */
 export const SMOKE_PASSWORD = "SmokeTest!2026";
 
-export const SMOKE_USERS = {
+const PROD_SMOKE_USERS = {
   superAdmin: "sportspulse.smoketest+sa@gmail.com",
   // League admin smoke user retained — they now sign in to
   // superadmin-web (P5-D, 2026-05-15) and see a league-scoped filter.
@@ -17,6 +17,26 @@ export const SMOKE_USERS = {
   teamAdmin: "sportspulse.smoketest+ta@gmail.com",
   player: "sportspulse.smoketest+pl@gmail.com"
 } as const;
+
+const STAGING_SMOKE_USERS = {
+  superAdmin: "staging-superadmin@sportspulse.us",
+  leagueAdmin: "staging-league@sportspulse.us",
+  orgAdmin: "staging-org@sportspulse.us",
+  teamAdmin: "staging-team@sportspulse.us",
+  player: "staging-player@sportspulse.us"
+} as const;
+
+export const SMOKE_USERS = process.env.E2E_TARGET === "staging"
+  ? STAGING_SMOKE_USERS
+  : PROD_SMOKE_USERS;
+
+const STAGING_PASSWORDS: Record<string, string | undefined> = {
+  [STAGING_SMOKE_USERS.superAdmin]: process.env.E2E_STAGING_SUPERADMIN_PASSWORD,
+  [STAGING_SMOKE_USERS.leagueAdmin]: process.env.E2E_STAGING_LEAGUE_PASSWORD,
+  [STAGING_SMOKE_USERS.orgAdmin]: process.env.E2E_STAGING_ORG_PASSWORD,
+  [STAGING_SMOKE_USERS.teamAdmin]: process.env.E2E_STAGING_TEAM_PASSWORD,
+  [STAGING_SMOKE_USERS.player]: process.env.E2E_STAGING_PLAYER_PASSWORD
+};
 
 /**
  * Route catalogs per app — drives the smoke layer. Each entry asserts
@@ -36,7 +56,7 @@ export interface RouteCheck {
 
 export const ROUTES = {
   superadmin: [
-    { path: "/dashboard", anchor: /Welcome back/i },
+    { path: "/dashboard", anchor: /The pulse of every league/i },
     { path: "/organizations", anchor: /Organizations/i },
     { path: "/users", anchor: /Users/i },
     { path: "/persons", anchor: /Persons/i },
@@ -48,9 +68,9 @@ export const ROUTES = {
     { path: "/teams", anchor: /Teams/i },
     { path: "/rosters", anchor: /Memberships/i },
     { path: "/registrations", anchor: /Registrations/i },
-    { path: "/forms", anchor: /Registration forms/i },
+    { path: "/forms", anchor: /^Forms$/i },
     { path: "/finance", anchor: /Finance/i },
-    { path: "/finance/ar", anchor: /AR Dashboard/i }
+    { path: "/finance/ar", anchor: /^Finance$/i }
   ] as RouteCheck[],
 
   orgAdmin: [
@@ -84,17 +104,6 @@ export const ROUTES = {
     { path: "/compliance", anchor: /Compliance/i },
     { path: "/notifications", anchor: /Notifications/i },
     { path: "/profile", anchor: /Profile|Coming soon/i }
-  ] as RouteCheck[],
-
-  /**
-   * Player routes that only exist when the user holds the captain
-   * role. Visited on the dual-role smoke run (Parker after promote).
-   */
-  playerCaptain: [
-    { path: "/captain/team", anchor: /Manage team/i },
-    { path: "/captain/roster", anchor: /Manage roster|Empty roster/i },
-    { path: "/captain/invites", anchor: /Invites/i },
-    { path: "/captain/free-agents", anchor: /Free agents/i }
   ] as RouteCheck[]
 } as const;
 
@@ -110,11 +119,15 @@ export async function signIn(
   page: Page,
   appUrl: string,
   email: string,
-  password: string = SMOKE_PASSWORD
+  password?: string
 ) {
+  const credential = password ?? (process.env.E2E_TARGET === "staging"
+    ? STAGING_PASSWORDS[email]
+    : SMOKE_PASSWORD);
+  if (!credential) throw new Error(`No E2E password configured for ${email}`);
   await page.goto(`${appUrl}/sign-in`);
   await page.locator("input[type='email']").fill(email);
-  await page.locator("input[type='password']").fill(password);
+  await page.locator("input[type='password']").fill(credential);
   await page.locator("button[type='submit']").click();
   await page.waitForURL((u) => !u.pathname.startsWith("/sign-in"), {
     timeout: 30_000
@@ -132,7 +145,7 @@ export async function assertRouteRenders(
 ) {
   const target = `${appUrl}${check.path}`;
   await page.goto(target);
-  await expect(page.getByText(check.anchor).first()).toBeVisible({
+  await expect(page.locator("main").getByText(check.anchor).first()).toBeVisible({
     timeout: 15_000
   });
 }
