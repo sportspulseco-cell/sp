@@ -28,12 +28,14 @@ export async function configureApp(app: INestApplication): Promise<void> {
   });
   app.setGlobalPrefix("api");
 
-  const swagger = new DocumentBuilder()
-    .setTitle("SportsPulse — Super Admin API")
-    .setVersion("0.0.1")
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, swagger));
+  if (process.env.NODE_ENV !== "production" || process.env.ENABLE_API_DOCS === "true") {
+    const swagger = new DocumentBuilder()
+      .setTitle("SportsPulse — Super Admin API")
+      .setVersion("0.0.1")
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, swagger));
+  }
 }
 
 async function bootstrap() {

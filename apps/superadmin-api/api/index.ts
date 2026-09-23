@@ -28,7 +28,12 @@ async function bootstrap(): Promise<express.Express> {
 
 export default async function handler(req: Request, res: Response) {
   if (!cached) {
-    if (!bootPromise) bootPromise = bootstrap();
+    if (!bootPromise) {
+      bootPromise = bootstrap().catch((error) => {
+        bootPromise = null;
+        throw error;
+      });
+    }
     cached = await bootPromise;
   }
   return cached(req, res);

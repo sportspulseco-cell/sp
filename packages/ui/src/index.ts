@@ -4,6 +4,7 @@ export * from "./badge";
 export * from "./button";
 export * from "./dialog";
 export * from "./empty-state";
+export * from "./error-fallback";
 export * from "./eyebrow";
 export * from "./icon-tile";
 export * from "./input";

@@ -21,6 +21,7 @@ const TARGET = process.env.E2E_TARGET ?? "prod";
 
 const PROD_URLS = {
   landing: "https://sportspulse.us",
+  league: "https://league.sportspulse.us",
   superadmin: "https://superadmin.sportspulse.us",
   orgAdmin: "https://org.sportspulse.us",
   teamAdmin: "https://team.sportspulse.us",
@@ -29,6 +30,7 @@ const PROD_URLS = {
 
 const LOCAL_URLS = {
   landing: "http://localhost:3000",
+  league: "http://localhost:3001",
   superadmin: "http://localhost:3001",
   orgAdmin: "http://localhost:3003",
   player: "http://localhost:3004",

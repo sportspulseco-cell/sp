@@ -1,7 +1,14 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+
+const getAccessToken = cache(async () => {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+});
 
 /**
  * Server-side fetch wrapper. Pulls the Supabase access token from the
@@ -12,18 +19,15 @@ export async function apiFetch<T = unknown>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const supabase = await createClient();
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
+  const accessToken = await getAccessToken();
 
   const hasBody = init?.body !== undefined && init.body !== null;
   const res = await fetch(`${API}${path}`, {
     ...init,
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
-      ...(session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
+      ...(accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
         : {}),
       ...(init?.headers ?? {})
     },

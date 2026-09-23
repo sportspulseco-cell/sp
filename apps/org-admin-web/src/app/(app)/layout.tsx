@@ -23,8 +23,10 @@ export default async function AppLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in?error=session_expired");
 
-  const profile = await iam.me().catch(() => null);
-  const scope = await iam.meScope().catch(() => null);
+  const [profile, scope] = await Promise.all([
+    iam.me(),
+    iam.meScope()
+  ]);
   const activeOrgId = await getActiveOrgId(scope);
 
   // Friendly labels for the switcher — one /orgs/:id per scope
