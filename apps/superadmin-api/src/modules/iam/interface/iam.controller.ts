@@ -95,35 +95,37 @@ export class IamController {
     // Reuses the same projection as loadUserScope but returns the raw
     // direct assignments alongside the projected sets â€” the apps need
     // both ("which team am I on?" vs "which orgs can I read?").
-    const [profile] = await this.db
-      .select({ isSuperAdmin: schema.profiles.isSuperAdmin })
-      .from(schema.profiles)
-      .where(eq(schema.profiles.id, principal.userId))
-      .limit(1);
-
-    const assignments = await this.db
-      .select({
-        scopeType: schema.userRoleAssignments.scopeType,
-        scopeId: schema.userRoleAssignments.scopeId,
-        roleCode: schema.roles.code
-      })
-      .from(schema.userRoleAssignments)
-      .innerJoin(
-        schema.roles,
-        eq(schema.roles.id, schema.userRoleAssignments.roleId)
-      )
-      .where(
-        and(
-          eq(schema.userRoleAssignments.userId, principal.userId),
-          sql`${schema.userRoleAssignments.revokedAt} IS NULL`
+    const [profileRows, assignments, personRows] = await Promise.all([
+      this.db
+        .select({ isSuperAdmin: schema.profiles.isSuperAdmin })
+        .from(schema.profiles)
+        .where(eq(schema.profiles.id, principal.userId))
+        .limit(1),
+      this.db
+        .select({
+          scopeType: schema.userRoleAssignments.scopeType,
+          scopeId: schema.userRoleAssignments.scopeId,
+          roleCode: schema.roles.code
+        })
+        .from(schema.userRoleAssignments)
+        .innerJoin(
+          schema.roles,
+          eq(schema.roles.id, schema.userRoleAssignments.roleId)
         )
-      );
-
-    let [person] = await this.db
-      .select({ id: schema.persons.id })
-      .from(schema.persons)
-      .where(eq(schema.persons.userId, principal.userId))
-      .limit(1);
+        .where(
+          and(
+            eq(schema.userRoleAssignments.userId, principal.userId),
+            sql`${schema.userRoleAssignments.revokedAt} IS NULL`
+          )
+        ),
+      this.db
+        .select({ id: schema.persons.id })
+        .from(schema.persons)
+        .where(eq(schema.persons.userId, principal.userId))
+        .limit(1)
+    ]);
+    const profile = profileRows[0];
+    let person = personRows[0];
 
     // Heal-on-read for legacy registrations: the public funnel used to
     // create persons with `externalIds.supabaseUserId` set but
