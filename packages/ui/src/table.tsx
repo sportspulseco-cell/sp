@@ -15,7 +15,7 @@ export function Table({
   ...rest
 }: TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-border bg-surface-1">
+    <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border border-border bg-surface-1">
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         {...rest}

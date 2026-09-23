@@ -23,6 +23,6 @@ test.describe("super-admin smoke", () => {
     await page.goto(`${E2E_URLS.superadmin}/dashboard`);
     await expect(page.getByRole("heading", { name: /The pulse of every league/i })).toBeVisible();
     await expect(page.getByText(/Organizations/i).first()).toBeVisible();
-    await expect(page.getByText(/Active leagues/i).first()).toBeVisible();
+    await expect(page.locator("main").getByText(/Leagues active/i).first()).toBeVisible();
   });
 });

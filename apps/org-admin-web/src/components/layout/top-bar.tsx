@@ -44,12 +44,12 @@ export function TopBar({
         >
           <Menu className="h-4 w-4" strokeWidth={1.75} />
         </button>
-        <div className="flex min-w-0 items-center gap-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+        <div className="hidden min-w-0 items-center gap-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted sm:flex">
           <ShieldCheck className="h-3 w-3 shrink-0" strokeWidth={1.75} />
           <span className="truncate">{roleLine}</span>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <OrgSwitcher orgs={orgs} activeOrgId={activeOrgId} />
         <ThemeToggle />
         <div className="hidden text-right sm:block">
@@ -57,7 +57,7 @@ export function TopBar({
             {displayName ?? email}
           </p>
         </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-fg text-[11px] font-semibold text-bg">
+        <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-fg text-[11px] font-semibold text-bg sm:flex">
           {initials}
         </div>
         <button

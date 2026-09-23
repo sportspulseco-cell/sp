@@ -29,7 +29,7 @@ export function OrgSwitcher({
   const active = orgs.find((o) => o.id === activeOrgId) ?? orgs[0];
 
   return (
-    <label className="relative inline-flex items-center gap-2">
+    <label className="relative inline-flex min-w-0 items-center gap-2">
       <span className="sr-only">Active organisation</span>
       <span className="pointer-events-none inline-flex items-center gap-1.5 text-fg-muted">
         <Building2 className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -44,7 +44,7 @@ export function OrgSwitcher({
             router.refresh();
           });
         }}
-        className="appearance-none rounded-md border border-border bg-bg-subtle py-1.5 pl-2 pr-8 text-[12px] font-medium text-fg focus:border-accent focus:outline-none"
+        className="max-w-24 appearance-none truncate rounded-md border border-border bg-bg-subtle py-1.5 pl-2 pr-8 text-[12px] font-medium text-fg focus:border-accent focus:outline-none sm:max-w-48"
         aria-label="Active organisation"
       >
         {orgs.map((o) => (
