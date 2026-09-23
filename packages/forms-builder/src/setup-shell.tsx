@@ -212,9 +212,9 @@ export function RegistrationSetupShell({
             {seasonId ? (
               <a
                 // Absolute URL into player-web. A relative href stayed
-                // on sp-superadmin.vercel.app where the funnel doesn't
+                // on the superadmin host where the funnel doesn't
                 // render — BUG-042 (Live wizard hits the wrong app).
-                href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://sp-player-red.vercel.app"}/register/${seasonId}`}
+                href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://player.sportspulse.us"}/register/${seasonId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Opens player-web in a new tab — you'll see the funnel as a fresh visitor, so expect a sign-in prompt."

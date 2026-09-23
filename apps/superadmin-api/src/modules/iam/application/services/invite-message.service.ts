@@ -106,26 +106,31 @@ export class InviteMessageService {
     if (roleCode && PLAYER_ROLES.has(roleCode)) {
       return (
         this.config.get<string>("PLAYER_WEB_URL") ??
-        "https://sp-player-red.vercel.app"
+        "https://player.sportspulse.us"
       );
     }
     if (roleCode && TEAM_ROLES.has(roleCode)) {
       return (
         this.config.get<string>("TEAM_ADMIN_WEB_URL") ??
-        "https://sp-team-admin.vercel.app"
+        "https://team.sportspulse.us"
       );
     }
     if (roleCode && ORG_ROLES.has(roleCode)) {
       return (
         this.config.get<string>("ORG_ADMIN_WEB_URL") ??
-        "https://sp-org-admin.vercel.app"
+        "https://org.sportspulse.us"
       );
     }
-    // Every remaining role (super_admin, league_admin, registrar, referee,
-    // scorekeeper, et al) lives on sa-web per the post-P5-D consolidation.
+    if (roleCode === "league_admin") {
+      return (
+        this.config.get<string>("LEAGUE_ADMIN_WEB_URL") ??
+        "https://league.sportspulse.us"
+      );
+    }
+    // Remaining roles live on the shared superadmin app.
     return (
       this.config.get<string>("SUPERADMIN_WEB_URL") ??
-      "https://sp-superadmin.vercel.app"
+      "https://superadmin.sportspulse.us"
     );
   }
 }

@@ -12,13 +12,12 @@ import {
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@sportspulse/ui";
 
-const SUPERADMIN = "https://sp-superadmin.vercel.app";
-const ORG_ADMIN = "https://sp-org-admin.vercel.app";
-const TEAM_ADMIN = "https://sp-team-admin.vercel.app";
-// sp-player.vercel.app was held externally — Vercel auto-assigned -red.
-const PLAYER = "https://sp-player-red.vercel.app";
-// League-admin sign-in landing collapsed into superadmin-web with a
-// league-scoped role filter (P5-D, 2026-05-15).
+const SUPERADMIN = "https://superadmin.sportspulse.us";
+const LEAGUE_ADMIN = "https://league.sportspulse.us";
+const ORG_ADMIN = "https://org.sportspulse.us";
+const TEAM_ADMIN = "https://team.sportspulse.us";
+const PLAYER = "https://player.sportspulse.us";
+// League admins use the league hostname on the shared superadmin app.
 
 export function SectionCta() {
   const [email, setEmail] = useState("");
@@ -93,6 +92,13 @@ export function SectionCta() {
               sub="Federation, orgs, persons, audit"
               signIn={`${SUPERADMIN}/sign-in`}
               signUp={`${SUPERADMIN}/sign-up`}
+            />
+            <ConsoleCard
+              icon={<ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title="League Admin"
+              sub="League operations, seasons, schedules"
+              signIn={`${LEAGUE_ADMIN}/sign-in`}
+              signUp={`${LEAGUE_ADMIN}/sign-up`}
             />
             <ConsoleCard
               icon={<Building2 className="h-3.5 w-3.5" strokeWidth={2.25} />}

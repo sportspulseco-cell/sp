@@ -1109,7 +1109,7 @@ export class PublicRegistrationController {
 
     const playerWebBase =
       this.config.get<string>("PLAYER_WEB_URL") ??
-      "https://sp-player-red.vercel.app";
+      "https://player.sportspulse.us";
     const portalUrl = `${playerWebBase}/parental-consent/${token}`;
     const subject = "Action required: please confirm your child's registration";
     const messageBody = [
@@ -1179,7 +1179,7 @@ export class PublicRegistrationController {
 
   /**
    * Parent-portal pre-fetch: a parent clicks the URL we emailed them
-   * (https://sp-player-red.vercel.app/parental-consent/:token) and
+   * (https://player.sportspulse.us/parental-consent/:token) and
    * the page calls this to look up context — child name, season name,
    * organisation name — so the parent has enough information to
    * decide whether to consent.

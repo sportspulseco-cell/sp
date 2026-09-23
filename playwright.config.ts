@@ -20,11 +20,11 @@ import { defineConfig, devices } from "@playwright/test";
 const TARGET = process.env.E2E_TARGET ?? "prod";
 
 const PROD_URLS = {
-  landing: "https://sp-landing-seven.vercel.app",
-  superadmin: "https://sp-superadmin.vercel.app",
-  orgAdmin: "https://sp-org-admin.vercel.app",
-  teamAdmin: "https://sp-team-admin.vercel.app",
-  player: "https://sp-player-red.vercel.app"
+  landing: "https://sportspulse.us",
+  superadmin: "https://superadmin.sportspulse.us",
+  orgAdmin: "https://org.sportspulse.us",
+  teamAdmin: "https://team.sportspulse.us",
+  player: "https://player.sportspulse.us"
 };
 
 const LOCAL_URLS = {

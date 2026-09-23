@@ -465,7 +465,7 @@ async function main() {
   // ─── Print deep-link URLs ───
   const baseUrl =
     process.env.NEXT_PUBLIC_SUPERADMIN_WEB_URL ??
-    "https://sp-superadmin.vercel.app";
+    "https://superadmin.sportspulse.us";
 
   console.log("\n" + "─".repeat(60));
   console.log("Demo data seeded — open these URLs:");

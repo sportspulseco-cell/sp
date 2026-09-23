@@ -17,7 +17,7 @@ export function CaptainConsoleBanner() {
   // Defaults to the deployed URL; override with NEXT_PUBLIC_TEAM_ADMIN_URL
   // (e.g. http://localhost:3005) when running the local stack.
   const teamAdminBase =
-    process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://sp-team-admin.vercel.app";
+    process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://team.sportspulse.us";
 
   return (
     <div className="rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] p-4">

@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   title: "SportsPulse — The pulse of every league.",
   description:
     "The unified league management engine. Autonomous logistics, automated substitutions, real-time revenue, and predictive intelligence for elite sports.",
-  metadataBase: new URL("https://sp-landing.vercel.app"),
+  metadataBase: new URL("https://sportspulse.us"),
   openGraph: {
     title: "SportsPulse — The pulse of every league.",
     description:

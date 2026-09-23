@@ -88,17 +88,16 @@ const PRIMARY = [
   { href: "/contact", label: "Contact" }
 ];
 
-const SUPERADMIN = "https://sp-superadmin.vercel.app";
-const ORG_ADMIN = "https://sp-org-admin.vercel.app";
-const TEAM_ADMIN = "https://sp-team-admin.vercel.app";
-const PLAYER = "https://sp-player-red.vercel.app";
+const SUPERADMIN = "https://superadmin.sportspulse.us";
+const LEAGUE_ADMIN = "https://league.sportspulse.us";
+const ORG_ADMIN = "https://org.sportspulse.us";
+const TEAM_ADMIN = "https://team.sportspulse.us";
+const PLAYER = "https://player.sportspulse.us";
 
-// League-admin surfaces collapsed into superadmin-web with a
-// league-scoped role filter — P5-D decision (2026-05-15). The
-// dedicated app is gone; league admins sign in to superadmin-web
-// and see a filtered view.
+// League admins use the league hostname on the shared superadmin app.
 const ACCESS = [
   { title: "Super Admin", sub: "Federation, orgs, persons, audit", base: SUPERADMIN },
+  { title: "League Admin", sub: "League operations, seasons, schedules", base: LEAGUE_ADMIN },
   { title: "Org Admin", sub: "One organization: leagues, seasons, billing", base: ORG_ADMIN },
   { title: "Team Admin / Coach", sub: "Roster, lineups, team comms", base: TEAM_ADMIN },
   { title: "Player / Free Agent", sub: "Register, sign waivers, find a team", base: PLAYER }

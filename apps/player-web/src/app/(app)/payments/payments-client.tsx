@@ -449,7 +449,7 @@ function TeamLink({
 }) {
   if (!teamId) return <span className="text-fg-muted">{teamName}</span>;
   const teamAdminBase =
-    process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://sp-team-admin.vercel.app";
+    process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://team.sportspulse.us";
   return (
     <a
       href={`${teamAdminBase}/captain/dues`}

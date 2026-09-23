@@ -288,7 +288,7 @@ async function main() {
 
   const baseUrl =
     process.env.NEXT_PUBLIC_SUPERADMIN_WEB_URL ??
-    "https://sp-superadmin.vercel.app";
+    "https://superadmin.sportspulse.us";
 
   console.log("\n" + "─".repeat(60));
   console.log("Registration form seeded — open these URLs:");
