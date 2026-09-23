@@ -19,7 +19,8 @@ async function bootstrap(): Promise<express.Express> {
   const expressApp = express();
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
-    new ExpressAdapter(expressApp)
+    new ExpressAdapter(expressApp),
+    { logger: ["error", "warn"] }
   );
   await configureApp(app);
   await app.init();
