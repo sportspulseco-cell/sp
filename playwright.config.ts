@@ -18,6 +18,10 @@ import { defineConfig, devices } from "@playwright/test";
  */
 
 const TARGET = process.env.E2E_TARGET ?? "prod";
+const supabaseIp = process.env.E2E_SUPABASE_IP;
+if (supabaseIp && !/^(?:\d{1,3}\.){3}\d{1,3}$/.test(supabaseIp)) {
+  throw new Error("E2E_SUPABASE_IP must be an IPv4 address");
+}
 
 const PROD_URLS = {
   landing: "https://sportspulse.us",
@@ -68,7 +72,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] }
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: supabaseIp
+          ? { args: [`--host-resolver-rules=MAP *.supabase.co ${supabaseIp}`] }
+          : undefined
+      }
     }
   ]
 });

@@ -11,7 +11,11 @@ const protectedApps = [
 ] as const;
 
 export default async function setup() {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: process.env.E2E_SUPABASE_IP
+      ? [`--host-resolver-rules=MAP *.supabase.co ${process.env.E2E_SUPABASE_IP}`]
+      : []
+  });
   const context = await browser.newContext();
   try {
     for (const [name, baseUrl] of protectedApps) {
