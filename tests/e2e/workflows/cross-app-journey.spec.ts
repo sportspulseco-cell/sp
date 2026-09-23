@@ -35,6 +35,7 @@ test("landing to every role workspace in one browser journey", async ({ page }) 
       const routeStarted = Date.now();
       const response = await page.goto(`${workspace.base}${workspace.path}`);
       expect(response?.status()).toBeLessThan(400);
+      await expect(page.locator("main h1").first()).toBeVisible();
       await expect(page.getByText(workspace.anchor).first()).toBeVisible();
       if (process.env.E2E_CAPTURE_UI === "1") {
         await page.screenshot({ path: `test-results/${workspace.name}-workspace.png` });
