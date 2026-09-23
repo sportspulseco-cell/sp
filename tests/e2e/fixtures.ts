@@ -109,6 +109,14 @@ export const ROUTES = {
 
 export { E2E_URLS };
 
+export function smokePasswordFor(email: string): string {
+  const credential = process.env.E2E_TARGET === "staging"
+    ? STAGING_PASSWORDS[email]
+    : SMOKE_PASSWORD;
+  if (!credential) throw new Error(`No E2E password configured for ${email}`);
+  return credential;
+}
+
 /**
  * Sign in helper. Hits the app's /sign-in page, fills the email +
  * password, clicks submit, waits for the redirect away from /sign-in.
@@ -121,10 +129,7 @@ export async function signIn(
   email: string,
   password?: string
 ) {
-  const credential = password ?? (process.env.E2E_TARGET === "staging"
-    ? STAGING_PASSWORDS[email]
-    : SMOKE_PASSWORD);
-  if (!credential) throw new Error(`No E2E password configured for ${email}`);
+  const credential = password ?? smokePasswordFor(email);
   await page.goto(`${appUrl}/sign-in`);
   await page.locator("input[type='email']").fill(email);
   await page.locator("input[type='password']").fill(credential);

@@ -3,6 +3,7 @@ import {
   expect,
   E2E_URLS,
   SMOKE_USERS,
+  smokePasswordFor,
   signIn
 } from "../fixtures";
 
@@ -52,7 +53,7 @@ for (const pair of FORBIDDEN_PAIRS) {
     await page.locator("input[type='email']").fill(pair.email);
     await page
       .locator("input[type='password']")
-      .fill("SmokeTest!2026");
+      .fill(smokePasswordFor(pair.email));
     await page.locator("button[type='submit']").click();
 
     // Wait for either the role-gate redirect or a stable post-submit
