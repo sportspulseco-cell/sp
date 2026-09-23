@@ -24,6 +24,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Build shared packages
+        run: pnpm --filter './packages/**' -r --workspace-concurrency=1 build
+
       - name: Typecheck workspace
         run: pnpm -r --workspace-concurrency=1 typecheck
 
