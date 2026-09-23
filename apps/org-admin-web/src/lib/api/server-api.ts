@@ -12,7 +12,10 @@ export const iam = {
   me: cache(api.iam.me),
   meScope: cache(api.iam.meScope)
 };
-export const orgs = api.orgs;
+export const orgs = {
+  ...api.orgs,
+  get: cache(api.orgs.get)
+};
 export const leagueMgmt = api.leagueMgmt;
 // `admin.listSports()` is JwtAuthGuard'd (sports is public catalog
 // data); the OrgSetupWizard needs it to populate the sport picker.

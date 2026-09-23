@@ -37,9 +37,9 @@ export default async function NewInvoicePage() {
     );
   }
 
-  const [orgsPage, leaguesPage, seasonsPage, teamsPage, personsList] =
+  const [activeOrg, leaguesPage, seasonsPage, teamsPage, personsList] =
     await Promise.all([
-      orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
+      orgs.get(activeOrgId),
       leagueMgmt
         .listLeagues({ orgId: activeOrgId })
         .catch(() => ({ items: [], nextCursor: null })),
@@ -63,21 +63,6 @@ export default async function NewInvoicePage() {
     )
   );
   const divisions = divisionsLists.flatMap((p) => p.items);
-
-  const activeOrg =
-    orgsPage.items.find((o) => o.id === activeOrgId) ?? null;
-  if (!activeOrg) {
-    return (
-      <div className="space-y-6">
-        <PageHeader eyebrow="Finance" title="New invoice" />
-        <EmptyState
-          icon={Building2}
-          title="Active org not visible"
-          description="Your active org isn't in the orgs list. Try switching orgs in the header."
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

@@ -6,9 +6,7 @@ on:
   push:
     branches: [main]
 
-# Vercel takes a couple minutes to deploy after a push; this job runs
-# against the live production aliases. If you want to gate merges on
-# preview-deployment URLs instead, swap E2E_TARGET to a per-PR URL.
+# Production browser tests run only after every app serves this commit.
 jobs:
   playwright:
     name: Playwright (production aliases)
@@ -28,17 +26,21 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Typecheck workspace
+        run: pnpm -r --workspace-concurrency=1 typecheck
+
       - name: Install Playwright browsers
+        if: github.event_name == 'push'
         run: pnpm test:e2e:install
 
-      - name: Wait for Vercel deploy to land
-        # Push events trigger Vercel; give it 90s to finish before
-        # we hit the live URLs. PR events use preview deployments
-        # which finish similarly fast.
+      - name: Wait for production deployments
         if: github.event_name == 'push'
-        run: sleep 90
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/wait-for-vercel.mjs
 
       - name: Run Playwright tests
+        if: github.event_name == 'push'
         env:
           E2E_TARGET: prod
           CI: "1"

@@ -28,21 +28,15 @@ import {
   FileBarChart,
   Settings2,
   Database,
-  ChevronsUpDown,
   X,
   type LucideIcon
 } from "lucide-react";
-import { LiveDot } from "@/components/motion/kinetic";
 import { useNav } from "./nav-context";
 
 type NavItem =
   | { href: string; label: string; icon: LucideIcon }
   | { section: string };
 
-// Two-tier nav: Platform-level above, Project-level below.
-// Section labels are mono "// section" with wide letter-spacing —
-// editorial DNA from the landing site. Active items get an animated
-// accent rail that slides between routes via framer-motion layoutId.
 const PLATFORM_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/organizations", label: "Organizations", icon: Building2 },
@@ -99,7 +93,7 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
           <NavGroup items={PLATFORM_NAV} />
           <div className="my-3 mx-2 h-px bg-border" />
-          <NavGroup items={PROJECT_NAV} />
+          <ProjectNav />
         </nav>
         <SidebarFooter />
       </aside>
@@ -138,7 +132,7 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
           <NavGroup items={PLATFORM_NAV} />
           <div className="my-3 mx-2 h-px bg-border" />
-          <NavGroup items={PROJECT_NAV} />
+          <ProjectNav />
         </nav>
         <SidebarFooter />
       </aside>
@@ -148,21 +142,35 @@ export function Sidebar() {
 
 function SidebarFooter() {
   return (
-    <div className="border-t border-border px-4 py-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <LiveDot tone="success" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-            all systems · normal
-          </span>
-        </div>
-        <Link
-          href="/audit"
-          className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle transition-colors hover:text-fg"
-        >
-          v2
-        </Link>
-      </div>
+    <div className="border-t border-border px-4 py-3 text-xs text-fg-muted">
+      Platform administration
+    </div>
+  );
+}
+
+function ProjectNav() {
+  const pathname = usePathname();
+  const groups: { label: string; items: NavItem[] }[] = [];
+  for (const item of PROJECT_NAV) {
+    if ("section" in item) groups.push({ label: item.section, items: [] });
+    else groups[groups.length - 1]?.items.push(item);
+  }
+
+  return (
+    <div className="space-y-1">
+      {groups.map((group) => {
+        const active = group.items.some((item) => "href" in item &&
+          (pathname === item.href || pathname.startsWith(`${item.href}/`)));
+        return (
+          <details key={`${group.label}-${active}`} open={active || group.label === "Setup"} className="group/nav">
+            <summary className="cursor-pointer rounded-md px-3 py-2 text-xs font-semibold text-fg-muted hover:bg-surface-2 hover:text-fg marker:hidden list-none flex items-center justify-between">
+              {group.label}
+              <span aria-hidden className="text-fg-subtle group-open/nav:rotate-180 transition-transform">⌄</span>
+            </summary>
+            <NavGroup items={group.items} />
+          </details>
+        );
+      })}
     </div>
   );
 }
@@ -245,10 +253,7 @@ function NavGroup({ items }: { items: NavItem[] }) {
 
 function WorkspaceSwitcher() {
   return (
-    <button
-      type="button"
-      className="group flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors duration-fast ease-ease hover:bg-surface-2"
-    >
+    <div className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left">
       <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-fg text-bg">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -261,11 +266,6 @@ function WorkspaceSwitcher() {
           <path d="m12 14 4-4" />
           <path d="M3.34 19a10 10 0 1 1 17.32 0" />
         </svg>
-        {/* Subtle accent halo on hover */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-[--accent]/0 transition-all duration-200 group-hover:ring-[--accent]/40"
-        />
       </div>
       <div className="flex-1 min-w-0">
         <p className="truncate text-[13px] font-semibold text-fg">SportsPulse</p>
@@ -273,10 +273,6 @@ function WorkspaceSwitcher() {
           platform · admin
         </p>
       </div>
-      <ChevronsUpDown
-        className="h-3.5 w-3.5 shrink-0 text-fg-muted transition-colors group-hover:text-fg"
-        strokeWidth={1.75}
-      />
-    </button>
+    </div>
   );
 }

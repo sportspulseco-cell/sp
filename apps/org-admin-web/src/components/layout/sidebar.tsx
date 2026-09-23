@@ -29,20 +29,25 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-const NAV: NavItem[] = [
+const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/org-setup", label: "Org setup", icon: Wand2 },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/seasons", label: "Seasons", icon: CalendarRange },
   { href: "/divisions", label: "Divisions", icon: Layers },
   { href: "/teams", label: "Teams", icon: Network },
-  { href: "/scheduling", label: "Schedule", icon: CalendarClock },
+  { href: "/scheduling", label: "Schedule", icon: CalendarClock }
+];
+
+const OPERATIONS_NAV: NavItem[] = [
   { href: "/venues", label: "Venues", icon: Building2 },
   { href: "/registrations", label: "Registrations", icon: ScrollText },
   { href: "/forms", label: "Forms", icon: FileSignature },
   { href: "/finance", label: "Finance", icon: Wallet },
   { href: "/disputes", label: "Disputes", icon: Gavel },
-  { href: "/communications", label: "Communications", icon: Mail },
+  { href: "/communications", label: "Communications", icon: Mail }
+];
+const RECORDS_NAV: NavItem[] = [
   { href: "/audit", label: "Audit", icon: FileBarChart }
 ];
 
@@ -55,7 +60,7 @@ export function Sidebar() {
       <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
         <SidebarBrand />
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
-          <NavGroup items={NAV} />
+          <SidebarNav />
         </nav>
         <SidebarFooter />
       </aside>
@@ -88,7 +93,7 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
-          <NavGroup items={NAV} />
+          <SidebarNav />
         </nav>
         <SidebarFooter />
       </aside>
@@ -115,13 +120,29 @@ function SidebarBrand({ inline = false }: { inline?: boolean }) {
 function SidebarFooter() {
   return (
     <div className="border-t border-border px-4 py-3 text-[11px] text-fg-muted">
-      <span className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--success)]/50" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
-        </span>
-        All systems operational
-      </span>
+      Organization workspace
+    </div>
+  );
+}
+
+function SidebarNav() {
+  const pathname = usePathname();
+  return (
+    <div className="space-y-2">
+      <NavGroup items={PRIMARY_NAV} />
+      {[["Operations", OPERATIONS_NAV], ["Records", RECORDS_NAV]].map(([label, items]) => {
+        const links = items as NavItem[];
+        const active = links.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+        return (
+          <details key={`${label}-${active}`} open={active} className="group/nav">
+            <summary className="cursor-pointer rounded-md px-2 py-2 text-xs font-semibold text-fg-muted hover:bg-surface-2 hover:text-fg marker:hidden list-none flex items-center justify-between">
+              {label as string}
+              <span aria-hidden className="text-fg-subtle group-open/nav:rotate-180 transition-transform">⌄</span>
+            </summary>
+            <NavGroup items={links} />
+          </details>
+        );
+      })}
     </div>
   );
 }
