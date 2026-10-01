@@ -24,6 +24,16 @@ const SCOPE_TYPES: RoleScopeType[] = [
   "game"
 ];
 
+const SCOPE_LABELS: Record<RoleScopeType, string> = {
+  platform: "Platform",
+  org: "Organization",
+  league: "League",
+  season: "Season",
+  division: "Division",
+  team: "Team",
+  game: "Game"
+};
+
 const ROLE_DEFAULT_SCOPE: Record<string, RoleScopeType> = {
   super_admin: "platform",
   org_admin: "org",
@@ -54,7 +64,7 @@ export function AssignRolePanel({
   roles: Role[];
   /**
    * Pre-select this role on open. When the panel is launched from a
-   * specific user row, this MUST be the user's current primary role â€”
+   * specific user row, this MUST be the user's current primary role.
    * defaulting to alphabetic-first ("coach" first in our catalog) is
    * a misleading default that callers shouldn't have to think about.
    */
@@ -73,7 +83,7 @@ export function AssignRolePanel({
 
   // Resolve the initial selection.
   // - When `defaultRoleCode` matches a known role, land on that role
-  //   (the panel was launched from a row with context â€” e.g. a super-
+  //   (the panel was launched from a row with context, e.g. a super-
   //   admin's "Change user type" should default to super_admin).
   // - When no context is provided, render an empty state instead of
   //   silently defaulting to alphabetic-first ("captain" first in our
@@ -118,24 +128,18 @@ export function AssignRolePanel({
       switch (scopeType) {
         case "org": {
           // Server caps limit at 100 (see /orgs ListOrgsQueryDto). Was 200
-          // and 400'd silently â€” the catch swallowed the error and the
+          // and 400'd silently; the catch swallowed the error and the
           // user saw "No orgs found" even when orgs existed.
           const p = await orgsApi.list({ limit: 100 });
           return p.items.map((o) => ({ id: o.id, label: o.displayName }));
         }
         case "league": {
           const p = await leagueMgmt.listLeagues({});
-          return p.items.map((l) => ({
-            id: l.id,
-            label: `${l.name} Â· ${l.sportCode}`
-          }));
+          return p.items.map((l) => ({ id: l.id, label: l.name }));
         }
         case "season": {
           const p = await leagueMgmt.listSeasons({});
-          return p.items.map((s) => ({
-            id: s.id,
-            label: `${s.name} Â· ${s.sportCode}`
-          }));
+          return p.items.map((s) => ({ id: s.id, label: s.name }));
         }
         case "division": {
           const p = await leagueMgmt.listDivisions({});
@@ -157,7 +161,7 @@ export function AssignRolePanel({
             );
             return {
               id: g.id,
-              label: `${d} Â· ${g.awayTeamId.slice(0, 6)} @ ${g.homeTeamId.slice(0, 6)}`
+              label: `${d} - ${g.venueName ?? "Venue to be confirmed"}`
             };
           });
         }
@@ -206,7 +210,7 @@ export function AssignRolePanel({
         scopeType,
         scopeId: scopeType === "platform" ? null : scopeId || null
       });
-      setSuccess(`Assigned ${selectedRole?.code ?? "role"} at ${scopeType}.`);
+      setSuccess(`Assigned ${selectedRole?.name ?? "role"} at ${SCOPE_LABELS[scopeType].toLowerCase()} scope.`);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -232,13 +236,13 @@ export function AssignRolePanel({
           value={roleId}
           onChange={(e) => onRoleChange(e.target.value)}
         >
-          {/* Placeholder option keeps "Select a roleâ€¦" as the visible
+          {/* Placeholder option keeps "Select a role..." as the visible
               default when no contextual role was passed in. Forces the
               admin to pick consciously rather than silently landing on
               alphabetic-first. */}
           {roleId === "" ? (
             <option value="" disabled hidden>
-              Select a roleâ€¦
+              Select a role...
             </option>
           ) : null}
           <optgroup label="System">
@@ -246,7 +250,7 @@ export function AssignRolePanel({
               .filter((r) => r.isSystem)
               .map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.code} â€” {r.name}
+                  {r.name}
                 </option>
               ))}
           </optgroup>
@@ -256,7 +260,7 @@ export function AssignRolePanel({
                 .filter((r) => !r.isSystem)
                 .map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.code} â€” {r.name}
+                    {r.name}
                   </option>
                 ))}
             </optgroup>
@@ -271,21 +275,27 @@ export function AssignRolePanel({
         >
           {SCOPE_TYPES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {SCOPE_LABELS[s]}
             </option>
           ))}
         </Select>
       </Field>
       <Field
-        label={scopeType === "platform" ? "Scope" : `Pick ${scopeType}`}
+        label={
+          scopeType === "platform"
+            ? "Scope"
+            : scopeType === "org"
+              ? "Pick an organization"
+              : `Pick a ${SCOPE_LABELS[scopeType].toLowerCase()}`
+        }
         htmlFor="ar-scope-id"
         hint={
           scopeType === "platform"
             ? "Platform scope has no ID."
             : scopeLoading
-              ? "Loadingâ€¦"
+              ? "Loading..."
               : scopeOptions.length === 0
-                ? `No ${scopeType}s available â€” create one first.`
+                ? `No ${SCOPE_LABELS[scopeType].toLowerCase()}s available. Create one first.`
                 : `${scopeOptions.length} available`
         }
       >
@@ -297,9 +307,9 @@ export function AssignRolePanel({
           onChange={(e) => setScopeId(e.target.value)}
         >
           {scopeType === "platform" ? (
-            <option value="">â€”</option>
+            <option value="">No selection needed</option>
           ) : scopeLoading ? (
-            <option value="">Loadingâ€¦</option>
+            <option value="">Loading...</option>
           ) : scopeOptions.length === 0 ? (
             <option value="">No {scopeType}s found</option>
           ) : (
@@ -315,7 +325,7 @@ export function AssignRolePanel({
         <Button type="submit" disabled={submitDisabled}>
           {loading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assigningâ€¦
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assigning...
             </>
           ) : (
             <>
