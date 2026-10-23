@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Building2 } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import {
@@ -40,14 +41,14 @@ export default async function NewInvoicePage() {
   const [activeOrg, leaguesPage, seasonsPage, teamsPage, personsList] =
     await Promise.all([
       orgs.get(activeOrgId),
-      leagueMgmt
-        .listLeagues({ orgId: activeOrgId })
+      fetchAll((cursor) => leagueMgmt
+        .listLeagues({ orgId: activeOrgId, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null })),
-      leagueMgmt
-        .listSeasons({ orgId: activeOrgId })
+      fetchAll((cursor) => leagueMgmt
+        .listSeasons({ orgId: activeOrgId, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null })),
-      leagueMgmt
-        .listTeams({ orgId: activeOrgId })
+      fetchAll((cursor) => leagueMgmt
+        .listTeams({ orgId: activeOrgId, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null })),
       orgAdminPersons.list({ orgId: activeOrgId }).catch(() => [])
     ]);
@@ -57,8 +58,8 @@ export default async function NewInvoicePage() {
   // does — anything beyond that is a separate paging concern.
   const divisionsLists = await Promise.all(
     seasonsPage.items.map((s) =>
-      leagueMgmt
-        .listDivisions({ seasonId: s.id })
+      fetchAll((cursor) => leagueMgmt
+        .listDivisions({ seasonId: s.id, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null }))
     )
   );

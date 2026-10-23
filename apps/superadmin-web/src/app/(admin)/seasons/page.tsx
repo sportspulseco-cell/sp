@@ -30,7 +30,7 @@ export default async function SeasonsPage({
 }) {
   const sp = await searchParams;
   const [seasonsPage, leaguesPage] = await Promise.all([
-    leagueMgmt.listSeasons({ leagueId: sp?.leagueId }).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId: sp?.leagueId, limit: 100, cursor })).catch(() => ({ items: [] })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));

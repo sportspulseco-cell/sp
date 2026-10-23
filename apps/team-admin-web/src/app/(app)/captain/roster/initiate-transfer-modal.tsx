@@ -1,4 +1,5 @@
 "use client";
+import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
@@ -49,8 +50,8 @@ export function InitiateTransferModal({
 
   useEffect(() => {
     if (!target) return;
-    leagueMgmt
-      .listTeams({ status: "active" })
+    fetchAll((cursor) => leagueMgmt
+      .listTeams({ status: "active", limit: 100, cursor }))
       .then((page) =>
         setTeams(page.items.filter((t) => t.id !== fromTeamId))
       )

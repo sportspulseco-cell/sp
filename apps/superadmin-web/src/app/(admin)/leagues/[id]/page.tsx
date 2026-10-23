@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LeagueDetail } from "@sportspulse/admin-pages";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
@@ -28,7 +29,7 @@ export default async function LeagueDetailPage({
   const [org, governingBodies, seasonsPage] = await Promise.all([
     orgs.get(league.orgId).catch(() => null),
     leagueMgmt.listGoverningBodies({}).catch(() => []),
-    leagueMgmt.listSeasons({ leagueId: league.id }).catch(() => ({ items: [] }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId: league.id, limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
 
   const govBody = governingBodies.find((b) => b.id === league.governingBodyId);

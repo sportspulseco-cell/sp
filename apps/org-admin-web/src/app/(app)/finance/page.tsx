@@ -9,7 +9,7 @@ import {
   Wallet
 } from "lucide-react";
 import { SectionRail, StatTile } from "@sportspulse/ui";
-import { iam, finance } from "@/lib/api/server-api";
+import { iam, orgAdminFinance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceTable } from "./invoice-table";
@@ -29,8 +29,8 @@ export default async function FinancePage() {
   const orgId = await getActiveOrgId(scope);
 
   const invoicesPage = orgId
-    ? await finance
-        .listInvoices({ orgId, limit: 200 })
+    ? await orgAdminFinance
+        .listInvoices({ orgId })
         .catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 

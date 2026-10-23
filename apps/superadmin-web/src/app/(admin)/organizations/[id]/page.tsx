@@ -69,12 +69,12 @@ export default async function OrgDetailPage({
       .listRoleAssignments({ scopeType: "org", scopeId: id, activeOnly: true })
       .catch(() => ({ items: [], nextCursor: null })),
     iam.listRoles({ limit: 200 }).catch(() => ({ items: [] })),
-    leagueMgmt
-      .listSeasons({ orgId: id })
+    fetchAll((cursor) => leagueMgmt
+      .listSeasons({ orgId: id, limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listTeams({ orgId: id })
+    fetchAll((cursor) => leagueMgmt
+      .listTeams({ orgId: id, limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     registration
       .listRegistrations({ orgId: id })
@@ -91,8 +91,8 @@ export default async function OrgDetailPage({
   // org so we can render the cross-season division roll-up.
   const divisionsPerSeason = await Promise.all(
     seasonsPage.items.map((s) =>
-      leagueMgmt
-        .listDivisions({ seasonId: s.id })
+      fetchAll((cursor) => leagueMgmt
+        .listDivisions({ seasonId: s.id, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null }))
     )
   );

@@ -1,4 +1,5 @@
 "use client";
+import { fetchAll } from "@sportspulse/api-client";
 
 /**
  * Org-admin binding for the shared CreateFormButton in
@@ -27,15 +28,15 @@ export function CreateFormButton({
       orgs={[{ id: activeOrgId, displayName: activeOrgName }]}
       lockOrg
       listLeagues={async (orgId) => {
-        const page = await leagueMgmt.listLeagues({ orgId });
+        const page = await fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor }));
         return page.items.map((l) => ({ id: l.id, name: l.name }));
       }}
       listSeasons={async (leagueId) => {
-        const page = await leagueMgmt.listSeasons({ leagueId });
+        const page = await fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor }));
         return page.items.map((s) => ({ id: s.id, name: s.name }));
       }}
       listDivisions={async (seasonId) => {
-        const page = await leagueMgmt.listDivisions({ seasonId });
+        const page = await fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId, limit: 100, cursor }));
         return page.items.map((d) => ({ id: d.id, name: d.name }));
       }}
       createForm={(input) => registration.createForm(input)}

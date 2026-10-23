@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 /* Hallmark · page: list (divisions) · genre: editorial · theme: project
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -28,12 +29,12 @@ export default async function DivisionsPage() {
 
   // Divisions are filtered by seasonId; fan out across the org's seasons.
   const seasonsPage = orgId
-    ? await leagueMgmt.listSeasons({ orgId }).catch(() => ({ items: [], nextCursor: null }))
+    ? await fetchAll((cursor) => leagueMgmt.listSeasons({ orgId, limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 
   const divisionsLists = await Promise.all(
     seasonsPage.items.map((s) =>
-      leagueMgmt.listDivisions({ seasonId: s.id }).catch(() => ({ items: [], nextCursor: null }))
+      fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId: s.id, limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
     )
   );
   const all: Division[] = divisionsLists.flatMap((p) => p.items);

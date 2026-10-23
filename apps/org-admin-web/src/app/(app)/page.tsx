@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 /* Hallmark · page: dashboard · genre: editorial · theme: project (sp-org-admin)
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -25,13 +26,7 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import {
-  finance,
-  iam,
-  leagueMgmt,
-  orgs,
-  registration
-} from "@/lib/api/server-api";
+import { iam, leagueMgmt, orgs, registrationV2Admin, orgAdminFinance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -63,17 +58,18 @@ export default async function OrgAdminHome() {
 
   const [leaguesPage, seasonsPage, registrationsPage, invoicesPage] =
     await Promise.all([
-      leagueMgmt
-        .listLeagues({ orgId: myOrgId })
+      fetchAll((cursor) => leagueMgmt
+        .listLeagues({ orgId: myOrgId, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null })),
-      leagueMgmt
-        .listSeasons({ orgId: myOrgId })
+      fetchAll((cursor) => leagueMgmt
+        .listSeasons({ orgId: myOrgId, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null })),
-      registration
-        .listRegistrations({ orgId: myOrgId })
-        .catch(() => ({ items: [], nextCursor: null })),
-      finance
-        .listInvoices({ orgId: myOrgId, limit: 200 })
+      // Org-scoped review queue; listRegistrations is super_admin only.
+      registrationV2Admin
+        .listSubmissions({ orgId: myOrgId, limit: 200 })
+        .catch(() => ({ items: [] })),
+      orgAdminFinance
+        .listInvoices({ orgId: myOrgId })
         .catch(() => ({ items: [], nextCursor: null }))
     ]);
 
@@ -249,8 +245,8 @@ export default async function OrgAdminHome() {
             <Table>
               <THead>
                 <TR>
-                  <TH>ID</TH>
-                  <TH>Subject</TH>
+                  <TH>Player</TH>
+                  <TH>Email</TH>
                   <TH>Status</TH>
                   <TH className="text-right">Created</TH>
                 </TR>
@@ -258,11 +254,11 @@ export default async function OrgAdminHome() {
               <TBody>
                 {registrationsPage.items.slice(0, 10).map((r) => (
                   <TR key={r.id}>
-                    <TD className="font-mono text-[11px] text-fg-muted">
-                      {r.id.slice(0, 8)}
+                    <TD className="text-[13px] font-medium text-fg">
+                      {(r.metadata as { fullName?: string })?.fullName ?? "Unnamed"}
                     </TD>
-                    <TD className="font-mono text-[11px] text-fg-muted">
-                      {r.subjectPersonId.slice(0, 8)}
+                    <TD className="text-[12px] text-fg-muted">
+                      {(r.metadata as { email?: string })?.email ?? "Not provided"}
                     </TD>
                     <TD>
                       <Badge mono tone={statusToneFor(r.status)}>

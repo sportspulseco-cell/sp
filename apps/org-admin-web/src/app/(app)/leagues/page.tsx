@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 /* Hallmark · page: list (leagues) · genre: editorial · theme: project
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -26,7 +27,7 @@ export default async function LeaguesPage() {
   const orgId = await getActiveOrgId(scope);
 
   const page = orgId
-    ? await leagueMgmt.listLeagues({ orgId }).catch(() => ({ items: [], nextCursor: null }))
+    ? await fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 
   const active = page.items.filter((l) => (l.status as string) === "active").length;

@@ -2884,6 +2884,9 @@ export function createApi(f: Fetcher) {
     // `finance.createBulkInvoice` body shape exactly; the proxy adds an
     // org-scope check before delegating to the same InvoicingService.
     orgAdminFinance: {
+      /** Org admin's own org invoices (finance.listInvoices is super_admin only). */
+      listInvoices: (q: { orgId: string }) =>
+        f<Page<Invoice>>(`/org-admin/finance/invoices${qs(q)}`),
       recordPayment: (
         invoiceId: string,
         body: {

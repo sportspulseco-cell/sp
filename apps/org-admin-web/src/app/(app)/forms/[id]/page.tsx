@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { AlertTriangle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@sportspulse/ui";
@@ -92,7 +93,7 @@ export default async function OrgAdminFormSetupPage({
           )
         : Promise.resolve([] as PricingTier[]),
       seasonId
-        ? leagueMgmt.listDivisions({ seasonId }).catch(() => ({
+        ? fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId, limit: 100, cursor })).catch(() => ({
             items: [] as Division[],
             nextCursor: null
           }))
@@ -169,8 +170,8 @@ export default async function OrgAdminFormSetupPage({
   // Server entry: prior seasons for Season step's rollover card.
   let priorSeasons: Season[] = [];
   if (active === "season") {
-    const priorPage = await leagueMgmt
-      .listSeasons({ orgId: form.orgId })
+    const priorPage = await fetchAll((cursor) => leagueMgmt
+      .listSeasons({ orgId: form.orgId, limit: 100, cursor }))
       .catch(() => ({ items: [] as Season[], nextCursor: null }));
     priorSeasons = priorPage.items
       .filter((s) => s.id !== form.seasonId)

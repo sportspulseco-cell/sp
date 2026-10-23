@@ -45,8 +45,8 @@ export default async function DivisionsPage({
   // is supplied, fall back to listing all divisions and filtering in-memory.
   let divs: { items: Division[] } = { items: [] };
   if (sp?.seasonId) {
-    divs = (await leagueMgmt
-      .listDivisions({ seasonId: sp.seasonId })
+    divs = (await fetchAll((cursor) => leagueMgmt
+      .listDivisions({ seasonId: sp.seasonId, limit: 100, cursor }))
       .catch(() => ({ items: [] }))) as { items: Division[] };
   } else {
     const all = (await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor }))

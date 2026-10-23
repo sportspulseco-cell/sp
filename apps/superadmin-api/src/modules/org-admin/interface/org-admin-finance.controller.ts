@@ -3,11 +3,13 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   Headers,
   Inject,
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -20,7 +22,7 @@ import {
   IsUUID,
   Min
 } from "class-validator";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -73,6 +75,34 @@ export class OrgAdminFinanceController {
     private readonly recordPayH: RecordPaymentHandler,
     private readonly invoicing: InvoicingService
   ) {}
+
+  @Get("invoices")
+  @ApiOperation({
+    summary:
+      "Invoices of one org the caller administers, newest first. The org-admin finance and home pages used the super_admin-only /finance/invoices and showed nothing (J13.12)."
+  })
+  async listInvoices(
+    @Query("orgId") orgId: string,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    if (!orgId) throw new NotFoundException("orgId required");
+    if (!scope.isSuperAdmin) {
+      if (scope.orgIds !== null && !scope.orgIds.includes(orgId)) {
+        throw new NotFoundException("Org not found");
+      }
+      if (!(await this.userHasOrgAdminOnOrg(user.userId, orgId))) {
+        throw new ForbiddenException("Requires org_admin (or super_admin) on this org");
+      }
+    }
+    const rows = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.orgId, orgId))
+      .orderBy(desc(schema.invoices.createdAt))
+      .limit(500);
+    return { items: rows.map((r) => ({ ...r, items: [] })), nextCursor: null };
+  }
 
   @Post("invoices/bulk")
   @AllowScopedWrite()

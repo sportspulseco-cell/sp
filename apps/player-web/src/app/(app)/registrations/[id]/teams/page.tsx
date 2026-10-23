@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarX, Users } from "lucide-react";
@@ -64,11 +65,9 @@ export default async function FindTeamPage({
   // Scope: division-bound registration → teams that have an active
   // DTE in *that* division (P2-2). Org-only registration → every
   // team in the org (the captain still decides whether to accept).
-  const teamsPage = await leagueMgmt
-    .listTeams({
-      orgId: r.orgId,
-      divisionId: r.divisionId ?? undefined
-    })
+  const teamsPage = await fetchAll((cursor) => leagueMgmt
+    .listTeams({ orgId: r.orgId,
+      divisionId: r.divisionId ?? undefined, limit: 100, cursor }))
     .catch(() => ({ items: [], nextCursor: null }));
 
   // Already-pending requests so we can disable the Apply button.

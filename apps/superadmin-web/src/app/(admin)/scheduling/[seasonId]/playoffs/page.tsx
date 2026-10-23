@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { SchedulingPlayoffBrackets } from "@sportspulse/admin-pages";
@@ -24,8 +25,8 @@ export default async function PlayoffsPage({
   const season = await leagueMgmt.getSeason(seasonId).catch(() => null);
   if (!season) notFound();
 
-  const divisionsPage = await leagueMgmt
-    .listDivisions({ seasonId: season.id })
+  const divisionsPage = await fetchAll((cursor) => leagueMgmt
+    .listDivisions({ seasonId: season.id, limit: 100, cursor }))
     .catch(() => ({ items: [] as { id: string; name: string }[] }));
 
   return (

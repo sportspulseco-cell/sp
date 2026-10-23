@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Trophy, Wand2, Network, Archive, Layers } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
@@ -29,8 +30,8 @@ export default async function LeaguesPage({
 }) {
   const sp = await searchParams;
   const [leaguesPage, orgList] = await Promise.all([
-    leagueMgmt
-      .listLeagues({ orgId: sp?.orgId })
+    fetchAll((cursor) => leagueMgmt
+      .listLeagues({ orgId: sp?.orgId, limit: 100, cursor }))
       .catch(() => ({ items: [] })),
     orgs.list({ limit: 100 }).catch(() => ({ items: [] }))
   ]);

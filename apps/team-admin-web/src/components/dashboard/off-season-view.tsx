@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import { CalendarRange, MapPin, Pencil, Trophy } from "lucide-react";
 import { Eyebrow } from "@sportspulse/ui";
@@ -21,8 +22,8 @@ export async function OffSeasonView({
 }) {
   // Best-effort: pull the most recent completed season for this team's
   // org and read the team's standings row from it.
-  const seasonsPage = await leagueMgmt
-    .listSeasons({ orgId: team.orgId, status: "completed" })
+  const seasonsPage = await fetchAll((cursor) => leagueMgmt
+    .listSeasons({ orgId: team.orgId, status: "completed", limit: 100, cursor }))
     .catch(() => ({ items: [], nextCursor: null }));
   const lastSeason = seasonsPage.items[0] ?? null;
   const standing = lastSeason

@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { ShieldAlert, UserPlus } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
@@ -45,8 +46,8 @@ export default async function FreeAgentPoolPage() {
   // has somewhere to start.
   let eligibleSeasons: Season[] = [];
   if (orgId) {
-    const seasonsPage = await leagueMgmt
-      .listSeasons({ orgId })
+    const seasonsPage = await fetchAll((cursor) => leagueMgmt
+      .listSeasons({ orgId, limit: 100, cursor }))
       .catch(() => ({ items: [] as Season[], nextCursor: null }));
     eligibleSeasons = (seasonsPage.items ?? [])
       .filter(

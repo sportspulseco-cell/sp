@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { SeasonSectionForm } from "@sportspulse/forms-builder";
@@ -13,8 +14,8 @@ export async function SeasonSection({
   form: RegistrationForm;
   season: Season | null;
 }) {
-  const priorSeasonsPage = await leagueMgmt
-    .listSeasons({ orgId: form.orgId })
+  const priorSeasonsPage = await fetchAll((cursor) => leagueMgmt
+    .listSeasons({ orgId: form.orgId, limit: 100, cursor }))
     .catch(() => ({ items: [] as Season[], nextCursor: null }));
 
   // Filter out the season this form is currently bound to (if any).

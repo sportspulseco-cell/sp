@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { SeasonDetail } from "@sportspulse/admin-pages";
 import { iam, leagueMgmt, registration } from "@/lib/api/server-api";
@@ -35,7 +36,7 @@ export default async function OrgAdminSeasonDetailPage({
 
   const [parentLeague, divisionsPage, formsPage] = await Promise.all([
     leagueMgmt.getLeague(season.leagueId).catch(() => null),
-    leagueMgmt.listDivisions({ seasonId: season.id }).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId: season.id, limit: 100, cursor })).catch(() => ({ items: [] })),
     registration
       .listForms({ orgId: season.orgId })
       .catch(() => ({ items: [], nextCursor: null }))

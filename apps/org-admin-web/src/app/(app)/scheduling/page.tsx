@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import { CalendarRange, Wand2 } from "lucide-react";
 import {
@@ -28,8 +29,8 @@ export default async function OrgAdminSchedulingPage() {
   const orgId = await getActiveOrgId(scope);
 
   const page = orgId
-    ? await leagueMgmt
-        .listSeasons({ orgId })
+    ? await fetchAll((cursor) => leagueMgmt
+        .listSeasons({ orgId, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 

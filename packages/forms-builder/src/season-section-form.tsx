@@ -1,4 +1,5 @@
 "use client";
+import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -60,8 +61,8 @@ export function SeasonSectionForm({
   // Pull every season in the org so the dropdown can show all options.
   useEffect(() => {
     let alive = true;
-    leagueMgmt
-      .listSeasons({ orgId: form.orgId })
+    fetchAll((cursor) => leagueMgmt
+      .listSeasons({ orgId: form.orgId, limit: 100, cursor }))
       .then((page) => {
         if (!alive) return;
         const items = (page.items ?? []).slice().sort((a, b) =>

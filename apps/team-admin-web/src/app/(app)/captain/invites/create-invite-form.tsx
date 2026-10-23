@@ -1,4 +1,5 @@
 "use client";
+import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
           orgId = scope.orgIds[0];
         }
         if (!orgId) return;
-        const page = await leagueMgmt.listSeasons({ orgId });
+        const page = await fetchAll((cursor) => leagueMgmt.listSeasons({ orgId, limit: 100, cursor }));
         if (cancelled) return;
         const list = page.items;
         setSeasons(list);

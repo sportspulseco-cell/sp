@@ -30,8 +30,8 @@ export default async function NewInvoicePage() {
   // pagination. For sa this is the platform-wide set.
   const divisionsLists = await Promise.all(
     seasonsPage.items.map((s) =>
-      leagueMgmt
-        .listDivisions({ seasonId: s.id })
+      fetchAll((cursor) => leagueMgmt
+        .listDivisions({ seasonId: s.id, limit: 100, cursor }))
         .catch(() => ({ items: [], nextCursor: null }))
     )
   );

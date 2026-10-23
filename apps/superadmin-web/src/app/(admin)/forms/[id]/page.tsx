@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import type { Division, PricingTier, EmailTemplate } from "@sportspulse/api-client";
 import {
@@ -68,7 +69,7 @@ export default async function FormSetupPage({
           )
         : Promise.resolve([] as PricingTier[]),
       seasonId
-        ? league.listDivisions({ seasonId }).catch(() => ({
+        ? fetchAll((cursor) => league.listDivisions({ seasonId, limit: 100, cursor })).catch(() => ({
             items: [] as Division[],
             nextCursor: null
           }))

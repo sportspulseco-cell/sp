@@ -1,4 +1,5 @@
-﻿import { ChartBar } from "lucide-react";
+﻿import { fetchAll } from "@sportspulse/api-client";
+import { ChartBar } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -39,7 +40,7 @@ export default async function TeamAdminStatsPage() {
     // Team has orgId, not leagueId directly; pull standings via the
     // first season the team participates in. Cheap workaround until
     // teams.leagueId is exposed on the SDK (paper cut on the roadmap).
-    const seasonsPage = await leagueMgmt.listSeasons({ orgId: team.orgId });
+    const seasonsPage = await fetchAll((cursor) => leagueMgmt.listSeasons({ orgId: team.orgId, limit: 100, cursor }));
     if (seasonsPage.items[0]) {
       leagueId = seasonsPage.items[0].leagueId ?? null;
       if (leagueId) {
