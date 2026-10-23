@@ -5,6 +5,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import { Network, Plus } from "lucide-react";
 import {
+  Alert,
   Badge,
   EmptyState,
   SectionRail,
@@ -13,8 +14,10 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  UrlFilters
 } from "@sportspulse/ui";
+import type { Team } from "@sportspulse/api-client";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -22,13 +25,38 @@ import { getActiveOrgId } from "@/lib/active-org";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Teams - Org Admin" };
 
-export default async function TeamsPage() {
+export default async function TeamsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ q?: string; sport?: string; status?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
   const scope = await iam.meScope().catch(() => null);
   const orgId = await getActiveOrgId(scope);
 
+  let loadFailed = false;
   const page = orgId
-    ? await fetchAll((cursor) => leagueMgmt.listTeams({ orgId, limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+    ? await fetchAll((cursor) => leagueMgmt.listTeams({ orgId, limit: 100, cursor })).catch((e) => {
+        // Show the failure; an empty list here read as "No teams yet".
+        console.error("[teams] listTeams failed", e);
+        loadFailed = true;
+        return { items: [] as Team[], nextCursor: null };
+      })
+    : { items: [] as Team[], nextCursor: null };
+
+  const q = sp.q?.trim().toLowerCase() ?? "";
+  const shown = page.items.filter((t) => {
+    if (sp.sport && t.sportCode !== sp.sport) return false;
+    if (sp.status && (t.status as string) !== sp.status) return false;
+    if (q) {
+      const hay = `${t.name} ${t.shortName ?? ""} ${t.captainName ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const sportOptions = [...new Set(page.items.map((t) => t.sportCode))]
+    .sort()
+    .map((s) => ({ value: s, label: s }));
 
   const active = page.items.filter((t) => (t.status as string) === "active").length;
 
@@ -56,8 +84,34 @@ export default async function TeamsPage() {
           subtitle="Each team is owned by a captain and entered into a division per season. Open one to manage roster, lineups, and dues."
           meta={`${active} active · ${page.items.length} total`}
         />
+        <div className="space-y-2">
+          <UrlFilters
+            searchPlaceholder="Search teams by name, short name or captain"
+            selects={[
+              { param: "sport", label: "Sport", allLabel: "All sports", options: sportOptions },
+              {
+                param: "status",
+                label: "Status",
+                allLabel: "All statuses",
+                options: [
+                  { value: "active", label: "Active" },
+                  { value: "dissolved", label: "Dissolved" }
+                ]
+              }
+            ]}
+          />
+          <p className="text-[12px] text-fg-muted">
+            Showing {shown.length} of {page.items.length} teams
+          </p>
+        </div>
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {page.items.length === 0 ? (
+          {loadFailed ? (
+            <div className="p-4">
+              <Alert tone="error">
+                Could not load teams. This is a server problem on our side, not your data. Reload to try again.
+              </Alert>
+            </div>
+          ) : page.items.length === 0 ? (
             <div className="px-6 py-12">
               <EmptyState
                 icon={Network}
@@ -65,18 +119,27 @@ export default async function TeamsPage() {
                 description="Add a team here, or wait for captains to apply via the registration funnel."
               />
             </div>
+          ) : shown.length === 0 ? (
+            <div className="px-6 py-12">
+              <EmptyState
+                icon={Network}
+                title="No teams match these filters"
+                description="Clear the search or pick a different sport or status."
+              />
+            </div>
           ) : (
             <Table>
               <THead>
                 <TR>
                   <TH>Name</TH>
-                  <TH>Short</TH>
+                  <TH>Short name</TH>
                   <TH>Sport</TH>
+                  <TH>Captain</TH>
                   <TH>Status</TH>
                 </TR>
               </THead>
               <TBody>
-                {page.items.map((t) => (
+                {shown.map((t) => (
                   <TR key={t.id}>
                     <TD className="font-medium text-fg">
                       <Link href={`/teams/${t.id}`} className="hover:text-accent">
@@ -85,6 +148,7 @@ export default async function TeamsPage() {
                     </TD>
                     <TD className="font-mono text-[11px] text-fg-muted">{t.shortName ?? "—"}</TD>
                     <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{t.sportCode}</TD>
+                    <TD className="text-fg-muted">{t.captainName ?? "—"}</TD>
                     <TD>
                       <Badge mono tone={(t.status as string) === "active" ? "success" : "neutral"}>
                         {t.status}

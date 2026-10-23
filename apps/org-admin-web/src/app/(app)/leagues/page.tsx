@@ -5,6 +5,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import { Wand2, Trophy } from "lucide-react";
 import {
+  Alert,
   Badge,
   EmptyState,
   SectionRail,
@@ -13,8 +14,10 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  UrlFilters
 } from "@sportspulse/ui";
+import type { League } from "@sportspulse/api-client";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -22,13 +25,39 @@ import { getActiveOrgId } from "@/lib/active-org";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leagues - Org Admin" };
 
-export default async function LeaguesPage() {
+/** Filters live in the URL (?q=&status=&sport=). */
+export default async function LeaguesPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ q?: string; status?: string; sport?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
   const scope = await iam.meScope().catch(() => null);
   const orgId = await getActiveOrgId(scope);
 
+  let loadFailed = false;
   const page = orgId
-    ? await fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+    ? await fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor })).catch((e) => {
+        // Show the failure; an empty list here read as "No leagues yet".
+        console.error("[leagues] listLeagues failed", e);
+        loadFailed = true;
+        return { items: [] as League[], nextCursor: null };
+      })
+    : { items: [] as League[], nextCursor: null };
+
+  const q = sp.q?.trim().toLowerCase() ?? "";
+  const shown = page.items.filter((l) => {
+    if (sp.status && (l.status as string) !== sp.status) return false;
+    if (sp.sport && l.sportCode !== sp.sport) return false;
+    if (q) {
+      const hay = `${l.name} ${l.sportCode} ${l.format ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const sportOptions = [...new Set(page.items.map((l) => l.sportCode))]
+    .sort()
+    .map((s) => ({ value: s, label: s }));
 
   const active = page.items.filter((l) => (l.status as string) === "active").length;
 
@@ -56,13 +85,48 @@ export default async function LeaguesPage() {
           subtitle="Each row is a league in your org. Tap a row to manage its seasons, divisions, and teams."
           meta={`${active} active · ${page.items.length} total`}
         />
+        <div className="space-y-2">
+          <UrlFilters
+            searchPlaceholder="Search leagues by name, sport or format"
+            selects={[
+              {
+                param: "status",
+                label: "Status",
+                allLabel: "All statuses",
+                options: [
+                  { value: "draft", label: "Draft" },
+                  { value: "active", label: "Active" },
+                  { value: "archived", label: "Archived" }
+                ]
+              },
+              { param: "sport", label: "Sport", allLabel: "All sports", options: sportOptions }
+            ]}
+          />
+          <p className="text-[12px] text-fg-muted">
+            Showing {shown.length} of {page.items.length} leagues
+          </p>
+        </div>
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {page.items.length === 0 ? (
+          {loadFailed ? (
+            <div className="p-4">
+              <Alert tone="error">
+                Could not load leagues. This is a server problem on our side, not your data. Reload to try again.
+              </Alert>
+            </div>
+          ) : page.items.length === 0 ? (
             <div className="px-6 py-12">
               <EmptyState
                 icon={Trophy}
                 title="No leagues yet"
                 description="Head to Org setup to spin up your first league, season, and divisions in one flow."
+              />
+            </div>
+          ) : shown.length === 0 ? (
+            <div className="px-6 py-12">
+              <EmptyState
+                icon={Trophy}
+                title="No leagues match these filters"
+                description="Clear the search or pick a different status or sport."
               />
             </div>
           ) : (
@@ -76,7 +140,7 @@ export default async function LeaguesPage() {
                 </TR>
               </THead>
               <TBody>
-                {page.items.map((l) => (
+                {shown.map((l) => (
                   <TR key={l.id}>
                     <TD>
                       <Link
