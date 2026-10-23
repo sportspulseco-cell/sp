@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
@@ -23,8 +24,7 @@ export default async function OrganizationsPage({
   searchParams?: Promise<{ search?: string }>;
 }) {
   const sp = await searchParams;
-  const page = await orgs
-    .list({ search: sp?.search, limit: 50 })
+  const page = await fetchAll((cursor) => orgs.list({ search: sp?.search, limit: 100, cursor }))
     .catch(() => ({ items: [], nextCursor: null }));
 
   const total = page.items.length;

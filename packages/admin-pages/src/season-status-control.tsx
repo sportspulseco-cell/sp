@@ -14,7 +14,7 @@ const STATUSES: Array<{
   {
     value: "draft",
     label: "Draft",
-    hint: "Setup in progress. Captains see it once its registration window includes today."
+    hint: "Still being set up. Captains see it once its registration window includes today."
   },
   {
     value: "registration_open",

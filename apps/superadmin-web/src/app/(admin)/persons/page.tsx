@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { UserCircle2, Link2, Cake, Globe2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -18,7 +19,7 @@ import { CreatePersonButton } from "@/components/persons/create-person-button";
 export const metadata = { title: "Persons — SportsPulse" };
 
 export default async function PersonsPage() {
-  const page = await iam.listPersons({ limit: 50 }).catch(() => ({
+  const page = await fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({
     items: [],
     nextCursor: null
   }));

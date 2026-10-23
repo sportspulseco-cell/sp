@@ -417,7 +417,7 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
       const trigger = page.locator("main button:has(svg.lucide-chevron-down)", { hasText: current.replace(/_/g, " ") }).first();
       await trigger.click();
       const resp = page.waitForResponse((r) => /\/league\/seasons\/[^/]+\/status$/.test(r.url()) && r.request().method() === "POST");
-      await page.locator("main ul li button", { hasText: label }).click();
+      await page.locator("main ul li button").filter({ has: page.locator("p.font-medium", { hasText: new RegExp(`^${label}$`) }) }).click();
       const r = await resp;
       console.log(`[J1] status ${current} -> ${value}: HTTP ${r.status()}`);
       expect(r.status(), `${current} -> ${value}`).toBeLessThan(300);
