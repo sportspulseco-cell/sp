@@ -14,11 +14,21 @@ const deferredCronFiles = new Set([
   "0036_compliance_lock_sweep_cron.sql",
   "0043_season_auto_transition_cron.sql"
 ]);
-if (!url || !ref || new URL(url).hostname !== `db.${ref}.supabase.co`) {
-  throw new Error("A direct staging database URL and matching staging ref are required");
+// Direct host (db.<ref>) or the IPv4 session pooler (postgres.<ref> user);
+// both must name the staging ref so this can never point at production.
+const target = url ? new URL(url) : null;
+const isStaging =
+  !!target &&
+  !!ref &&
+  (target.hostname === `db.${ref}.supabase.co` ||
+    (target.hostname.endsWith(".pooler.supabase.com") &&
+      decodeURIComponent(target.username) === `postgres.${ref}`));
+if (!isStaging) {
+  throw new Error("A staging database URL and matching staging ref are required");
 }
-if (!Number.isInteger(through) || through < 14 || through > 49) {
-  throw new Error("STAGING_MIGRATE_THROUGH must be between 14 and 49");
+const LATEST = 50;
+if (!Number.isInteger(through) || through < 14 || through > LATEST) {
+  throw new Error(`STAGING_MIGRATE_THROUGH must be between 14 and ${LATEST}`);
 }
 
 async function main() {
@@ -33,6 +43,8 @@ async function main() {
     `);
     const files = readdirSync("./migrations")
       .filter((name) => /^\d{4}_.+\.sql$/.test(name))
+      // *.rollback.sql files sit next to their migration; never auto-apply.
+      .filter((name) => !name.endsWith(".rollback.sql"))
       .filter((name) => Number(name.slice(0, 4)) >= 14 && Number(name.slice(0, 4)) <= through)
       .filter((name) => !deferredCronFiles.has(name))
       .sort();
