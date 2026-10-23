@@ -17,8 +17,8 @@ const deferredCronFiles = new Set([
 if (!url || !ref || new URL(url).hostname !== `db.${ref}.supabase.co`) {
   throw new Error("A direct staging database URL and matching staging ref are required");
 }
-if (!Number.isInteger(through) || through < 14 || through > 48) {
-  throw new Error("STAGING_MIGRATE_THROUGH must be between 14 and 48");
+if (!Number.isInteger(through) || through < 14 || through > 49) {
+  throw new Error("STAGING_MIGRATE_THROUGH must be between 14 and 49");
 }
 
 async function main() {
