@@ -1,6 +1,7 @@
 import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
-import { communications } from "@/lib/api/server-api";
+import { fetchAll } from "@sportspulse/api-client";
+import { communications, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -68,7 +69,7 @@ export default async function CommunicationsPage({
   // We pull a wide page so the KPI counts are accurate across statuses on the
   // overview row. With our outbox volumes that's fine; later we'd add a
   // dedicated /counts endpoint.
-  const [filteredPage, allPage] = await Promise.all([
+  const [filteredPage, allPage, personsPage] = await Promise.all([
     communications
       .listNotifications({ status, limit: 100 })
       .catch(() => ({ items: [], nextCursor: null })),
@@ -76,8 +77,16 @@ export default async function CommunicationsPage({
       ? communications
           .listNotifications({ limit: 200 })
           .catch(() => ({ items: [], nextCursor: null }))
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
+      .catch(() => ({ items: [], nextCursor: null }))
   ]);
+  const personMap = new Map(
+    personsPage.items.map((p) => [
+      p.id,
+      p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`
+    ])
+  );
 
   const allItems = (allPage ?? filteredPage).items;
   const counts = {
@@ -190,9 +199,9 @@ export default async function CommunicationsPage({
                     {n.templateCode}
                   </span>
                 </TD>
-                <TD className="font-mono text-[11px] text-fg-muted">
+                <TD className="text-[12px] text-fg-muted">
                   {n.recipientPersonId
-                    ? n.recipientPersonId.slice(0, 8)
+                    ? (personMap.get(n.recipientPersonId) ?? "Unknown person")
                     : (n.recipientEmail ?? "—")}
                 </TD>
                 <TD className="max-w-md truncate text-fg">

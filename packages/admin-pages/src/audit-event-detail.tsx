@@ -49,7 +49,9 @@ export function AuditEventDetail({
           <span className="font-mono uppercase tracking-wide">
             {event.resourceType}
           </span>
-          {event.resourceId ? (
+          {event.resourceName ? (
+            <span className="ml-1">· {event.resourceName}</span>
+          ) : event.resourceId ? (
             <span className="ml-1 font-mono">· {event.resourceId}</span>
           ) : null}
           <span className="ml-2 text-fg-muted">at {fmt(event.tsUtc)}</span>
@@ -57,7 +59,7 @@ export function AuditEventDetail({
       </Reveal>
 
       <Reveal as="section" delay={0.05} className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <DetailRow label="Actor user" value={event.actorUserId} />
+        <DetailRow label="Actor user" value={event.actorName ?? event.actorUserId} />
         <DetailRow label="On behalf of" value={event.onBehalfOfUserId} />
         <DetailRow label="Org" value={event.orgId} />
         <DetailRow label="Request id" value={event.requestId} />

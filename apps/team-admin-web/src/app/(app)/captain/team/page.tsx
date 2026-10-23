@@ -59,7 +59,7 @@ export default async function CaptainTeamPage() {
       <section className="rounded-xl border border-border bg-surface-1 p-6">
         <Eyebrow>// {team.name}</Eyebrow>
         <p className="mt-1 font-mono text-[11px] uppercase tracking-wide text-fg-muted">
-          {team.sportCode} · {team.id.slice(0, 8)}
+          {team.sportCode} · {team.ownerOrgName ?? "Unknown org"}
         </p>
         <div className="mt-6">
           <TeamProfileForm

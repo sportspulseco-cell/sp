@@ -22,6 +22,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
@@ -80,7 +81,20 @@ export class AdminTransfersController {
       .where(and(...conds))
       .orderBy(desc(schema.transferRequests.createdAt))
       .limit(100);
-    return { items };
+    // Add person + team names so the queue never prints raw ids.
+    const names = await resolveEntityNames(this.db, [
+      ...items.map((t) => ({ type: "person", id: t.personId })),
+      ...items.map((t) => ({ type: "team", id: t.fromTeamId })),
+      ...items.map((t) => ({ type: "team", id: t.toTeamId }))
+    ]);
+    return {
+      items: items.map((t) => ({
+        ...t,
+        personName: names.get(`person:${t.personId}`) ?? null,
+        fromTeamName: names.get(`team:${t.fromTeamId}`) ?? null,
+        toTeamName: names.get(`team:${t.toTeamId}`) ?? null
+      }))
+    };
   }
 
   @Post("teams/transfer/:id/approve")

@@ -128,7 +128,7 @@ function RegistrationRow({ r }: { r: Row }) {
     r.formName ||
     r.leagueName ||
     r.orgName ||
-    `Registration ${r.id.slice(0, 8)}`;
+    "Registration";
   const subtitle = [r.formName, r.orgName].filter(Boolean).join(" · ");
   return (
     <li

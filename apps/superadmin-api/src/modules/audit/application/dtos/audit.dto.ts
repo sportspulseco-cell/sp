@@ -17,6 +17,10 @@ export class AuditEventDto {
   @ApiPropertyOptional({ nullable: true }) requestId!: string | null;
   @ApiProperty() retentionClass!: string;
   @ApiProperty() createdAt!: string;
+  /** Actor's display name or email (null when unknown). */
+  @ApiPropertyOptional({ nullable: true }) actorName?: string | null;
+  /** Name of the changed resource when it is a named entity. */
+  @ApiPropertyOptional({ nullable: true }) resourceName?: string | null;
 
   static fromRow(r: AuditEventRow): AuditEventDto {
     return {

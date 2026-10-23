@@ -110,9 +110,10 @@ export function SubmissionsClient({
 
   function exportCsv() {
     const rows = [
-      ["id", "division", "status", "submitted_at"],
+      ["id", "name", "division", "status", "submitted_at"],
       ...filtered.map((r) => [
         r.id,
+        r.subjectName ?? r.teamName ?? "",
         r.divisionId ? divisionMap.get(r.divisionId) ?? "" : "",
         r.status,
         r.submittedAt ?? r.createdAt
@@ -186,11 +187,11 @@ export function SubmissionsClient({
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-border"
-                  aria-label={`Select ${r.id}`}
+                  aria-label={`Select ${r.subjectName ?? r.teamName ?? "registration"}`}
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium text-fg truncate">
-                    {(r as Registration & { teamName?: string }).teamName ?? r.id.slice(0, 8)}
+                    {r.subjectName ?? r.teamName ?? "Unknown player"}
                   </p>
                   <p className="font-mono text-[11px] text-fg-muted">{divName}</p>
                 </div>

@@ -276,11 +276,11 @@ function ResultPanel({
                 #{e.rank}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-[12px] text-fg">
-                  {e.personId.slice(0, 8)}
+                <p className="text-[13px] text-fg">
+                  {e.personName ?? "Unknown player"}
                 </p>
                 <p className="text-[11px] text-fg-muted">
-                  {teamLookup.get(e.teamId) ?? e.teamId.slice(0, 8)}
+                  {teamLookup.get(e.teamId) ?? e.teamName ?? "Unnamed team"}
                 </p>
               </div>
               <span className="font-mono text-[16px] font-semibold tabular-nums text-fg">

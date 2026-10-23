@@ -139,7 +139,7 @@ export function DivisionDetail({
       <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Layers} tint="cyan" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>DIVISION · {division.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>DIVISION · {parentSeason?.name ?? "Unknown season"}</Eyebrow>
           <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {division.name}
           </h1>

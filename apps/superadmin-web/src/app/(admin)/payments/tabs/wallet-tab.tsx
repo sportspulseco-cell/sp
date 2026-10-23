@@ -1,8 +1,8 @@
 import { WalletCards } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import type { WalletLedgerEntry } from "@sportspulse/api-client";
-import { finance } from "@/lib/api/server-api";
-import { fmtMoney, fmtDate } from "../lib/format";
+import { finance, iam } from "@/lib/api/server-api";
+import { fmtMoney, fmtDate, fullName } from "../lib/format";
 import { WalletForm } from "./wallet-form";
 
 /**
@@ -42,7 +42,10 @@ export async function WalletTab({
   const balance = wallet?.balanceCents ?? 0;
   const currency = wallet?.currency ?? "USD";
   const expires = wallet?.expiresAt;
-  const playerLabel = personId.slice(0, 8); // Short ID until person fetch lands.
+  const person = await iam.getPerson(personId).catch(() => null);
+  const playerLabel = person
+    ? fullName(person.legalFirstName, person.legalLastName, person.preferredName)
+    : "Unknown player";
 
   return (
     <div className="space-y-6">

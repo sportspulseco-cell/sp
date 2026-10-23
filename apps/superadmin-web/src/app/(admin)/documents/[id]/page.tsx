@@ -1,7 +1,7 @@
 import { ArrowLeft, FileSignature } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { compliance } from "@/lib/api/server-api";
+import { compliance, orgs } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -29,7 +29,10 @@ export default async function DocumentDetailPage({
   const doc = await compliance.getDocument(id).catch(() => null);
   if (!doc) notFound();
 
-  const versions = await compliance.listDocumentVersions(id).catch(() => []);
+  const [versions, org] = await Promise.all([
+    compliance.listDocumentVersions(id).catch(() => []),
+    doc.orgId ? orgs.get(doc.orgId).catch(() => null) : Promise.resolve(null)
+  ]);
 
   return (
     <div className="space-y-8">
@@ -44,7 +47,9 @@ export default async function DocumentDetailPage({
       <header className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={FileSignature} tint="violet" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>DOCUMENT · {doc.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>
+            DOCUMENT · {doc.orgId ? (org?.displayName ?? "Unknown org") : "Platform"}
+          </Eyebrow>
           <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {doc.name}
           </h1>

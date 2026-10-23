@@ -36,6 +36,8 @@ interface ScheduleRunListItem {
   gamesLockedPreserved: number;
   durationMs: number | null;
   ranByUserId: string | null;
+  /** Display name or email of the user who ran it (null when unknown). */
+  ranByName: string | null;
   ranAt: string;
   infeasibilitySummary: string | null;
 }
@@ -125,6 +127,26 @@ Deno.serve(async (req) => {
     for (const d of divs ?? []) divNameById.set(d.id as string, d.name as string);
   }
 
+  // Hydrate who ran each run, so the UI never prints a user id.
+  const userIds = [
+    ...new Set(
+      (rows ?? [])
+        .map((r) => r.ran_by_user_id as string | null)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const userNameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: users } = await sb
+      .from("profiles")
+      .select("id, display_name, email")
+      .in("id", userIds);
+    for (const u of users ?? []) {
+      const name = (u.display_name as string | null) || (u.email as string | null);
+      if (name) userNameById.set(u.id as string, name);
+    }
+  }
+
   const runs: ScheduleRunListItem[] = (rows ?? []).map((r) => {
     // deno-lint-ignore no-explicit-any
     const inf = (r as any).infeasibility_report;
@@ -147,6 +169,9 @@ Deno.serve(async (req) => {
       gamesLockedPreserved: Number(r.games_locked_preserved ?? 0),
       durationMs: r.duration_ms !== null ? Number(r.duration_ms) : null,
       ranByUserId: (r.ran_by_user_id as string | null) ?? null,
+      ranByName: r.ran_by_user_id
+        ? (userNameById.get(r.ran_by_user_id as string) ?? null)
+        : null,
       ranAt: r.ran_at as string,
       infeasibilitySummary: summary,
     };

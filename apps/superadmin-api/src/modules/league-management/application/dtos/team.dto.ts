@@ -14,6 +14,8 @@ export class TeamDto {
   @ApiProperty({ enum: ["active", "dissolved"] }) status!: "active" | "dissolved";
   /** Workflow 7A — denormalised current captain (sync of user_role_assignments). */
   @ApiPropertyOptional({ nullable: true }) captainUserId!: string | null;
+  /** Captain's display name or email, so screens never print the id. */
+  @ApiPropertyOptional({ nullable: true }) captainName?: string | null;
   /** Workflow 7A — cents threshold for DTE auto-confirm. 0 = auto. */
   @ApiProperty() confirmationThresholdCents!: number;
   /** Stored under externalIds.homeRink (jsonb scratch). */

@@ -33,7 +33,7 @@ export default async function LeaguesPage({
     fetchAll((cursor) => leagueMgmt
       .listLeagues({ orgId: sp?.orgId, limit: 100, cursor }))
       .catch(() => ({ items: [] })),
-    orgs.list({ limit: 100 }).catch(() => ({ items: [] }))
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
@@ -61,7 +61,7 @@ export default async function LeaguesPage({
         title="Leagues"
         description={
           sp?.orgId
-            ? `Filtered by org ${orgMap.get(sp.orgId) ?? sp.orgId.slice(0, 8)}`
+            ? `Filtered by org ${orgMap.get(sp.orgId) ?? "Unknown org"}`
             : "Persistent competition containers. Click a row to inspect; create new leagues via Org setup."
         }
         action={orgSetupCta}
@@ -126,7 +126,7 @@ export default async function LeaguesPage({
                   </Link>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {orgMap.get(l.orgId) ?? l.orgId.slice(0, 8)}
+                  {orgMap.get(l.orgId) ?? "Unknown org"}
                 </TD>
                 <TD className="text-muted-foreground">{l.sportCode}</TD>
                 <TD className="text-muted-foreground">{l.format}</TD>

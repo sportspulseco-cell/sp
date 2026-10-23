@@ -19,6 +19,10 @@ export class StatLineDto {
   @ApiProperty() core!: Record<string, number>;
   @ApiProperty() extended!: Record<string, unknown>;
   @ApiProperty() derivedAt!: string;
+  /** Player's name, so screens never print the id. */
+  @ApiPropertyOptional({ nullable: true }) personName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) teamName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) seasonName?: string | null;
 
   static fromRow(r: StatLineRow): StatLineDto {
     return {
@@ -60,6 +64,8 @@ export class StandingDto {
   @ApiProperty() gd!: number;
   @ApiPropertyOptional({ nullable: true }) rank!: number | null;
   @ApiProperty() derivedAt!: string;
+  /** Team name, so screens never print the id. */
+  @ApiPropertyOptional({ nullable: true }) teamName?: string | null;
 
   static fromRow(r: StandingRow): StandingDto {
     return {

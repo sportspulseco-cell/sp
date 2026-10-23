@@ -202,9 +202,7 @@ function RunDetails({ run }: { run: ScheduleRunListItem }) {
         <Pair label="Seed" value={<code className="font-mono text-[11px]">{run.seed}</code>} />
         <Pair label="Input hash" value={<code className="font-mono text-[11px]">{run.inputHash.slice(0, 16)}…</code>} />
         <Pair label="Ran by" value={
-          <code className="font-mono text-[11px]">
-            {run.ranByUserId?.slice(0, 8) ?? "—"}…
-          </code>
+          run.ranByUserId ? (run.ranByName ?? "Unknown user") : "—"
         } />
       </div>
       {run.infeasibilitySummary && (

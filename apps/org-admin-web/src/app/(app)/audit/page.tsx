@@ -84,9 +84,9 @@ export default async function AuditPage() {
                         {fmt(e.createdAt)}
                       </Link>
                     </TD>
-                    <TD className="font-mono text-[11px] text-fg-muted">
+                    <TD className="text-[12px] text-fg-muted">
                       {e.actorUserId
-                        ? e.actorUserId.slice(0, 8)
+                        ? (e.actorName ?? "Unknown user")
                         : <span className="italic">system</span>}
                     </TD>
                     <TD>
@@ -98,12 +98,10 @@ export default async function AuditPage() {
                       <span className="font-mono text-fg-muted">
                         {e.resourceType}
                       </span>
-                      {e.resourceId && (
+                      {e.resourceName && (
                         <>
                           <span className="px-1.5 text-fg-muted/40">·</span>
-                          <span className="font-mono text-[11px] text-fg-muted">
-                            {e.resourceId.slice(0, 8)}
-                          </span>
+                          <span className="text-fg-muted">{e.resourceName}</span>
                         </>
                       )}
                     </TD>

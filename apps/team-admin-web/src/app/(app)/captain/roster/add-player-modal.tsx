@@ -200,9 +200,9 @@ function SearchPanel({
                   <p className="text-sm font-medium text-fg">
                     {p.legalFirstName} {p.legalLastName}
                   </p>
-                  <p className="font-mono text-[10px] uppercase text-fg-muted">
-                    {p.id.slice(0, 8)}
-                  </p>
+                  {p.preferredName ? (
+                    <p className="text-[11px] text-fg-muted">Goes by {p.preferredName}</p>
+                  ) : null}
                 </div>
                 <Mail className="h-3.5 w-3.5 text-fg-muted" />
               </button>
@@ -218,9 +218,9 @@ function SearchPanel({
               <p className="text-sm font-medium text-fg">
                 {picked.legalFirstName} {picked.legalLastName}
               </p>
-              <p className="font-mono text-[10px] uppercase text-fg-muted">
-                {picked.id.slice(0, 8)}
-              </p>
+              {picked.preferredName ? (
+                <p className="text-[11px] text-fg-muted">Goes by {picked.preferredName}</p>
+              ) : null}
             </div>
             <Button
               variant="ghost"

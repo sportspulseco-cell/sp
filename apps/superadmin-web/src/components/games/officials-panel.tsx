@@ -116,7 +116,7 @@ export function GameOfficialsPanel({
               <IconTile icon={Flag} tint={tintForRole(o.role)} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg">
-                  {lookup.get(o.personId) ?? o.personId.slice(0, 8)}
+                  {lookup.get(o.personId) ?? "Unknown official"}
                   <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                     {o.role}
                     {o.slot ? ` · ${o.slot}` : ""}

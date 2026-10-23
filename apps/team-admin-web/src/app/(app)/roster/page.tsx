@@ -59,11 +59,11 @@ export default async function TeamAdminRosterPage() {
 
   function nameFor(personId: string): string {
     const p = personById.get(personId);
-    if (!p) return personId.slice(0, 8).toUpperCase();
+    if (!p) return "Unknown player";
     return (
       p.preferredName ||
       [p.legalFirstName, p.legalLastName].filter(Boolean).join(" ") ||
-      personId.slice(0, 8).toUpperCase()
+      "Unknown player"
     );
   }
 

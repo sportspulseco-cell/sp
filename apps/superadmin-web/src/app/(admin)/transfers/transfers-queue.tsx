@@ -70,7 +70,7 @@ export function TransfersQueue({
     setError(null);
     try {
       await adminTransfers.approve(t.id);
-      setFlash(`Transfer ${t.id.slice(0, 8)} approved.`);
+      setFlash(`Transfer for ${t.personName ?? "player"} approved.`);
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -84,7 +84,7 @@ export function TransfersQueue({
     setError(null);
     try {
       await adminTransfers.reject(t.id, reason);
-      setFlash(`Transfer ${t.id.slice(0, 8)} rejected.`);
+      setFlash(`Transfer for ${t.personName ?? "player"} rejected.`);
       setRejectTarget(null);
       await refresh();
     } catch (e) {
@@ -148,14 +148,14 @@ export function TransfersQueue({
           <TBody>
             {items.map((t) => (
               <TR key={t.id}>
-                <TD className="font-mono text-[11px] uppercase">
-                  {t.personId.slice(0, 8)}
+                <TD className="text-[12px] font-medium text-fg">
+                  {t.personName ?? "Unknown player"}
                 </TD>
-                <TD className="font-mono text-[11px] uppercase">
-                  {t.fromTeamId.slice(0, 8)}
+                <TD className="text-[12px] text-fg">
+                  {t.fromTeamName ?? "Unnamed team"}
                 </TD>
-                <TD className="font-mono text-[11px] uppercase">
-                  {t.toTeamId.slice(0, 8)}
+                <TD className="text-[12px] text-fg">
+                  {t.toTeamName ?? "Unnamed team"}
                 </TD>
                 <TD className="max-w-[280px] truncate text-[12px] text-fg-muted">
                   {t.reason ?? "—"}

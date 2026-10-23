@@ -2,6 +2,7 @@
   Body,
   Controller,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -15,6 +16,9 @@ import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-ac
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
+import type { Database } from "@sportspulse/db";
 import { GameDto, GamePageDto } from "../application/dtos/game.dto";
 import {
   ApplyScoreHandler,
@@ -48,10 +52,24 @@ export class GamesController {
     private readonly postponeH: PostponeGameHandler,
     private readonly cancelH: CancelGameHandler,
     private readonly forfeitH: ForfeitGameHandler,
-    private readonly finalizeH: FinalizeGameHandler
+    private readonly finalizeH: FinalizeGameHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  @Get() list(
+  /** Add homeTeamName + awayTeamName so screens never print raw ids. */
+  private async withNames(games: GameDto[]): Promise<GameDto[]> {
+    const names = await resolveEntityNames(this.db, [
+      ...games.map((g) => ({ type: "team", id: g.homeTeamId })),
+      ...games.map((g) => ({ type: "team", id: g.awayTeamId }))
+    ]);
+    return games.map((g) => ({
+      ...g,
+      homeTeamName: names.get(`team:${g.homeTeamId}`) ?? null,
+      awayTeamName: names.get(`team:${g.awayTeamId}`) ?? null
+    }));
+  }
+
+  @Get() async list(
     @Query() q: ListGamesQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<GamePageDto> {
@@ -60,10 +78,11 @@ export class GamesController {
     // captain / coach / player sessions can read their own schedule.
     const inDirectTeamScope =
       q.teamId && (scope.teamIds?.includes(q.teamId) ?? false);
-    return this.listH.execute({
+    const page = await this.listH.execute({
       ...q,
       leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined)
     });
+    return { ...page, items: await this.withNames(page.items) };
   }
   @Get(":id") async getOne(
     @Param("id") id: string,
@@ -76,7 +95,8 @@ export class GamesController {
     // they should be allowed to see (BUG-029). Fetch first, then
     // re-apply the no-leak rule if neither the league nor either
     // team is in scope.
-    const game = await this.getH.execute({ id });
+    const [game] = await this.withNames([await this.getH.execute({ id })]);
+    if (!game) throw new NotFoundException(`Game not found: ${id}`);
     if (scope.isSuperAdmin) return game;
     const inLeagueScope =
       !scope.leagueIds || scope.leagueIds.includes(game.leagueId);

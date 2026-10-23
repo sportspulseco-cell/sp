@@ -174,8 +174,8 @@ export default async function GamesPage({
           <TBody>
             {gamesPage.items.map((g) => {
               const kt = formatKickoff(g.scheduledStartTsUtc, g.tz);
-              const home = teamMap.get(g.homeTeamId) ?? g.homeTeamId.slice(0, 8);
-              const away = teamMap.get(g.awayTeamId) ?? g.awayTeamId.slice(0, 8);
+              const home = teamMap.get(g.homeTeamId) ?? "Unnamed team";
+              const away = teamMap.get(g.awayTeamId) ?? "Unnamed team";
               const showScore =
                 g.status === "in_play" ||
                 g.status === "completed" ||
@@ -199,7 +199,7 @@ export default async function GamesPage({
                     </Link>
                   </TD>
                   <TD className="text-fg-muted">
-                    {leagueMap.get(g.leagueId) ?? g.leagueId.slice(0, 8)}
+                    {leagueMap.get(g.leagueId) ?? "Unknown league"}
                   </TD>
                   <TD className="text-fg-muted">{g.sportCode}</TD>
                   <TD className="text-right font-mono tabular-nums">

@@ -54,7 +54,13 @@ interface ResolveResponse {
   diagnosis: string;
   options: ResolutionOption[];
   /** Slots considered but rejected, with the rejection reason. */
-  rejected: Array<{ slotId: string; reason: string }>;
+  rejected: Array<{
+    slotId: string;
+    reason: string;
+    venueName?: string;
+    surfaceLabel?: string;
+    startTsUtc?: string;
+  }>;
 }
 
 function json(body: unknown, status = 200): Response {
@@ -86,11 +92,15 @@ interface SlotMeta {
   status: string;
 }
 
-function diagnose(a: GameRow, b: GameRow): { kind: ConflictKind; diagnosis: string } {
+function diagnose(
+  a: GameRow,
+  b: GameRow,
+  teamName: (id: string) => string,
+): { kind: ConflictKind; diagnosis: string } {
   if (a.slot_id && a.slot_id === b.slot_id) {
     return {
       kind: "slot_double_book",
-      diagnosis: `Games ${a.id} and ${b.id} both occupy slot ${a.slot_id}.`,
+      diagnosis: `${teamName(a.home_team_id)} vs ${teamName(a.away_team_id)} and ${teamName(b.home_team_id)} vs ${teamName(b.away_team_id)} both occupy the same ice slot.`,
     };
   }
   const sharedTeams = new Set([a.home_team_id, a.away_team_id])
@@ -98,7 +108,7 @@ function diagnose(a: GameRow, b: GameRow): { kind: ConflictKind; diagnosis: stri
   if (sharedTeams.size > 0 && a.scheduled_start_ts_utc === b.scheduled_start_ts_utc) {
     return {
       kind: "team_overlap",
-      diagnosis: `Team(s) ${[...sharedTeams].join(", ")} appear in both games at ${a.scheduled_start_ts_utc}.`,
+      diagnosis: `${[...sharedTeams].map(teamName).join(", ")} appear in both games at ${a.scheduled_start_ts_utc}.`,
     };
   }
   return { kind: "unknown", diagnosis: "No obvious conflict between the two games." };
@@ -162,7 +172,15 @@ Deno.serve(async (req) => {
 
   const [gA, gB] = games as GameRow[];
   if (!gA || !gB) return json({ error: "games_not_found" }, 404);
-  const { kind, diagnosis } = diagnose(gA, gB);
+
+  // Team names, so diagnosis and reasons never print raw ids.
+  const teamIds = [...new Set([gA.home_team_id, gA.away_team_id, gB.home_team_id, gB.away_team_id])];
+  const { data: teamRows } = await sb.from("teams").select("id, name").in("id", teamIds);
+  const teamNameById = new Map<string, string>();
+  for (const t of teamRows ?? []) teamNameById.set(t.id as string, t.name as string);
+  const teamName = (id: string) => teamNameById.get(id) ?? "Unnamed team";
+
+  const { kind, diagnosis } = diagnose(gA, gB, teamName);
 
   // Locked games can't be moved â€” surface that and exit if both are locked.
   const bothLocked = gA.locked_at && gB.locked_at;
@@ -232,7 +250,10 @@ Deno.serve(async (req) => {
   const accepted: SlotMeta[] = [];
   for (const c of candidates) {
     if (occupiedSlotIds.has(c.id)) {
-      rejected.push({ slotId: c.id, reason: "slot already occupied" });
+      rejected.push({
+        slotId: c.id, reason: "slot already occupied",
+        venueName: c.venueName, surfaceLabel: c.surfaceLabel, startTsUtc: c.startTsUtc,
+      });
       continue;
     }
     const cStart = parseTs(c.startTsUtc);
@@ -246,12 +267,15 @@ Deno.serve(async (req) => {
         (t) => t === og.home_team_id || t === og.away_team_id,
       );
       if (sharedTeam && intervalsOverlap(cStart, cEnd, ogStart, ogEnd)) {
-        teamConflict = `team ${sharedTeam} would overlap with game ${og.id}`;
+        teamConflict = `${teamName(sharedTeam)} would overlap with their game at ${og.scheduled_start_ts_utc as string}`;
         break;
       }
     }
     if (teamConflict) {
-      rejected.push({ slotId: c.id, reason: teamConflict });
+      rejected.push({
+        slotId: c.id, reason: teamConflict,
+        venueName: c.venueName, surfaceLabel: c.surfaceLabel, startTsUtc: c.startTsUtc,
+      });
       continue;
     }
     accepted.push(c);
@@ -272,10 +296,10 @@ Deno.serve(async (req) => {
 
   const options: ResolutionOption[] = accepted.slice(0, 3).map((c, i) => ({
     optionId: `opt_${i + 1}`,
-    label: `Move game ${movable.id.slice(0, 6)} â†’ ${c.surfaceLabel} @ ${c.startTsUtc}`,
+    label: `Move ${teamName(movable.home_team_id)} vs ${teamName(movable.away_team_id)} â†’ ${c.surfaceLabel} @ ${c.startTsUtc}`,
     description:
       `Reassign the movable game to ${c.venueName} - ${c.surfaceLabel}, ` +
-      `starting ${c.startTsUtc}. The fixed game (${fixed.id.slice(0, 6)}) keeps its current slot.`,
+      `starting ${c.startTsUtc}. ${teamName(fixed.home_team_id)} vs ${teamName(fixed.away_team_id)} keeps its current slot.`,
     delta: {
       gameId: movable.id,
       fromSlotId: movable.slot_id,

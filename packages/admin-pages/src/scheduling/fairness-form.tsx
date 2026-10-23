@@ -11,7 +11,12 @@ import {
 import { scheduler, type FairnessResponse } from "./scheduler-client";
 
 interface Division { id: string; name: string }
-interface Props { seasonId: string; divisions: Division[] }
+interface Props {
+  seasonId: string;
+  divisions: Division[];
+  /** Team id to name, so rows show names instead of ids. */
+  teamNames?: Record<string, string>;
+}
 
 const ALL_DIVISIONS = "__all__";
 
@@ -36,7 +41,7 @@ function BandBar({
   );
 }
 
-export function SchedulingFairnessForm({ seasonId, divisions }: Props) {
+export function SchedulingFairnessForm({ seasonId, divisions, teamNames = {} }: Props) {
   const [divisionId, setDivisionId] = useState<string>(ALL_DIVISIONS);
   const [tolerance, setTolerance] = useState("0.10");
   const [maxLate, setMaxLate] = useState("");
@@ -101,7 +106,7 @@ export function SchedulingFairnessForm({ seasonId, divisions }: Props) {
       )}
 
       {result && (
-        <FairnessResult result={result}
+        <FairnessResult result={result} teamNames={teamNames}
           tolerance={Number(tolerance) || 0.1}
           maxLateFraction={maxLate.trim() === "" ? undefined : Number(maxLate)} />
       )}
@@ -110,9 +115,10 @@ export function SchedulingFairnessForm({ seasonId, divisions }: Props) {
 }
 
 function FairnessResult({
-  result, tolerance, maxLateFraction
+  result, teamNames, tolerance, maxLateFraction
 }: {
   result: FairnessResponse;
+  teamNames: Record<string, string>;
   tolerance: number;
   maxLateFraction: number | undefined;
 }) {
@@ -159,7 +165,7 @@ function FairnessResult({
         <TBody>
           {report.teams.map((t) => (
             <TR key={t.teamId}>
-              <TD className="font-mono text-[11px] tracking-wide">{t.teamId.slice(0, 8)}…</TD>
+              <TD className="font-medium">{teamNames[t.teamId] ?? "Unnamed team"}</TD>
               <TD className="w-[180px]"><BandBar early={t.counts.early} mid={t.counts.mid} late={t.counts.late} /></TD>
               <TD className="text-right">{t.counts.early}</TD>
               <TD className="text-right">{t.counts.mid}</TD>

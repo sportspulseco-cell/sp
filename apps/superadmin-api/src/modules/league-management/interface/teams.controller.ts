@@ -337,6 +337,7 @@ export class TeamsController {
         homeRink: string | null;
         colors: Record<string, unknown>;
         ownerOrgName: string | null;
+        captainName: string | null;
       }
     >
   > {
@@ -348,10 +349,13 @@ export class TeamsController {
         confirmationThresholdCents: schema.teams.confirmationThresholdCents,
         externalIds: schema.teams.externalIds,
         colors: schema.teams.colors,
-        ownerOrgName: schema.orgs.displayName
+        ownerOrgName: schema.orgs.displayName,
+        captainDisplayName: schema.profiles.displayName,
+        captainEmail: schema.profiles.email
       })
       .from(schema.teams)
       .leftJoin(schema.orgs, eq(schema.orgs.id, schema.teams.orgId))
+      .leftJoin(schema.profiles, eq(schema.profiles.id, schema.teams.captainUserId))
       .where(inArray(schema.teams.id, teamIds));
     const out = new Map<
       string,
@@ -361,6 +365,7 @@ export class TeamsController {
         homeRink: string | null;
         colors: Record<string, unknown>;
         ownerOrgName: string | null;
+        captainName: string | null;
       }
     >();
     for (const r of rows) {
@@ -370,7 +375,8 @@ export class TeamsController {
         confirmationThresholdCents: r.confirmationThresholdCents ?? 0,
         homeRink: (external.homeRink as string | null | undefined) ?? null,
         colors: (r.colors as Record<string, unknown>) ?? {},
-        ownerOrgName: r.ownerOrgName ?? null
+        ownerOrgName: r.ownerOrgName ?? null,
+        captainName: r.captainDisplayName || r.captainEmail || null
       });
     }
     return out;
@@ -385,6 +391,7 @@ export class TeamsController {
           homeRink: string | null;
           colors: Record<string, unknown>;
           ownerOrgName: string | null;
+          captainName: string | null;
         }
       | undefined
   ): TeamDto {
@@ -395,7 +402,8 @@ export class TeamsController {
       confirmationThresholdCents: extras.confirmationThresholdCents,
       homeRink: extras.homeRink,
       colors: extras.colors,
-      ownerOrgName: extras.ownerOrgName
+      ownerOrgName: extras.ownerOrgName,
+      captainName: extras.captainName
     };
   }
 

@@ -42,7 +42,8 @@ export default async function LineupEditorPage({
 
   const isLocked = !!lineup?.lockedAt || game.status !== "scheduled";
   const isHome = game.homeTeamId === myTeamId;
-  const opponentId = isHome ? game.awayTeamId : game.homeTeamId;
+  const opponentName =
+    (isHome ? game.awayTeamName : game.homeTeamName) ?? "Unnamed team";
 
   if (!rosterResp || rosterResp.memberships.length === 0) {
     return (
@@ -56,7 +57,7 @@ export default async function LineupEditorPage({
         </Link>
         <PageHeader
           eyebrow="// LINEUP"
-          title={`${isHome ? "vs" : "@"} ${opponentId.slice(0, 8)}`}
+          title={`${isHome ? "vs" : "@"} ${opponentName}`}
           description={fmtDateTime(game.scheduledStartTsUtc)}
         />
         <EmptyState
@@ -92,7 +93,7 @@ export default async function LineupEditorPage({
       </Link>
       <PageHeader
         eyebrow="// LINEUP"
-        title={`${isHome ? "vs" : "@"} ${opponentId.slice(0, 8)}`}
+        title={`${isHome ? "vs" : "@"} ${opponentName}`}
         description={fmtDateTime(game.scheduledStartTsUtc)}
         action={
           isLocked ? (

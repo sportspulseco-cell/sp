@@ -27,6 +27,9 @@ export class GameDto {
   @ApiPropertyOptional({ nullable: true }) finalizedAt!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+  /** Team names, so screens never print raw ids. */
+  @ApiPropertyOptional({ nullable: true }) homeTeamName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) awayTeamName?: string | null;
 
   static fromDomain(g: Game): GameDto {
     const x = g.toSnapshot();

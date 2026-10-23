@@ -48,7 +48,7 @@ export function TeamDetail({
       <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Network} tint="rose" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>TEAM · {team.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>TEAM · {team.ownerOrgName ?? "Unknown org"}</Eyebrow>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {team.name}
           </h1>
@@ -82,8 +82,8 @@ export function TeamDetail({
           <Field label="Home rink" tag="externalIds.homeRink">
             {team.homeRink ?? "—"}
           </Field>
-          <Field label="Captain" tag="teams.captain_user_id" mono>
-            {team.captainUserId ? team.captainUserId.slice(0, 8) : "—"}
+          <Field label="Captain" tag="teams.captain_user_id">
+            {team.captainUserId ? (team.captainName ?? "Unknown user") : "—"}
           </Field>
           <Field
             label="Confirmation threshold"

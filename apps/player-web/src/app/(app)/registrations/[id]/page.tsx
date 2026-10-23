@@ -67,7 +67,7 @@ export default async function RegistrationDetailPage({
     r.leagueName ||
     r.formName ||
     r.orgName ||
-    `Registration ${r.id.slice(0, 8)}`;
+    "Registration";
   const subtitle = [r.formName, r.orgName].filter(Boolean).join(" · ");
 
   return (

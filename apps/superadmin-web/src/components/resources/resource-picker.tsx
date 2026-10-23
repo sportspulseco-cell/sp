@@ -51,15 +51,16 @@ export function ResourcePicker({
   }, [open]);
 
   // Fetch the resource list when the dropdown opens, once per scope type.
+  // Also fetch when a value is preset, so the button shows its name.
   useEffect(() => {
-    if (!open || options.length > 0 || loading) return;
+    if ((!open && !value) || options.length > 0 || loading || error) return;
     setLoading(true);
     setError(null);
     fetchOptions(scopeType)
       .then((rows) => setOptions(rows))
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
-  }, [open, scopeType, options.length, loading]);
+  }, [open, value, scopeType, options.length, loading, error]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -92,8 +93,8 @@ export function ResourcePicker({
               )}
             </>
           ) : value ? (
-            <span className="font-mono text-[12px] text-fg-muted">
-              {value.slice(0, 8)}…
+            <span className="text-fg-muted">
+              {loading ? "Loading…" : `Unknown ${scopeType}`}
             </span>
           ) : (
             <span className="text-fg-muted">
@@ -175,9 +176,6 @@ export function ResourcePicker({
                         {o.sub}
                       </span>
                     )}
-                  </span>
-                  <span className="font-mono text-[10px] text-fg-muted">
-                    {o.id.slice(0, 8)}
                   </span>
                 </button>
               ))}

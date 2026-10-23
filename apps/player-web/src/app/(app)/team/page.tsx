@@ -207,11 +207,11 @@ export default async function TeamPage() {
 
   function nameFor(personId: string): string {
     const p = personById.get(personId);
-    if (!p) return personId.slice(0, 8).toUpperCase();
+    if (!p) return "Unknown player";
     return (
       p.preferredName ||
       [p.legalFirstName, p.legalLastName].filter(Boolean).join(" ") ||
-      personId.slice(0, 8).toUpperCase()
+      "Unknown player"
     );
   }
   function initialsFor(personId: string): string {
@@ -222,7 +222,7 @@ export default async function TeamPage() {
       const out = (first + last).trim().toUpperCase();
       if (out) return out;
     }
-    return personId.slice(0, 2).toUpperCase();
+    return "?";
   }
 
   // Fetch standings once we know the league. We'll use the first
@@ -358,9 +358,7 @@ export default async function TeamPage() {
                             : "text-fg"
                         }
                       >
-                        <span className="font-mono uppercase">
-                          {s.teamId.slice(0, 8)}
-                        </span>
+                        <span>{s.teamName ?? "Unnamed team"}</span>
                         {mine ? " ←" : ""}
                       </TD>
                       <TD className="text-right font-mono tabular-nums">

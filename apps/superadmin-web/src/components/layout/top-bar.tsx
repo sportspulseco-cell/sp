@@ -111,18 +111,15 @@ export function TopBar({
 
 /**
  * Render the current path as a breadcrumb string with `·` separators.
- * "/forms/abc-123/setup" → "forms · abc-123 · setup".
- * Truncates UUID-shaped segments to first 8 chars so they don't blow
- * out the bar.
+ * "/forms/abc-123/setup" → "forms · setup".
+ * Drops UUID-shaped segments: an id fragment means nothing to people,
+ * and the page header already names the record.
  */
 function pathToBreadcrumb(pathname: string): string {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 0) return "platform";
   return parts
-    .map((p) => {
-      // Compact UUIDs and other long ids
-      if (/^[0-9a-f-]{16,}$/i.test(p)) return p.slice(0, 8);
-      return p.replace(/-/g, " ");
-    })
+    .filter((p) => !/^[0-9a-f-]{16,}$/i.test(p))
+    .map((p) => p.replace(/-/g, " "))
     .join(" · ");
 }

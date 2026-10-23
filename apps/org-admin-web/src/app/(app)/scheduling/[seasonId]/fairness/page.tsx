@@ -27,6 +27,18 @@ export default async function OrgAdminFairnessPage({
     .listDivisions({ seasonId: season.id, limit: 100, cursor }))
     .catch(() => ({ items: [] as { id: string; name: string }[] }));
 
+  // Team names per division, so results show names instead of ids.
+  const teamPages = await Promise.all(
+    divisionsPage.items.map((d) =>
+      fetchAll((cursor) => leagueMgmt
+        .listTeams({ divisionId: d.id, limit: 100, cursor }))
+        .catch(() => ({ items: [] as { id: string; name: string }[] }))
+    )
+  );
+  const teamNames = Object.fromEntries(
+    teamPages.flatMap((p) => p.items.map((t) => [t.id, t.name] as const))
+  );
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -45,6 +57,7 @@ export default async function OrgAdminFairnessPage({
       <SchedulingFairnessForm
         seasonId={season.id}
         divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
+        teamNames={teamNames}
       />
     </div>
   );

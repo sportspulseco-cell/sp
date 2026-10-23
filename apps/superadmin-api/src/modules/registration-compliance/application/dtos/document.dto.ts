@@ -75,6 +75,9 @@ export class ConsentSignatureDto {
   @ApiPropertyOptional({ nullable: true }) signatureBlobUrl!: string | null;
   @ApiPropertyOptional({ nullable: true }) revokedAt!: string | null;
   @ApiPropertyOptional({ nullable: true }) revokedReason!: string | null;
+  /** Signed document's name and version, so screens never print ids. */
+  @ApiPropertyOptional({ nullable: true }) documentName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) documentVersionNumber?: number | null;
 
   static fromRow(r: ConsentSignatureRow): ConsentSignatureDto {
     return {

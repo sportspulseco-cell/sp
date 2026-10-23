@@ -225,13 +225,7 @@ export default async function SchedulePage({
                   <TD>
                     <p className="text-[13px] font-medium text-fg">
                       vs.{" "}
-                      {opponentNames.get(oppId) ? (
-                        <span>{opponentNames.get(oppId)}</span>
-                      ) : (
-                        <span className="font-mono uppercase">
-                          {oppId.slice(0, 8)}
-                        </span>
-                      )}
+                      <span>{opponentNames.get(oppId) ?? "Unnamed team"}</span>
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
                       <Clock className="h-3 w-3" strokeWidth={1.75} />

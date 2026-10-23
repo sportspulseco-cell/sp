@@ -42,8 +42,7 @@ export default async function RostersPage({
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
-    iam
-      .listPersons({ limit: 100 })
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
@@ -174,14 +173,14 @@ export default async function RostersPage({
                     href={`/persons/${m.personId}`}
                     className="hover:underline"
                   >
-                    {personMap.get(m.personId) ?? m.personId.slice(0, 8)}
+                    {personMap.get(m.personId) ?? "Unknown player"}
                   </Link>
                 </TD>
                 <TD className="text-fg-muted">
-                  {teamMap.get(m.teamId) ?? m.teamId.slice(0, 8)}
+                  {teamMap.get(m.teamId) ?? "Unnamed team"}
                 </TD>
                 <TD className="text-fg-muted">
-                  {seasonMap.get(m.seasonId) ?? m.seasonId.slice(0, 8)}
+                  {seasonMap.get(m.seasonId) ?? "Unknown season"}
                 </TD>
                 <TD>
                   <Badge mono>{m.membershipType.replace(/_/g, " ")}</Badge>
@@ -259,13 +258,13 @@ async function RecentMovesCard({
             <div className="min-w-0 flex-1">
               <p className="text-sm text-fg">
                 <span className="font-medium">
-                  {personMap.get(m.personId) ?? m.personId.slice(0, 8)}
+                  {personMap.get(m.personId) ?? "Unknown player"}
                 </span>
                 <span className="ml-2 text-fg-muted">
                   {m.moveType === "add" || m.moveType === "trade_in" || m.moveType === "call_up"
                     ? "→"
                     : "✕"}{" "}
-                  {teamMap.get(m.teamId) ?? m.teamId.slice(0, 8)}
+                  {teamMap.get(m.teamId) ?? "Unnamed team"}
                 </span>
                 {m.jerseyNumber !== null ? (
                   <span className="ml-2 font-mono text-[11px] text-fg-muted">

@@ -80,6 +80,10 @@ export default async function StatsPage({
         .filter((id): id is string => id != null)
     )
   );
+  const seasonNameById = new Map<string, string>();
+  for (const s of allLines) {
+    if (s.seasonId && s.seasonName) seasonNameById.set(s.seasonId, s.seasonName);
+  }
   const lines: StatLine[] = seasonFilter
     ? allLines.filter((s) => s.seasonId === seasonFilter)
     : allLines;
@@ -150,7 +154,7 @@ export default async function StatsPage({
                     : "border-border bg-bg-subtle text-fg-muted hover:border-fg-muted hover:text-fg")
                 }
               >
-                {sid.slice(0, 8)}
+                {seasonNameById.get(sid) ?? "Unnamed season"}
               </a>
             ))}
           </div>
@@ -282,9 +286,9 @@ export default async function StatsPage({
                           ? fmtDate(g.scheduledStartTsUtc)
                           : fmtDate(s.derivedAt)}
                       </TD>
-                      <TD className="font-mono text-[11px] uppercase">
+                      <TD className="text-[12px] text-fg">
                         {g
-                          ? (isHome ? g.awayTeamId : g.homeTeamId).slice(0, 8)
+                          ? ((isHome ? g.awayTeamName : g.homeTeamName) ?? "Unnamed team")
                           : "—"}
                       </TD>
                       <TD className="text-right font-mono tabular-nums">

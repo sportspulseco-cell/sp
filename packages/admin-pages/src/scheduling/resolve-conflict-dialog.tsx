@@ -155,7 +155,11 @@ export function ResolveConflictDialog({
                 <ul className="mt-2 space-y-1 text-xs text-fg-muted">
                   {proposal.rejected.map((r, i) => (
                     <li key={i}>
-                      <span className="font-mono">{r.slotId.slice(0, 8)}…</span> — {r.reason}
+                      <span className="font-mono">
+                        {r.startTsUtc
+                          ? `${r.venueName ?? "Rink"} · ${r.surfaceLabel ?? "Surface"} · ${fmtTime(r.startTsUtc)}`
+                          : "Ice slot"}
+                      </span> — {r.reason}
                     </li>
                   ))}
                 </ul>

@@ -147,7 +147,14 @@ export interface ResolveResponse {
       toVenueName: string;
     };
   }>;
-  rejected: Array<{ slotId: string; reason: string }>;
+  rejected: Array<{
+    slotId: string;
+    reason: string;
+    /** Slot details. Optional until the function is redeployed. */
+    venueName?: string;
+    surfaceLabel?: string;
+    startTsUtc?: string;
+  }>;
 }
 
 export interface ConflictPair {
@@ -210,6 +217,8 @@ export interface ScheduleRunListItem {
   gamesLockedPreserved: number;
   durationMs: number | null;
   ranByUserId: string | null;
+  /** Display name or email of who ran it. Optional until the function is redeployed. */
+  ranByName?: string | null;
   ranAt: string;
   infeasibilitySummary: string | null;
 }

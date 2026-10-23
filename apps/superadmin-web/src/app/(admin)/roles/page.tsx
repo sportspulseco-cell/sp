@@ -1,6 +1,7 @@
 ﻿import { ShieldCheck, Sparkles, Layers } from "lucide-react";
 import Link from "next/link";
-import { iam } from "@/lib/api/server-api";
+import { fetchAll } from "@sportspulse/api-client";
+import { iam, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -43,9 +44,13 @@ function hierarchyOrder(code: string): number {
 }
 
 export default async function RolesPage() {
-  const page = await iam
-    .listRoles({ limit: 200 })
-    .catch(() => ({ items: [], nextCursor: null }));
+  const [page, orgList] = await Promise.all([
+    iam
+      .listRoles({ limit: 200 })
+      .catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] }))
+  ]);
+  const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
   const sorted = [...page.items].sort((a, b) => {
     if (a.isSystem && !b.isSystem) return -1;
@@ -218,8 +223,8 @@ export default async function RolesPage() {
                     </Link>
                   </TD>
                   <TD className="text-fg">{r.name}</TD>
-                  <TD className="font-mono text-[11px] text-fg-muted">
-                    {r.orgId?.slice(0, 8) ?? "—"}
+                  <TD className="text-[12px] text-fg-muted">
+                    {r.orgId ? (orgMap.get(r.orgId) ?? "Unknown org") : "—"}
                   </TD>
                   <TD>
                     <PermissionBadges permissions={r.permissions} />

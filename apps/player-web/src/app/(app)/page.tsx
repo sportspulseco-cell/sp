@@ -401,13 +401,7 @@ function NextGameHero({
           <Eyebrow className="!text-accent-fg/70">// Next game</Eyebrow>
           <p className="text-[22px] font-semibold tracking-tight">
             {teamName} <span className="text-accent-fg/80">vs.</span>{" "}
-            {opponentNames.get(opponent) ? (
-              <span>{opponentNames.get(opponent)}</span>
-            ) : (
-              <span className="font-mono text-[18px] uppercase">
-                {opponent.slice(0, 8)}
-              </span>
-            )}
+            <span>{opponentNames.get(opponent) ?? "Unnamed team"}</span>
           </p>
           <p className="flex items-center gap-2 text-[13px] text-accent-fg/80">
             <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -516,11 +510,7 @@ function RecentGamesCard({
                   <div className="min-w-0">
                     <p className="truncate text-[12px] text-fg">
                       vs.{" "}
-                      {opponentNames.get(opponentId) ?? (
-                        <span className="font-mono">
-                          {opponentId.slice(0, 8)}
-                        </span>
-                      )}
+                      {opponentNames.get(opponentId) ?? "Unnamed team"}
                     </p>
                     <p className="text-[11px] text-fg-muted">
                       {fmtDate(g.scheduledStartTsUtc)}
@@ -598,7 +588,7 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
               r.formName ||
               r.leagueName ||
               r.orgName ||
-              `Ref ${r.id.slice(0, 8)}`;
+              "Registration";
             const sub = [r.divisionName, r.teamName, r.orgName]
               .filter(Boolean)
               .join(" · ");

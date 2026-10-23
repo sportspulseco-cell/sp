@@ -73,10 +73,10 @@ export default async function AuditPage({
         <span className="font-mono">{e.action}</span>
         <span className="text-fg-subtle">·</span>
         <span>{e.resourceType}</span>
-        {e.resourceId ? (
+        {e.resourceName ? (
           <>
             <span className="text-fg-subtle">·</span>
-            <span className="font-mono">{e.resourceId.slice(0, 8)}</span>
+            <span>{e.resourceName}</span>
           </>
         ) : null}
       </span>
@@ -222,15 +222,15 @@ export default async function AuditPage({
                     <span className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">
                       {e.resourceType}
                     </span>
-                    {e.resourceId ? (
-                      <span className="ml-1 font-mono text-[11px] text-fg-muted">
-                        · {e.resourceId.slice(0, 8)}
+                    {e.resourceName ? (
+                      <span className="ml-1 text-[12px] text-fg-muted">
+                        · {e.resourceName}
                       </span>
                     ) : null}
                   </p>
                   {e.actorUserId ? (
                     <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                      actor · {e.actorUserId.slice(0, 8)}
+                      actor · {e.actorName ?? "Unknown user"}
                       {e.ipAddr ? ` · ${e.ipAddr}` : ""}
                     </p>
                   ) : null}

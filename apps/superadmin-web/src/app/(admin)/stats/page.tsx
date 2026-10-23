@@ -177,11 +177,11 @@ async function LinesTab({
       <TBody>
         {linesPage.items.map((l) => (
           <TR key={l.id}>
-            <TD className="font-mono text-[12px] text-fg">
-              {l.personId.slice(0, 8)}
+            <TD className="text-[12px] text-fg">
+              {l.personName ?? "Unknown player"}
             </TD>
             <TD className="text-fg-muted">
-              {teamMap.get(l.teamId) ?? l.teamId.slice(0, 8)}
+              {teamMap.get(l.teamId) ?? l.teamName ?? "Unnamed team"}
             </TD>
             <TD className="text-fg-muted">{l.sportCode}</TD>
             <TD className="text-center font-mono tabular-nums text-fg">
@@ -292,7 +292,7 @@ async function StandingsTab({
                   {r.rank ?? "—"}
                 </TD>
                 <TD className="font-medium text-fg">
-                  {teamMap.get(r.teamId) ?? r.teamId.slice(0, 8)}
+                  {teamMap.get(r.teamId) ?? r.teamName ?? "Unnamed team"}
                 </TD>
                 <TD className="text-center font-mono tabular-nums text-fg-muted">
                   {r.gp}

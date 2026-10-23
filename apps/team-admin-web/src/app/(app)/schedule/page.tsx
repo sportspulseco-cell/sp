@@ -74,7 +74,7 @@ export default async function TeamAdminSchedulePage() {
           <TBody>
             {games.map((g: Game) => {
               const isHome = g.homeTeamId === teamId;
-              const opp = isHome ? g.awayTeamId : g.homeTeamId;
+              const oppName = (isHome ? g.awayTeamName : g.homeTeamName) ?? "Unnamed team";
               const us = isHome ? g.homeScore : g.awayScore;
               const them = isHome ? g.awayScore : g.homeScore;
               const isFinal = g.status === "completed" && us != null && them != null;
@@ -83,7 +83,7 @@ export default async function TeamAdminSchedulePage() {
               return (
                 <TR key={g.id}>
                   <TD className="text-[12px] text-fg flex items-center gap-1.5"><Clock className="h-3 w-3" strokeWidth={1.75} />{fmtDateTime(g.scheduledStartTsUtc)}</TD>
-                  <TD className="font-mono text-[11px] uppercase">{opp.slice(0, 8)}</TD>
+                  <TD className="text-[12px] text-fg">{oppName}</TD>
                   <TD className="text-[12px] text-fg-muted flex items-center gap-1.5">
                     {g.venueName ? (<><MapPin className="h-3 w-3" strokeWidth={1.75} />{g.venueName}</>) : "-"}
                   </TD>

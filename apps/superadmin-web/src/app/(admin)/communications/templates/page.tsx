@@ -1,6 +1,7 @@
 import { ArrowLeft, FileText } from "lucide-react";
 import Link from "next/link";
-import { communications } from "@/lib/api/server-api";
+import { fetchAll } from "@sportspulse/api-client";
+import { communications, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -19,9 +20,13 @@ import { DeleteTemplateButton } from "@/components/communications/delete-templat
 export const metadata = { title: "Notification templates — SportsPulse" };
 
 export default async function TemplatesPage() {
-  const page = await communications
-    .listTemplates({ limit: 200 })
-    .catch(() => ({ items: [], nextCursor: null }));
+  const [page, orgList] = await Promise.all([
+    communications
+      .listTemplates({ limit: 200 })
+      .catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] }))
+  ]);
+  const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
   const grouped = new Map<string, typeof page.items>();
   for (const t of page.items) {
@@ -89,9 +94,9 @@ export default async function TemplatesPage() {
                       <TD className="font-mono text-[11px] text-fg-muted">
                         {t.locale}
                       </TD>
-                      <TD className="font-mono text-[11px] text-fg-muted">
+                      <TD className="text-[12px] text-fg-muted">
                         {t.orgId
-                          ? t.orgId.slice(0, 8)
+                          ? (orgMap.get(t.orgId) ?? "Unknown org")
                           : "platform default"}
                       </TD>
                       <TD className="max-w-md truncate text-fg">

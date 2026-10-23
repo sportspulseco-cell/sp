@@ -61,7 +61,7 @@ export default async function EligibilityPage({
           .listEligibility({ limit: 100 })
           .catch(() => ({ items: [], nextCursor: null }))
       : Promise.resolve(null),
-    iam.listPersons({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
@@ -181,7 +181,7 @@ export default async function EligibilityPage({
                     href={`/persons/${e.personId}`}
                     className="hover:underline"
                   >
-                    {personMap.get(e.personId) ?? e.personId.slice(0, 8)}
+                    {personMap.get(e.personId) ?? "Unknown player"}
                   </Link>
                 </TD>
                 <TD>
@@ -191,7 +191,7 @@ export default async function EligibilityPage({
                 </TD>
                 <TD className="text-fg-muted">
                   {e.seasonId
-                    ? (seasonMap.get(e.seasonId) ?? e.seasonId.slice(0, 8))
+                    ? (seasonMap.get(e.seasonId) ?? "Unknown season")
                     : "—"}
                 </TD>
                 <TD className="max-w-xs truncate text-fg-muted">

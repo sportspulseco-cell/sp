@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertOctagon,
   Clock,
@@ -261,13 +262,10 @@ function DuplicatePanel({
               {g.players.map((p) => (
                 <li key={p.personId} className="flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 text-fg-muted" />
-                  <span className="text-fg">
+                  <Link href={`/persons/${p.personId}`} className="text-fg hover:underline">
                     {[p.firstName, p.lastName].filter(Boolean).join(" ") ||
-                      p.personId.slice(0, 8)}
-                  </span>
-                  <span className="font-mono text-[10px] text-fg-muted">
-                    {p.personId.slice(0, 8)}
-                  </span>
+                      "Unknown player"}
+                  </Link>
                 </li>
               ))}
             </ul>

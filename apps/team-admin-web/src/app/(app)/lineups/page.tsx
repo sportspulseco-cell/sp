@@ -75,7 +75,8 @@ export default async function LineupsIndexPage() {
         <ul className="divide-y divide-border rounded-xl border border-border bg-surface-1">
           {upcoming.map((g) => {
             const isHome = g.homeTeamId === myTeamId;
-            const opponentId = isHome ? g.awayTeamId : g.homeTeamId;
+            const opponentName =
+              (isHome ? g.awayTeamName : g.homeTeamName) ?? "Unnamed team";
             const inPlay = g.status === "in_play";
             return (
               <li key={g.id}>
@@ -88,10 +89,7 @@ export default async function LineupsIndexPage() {
                       {fmt(g.scheduledStartTsUtc)}
                     </p>
                     <p className="mt-0.5 text-[15px] font-semibold tracking-tight text-fg">
-                      {isHome ? "vs" : "@"}{" "}
-                      <span className="font-mono text-[12px] text-fg-muted">
-                        {opponentId.slice(0, 8)}
-                      </span>
+                      {isHome ? "vs" : "@"} {opponentName}
                     </p>
                     {g.venueName && (
                       <p className="mt-0.5 text-[12px] text-fg-muted">

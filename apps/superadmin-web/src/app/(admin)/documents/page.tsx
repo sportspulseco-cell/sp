@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { FileSignature, CheckCircle2, Layers, Building2 } from "lucide-react";
 import Link from "next/link";
 import { compliance, orgs } from "@/lib/api/server-api";
@@ -22,7 +23,7 @@ export default async function DocumentsPage() {
     compliance
       .listDocuments({ limit: 100 })
       .catch(() => ({ items: [], nextCursor: null })),
-    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
@@ -89,7 +90,7 @@ export default async function DocumentsPage() {
                 </TD>
                 <TD className="text-fg-muted">
                   {d.orgId ? (
-                    (orgMap.get(d.orgId) ?? d.orgId.slice(0, 8))
+                    (orgMap.get(d.orgId) ?? "Unknown org")
                   ) : (
                     <span className="font-mono text-[10px] uppercase tracking-wide">
                       platform
@@ -98,9 +99,9 @@ export default async function DocumentsPage() {
                 </TD>
                 <TD>
                   {d.activeVersionId ? (
-                    <span className="font-mono text-[11px] text-fg">
-                      {d.activeVersionId.slice(0, 8)}
-                    </span>
+                    <Badge tone="success" mono>
+                      PUBLISHED
+                    </Badge>
                   ) : (
                     <Badge tone="warning" mono>
                       DRAFT

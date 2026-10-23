@@ -162,7 +162,7 @@ function DisputeRow({
 }) {
   const playerName =
     [item.personFirstName, item.personLastName].filter(Boolean).join(" ") ||
-    item.personId.slice(0, 8);
+    "Unknown player";
   const isPending = item.status === "pending";
 
   return (

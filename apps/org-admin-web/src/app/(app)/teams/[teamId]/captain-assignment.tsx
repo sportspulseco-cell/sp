@@ -380,11 +380,11 @@ export function CaptainAssignment({
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-medium text-fg">
-                    {c.displayName ?? c.email ?? c.userId.slice(0, 8)}
+                    {c.displayName ?? c.email ?? "Unknown user"}
                   </p>
-                  <p className="truncate text-[11px] text-fg-muted">
-                    {c.email ?? c.userId}
-                  </p>
+                  {c.email ? (
+                    <p className="truncate text-[11px] text-fg-muted">{c.email}</p>
+                  ) : null}
                 </div>
                 <Badge mono tone="success">
                   captain

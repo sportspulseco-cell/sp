@@ -71,7 +71,7 @@ export default async function SchedulingIndexPage() {
                   </Link>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {leagueMap.get(s.leagueId) ?? s.leagueId.slice(0, 8)}
+                  {leagueMap.get(s.leagueId) ?? "Unknown league"}
                 </TD>
                 <TD className="text-muted-foreground">
                   {s.startDate} → {s.endDate}

@@ -1,7 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
-import { gameOps, leagueMgmt } from "@/lib/api/server-api";
+import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -51,7 +51,7 @@ export default async function GameEventsPage({
 }) {
   const sp = await searchParams;
 
-  const [page, teamsPage] = await Promise.all([
+  const [page, teamsPage, personsPage] = await Promise.all([
     gameOps
       .listEvents({
         eventType: sp?.eventType,
@@ -60,11 +60,33 @@ export default async function GameEventsPage({
       })
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
+      .catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const teamMap = new Map(
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
+  );
+  const personMap = new Map(
+    personsPage.items.map((p) => [
+      p.id,
+      p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`
+    ])
+  );
+  // Label each game "Home vs Away" instead of printing its id.
+  const gameEntries = await Promise.all(
+    Array.from(new Set(page.items.map((e) => e.gameId))).map(
+      async (gid) => [gid, await gameOps.getGame(gid).catch(() => null)] as const
+    )
+  );
+  const gameLabel = new Map(
+    gameEntries.map(([gid, g]) => [
+      gid,
+      g
+        ? `${g.homeTeamName ?? "Unnamed team"} vs ${g.awayTeamName ?? "Unnamed team"}`
+        : "Unknown game"
+    ])
   );
 
   // Build distinct eventType list from current page for filter pills.
@@ -180,26 +202,26 @@ export default async function GameEventsPage({
                       {e.eventType.replace(/_/g, " ")}
                     </span>
                   </TD>
-                  <TD className="font-mono text-[11px] text-fg-muted">
+                  <TD className="text-[12px] text-fg-muted">
                     <Link
                       href={`/games/${e.gameId}`}
                       className="hover:underline"
                     >
-                      {e.gameId.slice(0, 8)}
+                      {gameLabel.get(e.gameId) ?? "Unknown game"}
                     </Link>
                   </TD>
                   <TD className="text-fg-muted">
                     {e.teamId
-                      ? (teamMap.get(e.teamId) ?? e.teamId.slice(0, 6))
+                      ? (teamMap.get(e.teamId) ?? "Unnamed team")
                       : "—"}
                   </TD>
-                  <TD className="font-mono text-[11px] text-fg-muted">
+                  <TD className="text-[12px] text-fg-muted">
                     {e.primaryPersonId ? (
                       <Link
                         href={`/persons/${e.primaryPersonId}`}
                         className="hover:underline"
                       >
-                        {e.primaryPersonId.slice(0, 8)}
+                        {personMap.get(e.primaryPersonId) ?? "Unknown player"}
                       </Link>
                     ) : (
                       "—"

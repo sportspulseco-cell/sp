@@ -161,7 +161,6 @@ export default async function CompliancePage() {
             const meta = STATUS_COPY[rec.status];
             const ruleName =
               (rec.ruleEvaluation as { name?: string })?.name ??
-              rec.governingBodyId?.slice(0, 8) ??
               "Eligibility check";
             return (
               <li

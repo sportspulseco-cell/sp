@@ -72,6 +72,8 @@ export class CrossOrgGrantDto {
   @ApiProperty({ type: [String] }) permissions!: string[];
   @ApiProperty() effectiveFrom!: string;
   @ApiPropertyOptional({ nullable: true }) effectiveTo!: string | null;
+  /** Grantee's display name or email, so screens never print the id. */
+  @ApiPropertyOptional({ nullable: true }) userDisplayName?: string | null;
 
   static fromDomain(g: CrossOrgGrant): CrossOrgGrantDto {
     const x = g.toSnapshot();

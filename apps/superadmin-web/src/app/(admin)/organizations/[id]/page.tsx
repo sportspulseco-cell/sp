@@ -79,7 +79,7 @@ export default async function OrgDetailPage({
     registration
       .listRegistrations({ orgId: id })
       .catch(() => ({ items: [], nextCursor: null })),
-    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const orgMap = new Map(allOrgsPage.items.map((o) => [o.id, o.displayName]));
@@ -119,7 +119,7 @@ export default async function OrgDetailPage({
       <header className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Building2} tint="violet" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>ORG · {org.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>ORG · {org.legalName}</Eyebrow>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {org.displayName}
           </h1>
@@ -182,8 +182,7 @@ export default async function OrgDetailPage({
                         href={`/organizations/${r.parentOrgId}`}
                         className="hover:underline"
                       >
-                        {orgMap.get(r.parentOrgId) ??
-                          r.parentOrgId.slice(0, 8)}
+                        {orgMap.get(r.parentOrgId) ?? "Unknown org"}
                       </Link>
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
@@ -212,8 +211,7 @@ export default async function OrgDetailPage({
                         href={`/organizations/${r.childOrgId}`}
                         className="hover:underline"
                       >
-                        {orgMap.get(r.childOrgId) ??
-                          r.childOrgId.slice(0, 8)}
+                        {orgMap.get(r.childOrgId) ?? "Unknown org"}
                       </Link>
                     </p>
                     <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
@@ -250,16 +248,16 @@ export default async function OrgDetailPage({
                   <p className="text-sm font-medium text-fg">
                     <Link
                       href={`/users/${g.userId}`}
-                      className="hover:underline font-mono text-[12px]"
+                      className="hover:underline"
                     >
-                      {g.userId.slice(0, 8)}
+                      {g.userDisplayName ?? "Unknown user"}
                     </Link>
                     <span className="ml-2 text-fg-muted">→</span>{" "}
                     <Link
                       href={`/organizations/${g.toOrgId}`}
                       className="hover:underline"
                     >
-                      {orgMap.get(g.toOrgId) ?? g.toOrgId.slice(0, 8)}
+                      {orgMap.get(g.toOrgId) ?? "Unknown org"}
                     </Link>
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
@@ -342,7 +340,7 @@ export default async function OrgDetailPage({
                     </Link>
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {leagueMap.get(s.leagueId) ?? s.leagueId.slice(0, 8)} ·{" "}
+                    {leagueMap.get(s.leagueId) ?? "Unknown league"} ·{" "}
                     {fmtDate(s.startDate)} → {fmtDate(s.endDate)}
                   </p>
                 </div>
@@ -443,7 +441,7 @@ export default async function OrgDetailPage({
                           href={`/users/${t.captainUserId}`}
                           className="hover:text-fg"
                         >
-                          {t.captainUserId.slice(0, 8)}
+                          {t.captainName ?? "Unknown user"}
                         </Link>
                       </>
                     )}

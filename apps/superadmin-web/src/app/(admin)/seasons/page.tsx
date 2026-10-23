@@ -63,7 +63,7 @@ export default async function SeasonsPage({
         title="Seasons"
         description={
           sp?.leagueId
-            ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? sp.leagueId.slice(0, 8)}`
+            ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? "Unknown league"}`
             : "Time-bounded instances of a league. Click a row to inspect; create new seasons via Org setup."
         }
         action={orgSetupCta}
@@ -129,7 +129,7 @@ export default async function SeasonsPage({
                   </Link>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {leagueMap.get(s.leagueId) ?? s.leagueId.slice(0, 8)}
+                  {leagueMap.get(s.leagueId) ?? "Unknown league"}
                 </TD>
                 <TD className="text-muted-foreground">{s.sportCode}</TD>
                 <TD className="text-muted-foreground">

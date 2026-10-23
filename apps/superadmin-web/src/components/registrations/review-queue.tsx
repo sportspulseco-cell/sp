@@ -17,7 +17,7 @@ import {
   REGISTRATION_STATES,
   type RegistrationState
 } from "@sportspulse/kernel";
-import { registrationV2Admin } from "@/lib/api/browser-api";
+import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
@@ -517,6 +517,22 @@ function ReviewDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [overrideFlag, setOverrideFlag] = useState("");
+  // Resolve the pricing tier name so the dialog never prints its id.
+  const tierId = (submission?.metadata as Record<string, unknown> | undefined)
+    ?.pricingTierId as string | undefined;
+  const [tierName, setTierName] = useState<string | null>(null);
+  useEffect(() => {
+    setTierName(null);
+    if (!tierId) return;
+    let cancelled = false;
+    registrationV2
+      .getPricingTier(tierId)
+      .then((t) => !cancelled && setTierName(t.name))
+      .catch(() => !cancelled && setTierName("Unknown tier"));
+    return () => {
+      cancelled = true;
+    };
+  }, [tierId]);
 
   if (!submission) return null;
   const meta = submission.metadata as Record<string, unknown>;
@@ -577,7 +593,7 @@ function ReviewDialog({
           <Row2 label="Path">{(meta.submissionType as string) ?? "—"}</Row2>
           <Row2 label="DOB">{(meta.dobDate as string) ?? "—"}</Row2>
           <Row2 label="Tier">
-            {(meta.pricingTierId as string)?.slice(0, 8) ?? "—"}
+            {tierId ? (tierName ?? "Loading…") : "—"}
           </Row2>
           {flags.length > 0 && (
             <Row2 label="Eligibility flags">

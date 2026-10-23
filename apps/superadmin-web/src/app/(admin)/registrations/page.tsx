@@ -101,7 +101,7 @@ export default async function RegistrationsPage() {
           // false-positive warning stays silent.
           node: (
             <span key={r.id} className="inline-flex items-center gap-2">
-              <span className="font-mono">{r.id.slice(0, 8)}</span>
+              <span>{r.subjectName ?? r.teamName ?? "Unknown player"}</span>
               <span className="text-fg-subtle">·</span>
               <span>{r.status.replace(/_/g, " ")}</span>
               <span className="text-fg-subtle">·</span>

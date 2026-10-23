@@ -85,7 +85,8 @@ export default async function PersonDetailPage({
     registrations,
     teamsPage,
     seasonsPage,
-    notifications
+    notifications,
+    leaguesPage
   ] = await Promise.all([
     compliance
       .listEligibility({ personId: id, limit: 50 })
@@ -105,7 +106,8 @@ export default async function PersonDetailPage({
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    communications.forPerson(id).catch(() => [])
+    communications.forPerson(id).catch(() => []),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const teamMap = new Map(
@@ -113,6 +115,9 @@ export default async function PersonDetailPage({
   );
   const seasonMap = new Map(
     seasonsPage.items.map((s) => [s.id, s.name])
+  );
+  const leagueMap = new Map(
+    leaguesPage.items.map((l) => [l.id, l.name])
   );
 
   const display =
@@ -147,7 +152,7 @@ export default async function PersonDetailPage({
             <UserCircle2 className="h-8 w-8" strokeWidth={1.5} />
           </div>
           <div className="space-y-2">
-            <Eyebrow dot>Person · {person.id.slice(0, 8)}</Eyebrow>
+            <Eyebrow dot>Person · {person.userId ? "Has account" : "No account"}</Eyebrow>
             <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
               {display}
             </h1>
@@ -248,7 +253,7 @@ export default async function PersonDetailPage({
                     </Badge>
                     <span className="ml-2 text-fg-muted">
                       {e.seasonId
-                        ? (seasonMap.get(e.seasonId) ?? e.seasonId.slice(0, 8))
+                        ? (seasonMap.get(e.seasonId) ?? "Unknown season")
                         : "Platform-wide"}
                     </span>
                   </p>
@@ -294,8 +299,9 @@ export default async function PersonDetailPage({
             <TBody>
               {signatures.map((s) => (
                 <TR key={s.id}>
-                  <TD className="font-mono text-[12px] text-fg">
-                    {s.documentVersionId.slice(0, 8)}
+                  <TD className="text-[12px] text-fg">
+                    {s.documentName ?? "Unknown document"}
+                    {s.documentVersionNumber != null ? ` · v${s.documentVersionNumber}` : ""}
                   </TD>
                   <TD className="text-fg-muted">{fmtDateTime(s.signedAt)}</TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
@@ -425,10 +431,10 @@ export default async function PersonDetailPage({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-fg">
-                    {teamMap.get(m.teamId) ?? m.teamId.slice(0, 8)}
+                    {teamMap.get(m.teamId) ?? "Unnamed team"}
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {seasonMap.get(m.seasonId) ?? m.seasonId.slice(0, 8)} ·{" "}
+                    {seasonMap.get(m.seasonId) ?? "Unknown season"} ·{" "}
                     {m.membershipType.replace(/_/g, " ")}
                   </p>
                 </div>
@@ -459,7 +465,7 @@ export default async function PersonDetailPage({
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-fg">
                     {r.leagueId
-                      ? `League ${r.leagueId.slice(0, 8)}`
+                      ? (leagueMap.get(r.leagueId) ?? "Unknown league")
                       : "Org-level"}
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
@@ -493,7 +499,7 @@ export default async function PersonDetailPage({
                       {m.moveType.replace(/_/g, " ")}
                     </span>
                     <span className="ml-2 text-fg-muted">
-                      {teamMap.get(m.teamId) ?? m.teamId.slice(0, 8)}
+                      {teamMap.get(m.teamId) ?? "Unnamed team"}
                     </span>
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">

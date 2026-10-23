@@ -18,6 +18,7 @@ import { loadUserScope } from "../../../shared/auth/scope";
 import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import type { Database } from "@sportspulse/db";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
 import {
   RegistrationDto,
   RegistrationPageDto
@@ -65,7 +66,20 @@ export class RegistrationsController {
         throw new ForbiddenException("Requires super_admin, or org_admin on the requested orgId.");
       }
     }
-    return this.listH.execute(q);
+    const page = await this.listH.execute(q);
+    // Add subjectName + teamName so screens never print raw ids.
+    const names = await resolveEntityNames(this.db, [
+      ...page.items.map((r) => ({ type: "person", id: r.subjectPersonId })),
+      ...page.items.map((r) => ({ type: "team", id: r.teamId }))
+    ]);
+    return {
+      ...page,
+      items: page.items.map((r) => ({
+        ...r,
+        subjectName: names.get(`person:${r.subjectPersonId}`) ?? null,
+        teamName: r.teamId ? names.get(`team:${r.teamId}`) ?? null : null
+      }))
+    };
   }
   @Get(":id") @UseGuards(SuperAdminGuard) getOne(@Param("id") id: string): Promise<RegistrationDto> {
     return this.getH.execute({ id });

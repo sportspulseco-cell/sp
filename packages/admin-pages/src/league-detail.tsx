@@ -76,7 +76,7 @@ export function LeagueDetail({
       <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Trophy} tint="amber" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>LEAGUE · {league.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>LEAGUE · {org ? org.displayName ?? org.legalName : "Unknown org"}</Eyebrow>
           <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {league.name}
           </h1>
@@ -119,7 +119,7 @@ export function LeagueDetail({
             {md.timezone ?? "—"}
           </Field>
           <Field label="Organisation" tag="leagues.org_id">
-            {org ? org.displayName ?? org.legalName : league.orgId.slice(0, 8)}
+            {org ? org.displayName ?? org.legalName : "Unknown org"}
           </Field>
           <Field label="Status" tag="leagues.status" mono>
             {league.status}

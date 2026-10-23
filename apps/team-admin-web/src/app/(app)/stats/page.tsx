@@ -79,7 +79,7 @@ export default async function TeamAdminStatsPage() {
                 <TR key={s.id} className={mine ? "bg-[var(--tint-blue-bg)]" : undefined}>
                   <TD className="font-mono tabular-nums text-fg-muted">{s.rank ?? "-"}</TD>
                   <TD className={mine ? "font-semibold text-[var(--tint-blue-fg)]" : "text-fg"}>
-                    <span className="font-mono uppercase">{s.teamId.slice(0, 8)}</span>
+                    <span>{s.teamName ?? "Unnamed team"}</span>
                     {mine ? " <-" : ""}
                   </TD>
                   <TD className="text-right font-mono tabular-nums">{s.w}</TD>

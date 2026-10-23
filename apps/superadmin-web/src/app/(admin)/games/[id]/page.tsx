@@ -52,7 +52,7 @@ export default async function GameDetailPage({
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     gameOps.listOfficials(id).catch(() => []),
-    iam.listPersons({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const teamMap = new Map(
@@ -194,8 +194,8 @@ export default async function GameDetailPage({
                         ) : null}
                       </p>
                       {e.primaryPersonId ? (
-                        <p className="mt-0.5 font-mono text-[11px] text-fg-muted">
-                          {e.primaryPersonId.slice(0, 8)}
+                        <p className="mt-0.5 text-[12px] text-fg-muted">
+                          {personMap.get(e.primaryPersonId) ?? "Unknown player"}
                         </p>
                       ) : null}
                     </div>
@@ -238,11 +238,11 @@ export default async function GameDetailPage({
               <TBody>
                 {statLines.map((l) => (
                   <TR key={l.id}>
-                    <TD className="font-mono text-[11px] text-fg">
-                      {l.personId.slice(0, 8)}
+                    <TD className="text-fg">
+                      {l.personName ?? personMap.get(l.personId) ?? "Unknown player"}
                     </TD>
                     <TD className="text-fg-muted">
-                      {teamMap.get(l.teamId) ?? l.teamId.slice(0, 6)}
+                      {teamMap.get(l.teamId) ?? l.teamName ?? "Unnamed team"}
                     </TD>
                     <TD className="text-right">
                       <CoreSummary core={l.core} />

@@ -26,6 +26,8 @@ interface Props {
   seasonId: string;
   seasonName: string;
   divisions: Division[];
+  /** Team id to name, so violations show names instead of ids. */
+  teamNames?: Record<string, string>;
 }
 
 type RunStatus = GenerateResponse["status"];
@@ -48,7 +50,7 @@ function StatusIcon({ status }: { status: RunStatus }) {
   return <XCircle className={cls} strokeWidth={1.75} />;
 }
 
-export function SchedulingGenerateForm({ seasonId, divisions }: Props) {
+export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {} }: Props) {
   const [divisionId, setDivisionId] = useState(divisions[0]?.id ?? "");
   const [gamesPerPair, setGamesPerPair] = useState("1");
   const [timeLimit, setTimeLimit] = useState("60");
@@ -239,7 +241,7 @@ export function SchedulingGenerateForm({ seasonId, divisions }: Props) {
               </div>
             </>
           ) : (
-            <InfeasibilitySection result={result} />
+            <InfeasibilitySection result={result} teamNames={teamNames} />
           )}
         </div>
       )}
@@ -286,7 +288,12 @@ function Metric({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-function InfeasibilitySection({ result }: { result: GenerateResponse }) {
+function InfeasibilitySection({
+  result, teamNames
+}: {
+  result: GenerateResponse;
+  teamNames: Record<string, string>;
+}) {
   const inf = result.infeasibility;
   return (
     <div className="space-y-4 text-sm">
@@ -316,7 +323,7 @@ function InfeasibilitySection({ result }: { result: GenerateResponse }) {
                 {inf.softViolations.map((v, i) => (
                   <li key={i} className="rounded-md border border-border bg-bg-subtle p-3">
                     <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                      {v.type}{v.teamId ? ` · team ${v.teamId.slice(0, 8)}` : ""}
+                      {v.type}{v.teamId ? ` · ${teamNames[v.teamId] ?? "Unnamed team"}` : ""}
                     </div>
                     <div className="mt-1 text-fg">{v.description}</div>
                   </li>

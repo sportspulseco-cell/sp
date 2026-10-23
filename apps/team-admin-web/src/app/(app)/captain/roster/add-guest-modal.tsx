@@ -141,9 +141,9 @@ export function AddGuestModal({
                       <span className="text-sm font-medium text-fg">
                         {p.legalFirstName} {p.legalLastName}
                       </span>
-                      <span className="font-mono text-[10px] uppercase text-fg-muted">
-                        {p.id.slice(0, 8)}
-                      </span>
+                      {p.preferredName ? (
+                        <span className="text-[11px] text-fg-muted">Goes by {p.preferredName}</span>
+                      ) : null}
                     </button>
                   </li>
                 ))}

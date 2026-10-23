@@ -42,7 +42,7 @@ export function DropPlayerModal({
 
   const name =
     [target.personFirstName, target.personLastName].filter(Boolean).join(" ") ||
-    target.personId.slice(0, 8);
+    "Unknown player";
   const charsLeft = Math.max(0, MIN_CHARS - reason.trim().length);
   const canSubmit = reason.trim().length >= MIN_CHARS && !busy;
 

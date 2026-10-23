@@ -17,6 +17,7 @@ import {
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { NotificationService } from "../../communications/application/notification.service";
@@ -132,6 +133,11 @@ export class ComplianceSweepsController {
       .from(schema.identityVerifications)
       .where(inArray(schema.identityVerifications.personId, personIds));
     const byPerson = new Map(idRows.map((r) => [r.personId, r]));
+    // Names for the captain email, which printed raw ids before.
+    const names = await resolveEntityNames(this.db, [
+      ...members.map((m) => ({ type: "person", id: m.personId })),
+      ...members.map((m) => ({ type: "team", id: m.teamId }))
+    ]);
 
     const now = new Date();
     const seasonEnd = season.endDate
@@ -174,8 +180,8 @@ export class ComplianceSweepsController {
           templateCode: "USA_HOCKEY_EXPIRED_CAPTAIN",
           idempotencyKey: `usah-expired-cap-${m.personId}-${seasonId}`,
           payload: {
-            playerName: m.personId,
-            teamName: m.teamId,
+            playerName: names.get(`person:${m.personId}`) ?? "A player",
+            teamName: names.get(`team:${m.teamId}`) ?? "your team",
             expiresAt: exp.toISOString()
           }
         });

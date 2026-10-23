@@ -313,7 +313,7 @@ function ActiveRosterTable({
             const name =
               [m.personFirstName, m.personLastName]
                 .filter(Boolean)
-                .join(" ") || m.personId.slice(0, 8);
+                .join(" ") || "Unknown player";
             return (
               <TR key={m.id}>
                 <TD className="font-medium">

@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
@@ -58,10 +59,38 @@ export class StatsController {
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
+  /** Add person, team and season names so screens never print raw ids. */
+  private async withNames<
+    T extends { personId?: string; teamId?: string; seasonId?: string | null }
+  >(
+    rows: T[]
+  ): Promise<
+    Array<T & { personName?: string | null; teamName?: string | null; seasonName?: string | null }>
+  > {
+    const names = await resolveEntityNames(this.db, [
+      ...rows.map((r) => ({ type: "person", id: r.personId })),
+      ...rows.map((r) => ({ type: "team", id: r.teamId })),
+      ...rows.map((r) => ({ type: "season", id: r.seasonId }))
+    ]);
+    return rows.map((r) => ({
+      ...r,
+      ...(r.personId !== undefined
+        ? { personName: names.get(`person:${r.personId}`) ?? null }
+        : {}),
+      ...(r.seasonId !== undefined
+        ? { seasonName: r.seasonId ? names.get(`season:${r.seasonId}`) ?? null : null }
+        : {}),
+      ...(r.teamId !== undefined
+        ? { teamName: names.get(`team:${r.teamId}`) ?? null }
+        : {})
+    }));
+  }
+
   // ---------- Stat lines ----------
   @Get("lines") @ApiOperation({ summary: "List per-(game, person) stat lines" })
-  listLines(@Query() q: ListStatLinesQueryDto): Promise<StatLinePageDto> {
-    return this.listLinesH.execute(q);
+  async listLines(@Query() q: ListStatLinesQueryDto): Promise<StatLinePageDto> {
+    const page = await this.listLinesH.execute(q);
+    return { ...page, items: await this.withNames(page.items) };
   }
   @Get("lines/for-game/:gameId")
   async forGame(
@@ -92,7 +121,7 @@ export class StatsController {
         throw new NotFoundException(`Game not found: ${gameId}`);
       }
     }
-    return this.forGameH.execute({ gameId });
+    return this.withNames(await this.forGameH.execute({ gameId }));
   }
 
   // ---------- Projection ----------
@@ -111,7 +140,7 @@ export class StatsController {
   // ---------- Standings ----------
   @Get("standings/:leagueId")
   @ApiOperation({ summary: "Read standings for a league (optionally a division)" })
-  standings(
+  async standings(
     @Param("leagueId") leagueId: string,
     @Query() q: ListStandingsQueryDto,
     @UserScope() scope: UserScopeType
@@ -119,10 +148,12 @@ export class StatsController {
     if (scope.leagueIds && !scope.leagueIds.includes(leagueId)) {
       throw new NotFoundException(`League ${leagueId} not found`);
     }
-    return this.listStandingsH.execute({
-      leagueId,
-      divisionId: q.divisionId
-    });
+    return this.withNames(
+      await this.listStandingsH.execute({
+        leagueId,
+        divisionId: q.divisionId
+      })
+    );
   }
   @Post("standings/:leagueId/recompute")
   @ApiOperation({ summary: "Recompute standings from completed games" })
@@ -155,7 +186,8 @@ export class StatsController {
 
   // ---------- Leaderboards ----------
   @Post("leaderboards") @ApiOperation({ summary: "Build / refresh a leaderboard" })
-  leaderboard(@Body() body: BuildLeaderboardBodyDto): Promise<LeaderboardDto> {
-    return this.leaderboardH.execute(body);
+  async leaderboard(@Body() body: BuildLeaderboardBodyDto): Promise<LeaderboardDto> {
+    const board = await this.leaderboardH.execute(body);
+    return { ...board, entries: await this.withNames(board.entries) };
   }
 }

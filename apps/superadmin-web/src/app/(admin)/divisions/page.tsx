@@ -64,9 +64,9 @@ export default async function DivisionsPage({
   }
 
   const filterLabel = sp?.seasonId
-    ? `Filtered by season ${seasonMap.get(sp.seasonId)?.name ?? sp.seasonId.slice(0, 8)}`
+    ? `Filtered by season ${seasonMap.get(sp.seasonId)?.name ?? "Unknown season"}`
     : sp?.leagueId
-    ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? sp.leagueId.slice(0, 8)}`
+    ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? "Unknown league"}`
     : "Age + tier + gender groupings within a season. Click a row to inspect; create new divisions via Org setup.";
 
   const orgSetupCta = (
@@ -142,7 +142,7 @@ export default async function DivisionsPage({
                     </Link>
                   </TD>
                   <TD className="text-muted-foreground">
-                    {s?.name ?? d.seasonId.slice(0, 8)}
+                    {s?.name ?? "Unknown season"}
                   </TD>
                   <TD className="text-muted-foreground">{d.tier ?? "—"}</TD>
                   <TD className="text-muted-foreground capitalize">

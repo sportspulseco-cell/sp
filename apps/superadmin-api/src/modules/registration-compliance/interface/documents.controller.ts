@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -14,6 +15,9 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { inArray, eq } from "drizzle-orm";
+import { schema, type Database } from "@sportspulse/db";
 import {
   ConsentSignatureDto,
   DocumentDto,
@@ -54,7 +58,8 @@ export class DocumentsController {
     private readonly publishH: PublishDocumentVersionHandler,
     private readonly signH: SignDocumentHandler,
     private readonly revokeH: RevokeSignatureHandler,
-    private readonly personSigsH: ListPersonSignaturesHandler
+    private readonly personSigsH: ListPersonSignaturesHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   // ---- Documents ----
@@ -111,7 +116,25 @@ export class DocumentsController {
     return this.revokeH.execute({ id, reason: body.reason });
   }
   @Get("signatures/by-person/:personId")
-  byPerson(@Param("personId") personId: string): Promise<ConsentSignatureDto[]> {
-    return this.personSigsH.execute({ personId });
+  async byPerson(@Param("personId") personId: string): Promise<ConsentSignatureDto[]> {
+    const sigs = await this.personSigsH.execute({ personId });
+    // Add documentName + versionNumber so screens never print raw ids.
+    const versionIds = [...new Set(sigs.map((s) => s.documentVersionId))];
+    if (versionIds.length === 0) return sigs;
+    const rows = await this.db
+      .select({
+        id: schema.documentVersions.id,
+        versionNumber: schema.documentVersions.versionNumber,
+        documentName: schema.documents.name
+      })
+      .from(schema.documentVersions)
+      .innerJoin(schema.documents, eq(schema.documents.id, schema.documentVersions.documentId))
+      .where(inArray(schema.documentVersions.id, versionIds));
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return sigs.map((s) => ({
+      ...s,
+      documentName: byId.get(s.documentVersionId)?.documentName ?? null,
+      documentVersionNumber: byId.get(s.documentVersionId)?.versionNumber ?? null
+    }));
   }
 }

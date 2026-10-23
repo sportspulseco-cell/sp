@@ -80,7 +80,7 @@ export function SeasonDetail({
       <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={CalendarRange} tint="violet" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>SEASON · {season.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>SEASON · {parentLeague?.name ?? "Unknown league"}</Eyebrow>
           <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {season.name}
           </h1>
