@@ -28,6 +28,7 @@ import { UnlinkRelationButton } from "@/components/orgs/unlink-relation-button";
 import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
+import { RegionsSection } from "@/components/regions/regions-section";
 
 export const metadata = { title: "Organization — SportsPulse" };
 
@@ -158,6 +159,9 @@ export default async function OrgDetailPage({
           initialAssignments={assignments.items}
         />
       </Section>
+
+      {/* Regions: Season -> Region -> Division (PPHL item 8) */}
+      <RegionsSection orgId={org.id} orgName={org.displayName} />
 
       {/* Org relations (hierarchy) */}
       <Section

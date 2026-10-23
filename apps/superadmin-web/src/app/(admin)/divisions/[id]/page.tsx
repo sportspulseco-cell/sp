@@ -3,6 +3,7 @@ import { DivisionDetail } from "@sportspulse/admin-pages";
 import { adminTransfers, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 import { DivisionPendingApplications } from "@/components/divisions/division-pending-applications";
+import { DivisionRegionControl } from "@/components/divisions/division-region-control";
 
 export const metadata = { title: "Division — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function DivisionDetailPage({
   const parentSeason = await leagueMgmt
     .getSeason(division.seasonId)
     .catch(() => null);
-  const [parentOrg, divisionTeams, pendingForSeason] = await Promise.all([
+  const [parentOrg, divisionTeams, pendingForSeason, regions] = await Promise.all([
     parentSeason
       ? orgs.get(parentSeason.orgId).catch(() => null)
       : Promise.resolve(null),
@@ -37,7 +38,10 @@ export default async function DivisionDetailPage({
         season: { id: division.seasonId, name: "", registrationClosesAt: null },
         divisions: [],
         items: []
-      }))
+      })),
+    parentSeason
+      ? leagueMgmt.listRegions({ orgId: parentSeason.orgId }).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] })
   ]);
   const pendingForThisDivision = pendingForSeason.items.filter(
     (a) => a.divisionId === id
@@ -60,13 +64,21 @@ export default async function DivisionDetailPage({
         />
       }
       extras={
-        <ResourceAdminsSection
-          scopeType="division"
-          scopeId={division.id}
-          resourceLabel={division.name}
-          allowedRoleCodes={["division_admin"]}
-          description="Division admins manage teams, lineups, and games inside this division."
-        />
+        <div className="space-y-8">
+          <DivisionRegionControl
+            divisionId={division.id}
+            regionId={division.regionId}
+            regions={regions.items}
+            orgHref={parentSeason ? `/organizations/${parentSeason.orgId}` : null}
+          />
+          <ResourceAdminsSection
+            scopeType="division"
+            scopeId={division.id}
+            resourceLabel={division.name}
+            allowedRoleCodes={["division_admin"]}
+            description="Division admins manage teams, lineups, and games inside this division."
+          />
+        </div>
       }
     />
   );
