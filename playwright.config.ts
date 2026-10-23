@@ -50,10 +50,18 @@ const LOCAL_URLS = {
   teamAdmin: "http://localhost:3005"
 };
 
+/**
+ * Parallel runs (one per journey) need their own output dir and bypass
+ * cookie file, or one run's cleanup deletes another run's state.
+ */
+export const OUTPUT_DIR = process.env.E2E_OUTPUT_DIR ?? "test-results";
+export const BYPASS_STATE_PATH = `${OUTPUT_DIR}-state/staging-bypass-state.json`;
+
 export const E2E_URLS = TARGET === "local" ? LOCAL_URLS : TARGET === "staging" ? STAGING_URLS : PROD_URLS;
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  outputDir: OUTPUT_DIR,
   globalSetup: TARGET === "staging" ? "./tests/e2e/staging-setup.ts" : undefined,
   // Generous timeout for cold-start Vercel pages; CI bumps further.
   timeout: 60_000,
@@ -64,7 +72,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    storageState: TARGET === "staging" ? "./test-results/staging-bypass-state.json" : undefined,
+    storageState: TARGET === "staging" ? BYPASS_STATE_PATH : undefined,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure"

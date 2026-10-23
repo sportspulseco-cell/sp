@@ -1,0 +1,110 @@
+import { createRequire } from "node:module";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
+import { E2E_URLS, SMOKE_USERS, signIn } from "../fixtures";
+import { BYPASS_STATE_PATH } from "../../../playwright.config";
+
+/**
+ * Shared helpers for the PPHL cross-app journeys (doc/testing/pphl-journey-matrix.md).
+ *
+ * Journeys MUTATE data, so they only run against staging. Every row a
+ * journey creates carries RUN_TAG in its name so a run can be found and
+ * cleaned up. Each role gets its own browser context, signed in on its
+ * own app, because the role apps keep separate Supabase sessions.
+ */
+
+export const IS_STAGING = process.env.E2E_TARGET === "staging";
+
+/** Unique, human-readable tag for rows created by this run. */
+export const RUN_TAG = process.env.E2E_RUN_TAG ?? `E2E${Date.now().toString(36).toUpperCase()}`;
+
+export type Role = "superAdmin" | "leagueAdmin" | "orgAdmin" | "teamAdmin" | "player";
+
+const APP_FOR_ROLE: Record<Role, string> = {
+  superAdmin: E2E_URLS.superadmin,
+  leagueAdmin: E2E_URLS.league,
+  orgAdmin: E2E_URLS.orgAdmin,
+  teamAdmin: E2E_URLS.teamAdmin,
+  player: E2E_URLS.player
+};
+
+export function appFor(role: Role): string {
+  return APP_FOR_ROLE[role];
+}
+
+/** Fresh browser context (own cookies) carrying the staging Vercel bypass. */
+export async function freshContext(browser: Browser): Promise<BrowserContext> {
+  return browser.newContext(
+    IS_STAGING && existsSync(BYPASS_STATE_PATH) ? { storageState: BYPASS_STATE_PATH } : {}
+  );
+}
+
+/**
+ * Open a new context signed in as `role` on that role's app. Pass
+ * `email`/`password` to sign in as a user the journey created itself.
+ */
+export async function signedInAs(
+  browser: Browser,
+  role: Role,
+  opts: { email?: string; password?: string; app?: string } = {}
+): Promise<{ context: BrowserContext; page: Page; app: string }> {
+  const context = await freshContext(browser);
+  const page = await context.newPage();
+  const app = opts.app ?? appFor(role);
+  await signIn(page, app, opts.email ?? SMOKE_USERS[role], opts.password);
+  return { context, page, app };
+}
+
+/** Collect console errors and failed API responses for the bug log. */
+export function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(`console: ${m.text()}`);
+  });
+  page.on("response", (r) => {
+    if (r.status() >= 400 && /\/api\//.test(r.url())) {
+      errors.push(`http ${r.status()} ${r.request().method()} ${r.url()}`);
+    }
+  });
+  return errors;
+}
+
+let sqlClient: ((q: string, params?: unknown[]) => Promise<any[]>) | null = null;
+
+/**
+ * Read-only staging DB readback, used as db-row evidence AFTER the UI
+ * step. Never use it to create the state a journey is testing.
+ */
+export async function stagingSql<T = Record<string, unknown>>(
+  query: string,
+  params: unknown[] = []
+): Promise<T[]> {
+  if (!IS_STAGING) throw new Error("stagingSql only runs against staging");
+  if (!sqlClient) {
+    const env = loadEnvLocal();
+    const ref = env.STAGING_SUPABASE_REF;
+    const password = env.STAGING_DB_PASSWORD;
+    if (!ref || !password) throw new Error("STAGING_SUPABASE_REF / STAGING_DB_PASSWORD missing");
+    const req = createRequire(resolve("packages/db/package.json"));
+    const postgres = req("postgres");
+    const sql = postgres(
+      `postgresql://postgres:${encodeURIComponent(password)}@db.${ref}.supabase.co:5432/postgres`,
+      { max: 1, ssl: "require", prepare: false }
+    );
+    sqlClient = (q, p = []) => sql.unsafe(q, p as any[]);
+  }
+  return (await sqlClient(query, params)) as T[];
+}
+
+function loadEnvLocal(): Record<string, string> {
+  const out: Record<string, string> = { ...(process.env as Record<string, string>) };
+  const file = resolve(".env.local");
+  if (!existsSync(file)) return out;
+  for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const i = line.indexOf("=");
+    if (i < 1 || line.startsWith("#")) continue;
+    out[line.slice(0, i)] ??= line.slice(i + 1).replace(/^"|"$/g, "");
+  }
+  return out;
+}

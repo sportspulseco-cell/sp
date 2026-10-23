@@ -1,0 +1,495 @@
+import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors, type Role } from "./_helpers";
+
+/**
+ * J13 · Invoice, pay, refund, wallet credit, overdue (UC-15, UC-17, UC-18).
+ *
+ * super_admin @ superadmin-web /finance creates an invoice for the staging
+ * player → player @ player-web /payments (own context) pays with the mock
+ * card → admin sees the status on /finance and /finance/[id] → admin issues
+ * refunds + wallet credit → player sees the credit and applies it to a
+ * second invoice. Org-admin parity + isolation on org-admin-web /finance.
+ *
+ * "Paid" on staging = MockPaymentProcessor (no money moves, no Stripe).
+ * Bugs are logged as MON-n in doc/testing/bugs/money.md.
+ *
+ * Steps are separate tests so one bug does not hide the next. Playwright
+ * restarts the worker after a failing test, so the run tag and each role's
+ * signed-in session are cached on disk per runner process (one sign-in
+ * per role per run, which keeps us under Supabase's auth rate limit).
+ */
+
+test.skip(!IS_STAGING, "journeys mutate data: staging only");
+test.describe.configure({ timeout: 180_000 });
+
+const OUT = process.env.E2E_OUTPUT_DIR ?? "test-results";
+const SHOTS = `${OUT}-shots`;
+const STATE = `${OUT}-state`;
+mkdirSync(SHOTS, { recursive: true });
+mkdirSync(STATE, { recursive: true });
+const TAG_FILE = `${STATE}/money-tag-${process.ppid}.txt`;
+if (!existsSync(TAG_FILE)) writeFileSync(TAG_FILE, process.env.E2E_RUN_TAG ?? RUN_TAG);
+const TAG = readFileSync(TAG_FILE, "utf8").trim();
+
+const ORG_NAME = "PPHL Staging";
+const TEAM_NAME = "Staging Skaters";
+const PLAYER_EMAIL = "staging-player@sportspulse.us";
+const AMOUNT_A = "123.45"; // invoice A (paid + refunded)
+const AMOUNT_B = "40.00"; // invoice B (paid with wallet credit)
+const DESC_A = `${TAG} J13 invoice A`;
+const DESC_B = `${TAG} J13 invoice B`;
+
+async function shot(page: Page, name: string) {
+  await page.screenshot({ path: `${SHOTS}/j13-${name}.png`, fullPage: true });
+}
+async function mainText(page: Page) {
+  return (await page.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ");
+}
+function log(...a: unknown[]) {
+  console.log("[J13]", ...a);
+}
+function inTwoDaysIso() {
+  return new Date(Date.now() + 2 * 86400_000).toISOString().slice(0, 10);
+}
+
+type Session = { context: BrowserContext; page: Page; app: string; errors: string[] };
+const sessions: Partial<Record<Role, Session>> = {};
+/** One sign-in per role per runner process; later workers reuse the saved session. */
+async function as(browser: Browser, role: Role): Promise<Session> {
+  const cached = sessions[role];
+  if (cached && !cached.page.isClosed()) return cached;
+  const file = `${STATE}/money-${process.ppid}-${role}.json`;
+  let s: { context: BrowserContext; page: Page; app: string };
+  if (existsSync(file)) {
+    const { app, state } = JSON.parse(readFileSync(file, "utf8"));
+    const context = await browser.newContext({ storageState: state });
+    s = { context, page: await context.newPage(), app };
+    await s.page.goto(`${app}/`);
+  } else {
+    s = await signedInAs(browser, role);
+    writeFileSync(file, JSON.stringify({ app: s.app, state: await s.context.storageState() }));
+  }
+  const errors = watchErrors(s.page);
+  sessions[role] = { ...s, errors };
+  return sessions[role]!;
+}
+test.afterAll(async () => {
+  for (const [role, s] of Object.entries(sessions)) {
+    log(`${role} console/API errors:`, JSON.stringify(s?.errors ?? []));
+    await s?.context.close();
+  }
+});
+
+/** Invoice ids for this run, read back from the DB (survives worker restarts). */
+async function runInvoices() {
+  const rows = await stagingSql<{ id: string; description: string; status: string; paid_cents: number }>(
+    `select i.id, ii.description, i.status, i.paid_cents from invoices i
+       join invoice_items ii on ii.invoice_id = i.id
+      where ii.description in ($1, $2) and i.recipient_email = $3`,
+    [DESC_A, DESC_B, PLAYER_EMAIL]
+  );
+  return {
+    a: rows.find((r) => r.description === DESC_A),
+    b: rows.find((r) => r.description === DESC_B)
+  };
+}
+
+test("1. super_admin finds Invoices in the sidebar and the AR dashboard renders", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  await p.goto(`${new URL(p.url()).origin}/dashboard`);
+  // Finance lives under the collapsed "Operations" group.
+  if (!(await p.locator("a[href='/finance']:visible").count())) {
+    await p.locator("summary:visible", { hasText: "Operations" }).first().click();
+  }
+  const link = p.locator("a[href='/finance']:visible").first();
+  await expect(link, "sidebar has an Invoices link").toBeVisible();
+  await link.click();
+  await p.waitForURL(/\/finance$/);
+  await expect(p.getByText("Total invoiced").first()).toBeVisible();
+  log("AR before:", (await mainText(p)).slice(0, 400));
+  await shot(p, "01-ar-dashboard");
+});
+
+test("2. AR dashboard '+ New invoice' dialog: individual invoice with payment plan", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  // the client-side button inside the dashboard (not the header link)
+  await p.locator("main button", { hasText: "New invoice" }).first().click();
+  const dlg = p.getByRole("dialog");
+  await expect(dlg).toBeVisible();
+  const orgOpts = await dlg.locator("select").first().locator("option").allTextContents();
+  log("dialog organisation options:", JSON.stringify(orgOpts));
+  expect.soft(orgOpts, "dialog organisation picker lists the staging org").toContain(ORG_NAME);
+  const personResp = p.waitForResponse((r) => /\/persons\?/.test(r.url()), { timeout: 10_000 }).catch(() => null);
+  await dlg.getByPlaceholder("Search by name or email").pressSequentially("Staging", { delay: 30 });
+  const pr = await personResp;
+  log("person search →", pr?.url(), pr?.status(), pr ? (await pr.text()).slice(0, 300) : "no request");
+  const pick = dlg.getByRole("button", { name: /Staging Player/ }).first();
+  await expect.soft(pick, "recipient picker lists the staging player by name").toBeVisible({ timeout: 10_000 });
+  if (await pick.isVisible().catch(() => false)) await pick.click();
+  await dlg.getByPlaceholder("Fall 2025 registration fee").fill(`${TAG} J13 dialog invoice`);
+  await dlg.getByPlaceholder("320.00").fill("50.00");
+  await dlg.locator("input[type='date']").first().fill(inTwoDaysIso());
+  await dlg.locator("input[type='checkbox']").first().check();
+  await dlg.getByPlaceholder("80.00").fill("10.00");
+  const kinds = await dlg.locator("select").nth(1).locator("option").allTextContents();
+  log("dialog line-item kinds:", kinds.join(","));
+  const respP = p.waitForResponse((r) => /\/finance\/invoices\/bulk/.test(r.url()), { timeout: 15_000 }).catch(() => null);
+  await dlg.getByRole("button", { name: /send/i }).last().click();
+  const resp = await respP;
+  const status = resp?.status();
+  const body = resp ? await resp.text().catch(() => "") : "no response";
+  log("dialog create →", status, body.slice(0, 300));
+  await shot(p, "02-new-invoice-dialog-result");
+  const dlgError = await dlg.locator("p").filter({ hasText: /organisation|recipient|must|error|kind/i }).allInnerTexts().catch(() => []);
+  log("dialog visible error:", JSON.stringify(dlgError));
+  expect.soft(status ?? 0, `New invoice dialog create should succeed; got ${status ?? "no request"} ${body.slice(0, 200)} ${dlgError.join(" | ")}`).toBeGreaterThanOrEqual(200);
+  expect.soft(status ?? 999, "New invoice dialog create should succeed").toBeLessThan(300);
+  // close dialog if still open
+  if (await dlg.isVisible().catch(() => false)) {
+    await dlg.getByRole("button", { name: "Cancel" }).click().catch(() => {});
+  }
+});
+
+async function composeTeamInvoice(p: Page, desc: string, amount: string) {
+  await p.goto(`${new URL(p.url()).origin}/finance`);
+  await p.locator("main a[href='/finance/create'], header a[href='/finance/create'], a[href='/finance/create']").first().click();
+  await p.waitForURL(/\/finance\/create/);
+  await expect(p.locator("select#scope"), "composer form renders").toBeVisible({ timeout: 60_000 });
+  const org = p.locator("select#org");
+  if (await org.count()) await org.selectOption({ label: ORG_NAME });
+  return { org };
+}
+
+test("3. /finance/create composer: individual picker, then team-scope invoices A and B", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  await composeTeamInvoice(p, DESC_A, AMOUNT_A);
+  // Default scope is Individual — the person picker must list people.
+  const target = p.locator("select#target");
+  const personOptions = await target.locator("option").allTextContents();
+  log("composer individual options:", JSON.stringify(personOptions));
+  await shot(p, "03-composer-individual");
+  expect.soft(
+    personOptions.some((o) => /Staging Player|staging-player/i.test(o)),
+    "SA composer Individual scope lists the staging player (needs persons prop)"
+  ).toBe(true);
+  const kinds = await p.locator("form select").filter({ hasText: "Registration fee" }).first().locator("option").allTextContents();
+  log("composer kinds:", kinds.join(","));
+  expect.soft(await p.getByText(/payment plan|installment/i).count(), "composer offers a payment plan / installments (UC-15)").toBeGreaterThan(0);
+  expect.soft(await p.getByText(/fee schedule/i).count(), "composer offers a fee schedule picker").toBeGreaterThan(0);
+
+  for (const [desc, amt] of [
+    [DESC_A, AMOUNT_A],
+    [DESC_B, AMOUNT_B]
+  ] as const) {
+    if (!/\/finance\/create/.test(p.url())) await composeTeamInvoice(p, desc, amt);
+    await p.locator("select#scope").selectOption("team");
+    await p.locator("select#target").selectOption({ label: TEAM_NAME });
+    await p.getByPlaceholder("e.g. 2026 Spring season registration").fill(desc);
+    await p.getByPlaceholder("0.00").first().fill(amt);
+    await p.locator("input[type='date']").fill(inTwoDaysIso());
+    const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
+    await p.getByRole("button", { name: "Create invoice" }).click();
+    const resp = await respP;
+    const json = await resp.json().catch(() => ({}));
+    log(`composer create ${desc} →`, resp.status(), JSON.stringify(json).slice(0, 200));
+    expect(resp.status(), "composer team invoice created").toBeLessThan(300);
+    await p.waitForURL(/\/finance(\?|$)/, { timeout: 20_000 });
+  }
+
+  const rows = await stagingSql<{ id: string; status: string; total_cents: number; description: string; email: string }>(
+    `select i.id, i.status, i.total_cents, ii.description, i.recipient_email as email
+       from invoices i join invoice_items ii on ii.invoice_id = i.id
+      where ii.description like $1 order by i.created_at`,
+    [`${TAG} J13 invoice%`]
+  );
+  log("db invoices:", JSON.stringify(rows));
+  const a = rows.find((r) => r.description === DESC_A && r.email === PLAYER_EMAIL);
+  const b = rows.find((r) => r.description === DESC_B && r.email === PLAYER_EMAIL);
+  expect(a, "invoice A row for the player").toBeTruthy();
+  expect(b, "invoice B row for the player").toBeTruthy();
+  const invoiceAId = a!.id;
+  expect.soft(a!.status, "new invoice is issued to the player (not left as draft)").not.toBe("draft");
+  const notif = await stagingSql(
+    `select template_code, channel, status from notifications where payload::text like $1`,
+    [`%${invoiceAId}%`]
+  );
+  log("notifications for invoice A:", JSON.stringify(notif));
+  expect.soft(notif.length, "player is notified that an invoice was issued").toBeGreaterThan(0);
+  await shot(p, "03b-ar-after-create");
+});
+
+test("4. player @ player-web /payments sees invoice A with the right total and pays (mock card)", async ({ browser }) => {
+  const { a, b } = await runInvoices();
+  test.skip(!a, "no invoice A for this run");
+  const invoiceAId = a!.id;
+  void b;
+  const p = (await as(browser, "player")).page;
+  await p.goto(`${new URL(p.url()).origin}/`);
+  const nav = p.locator("a[href='/payments']:visible").first();
+  await expect(nav, "Payments entry in the player nav").toBeVisible();
+  await nav.click();
+  await p.waitForURL(/\/payments/);
+  await expect(p.getByText("$123.45").first(), "invoice A total visible").toBeVisible();
+  await shot(p, "04-player-payments-before");
+  const card = p.locator("main div.rounded-xl").filter({ hasText: "$123.45" }).filter({ has: p.getByRole("button", { name: /^Pay / }) }).last();
+  const mockSel = p.getByText(/Mock card outcome/i);
+  await card.getByRole("button", { name: /^Pay \$123\.45/ }).click();
+  const dlg = p.getByRole("dialog");
+  await expect(dlg).toBeVisible();
+  const mockVisible = await mockSel.isVisible().catch(() => false);
+  log("player sees 'Mock card outcome' selector:", mockVisible);
+  expect.soft(mockVisible, "player-facing pay dialog must not expose a test 'mock outcome' control").toBe(false);
+  expect.soft(await dlg.locator("input[name*='card'], iframe[name*='stripe'], input[autocomplete='cc-number']").count(), "pay dialog collects a card").toBeGreaterThan(0);
+  await shot(p, "04b-pay-dialog");
+  const respP = p.waitForResponse((r) => /\/finance\/invoices\/.+\/pay$/.test(r.url()));
+  await dlg.getByRole("button", { name: "Pay now" }).click();
+  const resp = await respP;
+  log("pay →", resp.status(), (await resp.text()).slice(0, 200));
+  expect(resp.status()).toBeLessThan(300);
+  await expect(p.getByText(/Paid .* Invoice is paid/).first(), "flash confirms paid").toBeVisible();
+  await shot(p, "04c-player-after-pay");
+  const db = await stagingSql<{ status: string; paid_cents: number }>(`select status, paid_cents from invoices where id=$1`, [invoiceAId]);
+  log("db after pay:", JSON.stringify(db));
+  expect(db[0]?.status).toBe("paid");
+  const pays = await stagingSql(`select method, amount_cents, external_provider_id from payments where invoice_id=$1`, [invoiceAId]);
+  log("payments rows:", JSON.stringify(pays));
+  const notif = await stagingSql(`select template_code, channel, status from notifications where idempotency_key like $1`, [`pay-confirmed-${invoiceAId}%`]);
+  log("payment confirmation notifications:", JSON.stringify(notif));
+});
+
+test("5. admin sees invoice A paid on /finance list and /finance/[id]", async ({ browser }) => {
+  const { a, b } = await runInvoices();
+  test.skip(!a, "no invoice A for this run");
+  const invoiceAId = a!.id;
+  void b;
+  const p = (await as(browser, "superAdmin")).page;
+  // Admin page was open from before the payment: check without reload first.
+  const before = await mainText(p);
+  log("admin /finance (no reload) mentions 123.45:", before.includes("123.45"));
+  await p.reload();
+  const row = p.locator("tr").filter({ hasText: "$123.45" }).filter({ hasText: /staging-player|Staging Player/i }).first();
+  await expect.soft(row, "invoice A row on /finance").toBeVisible();
+  await expect.soft(row, "row shows Paid").toContainText(/paid/i);
+  await shot(p, "05-admin-finance-after-pay");
+  await p.goto(`${new URL(p.url()).origin}/finance/${invoiceAId}`);
+  await expect(p.getByText("Admin actions")).toBeVisible();
+  log("invoice A detail:", (await mainText(p)).slice(0, 600));
+  await shot(p, "05b-invoice-detail-paid");
+});
+
+test("6. internal notes save survives a reload", async ({ browser }) => {
+  const { a, b } = await runInvoices();
+  test.skip(!a, "no invoice A for this run");
+  const invoiceAId = a!.id;
+  void b;
+  const p = (await as(browser, "superAdmin")).page;
+  const note = `${TAG} internal note`;
+  const ta = p.locator("aside textarea").first();
+  await ta.fill(note);
+  await p.getByRole("button", { name: "Save note" }).click();
+  const flash = await p.locator("main p").filter({ hasText: /note/i }).first().innerText().catch(() => "");
+  log("save note flash:", flash);
+  await p.reload();
+  await expect(p.getByText("Admin actions")).toBeVisible();
+  const persisted = (await p.locator("aside textarea").first().inputValue()) === note || (await mainText(p)).includes(note);
+  expect.soft(persisted, `internal note persisted after reload (flash was "${flash}")`).toBe(true);
+});
+
+test("7. refund dialog (UC-17): wallet-credit refund updates the invoice and cannot exceed what was paid", async ({ browser }) => {
+  const { a, b } = await runInvoices();
+  test.skip(!a, "no invoice A for this run");
+  const invoiceAId = a!.id;
+  void b;
+  const p = (await as(browser, "superAdmin")).page;
+  async function refund(amount: string) {
+    await p.getByRole("button", { name: "Issue refund" }).click();
+    const dlg = p.getByRole("dialog");
+    await dlg.getByRole("button", { name: /Wallet credit/ }).click();
+    await dlg.locator("input").first().fill(amount);
+    await dlg.locator("textarea, input[placeholder*='pro-rated']").first().fill(`${TAG} QA refund test reason`);
+    const respP = p.waitForResponse((r) => /refund-split/.test(r.url()));
+    await dlg.getByRole("button", { name: /Issue refund of/ }).click();
+    const resp = await respP;
+    const t = await resp.text();
+    log(`refund ${amount} →`, resp.status(), t.slice(0, 200));
+    if (await dlg.isVisible().catch(() => false)) {
+      log("refund dialog still open:", (await dlg.innerText()).replace(/\s+/g, " ").slice(0, 300));
+      await dlg.getByRole("button", { name: "Cancel" }).click().catch(() => {});
+    }
+    return resp.status();
+  }
+  const s1 = await refund("50.00");
+  expect(s1).toBeLessThan(300);
+  await p.waitForTimeout(1500);
+  const afterFirst = await mainText(p);
+  log("detail after first refund:", afterFirst.slice(0, 500));
+  await shot(p, "07-after-refund-50");
+  const db1 = await stagingSql<{ status: string; paid_cents: number }>(`select status, paid_cents from invoices where id=$1`, [invoiceAId]);
+  log("db after refund 50:", JSON.stringify(db1));
+  expect.soft(db1[0]?.paid_cents, "refund reduces invoice paid_cents (12345 → 7345)").toBe(7345);
+
+  // Second refund of the full original amount: 50 + 123.45 > 123.45 paid.
+  const s2 = await refund("123.45");
+  await shot(p, "07b-after-second-refund");
+  expect.soft(s2, "second refund that pushes total refunds above the paid amount is refused").toBeGreaterThanOrEqual(400);
+  const totals = await stagingSql<{ refunded: number }>(`select coalesce(sum(amount_cents),0)::int as refunded from refunds where invoice_id=$1`, [invoiceAId]);
+  log("total refunded on invoice A (cents):", totals[0]?.refunded);
+  expect.soft(totals[0]?.refunded ?? 0, "refunds never exceed the 12345 cents paid").toBeLessThanOrEqual(12345);
+  const notif = await stagingSql(`select template_code, status from notifications where payload::text like $1 and template_code ilike '%refund%'`, [`%${invoiceAId}%`]);
+  log("refund notifications:", JSON.stringify(notif));
+  expect.soft(notif.length, "player is notified of the refund/credit (UC-17)").toBeGreaterThan(0);
+});
+
+test("8. admin issues a standalone wallet credit from the invoice detail", async ({ browser }) => {
+  const { a, b } = await runInvoices();
+  test.skip(!a, "no invoice A for this run");
+  const invoiceAId = a!.id;
+  void b;
+  const p = (await as(browser, "superAdmin")).page;
+  await p.getByRole("button", { name: "Issue wallet credit" }).click();
+  const dlg = p.getByRole("dialog");
+  await expect(dlg).toBeVisible();
+  const inputs = dlg.locator("input, textarea");
+  await inputs.nth(0).fill("5.00");
+  await inputs.nth(1).fill(`${TAG} goodwill credit QA`);
+  const respP = p.waitForResponse((r) => /wallet\/issue-credit|wallet-credit/.test(r.url()));
+  await dlg.getByRole("button", { name: /Issue|credit/i }).last().click();
+  const resp = await respP;
+  log("wallet credit →", resp.status(), (await resp.text()).slice(0, 200));
+  expect.soft(resp.status()).toBeLessThan(300);
+  await shot(p, "08-after-wallet-credit");
+});
+
+test("9. player sees wallet credit and applies it to invoice B", async ({ browser }) => {
+  const { b } = await runInvoices();
+  test.skip(!b, "no invoice B for this run");
+  const p = (await as(browser, "player")).page;
+  const before = await mainText(p);
+  log("player page before reload, wallet text:", before.match(/Wallet balance \S+/)?.[0]);
+  await p.reload();
+  const walletText = (await mainText(p)).match(/Wallet balance \S+/)?.[0] ?? "";
+  log("player wallet after reload:", walletText);
+  const db = await stagingSql<{ balance_cents: number }>(
+    `select w.balance_cents from wallet_accounts w join persons pe on pe.id=w.person_id join profiles pr on pr.id=pe.user_id where pr.email=$1`,
+    [PLAYER_EMAIL]
+  );
+  log("db wallet:", JSON.stringify(db));
+  expect(walletText, "wallet balance shown to the player").not.toMatch(/\$0\.00/);
+  await shot(p, "09-player-wallet");
+  const card = p.locator("main div.rounded-xl").filter({ hasText: "$40.00" }).filter({ has: p.getByRole("button", { name: /^Pay / }) }).last();
+  await card.getByRole("button", { name: /^Pay \$40\.00/ }).click();
+  const dlg = p.getByRole("dialog");
+  await dlg.locator("input[type='number']").first().fill("40.00");
+  const respP = p.waitForResponse((r) => /\/finance\/invoices\/.+\/pay$/.test(r.url()));
+  await dlg.getByRole("button", { name: "Pay now" }).click();
+  const resp = await respP;
+  log("pay B with wallet →", resp.status(), (await resp.text()).slice(0, 200));
+  expect(resp.status()).toBeLessThan(300);
+  await expect(p.getByText(/from wallet/).first()).toBeVisible();
+  await shot(p, "09b-player-after-wallet-pay");
+  const ledger = await stagingSql(
+    `select 'ledger' src, entry_type t, amount_cents from wallet_ledger wl join wallet_accounts w on w.id=wl.wallet_id join persons pe on pe.id=w.person_id join profiles pr on pr.id=pe.user_id where pr.email=$1
+     union all select 'tx', type, amount_cents from wallet_transactions wt join wallet_accounts w on w.id=wt.wallet_id join persons pe on pe.id=w.person_id join profiles pr on pr.id=pe.user_id where pr.email=$1`,
+    [PLAYER_EMAIL]
+  ).catch((e) => [{ err: String(e) }]);
+  const bal = await stagingSql<{ balance_cents: number }>(
+    `select w.balance_cents from wallet_accounts w join persons pe on pe.id=w.person_id join profiles pr on pr.id=pe.user_id where pr.email=$1`,
+    [PLAYER_EMAIL]
+  );
+  log("wallet ledger:", JSON.stringify(ledger), "balance:", JSON.stringify(bal));
+});
+
+test("10. receipt and update-card affordances", async ({ browser }) => {
+  const { a, b } = await runInvoices();
+  test.skip(!a, "no invoice A for this run");
+  const invoiceAId = a!.id;
+  void b;
+  const p = (await as(browser, "player")).page;
+  // Receipt button only renders on OPEN invoices with paidCents > 0, so a fully
+  // paid invoice (moved to history) has no receipt affordance at all.
+  const receiptBtns = await p.getByRole("button", { name: "Download receipt" }).count();
+  log("Download receipt buttons on page:", receiptBtns);
+  const history = (await mainText(p)).match(/history.{0,200}/i)?.[0];
+  log("history section:", history);
+  expect.soft(receiptBtns, "a paid invoice offers a receipt download").toBeGreaterThan(0);
+  const upd = p.getByRole("button", { name: "Update card" }).first();
+  if (await upd.isVisible().catch(() => false)) {
+    await upd.click();
+    const dlg = p.getByRole("dialog");
+    log("update card dialog:", (await dlg.innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 300));
+    await shot(p, "10-update-card");
+    expect.soft(await dlg.getByText(/stub/i).count(), "Update card is a real card form, not a stub").toBe(0);
+    await p.keyboard.press("Escape");
+  } else {
+    log("no Update card button visible (no open invoices)");
+  }
+});
+
+test("11. overdue (UC-18): escalation view and what triggers reminders", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  await p.goto(`${new URL(p.url()).origin}/payments?tab=overdue`);
+  await shot(p, "11-overdue-tab");
+  const od = await mainText(p);
+  log("overdue tab:", od.slice(0, 700));
+  expect.soft(od, "overdue / QB panel shows no fabricated sample rows").not.toContain("INV-2025-08841");
+  // The daily pg_cron sweep only considers invoices in sent/partial/overdue.
+  const draft = await stagingSql<{ n: number }>(
+    `select count(*)::int n from invoices i join invoice_items ii on ii.invoice_id=i.id where ii.description like $1 and i.status='draft'`,
+    [`${TAG} J13%`]
+  );
+  log("this run's invoices still in draft (invisible to sp_overdue_sweep):", draft[0]?.n);
+  const cron = await stagingSql(`select jobname, schedule from cron.job where jobname like '%overdue%'`);
+  log("overdue cron:", JSON.stringify(cron));
+});
+
+test("12. org-admin @ org-admin-web /finance parity and isolation", async ({ browser }) => {
+  const oa = await as(browser, "orgAdmin");
+  const errs = oa.errors;
+  const p = oa.page;
+  try {
+    await p.goto(`${new URL(p.url()).origin}/`);
+    const nav = p.locator("a[href='/finance']:visible").first();
+    await expect(nav, "Finance in org-admin nav").toBeVisible();
+    await nav.click();
+    await p.waitForURL(/\/finance/);
+    await expect(p.getByText("Loading organization workspace")).toHaveCount(0, { timeout: 60_000 });
+    await p.waitForLoadState("networkidle").catch(() => {});
+    await shot(p, "12-org-finance");
+    const text = await mainText(p);
+    log("org-admin /finance:", text.slice(0, 600));
+    expect.soft(text, "org-admin sees this run's invoice").toContain("123.45");
+    // Detail parity: is there a per-invoice detail with refund / notes?
+    const detailLinks = await p.locator("a[href^='/finance/']").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    log("org-admin finance links:", JSON.stringify(detailLinks.slice(0, 10)));
+    await p.goto(`${new URL(p.url()).origin}/finance/create`);
+    await expect(p.locator("select#target")).toBeVisible({ timeout: 60_000 });
+    const opts = await p.locator("select#target").locator("option").allTextContents();
+    log("org-admin composer individual options:", JSON.stringify(opts));
+    expect.soft(opts.some((o) => /Staging Player|staging-player/i.test(o)), "org-admin composer lists the player").toBe(true);
+    await shot(p, "12b-org-composer");
+    // Same shared composer, org-admin proxy endpoint: invoice the player directly.
+    await p.locator("select#target").selectOption({ label: "Staging Player · staging-player@sportspulse.us" });
+    await p.getByPlaceholder("e.g. 2026 Spring season registration").fill(`${TAG} J13 org-admin invoice`);
+    await p.getByPlaceholder("0.00").first().fill("12.34");
+    await p.locator("input[type='date']").fill(inTwoDaysIso());
+    const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
+    await p.getByRole("button", { name: "Create invoice" }).click();
+    const resp = await respP;
+    const t = await resp.text();
+    log("org-admin composer create →", resp.status(), t.slice(0, 200));
+    await p.waitForTimeout(1000);
+    await shot(p, "12c-org-composer-result");
+    const visibleErr = await p.locator("[role='alert'], .text-rose-600").allInnerTexts().catch(() => []);
+    log("org-admin composer visible error:", JSON.stringify(visibleErr));
+    expect.soft(resp.status(), `org-admin can invoice a player (${t.slice(0, 120)})`).toBeLessThan(300);
+    // Isolation: no row from another org.
+    const otherOrgs = await stagingSql<{ invoice_number: string }>(
+      `select invoice_number from invoices where org_id <> (select id from orgs where display_name=$1) limit 20`,
+      [ORG_NAME]
+    );
+    for (const r of otherOrgs) expect.soft(text, "foreign-org invoice not visible").not.toContain(r.invoice_number);
+  } finally {
+    log("OA errors:", JSON.stringify(errs));
+  }
+});

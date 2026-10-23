@@ -50,7 +50,7 @@ skills-lock.json
 # Playwright MCP test artifacts
 .playwright-mcp/
 playwright-report/
-test-results/
+test-results*/
 
 # Local screenshots / scratch (these accumulate at repo root during dev)
 /*.png

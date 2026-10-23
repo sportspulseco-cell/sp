@@ -20,7 +20,7 @@ test("super-admin form builder shows cascading pickers when scope=division", asy
 }) => {
   await signIn(page, E2E_URLS.superadmin, SMOKE_USERS.superAdmin);
   await page.goto(`${E2E_URLS.superadmin}/forms`);
-  await page.getByRole("button", { name: /New form/i }).click();
+  await page.locator("header").getByRole("button", { name: /New form/i }).click();
 
   // Dialog opens. Default scope is Org-wide; League/Season/Division
   // pickers should be hidden.

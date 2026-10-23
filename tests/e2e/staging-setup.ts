@@ -1,5 +1,7 @@
 import { chromium } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
+import { BYPASS_STATE_PATH } from "../../playwright.config";
 
 const protectedApps = [
   ["landing", "https://staging.sportspulse.us"],
@@ -31,8 +33,8 @@ export default async function setup() {
       }
       await page.close();
     }
-    await mkdir("test-results", { recursive: true });
-    await context.storageState({ path: "test-results/staging-bypass-state.json" });
+    await mkdir(dirname(BYPASS_STATE_PATH), { recursive: true });
+    await context.storageState({ path: BYPASS_STATE_PATH });
   } finally {
     await browser.close();
   }
