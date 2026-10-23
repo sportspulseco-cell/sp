@@ -142,8 +142,12 @@ test("items 1/4: no id fragments on key pages per role", async ({ browser }) => 
     const { page, app, context } = await signedInAs(browser, role);
     logApiErrors(page);
     for (const p of paths) {
+      const t0 = Date.now();
       await page.goto(`${app}${p}`);
-      await page.waitForLoadState("networkidle").catch(() => {});
+      // Live pages poll, so "network idle" never comes; wait for content.
+      await page.locator("main h1, main h2").first().waitFor({ timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(1_500);
+      console.log(`[pdf] scan ${role} ${p} ${Date.now() - t0}ms`);
       const hex = await visibleHexFragments(page);
       if (hex.length) found.push(`${role} ${p}: ${[...new Set(hex)].join(", ")}`);
     }
