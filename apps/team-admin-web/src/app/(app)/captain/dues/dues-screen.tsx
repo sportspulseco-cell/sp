@@ -146,7 +146,7 @@ export function DuesScreen({
     setBusy(sub.id);
     setError(null);
     try {
-      await finance.remindSplit(sub.id);
+      await finance.captainDuesRemindOne(teamId, sub.id);
       setFlash(`Reminded ${sub.playerName ?? "player"}.`);
     } catch (e) {
       setError((e as Error).message);

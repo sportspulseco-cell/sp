@@ -219,28 +219,76 @@ export class CaptainDuesController {
       );
 
     let queued = 0;
-    const day = new Date().toISOString().slice(0, 10);
     for (const s of subs) {
       if (s.paidCents >= s.totalCents) continue;
-      await this.db
-        .insert(schema.notifications)
-        .values({
-          orgId: team.orgId,
-          idempotencyKey: `dues-remind-${s.id}-${day}`,
-          templateCode: "SUB_INVOICE_REMINDER",
-          channel: "email",
-          body: `Reminder: your share of ${team.name} dues is outstanding. Pay now to keep your spot.`,
-          recipientPersonId: s.recipientPersonId,
-          recipientEmail: s.recipientEmail,
-          payload: { invoiceId: s.id },
-          sourceEvent: "captain.dues_remind_all",
-          status: "queued"
-        })
-        .onConflictDoNothing({ target: schema.notifications.idempotencyKey });
+      await this.queueSubInvoiceReminder(team, s, "captain.dues_remind_all");
       queued++;
     }
 
     return { teamId, queued };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /captain/dues/:teamId/remind/:invoiceId
+  // Per-player reminder. The dues screen used to call
+  // /finance/splits/:id/remind with a sub-invoice id, which is a
+  // different table, so every per-row Remind was a 404 (MON-7).
+  // -------------------------------------------------------------------
+  @Post(":teamId/remind/:invoiceId")
+  @ApiOperation({
+    summary:
+      "Queue a payment reminder for one player's sub-invoice on this team. Idempotent per (invoice, day)."
+  })
+  async remindOne(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Param("invoiceId") invoiceId: string
+  ) {
+    const team = await this.requireCaptainTeam(user.userId, teamId);
+    const masterId = await this.loadMasterInvoiceId(teamId);
+    if (!masterId) {
+      throw new NotFoundException("No master invoice for this team");
+    }
+    const [sub] = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(
+        and(
+          eq(schema.invoices.id, invoiceId),
+          eq(schema.invoices.parentInvoiceId, masterId),
+          eq(schema.invoices.invoiceType, "sub_invoice")
+        )
+      )
+      .limit(1);
+    if (!sub) throw new NotFoundException("Player share not found on this team");
+    if (sub.paidCents >= sub.totalCents) {
+      return { teamId, invoiceId, queued: 0 };
+    }
+    await this.queueSubInvoiceReminder(team, sub, "captain.dues_remind_one");
+    return { teamId, invoiceId, queued: 1 };
+  }
+
+  private async queueSubInvoiceReminder(
+    team: { orgId: string; name: string },
+    s: typeof schema.invoices.$inferSelect,
+    sourceEvent: string
+  ) {
+    const day = new Date().toISOString().slice(0, 10);
+    await this.db
+      .insert(schema.notifications)
+      .values({
+        orgId: team.orgId,
+        idempotencyKey: `dues-remind-${s.id}-${day}`,
+        templateCode: "SUB_INVOICE_REMINDER",
+        channel: "email",
+        body: `Reminder: your share of ${team.name} dues is outstanding. Pay now to keep your spot.`,
+        recipientPersonId: s.recipientPersonId,
+        recipientEmail: s.recipientEmail,
+        payload: { invoiceId: s.id },
+        sourceEvent,
+        status: "queued"
+      })
+      .onConflictDoNothing({ target: schema.notifications.idempotencyKey });
   }
 
   // -------------------------------------------------------------------

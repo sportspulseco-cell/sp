@@ -728,6 +728,12 @@ export function createApi(f: Fetcher) {
           `/captain/dues/${teamId}/remind-all`,
           { method: "POST" }
         ),
+      /** One player's share (sub-invoice id), not a split row. */
+      captainDuesRemindOne: (teamId: string, invoiceId: string) =>
+        f<{ teamId: string; invoiceId: string; queued: number }>(
+          `/captain/dues/${teamId}/remind/${invoiceId}`,
+          { method: "POST" }
+        ),
       captainDuesCoverOutstanding: (
         teamId: string,
         body: { mockOutcome?: "succeeded" | "failed" } = {}
