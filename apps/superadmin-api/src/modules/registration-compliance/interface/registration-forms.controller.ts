@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -11,6 +12,9 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
+import type { Database } from "@sportspulse/db";
 import {
   FormVersionDto,
   RegistrationFormDto,
@@ -44,11 +48,12 @@ export class RegistrationFormsController {
     private readonly updateH: UpdateFormHandler,
     private readonly listVersionsH: ListFormVersionsHandler,
     private readonly createVersionH: CreateFormVersionHandler,
-    private readonly publishH: PublishFormVersionHandler
+    private readonly publishH: PublishFormVersionHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  @Get() list(@Query() q: ListFormsQueryDto): Promise<RegistrationFormPageDto> {
-    return this.listH.execute({
+  @Get() async list(@Query() q: ListFormsQueryDto): Promise<RegistrationFormPageDto> {
+    const page = await this.listH.execute({
       limit: q.limit,
       cursor: q.cursor,
       orgId: q.orgId,
@@ -58,6 +63,18 @@ export class RegistrationFormsController {
       role: q.role,
       search: q.search
     });
+    // Scope names so the list never shows raw ids.
+    const names = await resolveEntityNames(
+      this.db,
+      page.items.map((f) => ({ type: f.scope, id: f.scopeId }))
+    );
+    return {
+      ...page,
+      items: page.items.map((f) => ({
+        ...f,
+        scopeName: f.scopeId ? names.get(`${f.scope}:${f.scopeId}`) ?? null : null
+      }))
+    };
   }
   @Get(":id") getOne(@Param("id") id: string): Promise<RegistrationFormDto> {
     return this.getH.execute({ id });

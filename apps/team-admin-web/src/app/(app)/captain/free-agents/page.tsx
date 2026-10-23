@@ -86,9 +86,9 @@ export default async function CaptainFreeAgentsPage() {
     );
   }
 
-  // Pass forTeamId so the server resolves the team's division → season
-  // and only returns the pool for that season. Avoids leaking pools the
-  // captain's team isn't part of.
+  // Pass forTeamId so the server resolves every season the team is live
+  // in and returns only those pools. Avoids leaking pools the captain's
+  // team isn't part of.
   const [team, raw] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
     registrationV2
@@ -141,6 +141,9 @@ export default async function CaptainFreeAgentsPage() {
                       <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                         {e.playerEmail}
                       </div>
+                    ) : null}
+                    {e.seasonName ? (
+                      <div className="text-[11px] text-fg-muted">{e.seasonName}</div>
                     ) : null}
                   </TD>
                   <TD className="font-mono text-[11px] text-fg-muted">

@@ -60,7 +60,7 @@ export default async function UserDetailPage({
       <header className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={UserCog} tint="emerald" size="lg" />
         <div className="space-y-2">
-          <Eyebrow dot>USER · {user.id.slice(0, 8)}</Eyebrow>
+          <Eyebrow dot>USER</Eyebrow>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {display}
           </h1>
@@ -129,7 +129,7 @@ export default async function UserDetailPage({
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                     scope: {a.scopeType}
-                    {a.scopeId ? ` · ${a.scopeId.slice(0, 8)}` : ""} · since{" "}
+                    {a.scopeId ? ` · ${a.scopeName ?? `Unnamed ${a.scopeType}`}` : ""} · since{" "}
                     {fmtDate(a.effectiveFrom)}
                   </p>
                 </div>

@@ -178,6 +178,8 @@ export interface Team {
   status: "active" | "dissolved";
   /** Workflow 7A — denormalised current captain. */
   captainUserId: string | null;
+  /** Captain's display name or email (null when unknown). */
+  captainName?: string | null;
   /** Workflow 7A — cents needed to auto-confirm a division entry. */
   confirmationThresholdCents: number;
   /** Stored under teams.externalIds.homeRink. */
@@ -227,6 +229,10 @@ export interface Registration {
   decisionReason: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Subject person's name (null when unknown). */
+  subjectName?: string | null;
+  /** Team name when the registration names a team. */
+  teamName?: string | null;
 }
 
 /**
@@ -245,6 +251,8 @@ export interface RegistrationForm {
   orgId: string;
   scope: "org" | "league" | "division" | "season";
   scopeId: string | null;
+  /** Name of the scoped league/season/division (list endpoint only). */
+  scopeName?: string | null;
   /** Season this form is the registration shell for. */
   seasonId: string | null;
   name: string;
@@ -298,6 +306,9 @@ export interface ConsentSignature {
   signatureBlobUrl: string | null;
   revokedAt: string | null;
   revokedReason: string | null;
+  /** Signed document's name and version (null when unknown). */
+  documentName?: string | null;
+  documentVersionNumber?: number | null;
 }
 
 export interface IdentityVerification {
@@ -514,6 +525,9 @@ export interface Game {
   finalizedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Team names (null when unknown). */
+  homeTeamName?: string | null;
+  awayTeamName?: string | null;
 }
 
 export interface GameEvent {
@@ -603,6 +617,10 @@ export interface StatLine {
   core: Record<string, number>;
   extended: Record<string, unknown>;
   derivedAt: string;
+  /** Player's name (null when unknown). */
+  personName?: string | null;
+  teamName?: string | null;
+  seasonName?: string | null;
 }
 
 export interface Standing {
@@ -621,6 +639,8 @@ export interface Standing {
   gd: number;
   rank: number | null;
   derivedAt: string;
+  /** Team name (null when unknown). */
+  teamName?: string | null;
 }
 
 export interface LeaderboardEntry {
@@ -628,6 +648,9 @@ export interface LeaderboardEntry {
   teamId: string;
   value: number;
   rank: number;
+  /** Player's name (null when unknown). */
+  personName?: string | null;
+  teamName?: string | null;
 }
 
 export interface Leaderboard {
@@ -660,6 +683,8 @@ export interface CrossOrgGrant {
   permissions: string[];
   effectiveFrom: string;
   effectiveTo: string | null;
+  /** Grantee's display name or email (null when unknown). */
+  userDisplayName?: string | null;
 }
 
 // ----- Roles + assignments -----
@@ -698,6 +723,10 @@ export interface RoleAssignment {
   revokedByUserId: string | null;
   createdAt: string;
   role: Role | null;
+  /** Resolved name of the scoped entity (null when unknown). */
+  scopeName?: string | null;
+  /** Holder's display name or email. */
+  userDisplayName?: string | null;
 }
 
 // ----- Imports / Data Migration -----
@@ -761,6 +790,10 @@ export interface AuditEvent {
   requestId: string | null;
   retentionClass: string;
   createdAt: string;
+  /** Actor's display name or email (null when unknown). */
+  actorName?: string | null;
+  /** Name of the changed resource when it is a named entity. */
+  resourceName?: string | null;
 }
 
 export interface AuditFacets {
@@ -1005,6 +1038,8 @@ export interface Notification {
 // ----- Free Agent Pool -----
 
 export interface FreeAgentPoolEntry {
+  /** Name of the entry's season (captain pool spans every live season). */
+  seasonName?: string | null;
   id: string;
   playerPersonId: string;
   seasonId: string;

@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { FileSignature, CheckCircle2, FileQuestion, Layers } from "lucide-react";
 import Link from "next/link";
 import {
@@ -20,6 +21,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateFormButton } from "@/components/forms/create-form-button";
+import { FormsFilters } from "@/components/forms/forms-filters";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Forms — SportsPulse" };
@@ -36,7 +38,7 @@ export const revalidate = 0;
 export default async function FormsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ purpose?: string }>;
+  searchParams?: Promise<{ purpose?: string; q?: string; org?: string; scope?: string }>;
 }) {
   const sp = await searchParams;
   const filterPurpose =
@@ -45,14 +47,23 @@ export default async function FormsPage({
       : null;
 
   const [allForms, orgList] = await Promise.all([
-    registration.listForms().catch(() => ({ items: [], nextCursor: null })),
+    // Every form, not the first page of 25.
+    fetchAll((cursor) => registration.listForms({ limit: 100, cursor })).catch(() => ({
+      items: [],
+      nextCursor: null
+    })),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
-  const filtered = filterPurpose
-    ? allForms.items.filter((f) => f.purpose === filterPurpose)
-    : allForms.items;
+  const q = sp?.q?.trim().toLowerCase() ?? "";
+  const filtered = allForms.items.filter(
+    (f) =>
+      (!filterPurpose || f.purpose === filterPurpose) &&
+      (!q || f.name.toLowerCase().includes(q)) &&
+      (!sp?.org || f.orgId === sp.org) &&
+      (!sp?.scope || f.scope === sp.scope)
+  );
 
   // Per-purpose counts for the filter chips.
   const counts = FORM_PURPOSES.reduce<Record<string, number>>((acc, p) => {
@@ -119,6 +130,17 @@ export default async function FormsPage({
         ))}
       </nav>
 
+      <div className="space-y-2">
+        <FormsFilters
+          orgs={orgList.items
+            .filter((o) => allForms.items.some((f) => f.orgId === o.id))
+            .map((o) => ({ id: o.id, name: o.displayName }))}
+        />
+        <p className="text-[12px] text-fg-muted">
+          Showing {filtered.length} of {allForms.items.length} forms
+        </p>
+      </div>
+
       {filtered.length === 0 ? (
         <EmptyState
           icon={FileSignature}
@@ -145,7 +167,7 @@ export default async function FormsPage({
               <TH>Purpose</TH>
               <TH>Applies to</TH>
               <TH>Scope</TH>
-              <TH>Active version</TH>
+              <TH>Status</TH>
               <TH>Updated</TH>
             </TR>
           </THead>
@@ -163,7 +185,7 @@ export default async function FormsPage({
                   ) : null}
                 </TD>
                 <TD className="text-fg-muted">
-                  {orgMap.get(f.orgId) ?? f.orgId.slice(0, 8)}
+                  {orgMap.get(f.orgId) ?? "Unknown org"}
                 </TD>
                 <TD>
                   <Badge
@@ -184,12 +206,18 @@ export default async function FormsPage({
                 </TD>
                 <TD>
                   <Badge mono>{f.scope}</Badge>
+                  {f.scope !== "org" ? (
+                    <p className="mt-1 text-[12px] text-fg-muted">
+                      {f.scopeName ?? `Unnamed ${f.scope}`}
+                    </p>
+                  ) : null}
                 </TD>
                 <TD>
+                  {/* The version id meant nothing to admins; say what it means. */}
                   {f.activeVersionId ? (
-                    <span className="font-mono text-[11px] text-fg">
-                      {f.activeVersionId.slice(0, 8)}
-                    </span>
+                    <Badge tone="success" mono>
+                      PUBLISHED
+                    </Badge>
                   ) : (
                     <Badge tone="warning" mono>
                       DRAFT

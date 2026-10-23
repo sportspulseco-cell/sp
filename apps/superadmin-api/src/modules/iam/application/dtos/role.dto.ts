@@ -49,6 +49,10 @@ export class RoleAssignmentDto {
   @ApiProperty() createdAt!: string;
   @ApiPropertyOptional({ type: () => RoleDto, nullable: true })
   role!: RoleDto | null;
+  /** Name of the scoped org/league/season/division/team (set by the controller). */
+  @ApiPropertyOptional({ nullable: true }) scopeName?: string | null;
+  /** Holder's display name or email (set by the controller). */
+  @ApiPropertyOptional({ nullable: true }) userDisplayName?: string | null;
 
   static fromRow(r: RoleAssignmentRow): RoleAssignmentDto {
     return {

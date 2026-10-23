@@ -189,7 +189,9 @@ export class PublicRegistrationController {
             schema.registrationForms.purpose,
             "season_registration"
           ),
-          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR ${schema.registrationForms.scope} = 'league')`,
+          // Season-bound form, or a league-wide form of THIS league (the
+          // old check matched any league's form to every season).
+          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR (${schema.registrationForms.scope} = 'league' AND ${schema.registrationForms.seasonId} IS NULL AND ${schema.registrationForms.scopeId} = ${schema.leagues.id}))`,
           isNotNull(schema.registrationForms.activeVersionId),
           isNull(schema.registrationForms.deletedAt)
         )
@@ -198,7 +200,9 @@ export class PublicRegistrationController {
         and(
           lte(schema.seasons.registrationOpensAt, now),
           gte(schema.seasons.registrationClosesAt, now),
-          sql`${schema.seasons.status} IN ('draft','registration_open')`
+          // The registration window governs; an admin moving the season to
+          // in_progress must not hide late registration (PPHL change #2).
+          sql`${schema.seasons.status} IN ('draft','registration_open','in_progress')`
         )
       )
       .orderBy(schema.seasons.registrationClosesAt);
@@ -274,7 +278,9 @@ export class PublicRegistrationController {
     const baseFilters = and(
       lte(schema.seasons.registrationOpensAt, now),
       gte(schema.seasons.registrationClosesAt, now),
-      sql`${schema.seasons.status} IN ('draft','registration_open')`
+      // The registration window governs; an admin moving the season to
+          // in_progress must not hide late registration (PPHL change #2).
+          sql`${schema.seasons.status} IN ('draft','registration_open','in_progress')`
     );
     const whereClause =
       scope.orgIds === null
@@ -304,7 +310,9 @@ export class PublicRegistrationController {
         schema.registrationForms,
         and(
           eq(schema.registrationForms.purpose, "season_registration"),
-          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR ${schema.registrationForms.scope} = 'league')`,
+          // Season-bound form, or a league-wide form of THIS league (the
+          // old check matched any league's form to every season).
+          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR (${schema.registrationForms.scope} = 'league' AND ${schema.registrationForms.seasonId} IS NULL AND ${schema.registrationForms.scopeId} = ${schema.leagues.id}))`,
           isNotNull(schema.registrationForms.activeVersionId),
           isNull(schema.registrationForms.deletedAt)
         )

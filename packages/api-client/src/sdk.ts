@@ -1507,6 +1507,8 @@ export function createApi(f: Fetcher) {
     registration: {
       listForms: (
         q: {
+          limit?: number;
+          cursor?: string;
           orgId?: string;
           scope?: string;
           scopeId?: string;
@@ -1677,6 +1679,7 @@ export function createApi(f: Fetcher) {
             playerPersonId: string;
             playerName: string | null;
             playerEmail: string | null;
+            seasonName?: string | null;
           }>;
         }>(`/captain/team-join-requests${qs({ teamId, status })}`),
       captainDecideJoinRequest: (
@@ -3409,6 +3412,10 @@ export interface TransferRequest {
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  /** Names for the queue (admin list only; null when unknown). */
+  personName?: string | null;
+  fromTeamName?: string | null;
+  toTeamName?: string | null;
 }
 
 // ----- public registration types -----

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -242,25 +242,32 @@ export class RegistrationV2Service {
     seasonId?: string;
     forTeamId?: string;
   }) {
-    let seasonId = opts.seasonId ?? null;
-    if (!seasonId && opts.forTeamId) {
-      const [entry] = await this.db
-        .select({ seasonId: schema.divisions.seasonId })
+    // Captain view: every season the team is live in. The old lookup took
+    // the team's newest division entry of any status, so a rejected or
+    // withdrawn application elsewhere hid the current season's free agents
+    // (CAP-7, PPHL change list #6).
+    let seasonIds: string[] | null = opts.seasonId ? [opts.seasonId] : null;
+    if (!seasonIds && opts.forTeamId) {
+      const entries = await this.db
+        .selectDistinct({ seasonId: schema.divisions.seasonId })
         .from(schema.divisionTeamEntries)
         .innerJoin(
           schema.divisions,
           eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
         )
-        .where(eq(schema.divisionTeamEntries.teamId, opts.forTeamId))
-        .orderBy(desc(schema.divisionTeamEntries.createdAt))
-        .limit(1);
-      if (!entry) return [];
-      seasonId = entry.seasonId;
+        .where(
+          and(
+            eq(schema.divisionTeamEntries.teamId, opts.forTeamId),
+            sql`${schema.divisionTeamEntries.entryStatus} NOT IN ('rejected','withdrawn','disqualified')`
+          )
+        );
+      if (entries.length === 0) return [];
+      seasonIds = entries.map((e) => e.seasonId);
     }
 
-    const where = seasonId
+    const where = seasonIds
       ? and(
-          eq(schema.freeAgentPoolEntries.seasonId, seasonId),
+          inArray(schema.freeAgentPoolEntries.seasonId, seasonIds),
           eq(schema.freeAgentPoolEntries.status, "active")
         )
       : eq(schema.freeAgentPoolEntries.status, "active");
@@ -286,9 +293,11 @@ export class RegistrationV2Service {
         playerLastName: schema.persons.legalLastName,
         playerPreferred: schema.persons.preferredName,
         playerDob: schema.persons.dobDate,
-        playerEmail: schema.profiles.email
+        playerEmail: schema.profiles.email,
+        seasonName: schema.seasons.name
       })
       .from(schema.freeAgentPoolEntries)
+      .leftJoin(schema.seasons, eq(schema.seasons.id, schema.freeAgentPoolEntries.seasonId))
       .leftJoin(
         schema.persons,
         eq(schema.persons.id, schema.freeAgentPoolEntries.playerPersonId)
@@ -304,6 +313,7 @@ export class RegistrationV2Service {
       id: r.id,
       playerPersonId: r.playerPersonId,
       seasonId: r.seasonId,
+      seasonName: r.seasonName ?? null,
       positions: r.positions,
       availability: r.availability as Record<string, unknown>,
       levelPrimary: r.levelPrimary,

@@ -15,6 +15,8 @@ export class RegistrationFormDto {
   @ApiProperty({ enum: ["org", "league", "division", "season"] })
   scope!: "org" | "league" | "division" | "season";
   @ApiPropertyOptional({ nullable: true }) scopeId!: string | null;
+  /** Name of the scoped league/season/division (set by the list endpoint). */
+  @ApiPropertyOptional({ nullable: true }) scopeName?: string | null;
   @ApiPropertyOptional({ nullable: true }) seasonId!: string | null;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) description!: string | null;
@@ -97,6 +99,10 @@ export class RegistrationDto {
   @ApiPropertyOptional({ nullable: true }) decisionReason!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+  /** Subject person's name, so screens never print the id. */
+  @ApiPropertyOptional({ nullable: true }) subjectName?: string | null;
+  /** Team name when the registration names a team. */
+  @ApiPropertyOptional({ nullable: true }) teamName?: string | null;
 
   static fromDomain(r: Registration): RegistrationDto {
     const x = r.toSnapshot();

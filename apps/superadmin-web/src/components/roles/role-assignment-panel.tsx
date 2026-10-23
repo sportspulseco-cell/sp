@@ -153,7 +153,7 @@ export function RoleAssignmentPanel({
         });
         setAssignments((a) => [created, ...a]);
         setFlash(
-          `Assigned ${roleCode} to ${selectedUser.displayName ?? selectedUser.email ?? selectedUser.id.slice(0, 8)}.`
+          `Assigned ${roleCode} to ${selectedUser.displayName ?? selectedUser.email ?? "this user"}.`
         );
         setSelectedUser(null);
         setSearch("");
@@ -224,7 +224,7 @@ export function RoleAssignmentPanel({
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-medium text-fg">
-                  {a.userId.slice(0, 8)}
+                  {a.userDisplayName ?? "Unknown user"}
                   <span className="ml-2 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                     {a.role?.code ?? "—"}
                   </span>
@@ -333,7 +333,7 @@ export function RoleAssignmentPanel({
                       {selectedUser.displayName ?? "—"}
                     </p>
                     <p className="truncate text-[11px] text-fg-muted">
-                      {selectedUser.email ?? selectedUser.id.slice(0, 8)}
+                      {selectedUser.email ?? "No email on file"}
                     </p>
                   </div>
                   <button
@@ -395,10 +395,10 @@ export function RoleAssignmentPanel({
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13px] text-fg">
-                              {u.displayName ?? u.email ?? u.id.slice(0, 8)}
+                              {u.displayName ?? u.email ?? "Unnamed user"}
                             </p>
                             <p className="truncate text-[11px] text-fg-muted">
-                              {u.email ?? u.id.slice(0, 8)}
+                              {u.email ?? "No email on file"}
                             </p>
                           </div>
                         </button>
@@ -436,10 +436,10 @@ export function RoleAssignmentPanel({
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[13px] text-fg">
-                          {u.displayName ?? u.email ?? u.id.slice(0, 8)}
+                          {u.displayName ?? u.email ?? "Unnamed user"}
                         </p>
                         <p className="truncate text-[11px] text-fg-muted">
-                          {u.email ?? u.id.slice(0, 8)}
+                          {u.email ?? "No email on file"}
                         </p>
                       </div>
                     </button>

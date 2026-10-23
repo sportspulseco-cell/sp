@@ -118,7 +118,7 @@ export function ManageUserRolesCell({
                       </p>
                       <p className="text-[11px] text-fg-muted">
                         scope: {a.scopeType}
-                        {a.scopeId ? ` · ${a.scopeId.slice(0, 8)}` : ""}
+                        {a.scopeId ? ` · ${a.scopeName ?? `Unnamed ${a.scopeType}`}` : ""}
                       </p>
                     </div>
                     <button

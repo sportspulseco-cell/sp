@@ -1,5 +1,6 @@
 import {
   Body,
+  Inject,
   Controller,
   Delete,
   Get,
@@ -14,6 +15,9 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
+import type { Database } from "@sportspulse/db";
 import {
   RoleAssignmentDto,
   RoleAssignmentPageDto,
@@ -53,8 +57,22 @@ export class RolesController {
     private readonly listAssignmentsH: ListAssignmentsHandler,
     private readonly assignH: AssignRoleHandler,
     private readonly revokeH: RevokeAssignmentHandler,
-    private readonly activeForUserH: ActiveAssignmentsForUserHandler
+    private readonly activeForUserH: ActiveAssignmentsForUserHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
+
+  /** Add scopeName + userDisplayName so screens never print raw ids. */
+  private async withNames(items: RoleAssignmentDto[]): Promise<RoleAssignmentDto[]> {
+    const names = await resolveEntityNames(this.db, [
+      ...items.map((a) => ({ type: a.scopeType, id: a.scopeId })),
+      ...items.map((a) => ({ type: "user", id: a.userId }))
+    ]);
+    return items.map((a) => ({
+      ...a,
+      scopeName: a.scopeId ? names.get(`${a.scopeType}:${a.scopeId}`) ?? null : null,
+      userDisplayName: names.get(`user:${a.userId}`) ?? null
+    }));
+  }
 
   // ---- Self ----
   @Get("me/roles")
@@ -62,10 +80,10 @@ export class RolesController {
     summary:
       "Active role assignments for the current principal (no super_admin required)"
   })
-  myRoles(
+  async myRoles(
     @CurrentUser() user: AuthPrincipal
   ): Promise<RoleAssignmentDto[]> {
-    return this.activeForUserH.execute({ userId: user.userId });
+    return this.withNames(await this.activeForUserH.execute({ userId: user.userId }));
   }
 
   // ---- Roles (super_admin) ----
@@ -108,10 +126,11 @@ export class RolesController {
   // ---- Role assignments (super_admin) ----
   @Get("role-assignments")
   @UseGuards(SuperAdminGuard)
-  listAssignments(
+  async listAssignments(
     @Query() q: ListAssignmentsQueryDto
   ): Promise<RoleAssignmentPageDto> {
-    return this.listAssignmentsH.execute(q);
+    const page = await this.listAssignmentsH.execute(q);
+    return { ...page, items: await this.withNames(page.items) };
   }
   @Post("role-assignments")
   @UseGuards(SuperAdminGuard)
@@ -138,7 +157,7 @@ export class RolesController {
   @Get("users/:id/roles")
   @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: "Active role assignments for a user (with role joined)" })
-  activeForUser(@Param("id") userId: string): Promise<RoleAssignmentDto[]> {
-    return this.activeForUserH.execute({ userId });
+  async activeForUser(@Param("id") userId: string): Promise<RoleAssignmentDto[]> {
+    return this.withNames(await this.activeForUserH.execute({ userId }));
   }
 }
