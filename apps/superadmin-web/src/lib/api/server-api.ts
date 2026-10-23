@@ -23,5 +23,6 @@ export const registrationV2 = api.registrationV2;
 export const registrationV2Admin = api.registrationV2Admin;
 export const adminTransfers = api.adminTransfers;
 export const orgAdminTeams = api.orgAdminTeams;
+export const orgAdminPersons = api.orgAdminPersons;
 // Alias for cleaner read in season-setup pages.
 export const league = api.leagueMgmt;

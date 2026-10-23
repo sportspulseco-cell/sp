@@ -2,13 +2,14 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Inject,
   NotFoundException,
   Post,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { IsNotEmpty, IsString, MaxLength } from "class-validator";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -56,6 +57,27 @@ interface IdentityVerificationDto {
 @UseGuards(JwtAuthGuard)
 export class SelfComplianceController {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  @Get("eligibility")
+  @ApiOperation({
+    summary:
+      "The caller's own eligibility records (player /compliance). The admin list at /compliance/eligibility is super_admin only."
+  })
+  async myEligibility(@CurrentUser() principal: AuthPrincipal) {
+    const [person] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, principal.userId))
+      .limit(1);
+    if (!person) return { items: [], nextCursor: null };
+    const items = await this.db
+      .select()
+      .from(schema.eligibilityRecords)
+      .where(eq(schema.eligibilityRecords.personId, person.id))
+      .orderBy(desc(schema.eligibilityRecords.createdAt))
+      .limit(50);
+    return { items, nextCursor: null };
+  }
 
   @Post("identity-verifications")
   @ApiOperation({

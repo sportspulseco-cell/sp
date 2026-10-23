@@ -1,4 +1,4 @@
-import { leagueMgmt, orgs } from "@/lib/api/server-api";
+import { leagueMgmt, orgAdminPersons, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
 
@@ -37,6 +37,19 @@ export default async function NewInvoicePage() {
         .catch(() => ({ items: [], nextCursor: null }))
     )
   );
+  // Individual scope needs each org's people. Same endpoint org-admin-web
+  // uses; super_admin passes its scope check.
+  const personsLists = await Promise.all(
+    orgsPage.items.map((o) =>
+      orgAdminPersons.list({ orgId: o.id }).catch(() => [])
+    )
+  );
+  const persons = personsLists.flat().map((p) => ({
+    id: p.id,
+    orgId: p.orgId,
+    displayName: p.email ? `${p.displayName} · ${p.email}` : p.displayName
+  }));
+
   const divisions = divisionsLists.flatMap((p, i) =>
     p.items.map((d) => ({
       id: d.id,
@@ -73,6 +86,7 @@ export default async function NewInvoicePage() {
           name: t.name,
           orgId: t.orgId
         }))}
+        persons={persons}
       />
     </div>
   );

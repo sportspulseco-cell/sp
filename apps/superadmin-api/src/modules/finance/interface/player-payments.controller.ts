@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsIn, IsInt, IsOptional, Max, Min } from "class-validator";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -117,7 +117,13 @@ export class PlayerPaymentsController {
       })
       .from(schema.invoices)
       .leftJoin(schema.teams, eq(schema.teams.id, schema.invoices.teamId))
-      .where(eq(schema.invoices.recipientPersonId, personId))
+      // Drafts are admin-only until the admin sends them.
+      .where(
+        and(
+          eq(schema.invoices.recipientPersonId, personId),
+          ne(schema.invoices.status, "draft")
+        )
+      )
       .orderBy(desc(schema.invoices.createdAt))
       .limit(50);
     const invoices = rows.map((r) => ({ ...r.inv, teamName: r.teamName }));

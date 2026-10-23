@@ -51,7 +51,7 @@ export default async function GameDetailPage({
     leagueMgmt.listTeams({}).catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
     gameOps.listOfficials(id).catch(() => []),
-    iam.listPersons({ limit: 200 }).catch(() => ({ items: [], nextCursor: null }))
+    iam.listPersons({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const teamMap = new Map(

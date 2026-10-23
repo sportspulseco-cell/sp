@@ -21,7 +21,7 @@ export function LinkPersonButton({ personId }: { personId: string }) {
   useEffect(() => {
     if (!open) return;
     iam
-      .listUsers({ limit: 200 })
+      .listUsers({ limit: 100 })
       .then((p) => {
         setUsers(p.items);
         if (p.items[0]) setUserId(p.items[0].id);

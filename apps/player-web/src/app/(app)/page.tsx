@@ -19,7 +19,6 @@ import {
 import { Badge, Eyebrow, EmptyState, IconTile } from "@sportspulse/ui";
 import type {
   Game,
-  Invoice,
   Notification,
   Registration
 } from "@sportspulse/api-client";
@@ -33,6 +32,8 @@ import {
   registration,
   roster
 } from "@/lib/api/server-api";
+
+type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 import { RegistrationStateBanner } from "./registration-state-banner";
 import { CaptainConsoleBanner } from "@/components/captain-console-banner";
 
@@ -138,19 +139,11 @@ export default async function PlayerHome() {
       registration
         .listMyRegistrations()
         .catch(() => ({ items: [] })),
-      scope.personId
-        ? finance
-            .listInvoices({ recipientPersonId: scope.personId, limit: 50 })
-            .catch(() => ({ items: [], nextCursor: null }))
-        : Promise.resolve({ items: [], nextCursor: null }),
-      scope.personId
-        ? communications
-            .listNotifications({
-              recipientPersonId: scope.personId,
-              limit: 10
-            })
-            .catch(() => ({ items: [], nextCursor: null }))
-        : Promise.resolve({ items: [], nextCursor: null }),
+      // Player-scoped endpoints; the admin list endpoints 403 for players.
+      finance.myInvoices().catch(() => ({ items: [] as MyInvoice[] })),
+      communications
+        .myNotifications({ limit: 10 })
+        .catch(() => ({ items: [], nextCursor: null })),
       myTeamId
         ? roster
             .listMemberships({ teamId: myTeamId, activeOnly: true })
@@ -225,16 +218,16 @@ export default async function PlayerHome() {
   );
 
   // -- AR snapshot --
-  const allInvoices: Invoice[] = invoicesPage.items;
+  const allInvoices: MyInvoice[] = invoicesPage.items;
   const openInvoices = allInvoices.filter(
-    (i: Invoice) => i.status !== "void" && i.totalCents > i.paidCents
+    (i: MyInvoice) => i.status !== "void" && i.totalCents > i.paidCents
   );
   const nextInvoice = openInvoices[0];
   const balanceCents = openInvoices.reduce(
-    (a: number, i: Invoice) => a + Math.max(0, i.totalCents - i.paidCents),
+    (a: number, i: MyInvoice) => a + Math.max(0, i.totalCents - i.paidCents),
     0
   );
-  const overdue = openInvoices.some((i: Invoice) => i.status === "overdue");
+  const overdue = openInvoices.some((i: MyInvoice) => i.status === "overdue");
   const currency = allInvoices[0]?.currency ?? "USD";
 
   // -- Notifications preview (3 most recent) --
@@ -645,7 +638,7 @@ function PaymentsSummary({
   currency,
   totalReceived
 }: {
-  openInvoices: Invoice[];
+  openInvoices: MyInvoice[];
   balanceCents: number;
   currency: string;
   totalReceived: number;
@@ -701,7 +694,7 @@ function PaymentsSummary({
             </div>
           ) : null}
           <ul className="space-y-2">
-            {openInvoices.slice(0, 3).map((inv: Invoice) => (
+            {openInvoices.slice(0, 3).map((inv: MyInvoice) => (
               <li
                 key={inv.id}
                 className="flex items-center justify-between gap-3"

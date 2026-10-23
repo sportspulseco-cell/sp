@@ -18,9 +18,10 @@ export default async function NotificationsPage() {
   const scope = await iam.meScope().catch(() => null);
   const personId = scope?.personId ?? null;
 
+  // GET /notifications/me — the admin list endpoint 403s for players.
   const page = personId
     ? await communications
-        .listNotifications({ recipientPersonId: personId, limit: 100 })
+        .myNotifications({ limit: 100 })
         .catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 

@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -41,10 +42,13 @@ export class BulkCreateInvoiceBodyDto {
   @IsIn(["individual", "team", "division", "league", "season", "org"])
   billingScope!: string;
   @IsUUID() targetId!: string;
+  /** Must match invoices_type_check in packages/db/src/schema/finance.ts. */
   @IsOptional()
   @IsString()
-  @IsIn(["manual", "registration", "team_dues", "sub_invoice", "referee_payroll"])
+  @IsIn(["standard", "team_dues", "sub_invoice"])
   invoiceType?: string;
+  /** true keeps the invoice as an admin-only draft; default sends it. */
+  @IsOptional() @IsBoolean() asDraft?: boolean;
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BulkInvoiceItemDto)
@@ -53,7 +57,7 @@ export class BulkCreateInvoiceBodyDto {
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsUUID() feeScheduleId?: string;
   @IsOptional() paymentPlanEnabled?: boolean;
-  @IsOptional() @IsInt() @Min(1) depositCents?: number;
+  @IsOptional() @IsInt() @Min(0) depositCents?: number;
   @IsOptional() @IsInt() @Min(1) @Max(12) installmentCount?: number;
   @IsOptional() @IsDateString() installmentStartDate?: string;
 }

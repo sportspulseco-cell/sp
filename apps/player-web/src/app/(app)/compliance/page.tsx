@@ -72,7 +72,7 @@ export default async function CompliancePage() {
 
   const eligibilityPage = personId
     ? await compliance
-        .listEligibility({ personId, limit: 50 })
+        .myEligibility()
         .catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 

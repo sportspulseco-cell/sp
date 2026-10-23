@@ -60,7 +60,7 @@ export default async function DataMigrationPage() {
     dataMigration
       .listJobs({ limit: 50 })
       .catch(() => ({ items: [], nextCursor: null })),
-    orgs.list({ limit: 200 }).catch(() => ({ items: [], nextCursor: null }))
+    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const total = jobs.items.length;

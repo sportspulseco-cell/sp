@@ -3,16 +3,20 @@ import {
   Get,
   Inject,
   NotFoundException,
+  Param,
   Query,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { resolveDivisionRules } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
+import type { AuthPrincipal } from "@sportspulse/auth";
 
 /**
  * Workflow 7B · pre-add eligibility precheck (non-blocking warnings).
@@ -30,6 +34,49 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 @UseGuards(JwtAuthGuard)
 export class ComplianceController {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  @Get("team/:teamId/eligibility")
+  @ApiOperation({
+    summary:
+      "Eligibility records for the active roster of one team, with player names. Captain of that team (or super_admin) only; 404 otherwise."
+  })
+  async teamEligibility(
+    @Param("teamId") teamId: string,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    if (!(await userIsCaptainOfTeam(this.db, user.userId, teamId))) {
+      throw new NotFoundException("Team not found");
+    }
+    const roster = await this.db
+      .select({
+        personId: schema.teamMemberships.personId,
+        displayName: sql<string>`COALESCE(${schema.persons.preferredName}, ${schema.persons.legalFirstName}) || ' ' || ${schema.persons.legalLastName}`
+      })
+      .from(schema.teamMemberships)
+      .innerJoin(schema.persons, eq(schema.persons.id, schema.teamMemberships.personId))
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, teamId),
+          eq(schema.teamMemberships.currentStatus, "active")
+        )
+      );
+    if (roster.length === 0) return { items: [] };
+    const nameById = new Map(roster.map((r) => [r.personId, r.displayName]));
+    const records = await this.db
+      .select()
+      .from(schema.eligibilityRecords)
+      .where(inArray(schema.eligibilityRecords.personId, [...nameById.keys()]))
+      .orderBy(desc(schema.eligibilityRecords.createdAt));
+    // Newest record per player.
+    const latest = new Map<string, (typeof records)[number]>();
+    for (const r of records) if (!latest.has(r.personId)) latest.set(r.personId, r);
+    return {
+      items: [...latest.values()].map((r) => ({
+        ...r,
+        displayName: nameById.get(r.personId) ?? null
+      }))
+    };
+  }
 
   @Get("eligibility/precheck")
   @ApiOperation({

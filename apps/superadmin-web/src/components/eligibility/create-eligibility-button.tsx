@@ -45,7 +45,7 @@ export function CreateEligibilityButton({
   useEffect(() => {
     if (!open) return;
     orgsApi
-      .list({ limit: 200 })
+      .list({ limit: 100 })
       .then((p) =>
         setGoverningBodies(
           p.items.filter(

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
   NotFoundException,
@@ -21,6 +22,8 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { loadUserScope } from "../../../shared/auth/scope";
+import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
 import {
   NOTIFICATION_REPOSITORY,
   type NotificationRepository
@@ -71,9 +74,22 @@ export class NotificationsController {
   // -------- super-admin outbox surfaces --------
 
   @Get()
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: "List outbox notifications (newest first)" })
-  list(@Query() q: ListNotificationsQueryDto): Promise<NotificationPageDto> {
+  @ApiOperation({
+    summary:
+      "List outbox notifications (newest first). super_admin: any filter. org_admin: must pass an orgId they administer."
+  })
+  async list(
+    @Query() q: ListNotificationsQueryDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<NotificationPageDto> {
+    const scope = await loadUserScope(this.db, user.userId);
+    if (!scope.isSuperAdmin) {
+      if (!q.orgId || !(await userHasOrgAdminOnOrg(this.db, user.userId, q.orgId))) {
+        throw new ForbiddenException(
+          "Requires super_admin, or org_admin on the requested orgId. Players use GET /notifications/me."
+        );
+      }
+    }
     return this.listH.execute(q);
   }
 
@@ -104,6 +120,26 @@ export class NotificationsController {
    * the scheduler every ~5 min on this endpoint. P4-2 / P1-1 follow-on.
    */
   // -------- "/me" surfaces — any signed-in user --------
+
+  @Get("me")
+  @ApiOperation({
+    summary:
+      "The caller's own notifications (newest first). The player and captain inboxes read this."
+  })
+  async mine(
+    @Query() q: ListNotificationsQueryDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<NotificationPageDto> {
+    const personId = await this.resolvePersonId(user.userId);
+    if (!personId) return { items: [], nextCursor: null } as NotificationPageDto;
+    return this.listH.execute({
+      limit: q.limit,
+      cursor: q.cursor,
+      status: q.status,
+      templateCode: q.templateCode,
+      recipientPersonId: personId
+    });
+  }
 
   @Get("me/unread-count")
   @ApiOperation({

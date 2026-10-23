@@ -111,7 +111,7 @@ function AppendDialog({
           activeOnly: true
         });
         const personIds = new Set(memberships.items.map((m) => m.personId));
-        const all = await iam.listPersons({ limit: 200 });
+        const all = await iam.listPersons({ limit: 100 });
         const rostered = all.items.filter((p) => personIds.has(p.id));
         if (cancelled) return;
         setPersons(rostered.length > 0 ? rostered : all.items);

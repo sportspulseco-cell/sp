@@ -14,7 +14,7 @@
  * form drifting apart.
  */
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Alert, Button, Field, Input, Select } from "@sportspulse/ui";
 
@@ -68,7 +68,8 @@ export interface InvoiceComposerBody {
   orgId: string;
   billingScope: BillingScope;
   targetId: string;
-  invoiceType?: string;
+  invoiceType?: "standard" | "team_dues" | "sub_invoice";
+  asDraft?: boolean;
   items: Array<{
     kind: InvoiceItemKind;
     description: string;
@@ -77,6 +78,10 @@ export interface InvoiceComposerBody {
   }>;
   dueAt: string;
   notes?: string | null;
+  paymentPlanEnabled?: boolean;
+  depositCents?: number;
+  installmentCount?: number;
+  installmentStartDate?: string;
 }
 
 export interface InvoiceComposerResult {
@@ -165,6 +170,10 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
       unitDollars: ""
     }
   ]);
+  const [paymentPlan, setPaymentPlan] = useState(false);
+  const [depositDollars, setDepositDollars] = useState("");
+  const [installmentCount, setInstallmentCount] = useState(3);
+  const [firstInstallmentAt, setFirstInstallmentAt] = useState<string>(today);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -214,6 +223,9 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
     return sum + unit * (it.quantity || 1);
   }, 0);
   const totalDisplay = (totalCents / 100).toFixed(2);
+  const depositCents = Math.round(Number(depositDollars) * 100) || 0;
+  const planInvalid =
+    paymentPlan && (depositCents < 0 || depositCents >= totalCents);
 
   const valid =
     !!orgId &&
@@ -227,9 +239,10 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         it.description.trim().length > 0 &&
         Number(it.unitDollars) > 0 &&
         it.quantity > 0
-    );
+    ) &&
+    !planInvalid;
 
-  async function onSubmit(e: FormEvent) {
+  async function onSubmit(e: { preventDefault(): void }, asDraft = false) {
     e.preventDefault();
     if (!valid) return;
     setError(null);
@@ -239,7 +252,6 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         orgId,
         billingScope,
         targetId,
-        invoiceType: "manual",
         items: items.map((it) => ({
           kind: it.kind,
           description: it.description.trim(),
@@ -247,7 +259,16 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
           unitAmountCents: Math.round(Number(it.unitDollars) * 100)
         })),
         dueAt,
-        notes: notes.trim() ? notes.trim() : null
+        notes: notes.trim() ? notes.trim() : null,
+        asDraft,
+        ...(paymentPlan
+          ? {
+              paymentPlanEnabled: true,
+              depositCents,
+              installmentCount,
+              installmentStartDate: firstInstallmentAt
+            }
+          : {})
       };
       const result = await props.createBulkInvoice(
         body,
@@ -528,6 +549,55 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             />
           </Field>
         </div>
+        <label className="flex items-center gap-2 text-[13px] text-fg">
+          <input
+            type="checkbox"
+            checked={paymentPlan}
+            onChange={(e) => setPaymentPlan(e.target.checked)}
+          />
+          Pay in installments
+        </label>
+        {paymentPlan ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field
+              label="Deposit (USD)"
+              hint={
+                planInvalid
+                  ? "The deposit must be less than the total."
+                  : "Due now. Leave blank for no deposit."
+              }
+            >
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={depositDollars}
+                onChange={(e) => setDepositDollars(e.target.value)}
+                placeholder="0.00"
+              />
+            </Field>
+            <Field label="Installments" hint="Every 30 days after the first.">
+              <Select
+                value={installmentCount}
+                onChange={(e) => setInstallmentCount(Number(e.target.value))}
+              >
+                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
+                  <option key={n} value={n}>
+                    {n} payments
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="First installment">
+              <Input
+                type="date"
+                value={firstInstallmentAt}
+                min={today}
+                onChange={(e) => setFirstInstallmentAt(e.target.value)}
+              />
+            </Field>
+          </div>
+        ) : null}
       </section>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
@@ -538,13 +608,21 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             Cancel
           </Button>
         ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={!valid || submitting}
+          onClick={(e) => onSubmit(e, true)}
+        >
+          Save as draft
+        </Button>
         <Button type="submit" disabled={!valid || submitting}>
           {submitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…
             </>
           ) : (
-            "Create invoice"
+            "Create and send"
           )}
         </Button>
       </div>

@@ -43,7 +43,7 @@ export default async function RostersPage({
       .listTeams({})
       .catch(() => ({ items: [], nextCursor: null })),
     iam
-      .listPersons({ limit: 200 })
+      .listPersons({ limit: 100 })
       .catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null }))
   ]);

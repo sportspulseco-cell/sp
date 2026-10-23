@@ -26,7 +26,7 @@ export default async function FinancePage({
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const limit = 25;
 
-  const [summary, invoices, orgList, feeSchedulesPage] = await Promise.all([
+  const [summary, invoices, orgList] = await Promise.all([
     finance
       .dashboardSummary(orgId)
       .catch(() => ({
@@ -40,10 +40,7 @@ export default async function FinancePage({
     finance
       .adminInvoicesList({ orgId, status, billingScope: scope, search, page, limit })
       .catch(() => ({ items: [], page: 1, limit })),
-    orgs.list({ limit: 500 }).catch(() => ({ items: [], nextCursor: null })),
-    finance
-      .listFeeSchedules({ limit: 100, isActive: true })
-      .catch(() => ({ items: [], nextCursor: null }))
+    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   return (
@@ -66,7 +63,6 @@ export default async function FinancePage({
         summary={summary}
         invoices={invoices}
         orgs={orgList.items}
-        feeSchedules={feeSchedulesPage.items}
         filters={{ orgId, status, scope, search, page }}
       />
     </div>

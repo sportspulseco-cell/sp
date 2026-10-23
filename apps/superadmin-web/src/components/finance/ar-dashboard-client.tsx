@@ -14,8 +14,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { formatMoney } from "@/components/finance/money";
-import { NewInvoiceDialog } from "@/components/finance/new-invoice-dialog";
-import type { Org, FeeSchedule } from "@/lib/api/types";
+import type { Org } from "@/lib/api/types";
 
 type Summary = {
   totalInvoicedCents: number;
@@ -71,13 +70,11 @@ export function ArDashboardClient({
   summary,
   invoices,
   orgs,
-  feeSchedules,
   filters
 }: {
   summary: Summary;
   invoices: InvoicesPage;
   orgs: Org[];
-  feeSchedules: FeeSchedule[];
   filters: {
     orgId?: string;
     status?: string;
@@ -88,7 +85,6 @@ export function ArDashboardClient({
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(filters.search ?? "");
-  const [showNewInvoice, setShowNewInvoice] = useState(false);
 
   const currency = invoices.items[0]?.currency ?? "USD";
 
@@ -118,14 +114,14 @@ export function ArDashboardClient({
             onChange={(orgId) => navigate({ orgId, page: 1 })}
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setShowNewInvoice(true)}
+        {/* Shared composer (same one org-admin-web uses). */}
+        <Link
+          href="/finance/create"
           className="inline-flex h-9 items-center gap-1.5 rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02]"
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={2} />
           New invoice
-        </button>
+        </Link>
       </div>
 
       {/* KPI tiles — mock 1 */}
@@ -279,14 +275,6 @@ export function ArDashboardClient({
           </div>
         </div>
       </section>
-
-      <NewInvoiceDialog
-        open={showNewInvoice}
-        onClose={() => setShowNewInvoice(false)}
-        orgs={orgs}
-        feeSchedules={feeSchedules}
-        defaultOrgId={filters.orgId}
-      />
     </div>
   );
 }

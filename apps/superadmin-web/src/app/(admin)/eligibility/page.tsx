@@ -57,10 +57,10 @@ export default async function EligibilityPage({
       .catch(() => ({ items: [], nextCursor: null })),
     status
       ? compliance
-          .listEligibility({ limit: 200 })
+          .listEligibility({ limit: 100 })
           .catch(() => ({ items: [], nextCursor: null }))
       : Promise.resolve(null),
-    iam.listPersons({ limit: 200 }).catch(() => ({ items: [], nextCursor: null })),
+    iam.listPersons({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null }))
   ]);
 

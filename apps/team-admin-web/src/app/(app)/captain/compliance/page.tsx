@@ -1,6 +1,6 @@
 import { ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
-import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
+import { compliance, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -28,20 +28,10 @@ export default async function CaptainCompliancePage() {
     );
   }
 
-  const seasons = await leagueMgmt.listSeasons().catch(() => ({ items: [] }));
-  const activeSeasonId =
-    seasons.items.find(
-      (s) =>
-        s.status === "in_progress" ||
-        s.status === "playoffs" ||
-        s.status === "registration_open"
-    )?.id ?? seasons.items[0]?.id ?? null;
-
-  const records = activeSeasonId
-    ? await compliance
-        .listEligibility({ seasonId: activeSeasonId, limit: 100 })
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  // Team-scoped endpoint: only this team's roster, with names.
+  const records = await compliance
+    .teamEligibility(myTeamId)
+    .catch(() => ({ items: [] }));
 
   const counts = {
     allClear: records.items.filter((r) => r.status === "eligible").length,
@@ -118,8 +108,8 @@ export default async function CaptainCompliancePage() {
                   key={r.id}
                   className="grid grid-cols-1 gap-2 px-5 py-3 md:grid-cols-4 md:items-center"
                 >
-                  <div className="font-mono text-[11px] uppercase text-fg-muted">
-                    {r.personId.slice(0, 8)}
+                  <div className="text-[13px] font-medium text-fg">
+                    {r.displayName ?? "Unnamed player"}
                   </div>
                   <div>
                     <Badge tone={recordTone(r.status)} mono>

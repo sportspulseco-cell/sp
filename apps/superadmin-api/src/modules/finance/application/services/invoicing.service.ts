@@ -81,6 +81,16 @@ export class InvoicingService {
       0
     );
     const totalCents = subtotalCents;
+    const planEnabled =
+      !!body.paymentPlanEnabled &&
+      body.installmentCount != null &&
+      body.installmentCount > 0;
+    const depositCents = planEnabled ? body.depositCents ?? 0 : 0;
+    if (planEnabled && depositCents >= totalCents) {
+      throw new BadRequestException(
+        "The deposit must be less than the invoice total."
+      );
+    }
     const isBulk = personIds.length > 1;
     const bulkJobId = isBulk ? randomUUID() : null;
     const currency = "USD";
@@ -116,7 +126,7 @@ export class InvoicingService {
           .values({
             orgId: body.orgId,
             invoiceNumber,
-            invoiceType: body.invoiceType ?? "manual",
+            invoiceType: body.invoiceType ?? "standard",
             billingScope: body.billingScope,
             recipientPersonId: personId,
             recipientEmail: person?.email ?? null,
@@ -129,7 +139,9 @@ export class InvoicingService {
             totalCents,
             paidCents: 0,
             currency,
-            status: "draft",
+            // Sent invoices are what the player sees and the overdue
+            // sweep chases; drafts stay admin-only.
+            status: body.asDraft ? "draft" : "sent",
             dueAt: new Date(body.dueAt),
             notes: body.notes ?? null,
             idempotencyKey: isBulk
@@ -154,13 +166,8 @@ export class InvoicingService {
           });
         }
 
-        if (
-          body.paymentPlanEnabled &&
-          body.depositCents != null &&
-          body.installmentCount != null &&
-          body.installmentCount > 0
-        ) {
-          const remainingCents = totalCents - body.depositCents;
+        if (planEnabled && body.installmentCount) {
+          const remainingCents = totalCents - depositCents;
           const baseInstallment = Math.floor(
             remainingCents / body.installmentCount
           );
@@ -169,13 +176,16 @@ export class InvoicingService {
             ? new Date(body.installmentStartDate)
             : new Date();
 
-          await tx.insert(schema.installmentSchedules).values({
-            invoiceId: inv.id,
-            installmentNumber: 0,
-            amountCents: body.depositCents,
-            dueDate: new Date(),
-            status: "scheduled"
-          });
+          // Installment 0 is the deposit, due now; skipped for no-deposit plans.
+          if (depositCents > 0) {
+            await tx.insert(schema.installmentSchedules).values({
+              invoiceId: inv.id,
+              installmentNumber: 0,
+              amountCents: depositCents,
+              dueDate: new Date(),
+              status: "scheduled"
+            });
+          }
           for (let i = 1; i <= body.installmentCount; i++) {
             const amount =
               i === body.installmentCount

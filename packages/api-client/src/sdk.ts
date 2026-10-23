@@ -377,6 +377,14 @@ export function createApi(f: Fetcher) {
           status?: EligibilityStatus;
         } = {}
       ) => f<Page<EligibilityRecord>>(`/compliance/eligibility${qs(q)}`),
+      /** Player's own records (the admin list above is super_admin only). */
+      myEligibility: () =>
+        f<Page<EligibilityRecord>>(`/compliance/self/eligibility`),
+      /** Captain view: newest record per active roster player, with names. */
+      teamEligibility: (teamId: string) =>
+        f<{ items: Array<EligibilityRecord & { displayName: string | null }> }>(
+          `/compliance/team/${teamId}/eligibility`
+        ),
       createEligibility: (body: {
         personId: string;
         seasonId?: string | null;
@@ -892,7 +900,9 @@ export function createApi(f: Fetcher) {
             | "org";
           /** For individual scope this is the personId; for others, the resource id. */
           targetId: string;
-          invoiceType?: string;
+          invoiceType?: "standard" | "team_dues" | "sub_invoice";
+          /** true keeps it an admin-only draft; default sends it. */
+          asDraft?: boolean;
           items: Array<{
             kind?: string;
             description: string;
@@ -1176,6 +1186,9 @@ export function createApi(f: Fetcher) {
           channel?: NotificationChannel;
         } = {}
       ) => f<Page<Notification>>(`/notifications${qs(q)}`),
+      /** The signed-in user's own inbox (player / captain apps). */
+      myNotifications: (q: { limit?: number; cursor?: string } = {}) =>
+        f<Page<Notification>>(`/notifications/me${qs(q)}`),
       getNotification: (id: string) =>
         f<Notification>(`/notifications/${id}`),
       forPerson: (personId: string) =>
@@ -2877,7 +2890,9 @@ export function createApi(f: Fetcher) {
             | "season"
             | "org";
           targetId: string;
-          invoiceType?: string;
+          invoiceType?: "standard" | "team_dues" | "sub_invoice";
+          /** true keeps it an admin-only draft; default sends it. */
+          asDraft?: boolean;
           items: Array<{
             kind: string;
             description: string;

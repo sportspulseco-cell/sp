@@ -49,7 +49,7 @@ export function UpsertTemplateButton({
   useEffect(() => {
     if (!open) return;
     orgsApi
-      .list({ limit: 200 })
+      .list({ limit: 100 })
       .then((p) => setOrgs(p.items))
       .catch(() => setOrgs([]));
   }, [open]);
