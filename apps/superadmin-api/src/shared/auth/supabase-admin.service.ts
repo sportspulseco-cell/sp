@@ -91,6 +91,34 @@ export class SupabaseAdminService {
   }
 
   /**
+   * Check an email + password pair against Supabase Auth. Returns the
+   * auth user id on success, null on bad credentials. Uses a throwaway,
+   * non-persisting client so the shared admin client never holds a
+   * user session.
+   *
+   * Public flows that act on an existing account (registration funnel
+   * sign-in / resubmit) must call this; knowing an email is not proof of
+   * owning it (REG-1, REG-2).
+   */
+  async verifyPassword(email: string, password: string): Promise<string | null> {
+    if (!password) return null;
+    const url = this.config.getOrThrow<string>("SUPABASE_URL");
+    const key =
+      this.config.get<string>("SUPABASE_ANON_KEY") ??
+      this.config.getOrThrow<string>("SUPABASE_SERVICE_ROLE_KEY");
+    const c = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    const { data, error } = await c.auth.signInWithPassword({ email, password });
+    if (error || !data?.user?.id) {
+      this.log.log(`verifyPassword rejected for ${email}: ${error?.message ?? "no user"}`);
+      return null;
+    }
+    await c.auth.signOut().catch(() => undefined);
+    return data.user.id;
+  }
+
+  /**
    * Force-update an existing user's password. Used by the super-admin
    * "Set password" action on /users.
    */

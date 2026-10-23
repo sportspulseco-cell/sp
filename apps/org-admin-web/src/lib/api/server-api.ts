@@ -45,3 +45,4 @@ export const orgAdminPersons = api.orgAdminPersons;
 // pricing-tier + email-template fetches (BUG-043). The apiFetch
 // wrapper rewrites these paths to /org-admin/* proxies.
 export const registrationV2 = api.registrationV2;
+export const registrationV2Admin = api.registrationV2Admin;

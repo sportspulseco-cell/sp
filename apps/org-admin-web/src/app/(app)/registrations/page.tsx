@@ -3,7 +3,7 @@
  */
 import { ScrollText } from "lucide-react";
 import { EmptyState, SectionRail } from "@sportspulse/ui";
-import { iam, registration } from "@/lib/api/server-api";
+import { iam, registrationV2Admin } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { RegistrationsTable } from "./registrations-table";
@@ -18,8 +18,10 @@ export default async function RegistrationsPage() {
   const orgId = await getActiveOrgId(scope);
 
   const page = orgId
-    ? await registration.listRegistrations({ orgId }).catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+    ? await registrationV2Admin
+        .listSubmissions({ orgId, limit: 200 })
+        .catch(() => ({ items: [] }))
+    : { items: [] };
 
   const pending = page.items.filter((r) => {
     const v = r.status as string;
@@ -52,12 +54,16 @@ export default async function RegistrationsPage() {
             </div>
           ) : (
             <RegistrationsTable
-              items={page.items.map((r) => ({
-                id: r.id,
-                subjectPersonId: r.subjectPersonId,
-                status: r.status as string,
-                submittedAt: r.submittedAt
-              }))}
+              items={page.items.map((r) => {
+                const m = (r.metadata ?? {}) as { fullName?: string; email?: string };
+                return {
+                  id: r.id,
+                  name: m.fullName ?? null,
+                  email: m.email ?? null,
+                  status: r.status,
+                  submittedAt: r.submittedAt
+                };
+              })}
             />
           )}
         </div>

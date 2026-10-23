@@ -11,9 +11,10 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards
 } from "@nestjs/common";
-import { createHash } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
@@ -463,6 +464,16 @@ export class PublicRegistrationController {
         displayName: body.fullName,
         password: body.password
       });
+    // An existing account may only be used by its owner. Without this,
+    // anyone could register (and overwrite details) as any email (REG-2).
+    if (!userCreated) {
+      const verified = await this.supabase.verifyPassword(email, body.password);
+      if (verified !== userId) {
+        throw new ConflictException(
+          "An account already exists for this email. Use Sign in with your password."
+        );
+      }
+    }
 
     // Phase 1.3 — minor evaluation. dob optional in this MVP since
     // the funnel's Account step doesn't always collect it; if absent
@@ -673,6 +684,7 @@ export class PublicRegistrationController {
     @Body()
     body: {
       email: string;
+      password: string;
       submissionType?:
         | "team"
         | "individual"
@@ -695,6 +707,12 @@ export class PublicRegistrationController {
       throw new NotFoundException(
         "No account found for that email. Use the form above to create one."
       );
+    }
+    // Resume returns stored DOB, phone and answers, so the caller must
+    // prove they own the account (REG-1: email alone used to suffice).
+    const verified = await this.supabase.verifyPassword(email, body.password ?? "");
+    if (verified !== detail.userId) {
+      throw new UnauthorizedException("Email or password is incorrect.");
     }
     const userId = detail.userId;
     const fullName = detail.displayName?.trim() || email.split("@")[0]!;
@@ -1091,13 +1109,9 @@ export class PublicRegistrationController {
       throw new Error("parentEmail required");
     }
 
-    // Token is base64url(`${submissionId}:${issuedAtMs}`). The redeem
-    // endpoint (POST /parental-consent/redeem) validates the embedded
-    // submissionId matches the row and rejects tokens older than 24h
-    // via the timestamp.
-    const token = Buffer.from(`${submissionId}:${Date.now()}`).toString(
-      "base64url"
-    );
+    // Signed token (see signConsentToken). Only the guardian receives it;
+    // the redeem endpoint verifies the signature and the 24h expiry.
+    const token = this.signConsentToken(submissionId, Date.now());
     const meta = mergeMetadata(row.metadata, {
       parentEmail: body.parentEmail.trim().toLowerCase(),
       parentConsentTokenIssuedAt: new Date().toISOString()
@@ -1131,50 +1145,41 @@ export class PublicRegistrationController {
       channel: "registration.parental_consent"
     });
 
+    // The link is the guardian's credential, so it only goes back to the
+    // (minor's) browser when email delivery is not configured, as a
+    // copy/paste fallback for dev and staging (REG-6).
     return {
-      consentToken: token,
+      consentToken: dispatch.delivered ? null : token,
       emailDelivered: dispatch.delivered,
       emailDeliveryReason: dispatch.reason ?? null,
-      mockConsentMessage: {
-        to: body.parentEmail,
-        subject,
-        body: messageBody
-      }
+      mockConsentMessage: dispatch.delivered
+        ? null
+        : { to: body.parentEmail, subject, body: messageBody }
     };
   }
 
   @Post("submissions/:id/parental-consent/confirm")
   @ApiOperation({
     summary:
-      "Phase 3.2 — confirm parental consent. Advances state pending_consent → pending_payment."
+      "Player-side consent check. Consent is given only by the guardian through the emailed link (POST /parental-consent/:token/redeem); this returns the current status once they have, and 409 while still waiting."
   })
   async confirmParentalConsent(
     @Param("id") submissionId: string,
-    @Body() body: { email: string; consentToken: string }
+    @Body() body: { email: string; consentToken?: string }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
-    if (!isRegistrationState(row.status)) {
-      throw new Error("Invalid current state");
+    // REG-7: this used to advance the state itself. After the guardian
+    // had already advanced it, the second transition threw and surfaced
+    // as a 500, so no minor could get past this step. It also let the
+    // minor consent on their own behalf with the token they were shown.
+    if (row.status === "pending_consent") {
+      throw new ConflictException({
+        error: "awaiting_guardian",
+        message:
+          "Waiting for your parent or guardian to confirm from the link we emailed them."
+      });
     }
-    assertValidTransition(row.status, "pending_payment");
-    // Decode the token; verify it belongs to this submission.
-    let decoded = "";
-    try {
-      decoded = Buffer.from(body.consentToken, "base64url").toString("utf-8");
-    } catch {
-      throw new Error("Invalid consent token");
-    }
-    if (!decoded.startsWith(`${submissionId}:`)) {
-      throw new Error("Consent token does not match submission");
-    }
-    const meta = mergeMetadata(row.metadata, {
-      parentConsentConfirmedAt: new Date().toISOString()
-    });
-    await this.db
-      .update(schema.registrations)
-      .set({ status: "pending_payment", metadata: meta, updatedAt: new Date() })
-      .where(eq(schema.registrations.id, submissionId));
-    return { id: submissionId, status: "pending_payment" as const };
+    return { id: submissionId, status: row.status };
   }
 
   /**
@@ -1318,12 +1323,34 @@ export class PublicRegistrationController {
    * is older than 24h so callers can render a "this link expired"
    * state instead of a generic "invalid token" message.
    */
+  private consentSecret(): string {
+    return (
+      this.config.get<string>("PARENTAL_CONSENT_SECRET") ??
+      this.config.get<string>("SUPABASE_JWT_SECRET") ??
+      this.config.getOrThrow<string>("SUPABASE_SERVICE_ROLE_KEY")
+    );
+  }
+
+  /** `base64url(submissionId:issuedAtMs).hmac` — unforgeable without the secret (REG-6). */
+  private signConsentToken(submissionId: string, issuedAtMs: number): string {
+    const payload = Buffer.from(`${submissionId}:${issuedAtMs}`).toString("base64url");
+    const mac = createHmac("sha256", this.consentSecret()).update(payload).digest("base64url");
+    return `${payload}.${mac}`;
+  }
+
   private decodeConsentToken(
     token: string
   ): { submissionId: string; issuedAt: Date; expired: boolean } | null {
+    const [payload, mac] = (token ?? "").split(".");
+    if (!payload || !mac) return null;
+    const expected = createHmac("sha256", this.consentSecret()).update(payload).digest();
+    const given = Buffer.from(mac, "base64url");
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
+      return null;
+    }
     let decoded = "";
     try {
-      decoded = Buffer.from(token, "base64url").toString("utf-8");
+      decoded = Buffer.from(payload, "base64url").toString("utf-8");
     } catch {
       return null;
     }

@@ -103,7 +103,7 @@ export interface PublicRegistrationApi {
    */
   resumeSubmission(
     seasonId: string,
-    body: { email: string; submissionType?: SubmissionType }
+    body: { email: string; password: string; submissionType?: SubmissionType }
   ): Promise<{
     id: string;
     status: string;
@@ -176,13 +176,17 @@ export interface PublicRegistrationApi {
     submissionId: string,
     body: { email: string; parentEmail: string }
   ): Promise<{
-    consentToken: string;
-    mockConsentMessage: { to: string; subject: string; body: string };
+    /** Null when the email was sent; the link is only for the guardian. */
+    consentToken: string | null;
+    emailDelivered: boolean;
+    /** Copy/paste fallback, only when email delivery is not configured. */
+    mockConsentMessage: { to: string; subject: string; body: string } | null;
   }>;
+  /** Checks whether the guardian has confirmed; 409 while still waiting. */
   confirmParentalConsent(
     submissionId: string,
-    body: { email: string; consentToken: string }
-  ): Promise<{ id: string; status: "pending_payment" }>;
+    body: { email: string }
+  ): Promise<{ id: string; status: string }>;
   /**
    * Anonymous: look up a parent-consent token and return display
    * context for the parent portal. No Supabase auth — token is auth.

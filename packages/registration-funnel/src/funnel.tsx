@@ -129,7 +129,7 @@ export function RegistrationFunnel({
   const [requiredKinds, setRequiredKinds] = useState<string[]>([]);
   const [signedVersionIds, setSignedVersionIds] = useState<Set<string>>(new Set());
   const [parentEmail, setParentEmail] = useState("");
-  const [consentToken, setConsentToken] = useState("");
+  const [consentSent, setConsentSent] = useState(false);
   const [consentMessage, setConsentMessage] = useState<{
     to: string;
     subject: string;
@@ -393,10 +393,8 @@ export function RegistrationFunnel({
    * pulls the user's stored displayName so we don't have to re-collect
    * first / last name.
    *
-   * NOTE: this demo flow does not currently password-verify (the
-   * service-role admin client can't `signInWithPassword`). Production
-   * needs an anon-key client for true credential validation. See
-   * doc/deferred-integrations.md.
+   * The API verifies the password against Supabase Auth before
+   * returning any stored details (REG-1).
    */
   /**
    * Sign-in submit. Takes `emailOverride` so the child sign-in tab can
@@ -406,7 +404,7 @@ export function RegistrationFunnel({
    * "Enter the email" errors and downstream 404s on /pay (submission
    * row was tied to one email but the pay call used another).
    */
-  async function submitSignIn(emailOverride?: string) {
+  async function submitSignIn(emailOverride: string, password: string) {
     const useEmail = (emailOverride ?? email).trim();
     if (!useEmail) {
       setError("Enter the email you used to sign up.");
@@ -426,6 +424,7 @@ export function RegistrationFunnel({
     try {
       const result = await api.resumeSubmission(context.season.id, {
         email: useEmail,
+        password,
         submissionType
       });
       setSubmissionId(result.id);
@@ -563,10 +562,9 @@ export function RegistrationFunnel({
             submissionId={submissionId!}
             email={email}
             parentEmail={parentEmail}
-            consentToken={consentToken}
+            consentSent={consentSent}
             consentMessage={consentMessage}
             onParentEmailChange={setParentEmail}
-            onConsentTokenChange={setConsentToken}
             onSendConsent={async () => {
               setSubmitting(true);
               try {
@@ -574,7 +572,7 @@ export function RegistrationFunnel({
                   submissionId!,
                   { email, parentEmail }
                 );
-                setConsentToken(res.consentToken);
+                setConsentSent(true);
                 setConsentMessage(res.mockConsentMessage);
               } catch (e) {
                 setError((e as Error).message);
@@ -585,10 +583,10 @@ export function RegistrationFunnel({
             onConfirm={async () => {
               setSubmitting(true);
               try {
-                const res = await api.confirmParentalConsent(
-                  submissionId!,
-                  { email, consentToken }
-                );
+                // Only checks: the guardian consents from their own link.
+                const res = await api.confirmParentalConsent(submissionId!, {
+                  email
+                });
                 setSubmissionStatus(res.status);
                 next();
               } catch (e) {
@@ -1067,7 +1065,7 @@ function AccountStep({
   onDobChange: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
-  onSignIn: (emailOverride?: string) => void;
+  onSignIn: (emailOverride: string, password: string) => void;
 }) {
   const [mode, setMode] = useState<"sign_in" | "create">("sign_in");
   // Independent state for the sign-in tab so it doesn't entangle with
@@ -1167,7 +1165,7 @@ function AccountStep({
             </button>
             <Button
               type="button"
-              disabled={!signInEmailOk || submitting}
+              disabled={!signInEmailOk || !signInPassword || submitting}
               onClick={() => {
                 // Pass the captured email directly. The parent also
                 // mirrors it into the funnel-wide email state so the
@@ -1176,7 +1174,7 @@ function AccountStep({
                 // found" reported after offline pay.
                 const emailValue = signInEmail.trim();
                 onEmailChange(emailValue);
-                onSignIn(emailValue);
+                onSignIn(emailValue, signInPassword);
               }}
             >
               {submitting ? (
@@ -1342,10 +1340,9 @@ function ConsentStep({
   submissionId,
   email,
   parentEmail,
-  consentToken,
+  consentSent,
   consentMessage,
   onParentEmailChange,
-  onConsentTokenChange,
   onSendConsent,
   onConfirm,
   onBack,
@@ -1355,10 +1352,9 @@ function ConsentStep({
   submissionId: string;
   email: string;
   parentEmail: string;
-  consentToken: string;
+  consentSent: boolean;
   consentMessage: { to: string; subject: string; body: string } | null;
   onParentEmailChange: (v: string) => void;
-  onConsentTokenChange: (v: string) => void;
   onSendConsent: () => void;
   onConfirm: () => void;
   onBack: () => void;
@@ -1371,10 +1367,9 @@ function ConsentStep({
       <div>
         <h2 className="text-xl font-semibold text-fg">Parental consent required</h2>
         <p className="mt-1 text-sm text-fg-muted">
-          You're under 18, so we need a parent or guardian to confirm before
-          payment can proceed (Workflow 1 §6.2). We'll send them a consent
-          link — for the mock flow you'll see the message inline so it can
-          be relayed manually.
+          You're under 18, so a parent or guardian must confirm before you
+          can pay. We'll email them a link. Come back here once they have
+          confirmed.
         </p>
       </div>
 
@@ -1402,13 +1397,17 @@ function ConsentStep({
         )}
       </Button>
 
+      {consentSent && !consentMessage && (
+        <p className="rounded-md bg-bg-subtle px-3 py-2 text-[13px] text-fg">
+          We emailed {parentEmail}. When they confirm, click the button below.
+        </p>
+      )}
+
       {consentMessage && (
         <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // Mock consent message · {consentMessage.to}
-          </p>
           <p className="text-[12px] font-medium text-fg">
-            Subject: {consentMessage.subject}
+            Email is not set up on this environment. Send this message to{" "}
+            {consentMessage.to} yourself.
           </p>
           <textarea
             readOnly
@@ -1416,23 +1415,8 @@ function ConsentStep({
             rows={Math.min(10, consentMessage.body.split("\n").length + 1)}
             className="w-full resize-y rounded-md border border-border bg-surface-1 p-2 font-mono text-[11px] leading-relaxed text-fg"
           />
-          <p className="text-[11px] text-fg-muted">
-            Until Resend is wired, paste the consent token below from the
-            message above.
-          </p>
         </div>
       )}
-
-      <Field
-        label="Consent token"
-        hint="From the email/in-app prompt your parent received."
-      >
-        <Input
-          value={consentToken}
-          onChange={(e) => onConsentTokenChange(e.target.value)}
-          placeholder="Paste consent token…"
-        />
-      </Field>
 
       {error && (
         <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
@@ -1446,14 +1430,14 @@ function ConsentStep({
         </Button>
         <Button
           onClick={onConfirm}
-          disabled={!consentToken.trim() || submitting}
+          disabled={!consentSent || submitting}
         >
           {submitting ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Confirming…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking…
             </>
           ) : (
-            <>Confirm consent <ArrowRight className="ml-2 h-4 w-4" /></>
+            <>My parent has confirmed <ArrowRight className="ml-2 h-4 w-4" /></>
           )}
         </Button>
       </div>

@@ -18,7 +18,8 @@ import { orgAdminRegistrations } from "@/lib/api/browser-api";
 
 interface Item {
   id: string;
-  subjectPersonId: string;
+  name: string | null;
+  email: string | null;
   status: string;
   submittedAt: string | null;
 }
@@ -69,8 +70,8 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
       <Table>
         <THead>
           <TR>
-            <TH>Reference</TH>
-            <TH>Subject</TH>
+            <TH>Player</TH>
+            <TH>Email</TH>
             <TH>Status</TH>
             <TH>Submitted</TH>
             <TH className="text-right">Actions</TH>
@@ -79,12 +80,10 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
         <TBody>
           {items.map((r) => (
             <TR key={r.id}>
-              <TD className="font-mono text-[11px] text-fg-muted">
-                {r.id.slice(0, 8)}
+              <TD className="text-[13px] font-medium text-fg">
+                {r.name ?? "Unnamed"}
               </TD>
-              <TD className="font-mono text-[11px] text-fg-muted">
-                {r.subjectPersonId.slice(0, 8)}
-              </TD>
+              <TD className="text-[12px] text-fg-muted">{r.email ?? "Not provided"}</TD>
               <TD>
                 <Badge mono tone={statusTone(r.status)}>
                   {r.status.replace(/_/g, " ")}

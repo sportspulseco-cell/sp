@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
   Param,
@@ -38,6 +39,8 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { loadUserScope } from "../../../shared/auth/scope";
+import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 
@@ -128,7 +131,7 @@ class ListSubmissionsQueryDto {
 @ApiTags("registration-v2/admin")
 @ApiBearerAuth()
 @Controller("registration-v2/admin")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+@UseGuards(JwtAuthGuard)
 export class AdminReviewController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -141,7 +144,19 @@ export class AdminReviewController {
     summary:
       "List submissions for the admin review queue. Filterable by state + free-text search across stored email/full name."
   })
-  async list(@Query() q: ListSubmissionsQueryDto) {
+  async list(
+    @Query() q: ListSubmissionsQueryDto,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    // Same queue for org admins (role-filtered view), limited to an org
+    // they administer. Writes below stay super_admin only; org admins
+    // decide through /org-admin/registrations/:id/review.
+    const scope = await loadUserScope(this.db, user.userId);
+    if (!scope.isSuperAdmin) {
+      if (!q.orgId || !(await userHasOrgAdminOnOrg(this.db, user.userId, q.orgId))) {
+        throw new ForbiddenException("Requires super_admin, or org_admin on the requested orgId.");
+      }
+    }
     const conditions = [];
     const statusList = (q.statuses ?? "")
       .split(",")
@@ -190,6 +205,7 @@ export class AdminReviewController {
   }
 
   @Post("submissions/:id/review")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Apply an individual review action. approve | reject | request_resubmission | override_flag — all guarded by the kernel state machine."
@@ -309,6 +325,7 @@ export class AdminReviewController {
   }
 
   @Post("submissions/bulk-approve")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Approve many submissions at once. Accepts rows in pending_review or pending_offline; skips others."
@@ -331,6 +348,7 @@ export class AdminReviewController {
   }
 
   @Post("submissions/bulk-reject")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Reject many submissions with a single shared reason. Accepts rows in pending_review or pending_offline; skips others."
@@ -353,6 +371,7 @@ export class AdminReviewController {
   }
 
   @Post("submissions/bulk-email")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Send a custom email to many submissions at once. Does not change state — purely a comms action."
