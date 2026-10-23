@@ -1,3 +1,4 @@
+import { stagingDbUrl } from "./_helpers";
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
 import { E2E_URLS, SMOKE_USERS, signIn, smokePasswordFor } from "../fixtures";
@@ -60,7 +61,7 @@ async function stagingSql(q: string, p: unknown[] = [], attempt = 0): Promise<an
     }
     const postgres = createRequire(resolve("packages/db/package.json"))("postgres");
     const sql = postgres(
-      `postgresql://postgres:${encodeURIComponent(env.STAGING_DB_PASSWORD!)}@db.${env.STAGING_SUPABASE_REF}.supabase.co:5432/postgres`,
+      stagingDbUrl(env),
       { max: 1, ssl: "require", prepare: false }
     );
     sqlClient = (qq, pp = []) => sql.unsafe(qq, pp as any[]);

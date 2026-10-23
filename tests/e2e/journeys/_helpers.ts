@@ -88,16 +88,27 @@ export async function stagingSql<T = Record<string, unknown>>(
     if (!ref || !password) throw new Error("STAGING_SUPABASE_REF / STAGING_DB_PASSWORD missing");
     const req = createRequire(resolve("packages/db/package.json"));
     const postgres = req("postgres");
-    const sql = postgres(
-      `postgresql://postgres:${encodeURIComponent(password)}@db.${ref}.supabase.co:5432/postgres`,
-      { max: 1, ssl: "require", prepare: false }
-    );
+    const sql = postgres(stagingDbUrl(env), { max: 1, ssl: "require", prepare: false });
     sqlClient = (q, p = []) => sql.unsafe(q, p as any[]);
   }
   return (await sqlClient(query, params)) as T[];
 }
 
-function loadEnvLocal(): Record<string, string> {
+/**
+ * Staging Postgres URL for read-only readback. Uses the IPv4 session
+ * pooler: db.<ref>.supabase.co is IPv6-only, and some ISPs hijack its
+ * DNS, which made readbacks time out (round 7). Override with
+ * E2E_STAGING_DB_URL.
+ */
+export function stagingDbUrl(env: Record<string, string | undefined>): string {
+  if (env.E2E_STAGING_DB_URL) return env.E2E_STAGING_DB_URL;
+  const ref = env.STAGING_SUPABASE_REF;
+  const password = env.STAGING_DB_PASSWORD;
+  if (!ref || !password) throw new Error("STAGING_SUPABASE_REF / STAGING_DB_PASSWORD missing");
+  return `postgresql://postgres.${ref}:${encodeURIComponent(password)}@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres`;
+}
+
+export function loadEnvLocal(): Record<string, string> {
   const out: Record<string, string> = { ...(process.env as Record<string, string>) };
   const file = resolve(".env.local");
   if (!existsSync(file)) return out;

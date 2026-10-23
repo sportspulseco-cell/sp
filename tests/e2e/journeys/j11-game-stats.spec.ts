@@ -1,3 +1,4 @@
+import { stagingDbUrl } from "./_helpers";
 /**
  * J11 · Game day to stats (UC-11, UC-12, UC-13, UC-30)
  *
@@ -62,7 +63,7 @@ async function stagingSql<T = Record<string, any>>(q: string, params: unknown[] 
     }
     const postgres = createRequire(resolve("packages/db/package.json"))("postgres");
     const sql = postgres(
-      `postgresql://postgres:${encodeURIComponent(env.STAGING_DB_PASSWORD)}@db.${env.STAGING_SUPABASE_REF}.supabase.co:5432/postgres`,
+      stagingDbUrl(env),
       { max: 1, ssl: "require", prepare: false }
     );
     sqlClient = (qq, p = []) => sql.unsafe(qq, p as any[]);
