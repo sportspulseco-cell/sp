@@ -53,7 +53,10 @@ export default async function AdminLayout({
             email={profile?.email ?? user.email ?? ""}
             displayName={profile?.display_name ?? null}
           />
-          <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+          {/* pb-24 keeps the last row (form submit bars) clear of the fixed
+              command-palette button, which used to swallow clicks on
+              "Create and send". */}
+          <main className="flex-1 px-4 pt-6 pb-24 sm:px-6 sm:pt-8 lg:px-10 lg:pt-10">
             <div className="mx-auto max-w-container">{children}</div>
           </main>
         </div>

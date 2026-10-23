@@ -74,13 +74,15 @@ export function CommandPaletteTrigger() {
 
   return (
     <>
-      {/* Floating bottom-right trigger pill */}
+      {/* Floating bottom-left trigger pill */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open command palette"
         className={cn(
-          "fixed bottom-5 right-5 z-40 inline-flex items-center gap-2.5 rounded-full",
+          // Bottom-left: bottom-right sat on top of right-aligned submit
+          // buttons ("Create and send") and swallowed the click.
+          "fixed bottom-5 left-5 z-40 inline-flex items-center gap-2.5 rounded-full",
           "border border-border bg-surface-1 px-3.5 py-2.5 shadow-md",
           "transition-all duration-fast ease-ease hover:border-border-strong hover:shadow-md",
           "focus-visible:outline-none focus-visible:shadow-focus"
