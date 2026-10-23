@@ -56,7 +56,8 @@ test("item 7: users search and filters narrow the list", async ({ browser }) => 
   await page.getByLabel("Status").selectOption("");
   await page.getByLabel("Type").selectOption({ label: "Captain" });
   await expect(page.getByText(/Showing \d+ of \d+ users/)).not.toHaveText(total, { timeout: 15_000 });
-  await expect(page.getByLabel("Country / Region")).toBeVisible();
+  await expect(page.getByLabel("Region", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Country", { exact: true })).toBeVisible();
   await context.close();
 });
 

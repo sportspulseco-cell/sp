@@ -114,9 +114,9 @@ test("rule A: rollover clones the team into the next season and copies the roste
   await expect(page.getByRole("cell", { name: `${TAG} Season 2026` })).toBeVisible();
 
   await page.getByRole("button", { name: "Move team" }).click();
-  await page.getByLabel("What do you want to do").selectOption("rollover");
-  await page.getByLabel("Season").selectOption({ label: new RegExp(`${TAG} Season 2027`) });
-  await page.getByLabel("Division").selectOption({ label: `${TAG} A 2027` });
+  await page.getByLabel("What do you want to do", { exact: true }).selectOption("rollover");
+  await page.getByLabel("Season", { exact: true }).selectOption({ label: `${TAG} Season 2027 (draft, starts 2027-10-01)` });
+  await page.getByLabel("Division", { exact: true }).selectOption({ label: `${TAG} A 2027` });
   await expect(page.getByLabel("Copy the current active roster into the new season")).toBeChecked();
   await page.getByLabel("Reason (optional)").fill("e2e rollover");
   await page.getByRole("button", { name: "Roll over to a new season" }).click();
@@ -159,11 +159,11 @@ test("rule A unhappy path: a second rollover into the same division is refused",
   const { page, context } = await signedInAs(browser, "superAdmin");
   await page.goto(`${E2E_URLS.superadmin}/teams/${seed.team}`);
   await page.getByRole("button", { name: "Move team" }).click();
-  await page.getByLabel("What do you want to do").selectOption("rollover");
-  await page.getByLabel("Season").selectOption({ label: new RegExp(`${TAG} Season 2027`) });
-  await page.getByLabel("Division").selectOption({ label: `${TAG} A 2027` });
+  await page.getByLabel("What do you want to do", { exact: true }).selectOption("rollover");
+  await page.getByLabel("Season", { exact: true }).selectOption({ label: `${TAG} Season 2027 (draft, starts 2027-10-01)` });
+  await page.getByLabel("Division", { exact: true }).selectOption({ label: `${TAG} A 2027` });
   await page.getByRole("button", { name: "Roll over to a new season" }).click();
-  await expect(page.getByText(/already has a live entry|not after/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/already has a live entry|not after|needs a different season/)).toBeVisible({ timeout: 20_000 });
   const [n] = await stagingSql<{ n: number }>(
     `select count(*)::int n from division_team_entries where team_id = $1 and division_id = $2`,
     [seed.team, seed.s2a]
@@ -178,17 +178,17 @@ test("rule B: mid-season division shift closes the old instance and resets stand
   logApiErrors(page);
   await page.goto(`${E2E_URLS.superadmin}/teams/${seed.team}`);
   await page.getByRole("button", { name: "Move team" }).click();
-  await page.getByLabel("What do you want to do").selectOption("division_shift");
-  await page.getByLabel("Which season instance").selectOption({ label: new RegExp(`${TAG} Season 2026 · ${TAG} A 2026`) });
-  await page.getByLabel("Division").selectOption({ label: `${TAG} B 2026` });
-  await page.getByLabel("Standings").selectOption("reset");
+  await page.getByLabel("What do you want to do", { exact: true }).selectOption("division_shift");
+  await page.getByLabel("Which season instance", { exact: true }).selectOption({ label: `${TAG} Season 2026 · ${TAG} A 2026 (confirmed)` });
+  await page.getByLabel("Division", { exact: true }).selectOption({ label: `${TAG} B 2026` });
+  await page.getByLabel("Standings", { exact: true }).selectOption("reset");
   await page.getByRole("button", { name: "Change division (same season)" }).click();
 
   await expect(page.getByText(/Division changed · now in .* B 2026/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Standings restart at 0-0-0/)).toBeVisible();
-  const oldRow = page.getByRole("row", { name: new RegExp(`${TAG} A 2026`) });
+  const oldRow = page.getByRole("row").filter({ has: page.getByRole("cell", { name: `${TAG} A 2026`, exact: true }) });
   await expect(oldRow).toContainText("moved");
-  const newRow = page.getByRole("row", { name: new RegExp(`${TAG} B 2026`) });
+  const newRow = page.getByRole("row").filter({ has: page.getByRole("cell", { name: `${TAG} B 2026`, exact: true }) });
   await expect(newRow).toContainText("confirmed");
 
   const [src] = await stagingSql<{ entry_status: string; left_at: string | null }>(
