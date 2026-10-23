@@ -137,8 +137,9 @@ async function walkWizard(
   await expect(page.getByRole("heading", { name: "Frame the league." })).toBeVisible();
   const sport = wizardField(page, "Sport");
   const defaultSport = await sport.locator("option:checked").textContent();
-  // CLAUDE.md "defaults must reflect context": PPHL is a hockey org.
-  await softly(async () => expect(defaultSport, "SETUP-3: wizard Sport defaults to the alphabetically first sport").toMatch(/hockey/i));
+  // CLAUDE.md "defaults must reflect context": the org's own sport, or an
+  // empty choice for an org with no leagues yet, never alphabetical-first.
+  await softly(async () => expect(defaultSport, "SETUP-3: wizard Sport defaults to the alphabetically first sport").toMatch(/hockey|Pick a sport/i));
   await wizardField(page, "League name").fill(opts.league);
   await sport.selectOption({ label: "Ice Hockey" });
   await page.getByRole("button", { name: "Next: Season" }).click();
@@ -393,10 +394,14 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     // Only legal transitions should be offered (domain: season-status.vo.ts).
     await softly(async () => expect(options, "SETUP-4: status menu offers transitions the server always rejects").not.toContain("Completed"));
 
-    // Illegal jump first: draft → completed.
-    await page.locator("main ul li button", { hasText: "Completed" }).click();
-    await expect(page.getByText(/Cannot transition|transition/i).first()).toBeVisible({ timeout: 10_000 });
-    console.log(`[J1] illegal transition message: ${await page.getByText(/transition/i).first().textContent()}`);
+    // From draft the menu offers only the legal moves (kernel
+    // SEASON_STATUS_TRANSITIONS): registration_open and archived.
+    if (initial === "draft") {
+      await softly(async () =>
+        expect(options.filter((o) => o !== "Draft").sort(), "draft offers only legal next statuses").toEqual(["Archived", "Registration open"])
+      );
+    }
+    await page.keyboard.press("Escape");
 
     // Legal path, observing the badge change without a reload each time.
     await page.goto(`${SA}/seasons/${ids.season}`);
