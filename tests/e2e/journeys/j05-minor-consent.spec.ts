@@ -223,9 +223,9 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
 
   test("5 · minor's funnel continues after the guardian consented", async () => {
     test.skip(!token, "BLOCKED: no consent token");
-    const tokenInput = minor.getByPlaceholder(/Paste consent token/i);
-    if (!(await tokenInput.inputValue())) await tokenInput.fill(token);
-    await minor.getByRole("button", { name: /Confirm consent/i }).click();
+    // The guardian already confirmed via their link (step 4); the minor
+    // only checks status now (REG-7 fix: no token entry on the minor side).
+    await minor.getByRole("button", { name: /My parent has confirmed/i }).click();
     await minor.waitForTimeout(4000);
     await shot(minor, "05-minor-after-parent");
     const stuck = await minor.getByText(/Parental consent required/i).isVisible().catch(() => false);

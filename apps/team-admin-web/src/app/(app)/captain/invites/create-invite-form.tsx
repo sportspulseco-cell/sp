@@ -64,7 +64,8 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
         if (cancelled) return;
         const list = page.items;
         setSeasons(list);
-        if (list[0]) setSeasonId(list[0].id);
+        // No guessing: list[0] was an arbitrary season of the org (CAP-15).
+        if (list.length === 1) setSeasonId(list[0]!.id);
       } catch {
         // non-fatal: captain just won't be able to pick a season
       }
