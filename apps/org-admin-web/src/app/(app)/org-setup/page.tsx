@@ -6,6 +6,7 @@ import { admin, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { OrgSetupShell } from "./org-setup-shell";
+import { RegionsSection } from "@/components/regions/regions-section";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -59,12 +60,18 @@ export default async function OrgAdminOrgSetupPage() {
     );
   }
 
+  // Regions live above the wizard: set them up once, then every
+  // division of every season can pick one.
+  const regionOrg = ordered[0]!;
   return (
-    <OrgSetupShell
-      orgs={ordered}
-      sports={sports}
-      governingBodies={governingBodies}
-      orgSports={sportByOrg(leaguesPage.items)}
-    />
+    <div className="space-y-8">
+      <RegionsSection orgId={regionOrg.id} orgName={regionOrg.displayName} />
+      <OrgSetupShell
+        orgs={ordered}
+        sports={sports}
+        governingBodies={governingBodies}
+        orgSports={sportByOrg(leaguesPage.items)}
+      />
+    </div>
   );
 }

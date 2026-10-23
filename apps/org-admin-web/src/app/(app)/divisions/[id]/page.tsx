@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { DivisionDetail } from "@sportspulse/admin-pages";
 import { adminTransfers, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
+import { DivisionRegionControl } from "@/components/divisions/division-region-control";
 
 export const metadata = { title: "Division — Org Admin" };
 export const dynamic = "force-dynamic";
@@ -30,11 +31,14 @@ export default async function OrgAdminDivisionDetailPage({
   const parentSeason = await leagueMgmt
     .getSeason(division.seasonId)
     .catch(() => null);
-  const [parentOrg, divisionTeams] = await Promise.all([
+  const [parentOrg, divisionTeams, regions] = await Promise.all([
     parentSeason
       ? orgs.get(parentSeason.orgId).catch(() => null)
       : Promise.resolve(null),
-    adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] }))
+    adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] })),
+    parentSeason
+      ? leagueMgmt.listRegions({ orgId: parentSeason.orgId }).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] })
   ]);
 
   // Defense in depth — the API already 404s out-of-scope divisions
@@ -52,6 +56,13 @@ export default async function OrgAdminDivisionDetailPage({
       parentSeason={parentSeason}
       parentOrg={parentOrg}
       divisionTeams={divisionTeams.items}
+      extras={
+        <DivisionRegionControl
+          divisionId={division.id}
+          regionId={division.regionId}
+          regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
+        />
+      }
     />
   );
 }

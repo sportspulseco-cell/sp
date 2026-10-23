@@ -19,6 +19,9 @@ export type { DivisionTeamRow } from "./division-detail";
 export { TeamDetail } from "./team-detail";
 export { AuditEventDetail } from "./audit-event-detail";
 export { OrgSetupWizard } from "./org-setup/org-setup-wizard";
+export { RegionsPanel } from "./regions/regions-panel";
+export type { RegionsApi, RegionRow } from "./regions/regions-panel";
+export { DivisionRegionControl } from "./regions/division-region-control";
 export { sportByOrg } from "./org-setup/org-sport";
 export { CreateFormButton } from "./forms/create-form-button";
 export type {
