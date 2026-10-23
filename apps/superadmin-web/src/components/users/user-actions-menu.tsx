@@ -14,7 +14,6 @@ import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
 import { SetPasswordDialog } from "./set-password-dialog";
 import { RoleProfileDialog } from "./role-profile-dialog";
-import { resolvePrimaryRole } from "./primary-role";
 
 /**
  * Per-row kebab menu on /users.
@@ -23,30 +22,21 @@ import { resolvePrimaryRole } from "./primary-role";
  * column of their own: edit role-specific profile, force-set password,
  * suspend/reactivate, and a quick deep-link to the full detail page.
  */
-export function UserActionsMenu({ user }: { user: Profile }) {
+export function UserActionsMenu({
+  user,
+  userType
+}: {
+  user: Profile;
+  userType: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  // Resolve the user's current "type" so Edit-profile opens THE form
-  // for that type (super_admin → super_admin form, coach → coach
-  // form, etc.) — never a player-fallback. Loaded once when the menu
-  // first renders so the kebab is responsive.
-  const [userType, setUserType] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    iam
-      .activeRolesForUser(user.id)
-      .then((rows) => {
-        if (cancelled) return;
-        const primary = resolvePrimaryRole(user.isSuperAdmin, rows);
-        setUserType(primary?.code ?? null);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [user.id, user.isSuperAdmin]);
+  // The user's current "type", so Edit profile opens THE form for that
+  // type (super_admin -> super_admin form, coach -> coach form), never a
+  // player fallback. Resolved by the page from one assignments fetch; a
+  // per-row fetch here exhausted the database pool (EMAXCONN).
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

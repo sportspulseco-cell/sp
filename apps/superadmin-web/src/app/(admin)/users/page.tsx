@@ -203,7 +203,7 @@ export default async function UsersPage({
                     {new Date(u.createdAt).toLocaleDateString("en-CA")}
                   </TD>
                   <TD>
-                    <UserActionsMenu user={u} />
+                    <UserActionsMenu user={u} userType={typeOf(u)?.code ?? null} />
                   </TD>
                 </TR>
               );
