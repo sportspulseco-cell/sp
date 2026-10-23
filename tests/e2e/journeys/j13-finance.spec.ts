@@ -111,44 +111,47 @@ test("1. super_admin finds Invoices in the sidebar and the AR dashboard renders"
   await shot(p, "01-ar-dashboard");
 });
 
-test("2. AR dashboard '+ New invoice' dialog: individual invoice with payment plan", async ({ browser }) => {
+test("2. '+ New invoice' opens the shared composer: individual invoice with payment plan", async ({ browser }) => {
   const p = (await as(browser, "superAdmin")).page;
-  // the client-side button inside the dashboard (not the header link)
-  await p.locator("main button", { hasText: "New invoice" }).first().click();
-  const dlg = p.getByRole("dialog");
-  await expect(dlg).toBeVisible();
-  const orgOpts = await dlg.locator("select").first().locator("option").allTextContents();
-  log("dialog organisation options:", JSON.stringify(orgOpts));
-  expect.soft(orgOpts, "dialog organisation picker lists the staging org").toContain(ORG_NAME);
-  const personResp = p.waitForResponse((r) => /\/persons\?/.test(r.url()), { timeout: 10_000 }).catch(() => null);
-  await dlg.getByPlaceholder("Search by name or email").pressSequentially("Staging", { delay: 30 });
-  const pr = await personResp;
-  log("person search →", pr?.url(), pr?.status(), pr ? (await pr.text()).slice(0, 300) : "no request");
-  const pick = dlg.getByRole("button", { name: /Staging Player/ }).first();
-  await expect.soft(pick, "recipient picker lists the staging player by name").toBeVisible({ timeout: 10_000 });
-  if (await pick.isVisible().catch(() => false)) await pick.click();
-  await dlg.getByPlaceholder("Fall 2025 registration fee").fill(`${TAG} J13 dialog invoice`);
-  await dlg.getByPlaceholder("320.00").fill("50.00");
-  await dlg.locator("input[type='date']").first().fill(inTwoDaysIso());
-  await dlg.locator("input[type='checkbox']").first().check();
-  await dlg.getByPlaceholder("80.00").fill("10.00");
-  const kinds = await dlg.locator("select").nth(1).locator("option").allTextContents();
-  log("dialog line-item kinds:", kinds.join(","));
-  const respP = p.waitForResponse((r) => /\/finance\/invoices\/bulk/.test(r.url()), { timeout: 15_000 }).catch(() => null);
-  await dlg.getByRole("button", { name: /send/i }).last().click();
-  const resp = await respP;
-  const status = resp?.status();
-  const body = resp ? await resp.text().catch(() => "") : "no response";
-  log("dialog create →", status, body.slice(0, 300));
-  await shot(p, "02-new-invoice-dialog-result");
-  const dlgError = await dlg.locator("p").filter({ hasText: /organisation|recipient|must|error|kind/i }).allInnerTexts().catch(() => []);
-  log("dialog visible error:", JSON.stringify(dlgError));
-  expect.soft(status ?? 0, `New invoice dialog create should succeed; got ${status ?? "no request"} ${body.slice(0, 200)} ${dlgError.join(" | ")}`).toBeGreaterThanOrEqual(200);
-  expect.soft(status ?? 999, "New invoice dialog create should succeed").toBeLessThan(300);
-  // close dialog if still open
-  if (await dlg.isVisible().catch(() => false)) {
-    await dlg.getByRole("button", { name: "Cancel" }).click().catch(() => {});
+  // The old dialog (raw UUID inputs, invalid kinds) was replaced by a link
+  // to the shared composer org-admin also uses.
+  await p.locator("main a", { hasText: "New invoice" }).first().click();
+  await p.waitForURL(/\/finance\/create/);
+  await expect(p.locator("select#scope")).toBeVisible({ timeout: 60_000 });
+  const org = p.locator("select#org");
+  if (await org.count()) {
+    expect.soft(await org.locator("option").allTextContents(), "organisation picker lists the staging org").toContain(ORG_NAME);
+    await org.selectOption({ label: ORG_NAME });
   }
+  await p.locator("select#scope").selectOption("individual");
+  const people = await p.locator("select#target option").allTextContents();
+  log("individual picker:", JSON.stringify(people.slice(0, 10)));
+  const player = people.find((o) => /Staging Player/.test(o));
+  expect.soft(player, "recipient picker lists the staging player by name").toBeTruthy();
+  if (player) await p.locator("select#target").selectOption({ label: player });
+  await p.getByPlaceholder("e.g. 2026 Spring season registration").fill(`${TAG} J13 plan invoice`);
+  await p.getByPlaceholder("0.00").first().fill("50.00");
+  await p.locator("input[type='date']").first().fill(inTwoDaysIso());
+  await p.getByLabel(/Pay in installments/i).check();
+  await p.getByPlaceholder("0.00").last().fill("10.00");
+  const respP = p.waitForResponse((r) => /\/finance\/invoices\/bulk/.test(r.url()), { timeout: 30_000 }).catch(() => null);
+  await p.getByRole("button", { name: "Create and send" }).click();
+  const resp = await respP;
+  const status = resp?.status() ?? 0;
+  const body = resp ? await resp.text().catch(() => "") : "no response";
+  log("composer create →", status, body.slice(0, 300));
+  await shot(p, "02-composer-plan-result");
+  expect.soft(status, `invoice with payment plan created (${body.slice(0, 200)})`).toBeGreaterThanOrEqual(200);
+  expect.soft(status, `invoice with payment plan created (${body.slice(0, 200)})`).toBeLessThan(300);
+  const rows = await stagingSql<{ status: string; n: number }>(
+    `select i.status, (select count(*)::int from installment_schedules s where s.invoice_id = i.id) n
+       from invoices i join invoice_items it on it.invoice_id = i.id
+      where it.description = $1 limit 1`,
+    [`${TAG} J13 plan invoice`]
+  );
+  log("db invoice:", JSON.stringify(rows));
+  expect.soft(rows[0]?.status, "created invoice is sent (visible to player, chased when overdue)").toBe("sent");
+  expect.soft(rows[0]?.n ?? 0, "deposit + installments scheduled").toBeGreaterThan(1);
 });
 
 async function composeTeamInvoice(p: Page, desc: string, amount: string) {

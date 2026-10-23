@@ -46,6 +46,7 @@ function finding(ok: boolean, msg: string) {
 type Ctx = { context: BrowserContext; page: Page; app: string; errors: string[] };
 let cap: Ctx;
 let genericToken = "";
+let inviteLink = "";
 
 function watch(page: Page): string[] {
   const errors: string[] = [];
@@ -198,7 +199,11 @@ test("J8.1 captain sends a personal invite from /captain/invites", async () => {
   await p.locator("#kind").selectOption("personal");
   await p.locator("#email").fill(INVITEE_EMAIL);
   await p.getByRole("button", { name: /send invite/i }).click();
-  await expect(p.getByText(`Invite sent to ${INVITEE_EMAIL}`)).toBeVisible({ timeout: 15_000 });
+  const created = p.getByText(new RegExp(`Invite created for ${INVITEE_EMAIL.replace(/[.+]/g, "\$&")}`));
+  await expect(created).toBeVisible({ timeout: 15_000 });
+  // UC-04: the captain gets a full player-app link to share.
+  inviteLink = (await created.innerText()).match(/https?:\/\/\S+\/invite\/\S+/)?.[0] ?? "";
+  finding(inviteLink.startsWith(`${E2E_URLS.player}/invite/`), `CAP: invite link is not a full player-app URL (${inviteLink || "none"})`);
   await settle(p);
   const t = await snap(p, "11-invite-sent");
   finding(t.includes(INVITEE_EMAIL.split("@")[0]!), "CAP: pending invites list does not show the new invite without reload");
@@ -215,51 +220,51 @@ test("J8.1 captain sends a personal invite from /captain/invites", async () => {
   finding((notes[0]?.n ?? 0) > 0, "CAP: 'Invite sent to <email>' but no email/notification row exists for the invitee (UC-04 'System sends invitation')");
 });
 
-test("J8.2 captain creates a generic team URL; the link has nowhere to land", async ({ browser }) => {
+test("J8.2 captain creates a team link; an invitee opens it and joins (UC-04)", async ({ browser }) => {
   const p = cap.page;
   await p.locator("#kind").selectOption("generic");
   await p.getByRole("button", { name: /create url/i }).click();
-  const msg = p.getByText(/Team URL: \/invite\//);
+  const msg = p.getByText(/Team link created/);
   await expect(msg).toBeVisible({ timeout: 15_000 });
   const text = await msg.innerText();
-  genericToken = text.replace(/.*\/invite\//, "").trim();
+  const link = text.match(/https?:\/\/\S+\/invite\/\S+/)?.[0] ?? "";
+  genericToken = link.replace(/.*\/invite\//, "").trim();
   await snap(p, "20-generic-url");
-  finding(/https?:\/\//.test(text), `CAP: generic invite shows a host-less path ("${text.slice(0, 40)}…"); captain cannot share it`);
-  // Open the link the way an invitee would, on every app host, signed out.
+  finding(link.startsWith(`${E2E_URLS.player}/invite/`), `CAP: team link is not a full player-app URL ("${text.slice(0, 80)}")`);
+
+  // Signed out: the link lands on a real page that names the team.
   const anon = await freshContext(browser);
   const ap = await anon.newPage();
-  const results: Record<string, string> = {};
-  const hosts = {
-    player: E2E_URLS.player,
-    team: E2E_URLS.teamAdmin,
-    landing: E2E_URLS.landing,
-    org: E2E_URLS.orgAdmin,
-    superadmin: E2E_URLS.superadmin
-  };
-  for (const [name, host] of Object.entries(hosts)) {
-    const res = await ap.goto(`${host}/invite/${genericToken}`).catch(() => null);
-    await settle(ap);
-    const body = (await ap.locator("body").innerText().catch(() => "")).slice(0, 160).replace(/\s+/g, " ");
-    results[name] = `${res?.status()} ${ap.url().replace(genericToken, "<token>")} :: ${body}`;
-    await ap.screenshot({ path: `${OUT}/21-invite-on-${name}.png` }).catch(() => {});
-  }
-  writeFileSync(`${OUT}/21-invite-hosts.json`, JSON.stringify(results, null, 2));
-  // "Landed" = the URL stayed on /invite/<token> with a 200 and a real page.
-  const landed = Object.values(results).some((r) => /^200 \S*\/invite\/<token> /.test(r) && !/could not be found/i.test(r));
-  finding(landed, `CAP: /invite/<token> lands nowhere on any app (${JSON.stringify(results).slice(0, 500)})`);
-  // Signed in as the invitee on player-web, the link still has no page.
-  const inv = await signedInAs(browser, "player", { email: PLAIN_EMAIL, password: PLAIN_PASSWORD });
-  const r2 = await inv.page.goto(`${inv.app}/invite/${genericToken}`);
-  await settle(inv.page);
-  const signedText = (await inv.page.locator("body").innerText()).slice(0, 200).replace(/\s+/g, " ");
-  await inv.page.screenshot({ path: `${OUT}/23-invite-signed-in-player.png` }).catch(() => {});
-  writeFileSync(`${OUT}/23-invite-signed-in-player.txt`, `${r2?.status()} ${signedText}`);
-  finding(r2?.status() !== 404, `CAP: signed-in invitee opening /invite/<token> on player-web gets ${r2?.status()} (${signedText.slice(0, 80)})`);
-  await inv.context.close();
-  // The public resolver is the only consumer; it is not called by any page.
-  const api = await ap.goto(`https://staging-api.sportspulse.us/api/public/registration/invites/${genericToken}`);
-  writeFileSync(`${OUT}/22-public-resolve.json`, `${api?.status()} ${(await ap.locator("body").innerText()).replace(genericToken, "<token>")}`);
+  const res = await ap.goto(link);
+  await settle(ap);
+  const anonText = (await ap.locator("body").innerText()).replace(/\s+/g, " ");
+  await ap.screenshot({ path: `${OUT}/21-invite-signed-out.png` }).catch(() => {});
+  finding(res?.status() === 200 && /Join /.test(anonText) && /Sign in to join/i.test(anonText), `CAP: signed-out invite page did not offer to join (${res?.status()} ${anonText.slice(0, 120)})`);
   await anon.close();
+
+  // Signed in as the invitee on player-web: one click joins the team.
+  const inv = await signedInAs(browser, "player", { email: PLAIN_EMAIL, password: PLAIN_PASSWORD });
+  await inv.page.goto(link);
+  await settle(inv.page);
+  const join = inv.page.getByRole("button", { name: /^Join / });
+  await expect(join).toBeVisible({ timeout: 20_000 });
+  await join.click();
+  await inv.page.waitForURL(/\/team/, { timeout: 30_000 }).catch(() => {});
+  await settle(inv.page);
+  await inv.page.screenshot({ path: `${OUT}/22-invite-joined.png` }).catch(() => {});
+  const joinError = await inv.page.getByRole("alert").innerText().catch(() => "");
+  finding(/\/team/.test(inv.page.url()), `CAP: invitee did not land on /team after Join (${inv.page.url()} ${joinError})`);
+  const [inviteRow] = await stagingSql<{ status: string }>(`select status from team_invites where token = $1`, [genericToken]);
+  const members = await stagingSql<{ n: number }>(
+    `select count(*)::int n from team_memberships tm join persons p on p.id = tm.person_id
+       join profiles pr on pr.id = p.user_id
+      where pr.email = $1 and tm.current_status = 'active'`,
+    [PLAIN_EMAIL]
+  );
+  writeFileSync(`${OUT}/22-invite-accept-db.json`, JSON.stringify({ inviteRow, members, joinError }, null, 2));
+  finding(inviteRow?.status === "accepted", `CAP: invite status after Join is ${inviteRow?.status}`);
+  finding((members[0]?.n ?? 0) > 0, "CAP: invitee has no active team membership after Join");
+  await inv.context.close();
 });
 
 test("J8.3 revoked invite token still resolves on the public endpoint", async ({ browser }) => {

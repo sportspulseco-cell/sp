@@ -123,7 +123,7 @@ test("2. a team-scope invoice from the admin composer reaches the captain dues s
   await p.getByPlaceholder("0.00").first().fill("600.00");
   await p.locator("input[type='date']").fill(inTwoDaysIso());
   const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
-  await p.getByRole("button", { name: "Create invoice" }).click();
+  await p.getByRole("button", { name: "Create and send" }).click();
   const resp = await respP;
   const body = await resp.text();
   log("admin team invoice →", resp.status(), body.slice(0, 200));
