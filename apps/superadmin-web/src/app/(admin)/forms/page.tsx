@@ -39,7 +39,13 @@ export const revalidate = 0;
 export default async function FormsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ purpose?: string; q?: string; org?: string; scope?: string }>;
+  searchParams?: Promise<{
+    purpose?: string;
+    q?: string;
+    org?: string;
+    scope?: string;
+    division?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const filterPurpose =
@@ -66,8 +72,20 @@ export default async function FormsPage({
       (!filterPurpose || f.purpose === filterPurpose) &&
       (!q || f.name.toLowerCase().includes(q)) &&
       (!sp?.org || f.orgId === sp.org) &&
-      (!sp?.scope || f.scope === sp.scope)
+      (!sp?.scope || f.scope === sp.scope) &&
+      (!sp?.division || (f.scope === "division" && f.scopeId === sp.division))
   );
+  // Divisions that actually have a form, by name (PPHL asked for an org
+  // and a division filter on this page).
+  const divisionOptions = [
+    ...new Map(
+      allForms.items
+        .filter((f) => f.scope === "division" && f.scopeId)
+        .map((f) => [f.scopeId!, f.scopeName ?? "Unnamed division"] as const)
+    ).entries()
+  ]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Per-purpose counts for the filter chips.
   const counts = FORM_PURPOSES.reduce<Record<string, number>>((acc, p) => {
@@ -139,6 +157,7 @@ export default async function FormsPage({
           orgs={orgList.items
             .filter((o) => allForms.items.some((f) => f.orgId === o.id))
             .map((o) => ({ id: o.id, name: o.displayName }))}
+          divisions={divisionOptions}
         />
         <p className="text-[12px] text-fg-muted">
           Showing {filtered.length} of {allForms.items.length} forms
