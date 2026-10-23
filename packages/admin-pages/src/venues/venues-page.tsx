@@ -60,6 +60,7 @@ export interface VenuesApi {
   createIceSlot: (
     surfaceId: string,
     body: {
+      seasonId: string;
       startTsUtc: string;
       durationMin: number;
       tz?: string;
@@ -71,6 +72,7 @@ export interface VenuesApi {
   bulkIceSlots: (
     surfaceId: string,
     body: {
+      seasonId: string;
       startDate: string;
       endDate: string;
       weekdays: number[];
@@ -91,6 +93,17 @@ export interface VenuesPageProps {
   orgId?: string;
   /** Orgs the user can create venues in (for the org picker on create). */
   ownableOrgs?: Array<{ id: string; name: string }>;
+  /**
+   * Seasons of an org, for the slot forms' Season picker. The scheduler
+   * only reads slots tagged with the season it schedules, so untagged
+   * slots were silently ignored (SCH-2).
+   */
+  loadSeasons: (orgId: string) => Promise<SeasonOption[]>;
+}
+
+export interface SeasonOption {
+  id: string;
+  name: string;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -109,7 +122,7 @@ function fmtSlotTime(iso: string, tz: string): string {
   }
 }
 
-export function VenuesPage({ api, orgId, ownableOrgs }: VenuesPageProps) {
+export function VenuesPage({ api, orgId, ownableOrgs, loadSeasons }: VenuesPageProps) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +199,7 @@ export function VenuesPage({ api, orgId, ownableOrgs }: VenuesPageProps) {
               key={v.id}
               venue={v}
               api={api}
+              loadSeasons={loadSeasons}
               isOpen={expanded === v.id}
               onToggle={() => setExpanded(expanded === v.id ? null : v.id)}
               onChange={() => void load()}
@@ -266,10 +280,11 @@ function CreateVenueForm({
 }
 
 function VenueRow({
-  venue, api, isOpen, onToggle, onChange
+  venue, api, loadSeasons, isOpen, onToggle, onChange
 }: {
   venue: Venue;
   api: VenuesApi;
+  loadSeasons: (orgId: string) => Promise<SeasonOption[]>;
   isOpen: boolean;
   onToggle: () => void;
   onChange: () => void;
@@ -277,6 +292,12 @@ function VenueRow({
   const [surfaces, setSurfaces] = useState<Surface[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAddSurface, setShowAddSurface] = useState(false);
+  const [seasons, setSeasons] = useState<SeasonOption[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    loadSeasons(venue.orgId).then(setSeasons).catch(() => setSeasons([]));
+  }, [isOpen, loadSeasons, venue.orgId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -332,6 +353,7 @@ function VenueRow({
                   key={s.id}
                   surface={s}
                   venueTz={venue.timezone}
+                  seasons={seasons}
                   api={api}
                   onChange={onChange}
                 />
@@ -379,10 +401,11 @@ function AddSurfaceForm({
 }
 
 function SurfaceRow({
-  surface, venueTz, api, onChange
+  surface, venueTz, seasons, api, onChange
 }: {
   surface: Surface;
   venueTz: string;
+  seasons: SeasonOption[];
   api: VenuesApi;
   onChange: () => void;
 }) {
@@ -448,6 +471,7 @@ function SurfaceRow({
               api={api}
               surfaceId={surface.id}
               tz={venueTz}
+              seasons={seasons}
               onCancel={() => setShowAdd(null)}
               onCreated={() => { setShowAdd(null); loadSlots(); onChange(); }}
             />
@@ -457,6 +481,7 @@ function SurfaceRow({
               api={api}
               surfaceId={surface.id}
               tz={venueTz}
+              seasons={seasons}
               onCancel={() => setShowAdd(null)}
               onCreated={() => { setShowAdd(null); loadSlots(); onChange(); }}
             />
@@ -500,14 +525,16 @@ function SurfaceRow({
 }
 
 function SingleSlotForm({
-  api, surfaceId, tz, onCancel, onCreated
+  api, surfaceId, tz, seasons, onCancel, onCreated
 }: {
   api: VenuesApi;
   surfaceId: string;
   tz: string;
+  seasons: SeasonOption[];
   onCancel: () => void;
   onCreated: () => void;
 }) {
+  const [seasonId, setSeasonId] = useState(seasons.length === 1 ? seasons[0]!.id : "");
   const [startLocal, setStartLocal] = useState("");
   const [durationMin, setDurationMin] = useState(60);
   const [band, setBand] = useState<"" | "early" | "mid" | "late">("");
@@ -515,6 +542,7 @@ function SingleSlotForm({
   const [error, setError] = useState<string | null>(null);
   return (
     <div className="rounded-md border border-border bg-bg p-3 space-y-2">
+      <SeasonField seasons={seasons} value={seasonId} onChange={setSeasonId} disabled={busy} />
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Start (local)">
           <Input type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} disabled={busy} />
@@ -545,6 +573,7 @@ function SingleSlotForm({
             setBusy(true); setError(null);
             try {
               await api.createIceSlot(surfaceId, {
+                seasonId,
                 startTsUtc: new Date(startLocal).toISOString(),
                 durationMin,
                 tz,
@@ -555,7 +584,7 @@ function SingleSlotForm({
               setError(e instanceof Error ? e.message : String(e));
             } finally { setBusy(false); }
           }}
-          disabled={busy || !startLocal}
+          disabled={busy || !startLocal || !seasonId}
         >Create slot</Button>
       </div>
     </div>
@@ -563,14 +592,16 @@ function SingleSlotForm({
 }
 
 function BulkSlotForm({
-  api, surfaceId, tz, onCancel, onCreated
+  api, surfaceId, tz, seasons, onCancel, onCreated
 }: {
   api: VenuesApi;
   surfaceId: string;
   tz: string;
+  seasons: SeasonOption[];
   onCancel: () => void;
   onCreated: () => void;
 }) {
+  const [seasonId, setSeasonId] = useState(seasons.length === 1 ? seasons[0]!.id : "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [startLocalTime, setStartLocalTime] = useState("19:00");
@@ -590,6 +621,7 @@ function BulkSlotForm({
   return (
     <div className="rounded-md border border-border bg-bg p-3 space-y-3">
       <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">// Weekly recurrence</p>
+      <SeasonField seasons={seasons} value={seasonId} onChange={setSeasonId} disabled={busy} />
       <div className="grid gap-3 sm:grid-cols-4">
         <Field label="Start date">
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} disabled={busy} />
@@ -646,13 +678,14 @@ function BulkSlotForm({
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Done</Button>
         <Button
           onClick={async () => {
-            if (!startDate || !endDate || weekdays.size === 0 || !startLocalTime) {
-              setError("Pick start, end, at least one weekday, and a time.");
+            if (!seasonId || !startDate || !endDate || weekdays.size === 0 || !startLocalTime) {
+              setError("Pick a season, start, end, at least one weekday, and a time.");
               return;
             }
             setBusy(true); setError(null); setResult(null);
             try {
               const res = await api.bulkIceSlots(surfaceId, {
+                seasonId,
                 startDate, endDate,
                 weekdays: [...weekdays].sort(),
                 startLocalTime, durationMin, tz,
@@ -671,5 +704,33 @@ function BulkSlotForm({
         </Button>
       </div>
     </div>
+  );
+}
+
+function SeasonField({
+  seasons, value, onChange, disabled
+}: {
+  seasons: SeasonOption[];
+  value: string;
+  onChange: (id: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <Field
+      label="Season"
+      hint={seasons.length === 0 ? "This venue's organisation has no seasons yet. Create one first." : "The scheduler only uses slots tagged with its season."}
+    >
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled || seasons.length === 0}
+        className="h-9 w-full rounded-md border border-border bg-bg px-2 text-fg sm:w-72"
+      >
+        <option value="">Pick a season</option>
+        {seasons.map((s) => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </select>
+    </Field>
   );
 }

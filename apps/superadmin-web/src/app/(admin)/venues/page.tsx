@@ -1,7 +1,7 @@
 "use client";
 
 import { VenuesPage, type VenuesApi } from "@sportspulse/admin-pages";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import * as browser from "@/lib/api/browser-api";
 
@@ -16,6 +16,13 @@ export default function VenuesAdminPage() {
       .then((res) => setOrgs(res.items.map((o) => ({ id: o.id, name: o.displayName }))))
       .catch(() => setOrgs([]));
   }, []);
+  const loadSeasons = useCallback(
+    (orgId: string) =>
+      browser.leagueMgmt
+        .listSeasons({ orgId, limit: 100 })
+        .then((res) => res.items.map((x) => ({ id: x.id, name: x.name }))),
+    []
+  );
   return (
     <div className="space-y-8">
       <PageHeader
@@ -23,7 +30,7 @@ export default function VenuesAdminPage() {
         title="Venues, surfaces, ice slots"
         description="The inventory the scheduler reads. Add a venue, then a surface (rink / sheet), then a single slot or a weekly recurrence. ON-CONFLICT silently skips slots that already exist on the same surface + start instant."
       />
-      <VenuesPage api={api} ownableOrgs={orgs} />
+      <VenuesPage api={api} loadSeasons={loadSeasons} ownableOrgs={orgs} />
     </div>
   );
 }
