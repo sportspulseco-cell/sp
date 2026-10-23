@@ -1,4 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { Alert } from "@sportspulse/ui";
 import { FileSignature, CheckCircle2, FileQuestion, Layers } from "lucide-react";
 import Link from "next/link";
 import {
@@ -46,12 +47,15 @@ export default async function FormsPage({
       ? (sp.purpose as FormPurpose)
       : null;
 
+  let loadFailed = false;
   const [allForms, orgList] = await Promise.all([
     // Every form, not the first page of 25.
-    fetchAll((cursor) => registration.listForms({ limit: 100, cursor })).catch(() => ({
-      items: [],
-      nextCursor: null
-    })),
+    fetchAll((cursor) => registration.listForms({ limit: 100, cursor })).catch((e) => {
+      // Show the failure; an empty list here read as "No forms yet".
+      console.error("[forms] listForms failed", e);
+      loadFailed = true;
+      return { items: [], nextCursor: null };
+    }),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
@@ -141,7 +145,11 @@ export default async function FormsPage({
         </p>
       </div>
 
-      {filtered.length === 0 ? (
+      {loadFailed ? (
+        <Alert tone="error">
+          Could not load forms. This is a server problem on our side, not your data. Reload to try again.
+        </Alert>
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={FileSignature}
           title={

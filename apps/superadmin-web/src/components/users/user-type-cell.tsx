@@ -7,7 +7,6 @@ import type { Role } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
-import { resolvePrimaryRole } from "./primary-role";
 
 /**
  * Click-to-edit "user type" cell on /users.
@@ -24,38 +23,19 @@ import { resolvePrimaryRole } from "./primary-role";
  */
 export function UserTypeCell({
   userId,
-  isSuperAdmin
+  isSuperAdmin,
+  primary
 }: {
   userId: string;
   isSuperAdmin: boolean;
+  /** Primary role, resolved by the page from one assignments fetch.
+   * A per-row fetch here fired ~100 API calls per /users load and
+   * exhausted the database pool (EMAXCONN). */
+  primary: { code: string; name: string } | null;
 }) {
   const [open, setOpen] = useState(false);
   const [roles, setRoles] = useState<Role[] | null>(null);
   const [loadingDialog, setLoadingDialog] = useState(false);
-
-  // Eager load primary role on mount so the cell shows it without
-  // waiting for the dialog. One round-trip per row — small enough.
-  const [primary, setPrimary] = useState<{ code: string; name: string } | null>(
-    null
-  );
-  const [loadingPrimary, setLoadingPrimary] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    iam
-      .activeRolesForUser(userId)
-      .then((rows) => {
-        if (cancelled) return;
-        setPrimary(resolvePrimaryRole(isSuperAdmin, rows));
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setLoadingPrimary(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, isSuperAdmin]);
 
   useEffect(() => {
     if (!open || roles !== null) return;
@@ -71,8 +51,6 @@ export function UserTypeCell({
     ? "Super admin"
     : primary
     ? primary.name
-    : loadingPrimary
-    ? "…"
     : "—";
 
   return (

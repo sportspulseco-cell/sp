@@ -23,7 +23,12 @@ export default async function SeasonDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const season = await leagueMgmt.getSeason(id).catch(() => null);
+  // Only a real 404 is "not found"; a server error must not pose as one
+  // (a pool outage showed existing seasons as 404).
+  const season = await leagueMgmt.getSeason(id).catch((e: { status?: number }) => {
+    if (e?.status === 404) return null;
+    throw e;
+  });
   if (!season) notFound();
 
   const [parentLeague, divisionsPage, formsPage] = await Promise.all([

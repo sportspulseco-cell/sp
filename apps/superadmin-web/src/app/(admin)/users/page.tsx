@@ -1,4 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { Alert } from "@sportspulse/ui";
 import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -32,13 +33,21 @@ export default async function UsersPage({
   const sp = (await searchParams) ?? {};
   // Every account, not the first 50: newly invited users were missing
   // and the KPI tiles undercounted (68 users on staging).
+  let loadFailed = false;
   const [page, assignments] = await Promise.all([
-    fetchAll((cursor) => iam.listUsers({ limit: 100, cursor })).catch(
-      () => ({ items: [], nextCursor: null })
-    ),
+    fetchAll((cursor) => iam.listUsers({ limit: 100, cursor })).catch((e) => {
+      // Show the failure; an empty list here read as "No users yet".
+      console.error("[users] listUsers failed", e);
+      loadFailed = true;
+      return { items: [], nextCursor: null };
+    }),
     fetchAll((cursor) =>
       iam.listRoleAssignments({ activeOnly: true, limit: 100, cursor })
-    ).catch(() => ({ items: [] as RoleAssignment[], nextCursor: null }))
+    ).catch((e) => {
+      console.error("[users] listRoleAssignments failed", e);
+      loadFailed = true;
+      return { items: [] as RoleAssignment[], nextCursor: null };
+    })
   ]);
 
   // Type = the same primary role the Type column shows.
@@ -123,7 +132,11 @@ export default async function UsersPage({
           Showing {shown.length} of {total} users
         </p>
       </div>
-      {page.items.length > 0 && shown.length === 0 ? (
+      {loadFailed ? (
+        <Alert tone="error">
+          Could not load users. This is a server problem on our side, not your data. Reload to try again.
+        </Alert>
+      ) : page.items.length > 0 && shown.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No users match these filters"
@@ -176,6 +189,7 @@ export default async function UsersPage({
                     <UserTypeCell
                       userId={u.id}
                       isSuperAdmin={u.isSuperAdmin}
+                      primary={typeOf(u)}
                     />
                   </TD>
                   <TD>
