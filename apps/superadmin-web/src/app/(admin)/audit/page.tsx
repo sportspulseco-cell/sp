@@ -6,6 +6,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { MarqueeRail } from "@/components/motion/kinetic";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { UrlFilters } from "@/components/ui/url-filters";
 
 export const metadata = { title: "Audit — SportsPulse" };
 
@@ -37,6 +38,7 @@ export default async function AuditPage({
   searchParams
 }: {
   searchParams?: Promise<{
+    q?: string;
     resourceType?: string;
     action?: string;
   }>;
@@ -53,6 +55,17 @@ export default async function AuditPage({
       .catch(() => ({ items: [], nextCursor: null })),
     audit.facets().catch(() => ({ actions: [], resourceTypes: [] }))
   ]);
+
+  // Search within the loaded events (the latest 100 under the facets):
+  // action, resource type, resource name, actor name.
+  const q = sp?.q?.trim().toLowerCase() ?? "";
+  const shown = q
+    ? page.items.filter((e) =>
+        `${e.action} ${e.resourceType} ${e.resourceName ?? ""} ${e.actorName ?? ""}`
+          .toLowerCase()
+          .includes(q)
+      )
+    : page.items;
 
   const total = page.items.length;
   const distinctActors = new Set(
@@ -181,11 +194,27 @@ export default async function AuditPage({
         ) : null}
       </div>
 
+      <div className="space-y-2">
+        <UrlFilters
+          searchPlaceholder="Search these events by action, resource or actor"
+          selects={[]}
+        />
+        <p className="text-[12px] text-fg-muted">
+          Showing {shown.length} of {total} loaded events
+        </p>
+      </div>
+
       {page.items.length === 0 ? (
         <EmptyState
           icon={ScrollText}
           title="No audit events"
           description="Once any state change happens on the platform, it'll appear here in chronological order."
+        />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          icon={ScrollText}
+          title="No events match this search"
+          description="Only the latest 100 events under the current facets are searched. Clear the search or change the facets."
         />
       ) : (
         <div className="rounded-xl border border-border bg-surface-1">
@@ -193,7 +222,7 @@ export default async function AuditPage({
             <div>
               <Eyebrow>Timeline</Eyebrow>
               <p className="mt-1 text-[13px] text-fg-muted">
-                {page.items.length} most recent events · newest first
+                {shown.length} of the {page.items.length} most recent events · newest first
               </p>
             </div>
             <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
@@ -201,7 +230,7 @@ export default async function AuditPage({
             </span>
           </header>
           <ol className="divide-y divide-border">
-            {page.items.map((e) => (
+            {shown.map((e) => (
               <li
                 key={e.id}
                 className="grid grid-cols-[16px_140px_1fr_auto] items-start gap-4 px-6 py-3.5"

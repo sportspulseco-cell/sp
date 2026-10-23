@@ -1,10 +1,12 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { Alert } from "@sportspulse/ui";
 import { CalendarRange, CircleDot, Flag, Clock } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
+import { UrlFilters } from "@/components/ui/url-filters";
 import {
   TBody,
   TD,
@@ -15,18 +17,17 @@ import {
 } from "@/components/ui/table";
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import { CreateGameButton } from "@/components/games/create-game-button";
-import type { GameStatus } from "@/lib/api/types";
+import type { Division, Game, GameStatus, Season } from "@/lib/api/types";
 
 export const metadata = { title: "Games — SportsPulse" };
 
-const STATUS_FILTERS: Array<{ key: GameStatus | "all"; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "scheduled", label: "Scheduled" },
-  { key: "in_play", label: "Live" },
-  { key: "completed", label: "Final" },
-  { key: "postponed", label: "Postponed" },
-  { key: "cancelled", label: "Cancelled" },
-  { key: "forfeited", label: "Forfeit" }
+const STATUS_OPTIONS: Array<{ value: GameStatus; label: string }> = [
+  { value: "scheduled", label: "Scheduled" },
+  { value: "in_play", label: "Live" },
+  { value: "completed", label: "Final" },
+  { value: "postponed", label: "Postponed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "forfeited", label: "Forfeit" }
 ];
 
 function formatKickoff(iso: string, tz: string) {
@@ -42,27 +43,89 @@ function formatKickoff(iso: string, tz: string) {
   return { date, time, tz };
 }
 
+/**
+ * Filters live in the URL (?q=&leagueId=&seasonId=&divisionId=&status=).
+ * League, division and status narrow the API query (they are indexed
+ * there); season and the team-name search are applied here, because a
+ * game carries its division, not its season.
+ */
 export default async function GamesPage({
   searchParams
 }: {
-  searchParams?: Promise<{ leagueId?: string; status?: GameStatus }>;
+  searchParams?: Promise<{
+    q?: string;
+    leagueId?: string;
+    seasonId?: string;
+    divisionId?: string;
+    status?: GameStatus;
+  }>;
 }) {
-  const sp = await searchParams;
-  const status = sp?.status;
-  const leagueId = sp?.leagueId;
+  const sp = (await searchParams) ?? {};
+  const status = sp.status;
+  const leagueId = sp.leagueId;
+  let loadFailed = false;
 
-  const [gamesPage, leaguesPage, teamsPage] = await Promise.all([
-    gameOps
-      .listGames({ leagueId, status, limit: 100 })
-      .catch(() => ({ items: [], nextCursor: null })),
-    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
+  const [gamesPage, leaguesPage, teamsPage, seasonsPage, divisionsPage] = await Promise.all([
+    fetchAll((cursor) =>
+      gameOps.listGames({ leagueId, divisionId: sp.divisionId, status, limit: 100, cursor })
+    ).catch((e) => {
+      // Show the failure; an empty list here read as "No games yet".
+      console.error("[games] listGames failed", e);
+      loadFailed = true;
+      return { items: [] as Game[] };
+    }),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] as Season[] })),
+    fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch(() => ({ items: [] as Division[] }))
   ]);
 
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
   const teamMap = new Map(
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
   );
+  const teamFullName = new Map(teamsPage.items.map((t) => [t.id, t.name]));
+  const seasonMap = new Map(seasonsPage.items.map((s) => [s.id, s]));
+  const divisionMap = new Map(divisionsPage.items.map((d) => [d.id, d]));
+
+  const q = sp.q?.trim().toLowerCase() ?? "";
+  const shown = gamesPage.items.filter((g) => {
+    if (sp.seasonId) {
+      const d = g.divisionId ? divisionMap.get(g.divisionId) : null;
+      if (d?.seasonId !== sp.seasonId) return false;
+    }
+    if (q) {
+      const hay = [
+        teamFullName.get(g.homeTeamId),
+        teamMap.get(g.homeTeamId),
+        teamFullName.get(g.awayTeamId),
+        teamMap.get(g.awayTeamId),
+        g.venueName
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Options by name. Divisions follow the chosen season when one is set.
+  const leagueOptions = leaguesPage.items
+    .map((l) => ({ value: l.id, label: l.name }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const seasonOptions = seasonsPage.items
+    .filter((s) => !leagueId || s.leagueId === leagueId)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+    .map((s) => ({ value: s.id, label: `${s.name} · ${leagueMap.get(s.leagueId) ?? "Unknown league"}` }));
+  const divisionOptions = divisionsPage.items
+    .filter((d) => (sp.seasonId ? d.seasonId === sp.seasonId : true))
+    .filter((d) => (leagueId ? seasonMap.get(d.seasonId)?.leagueId === leagueId : true))
+    .map((d) => ({
+      value: d.id,
+      label: sp.seasonId ? d.name : `${d.name} · ${seasonMap.get(d.seasonId)?.name ?? "Unknown season"}`
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   const live = gamesPage.items.filter((g) => g.status === "in_play").length;
   const scheduled = gamesPage.items.filter(
@@ -115,41 +178,32 @@ export default async function GamesPage({
         ]}
       />
 
-      {/* Status filter strip */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {STATUS_FILTERS.map((f) => {
-          const active = (status ?? "all") === f.key;
-          const href =
-            f.key === "all"
-              ? leagueId
-                ? `/games?leagueId=${leagueId}`
-                : "/games"
-              : leagueId
-                ? `/games?leagueId=${leagueId}&status=${f.key}`
-                : `/games?status=${f.key}`;
-          return (
-            <Link
-              key={f.key}
-              href={href}
-              className={
-                active
-                  ? "rounded-full bg-fg px-3 py-1 text-[12px] font-medium text-bg"
-                  : "rounded-full border border-border bg-surface-1 px-3 py-1 text-[12px] font-medium text-fg-muted hover:border-border-strong hover:text-fg"
-              }
-            >
-              {f.label}
-            </Link>
-          );
-        })}
+      <div className="space-y-2">
+        <UrlFilters
+          searchPlaceholder="Search games by team or venue"
+          selects={[
+            { param: "leagueId", label: "League", allLabel: "All leagues", options: leagueOptions },
+            { param: "seasonId", label: "Season", allLabel: "All seasons", options: seasonOptions },
+            { param: "divisionId", label: "Division", allLabel: "All divisions", options: divisionOptions },
+            { param: "status", label: "Status", allLabel: "All statuses", options: STATUS_OPTIONS }
+          ]}
+        />
+        <p className="text-[12px] text-fg-muted">
+          Showing {shown.length} of {total} games
+        </p>
       </div>
 
-      {gamesPage.items.length === 0 ? (
+      {loadFailed ? (
+        <Alert tone="error">
+          Could not load games. This is a server problem on our side, not your data. Reload to try again.
+        </Alert>
+      ) : total === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No games yet"
           description={
-            status
-              ? `No ${status.replace(/_/g, " ")} games match the current filter.`
+            status || leagueId || sp.divisionId
+              ? "No games match the current filters."
               : "Schedule a game between any two teams in a league."
           }
           action={
@@ -159,6 +213,12 @@ export default async function GamesPage({
             />
           }
         />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          icon={CalendarRange}
+          title="No games match these filters"
+          description="Clear the search or pick a different league, season, division or status."
+        />
       ) : (
         <Table>
           <THead>
@@ -166,16 +226,18 @@ export default async function GamesPage({
               <TH>Kickoff</TH>
               <TH>Matchup</TH>
               <TH>League</TH>
+              <TH>Division</TH>
               <TH>Sport</TH>
               <TH className="text-right">Score</TH>
               <TH>Status</TH>
             </TR>
           </THead>
           <TBody>
-            {gamesPage.items.map((g) => {
+            {shown.map((g) => {
               const kt = formatKickoff(g.scheduledStartTsUtc, g.tz);
               const home = teamMap.get(g.homeTeamId) ?? "Unnamed team";
               const away = teamMap.get(g.awayTeamId) ?? "Unnamed team";
+              const division = g.divisionId ? divisionMap.get(g.divisionId) : null;
               const showScore =
                 g.status === "in_play" ||
                 g.status === "completed" ||
@@ -200,6 +262,11 @@ export default async function GamesPage({
                   </TD>
                   <TD className="text-fg-muted">
                     {leagueMap.get(g.leagueId) ?? "Unknown league"}
+                  </TD>
+                  <TD className="text-fg-muted">
+                    {division
+                      ? `${division.name}${seasonMap.get(division.seasonId) ? ` · ${seasonMap.get(division.seasonId)!.name}` : ""}`
+                      : "—"}
                   </TD>
                   <TD className="text-fg-muted">{g.sportCode}</TD>
                   <TD className="text-right font-mono tabular-nums">
