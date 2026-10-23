@@ -1,12 +1,14 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { Alert } from "@sportspulse/ui";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge, statusTone } from "@/components/ui/badge";
+import { UrlFilters } from "@/components/ui/url-filters";
 import {
-  EmptyRow,
   TBody,
   TD,
   TH,
@@ -15,17 +17,46 @@ import {
   Table
 } from "@/components/ui/table";
 import { CreateOrgButton } from "@/components/orgs/create-org-button";
+import type { Org } from "@/lib/api/types";
 
 export const metadata = { title: "Organizations — SportsPulse" };
 
+/**
+ * Filters live in the URL (?search=&status=&type=&country=). `search`
+ * keeps its name because older links and the API use it.
+ */
 export default async function OrganizationsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ search?: string }>;
+  searchParams?: Promise<{ search?: string; status?: string; type?: string; country?: string }>;
 }) {
-  const sp = await searchParams;
-  const page = await fetchAll((cursor) => orgs.list({ search: sp?.search, limit: 100, cursor }))
-    .catch(() => ({ items: [], nextCursor: null }));
+  const sp = (await searchParams) ?? {};
+  let loadFailed = false;
+  const page = await fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch((e) => {
+    // Show the failure; an empty list here read as "No organizations yet".
+    console.error("[organizations] orgs.list failed", e);
+    loadFailed = true;
+    return { items: [] as Org[] };
+  });
+
+  const q = sp.search?.trim().toLowerCase() ?? "";
+  const shown = page.items.filter((o) => {
+    if (sp.status && o.status !== sp.status) return false;
+    if (sp.type && o.orgType !== sp.type) return false;
+    if (sp.country && o.countryCode !== sp.country) return false;
+    if (q) {
+      const hay = `${o.displayName} ${o.legalName} ${o.slug}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const typeOptions = [...new Set(page.items.map((o) => o.orgType))]
+    .sort()
+    .map((t) => ({ value: t, label: t.replace(/_/g, " ") }));
+  const countryOptions = [...new Set(page.items.map((o) => o.countryCode).filter(Boolean))]
+    .sort()
+    .map((c) => ({ value: c, label: c }));
 
   const total = page.items.length;
   const active = page.items.filter((o) => o.status === "active").length;
@@ -75,8 +106,42 @@ export default async function OrganizationsPage({
         ]}
       />
 
-      {page.items.length === 0 ? (
+      <div className="space-y-2">
+        <UrlFilters
+          searchParam="search"
+          searchPlaceholder="Search organizations by name, legal name or slug"
+          selects={[
+            {
+              param: "status",
+              label: "Status",
+              allLabel: "All statuses",
+              options: [
+                { value: "active", label: "Active" },
+                { value: "suspended", label: "Suspended" },
+                { value: "archived", label: "Archived" }
+              ]
+            },
+            { param: "type", label: "Type", allLabel: "All types", options: typeOptions },
+            { param: "country", label: "Country", allLabel: "All countries", options: countryOptions }
+          ]}
+        />
+        <p className="text-[12px] text-fg-muted">
+          Showing {shown.length} of {total} organizations
+        </p>
+      </div>
+
+      {loadFailed ? (
+        <Alert tone="error">
+          Could not load organizations. This is a server problem on our side, not your data. Reload to try again.
+        </Alert>
+      ) : total === 0 ? (
         <EmptyOrgs />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="No organizations match these filters"
+          description="Clear the search or pick a different status, type or country."
+        />
       ) : (
         <Table>
           <THead>
@@ -91,7 +156,7 @@ export default async function OrganizationsPage({
             </TR>
           </THead>
           <TBody>
-            {page.items.map((o) => (
+            {shown.map((o) => (
               <TR key={o.id}>
                 <TD className="font-medium">
                   <Link
