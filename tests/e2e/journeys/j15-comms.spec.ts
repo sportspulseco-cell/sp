@@ -158,9 +158,15 @@ test("3. player @ player-web /notifications receives the announcement and mark-r
   if (await item.isVisible().catch(() => false)) {
     const before = (await mainText(p)).match(/(\d+) unread/)?.[1];
     await item.click();
-    await p.waitForTimeout(1500);
-    const afterTxt = await mainText(p);
-    const after = afterTxt.match(/(\d+) unread/)?.[1] ?? (/All read/.test(afterTxt) ? "0" : "?");
+    // Same page, no reload: give router.refresh() up to 10 s.
+    let afterTxt = "";
+    let after = "?";
+    for (let i = 0; i < 20; i++) {
+      await p.waitForTimeout(500);
+      afterTxt = await mainText(p);
+      after = afterTxt.match(/(\d+) unread/)?.[1] ?? "0";
+      if (Number(after) < Number(before)) break;
+    }
     log("unread before/after mark-read:", before, after);
     expect.soft(Number(after), "unread counter drops in place").toBeLessThan(Number(before));
   }
