@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import {
   ArrowLeft,
   CalendarRange,
@@ -102,8 +103,8 @@ export default async function PersonDetailPage({
     registration
       .listRegistrations({ subjectPersonId: id })
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listTeams({}).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     communications.forPerson(id).catch(() => [])
   ]);
 

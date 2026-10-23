@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 ﻿"use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -134,19 +135,19 @@ export function AssignRolePanel({
           return p.items.map((o) => ({ id: o.id, label: o.displayName }));
         }
         case "league": {
-          const p = await leagueMgmt.listLeagues({});
+          const p = await fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor }));
           return p.items.map((l) => ({ id: l.id, label: l.name }));
         }
         case "season": {
-          const p = await leagueMgmt.listSeasons({});
+          const p = await fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor }));
           return p.items.map((s) => ({ id: s.id, label: s.name }));
         }
         case "division": {
-          const p = await leagueMgmt.listDivisions({});
+          const p = await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor }));
           return p.items.map((d) => ({ id: d.id, label: d.name }));
         }
         case "team": {
-          const p = await leagueMgmt.listTeams({});
+          const p = await fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }));
           return p.items.map((t) => ({
             id: t.id,
             label: t.shortName ? `${t.name} (${t.shortName})` : t.name

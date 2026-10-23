@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { leagueMgmt, orgAdminPersons, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
@@ -17,14 +18,11 @@ export default async function NewInvoicePage() {
     // orgs.list caps at @Max(100); 500 throws ValidationError and the
     // catch swallows it to {} — leaving the org picker empty (bug).
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listLeagues({})
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listSeasons({})
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listTeams({})
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 

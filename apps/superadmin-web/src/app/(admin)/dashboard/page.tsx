@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import {
   Building2,
   Trophy,
@@ -49,9 +50,9 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     orgs.list({ limit: 100 }).catch(() => ({ items: [] })),
     iam.listUsers({ limit: 100 }).catch(() => ({ items: [] })),
-    leagueMgmt.listSeasons().catch(() => ({ items: [] })),
-    leagueMgmt.listLeagues().catch(() => ({ items: [] })),
-    leagueMgmt.listTeams().catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [] })),
     registration.listRegistrations().catch(() => ({ items: [] })),
     roster.listMemberships({ activeOnly: true }).catch(() => ({ items: [] })),
     gameOps.listGames({ limit: 100 }).catch(() => ({ items: [] }))

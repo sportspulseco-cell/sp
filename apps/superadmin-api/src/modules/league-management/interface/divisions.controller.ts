@@ -62,7 +62,7 @@ export class DivisionsController {
     return this.getH.execute({
       id,
       leagueIdsFilter: scope.leagueIds ?? undefined,
-      orgIdsFilter: scope.orgIds ?? undefined
+      orgIdsFilter: scope.orgWideOrgIds ?? undefined
     });
   }
   @Post()

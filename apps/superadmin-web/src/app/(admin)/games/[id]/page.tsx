@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -48,8 +49,8 @@ export default async function GameDetailPage({
   const [events, statLines, teamsPage, leaguesPage, officials, personsPage] = await Promise.all([
     gameOps.eventsForGame(id).catch(() => []),
     stats.linesForGame(id).catch(() => []),
-    leagueMgmt.listTeams({}).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     gameOps.listOfficials(id).catch(() => []),
     iam.listPersons({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);

@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Layers, Wand2, Network, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -34,8 +35,8 @@ export default async function DivisionsPage({
   // Always fetch seasons + leagues for the column lookup labels and
   // the legacy-leagueId resolution.
   const [seasonsPage, leaguesPage] = await Promise.all([
-    leagueMgmt.listSeasons().catch(() => ({ items: [] as Season[] })),
-    leagueMgmt.listLeagues().catch(() => ({ items: [] }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] as Season[] })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
   const seasonMap = new Map(seasonsPage.items.map((s) => [s.id, s]));
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
@@ -48,8 +49,7 @@ export default async function DivisionsPage({
       .listDivisions({ seasonId: sp.seasonId })
       .catch(() => ({ items: [] }))) as { items: Division[] };
   } else {
-    const all = (await leagueMgmt
-      .listDivisions({})
+    const all = (await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor }))
       .catch(() => ({ items: [] }))) as { items: Division[] };
     if (sp?.leagueId) {
       divs = {

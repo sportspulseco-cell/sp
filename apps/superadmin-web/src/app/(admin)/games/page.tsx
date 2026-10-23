@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { CalendarRange, CircleDot, Flag, Clock } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
@@ -54,8 +55,8 @@ export default async function GamesPage({
     gameOps
       .listGames({ leagueId, status, limit: 100 })
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listTeams({}).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));

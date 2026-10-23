@@ -10,12 +10,12 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
  * empty array means the principal has zero visibility for that dimension.
  *
  * Projection rules:
- *   - org-scoped role  â†’ that org + every league owned by it
- *   - league-scoped    â†’ that league + its parent org
- *   - team-scoped      â†’ that team + its parent org (read-only access for the
+ *   - org-scoped role  → that org + every league owned by it
+ *   - league-scoped    → that league + its parent org
+ *   - team-scoped      → that team + its parent org (read-only access for the
  *                        captain / coach / player apps)
  *
- * Updated 2026-05-07 â€” added `teamIds` so the team-targeted apps
+ * Updated 2026-05-07 — added `teamIds` so the team-targeted apps
  * (team-admin-web, player-web) can hit existing scoped endpoints
  * without a full role-and-scope DSL migration.
  */
@@ -24,6 +24,15 @@ export interface UserScope {
   leagueIds: string[] | null;
   orgIds: string[] | null;
   teamIds: string[] | null;
+  /**
+   * Orgs whose league-owned records (seasons, divisions) are visible
+   * org-wide: direct org grants plus team / division / membership
+   * projections. Excludes orgs reached ONLY through a league grant, so a
+   * league_admin sees their own league's seasons and not sibling
+   * leagues' (SETUP-15). Use this, not orgIds, when OR-ing an org branch
+   * with leagueIds for league-owned records.
+   */
+  orgWideOrgIds: string[] | null;
 }
 
 export async function loadUserScope(
@@ -37,7 +46,7 @@ export async function loadUserScope(
     .limit(1);
 
   if (profile?.isSuperAdmin) {
-    return { isSuperAdmin: true, leagueIds: null, orgIds: null, teamIds: null };
+    return { isSuperAdmin: true, leagueIds: null, orgIds: null, teamIds: null, orgWideOrgIds: null };
   }
 
   const rows = await db
@@ -55,7 +64,7 @@ export async function loadUserScope(
 
   // Platform-scoped roles widen visibility beyond per-org/per-league filtering.
   if (rows.some((r) => r.scopeType === "platform")) {
-    return { isSuperAdmin: false, leagueIds: null, orgIds: null, teamIds: null };
+    return { isSuperAdmin: false, leagueIds: null, orgIds: null, teamIds: null, orgWideOrgIds: null };
   }
 
   const directOrgIds = rows
@@ -67,8 +76,8 @@ export async function loadUserScope(
   const directTeamIds = rows
     .filter((r) => r.scopeType === "team" && r.scopeId)
     .map((r) => r.scopeId as string);
-  // Added 2026-05-25 â€” the registration funnel grants `player` role at
-  // division scope. Without projecting division â†’ season â†’ league â†’
+  // Added 2026-05-25 — the registration funnel grants `player` role at
+  // division scope. Without projecting division → season → league →
   // org, the player's scope reads as empty (orgIds=[], leagueIds=[])
   // and surfaces like player-web's "Join free-agent pool" page (which
   // filters seasons by orgId) render an empty state.
@@ -173,6 +182,14 @@ export async function loadUserScope(
       ...membershipProjection.orgIds
     ])
   );
+  const orgWideOrgIds = Array.from(
+    new Set([
+      ...directOrgIds,
+      ...projectedOrgIdsFromTeams,
+      ...divisionProjection.orgIds,
+      ...membershipProjection.orgIds
+    ])
+  );
   const teamIds = Array.from(
     new Set([...directTeamIds, ...membershipProjection.teamIds])
   );
@@ -181,6 +198,7 @@ export async function loadUserScope(
     isSuperAdmin: false,
     leagueIds,
     orgIds,
-    teamIds
+    teamIds,
+    orgWideOrgIds
   };
 }

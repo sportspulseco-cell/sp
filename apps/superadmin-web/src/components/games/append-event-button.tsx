@@ -99,7 +99,9 @@ function AppendDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Prefer rostered players for the selected team, fall back to all persons.
+  // Only the selected team's active roster. Filtering a platform-wide
+  // person page dropped anyone past the first page (SCH-22), and the old
+  // fallback offered unrelated people.
   useEffect(() => {
     let cancelled = false;
     setPersonsLoading(true);
@@ -108,13 +110,15 @@ function AppendDialog({
       try {
         const memberships = await roster.listMemberships({
           teamId: form.teamId,
-          activeOnly: true
+          activeOnly: true,
+          limit: 100
         });
-        const personIds = new Set(memberships.items.map((m) => m.personId));
-        const all = await iam.listPersons({ limit: 100 });
-        const rostered = all.items.filter((p) => personIds.has(p.id));
+        const personIds = [...new Set(memberships.items.map((m) => m.personId))];
+        const rostered = (
+          await Promise.all(personIds.map((id) => iam.getPerson(id).catch(() => null)))
+        ).filter((p): p is Person => p !== null);
         if (cancelled) return;
-        setPersons(rostered.length > 0 ? rostered : all.items);
+        setPersons(rostered);
       } catch {
         if (cancelled) return;
         setPersons([]);
@@ -191,7 +195,7 @@ function AppendDialog({
             personsLoading
               ? "Loading roster…"
               : persons.length === 0
-                ? "No persons found — leave blank for non-attributed events."
+                ? "This team has no active roster players. Leave blank for a team-level event."
                 : "Optional — leave blank for team-level events (e.g. timeouts)."
           }
         >

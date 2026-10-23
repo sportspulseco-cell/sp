@@ -6,3 +6,4 @@
 // in `apps/superadmin-api`.
 export * from "./types";
 export * from "./sdk";
+export * from "./fetch-all";

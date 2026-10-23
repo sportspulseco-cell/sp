@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { ClipboardList, FileBarChart, ListChecks, Trophy } from "lucide-react";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,9 +10,9 @@ export const metadata = { title: "Reports — SportsPulse" };
 
 export default async function ReportsPage() {
   const [leaguesPage, orgsPage, seasonsPage] = await Promise.all([
-    leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   return (

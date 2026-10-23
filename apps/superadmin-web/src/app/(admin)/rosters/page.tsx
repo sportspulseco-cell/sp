@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
@@ -39,13 +40,12 @@ export default async function RostersPage({
         activeOnly
       })
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listTeams({})
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     iam
       .listPersons({ limit: 100 })
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
   const teamMap = new Map(
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])

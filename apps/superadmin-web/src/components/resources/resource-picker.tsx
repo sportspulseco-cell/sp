@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Loader2, Search, X } from "lucide-react";
 import type { ScopeType } from "@sportspulse/kernel";
@@ -198,7 +199,7 @@ async function fetchOptions(scope: ResourceScope): Promise<Option[]> {
       }));
     }
     case "league": {
-      const page = await leagueMgmt.listLeagues({});
+      const page = await fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor }));
       return page.items.map((l) => ({
         id: l.id,
         label: l.name,
@@ -206,7 +207,7 @@ async function fetchOptions(scope: ResourceScope): Promise<Option[]> {
       }));
     }
     case "season": {
-      const page = await leagueMgmt.listSeasons({});
+      const page = await fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor }));
       return page.items.map((s) => ({
         id: s.id,
         label: s.name,
@@ -214,7 +215,7 @@ async function fetchOptions(scope: ResourceScope): Promise<Option[]> {
       }));
     }
     case "division": {
-      const page = await leagueMgmt.listDivisions({});
+      const page = await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor }));
       return page.items.map((d) => ({
         id: d.id,
         label: d.name,
@@ -222,7 +223,7 @@ async function fetchOptions(scope: ResourceScope): Promise<Option[]> {
       }));
     }
     case "team": {
-      const page = await leagueMgmt.listTeams({});
+      const page = await fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }));
       return page.items.map((t) => ({
         id: t.id,
         label: t.name,

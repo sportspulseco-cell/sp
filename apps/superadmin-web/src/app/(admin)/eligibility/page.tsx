@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
@@ -61,7 +62,7 @@ export default async function EligibilityPage({
           .catch(() => ({ items: [], nextCursor: null }))
       : Promise.resolve(null),
     iam.listPersons({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listSeasons().catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   const personMap = new Map(

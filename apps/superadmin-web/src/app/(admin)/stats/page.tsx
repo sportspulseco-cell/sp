@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { BarChart3, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, stats } from "@/lib/api/server-api";
@@ -40,8 +41,8 @@ export default async function StatsPage({
   const divisionId = sp?.divisionId;
 
   const [leaguesPage, teamsPage, divisionsPage] = await Promise.all([
-    leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listTeams({}).catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt
       // Post-flip: divisions live under seasons. Stats page used to
       // filter by league; for now show all divisions and the in-page

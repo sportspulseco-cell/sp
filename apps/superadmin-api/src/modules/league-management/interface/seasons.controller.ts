@@ -61,7 +61,7 @@ export class SeasonsController {
     return this.listH.execute({
       ...q,
       leagueIdsFilter: scope.leagueIds ?? undefined,
-      orgIdsFilter: scope.orgIds ?? undefined
+      orgIdsFilter: scope.orgWideOrgIds ?? undefined
     });
   }
 
@@ -73,7 +73,7 @@ export class SeasonsController {
     return this.getH.execute({
       id,
       leagueIdsFilter: scope.leagueIds ?? undefined,
-      orgIdsFilter: scope.orgIds ?? undefined
+      orgIdsFilter: scope.orgWideOrgIds ?? undefined
     });
   }
 

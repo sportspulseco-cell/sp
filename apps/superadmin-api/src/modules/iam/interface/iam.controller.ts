@@ -93,7 +93,7 @@ export class IamController {
     personId: string | null;
   }> {
     // Reuses the same projection as loadUserScope but returns the raw
-    // direct assignments alongside the projected sets â€” the apps need
+    // direct assignments alongside the projected sets — the apps need
     // both ("which team am I on?" vs "which orgs can I read?").
     const [profileRows, assignments, personRows] = await Promise.all([
       this.db
@@ -174,7 +174,7 @@ export class IamController {
           "Player";
         const parts = display.split(/\s+/);
         const fn = parts[0] || display;
-        const ln = parts.slice(1).join(" ") || "â€”";
+        const ln = parts.slice(1).join(" ") || "—";
         const [created] = await this.db
           .insert(schema.persons)
           .values({
@@ -192,16 +192,16 @@ export class IamController {
       }
     }
 
-    // Dedupe per scope dimension â€” a user holding multiple roles on
+    // Dedupe per scope dimension — a user holding multiple roles on
     // the same team (e.g. captain + coach) should count as one team
-    // for UI purposes ("Â· 1 team", not "Â· 2 teams").
+    // for UI purposes ("· 1 team", not "· 2 teams").
     const dedupe = (xs: string[]) => Array.from(new Set(xs));
 
     // Resolve the projected scope through the canonical helper. The
     // earlier inline projection here ignored `division`-scoped
     // assignments entirely, so the player-app pages that filter by
     // orgIds saw empty arrays for free-agent players. Single source
-    // of truth lives in loadUserScope â€” keep it that way.
+    // of truth lives in loadUserScope — keep it that way.
     const projected = await loadUserScope(this.db, principal.userId);
 
     return {
@@ -235,7 +235,7 @@ export class IamController {
   @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
-      "Team memberships for a user â€” every team_memberships row joined through persons.user_id, enriched with team / org / season / division names so the user detail page can show 'which teams + divisions is this person on'."
+      "Team memberships for a user — every team_memberships row joined through persons.user_id, enriched with team / org / season / division names so the user detail page can show 'which teams + divisions is this person on'."
   })
   async memberships(@Param("id") id: string): Promise<{
     items: Array<{
@@ -522,7 +522,7 @@ export class IamController {
         and(
           eq(schema.registrationFormVersions.locked, true),
           eq(schema.registrationForms.purpose, "role_profile"),
-          // applies_to_roles is a text[] column â€” uses && (overlap) so
+          // applies_to_roles is a text[] column — uses && (overlap) so
           // a form tagged ['player','free_agent'] matches either code.
           sql`${schema.registrationForms.appliesToRoles} && ARRAY[${code}]::text[]`
         )

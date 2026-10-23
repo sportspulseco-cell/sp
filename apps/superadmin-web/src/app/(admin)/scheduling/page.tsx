@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { CalendarRange, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -23,8 +24,8 @@ export const metadata = { title: "Schedule — SportsPulse" };
  */
 export default async function SchedulingIndexPage() {
   const [seasonsPage, leaguesPage] = await Promise.all([
-    leagueMgmt.listSeasons({}).catch(() => ({ items: [] })),
-    leagueMgmt.listLeagues().catch(() => ({ items: [] }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
 

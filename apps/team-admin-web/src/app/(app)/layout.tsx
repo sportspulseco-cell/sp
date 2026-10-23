@@ -12,7 +12,7 @@ import { TopBar } from "@/components/layout/top-bar";
  * Workflow 7A Phase 2 hook: when the captain's primary team is in
  * `registration_open` mode, the top-of-page green banner AND the
  * sidebar's pulsing "Register the team" entry render at the same
- * time (driven by the same `mode` flag â€” never one without the other).
+ * time (driven by the same `mode` flag — never one without the other).
  */
 export default async function AppLayout({
   children
@@ -34,10 +34,10 @@ export default async function AppLayout({
   const primaryTeamId = scope?.teamIds[0] ?? null;
   const primaryRole = isCaptain ? "captain" : "coach";
   const roleLine = profile && scope
-    ? `${primaryRole} Â· ${scope.teamIds.length} team${scope.teamIds.length === 1 ? "" : "s"}`
-    : "loadingâ€¦";
+    ? `${primaryRole} · ${scope.teamIds.length} team${scope.teamIds.length === 1 ? "" : "s"}`
+    : "loading…";
 
-  // Mode detection â€” only worth fetching when there's actually a team
+  // Mode detection — only worth fetching when there's actually a team
   // to fetch state for and the user is a captain on it.
   const dashboardState =
     isCaptain && primaryTeamId

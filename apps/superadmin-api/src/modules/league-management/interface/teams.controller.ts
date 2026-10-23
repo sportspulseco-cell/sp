@@ -39,6 +39,20 @@ import {
   UpdateTeamBodyDto
 } from "./dto/team.dto";
 
+/**
+ * externalIds update for the optional "Home rink" field. A blank value
+ * removes the key. jsonb_set with to_jsonb(NULL) returns NULL, which
+ * the NOT NULL external_ids column rejected (SETUP-6: blank rink 500'd
+ * after the team row was already written).
+ */
+function homeRinkExternalIds(homeRink: string | null | undefined) {
+  const current = sql`COALESCE(${schema.teams.externalIds}, '{}'::jsonb)`;
+  const value = homeRink?.trim();
+  return value
+    ? sql`jsonb_set(${current}, '{homeRink}', to_jsonb(${value}::text))`
+    : sql`${current} - 'homeRink'`;
+}
+
 @ApiTags("league-management/teams")
 @ApiBearerAuth()
 @Controller("league/teams")
@@ -61,7 +75,7 @@ export class TeamsController {
       scope.leagueIds && scope.leagueIds.length === 0 && (scope.teamIds?.length ?? 0) > 0
         ? undefined
         : (scope.leagueIds ?? undefined);
-    // Pass scope.orgIds alongside leagueIds â€” handler union's them so
+    // Pass scope.orgIds alongside leagueIds — handler union's them so
     // org admins also see orphan teams (no division entry) in their
     // orgs. `null` orgIds is unrestricted, so leave undefined in that
     // case.
@@ -73,9 +87,9 @@ export class TeamsController {
     });
     if (page.items.length === 0) return page;
 
-    // P2-2 â€” narrow to teams with an active DTE in the requested
+    // P2-2 — narrow to teams with an active DTE in the requested
     // division. Done at the controller level so the underlying list
-    // handler stays unchanged. Non-terminal statuses only â€” a team
+    // handler stays unchanged. Non-terminal statuses only — a team
     // whose DTE is rejected/withdrawn shouldn't show up to players.
     let items = page.items;
     if (q.divisionId) {
@@ -129,7 +143,7 @@ export class TeamsController {
   async create(@Body() body: CreateTeamBodyDto): Promise<TeamDto> {
     // ARCH 2: only super_admin / org_admin can create teams. The
     // controller-level AuthorizedAccessGuard already enforces that
-    // mutations require non-scoped access â€” captains are blocked here.
+    // mutations require non-scoped access — captains are blocked here.
 
     // Duplicate-name guard. Case-insensitive per org. Returns 422 with
     // the existing team's id so the UI can deep-link to it.
@@ -158,7 +172,7 @@ export class TeamsController {
       });
     }
 
-    // Create the core team via the existing handler â€” keeps domain
+    // Create the core team via the existing handler — keeps domain
     // invariants intact (id format, name trim, status default).
     const team = await this.createH.execute({
       orgId: body.orgId,
@@ -181,7 +195,7 @@ export class TeamsController {
         .set({
           ...(body.homeRink !== undefined
             ? {
-                externalIds: sql`jsonb_set(${schema.teams.externalIds}, '{homeRink}', to_jsonb(${body.homeRink}::text))`
+                externalIds: homeRinkExternalIds(body.homeRink)
               }
             : {}),
           ...(body.confirmationThresholdCents !== undefined
@@ -216,7 +230,7 @@ export class TeamsController {
 
     // Core fields go through the domain handler. Captain-scoped users
     // (captain / captain) get their team-profile edits via this
-    // path â€” same dual-role pattern as before.
+    // path — same dual-role pattern as before.
     await this.updateH.execute({
       id,
       name: body.name,
@@ -226,7 +240,7 @@ export class TeamsController {
     });
 
     // Workflow-7A extensions. Only super/org admins get to move the
-    // threshold â€” captains can edit branding but not billing knobs.
+    // threshold — captains can edit branding but not billing knobs.
     if (
       body.homeRink !== undefined ||
       body.confirmationThresholdCents !== undefined
@@ -243,7 +257,7 @@ export class TeamsController {
         .set({
           ...(body.homeRink !== undefined
             ? {
-                externalIds: sql`jsonb_set(${schema.teams.externalIds}, '{homeRink}', to_jsonb(${body.homeRink}::text))`
+                externalIds: homeRinkExternalIds(body.homeRink)
               }
             : {}),
           ...(body.confirmationThresholdCents !== undefined
@@ -263,7 +277,7 @@ export class TeamsController {
   }
 
   // -------------------------------------------------------------------
-  // Workflow 7A Â· Phase 1 â€” captain assignment + status transition
+  // Workflow 7A · Phase 1 — captain assignment + status transition
   // -------------------------------------------------------------------
 
   @Post(":id/captain")
@@ -408,7 +422,7 @@ export class TeamsController {
       .limit(1);
     if (!captainRole) {
       throw new NotFoundException(
-        "captain role not seeded â€” run pnpm --filter @sportspulse/db seed first"
+        "captain role not seeded — run pnpm --filter @sportspulse/db seed first"
       );
     }
 
@@ -449,7 +463,7 @@ export class TeamsController {
         .set({ captainUserId: userId, updatedAt: new Date() })
         .where(eq(schema.teams.id, teamId));
 
-      // 4. Workflow 7B Â· Case 8 â€” append-only audit on roster_moves.
+      // 4. Workflow 7B · Case 8 — append-only audit on roster_moves.
       //    Skip when no current season is on file (team in off-season).
       if (currentSeasonId && newCaptainPersonId) {
         if (previousCaptainPersonId) {

@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { NoShowReport } from "./report";
@@ -6,8 +7,7 @@ export const metadata = { title: "No-show report — SportsPulse" };
 export const dynamic = "force-dynamic";
 
 export default async function NoShowReportPage() {
-  const seasons = await leagueMgmt
-    .listSeasons({})
+  const seasons = await fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor }))
     .catch(() => ({ items: [], nextCursor: null }));
 
   return (

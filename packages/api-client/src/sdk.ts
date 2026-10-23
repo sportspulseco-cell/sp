@@ -1295,6 +1295,8 @@ export function createApi(f: Fetcher) {
       // Post-flip hierarchy (2026-05-09): Org → League → Season → Division.
       listSeasons: (
         q: {
+          limit?: number;
+          cursor?: string;
           leagueId?: string;
           orgId?: string;
           sportCode?: string;
@@ -1364,7 +1366,13 @@ export function createApi(f: Fetcher) {
         ),
 
       listLeagues: (
-        q: { orgId?: string; sportCode?: string; status?: string } = {}
+        q: {
+          limit?: number;
+          cursor?: string;
+          orgId?: string;
+          sportCode?: string;
+          status?: string;
+        } = {}
       ) => f<Page<League>>(`/league/leagues${qs(q)}`),
       getLeague: (id: string) => f<League>(`/league/leagues/${id}`),
       createLeague: (body: {
@@ -1404,8 +1412,9 @@ export function createApi(f: Fetcher) {
       listAgeGroups: (q: { governingBodyId?: string } = {}) =>
         f<AgeGroup[]>(`/league/age-groups${qs(q)}`),
 
-      listDivisions: (q: { seasonId?: string } = {}) =>
-        f<Page<Division>>(`/league/divisions${qs(q)}`),
+      listDivisions: (
+        q: { limit?: number; cursor?: string; seasonId?: string } = {}
+      ) => f<Page<Division>>(`/league/divisions${qs(q)}`),
       getDivision: (id: string) =>
         f<Division>(`/league/divisions/${id}`),
       createDivision: (body: {
@@ -1427,6 +1436,8 @@ export function createApi(f: Fetcher) {
 
       listTeams: (
         q: {
+          limit?: number;
+          cursor?: string;
           orgId?: string;
           sportCode?: string;
           status?: string;
@@ -1682,6 +1693,8 @@ export function createApi(f: Fetcher) {
 
     roster: {
       listMemberships: (q: {
+        limit?: number;
+        cursor?: string;
         teamId?: string;
         personId?: string;
         seasonId?: string;

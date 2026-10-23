@@ -19,7 +19,7 @@ import { CreateRoleButton } from "@/components/roles/create-role-button";
 import { DeleteRoleButton } from "@/components/roles/delete-role-button";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 
-export const metadata = { title: "Roles â€” SportsPulse" };
+export const metadata = { title: "Roles — SportsPulse" };
 
 const HIERARCHY = [
   "super_admin",
@@ -62,7 +62,7 @@ export default async function RolesPage() {
       <PageHeader
         eyebrow="iam"
         title="Roles"
-        description="System roles cascade top-down â€” super_admin inherits everything below it. Custom roles attach to a single org and live alongside the system catalog."
+        description="System roles cascade top-down — super_admin inherits everything below it. Custom roles attach to a single org and live alongside the system catalog."
         action={<CreateRoleButton />}
       />
       <KineticStrip
@@ -106,7 +106,7 @@ export default async function RolesPage() {
                     {code}
                   </span>
                   {i < HIERARCHY.length - 1 ? (
-                    <span aria-hidden>â†’</span>
+                    <span aria-hidden>→</span>
                   ) : null}
                 </li>
               ))}
@@ -120,7 +120,7 @@ export default async function RolesPage() {
         <header>
           <Eyebrow>System roles</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Seeded with the platform. Read-only â€” names + permissions are
+            Seeded with the platform. Read-only — names + permissions are
             managed via migrations.
           </p>
         </header>
@@ -158,7 +158,7 @@ export default async function RolesPage() {
                     </Link>
                   </TD>
                   <TD className="text-fg-muted">
-                    {r.description ?? <span className="text-fg-muted">â€”</span>}
+                    {r.description ?? <span className="text-fg-muted">—</span>}
                   </TD>
                   <TD>
                     <PermissionBadges permissions={r.permissions} />
@@ -219,7 +219,7 @@ export default async function RolesPage() {
                   </TD>
                   <TD className="text-fg">{r.name}</TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
-                    {r.orgId?.slice(0, 8) ?? "â€”"}
+                    {r.orgId?.slice(0, 8) ?? "—"}
                   </TD>
                   <TD>
                     <PermissionBadges permissions={r.permissions} />

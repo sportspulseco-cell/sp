@@ -69,7 +69,7 @@ export class GamesController {
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<GameDto> {
-    // Mirror the list endpoint's "direct team-scope bypass" â€” when the
+    // Mirror the list endpoint's "direct team-scope bypass" — when the
     // game's home OR away team is one the caller holds directly (e.g.
     // captain on the team), don't gate on leagueIds (captains never
     // have any). Otherwise team-scoped users got 404 on every game

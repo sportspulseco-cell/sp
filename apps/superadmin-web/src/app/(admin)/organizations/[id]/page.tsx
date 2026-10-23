@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import {
   ArrowLeft,
   Building2,
@@ -71,7 +72,7 @@ export default async function OrgDetailPage({
     leagueMgmt
       .listSeasons({ orgId: id })
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt.listLeagues().catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     leagueMgmt
       .listTeams({ orgId: id })
       .catch(() => ({ items: [], nextCursor: null })),

@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
@@ -58,8 +59,7 @@ export default async function GameEventsPage({
         limit: 100
       })
       .catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      .listTeams({})
+    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 

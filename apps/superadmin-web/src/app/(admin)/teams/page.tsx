@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 ﻿import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -15,10 +16,10 @@ import {
 } from "@/components/ui/table";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 
-export const metadata = { title: "Teams â€” SportsPulse" };
+export const metadata = { title: "Teams — SportsPulse" };
 
 export default async function TeamsPage() {
-  const teams = await leagueMgmt.listTeams().catch(() => ({ items: [] }));
+  const teams = await fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [] }));
 
   const total = teams.items.length;
   const active = teams.items.filter((t) => t.status === "active").length;
@@ -95,7 +96,7 @@ export default async function TeamsPage() {
                     {t.name}
                   </Link>
                 </TD>
-                <TD className="text-muted-foreground">{t.shortName ?? "â€”"}</TD>
+                <TD className="text-muted-foreground">{t.shortName ?? "—"}</TD>
                 <TD className="text-muted-foreground">{t.sportCode}</TD>
                 <TD>
                   <Link
@@ -103,7 +104,7 @@ export default async function TeamsPage() {
                     className="inline-flex items-center gap-1 text-fg-muted hover:text-fg hover:underline"
                   >
                     <Building2 className="h-3 w-3" strokeWidth={1.75} />
-                    {t.ownerOrgName ?? "â€”"}
+                    {t.ownerOrgName ?? "—"}
                   </Link>
                 </TD>
                 <TD>
