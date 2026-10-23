@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -21,9 +22,11 @@ import { UserActionsMenu } from "@/components/users/user-actions-menu";
 export const metadata = { title: "Users — SportsPulse" };
 
 export default async function UsersPage() {
-  const page = await iam
-    .listUsers({ limit: 50 })
-    .catch(() => ({ items: [], nextCursor: null }));
+  // Every account, not the first 50: newly invited users were missing
+  // and the KPI tiles undercounted (68 users on staging).
+  const page = await fetchAll((cursor) => iam.listUsers({ limit: 100, cursor })).catch(
+    () => ({ items: [], nextCursor: null })
+  );
 
   const total = page.items.length;
   const active = page.items.filter((u) => u.status === "active").length;

@@ -271,10 +271,22 @@ test("J8.3 revoked invite token still resolves on the public endpoint", async ({
   const p = cap.page;
   await p.goto(`${cap.app}/captain/invites`);
   await settle(p);
+  // J8.2 accepted the first team link, which (correctly) can no longer
+  // be revoked; create a fresh one to revoke.
+  await p.locator("#season").selectOption({ label: "Staging 2026-27" });
+  await p.locator("#kind").selectOption("generic");
+  await p.getByRole("button", { name: /create url/i }).click();
+  const fresh = p.getByText(/Team link created/);
+  await expect(fresh).toBeVisible({ timeout: 15_000 });
+  genericToken = ((await fresh.innerText()).match(/\/invite\/(\S+)/)?.[1] ?? "").trim();
+  await settle(p);
   const before = await snap(p, "30-before-revoke");
   // Revoke the generic link (row with kind GENERIC).
-  const genericRow = p.getByRole("row").filter({ hasText: /generic/i }).first();
-  const revoke = (await genericRow.count()) ? genericRow.getByRole("button", { name: /revoke/i }) : p.getByRole("button", { name: /revoke/i }).first();
+  const revoke = p
+    .getByRole("row")
+    .filter({ hasText: /generic/i })
+    .getByRole("button", { name: /revoke/i })
+    .first();
   await Promise.all([
     p.waitForResponse((r) => /team-invites\/.*\/revoke/.test(r.url()), { timeout: 20_000 }).catch(() => null),
     revoke.click()

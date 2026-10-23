@@ -49,7 +49,7 @@ export default async function DashboardPage() {
     gamesPage
   ] = await Promise.all([
     orgs.list({ limit: 100 }).catch(() => ({ items: [] })),
-    iam.listUsers({ limit: 100 }).catch(() => ({ items: [] })),
+    fetchAll((cursor) => iam.listUsers({ limit: 100, cursor })).catch(() => ({ items: [] })),
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [] })),

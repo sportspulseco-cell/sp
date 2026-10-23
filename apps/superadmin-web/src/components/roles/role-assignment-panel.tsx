@@ -1,4 +1,5 @@
 "use client";
+import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -117,8 +118,7 @@ export function RoleAssignmentPanel({
     }
     let cancelled = false;
     setLoadingHolders(true);
-    iam
-      .listUsers({ roleCode, limit: 50 })
+    fetchAll((cursor) => iam.listUsers({ roleCode, limit: 100, cursor }))
       .then((p) => {
         if (cancelled) return;
         setRoleHolders(p.items);
