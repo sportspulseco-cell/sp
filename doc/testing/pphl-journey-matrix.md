@@ -94,6 +94,43 @@ this one is `blocked`, not `fail`.
 
 ---
 
+## 3a. Status after the fix rounds (staging, 2026-10-23)
+
+Observed in Playwright on staging (`codex/staging` at 530d8f8), one
+role per browser, run one journey group at a time. "Fixed" means the
+round-1 failure no longer happens in the browser; it does not mean the
+journey is complete. Unbuilt use-case steps stay listed under "Open".
+
+| Journey | Fixed and seen working in the browser | Open (not built, or not yet verified) |
+|---|---|---|
+| J1 setup | Team create with blank rink (SETUP-6); status menu offers legal moves only (SETUP-4); sport defaults from the org, else empty (SETUP-3) | Edit org/league/season/division/team after creation (SETUP-2); add a season to an existing league (SETUP-10) |
+| J2 invites | Invites with scope pickers; invitees sign in to their own app; /users lists every account | No invite email on staging (no RESEND key); magic-link invite 500 (SETUP-8) |
+| J3 form | Season picker lists the new season; form builds and publishes; real registration link on Review | Prices typed in cents; no early-bird; registration type not saved (REG-14) |
+| J4 player registration | Wrong password rejected on funnel Sign in (REG-1, screenshot "Email or password is incorrect."); existing email needs its password (REG-2); org admin sees submissions with names (REG-4/17) | Anonymous /register redirects to sign-in (REG-9); waiver skipped when text empty (REG-5); payment is a mock (owner decision: keep dummy) |
+| J5 minor consent | Guardian consents from the link; minor continues; registration reaches approved (REG-7); consent tokens signed (REG-6) | Guardian signature/consent record not stored (REG-15) |
+| J6 free agent | Free agent lists self; captain claims | Pool follows newest division entry (CAP-7); no accept/decline step (CAP-9); no admin pool view (CAP-10) |
+| J7 team application | Apply, approve, deny; set-up wizard refuses an unapproved division (CAP-2) | Wizard does not preselect the approved division; no "Register the team" entry in season (CAP-6); denial reason not shown (CAP-5) |
+| J8 captain invite | Full player-app link; invitee opens it and joins; invite marked accepted (CAP-1, UC-04) | No invite email (CAP-4) |
+| J9 eligibility | Player /compliance shows real status (COMP-5); USA Hockey ID submit works (COMP-2); captain view scoped with names | No ID review queue (COMP-1, UC-29); no file upload (COMP-3) |
+| J10 schedule | Scheduler functions answer on staging (SCH-1); slots carry a season (SCH-2) | Generate needs 2+ teams in a division and no admin screen places a team (SCH-4); no reschedule (SCH-6) |
+| J11 game to stats | Event player picker lists the team roster (SCH-22) | Assists/PIM not counted; finalize does not update stats; scorekeeper/league admin cannot run a game |
+| J12 suspensions | — | Not built (COMP-10/11) |
+| J13 finance | Invoice create (MON-1); composer with people, payment plan, Create and send / Save draft; org admin sees own invoices; no demo data (MON-17) | No fee schedule picker; refund ledger issues (MON-9) |
+| J14 dues | Per-player Remind (MON-7) | Custom split not saved (MON-8) |
+| J15 comms | Announcements delivered; player inbox shows them; unread count drops in place (MON-2/3) | No league/division targeting (MON-13); captain team message not built (MON-12) |
+| J16 store | Captain adds product; player sees it | Ordering not built (MON-15) |
+| J17 isolation | org_admin: 0 org-B leaks across 11 pages, 4 direct URLs and all payloads; league_admin season filter fixed in code (SETUP-15) | league_admin browser check pending a clean run |
+
+Cross-cutting fixes verified: lists no longer stop at 25 rows
+(fetchAll in every app); super-admin-only endpoints no longer hidden as
+empty states for players, captains and org admins; garbled characters
+removed; assistant button no longer covers submit buttons.
+
+Test-environment notes: the local ISP DNS hijacks `*.supabase.co`
+(resolves to 183.82.14.22); runs pin the real edge IP via
+`E2E_SUPABASE_IP`. Under parallel load some pages showed the error
+boundary; not reproduced in single runs, cause unconfirmed.
+
 ## 4. Backend with no screen (found by static sweep, 2026-10-23)
 
 Typed SDK methods that no page calls. Each is a candidate gap, to be
