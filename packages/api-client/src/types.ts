@@ -26,6 +26,61 @@ export interface Profile {
   updatedAt: string;
 }
 
+/** A team's instance in one division (division_team_entries), with names. */
+export interface TeamEntry {
+  id: string;
+  teamId: string;
+  divisionId: string;
+  divisionName: string;
+  seasonId: string;
+  seasonName: string;
+  leagueId: string;
+  leagueName: string;
+  entryStatus: string;
+  movementKind: "rollover" | "division_shift" | "league_migration" | null;
+  previousEntryId: string | null;
+  carryStandings: boolean;
+  complianceFlags: Record<string, unknown>;
+  joinedAt: string;
+  leftAt: string | null;
+}
+
+export type TeamMovementKind = "rollover" | "division_shift" | "league_migration" | "org_move";
+
+/** One row of the team movement audit, with names resolved. */
+export interface TeamMovement {
+  id: string;
+  teamId: string;
+  kind: TeamMovementKind;
+  fromEntryId: string | null;
+  toEntryId: string | null;
+  fromDivisionId: string | null;
+  fromDivisionName: string | null;
+  toDivisionId: string | null;
+  toDivisionName: string | null;
+  fromOrgId: string | null;
+  fromOrgName: string | null;
+  toOrgId: string | null;
+  toOrgName: string | null;
+  resetStandings: boolean | null;
+  rosterCopied: number;
+  complianceFlags: Record<string, unknown>;
+  reason: string | null;
+  movedByUserId: string | null;
+  movedByName: string | null;
+  createdAt: string;
+}
+
+export interface TeamMovementResult {
+  movement: TeamMovement;
+  entry: TeamEntry | null;
+  /** What the admin still has to do after this move. */
+  warnings: string[];
+  replayed: boolean;
+  standingsRecomputed?: boolean;
+  standingsError?: string | null;
+}
+
 /** Region tier owned by an org and reused across seasons. */
 export interface Region {
   id: string;

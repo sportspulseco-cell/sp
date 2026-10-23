@@ -86,7 +86,31 @@ go back. Findings:
 - **Code**: tag the commit before the change (`git tag pre-team-movement-<date>`) and keep the change on its own branch until verified on staging.
 - **Database**: production currently has **no backups** (`supabase backups list` → empty, point-in-time recovery disabled). A database checkpoint therefore needs either a plan with daily backups / PITR turned on, or a manual `pg_dump` of production taken immediately before the migration. All changes above are additive, so rollback of code alone is safe, but data written through the new paths would remain.
 
-## 5. Open questions for PPHL
+## 5. Status (24 Oct 2026)
+
+Built on branch `pphl-journey-fixes`, after PPHL settled the region model
+(a structural tier inside one org's season hierarchy, see `0051_regions`):
+
+| Piece | Where | State |
+|---|---|---|
+| Schema (S1–S4, S7) | `packages/db/migrations/0052_team_movement.sql` (+ `.rollback.sql`) | written, not yet applied to staging or prod |
+| Region tier (S8, revised) | `0051_regions.sql`: `regions` table + `divisions.region_id` | written, not yet applied |
+| Service | `apps/superadmin-api/src/modules/team-movement/application/team-movement.service.ts` | Rules A–D implemented; one transaction per move, row lock on the target division, idempotency key, post-write readback |
+| API | `POST /league/teams/:id/{rollover,division-shift,league-migration,org-move}`, `GET /league/teams/:id/{entries,movements}` | built; org admins limited to their org, org move super admin only |
+| Standings fix | `recompute-standings.handler.ts` | tallies per (division, team); carries games across a non-reset shift via `carry_standings` |
+| UI | Team page → "Seasons & divisions" section → Move team dialog (all pickers by name) | built in superadmin-web |
+| Browser test | `tests/e2e/journeys/team-movement.spec.ts` | written; runs once 0051/0052 are on staging |
+
+S5/S6 (`games.*_entry_id`, `standings.entry_id`) were not needed: played
+games stay in the division they were played in, and the carry-over is
+expressed on the entry instead.
+
+Decisions taken where PPHL had not answered: a mid-season shift makes the
+admin choose reset vs carry explicitly (no default); league migration
+never moves dues (flagged for review); org move refuses while the team
+still plays in the old org unless forced.
+
+## 6. Open questions for PPHL
 
 1. Is a region always an org node (Massachusetts, New Hampshire) under one parent org, or a free label on an org? (Affects S8 and the Users "Region" filter.)
 2. Mid-season division shift default: reset standings or carry them? 

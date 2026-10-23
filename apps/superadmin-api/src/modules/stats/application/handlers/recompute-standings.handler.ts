@@ -75,9 +75,49 @@ export class RecomputeStandingsHandler
         )
       );
 
+    // Mid-season division shift without a reset (0052): games the team
+    // played under its previous instance count toward the division it
+    // now plays in. Map (team, old division) -> new division, following
+    // chains of shifts.
+    const carried = await this.db
+      .select({
+        teamId: schema.divisionTeamEntries.teamId,
+        toDivisionId: schema.divisionTeamEntries.divisionId,
+        fromDivisionId: sql<string>`prev.division_id`
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        sql`division_team_entries prev`,
+        sql`prev.id = ${schema.divisionTeamEntries.previousEntryId}`
+      )
+      .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
+      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
+      .where(
+        and(
+          eq(schema.seasons.leagueId, input.leagueId),
+          eq(schema.divisionTeamEntries.carryStandings, true),
+          sql`${schema.divisionTeamEntries.entryStatus} NOT IN ('rejected','withdrawn','disqualified','moved')`
+        )
+      );
+    const remap = new Map<string, string>();
+    for (const c of carried) remap.set(`${c.teamId}:${c.fromDivisionId}`, c.toDivisionId);
+    const divisionFor = (teamId: string, divisionId: string | null): string | null => {
+      let d = divisionId;
+      for (let hops = 0; d && hops < 10; hops++) {
+        const next = remap.get(`${teamId}:${d}`);
+        if (!next || next === d) break;
+        d = next;
+      }
+      return d;
+    };
+
+    // One tally per (division, team). The previous version keyed by team
+    // only and overwrote the division with the last game's, so a team's
+    // record mixed seasons and divisions.
     const tallies = new Map<string, Tally>();
     const init = (teamId: string, divisionId: string | null): Tally => {
-      let t = tallies.get(teamId);
+      const key = `${divisionId ?? "_league_"}:${teamId}`;
+      let t = tallies.get(key);
       if (!t) {
         t = {
           teamId,
@@ -91,16 +131,15 @@ export class RecomputeStandingsHandler
           ga: 0,
           points: 0
         };
-        tallies.set(teamId, t);
+        tallies.set(key, t);
       }
-      if (divisionId) t.divisionId = divisionId;
       return t;
     };
 
     for (const g of games) {
       if (g.status !== "completed" && g.status !== "forfeited") continue;
-      const home = init(g.homeTeamId, g.divisionId);
-      const away = init(g.awayTeamId, g.divisionId);
+      const home = init(g.homeTeamId, divisionFor(g.homeTeamId, g.divisionId));
+      const away = init(g.awayTeamId, divisionFor(g.awayTeamId, g.divisionId));
       home.gp += 1;
       away.gp += 1;
       home.gf += g.homeScore;

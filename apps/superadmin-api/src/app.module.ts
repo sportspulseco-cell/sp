@@ -20,6 +20,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { DataMigrationModule } from "./modules/data-migration/data-migration.module";
 import { CaptainModule } from "./modules/captain/captain.module";
 import { TransfersModule } from "./modules/transfers/transfers.module";
+import { TeamMovementModule } from "./modules/team-movement/team-movement.module";
 import { TeamApplicationsModule } from "./modules/team-applications/team-applications.module";
 import { TeamStoreModule } from "./modules/team-store/team-store.module";
 import { OrgAdminModule } from "./modules/org-admin/org-admin.module";
@@ -48,6 +49,7 @@ import { SchedulingInventoryModule } from "./modules/scheduling-inventory/schedu
     DataMigrationModule,
     CaptainModule,
     TransfersModule,
+    TeamMovementModule,
     TeamApplicationsModule,
     TeamStoreModule,
     OrgAdminModule,

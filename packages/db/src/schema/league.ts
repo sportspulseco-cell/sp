@@ -4,6 +4,7 @@ import {
   uuid,
   text,
   char,
+  boolean,
   integer,
   smallint,
   date,
@@ -475,6 +476,18 @@ export const divisionTeamEntries = pgTable(
     rosterSnapshot: jsonb("roster_snapshot")
       .notNull()
       .default(sql`'{}'::jsonb`),
+    // Team movement (0052). This row is the team's instance for one
+    // division; a move creates a new instance and links back here.
+    previousEntryId: uuid("previous_entry_id"),
+    movementKind: text("movement_kind"), // rollover | division_shift | league_migration
+    // Mid-season division shift without a reset: games played under the
+    // previous instance count toward this division's standings.
+    carryStandings: boolean("carry_standings").notNull().default(false),
+    // Things an admin must still check after a move (fee schedule,
+    // roster rules, dues not moved). Free-form keys, read by the UI.
+    complianceFlags: jsonb("compliance_flags")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -482,17 +495,74 @@ export const divisionTeamEntries = pgTable(
   (t) => ({
     statusCheck: check(
       "dte_entry_status_check",
-      sql`${t.entryStatus} IN ('pending_approval','applied','accepted','confirmed','withdrawn','disqualified','rejected')`
+      sql`${t.entryStatus} IN ('pending_approval','applied','accepted','confirmed','withdrawn','disqualified','rejected','moved')`
     ),
-    // Partial unique — a withdrawn or rejected entry should not block
-    // a later re-apply.
+    movementKindCheck: check(
+      "dte_movement_kind_check",
+      sql`${t.movementKind} IS NULL OR ${t.movementKind} IN ('rollover','division_shift','league_migration')`
+    ),
+    // Partial unique — a withdrawn, rejected or moved-out entry should
+    // not block a later re-entry.
     uniqDivisionTeamActive: uniqueIndex("dte_team_division_active_uniq")
       .on(t.teamId, t.divisionId)
       .where(
-        sql`entry_status NOT IN ('withdrawn', 'rejected', 'disqualified')`
+        sql`entry_status NOT IN ('withdrawn', 'rejected', 'disqualified', 'moved')`
       ),
     divisionIdx: index("dte_division_idx").on(t.divisionId),
     teamIdx: index("dte_team_idx").on(t.teamId),
-    invoiceIdx: index("dte_invoice_idx").on(t.invoiceId)
+    invoiceIdx: index("dte_invoice_idx").on(t.invoiceId),
+    previousEntryIdx: index("dte_previous_entry_idx").on(t.previousEntryId)
+  })
+);
+
+// =====================================================================
+// TEAM MOVEMENTS — append-only audit of every team move (0052)
+// =====================================================================
+
+export const teamMovements = pgTable(
+  "team_movements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // rollover | division_shift | league_migration | org_move
+    fromEntryId: uuid("from_entry_id").references(() => divisionTeamEntries.id, {
+      onDelete: "set null"
+    }),
+    toEntryId: uuid("to_entry_id").references(() => divisionTeamEntries.id, {
+      onDelete: "set null"
+    }),
+    fromDivisionId: uuid("from_division_id").references(() => divisions.id, {
+      onDelete: "set null"
+    }),
+    toDivisionId: uuid("to_division_id").references(() => divisions.id, {
+      onDelete: "set null"
+    }),
+    fromOrgId: uuid("from_org_id").references(() => orgs.id, { onDelete: "set null" }),
+    toOrgId: uuid("to_org_id").references(() => orgs.id, { onDelete: "set null" }),
+    resetStandings: boolean("reset_standings"),
+    rosterCopied: integer("roster_copied").notNull().default(0),
+    complianceFlags: jsonb("compliance_flags")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    reason: text("reason"),
+    movedByUserId: uuid("moved_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    idempotencyKey: text("idempotency_key"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    kindCheck: check(
+      "team_movement_kind_check",
+      sql`${t.kind} IN ('rollover','division_shift','league_migration','org_move')`
+    ),
+    idempotencyUniq: uniqueIndex("team_movement_idempotency_uniq")
+      .on(t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} IS NOT NULL`),
+    teamIdx: index("team_movement_team_idx").on(t.teamId, t.createdAt)
   })
 );

@@ -17,6 +17,9 @@ import type {
   SystemSetting,
   Division,
   Region,
+  TeamEntry,
+  TeamMovement,
+  TeamMovementResult,
   Document,
   DocumentKind,
   DocumentVersion,
@@ -3293,6 +3296,54 @@ export function createApi(f: Fetcher) {
         }>(`/team-store/${teamId}/products`)
     },
 
+    // Team movement (PPHL item 8): rollover, division shift, league
+    // migration, org move. Isolated from leagueMgmt on purpose.
+    teamMovement: {
+      entries: (teamId: string) =>
+        f<{ items: TeamEntry[] }>(`/league/teams/${teamId}/entries`),
+      history: (teamId: string) =>
+        f<{ items: TeamMovement[] }>(`/league/teams/${teamId}/movements`),
+      rollover: (
+        teamId: string,
+        body: { targetDivisionId: string; sourceEntryId?: string; copyRoster: boolean; reason?: string },
+        idempotencyKey?: string
+      ) =>
+        f<TeamMovementResult>(`/league/teams/${teamId}/rollover`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined
+        }),
+      divisionShift: (
+        teamId: string,
+        body: { entryId: string; targetDivisionId: string; resetStandings: boolean; reason?: string },
+        idempotencyKey?: string
+      ) =>
+        f<TeamMovementResult>(`/league/teams/${teamId}/division-shift`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined
+        }),
+      leagueMigration: (
+        teamId: string,
+        body: { entryId: string; targetDivisionId: string; reason?: string },
+        idempotencyKey?: string
+      ) =>
+        f<TeamMovementResult>(`/league/teams/${teamId}/league-migration`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined
+        }),
+      orgMove: (
+        teamId: string,
+        body: { targetOrgId: string; force?: boolean; reason?: string },
+        idempotencyKey?: string
+      ) =>
+        f<TeamMovementResult>(`/league/teams/${teamId}/org-move`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined
+        })
+    },
     adminTransfers: {
       list: (q: { status?: string; orgId?: string } = {}) =>
         f<{ items: TransferRequest[] }>(`/league/admin/transfers${qs(q)}`),

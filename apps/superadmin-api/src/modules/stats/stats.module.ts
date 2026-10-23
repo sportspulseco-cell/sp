@@ -23,6 +23,8 @@ import { DrizzleStatsRepository } from "./infrastructure/repositories/drizzle-st
     ListStandingsHandler,
     TeamStandingHandler,
     { provide: STATS_REPOSITORY, useClass: DrizzleStatsRepository }
-  ]
+  ],
+  // Team movement recomputes a league's standings after a division shift.
+  exports: [RecomputeStandingsHandler]
 })
 export class StatsModule {}
