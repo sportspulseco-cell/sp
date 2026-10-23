@@ -2441,6 +2441,12 @@ export function createApi(f: Fetcher) {
 
     // Workflow 7A · captain console (team-admin-web rollover wizard).
     captain: {
+      /** Invited player joins the team from /invite/[token] (UC-04). */
+      acceptInvite: (token: string) =>
+        f<{ teamId: string; seasonId: string; membershipId: string }>(
+          `/captain/roster/invites/${encodeURIComponent(token)}/accept`,
+          { method: "POST" }
+        ),
       /**
        * Returns the team's current registration mode. `registration_open`
        * = the green pulsing banner + sidebar item should render.

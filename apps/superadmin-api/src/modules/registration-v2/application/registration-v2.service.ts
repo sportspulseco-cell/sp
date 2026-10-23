@@ -194,14 +194,33 @@ export class RegistrationV2Service {
     return row;
   }
 
+  /**
+   * Public, anonymous lookup for the invite landing page. Returns only
+   * what the page shows; the raw row (issuer id, invitee email, token
+   * metadata) stayed readable even after revoke (CAP-14).
+   */
   async resolveTeamInviteByToken(token: string) {
     const [row] = await this.db
-      .select()
+      .select({
+        status: schema.teamInvites.status,
+        kind: schema.teamInvites.kind,
+        expiresAt: schema.teamInvites.expiresAt,
+        teamName: schema.teams.name,
+        seasonName: schema.seasons.name
+      })
       .from(schema.teamInvites)
+      .innerJoin(schema.teams, eq(schema.teams.id, schema.teamInvites.teamId))
+      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.teamInvites.seasonId))
       .where(eq(schema.teamInvites.token, token))
       .limit(1);
     if (!row) throw new NotFoundException("Invite not found");
-    return row;
+    const expired = !!row.expiresAt && row.expiresAt < new Date();
+    return {
+      teamName: row.teamName,
+      seasonName: row.seasonName,
+      kind: row.kind,
+      status: row.status === "pending" && expired ? "expired" : row.status
+    };
   }
 
   // ================= FREE AGENT POOL =================

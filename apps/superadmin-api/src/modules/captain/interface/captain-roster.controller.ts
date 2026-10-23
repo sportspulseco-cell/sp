@@ -253,6 +253,118 @@ export class CaptainRosterController {
       .limit(1);
     if (!person) throw new NotFoundException("Person not found");
 
+    return this.addToRoster({
+      teamId,
+      seasonId: season.id,
+      personId: body.personId,
+      maxRosterSize: rules.maxRosterSize,
+      actorUserId: user.userId,
+      jerseyNumber: body.jerseyNumber ?? null,
+      positionCode: body.positionCode ?? null
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // POST /captain/roster/invites/:token/accept  (UC-04)
+  // The invited player accepts a captain's invite link. Same roster
+  // add as the captain's Add player (lock, cap, duplicate check); the
+  // invite flips to accepted in the same transaction. Before this there
+  // was no accept path at all (CAP-1).
+  // -------------------------------------------------------------------
+  @Post("invites/:token/accept")
+  @ApiOperation({
+    summary:
+      "Signed-in player accepts a team invite. Personal invites must match the player's email. 409 when expired, revoked, already used, roster full or locked."
+  })
+  async acceptInvite(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("token") token: string
+  ) {
+    const [invite] = await this.db
+      .select()
+      .from(schema.teamInvites)
+      .where(eq(schema.teamInvites.token, token))
+      .limit(1);
+    if (!invite) throw new NotFoundException("Invite not found");
+    if (invite.status !== "pending") {
+      throw new ConflictException(`This invite is ${invite.status}. Ask your captain for a new one.`);
+    }
+    if (invite.expiresAt && invite.expiresAt < new Date()) {
+      throw new ConflictException("This invite has expired. Ask your captain for a new one.");
+    }
+
+    const [me] = await this.db
+      .select({ personId: schema.persons.id, email: schema.profiles.email })
+      .from(schema.profiles)
+      .leftJoin(schema.persons, eq(schema.persons.userId, schema.profiles.id))
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
+    if (
+      invite.kind === "personal" &&
+      invite.inviteeEmail &&
+      invite.inviteeEmail.toLowerCase() !== (me?.email ?? "").toLowerCase()
+    ) {
+      throw new ForbiddenException(
+        `This invite was sent to ${invite.inviteeEmail}. Sign in with that email to accept it.`
+      );
+    }
+    if (!me?.personId) {
+      throw new ConflictException(
+        "Finish your player profile first, then open this invite again."
+      );
+    }
+
+    const season = await this.loadSeason(invite.seasonId);
+    if (!season) throw new NotFoundException("Season not found");
+    this.assertRosterUnlocked(season);
+    const division = await this.loadCurrentDivision(invite.teamId, season.id);
+    const rules = resolveDivisionRules(
+      (division?.ruleSetOverrides as Record<string, unknown>) ?? null
+    );
+
+    const result = await this.addToRoster({
+      teamId: invite.teamId,
+      seasonId: season.id,
+      personId: me.personId,
+      maxRosterSize: rules.maxRosterSize,
+      actorUserId: user.userId,
+      jerseyNumber: null,
+      positionCode: null,
+      inTx: async (tx) => {
+        await tx
+          .update(schema.teamInvites)
+          .set({
+            status: "accepted",
+            acceptedByUserId: user.userId,
+            acceptedAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(schema.teamInvites.id, invite.id));
+      }
+    });
+    return { teamId: invite.teamId, seasonId: season.id, membershipId: result.membership.id };
+  }
+
+  private async addToRoster(input: {
+    teamId: string;
+    seasonId: string;
+    personId: string;
+    maxRosterSize: number;
+    actorUserId: string;
+    jerseyNumber: number | null;
+    positionCode: string | null;
+    /** Extra writes that must commit or roll back with the add. */
+    inTx?: (tx: Parameters<Parameters<Database["transaction"]>[0]>[0]) => Promise<void>;
+  }) {
+    const { teamId, personId, actorUserId } = input;
+    const season = { id: input.seasonId };
+    const rules = { maxRosterSize: input.maxRosterSize };
+    const body = {
+      personId,
+      jerseyNumber: input.jerseyNumber,
+      positionCode: input.positionCode
+    };
+    const user = { userId: actorUserId };
     return await this.db.transaction(async (tx) => {
       // Lock the active count for this team+season; the row-level lock
       // serialises two competing adds at cap-1.
@@ -337,6 +449,7 @@ export class CaptainRosterController {
         .returning();
       const membership = membershipRows[0]!;
 
+      if (input.inTx) await input.inTx(tx);
       return { move, membership };
     });
   }

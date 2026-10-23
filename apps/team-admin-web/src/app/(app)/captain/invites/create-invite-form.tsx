@@ -14,6 +14,19 @@ import type { Season } from "@sportspulse/api-client";
  *   - emails a personal invite (kind=personal, expires 7d), or
  *   - generates a generic team URL (kind=generic, expires 365d).
  */
+/**
+ * Player app origin for invite links. NEXT_PUBLIC_PLAYER_WEB_URL wins;
+ * otherwise swap this app's "team" host for "player"
+ * (team.sportspulse.us -> player.sportspulse.us, staging-team -> staging-player).
+ */
+function playerAppOrigin(): string {
+  const configured = process.env.NEXT_PUBLIC_PLAYER_WEB_URL;
+  if (configured) return configured.replace(/\/$/, "");
+  const { protocol, host } = window.location;
+  if (host.startsWith("localhost")) return `${protocol}//localhost:3004`;
+  return `${protocol}//${host.replace(/(^|-)team\./, "$1player.")}`;
+}
+
 export function CreateInviteForm({ teamId }: { teamId: string }) {
   const router = useRouter();
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -76,10 +89,13 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
         kind,
         ...(kind === "personal" ? { inviteeEmail: email.trim() } : {})
       });
+      // No invite email is sent yet (CAP-4), so always hand the captain
+      // the full link to share.
+      const link = `${playerAppOrigin()}/invite/${inv.token}`;
       setOkMsg(
         kind === "generic"
-          ? `Team URL: /invite/${inv.token}`
-          : `Invite sent to ${email}`
+          ? `Team link created. Share it with your players: ${link}`
+          : `Invite created for ${email}. Send them this link: ${link}`
       );
       setEmail("");
       router.refresh();

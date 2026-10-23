@@ -17,7 +17,10 @@ const PUBLIC_PATHS = [
   // not have a Supabase account, so this surface stays anonymous.
   "/parental-consent",
   // Anonymous registration funnel (Workflow 1 v2.0).
-  "/register"
+  "/register",
+  // Captain invite landing (UC-04). Shows the team to anyone; joining
+  // needs a session, which the page sends through /sign-in.
+  "/invite"
 ];
 
 /**
