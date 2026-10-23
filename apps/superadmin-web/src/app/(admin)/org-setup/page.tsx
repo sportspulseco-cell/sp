@@ -1,5 +1,7 @@
 import { Building2 } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
+import { fetchAll } from "@sportspulse/api-client";
+import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { OrgSetupShell } from "./org-setup-shell";
@@ -12,10 +14,11 @@ export default async function OrgSetupPage() {
   // Bootstrap dropdown data once, on the server. Subsequent dependent
   // dropdowns (governing-bodies-by-sport, age-groups-by-body) load
   // from the client as the admin makes selections.
-  const [orgsPage, sports, governingBodies] = await Promise.all([
+  const [orgsPage, sports, governingBodies, leaguesPage] = await Promise.all([
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
     admin.listSports().catch(() => []),
-    leagueMgmt.listGoverningBodies({}).catch(() => [])
+    leagueMgmt.listGoverningBodies({}).catch(() => []),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
   ]);
 
   if (orgsPage.items.length === 0) {
@@ -36,6 +39,7 @@ export default async function OrgSetupPage() {
       orgs={orgsPage.items}
       sports={sports}
       governingBodies={governingBodies}
+      orgSports={sportByOrg(leaguesPage.items)}
     />
   );
 }

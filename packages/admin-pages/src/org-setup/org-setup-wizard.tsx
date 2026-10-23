@@ -96,10 +96,13 @@ export function OrgSetupWizard({
   createSeason,
   createDivision,
   changeLeagueStatus,
-  onComplete
+  onComplete,
+  orgSports = {}
 }: {
   /** Pre-filtered to the orgs the caller is allowed to write to. */
   orgs: Org[];
+  /** Sport each org already plays (see sportByOrg); drives the default. */
+  orgSports?: Record<string, string>;
   sports: Sport[];
   governingBodies: GoverningBody[];
   createLeague: (input: {
@@ -141,7 +144,9 @@ export function OrgSetupWizard({
     step: 1,
     // Auto-select when there's only one option (org-admin case).
     orgId: orgs.length === 1 ? orgs[0]!.id : null,
-    league: defaultLeagueDraft(sports[0]?.code ?? ""),
+    league: defaultLeagueDraft(
+      orgs.length === 1 ? orgSports[orgs[0]!.id] ?? "" : ""
+    ),
     season: defaultSeasonDraft(),
     divisions: [emptyDivision(crypto.randomUUID())]
   }));
@@ -397,7 +402,16 @@ export function OrgSetupWizard({
           <OrgStep
             orgs={orgs}
             selectedId={state.orgId}
-            onSelect={(id) => setState((s) => ({ ...s, orgId: id }))}
+            onSelect={(id) =>
+              setState((s) => ({
+                ...s,
+                orgId: id,
+                // Follow the org's sport until the admin picks one.
+                league: s.league.sportCode
+                  ? s.league
+                  : { ...s.league, sportCode: orgSports[id] ?? "" }
+              }))
+            }
           />
         ) : null}
         {state.step === 2 ? (

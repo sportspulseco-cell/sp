@@ -1,5 +1,7 @@
 import { Building2 } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
+import { fetchAll } from "@sportspulse/api-client";
+import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -24,10 +26,11 @@ export default async function OrgAdminOrgSetupPage() {
   const scope = await iam.meScope().catch(() => null);
   const activeOrgId = await getActiveOrgId(scope);
 
-  const [orgsPage, sports, governingBodies] = await Promise.all([
+  const [orgsPage, sports, governingBodies, leaguesPage] = await Promise.all([
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
     admin.listSports().catch(() => []),
-    leagueMgmt.listGoverningBodies({}).catch(() => [])
+    leagueMgmt.listGoverningBodies({}).catch(() => []),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
   ]);
 
   // Defense in depth — the API already filters orgs.list to the
@@ -61,6 +64,7 @@ export default async function OrgAdminOrgSetupPage() {
       orgs={ordered}
       sports={sports}
       governingBodies={governingBodies}
+      orgSports={sportByOrg(leaguesPage.items)}
     />
   );
 }

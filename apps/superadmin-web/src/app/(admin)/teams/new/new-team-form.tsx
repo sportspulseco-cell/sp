@@ -49,11 +49,14 @@ import { Select } from "@/components/ui/select";
 export function NewTeamForm({
   orgs,
   sports,
-  defaultOrgId
+  defaultOrgId,
+  orgSports
 }: {
   orgs: Org[];
   sports: Sport[];
   defaultOrgId: string;
+  /** Sport each org already plays (sportByOrg); drives the default. */
+  orgSports: Record<string, string>;
 }) {
   const router = useRouter();
 
@@ -63,7 +66,8 @@ export function NewTeamForm({
   const [shortName, setShortName] = useState("");
   const [shortNameTouched, setShortNameTouched] = useState(false);
   const [homeRink, setHomeRink] = useState("");
-  const [sportCode, setSportCode] = useState<string>(sports[0]?.code ?? "");
+  const [sportCode, setSportCode] = useState<string>(orgSports[defaultOrgId] ?? "");
+  const [sportTouched, setSportTouched] = useState(false);
 
   // ---- Branding ------------------------------------------------------
   const [logoUrl, setLogoUrl] = useState("");
@@ -201,7 +205,10 @@ export function NewTeamForm({
           <Field label="Organisation *">
             <Select
               value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
+              onChange={(e) => {
+                setOrgId(e.target.value);
+                if (!sportTouched) setSportCode(orgSports[e.target.value] ?? "");
+              }}
               required
             >
               {orgs.map((o) => (
@@ -271,18 +278,20 @@ export function NewTeamForm({
           <Field label="Sport *">
             <Select
               value={sportCode}
-              onChange={(e) => setSportCode(e.target.value)}
+              onChange={(e) => {
+                setSportCode(e.target.value);
+                setSportTouched(true);
+              }}
               required
             >
-              {sports.length === 0 ? (
-                <option value="">— no sports seeded —</option>
-              ) : (
-                sports.map((s) => (
-                  <option key={s.code} value={s.code}>
-                    {s.name}
-                  </option>
-                ))
-              )}
+              <option value="" disabled>
+                {sports.length === 0 ? "No sports seeded" : "Pick a sport"}
+              </option>
+              {sports.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.name}
+                </option>
+              ))}
             </Select>
           </Field>
         </Section>

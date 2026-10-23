@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { admin, orgs } from "@/lib/api/server-api";
+import { fetchAll } from "@sportspulse/api-client";
+import { sportByOrg } from "@sportspulse/admin-pages";
+import { admin, orgs, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { NewTeamForm } from "./new-team-form";
 
@@ -21,9 +23,10 @@ export default async function NewTeamPage({
   searchParams?: Promise<{ orgId?: string }>;
 }) {
   const sp = await searchParams;
-  const [orgsPage, sports] = await Promise.all([
+  const [orgsPage, sports, leaguesPage] = await Promise.all([
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
-    admin.listSports().catch(() => [])
+    admin.listSports().catch(() => []),
+    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
 
   if (orgsPage.items.length === 0) {
@@ -45,6 +48,7 @@ export default async function NewTeamPage({
         orgs={orgsPage.items}
         sports={sports}
         defaultOrgId={preselectedOrg.id}
+        orgSports={sportByOrg(leaguesPage.items)}
       />
     </div>
   );

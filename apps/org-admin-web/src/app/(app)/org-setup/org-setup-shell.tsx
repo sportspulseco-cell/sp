@@ -15,11 +15,13 @@ import { leagueMgmt } from "@/lib/api/browser-api";
 export function OrgSetupShell({
   orgs,
   sports,
-  governingBodies
+  governingBodies,
+  orgSports
 }: {
   orgs: Org[];
   sports: Sport[];
   governingBodies: GoverningBody[];
+  orgSports: Record<string, string>;
 }) {
   const router = useRouter();
   return (
@@ -27,6 +29,7 @@ export function OrgSetupShell({
       orgs={orgs}
       sports={sports}
       governingBodies={governingBodies}
+      orgSports={orgSports}
       createLeague={(input) =>
         leagueMgmt.createLeague(
           input as Parameters<typeof leagueMgmt.createLeague>[0]
