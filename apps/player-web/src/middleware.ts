@@ -37,7 +37,9 @@ export async function middleware(request: NextRequest) {
     response,
     requiredRoleCodes: REQUIRED_ROLE_CODES,
     publicPaths: PUBLIC_PATHS,
-    onboardingPath: "/onboarding"
+    onboardingPath: "/onboarding",
+    // New sign-ups have no role until a registration is approved.
+    allowRoleless: true
   });
 }
 

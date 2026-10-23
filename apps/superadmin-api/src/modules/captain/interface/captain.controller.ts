@@ -684,6 +684,10 @@ export class CaptainController {
       // forward instead of trying to INSERT a duplicate, which hits
       // `dte_team_division_active_uniq` and 500s the whole flow
       // (BUG-026).
+      // Only an entry the admin approved ('applied', or 'accepted' on a
+      // re-run) may be set up. The old fallback INSERTed a fresh entry,
+      // so reopening the wizard registered the team into a division the
+      // admin had denied, straight to confirmed (CAP-2).
       const [existingDte] = await tx
         .select()
         .from(schema.divisionTeamEntries)
@@ -691,40 +695,24 @@ export class CaptainController {
           and(
             eq(schema.divisionTeamEntries.teamId, team.id),
             eq(schema.divisionTeamEntries.divisionId, division.id),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "pending_approval",
-              "applied",
-              "accepted"
-            ])
+            inArray(schema.divisionTeamEntries.entryStatus, ["applied", "accepted"])
           )
         )
         .limit(1);
-      let dte;
-      if (existingDte) {
-        const [updated] = await tx
-          .update(schema.divisionTeamEntries)
-          .set({
-            entryStatus: initialStatus,
-            confirmationThresholdCents: threshold,
-            metadata: { ...(existingDte.metadata ?? {}), splitMode: body.splitMode }
-          })
-          .where(eq(schema.divisionTeamEntries.id, existingDte.id))
-          .returning();
-        dte = updated;
-      } else {
-        const [inserted] = await tx
-          .insert(schema.divisionTeamEntries)
-          .values({
-            teamId: team.id,
-            divisionId: division.id,
-            entryStatus: initialStatus,
-            confirmationThresholdCents: threshold,
-            collectedCents: 0,
-            metadata: { splitMode: body.splitMode }
-          })
-          .returning();
-        dte = inserted;
+      if (!existingDte) {
+        throw new ConflictException(
+          "This division has not approved your team yet. Apply from Register your team and wait for the admin's decision."
+        );
       }
+      const [dte] = await tx
+        .update(schema.divisionTeamEntries)
+        .set({
+          entryStatus: initialStatus,
+          confirmationThresholdCents: threshold,
+          metadata: { ...(existingDte.metadata ?? {}), splitMode: body.splitMode }
+        })
+        .where(eq(schema.divisionTeamEntries.id, existingDte.id))
+        .returning();
       if (!dte) throw new Error("DTE upsert returned no row");
 
       // STEP 2 — master invoice (team_dues).

@@ -89,6 +89,13 @@ export async function requireRole(opts: {
    * already covered by a broader rule).
    */
   onboardingPath?: string;
+  /**
+   * Let in signed-in users who hold no role at all. Player-web sets
+   * this: a self-signed-up player has no role until a registration is
+   * approved, and the player app is where they find one (CAP-3). Users
+   * holding only other apps' roles are still redirected.
+   */
+  allowRoleless?: boolean;
 }): Promise<NextResponse> {
   const {
     request,
@@ -125,7 +132,9 @@ export async function requireRole(opts: {
   if (isPublic) return response;
 
   const codes = new Set(getUserRoleCodes(user));
-  const allowed = requiredRoleCodes.some((c) => codes.has(c));
+  const allowed =
+    requiredRoleCodes.some((c) => codes.has(c)) ||
+    (opts.allowRoleless === true && codes.size === 0);
   if (!allowed) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";

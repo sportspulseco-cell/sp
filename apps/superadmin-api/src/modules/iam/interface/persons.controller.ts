@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -11,6 +12,11 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import type { Database } from "@sportspulse/db";
+import type { AuthPrincipal } from "@sportspulse/auth";
 import { PersonDto, PersonPageDto } from "../application/dtos/person.dto";
 import {
   CreatePersonHandler,
@@ -36,19 +42,32 @@ export class PersonsController {
     private readonly getH: GetPersonHandler,
     private readonly createH: CreatePersonHandler,
     private readonly updateH: UpdatePersonHandler,
-    private readonly linkH: LinkPersonToUserHandler
+    private readonly linkH: LinkPersonToUserHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  // GET endpoints are accessible to any authenticated user — captains
-  // need to search persons to populate the "Add player" picker on
-  // /captain/roster. Mutations remain super-admin-only (BUG-027).
-  @Get() @ApiOperation({ summary: "List persons" })
-  list(@Query() q: ListPersonsQueryDto): Promise<PersonPageDto> {
-    return this.listH.execute(q);
+  // GET endpoints are open to any signed-in user because captains search
+  // people for the "Add player" picker and players resolve teammates'
+  // names. Non-admins get names and photo only; DOB, gender, account
+  // link and external ids are admin-only (CAP-11). Mutations remain
+  // super-admin-only (BUG-027).
+  @Get() @ApiOperation({ summary: "List persons (personal details for admins only)" })
+  async list(
+    @Query() q: ListPersonsQueryDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<PersonPageDto> {
+    const page = await this.listH.execute(q);
+    if (await userIsPeopleAdmin(this.db, user.userId)) return page;
+    return { ...page, items: page.items.map(redactPerson) };
   }
-  @Get(":id") @ApiOperation({ summary: "Get a person" })
-  getOne(@Param("id") id: string): Promise<PersonDto> {
-    return this.getH.execute({ id });
+  @Get(":id") @ApiOperation({ summary: "Get a person (personal details for admins only)" })
+  async getOne(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<PersonDto> {
+    const person = await this.getH.execute({ id });
+    if (await userIsPeopleAdmin(this.db, user.userId)) return person;
+    return redactPerson(person);
   }
   @Post() @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: "Create a person" })
@@ -71,4 +90,16 @@ export class PersonsController {
   ): Promise<PersonDto> {
     return this.linkH.execute({ id, userId: body.userId });
   }
+}
+
+function redactPerson(p: PersonDto): PersonDto {
+  return {
+    ...p,
+    userId: null,
+    dobDate: null,
+    genderSelfId: null,
+    pronouns: null,
+    countryCode: null,
+    externalIds: {}
+  };
 }

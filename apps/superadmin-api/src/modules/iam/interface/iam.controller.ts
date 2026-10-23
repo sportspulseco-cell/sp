@@ -1,6 +1,7 @@
 ﻿import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
   Param,
@@ -462,28 +463,33 @@ export class IamController {
   }
 
   @Get("users/:id/role-profile")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
-      "Read a user's role-specific profile JSONB. Pass ?code=<roleCode>; returns {} if unset."
+      "Read a user's role-specific profile JSONB. Pass ?code=<roleCode>; returns {} if unset. Self or super_admin."
   })
   async readRoleProfile(
     @Param("id") id: string,
-    @Query("code") code: string
+    @Query("code") code: string,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<{ data: Record<string, unknown> }> {
+    await this.assertSelfOrSuperAdmin(user, id);
     return this.getRoleProfile.execute({ userId: id, roleCode: code });
   }
 
   @Patch("users/:id/role-profile")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
-      "Update the role-specific profile JSONB stored on profiles.metadata.roleProfile.<roleCode>. Schema is defined by @sportspulse/kernel ROLE_PROFILE_SCHEMAS."
+      "Update the role-specific profile JSONB stored on profiles.metadata.roleProfile.<roleCode>. Schema is defined by @sportspulse/kernel ROLE_PROFILE_SCHEMAS. Self (onboarding) or super_admin."
   })
   async putRoleProfile(
     @Param("id") id: string,
-    @Body() body: SetRoleProfileBodyDto
+    @Body() body: SetRoleProfileBodyDto,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<{ ok: true }> {
+    // Every role app's onboarding wizard saves through here for the
+    // signed-in user; super_admin-only made onboarding 403 for everyone
+    // else.
+    await this.assertSelfOrSuperAdmin(user, id);
     await this.setRoleProfile.execute({
       userId: id,
       roleCode: body.roleCode,
@@ -494,7 +500,6 @@ export class IamController {
   }
 
   @Get("role-profile-form")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Resolve the role-profile FormDefinition for a given role code. Looks up registration_forms with purpose=role_profile + applies_to_roles containing the code. Returns { source: 'admin' | 'kernel-default', schema, formVersionId? }; the caller (RoleProfileDialog) falls through to ROLE_PROFILE_SCHEMAS in @sportspulse/kernel when source is 'kernel-default'."
@@ -537,5 +542,13 @@ export class IamController {
       };
     }
     return { source: "kernel-default", schema: null, formVersionId: null };
+  }
+
+  private async assertSelfOrSuperAdmin(user: AuthPrincipal, userId: string) {
+    if (user.userId === userId) return;
+    const scope = await loadUserScope(this.db, user.userId);
+    if (!scope.isSuperAdmin) {
+      throw new ForbiddenException("You can only edit your own profile.");
+    }
   }
 }
