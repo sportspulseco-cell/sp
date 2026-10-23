@@ -10,6 +10,12 @@ Status is only taken from a Playwright run in a real browser on staging
 
 Status legend: `untested` · `pass` · `fail (BUG-n)` · `blocked (reason)` · `not built`
 
+Statuses below are from the first Playwright round on staging
+(2026-10-23, code at 057550a, before any fix). 128 findings across
+doc/testing/bugs/*.md. Fixes are on branch pphl-journey-fixes; every
+journey must be re-run on staging after deploy before any status here
+changes to pass.
+
 ---
 
 ## 1. Surfaces
@@ -68,23 +74,23 @@ this one is `blocked`, not `fail`.
 
 | ID | Journey | Steps | Needs | Spec | Status |
 |---|---|---|---|---|---|
-| J1 | Org, league, season, division setup | super_admin @ SA /org-setup → creates org, league, season, divisions → org_admin @ OA sees them in /leagues, /seasons, /divisions | none | journeys/j01-setup.spec.ts | untested |
-| J2 | Invite admin and sign in | super_admin @ SA /users → invite org_admin with org scope → invitee signs in @ OA → lands on own org only | J1 | journeys/j02-invite.spec.ts | untested |
-| J3 | Build and publish registration form | org_admin @ OA /forms (or SA /forms) → season, divisions, pricing, questions, waivers → publish → season status registration_open | J1 | journeys/j03-form.spec.ts | untested |
-| J4 | Player registers and pays | anonymous/player @ PL /register → funnel → waiver sign → invoice → PL /payments shows invoice → admin @ SA/OA /registrations sees submission → approve | J3 | journeys/j04-player-registration.spec.ts | untested |
-| J5 | Minor with parental consent | player @ PL funnel with minor DOB → consent pending → parent opens /parental-consent/[token] → signs → registration unblocks for admin | J3 | journeys/j05-minor-consent.spec.ts | untested |
-| J6 | Free agent placed on team | player @ PL /register/free-agent → captain @ TA /captain/free-agents or admin pool → assign → player @ PL /team shows the team | J3, J8 | journeys/j06-free-agent.spec.ts | untested |
-| J7 | Captain registers team (approval gate) | captain @ TA /captain/register → picks season + division → admin @ SA /seasons/[id]/applications approves → captain @ TA sees approved, set-up wizard → team appears in SA /divisions/[id] | J3 | journeys/j07-team-application.spec.ts | untested |
-| J8 | Captain invites player | captain @ TA /captain/invites → creates invite → invite link opened by player @ PL → player joins → captain @ TA /captain/roster shows player | J7 | journeys/j08-captain-invite.spec.ts | untested |
-| J9 | Eligibility and documents | player @ PL /compliance uploads ID → admin @ SA /documents verifies → SA /eligibility status changes → captain @ TA /captain/compliance reflects it | J4 | journeys/j09-eligibility.spec.ts | untested |
-| J10 | Schedule generate and publish | admin @ SA /venues (rink, ice slots) → /scheduling/[seasonId]/generate → conflicts → publish → captain @ TA /schedule and player @ PL /schedule show games → notification in PL /notifications | J7 | journeys/j10-schedule.spec.ts | untested |
-| J11 | Game day to stats | captain @ TA /lineups/[gameId] sets lineup → admin/scorekeeper @ SA /games/[id] enters goals, penalties → finalize → SA/TA/PL /stats and standings update | J10 | journeys/j11-game-stats.spec.ts | untested |
-| J12 | Suspension blocks lineup | admin issues suspension (or auto from penalty) → player shows suspended in TA /captain/compliance → lineup refuses player | J11 | journeys/j12-suspension.spec.ts | untested |
-| J13 | Invoice, pay, refund, overdue | admin @ SA /finance creates invoice → player @ PL /payments pays → admin refunds from SA /finance/[id] → wallet credit visible to player → overdue reminder | J4 | journeys/j13-finance.spec.ts | untested |
-| J14 | Captain splits dues | captain @ TA /captain/dues → split team fee across roster → each player @ PL /payments sees their share | J7, J8 | journeys/j14-dues-split.spec.ts | untested |
-| J15 | Announcement and team message | admin @ OA /communications/compose (league-wide) → player @ PL /notifications receives; captain @ TA /comms → team players receive | J8 | journeys/j15-comms.spec.ts | untested |
-| J16 | Team store | captain @ TA /captain/store sets up store → player @ PL /store sees it and orders | J8 | journeys/j16-store.spec.ts | untested |
-| J17 | Role isolation | each role on each app: org A user never sees org B rows; wrong-role user is blocked | J1, J2 | auth/role-gates.spec.ts + journeys/j17-isolation.spec.ts | untested |
+| J1 | Org, league, season, division setup | super_admin @ SA /org-setup → creates org, league, season, divisions → org_admin @ OA sees them in /leagues, /seasons, /divisions | none | journeys/j01-setup.spec.ts | fail (SETUP-6 team create 500, SETUP-2 no edit, SETUP-10) |
+| J2 | Invite admin and sign in | super_admin @ SA /users → invite org_admin with org scope → invitee signs in @ OA → lands on own org only | J1 | journeys/j02-invite.spec.ts | pass with defects (SETUP-8 no invite email, SETUP-7, SETUP-17) |
+| J3 | Build and publish registration form | org_admin @ OA /forms (or SA /forms) → season, divisions, pricing, questions, waivers → publish → season status registration_open | J1 | journeys/j03-form.spec.ts | fail (REG-10, REG-12, REG-14, REG-5) |
+| J4 | Player registers and pays | anonymous/player @ PL /register → funnel → waiver sign → invoice → PL /payments shows invoice → admin @ SA/OA /registrations sees submission → approve | J3 | journeys/j04-player-registration.spec.ts | fail (REG-1, REG-2, REG-3, REG-4, REG-8, REG-9) |
+| J5 | Minor with parental consent | player @ PL funnel with minor DOB → consent pending → parent opens /parental-consent/[token] → signs → registration unblocks for admin | J3 | journeys/j05-minor-consent.spec.ts | fail (REG-6, REG-7 dead end, REG-15) |
+| J6 | Free agent placed on team | player @ PL /register/free-agent → captain @ TA /captain/free-agents or admin pool → assign → player @ PL /team shows the team | J3, J8 | journeys/j06-free-agent.spec.ts | fail (CAP-3, CAP-7, CAP-9, CAP-10) |
+| J7 | Captain registers team (approval gate) | captain @ TA /captain/register → picks season + division → admin @ SA /seasons/[id]/applications approves → captain @ TA sees approved, set-up wizard → team appears in SA /divisions/[id] | J3 | journeys/j07-team-application.spec.ts | fail (CAP-2 denied division confirmed, CAP-4, CAP-5, CAP-6) |
+| J8 | Captain invites player | captain @ TA /captain/invites → creates invite → invite link opened by player @ PL → player joins → captain @ TA /captain/roster shows player | J7 | journeys/j08-captain-invite.spec.ts | fail (CAP-1 invite cannot be accepted) |
+| J9 | Eligibility and documents | player @ PL /compliance uploads ID → admin @ SA /documents verifies → SA /eligibility status changes → captain @ TA /captain/compliance reflects it | J4 | journeys/j09-eligibility.spec.ts | fail (COMP-5, COMP-1 not built, COMP-2, COMP-3) |
+| J10 | Schedule generate and publish | admin @ SA /venues (rink, ice slots) → /scheduling/[seasonId]/generate → conflicts → publish → captain @ TA /schedule and player @ PL /schedule show games → notification in PL /notifications | J7 | journeys/j10-schedule.spec.ts | blocked (SCH-1 Edge Functions not deployed to staging); SCH-2, SCH-6 |
+| J11 | Game day to stats | captain @ TA /lineups/[gameId] sets lineup → admin/scorekeeper @ SA /games/[id] enters goals, penalties → finalize → SA/TA/PL /stats and standings update | J10 | journeys/j11-game-stats.spec.ts | fail (SCH-22, SCH-12, SCH-13, SCH-17) |
+| J12 | Suspension blocks lineup | admin issues suspension (or auto from penalty) → player shows suspended in TA /captain/compliance → lineup refuses player | J11 | journeys/j12-suspension.spec.ts | not built (COMP-10, COMP-11) |
+| J13 | Invoice, pay, refund, overdue | admin @ SA /finance creates invoice → player @ PL /payments pays → admin refunds from SA /finance/[id] → wallet credit visible to player → overdue reminder | J4 | journeys/j13-finance.spec.ts | fail (MON-1 invoice create 500, MON-4, MON-5) |
+| J14 | Captain splits dues | captain @ TA /captain/dues → split team fee across roster → each player @ PL /payments sees their share | J7, J8 | journeys/j14-dues-split.spec.ts | fail (MON-7, MON-8 split not saved) |
+| J15 | Announcement and team message | admin @ OA /communications/compose (league-wide) → player @ PL /notifications receives; captain @ TA /comms → team players receive | J8 | journeys/j15-comms.spec.ts | fail (MON-2, MON-3, MON-12 not built) |
+| J16 | Team store | captain @ TA /captain/store sets up store → player @ PL /store sees it and orders | J8 | journeys/j16-store.spec.ts | partial (catalog works; ordering not built, MON-15) |
+| J17 | Role isolation | each role on each app: org A user never sees org B rows; wrong-role user is blocked | J1, J2 | auth/role-gates.spec.ts + journeys/j17-isolation.spec.ts | fail (SETUP-15 league_admin sees sibling seasons); org_admin isolation pass |
 
 ---
 
