@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
@@ -31,20 +31,26 @@ export function UrlFilters({
   const pathname = usePathname();
   const params = useSearchParams();
   const [q, setQ] = useState(params.get(searchParam) ?? "");
+  // The filters we last asked for. router.replace updates the URL a tick
+  // later, so building from the URL (or a render snapshot) let the
+  // debounced search undo a filter picked in between (item 7 check).
+  const intended = useRef(new URLSearchParams(params.toString()));
+  useEffect(() => {
+    intended.current = new URLSearchParams(params.toString());
+  }, [params]);
 
   function set(key: string, value: string) {
-    // Read the live URL, not the render-time snapshot: the debounced search
-    // fires after other filters may have changed and would undo them.
-    const next = new URLSearchParams(window.location.search);
+    const next = new URLSearchParams(intended.current.toString());
     if (value) next.set(key, value);
     else next.delete(key);
+    intended.current = next;
     router.replace(`${pathname}${next.size ? `?${next}` : ""}`);
   }
 
   // Debounced search.
   useEffect(() => {
     const t = setTimeout(() => {
-      if ((params.get(searchParam) ?? "") !== q) set(searchParam, q);
+      if ((intended.current.get(searchParam) ?? "") !== q) set(searchParam, q);
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps

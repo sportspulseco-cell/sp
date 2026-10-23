@@ -6,7 +6,6 @@ import { signedInAs, stagingSql, IS_STAGING } from "./_helpers";
  * SP-Changes.pdf items 1-7 (PPHL review call, 23 Oct 2026), checked in a
  * real browser per role on staging.
  */
-test.describe.configure({ mode: "serial" });
 test.skip(!IS_STAGING, "staging only");
 
 // 8 hex chars on their own: the id fragments PPHL asked us to remove.
@@ -14,7 +13,10 @@ const HEX_FRAGMENT = /(?<![0-9a-z-])[0-9a-f]{8}(?![0-9a-z-])/i;
 
 async function visibleHexFragments(page: Page): Promise<string[]> {
   const text = await page.locator("main").innerText().catch(() => "");
-  return [...text.matchAll(new RegExp(HEX_FRAGMENT, "gi"))].map((m) => m[0]);
+  // The player's registration "Ref" is a reference code on purpose; skip it.
+  return [...text.matchAll(new RegExp(HEX_FRAGMENT, "gi"))]
+    .filter((m) => !/ref[\s:·#-]*$/i.test(text.slice(Math.max(0, (m.index ?? 0) - 12), m.index)))
+    .map((m) => m[0]);
 }
 
 test("items 1/4: user detail shows the scope by name, not an id", async ({ browser }) => {
