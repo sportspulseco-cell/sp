@@ -33,7 +33,9 @@ export function UrlFilters({
   const [q, setQ] = useState(params.get(searchParam) ?? "");
 
   function set(key: string, value: string) {
-    const next = new URLSearchParams(params.toString());
+    // Read the live URL, not the render-time snapshot: the debounced search
+    // fires after other filters may have changed and would undo them.
+    const next = new URLSearchParams(window.location.search);
     if (value) next.set(key, value);
     else next.delete(key);
     router.replace(`${pathname}${next.size ? `?${next}` : ""}`);
