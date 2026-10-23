@@ -26,7 +26,7 @@ const isStaging =
 if (!isStaging) {
   throw new Error("A staging database URL and matching staging ref are required");
 }
-const LATEST = 50;
+const LATEST = 52;
 if (!Number.isInteger(through) || through < 14 || through > LATEST) {
   throw new Error(`STAGING_MIGRATE_THROUGH must be between 14 and ${LATEST}`);
 }
