@@ -1,5 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
-﻿import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
+﻿import { fetchAll } from "@sportspulse/api-client";
+import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";

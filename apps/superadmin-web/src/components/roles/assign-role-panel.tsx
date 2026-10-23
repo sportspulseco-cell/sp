@@ -1,5 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
 ﻿"use client";
+import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
