@@ -131,7 +131,7 @@ test("2 player submits a USA Hockey ID (validation + happy path)", async () => {
   writeFileSync(`${OUT}/02-db-identity_verifications.json`, JSON.stringify(rows, null, 2));
   check(rows.length > 0, "COMP-2: no identity_verifications row written for the player");
   if (await dialog.isVisible().catch(() => false)) {
-    await dialog.getByRole("button", { name: /Cancel/i }).click().catch(() => {});
+    await dialog.getByRole("button", { name: /Cancel/i }).click({ timeout: 5_000 }).catch(() => {});
   }
 });
 

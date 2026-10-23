@@ -132,7 +132,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     const page = await context.newPage();
     await signIn(page, E2E_URLS.orgAdmin, SMOKE_USERS.orgAdmin);
     await page.goto(`${E2E_URLS.orgAdmin}/registrations`);
-    const row = page.locator("tr", { hasText: submissionId.slice(0, 8) });
+    const row = page.locator("tr", { hasText: fullName });
     const visible = await row.isVisible({ timeout: 15_000 }).catch(() => false);
     softExpect(visible, "OA /registrations lists the pending_consent minor").toBe(true);
     const approve = row.getByRole("button", { name: /approve/i });
@@ -186,9 +186,12 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     }
     const [r] = await stagingSql<{ parent: string | null }>("select metadata->>'parentEmail' parent from registrations where id = $1", [submissionId]);
     expect(r!.parent, "parent email stored (db-row)").toBe(parentEmail);
-    // Token format: base64url(submissionId:issuedAtMs) — unsigned, so anyone with the id can mint one.
+    // Anyone with the submission id can build base64url(id:time). The API
+    // must reject such a token (REG-6: tokens are HMAC-signed now).
     const forged = Buffer.from(`${submissionId}:${Date.now()}`).toString("base64url");
-    softExpect(forged.slice(0, 40) === token.slice(0, 40), "consent token is derivable from the submission id (unsigned)").toBe(false);
+    const api = `${E2E_URLS.player.replace("player", "api")}/api/public/registration/parental-consent/${forged}`;
+    const forgedStatus = (await fetch(api).catch(() => null))?.status ?? 0;
+    softExpect(forgedStatus, `forged consent token accepted by ${api.slice(0, 60)}`).toBeGreaterThanOrEqual(400);
   });
 
   test("4 · guardian opens /parental-consent/[token] in a fresh browser and confirms", async ({ browser }) => {
@@ -296,7 +299,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     const page = await context.newPage();
     await signIn(page, E2E_URLS.orgAdmin, SMOKE_USERS.orgAdmin);
     await page.goto(`${E2E_URLS.orgAdmin}/registrations`);
-    const row = page.locator("tr", { hasText: submissionId.slice(0, 8) });
+    const row = page.locator("tr", { hasText: fullName });
     if (await row.isVisible({ timeout: 15_000 }).catch(() => false)) {
       softExpect(await row.innerText(), "OA row shows minor / consent state").toMatch(/consent|minor|guardian/i);
       await row.getByRole("button", { name: /approve/i }).click();

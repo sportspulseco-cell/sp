@@ -199,7 +199,7 @@ test("J8.1 captain sends a personal invite from /captain/invites", async () => {
   await p.locator("#kind").selectOption("personal");
   await p.locator("#email").fill(INVITEE_EMAIL);
   await p.getByRole("button", { name: /send invite/i }).click();
-  const created = p.getByText(new RegExp(`Invite created for ${INVITEE_EMAIL.replace(/[.+]/g, "\$&")}`));
+  const created = p.getByText(`Invite created for ${INVITEE_EMAIL}`);
   await expect(created).toBeVisible({ timeout: 15_000 });
   // UC-04: the captain gets a full player-app link to share.
   inviteLink = (await created.innerText()).match(/https?:\/\/\S+\/invite\/\S+/)?.[0] ?? "";
