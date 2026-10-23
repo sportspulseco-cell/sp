@@ -77,10 +77,12 @@ export function ReviewSection({
     (activeVersion?.schema as { questions?: { conditional?: unknown }[] } | null)?.questions ?? [];
   const conditionalCount = questions.filter((q) => !!q.conditional).length;
 
-  const slug =
-    season?.name?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? form.id.slice(0, 8);
-  const standardLink = `powerplayhockeyleague.com/registration/${slug}`;
-  const splitPayLink = `${standardLink}/player`;
+  // The real public funnel (player-web /register/<seasonId>). The old
+  // powerplayhockeyleague.com/registration/<slug> links were not routes
+  // anywhere (REG-13). NEXT_PUBLIC_PLAYER_WEB_URL is set per environment.
+  const standardLink = form.seasonId
+    ? `${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://player.sportspulse.us"}/register/${form.seasonId}`
+    : "Bind a season first";
 
   const issues: string[] = [];
   for (const d of uncoveredDivisions) {
@@ -199,8 +201,7 @@ export function ReviewSection({
           Registration links
         </p>
 
-        <LinkRow label="Standard link" value={standardLink} />
-        <LinkRow label="Player split-pay link" value={splitPayLink} />
+        <LinkRow label="Registration link" value={standardLink} />
 
         {customTiers.length > 0 ? (
           <div>
@@ -214,8 +215,9 @@ export function ReviewSection({
                   className="flex flex-wrap items-center justify-between gap-2 text-[12px]"
                 >
                   <span className="text-fg">{t.name}</span>
-                  <span className="font-mono text-fg-muted truncate">
-                    {standardLink}/custom/{t.customUrlSlug}
+                  <span className="text-fg-muted">
+                    Separate tier links are not live yet. Players pick this
+                    tier inside the registration link.
                   </span>
                 </li>
               ))}

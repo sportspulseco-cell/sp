@@ -6,14 +6,12 @@ import type { Invoice, QuickbooksSyncLog, QuickbooksSyncStatus } from "@sportspu
  * OAuth) that haven't shipped yet. See doc/deferred-integrations.md
  * for the full backlog.
  *
- * Default: ON — so stakeholders can walk the flow during reviews.
- * Set NEXT_PUBLIC_PAYMENTS_DEMO=false in production environments
- * once each underlying worker lands.
+ * Default: OFF. Admin consoles must not show invented syncs, cards or
+ * invoices next to real ones (MON-17: PPHL testers saw fake QuickBooks
+ * activity on staging and production). Set NEXT_PUBLIC_PAYMENTS_DEMO=true
+ * only for a stakeholder demo environment.
  */
-export const DEMO_MODE =
-  process.env.NEXT_PUBLIC_PAYMENTS_DEMO === undefined
-    ? true
-    : process.env.NEXT_PUBLIC_PAYMENTS_DEMO === "true";
+export const DEMO_MODE = process.env.NEXT_PUBLIC_PAYMENTS_DEMO === "true";
 
 // =====================================================================
 // Card on file (Player invoice tab)

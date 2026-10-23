@@ -1,23 +1,9 @@
-import { DomainError } from "@sportspulse/kernel";
+import { DomainError, SEASON_STATUSES, type SeasonStatus } from "@sportspulse/kernel";
 
-export const SEASON_STATUSES = [
-  "draft",
-  "registration_open",
-  "in_progress",
-  "playoffs",
-  "completed",
-  "archived"
-] as const;
-export type SeasonStatus = (typeof SEASON_STATUSES)[number];
-
-const ALLOWED_TRANSITIONS: Record<SeasonStatus, SeasonStatus[]> = {
-  draft: ["registration_open", "archived"],
-  registration_open: ["in_progress", "draft", "archived"],
-  in_progress: ["playoffs", "completed", "archived"],
-  playoffs: ["completed", "archived"],
-  completed: ["archived"],
-  archived: []
-};
+// Statuses and transitions live in @sportspulse/kernel so the status
+// menus offer exactly what this enforces.
+export { SEASON_STATUSES, canTransitionSeason } from "@sportspulse/kernel";
+export type { SeasonStatus } from "@sportspulse/kernel";
 
 export const assertSeasonStatus = (raw: string): SeasonStatus => {
   if (!SEASON_STATUSES.includes(raw as SeasonStatus)) {
@@ -26,7 +12,3 @@ export const assertSeasonStatus = (raw: string): SeasonStatus => {
   return raw as SeasonStatus;
 };
 
-export const canTransitionSeason = (
-  from: SeasonStatus,
-  to: SeasonStatus
-): boolean => ALLOWED_TRANSITIONS[from].includes(to);

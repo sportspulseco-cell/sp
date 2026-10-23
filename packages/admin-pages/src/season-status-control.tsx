@@ -4,13 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { Alert, Badge, statusTone } from "@sportspulse/ui";
+import { nextSeasonStatuses } from "@sportspulse/kernel";
 
 const STATUSES: Array<{
   value: string;
   label: string;
   hint: string;
 }> = [
-  { value: "draft", label: "Draft", hint: "Captains can't see it yet." },
+  {
+    value: "draft",
+    label: "Draft",
+    hint: "Setup in progress. Captains see it once its registration window includes today."
+  },
   {
     value: "registration_open",
     label: "Registration open",
@@ -87,7 +92,12 @@ export function SeasonStatusControl({
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1 w-72 rounded-md border border-border bg-bg shadow-lg">
           <ul className="max-h-80 overflow-auto py-1">
-            {STATUSES.map((s) => {
+            {/* Current status plus only the moves the server allows. */}
+            {STATUSES.filter(
+              (s) =>
+                s.value === currentStatus ||
+                nextSeasonStatuses(currentStatus).includes(s.value as never)
+            ).map((s) => {
               const active = s.value === currentStatus;
               return (
                 <li key={s.value}>
