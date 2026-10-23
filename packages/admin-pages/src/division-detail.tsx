@@ -201,6 +201,9 @@ export function DivisionDetail({
           <Field label="Division name" tag="divisions.name">
             {division.name}
           </Field>
+          <Field label="Region" tag="divisions.region_id">
+            {division.regionName ?? "—"}
+          </Field>
           <Field label="Tier" tag="divisions.tier" mono>
             {division.tier ?? "—"}
           </Field>

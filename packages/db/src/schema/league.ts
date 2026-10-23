@@ -301,6 +301,42 @@ export const seasons = pgTable(
 // DIVISIONS — under a SEASON, scoped by age + tier + gender.
 // (Was under league; flipped 2026-05-09 — migration 0015.)
 // =====================================================================
+// =====================================================================
+// REGIONS — structural tier between a season and its divisions
+// (Massachusetts vs New Hampshire). Owned by one org, reused each season.
+// =====================================================================
+
+export const regions = pgTable(
+  "regions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("active"),
+    sortOrder: smallint("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    statusCheck: check(
+      "region_status_check",
+      sql`${t.status} IN ('active','archived')`
+    ),
+    // One region name per org, case-insensitive.
+    uniqOrgName: uniqueIndex("region_org_name_uniq").on(
+      t.orgId,
+      sql`lower(${t.name})`
+    ),
+    orgIdx: index("region_org_idx").on(t.orgId)
+  })
+);
+
 export const divisions = pgTable(
   "divisions",
   {
@@ -309,6 +345,10 @@ export const divisions = pgTable(
       .notNull()
       .references(() => seasons.id, { onDelete: "cascade" }),
     ageGroupId: uuid("age_group_id").references(() => ageGroups.id, {
+      onDelete: "set null"
+    }),
+    // Optional region tier (0051). NULL = the season has no regions.
+    regionId: uuid("region_id").references(() => regions.id, {
       onDelete: "set null"
     }),
     name: text("name").notNull(),
@@ -340,7 +380,8 @@ export const divisions = pgTable(
       sql`${t.status} IN ('active','archived')`
     ),
     seasonIdx: index("division_season_idx").on(t.seasonId),
-    ageGroupIdx: index("division_age_group_idx").on(t.ageGroupId)
+    ageGroupIdx: index("division_age_group_idx").on(t.ageGroupId),
+    regionIdx: index("division_region_idx").on(t.regionId)
   })
 );
 

@@ -5,6 +5,7 @@ import { SeasonsController } from "./interface/seasons.controller";
 import { SeasonCronController } from "./interface/season-cron.controller";
 import { LeaguesController } from "./interface/leagues.controller";
 import { DivisionsController } from "./interface/divisions.controller";
+import { RegionsController } from "./interface/regions.controller";
 import { TeamsController } from "./interface/teams.controller";
 import { TeamSummaryController } from "./interface/team-summary.controller";
 import { LeagueReferenceController } from "./interface/reference.controller";
@@ -58,6 +59,7 @@ import { DrizzleTeamRepository } from "./infrastructure/repositories/drizzle-tea
     SeasonCronController,
     LeaguesController,
     DivisionsController,
+    RegionsController,
     TeamsController,
     TeamSummaryController,
     LeagueReferenceController

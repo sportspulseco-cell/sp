@@ -1,16 +1,21 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import {
   clampLimit,
+  DomainError,
   NotFoundError,
   type CommandHandler,
   type QueryHandler
 } from "@sportspulse/kernel";
+import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import {
   DIVISION_REPOSITORY,
   type DivisionRepository
 } from "../../domain/repositories/division.repository";
-import { DivisionId, SeasonId, AgeGroupId } from "../../domain/identifiers";
+import { DivisionId, SeasonId, AgeGroupId, RegionId } from "../../domain/identifiers";
 import {
   Division,
   type GenderEligibility
@@ -22,6 +27,7 @@ export interface ListDivisionsInput {
   cursor?: string;
   /** Post-flip — divisions live under seasons. */
   seasonId?: string;
+  regionId?: string;
   status?: string;
   search?: string;
   leagueIdsFilter?: string[];
@@ -40,6 +46,7 @@ export class ListDivisionsHandler
       limit: clampLimit(input.limit),
       cursor: input.cursor,
       seasonId: input.seasonId,
+      regionId: input.regionId,
       status: input.status,
       search: input.search,
       leagueIdsFilter: input.leagueIdsFilter
@@ -91,11 +98,47 @@ export class GetDivisionHandler
   }
 }
 
+/**
+ * A division's region must be an active region of the org that owns the
+ * division's season. Shared by create and update so the two paths can
+ * never drift (DomainError -> 422 through the exception filter).
+ */
+async function assertRegionInSeasonOrg(
+  db: Database,
+  seasonId: string,
+  regionId: string
+): Promise<void> {
+  const [season] = await db
+    .select({ orgId: schema.seasons.orgId })
+    .from(schema.seasons)
+    .where(eq(schema.seasons.id, seasonId))
+    .limit(1);
+  if (!season) throw new NotFoundError("Season", seasonId);
+  const [region] = await db
+    .select({ id: schema.regions.id })
+    .from(schema.regions)
+    .where(
+      and(
+        eq(schema.regions.id, regionId),
+        eq(schema.regions.orgId, season.orgId),
+        eq(schema.regions.status, "active")
+      )
+    )
+    .limit(1);
+  if (!region) {
+    throw new DomainError(
+      "REGION_NOT_IN_ORG",
+      "Region must be an active region of the organisation that owns this season"
+    );
+  }
+}
+
 export interface CreateDivisionInput {
   seasonId: string;
   name: string;
   tier?: string | null;
   ageGroupId?: string | null;
+  regionId?: string | null;
   genderEligibility?: GenderEligibility;
   maxTeams?: number | null;
   ruleSetOverrides?: Record<string, unknown>;
@@ -106,14 +149,19 @@ export interface CreateDivisionInput {
 export class CreateDivisionHandler
   implements CommandHandler<CreateDivisionInput, DivisionDto>
 {
-  constructor(@Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository) {}
+  constructor(
+    @Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository,
+    @Inject(DRIZZLE) private readonly db: Database
+  ) {}
   async execute(input: CreateDivisionInput): Promise<DivisionDto> {
+    if (input.regionId) await assertRegionInSeasonOrg(this.db, input.seasonId, input.regionId);
     const division = Division.create({
       id: DivisionId.of(randomUUID()),
       seasonId: SeasonId.of(input.seasonId),
       name: input.name,
       tier: input.tier,
       ageGroupId: input.ageGroupId ? AgeGroupId.of(input.ageGroupId) : null,
+      regionId: input.regionId ? RegionId.of(input.regionId) : null,
       genderEligibility: input.genderEligibility,
       maxTeams: input.maxTeams,
       ruleSetOverrides: input.ruleSetOverrides,
@@ -129,6 +177,7 @@ export interface UpdateDivisionInput {
   name?: string;
   tier?: string | null;
   ageGroupId?: string | null;
+  regionId?: string | null;
   genderEligibility?: GenderEligibility;
   maxTeams?: number | null;
   ruleSetOverrides?: Record<string, unknown>;
@@ -139,10 +188,17 @@ export interface UpdateDivisionInput {
 export class UpdateDivisionHandler
   implements CommandHandler<UpdateDivisionInput, DivisionDto>
 {
-  constructor(@Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository) {}
+  constructor(
+    @Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository,
+    @Inject(DRIZZLE) private readonly db: Database
+  ) {}
   async execute(input: UpdateDivisionInput): Promise<DivisionDto> {
     const d = await this.divisions.findById(DivisionId.of(input.id));
     if (!d) throw new NotFoundError("Division", input.id);
+    if (input.regionId !== undefined) {
+      if (input.regionId) await assertRegionInSeasonOrg(this.db, d.seasonId.value, input.regionId);
+      d.setRegion(input.regionId ? RegionId.of(input.regionId) : null);
+    }
     if (input.name !== undefined) d.rename(input.name);
     if (input.tier !== undefined) d.setTier(input.tier);
     if (input.ageGroupId !== undefined) {

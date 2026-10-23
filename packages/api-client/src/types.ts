@@ -20,6 +20,20 @@ export interface Profile {
   timezone: string;
   status: "pending" | "active" | "suspended" | "deleted";
   isSuperAdmin: boolean;
+  /** Region names reached through roles and rosters (list endpoint only). */
+  regions?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Region tier owned by an org and reused across seasons. */
+export interface Region {
+  id: string;
+  orgId: string;
+  name: string;
+  status: "active" | "archived";
+  sortOrder: number;
+  divisionCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -143,6 +157,10 @@ export interface Division {
   /** Post-flip — divisions live under a season. */
   seasonId: string;
   ageGroupId: string | null;
+  /** Region tier (Season -> Region -> Division); null when unset. */
+  regionId: string | null;
+  /** Resolved by the API so screens never print a region id. */
+  regionName?: string | null;
   name: string;
   tier: string | null;
   genderEligibility: "male" | "female" | "mixed" | "open";

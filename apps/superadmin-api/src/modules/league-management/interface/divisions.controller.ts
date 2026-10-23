@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
@@ -49,21 +50,35 @@ export class DivisionsController {
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  @Get() list(
+  /** Add regionName so screens never print a region id. */
+  private async withRegionNames(items: DivisionDto[]): Promise<DivisionDto[]> {
+    const names = await resolveEntityNames(
+      this.db,
+      items.map((d) => ({ type: "region", id: d.regionId }))
+    );
+    return items.map((d) => ({
+      ...d,
+      regionName: d.regionId ? names.get(`region:${d.regionId}`) ?? null : null
+    }));
+  }
+
+  @Get() async list(
     @Query() q: ListDivisionsQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<DivisionPageDto> {
-    return this.listH.execute({ ...q, leagueIdsFilter: scope.leagueIds ?? undefined });
+    const page = await this.listH.execute({ ...q, leagueIdsFilter: scope.leagueIds ?? undefined });
+    return { ...page, items: await this.withRegionNames(page.items) };
   }
-  @Get(":id") getOne(
+  @Get(":id") async getOne(
     @Param("id") id: string,
     @UserScope() scope: UserScopeType
   ): Promise<DivisionDto> {
-    return this.getH.execute({
+    const d = await this.getH.execute({
       id,
       leagueIdsFilter: scope.leagueIds ?? undefined,
       orgIdsFilter: scope.orgWideOrgIds ?? undefined
     });
+    return (await this.withRegionNames([d]))[0]!;
   }
   @Post()
   @AllowScopedWrite()
@@ -88,13 +103,13 @@ export class DivisionsController {
         throw new NotFoundException("Season not found");
       }
     }
-    return this.createH.execute(body);
+    return (await this.withRegionNames([await this.createH.execute(body)]))[0]!;
   }
-  @Patch(":id") update(
+  @Patch(":id") async update(
     @Param("id") id: string,
     @Body() body: UpdateDivisionBodyDto
   ): Promise<DivisionDto> {
-    return this.updateH.execute({ id, ...body });
+    return (await this.withRegionNames([await this.updateH.execute({ id, ...body })]))[0]!;
   }
   @Delete(":id") archive(@Param("id") id: string): Promise<DivisionDto> {
     return this.archiveH.execute({ id });

@@ -96,10 +96,17 @@ export interface PlayoffConfig {
   homeIceRule: HomeIceRule;
 }
 
+/** Sentinel for "type a new region name" in the region picker. */
+export const NEW_REGION = "__new__";
+
 export interface DivisionDraft {
   uid: string; // local-only for the form list
   name: string;
   tier: Tier;
+  /** Existing region id, NEW_REGION, or null for "no region". */
+  regionId: string | null;
+  /** New region name, used only when regionId === NEW_REGION. */
+  regionName: string;
   genderEligibility: Gender;
   ageGroupId: string | null;
   ageRangeMin: number | null;
@@ -142,6 +149,8 @@ export function emptyDivision(uid: string): DivisionDraft {
     uid,
     name: "",
     tier: "A",
+    regionId: null,
+    regionName: "",
     genderEligibility: "open",
     ageGroupId: null,
     ageRangeMin: null,

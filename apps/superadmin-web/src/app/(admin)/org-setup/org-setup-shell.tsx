@@ -35,6 +35,8 @@ export function OrgSetupShell({
       }
       createSeason={(input) => leagueMgmt.createSeason(input)}
       createDivision={(input) => leagueMgmt.createDivision(input)}
+      listRegions={(orgId) => leagueMgmt.listRegions({ orgId }).then((r) => r.items)}
+      createRegion={(input) => leagueMgmt.createRegion(input)}
       changeLeagueStatus={(id, status) =>
         leagueMgmt.changeLeagueStatus(id, status)
       }

@@ -124,6 +124,7 @@ export default async function DivisionsPage({
             <TR>
               <TH>Name</TH>
               <TH>Season</TH>
+              <TH>Region</TH>
               <TH>Tier</TH>
               <TH>Gender</TH>
               <TH>Max teams</TH>
@@ -144,6 +145,7 @@ export default async function DivisionsPage({
                   <TD className="text-muted-foreground">
                     {s?.name ?? "Unknown season"}
                   </TD>
+                  <TD className="text-muted-foreground">{d.regionName ?? "—"}</TD>
                   <TD className="text-muted-foreground">{d.tier ?? "—"}</TD>
                   <TD className="text-muted-foreground capitalize">
                     {d.genderEligibility}

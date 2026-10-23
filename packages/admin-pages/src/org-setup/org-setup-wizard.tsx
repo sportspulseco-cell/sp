@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Alert, Button } from "@sportspulse/ui";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import {
   DEFAULT_TIEBREAKERS,
+  NEW_REGION,
   emptyDivision,
   slugify,
   type DivisionDraft,
@@ -95,6 +96,8 @@ export function OrgSetupWizard({
   createLeague,
   createSeason,
   createDivision,
+  listRegions,
+  createRegion,
   changeLeagueStatus,
   onComplete,
   orgSports = {}
@@ -131,11 +134,17 @@ export function OrgSetupWizard({
     name: string;
     tier: string | null;
     ageGroupId: string | null;
+    /** Region of the org (Season -> Region -> Division), or null. */
+    regionId: string | null;
     genderEligibility: "open" | "male" | "female" | "mixed";
     maxTeams: number;
     ruleSetOverrides: Record<string, unknown>;
     playoffConfig: Record<string, unknown>;
   }) => Promise<{ id: string }>;
+  /** Active regions of an org, for the division region picker. */
+  listRegions: (orgId: string) => Promise<Array<{ id: string; name: string }>>;
+  /** Creates a region typed inline in the division card. */
+  createRegion: (input: { orgId: string; name: string }) => Promise<{ id: string; name: string }>;
   changeLeagueStatus: (leagueId: string, status: string) => Promise<unknown>;
   /** Called after a successful run. Consuming app decides where to send the admin. */
   onComplete: (result: { leagueId: string }) => void;
@@ -152,6 +161,26 @@ export function OrgSetupWizard({
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Regions belong to the org picked in step 1; reload when it changes.
+  const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!state.orgId) {
+      setRegions([]);
+      return;
+    }
+    listRegions(state.orgId)
+      .then((r) => {
+        if (!cancelled) setRegions(r);
+      })
+      .catch(() => {
+        if (!cancelled) setRegions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.orgId]);
 
   function patchLeague(patch: Partial<LeagueDraft>) {
     setState((s) => {
@@ -234,7 +263,11 @@ export function OrgSetupWizard({
       })(),
       4:
         state.divisions.length > 0 &&
-        state.divisions.every((d) => d.name.trim().length > 0)
+        state.divisions.every(
+          (d) =>
+            d.name.trim().length > 0 &&
+            (d.regionId !== NEW_REGION || d.regionName.trim().length > 0)
+        )
     } as Record<WizardStep, boolean>;
   }, [state]);
 
@@ -298,12 +331,33 @@ export function OrgSetupWizard({
           : null
       });
 
+      // Regions typed inline: create each distinct new name once (case-
+      // insensitive), reusing an existing region when the name matches.
+      const regionIdByName = new Map(regions.map((r) => [r.name.toLowerCase(), r.id]));
+      const resolvedRegion = new Map<string, string | null>();
+      for (const d of state.divisions) {
+        if (d.regionId !== NEW_REGION) {
+          resolvedRegion.set(d.uid, d.regionId);
+          continue;
+        }
+        const name = d.regionName.trim();
+        const key = name.toLowerCase();
+        let id = regionIdByName.get(key);
+        if (!id) {
+          const created = await createRegion({ orgId: state.orgId, name });
+          id = created.id;
+          regionIdByName.set(key, id);
+        }
+        resolvedRegion.set(d.uid, id);
+      }
+
       for (const d of state.divisions) {
         await createDivision({
           seasonId: season.id,
           name: d.name,
           tier: d.tier,
           ageGroupId: d.ageGroupId,
+          regionId: resolvedRegion.get(d.uid) ?? null,
           genderEligibility:
             d.genderEligibility === "open"
               ? "open"
@@ -433,6 +487,7 @@ export function OrgSetupWizard({
         {state.step === 4 ? (
           <DivisionsStep
             divisions={state.divisions}
+            regions={regions}
             summary={{
               league: state.league,
               season: state.season,

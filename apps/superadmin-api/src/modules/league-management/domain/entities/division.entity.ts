@@ -1,5 +1,5 @@
 import { AggregateRoot, DomainError } from "@sportspulse/kernel";
-import { DivisionId, SeasonId, AgeGroupId } from "../identifiers";
+import { DivisionId, SeasonId, AgeGroupId, RegionId } from "../identifiers";
 
 export type GenderEligibility = "male" | "female" | "mixed" | "open";
 export type DivisionStatus = "active" | "archived";
@@ -8,6 +8,8 @@ export interface DivisionSnapshot {
   id: string;
   seasonId: string;
   ageGroupId: string | null;
+  /** Optional region tier (0051). */
+  regionId: string | null;
   name: string;
   tier: string | null;
   genderEligibility: GenderEligibility;
@@ -24,6 +26,7 @@ export class Division extends AggregateRoot<DivisionId> {
     id: DivisionId,
     private readonly _seasonId: SeasonId,
     private _ageGroupId: AgeGroupId | null,
+    private _regionId: RegionId | null,
     private _name: string,
     private _tier: string | null,
     private _genderEligibility: GenderEligibility,
@@ -43,6 +46,7 @@ export class Division extends AggregateRoot<DivisionId> {
     name: string;
     tier?: string | null;
     ageGroupId?: AgeGroupId | null;
+    regionId?: RegionId | null;
     genderEligibility?: GenderEligibility;
     maxTeams?: number | null;
     /** JSONB — game rules: periods, periodLength, clockType, etc. */
@@ -58,6 +62,7 @@ export class Division extends AggregateRoot<DivisionId> {
       input.id,
       input.seasonId,
       input.ageGroupId ?? null,
+      input.regionId ?? null,
       input.name.trim(),
       input.tier ?? null,
       input.genderEligibility ?? "open",
@@ -85,6 +90,7 @@ export class Division extends AggregateRoot<DivisionId> {
       DivisionId.of(s.id),
       SeasonId.of(s.seasonId),
       s.ageGroupId ? AgeGroupId.of(s.ageGroupId) : null,
+      s.regionId ? RegionId.of(s.regionId) : null,
       s.name,
       s.tier,
       s.genderEligibility,
@@ -113,6 +119,11 @@ export class Division extends AggregateRoot<DivisionId> {
     this._touch();
   }
 
+  setRegion(id: RegionId | null): void {
+    this._regionId = id;
+    this._touch();
+  }
+
   setGenderEligibility(g: GenderEligibility): void {
     this._genderEligibility = g;
     this._touch();
@@ -137,6 +148,7 @@ export class Division extends AggregateRoot<DivisionId> {
 
   get seasonId(): SeasonId { return this._seasonId; }
   get ageGroupId(): AgeGroupId | null { return this._ageGroupId; }
+  get regionId(): RegionId | null { return this._regionId; }
   get name(): string { return this._name; }
   get tier(): string | null { return this._tier; }
   get genderEligibility(): GenderEligibility { return this._genderEligibility; }
@@ -152,6 +164,7 @@ export class Division extends AggregateRoot<DivisionId> {
       id: this.id.value,
       seasonId: this._seasonId.value,
       ageGroupId: this._ageGroupId?.value ?? null,
+      regionId: this._regionId?.value ?? null,
       name: this._name,
       tier: this._tier,
       genderEligibility: this._genderEligibility,

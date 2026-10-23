@@ -5,6 +5,7 @@ import { DivisionId } from "../identifiers";
 export interface ListDivisionsQuery extends PageQuery {
   /** Post-flip — divisions live under seasons. */
   seasonId?: string;
+  regionId?: string;
   status?: string;
   search?: string;
   /**

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@sportspulse/ui";
 import { cn } from "@sportspulse/ui";
 import {
+  NEW_REGION,
   TIEBREAKER_LABELS,
   type BodyChecking,
   type BracketType,
@@ -121,6 +122,7 @@ export function DivisionCard({
   index,
   total,
   division,
+  regions,
   expanded,
   onToggle,
   onPatch,
@@ -129,6 +131,8 @@ export function DivisionCard({
   index: number;
   total: number;
   division: DivisionDraft;
+  /** Active regions of the selected org; the card can also add one inline. */
+  regions: Array<{ id: string; name: string }>;
   expanded: boolean;
   onToggle: () => void;
   onPatch: (patch: Partial<DivisionDraft>) => void;
@@ -173,7 +177,7 @@ export function DivisionCard({
 
       {expanded ? (
         <div className="space-y-6 px-5 py-5">
-          <IdentityBlock division={division} onPatch={onPatch} />
+          <IdentityBlock division={division} regions={regions} onPatch={onPatch} />
           <GameRulesBlock division={division} onPatch={onPatch} />
           <TiebreakersBlock division={division} onPatch={onPatch} />
           <PostSeasonBlock division={division} onPatch={onPatch} />
@@ -188,11 +192,17 @@ export function DivisionCard({
 
 function IdentityBlock({
   division,
+  regions,
   onPatch
 }: {
   division: DivisionDraft;
+  regions: Array<{ id: string; name: string }>;
   onPatch: (patch: Partial<DivisionDraft>) => void;
 }) {
+  const regionLabel =
+    division.regionId === NEW_REGION
+      ? division.regionName
+      : regions.find((r) => r.id === division.regionId)?.name;
   return (
     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       <Field label="Division name" required>
@@ -223,6 +233,48 @@ function IdentityBlock({
             </option>
           ))}
         </select>
+      </Field>
+
+      <Field
+        label="Region"
+        hint={
+          regions.length === 0 && division.regionId !== NEW_REGION
+            ? "Optional tier between the season and its divisions (e.g. Massachusetts, New Hampshire). This organisation has none yet; add one here."
+            : regionLabel
+              ? `Teams in this division play in ${regionLabel}.`
+              : "Optional tier between the season and its divisions."
+        }
+      >
+        <select
+          value={division.regionId ?? ""}
+          onChange={(e) =>
+            onPatch({
+              regionId: e.target.value || null,
+              regionName: e.target.value === NEW_REGION ? division.regionName : ""
+            })
+          }
+          className="input"
+        >
+          <option value="">No region</option>
+          {regions.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+          <option value={NEW_REGION}>+ New region…</option>
+        </select>
+        {division.regionId === NEW_REGION ? (
+          <input
+            type="text"
+            value={division.regionName}
+            onChange={(e) => onPatch({ regionName: e.target.value.slice(0, 120) })}
+            maxLength={120}
+            placeholder="Region name, e.g. New Hampshire"
+            aria-label="New region name"
+            className="input mt-2"
+            required
+          />
+        ) : null}
       </Field>
 
       <Field

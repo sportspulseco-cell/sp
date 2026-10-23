@@ -2,12 +2,19 @@
 
 import { UrlFilters } from "@/components/ui/url-filters";
 
-/** /users search + Status / Type / Country-Region filters (?q=&status=&type=&country=). */
+/**
+ * /users search + Status / Type / Region / Country filters
+ * (?q=&status=&type=&region=&country=). Country is a profile field
+ * (always USA for PPHL); Region is the structural tier a user reaches
+ * through roles and rosters, which is what PPHL filters by.
+ */
 export function UsersFilters({
   types,
+  regions,
   countries
 }: {
   types: Array<{ code: string; name: string }>;
+  regions: string[];
   countries: string[];
 }) {
   return (
@@ -34,9 +41,18 @@ export function UsersFilters({
           ]
         },
         {
+          param: "region",
+          label: "Region",
+          allLabel: "All regions",
+          options: [
+            ...regions.map((r) => ({ value: r, label: r })),
+            { value: "none", label: "No region" }
+          ]
+        },
+        {
           param: "country",
-          label: "Country / Region",
-          allLabel: "All countries / regions",
+          label: "Country",
+          allLabel: "All countries",
           options: [
             ...countries.map((c) => ({ value: c, label: c })),
             { value: "none", label: "Not set" }

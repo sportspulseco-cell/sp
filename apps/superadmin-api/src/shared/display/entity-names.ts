@@ -8,6 +8,7 @@ export type NamedEntityType =
   | "season"
   | "division"
   | "team"
+  | "region"
   | "user"
   | "person";
 
@@ -28,7 +29,7 @@ export async function resolveEntityNames(
   for (const r of refs) {
     if (!r.id) continue;
     const type = r.type as NamedEntityType;
-    if (!["org", "league", "season", "division", "team", "user", "person"].includes(type)) continue;
+    if (!["org", "league", "season", "division", "team", "region", "user", "person"].includes(type)) continue;
     const set = ids.get(type) ?? new Set<string>();
     set.add(r.id);
     ids.set(type, set);
@@ -70,6 +71,12 @@ export async function resolveEntityNames(
         .from(schema.teams)
         .where(inArray(schema.teams.id, list("team")))
         .then((rows) => put("team", rows)),
+    list("region").length &&
+      db
+        .select({ id: schema.regions.id, name: schema.regions.name })
+        .from(schema.regions)
+        .where(inArray(schema.regions.id, list("region")))
+        .then((rows) => put("region", rows)),
     list("user").length &&
       db
         .select({

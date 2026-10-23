@@ -5,6 +5,10 @@ export class DivisionDto {
   @ApiProperty() id!: string;
   @ApiProperty() seasonId!: string;
   @ApiPropertyOptional({ nullable: true }) ageGroupId!: string | null;
+  /** Region tier (0051); null when the season has no regions. */
+  @ApiPropertyOptional({ nullable: true }) regionId!: string | null;
+  /** Filled by the controller so screens never print a region id. */
+  @ApiPropertyOptional({ nullable: true }) regionName?: string | null;
   @ApiProperty() name!: string;
   @ApiPropertyOptional({ nullable: true }) tier!: string | null;
   @ApiProperty({ enum: ["male", "female", "mixed", "open"] })
@@ -33,6 +37,7 @@ export class DivisionDto {
       id: x.id,
       seasonId: x.seasonId,
       ageGroupId: x.ageGroupId,
+      regionId: x.regionId,
       name: x.name,
       tier: x.tier,
       genderEligibility: x.genderEligibility,

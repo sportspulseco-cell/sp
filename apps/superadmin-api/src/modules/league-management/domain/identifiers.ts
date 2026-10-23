@@ -35,6 +35,11 @@ export class AgeGroupId extends EntityId<"AgeGroup"> {
     return new AgeGroupId(v);
   }
 }
+export class RegionId extends EntityId<"Region"> {
+  static of(v: string): RegionId {
+    return new RegionId(v);
+  }
+}
 export class RuleSetId extends EntityId<"RuleSet"> {
   static of(v: string): RuleSetId {
     return new RuleSetId(v);

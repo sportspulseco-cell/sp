@@ -15,6 +15,12 @@ export class ProfileDto {
   @ApiProperty({ enum: ["pending", "active", "suspended", "deleted"] })
   status!: "pending" | "active" | "suspended" | "deleted";
   @ApiProperty() isSuperAdmin!: boolean;
+  /**
+   * Region names this user is attached to, through role scopes and
+   * rosters (division -> region). Filled by the list query; empty when
+   * none. Country is a profile field; region is a structural tier.
+   */
+  @ApiProperty({ type: [String], required: false }) regions?: string[];
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 

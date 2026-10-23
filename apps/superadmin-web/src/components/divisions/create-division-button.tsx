@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
-import type { Season } from "@/lib/api/types";
+import type { Region, Season } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
@@ -41,11 +41,30 @@ function CreateDivisionDialog({
     seasonId: seasons[0]?.id ?? "",
     name: "",
     tier: "",
+    regionId: "",
     genderEligibility: "open" as "male" | "female" | "mixed" | "open",
     maxTeams: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Regions belong to the season's org (Season -> Region -> Division).
+  const [regions, setRegions] = useState<Region[]>([]);
+  const orgId = seasons.find((s) => s.id === form.seasonId)?.orgId ?? null;
+  useEffect(() => {
+    if (!open || !orgId) return;
+    let cancelled = false;
+    leagueMgmt
+      .listRegions({ orgId })
+      .then((r) => {
+        if (!cancelled) setRegions(r.items);
+      })
+      .catch(() => {
+        if (!cancelled) setRegions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, orgId]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -56,6 +75,7 @@ function CreateDivisionDialog({
         seasonId: form.seasonId,
         name: form.name,
         tier: form.tier || null,
+        regionId: form.regionId || null,
         genderEligibility: form.genderEligibility,
         maxTeams: form.maxTeams ? Number(form.maxTeams) : null
       });
@@ -76,12 +96,15 @@ function CreateDivisionDialog({
       description="Divisions group teams by age, tier, and gender within a league."
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="League" htmlFor="seasonId">
+        <Field label="Season" htmlFor="seasonId">
           <Select
             id="seasonId"
             required
             value={form.seasonId}
-            onChange={(e) => setForm((f) => ({ ...f, seasonId: e.target.value }))}
+            onChange={(e) =>
+              // Regions differ per org, so a season change resets the region.
+              setForm((f) => ({ ...f, seasonId: e.target.value, regionId: "" }))
+            }
           >
             {seasons.map((l) => (
               <option key={l.id} value={l.id}>
@@ -98,6 +121,29 @@ function CreateDivisionDialog({
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="U14 Tier 1"
           />
+        </Field>
+        <Field
+          label="Region"
+          htmlFor="regionId"
+          hint={
+            regions.length === 0
+              ? "This organisation has no regions yet. Add them in Org setup."
+              : "Optional tier between the season and its divisions."
+          }
+        >
+          <Select
+            id="regionId"
+            value={form.regionId}
+            onChange={(e) => setForm((f) => ({ ...f, regionId: e.target.value }))}
+            disabled={regions.length === 0}
+          >
+            <option value="">No region</option>
+            {regions.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Tier" htmlFor="tier" hint="A / B / Premier">

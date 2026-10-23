@@ -16,6 +16,7 @@ import type {
   Sport,
   SystemSetting,
   Division,
+  Region,
   Document,
   DocumentKind,
   DocumentVersion,
@@ -1419,15 +1420,37 @@ export function createApi(f: Fetcher) {
         f<AgeGroup[]>(`/league/age-groups${qs(q)}`),
 
       listDivisions: (
-        q: { limit?: number; cursor?: string; seasonId?: string } = {}
+        q: { limit?: number; cursor?: string; seasonId?: string; regionId?: string } = {}
       ) => f<Page<Division>>(`/league/divisions${qs(q)}`),
       getDivision: (id: string) =>
         f<Division>(`/league/divisions/${id}`),
+      updateDivision: (
+        id: string,
+        body: { name?: string; tier?: string | null; regionId?: string | null; maxTeams?: number | null }
+      ) =>
+        f<Division>(`/league/divisions/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body)
+        }),
+      // Regions: Season -> Region -> Division. One list per org.
+      listRegions: (q: { orgId?: string; status?: "active" | "archived" } = {}) =>
+        f<{ items: Region[] }>(`/league/regions${qs(q)}`),
+      createRegion: (body: { orgId: string; name: string; sortOrder?: number }) =>
+        f<Region>("/league/regions", { method: "POST", body: JSON.stringify(body) }),
+      updateRegion: (
+        id: string,
+        body: { name?: string; sortOrder?: number; status?: "active" | "archived" }
+      ) =>
+        f<Region>(`/league/regions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+      archiveRegion: (id: string) =>
+        f<Region>(`/league/regions/${id}`, { method: "DELETE" }),
       createDivision: (body: {
         seasonId: string;
         name: string;
         tier?: string | null;
         ageGroupId?: string | null;
+        /** Must be a region of the season's org. */
+        regionId?: string | null;
         genderEligibility?: "male" | "female" | "mixed" | "open";
         maxTeams?: number | null;
         /** JSONB — game rules: periods, periodLength, clockType, etc. */

@@ -45,6 +45,7 @@ export class DrizzleDivisionRepository implements DivisionRepository {
   async list(q: ListDivisionsQuery): Promise<Page<Division>> {
     const cs = [];
     if (q.seasonId) cs.push(eq(schema.divisions.seasonId, q.seasonId));
+    if (q.regionId) cs.push(eq(schema.divisions.regionId, q.regionId));
     if (q.status) cs.push(eq(schema.divisions.status, q.status));
     if (q.search) cs.push(ilike(schema.divisions.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.divisions.id, q.cursor));
@@ -80,6 +81,7 @@ export class DrizzleDivisionRepository implements DivisionRepository {
       id: x.id,
       seasonId: x.seasonId,
       ageGroupId: x.ageGroupId,
+      regionId: x.regionId,
       name: x.name,
       tier: x.tier,
       genderEligibility: x.genderEligibility,
@@ -96,6 +98,7 @@ export class DrizzleDivisionRepository implements DivisionRepository {
       .update(schema.divisions)
       .set({
         ageGroupId: x.ageGroupId,
+        regionId: x.regionId,
         name: x.name,
         tier: x.tier,
         genderEligibility: x.genderEligibility,
@@ -120,6 +123,7 @@ export class DrizzleDivisionRepository implements DivisionRepository {
       id: r.id,
       seasonId: r.seasonId,
       ageGroupId: r.ageGroupId,
+      regionId: r.regionId,
       name: r.name,
       tier: r.tier,
       genderEligibility: r.genderEligibility as never,

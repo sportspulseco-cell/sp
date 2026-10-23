@@ -28,7 +28,13 @@ export const metadata = { title: "Users — SportsPulse" };
 export default async function UsersPage({
   searchParams
 }: {
-  searchParams?: Promise<{ q?: string; status?: string; type?: string; country?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    status?: string;
+    type?: string;
+    region?: string;
+    country?: string;
+  }>;
 }) {
   const sp = (await searchParams) ?? {};
   // Every account, not the first 50: newly invited users were missing
@@ -70,6 +76,7 @@ export default async function UsersPage({
   const countryOptions = [
     ...new Set(page.items.map((u) => u.countryCode).filter((c): c is string => !!c))
   ].sort();
+  const regionOptions = [...new Set(page.items.flatMap((u) => u.regions ?? []))].sort();
 
   const q = sp.q?.trim().toLowerCase() ?? "";
   const shown = page.items.filter((u) => {
@@ -85,6 +92,10 @@ export default async function UsersPage({
     if (sp.country) {
       const c = u.countryCode ?? "none";
       if (c !== sp.country) return false;
+    }
+    if (sp.region) {
+      const rs = u.regions ?? [];
+      if (sp.region === "none" ? rs.length > 0 : !rs.includes(sp.region)) return false;
     }
     return true;
   });
@@ -127,7 +138,7 @@ export default async function UsersPage({
         ]}
       />
       <div className="space-y-2">
-        <UsersFilters types={typeOptions} countries={countryOptions} />
+        <UsersFilters types={typeOptions} regions={regionOptions} countries={countryOptions} />
         <p className="text-[12px] text-fg-muted">
           Showing {shown.length} of {total} users
         </p>
@@ -140,7 +151,7 @@ export default async function UsersPage({
         <EmptyState
           icon={Users}
           title="No users match these filters"
-          description="Clear the search or pick a different status, type or country."
+          description="Clear the search or pick a different status, type, region or country."
         />
       ) : page.items.length === 0 ? (
         <EmptyState
@@ -180,7 +191,7 @@ export default async function UsersPage({
                   </TD>
                   <TD className="text-muted-foreground">{u.email ?? "—"}</TD>
                   <TD className="text-muted-foreground">
-                    {u.countryCode ?? "—"}
+                    {[u.countryCode, ...(u.regions ?? [])].filter(Boolean).join(" · ") || "—"}
                   </TD>
                   <TD>
                     <Badge tone={statusTone(u.status)}>{u.status}</Badge>

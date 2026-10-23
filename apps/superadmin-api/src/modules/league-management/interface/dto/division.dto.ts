@@ -17,6 +17,8 @@ export class CreateDivisionBodyDto {
   @ApiProperty() @IsString() @MaxLength(120) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() tier?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsUUID() ageGroupId?: string | null;
+  /** Region of the same org as the season; validated in the handler. */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() regionId?: string | null;
   @ApiPropertyOptional({ enum: ["male", "female", "mixed", "open"] })
   @IsOptional() @IsIn(["male", "female", "mixed", "open"])
   genderEligibility?: "male" | "female" | "mixed" | "open";
@@ -32,6 +34,7 @@ export class UpdateDivisionBodyDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120) name?: string;
   @ApiPropertyOptional() @IsOptional() tier?: string | null;
   @ApiPropertyOptional() @IsOptional() ageGroupId?: string | null;
+  @ApiPropertyOptional() @IsOptional() regionId?: string | null;
   @ApiPropertyOptional({ enum: ["male", "female", "mixed", "open"] })
   @IsOptional() @IsIn(["male", "female", "mixed", "open"])
   genderEligibility?: "male" | "female" | "mixed" | "open";
@@ -47,6 +50,7 @@ export class ListDivisionsQueryDto {
   limit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() cursor?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() regionId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
 }

@@ -14,12 +14,15 @@ import { DivisionCard } from "./division-card";
  */
 export function DivisionsStep({
   divisions,
+  regions,
   summary,
   onPatch,
   onAdd,
   onRemove
 }: {
   divisions: DivisionDraft[];
+  /** Active regions of the selected org (Season -> Region -> Division). */
+  regions: Array<{ id: string; name: string }>;
   summary: { league: LeagueDraft; season: SeasonDraft; org: Org | null };
   onPatch: (uid: string, patch: Partial<DivisionDraft>) => void;
   onAdd: () => void;
@@ -47,6 +50,7 @@ export function DivisionsStep({
             index={i}
             total={divisions.length}
             division={d}
+            regions={regions}
             expanded={expanded.has(d.uid)}
             onToggle={() => toggle(d.uid)}
             onPatch={(patch) => onPatch(d.uid, patch)}

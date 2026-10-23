@@ -77,6 +77,7 @@ export default async function DivisionsPage() {
               <THead>
                 <TR>
                   <TH>Name</TH>
+                  <TH>Region</TH>
                   <TH>Tier</TH>
                   <TH>Eligibility</TH>
                   <TH className="text-right">Max teams</TH>
@@ -90,6 +91,7 @@ export default async function DivisionsPage() {
                         {d.name}
                       </Link>
                     </TD>
+                    <TD className="text-fg-muted">{d.regionName ?? "—"}</TD>
                     <TD className="text-fg-muted">{d.tier ?? "—"}</TD>
                     <TD>
                       <Badge mono tone="neutral">{d.genderEligibility ?? "open"}</Badge>
