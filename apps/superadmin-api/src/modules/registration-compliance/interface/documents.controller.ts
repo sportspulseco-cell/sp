@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Inject,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -13,7 +14,10 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { orgVisible } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { inArray, eq } from "drizzle-orm";
@@ -47,7 +51,9 @@ import {
 @ApiTags("compliance/documents")
 @ApiBearerAuth()
 @Controller("compliance/documents")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Reads: super admin or a scoped admin (documents of their orgs plus
+// platform-wide ones). Writes: super admin only (guard write rule).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class DocumentsController {
   constructor(
     private readonly listH: ListDocumentsHandler,
@@ -63,11 +69,22 @@ export class DocumentsController {
   ) {}
 
   // ---- Documents ----
-  @Get() list(@Query() q: ListDocumentsQueryDto): Promise<DocumentPageDto> {
-    return this.listH.execute(q);
+  @Get() list(
+    @Query() q: ListDocumentsQueryDto,
+    @UserScope() scope: UserScopeType
+  ): Promise<DocumentPageDto> {
+    if (q.orgId && !orgVisible(scope, q.orgId)) {
+      return Promise.resolve({ items: [], nextCursor: null });
+    }
+    return this.listH.execute({ ...q, visibleTo: scope });
   }
-  @Get(":id") getOne(@Param("id") id: string): Promise<DocumentDto> {
-    return this.getH.execute({ id });
+  @Get(":id") async getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<DocumentDto> {
+    const doc = await this.getH.execute({ id });
+    if (!orgVisible(scope, doc.orgId)) throw new NotFoundException("Document not found");
+    return doc;
   }
   @Post() create(@Body() body: CreateDocumentBodyDto): Promise<DocumentDto> {
     return this.createH.execute(body);
@@ -80,9 +97,12 @@ export class DocumentsController {
   }
 
   // ---- Versions ----
-  @Get(":id/versions") versions(
-    @Param("id") documentId: string
+  @Get(":id/versions") async versions(
+    @Param("id") documentId: string,
+    @UserScope() scope: UserScopeType
   ): Promise<DocumentVersionDto[]> {
+    const doc = await this.getH.execute({ id: documentId });
+    if (!orgVisible(scope, doc.orgId)) throw new NotFoundException("Document not found");
     return this.listVersionsH.execute({ documentId });
   }
   @Post(":id/versions/publish")

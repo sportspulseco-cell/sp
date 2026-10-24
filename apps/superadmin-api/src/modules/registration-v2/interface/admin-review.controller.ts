@@ -40,7 +40,8 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
-import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
+import { userHasOrgAdminOnOrg, userIsPeopleAdmin } from "../../../shared/auth/org-admin";
+import { orgVisible, visibleRegistrationsWhere } from "../../../shared/auth/visibility";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 
@@ -152,12 +153,21 @@ export class AdminReviewController {
     // they administer. Writes below stay super_admin only; org admins
     // decide through /org-admin/registrations/:id/review.
     const scope = await loadUserScope(this.db, user.userId);
-    if (!scope.isSuperAdmin) {
-      if (!q.orgId || !(await userHasOrgAdminOnOrg(this.db, user.userId, q.orgId))) {
-        throw new ForbiddenException("Requires super_admin, or org_admin on the requested orgId.");
-      }
-    }
     const conditions = [];
+    if (!scope.isSuperAdmin) {
+      // Scoped admins (org / league / season / division) see the queue
+      // inside their scope; nobody else sees it at all.
+      if (!(await userIsPeopleAdmin(this.db, user.userId))) {
+        throw new ForbiddenException(
+          "Requires an admin role (org, league, season or division admin)."
+        );
+      }
+      if (q.orgId && !orgVisible(scope, q.orgId)) {
+        throw new ForbiddenException("That organisation is outside the scope of your role.");
+      }
+      const visible = visibleRegistrationsWhere(scope);
+      if (visible) conditions.push(visible);
+    }
     const statusList = (q.statuses ?? "")
       .split(",")
       .map((s) => s.trim())

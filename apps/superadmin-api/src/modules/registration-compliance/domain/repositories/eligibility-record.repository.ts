@@ -1,8 +1,11 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import type { Page, PageQuery } from "@sportspulse/kernel";
 import type { EligibilityRecord } from "../entities/eligibility-record.entity";
 import { EligibilityRecordId } from "../identifiers";
 
 export interface ListEligibilityQuery extends PageQuery {
+  /** Scoped admins: only records of seasons inside their scope. */
+  visibleTo?: UserScope;
   personId?: string;
   seasonId?: string;
   governingBodyId?: string;

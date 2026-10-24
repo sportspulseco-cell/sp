@@ -19,7 +19,10 @@ import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { seasonVisible } from "../../../shared/auth/visibility";
 import { NotificationService } from "../../communications/application/notification.service";
 
 /**
@@ -48,7 +51,9 @@ import { NotificationService } from "../../communications/application/notificati
 @ApiTags("compliance/sweeps")
 @ApiBearerAuth()
 @Controller("compliance/eligibility/season")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Sweeps (POST) stay super admin; the summary and duplicate reads are
+// open to scoped admins for seasons inside their scope (404 otherwise).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class ComplianceSweepsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -370,7 +375,8 @@ export class ComplianceSweepsController {
     summary:
       "Duplicate USA Hockey ID groups in the season — players who share the same externalId for the same governing body. Powers the admin duplicate-ID panel (§5)."
   })
-  async listDuplicates(@Param("id") seasonId: string) {
+  async listDuplicates(@Param("id") seasonId: string, @UserScope() scope: UserScopeType) {
+    if (!(await seasonVisible(this.db, scope, seasonId))) throw new NotFoundException("Season not found");
     const members = await this.loadActiveMembers(seasonId);
     if (members.length === 0) return { groups: [] };
     const personIds = members.map((m) => m.personId);
@@ -440,7 +446,8 @@ export class ComplianceSweepsController {
     summary:
       "Counts by status for the season — drives the admin compliance summary cards."
   })
-  async summary(@Param("id") seasonId: string) {
+  async summary(@Param("id") seasonId: string, @UserScope() scope: UserScopeType) {
+    if (!(await seasonVisible(this.db, scope, seasonId))) throw new NotFoundException("Season not found");
     const rows = await this.db
       .select({
         status: schema.eligibilityRecords.status,

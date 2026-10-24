@@ -8,6 +8,7 @@ import {
   type ProfileRepository
 } from "../../domain/repositories/profile.repository";
 import { ProfileDto, ProfilePageDto } from "../dtos/profile.dto";
+import type { Visibility } from "../../../../shared/auth/visibility";
 
 export interface ListProfilesInput {
   limit?: number;
@@ -17,6 +18,8 @@ export interface ListProfilesInput {
   countryCode?: string;
   isSuperAdmin?: boolean;
   roleCode?: string;
+  /** Scoped admins: only people inside their scope (see shared/auth/visibility.ts). */
+  visibleTo?: Visibility;
 }
 
 @Injectable()
@@ -85,7 +88,8 @@ export class ListProfilesHandler
         search: input.search,
         countryCode: input.countryCode,
         isSuperAdmin: input.isSuperAdmin,
-        roleCode: input.roleCode
+        roleCode: input.roleCode,
+        visibleTo: input.visibleTo
       });
     const items = page.items.map(ProfileDto.fromDomain);
     const regions = await this.regionsByUser(items.map((u) => u.id));

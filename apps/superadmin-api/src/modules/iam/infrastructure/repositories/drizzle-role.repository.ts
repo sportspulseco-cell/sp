@@ -4,6 +4,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
+import { visibleUserIds } from "../../../../shared/auth/visibility";
 import type {
   AssignRoleInput,
   CreateRoleInput,
@@ -128,6 +129,10 @@ export class DrizzleRoleRepository implements RoleRepository {
       cs.push(eq(schema.userRoleAssignments.scopeId, q.scopeId));
     if (q.activeOnly) cs.push(isNull(schema.userRoleAssignments.revokedAt));
     if (q.cursor) cs.push(gt(schema.userRoleAssignments.id, q.cursor));
+    if (q.visibleTo) {
+      const visible = visibleUserIds(q.visibleTo);
+      if (visible) cs.push(sql`${schema.userRoleAssignments.userId} in ${visible}`);
+    }
 
     const rows = await this.db
       .select({

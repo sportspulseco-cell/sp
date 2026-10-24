@@ -1,4 +1,5 @@
 import type { Page, PageQuery } from "@sportspulse/kernel";
+import type { Visibility } from "../../../../shared/auth/visibility";
 
 export type RoleScopeType =
   | "platform"
@@ -67,6 +68,8 @@ export interface ListRoleAssignmentsQuery extends PageQuery {
   scopeId?: string;
   /** When true, exclude revoked assignments. */
   activeOnly?: boolean;
+  /** Scoped admins: only assignments of people inside their scope. */
+  visibleTo?: Visibility;
 }
 
 export interface AssignRoleInput {

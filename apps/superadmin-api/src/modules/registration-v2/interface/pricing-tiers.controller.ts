@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -11,7 +13,12 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { seasonVisible, unrestricted } from "../../../shared/auth/visibility";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import type { Database } from "@sportspulse/db";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import {
   CreatePricingTierBodyDto,
@@ -22,20 +29,33 @@ import {
 @ApiTags("registration-v2/pricing-tiers")
 @ApiBearerAuth()
 @Controller("registration-v2/pricing-tiers")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Reads: super admin or a scoped admin (tiers of seasons inside their
+// scope). Writes: super admin only (guard write rule).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class PricingTiersController {
-  constructor(private readonly svc: RegistrationV2Service) {}
+  constructor(
+    private readonly svc: RegistrationV2Service,
+    @Inject(DRIZZLE) private readonly db: Database
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "List pricing tiers (optionally filter by season)" })
-  list(@Query() q: ListPricingTiersQueryDto) {
+  async list(@Query() q: ListPricingTiersQueryDto, @UserScope() scope: UserScopeType) {
+    if (!unrestricted(scope)) {
+      // Scoped admins read one season at a time, and only their own.
+      if (!q.seasonId || !(await seasonVisible(this.db, scope, q.seasonId))) return [];
+    }
     return this.svc.listPricingTiers({ seasonId: q.seasonId });
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Get a pricing tier" })
-  getOne(@Param("id") id: string) {
-    return this.svc.getPricingTier(id);
+  async getOne(@Param("id") id: string, @UserScope() scope: UserScopeType) {
+    const tier = await this.svc.getPricingTier(id);
+    if (!(await seasonVisible(this.db, scope, tier.seasonId))) {
+      throw new NotFoundException(`Pricing tier ${id} not found`);
+    }
+    return tier;
   }
 
   @Post()

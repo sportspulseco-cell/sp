@@ -1,3 +1,4 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
@@ -22,6 +23,8 @@ import {
 } from "../dtos/registration.dto";
 
 export interface ListEligibilityInput {
+  /** Scoped admins: only records of seasons inside their scope. */
+  visibleTo?: UserScope;
   limit?: number;
   cursor?: string;
   personId?: string;

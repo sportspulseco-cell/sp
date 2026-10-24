@@ -1,4 +1,5 @@
 import {
+  NotFoundException,
   Body,
   Controller,
   Get,
@@ -11,7 +12,10 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { formVisible } from "../../../shared/auth/visibility";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import type { Database } from "@sportspulse/db";
@@ -39,7 +43,9 @@ import {
 @ApiTags("registration/forms")
 @ApiBearerAuth()
 @Controller("registration/forms")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Reads: super admin or a scoped admin (forms of their orgs / leagues /
+// seasons). Writes: super admin only (guard write rule).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class RegistrationFormsController {
   constructor(
     private readonly listH: ListFormsHandler,
@@ -52,11 +58,15 @@ export class RegistrationFormsController {
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  @Get() async list(@Query() q: ListFormsQueryDto): Promise<RegistrationFormPageDto> {
+  @Get() async list(
+    @Query() q: ListFormsQueryDto,
+    @UserScope() scope: UserScopeType
+  ): Promise<RegistrationFormPageDto> {
     const page = await this.listH.execute({
       limit: q.limit,
       cursor: q.cursor,
       orgId: q.orgId,
+      visibleTo: scope,
       scope: q.scope,
       scopeId: q.scopeId,
       purpose: q.purpose,
@@ -76,7 +86,11 @@ export class RegistrationFormsController {
       }))
     };
   }
-  @Get(":id") getOne(@Param("id") id: string): Promise<RegistrationFormDto> {
+  @Get(":id") async getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<RegistrationFormDto> {
+    if (!(await formVisible(this.db, scope, id))) throw new NotFoundException("Form not found");
     return this.getH.execute({ id });
   }
   @Post() create(@Body() body: CreateFormBodyDto): Promise<RegistrationFormDto> {
@@ -106,7 +120,11 @@ export class RegistrationFormsController {
   }
 
   @Get(":id/versions") @ApiOperation({ summary: "List versions of a form" })
-  versions(@Param("id") formId: string): Promise<FormVersionDto[]> {
+  async versions(
+    @Param("id") formId: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<FormVersionDto[]> {
+    if (!(await formVisible(this.db, scope, formId))) throw new NotFoundException("Form not found");
     return this.listVersionsH.execute({ formId });
   }
   @Post(":id/versions") @ApiOperation({ summary: "Create a draft version" })

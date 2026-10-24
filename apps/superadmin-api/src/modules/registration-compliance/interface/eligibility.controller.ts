@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -12,7 +14,12 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { isHardBlockCheck } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { seasonVisible } from "../../../shared/auth/visibility";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import type { Database } from "@sportspulse/db";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import {
   EligibilityRecordDto,
@@ -35,9 +42,12 @@ import {
 @ApiTags("compliance/eligibility")
 @ApiBearerAuth()
 @Controller("compliance/eligibility")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Reads: super admin or a scoped admin (records of seasons inside their
+// scope). Writes: super admin only (guard write rule).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class EligibilityController {
   constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
     private readonly listH: ListEligibilityHandler,
     private readonly getH: GetEligibilityHandler,
     private readonly createH: CreateEligibilityHandler,
@@ -45,16 +55,29 @@ export class EligibilityController {
     private readonly waiveH: WaiveEligibilityHandler
   ) {}
 
-  @Get() list(@Query() q: ListEligibilityQueryDto): Promise<EligibilityRecordPageDto> {
-    return this.listH.execute(q);
+  @Get() async list(
+    @Query() q: ListEligibilityQueryDto,
+    @UserScope() scope: UserScopeType
+  ): Promise<EligibilityRecordPageDto> {
+    if (q.seasonId && !(await seasonVisible(this.db, scope, q.seasonId))) {
+      return { items: [], nextCursor: null };
+    }
+    return this.listH.execute({ ...q, visibleTo: scope });
   }
   // Constrain :id to UUID shape so /compliance/eligibility/precheck
   // (registered on a separate ComplianceController) doesn't get swallowed
   // by Express first-match into this :id handler — which 500'd with
   // "Invalid UUID: precheck" before the precheck route was reached (BUG-033).
   @Get(":id([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
-  getOne(@Param("id") id: string): Promise<EligibilityRecordDto> {
-    return this.getH.execute({ id });
+  async getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<EligibilityRecordDto> {
+    const rec = await this.getH.execute({ id });
+    if (!(await seasonVisible(this.db, scope, rec.seasonId))) {
+      throw new NotFoundException("Eligibility record not found");
+    }
+    return rec;
   }
   @Post() @ApiOperation({ summary: "Create eligibility record" })
   create(

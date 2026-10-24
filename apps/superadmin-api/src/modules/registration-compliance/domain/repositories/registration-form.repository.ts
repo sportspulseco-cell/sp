@@ -1,8 +1,11 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import type { FormPurpose, Page, PageQuery } from "@sportspulse/kernel";
 import type { RegistrationForm } from "../entities/registration-form.entity";
 import { RegistrationFormId, RegistrationFormVersionId } from "../identifiers";
 
 export interface ListRegistrationFormsQuery extends PageQuery {
+  /** Scoped admins: only forms inside their scope (see shared/auth/visibility.ts). */
+  visibleTo?: UserScope;
   orgId?: string;
   scope?: string;
   scopeId?: string;

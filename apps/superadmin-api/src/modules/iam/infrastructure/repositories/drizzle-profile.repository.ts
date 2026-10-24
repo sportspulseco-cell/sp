@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { visibleUserIds } from "../../../../shared/auth/visibility";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -53,6 +54,10 @@ export class DrizzleProfileRepository implements ProfileRepository {
       );
     }
     if (q.cursor) conditions.push(gt(schema.profiles.id, q.cursor));
+    if (q.visibleTo) {
+      const visible = visibleUserIds(q.visibleTo);
+      if (visible) conditions.push(sql`${schema.profiles.id} in ${visible}`);
+    }
 
     // roleCode filter: subquery to user_role_assignments INNER JOIN roles,
     // limited to active assignments (revoked_at IS NULL).

@@ -1,3 +1,4 @@
+import { visibleFormsWhere } from "../../../../shared/auth/visibility";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -49,6 +50,10 @@ export class DrizzleRegistrationFormRepository
     if (q.search)
       cs.push(ilike(schema.registrationForms.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.registrationForms.id, q.cursor));
+    if (q.visibleTo) {
+      const visible = visibleFormsWhere(q.visibleTo);
+      if (visible) cs.push(visible);
+    }
 
     const rows = await this.db
       .select()

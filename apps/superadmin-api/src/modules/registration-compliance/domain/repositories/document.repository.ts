@@ -1,8 +1,11 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import type { Page, PageQuery } from "@sportspulse/kernel";
 import type { Document } from "../entities/document.entity";
 import { DocumentId, DocumentVersionId, ConsentSignatureId } from "../identifiers";
 
 export interface ListDocumentsQuery extends PageQuery {
+  /** Scoped admins: documents of their orgs, plus platform-wide ones (null org). */
+  visibleTo?: UserScope;
   orgId?: string;
   kind?: string;
   search?: string;

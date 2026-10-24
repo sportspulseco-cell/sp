@@ -1,6 +1,7 @@
 import type { Page, PageQuery } from "@sportspulse/kernel";
 import { UserId } from "../identifiers";
 import type { Profile } from "../entities/profile.entity";
+import type { Visibility } from "../../../../shared/auth/visibility";
 
 // DIP — domain depends on this abstraction; infra provides the impl.
 export interface ProfileRepository {
@@ -22,6 +23,8 @@ export interface ListProfilesQuery extends PageQuery {
    * brand-new users come in through the invite tab instead.
    */
   roleCode?: string;
+  /** Scoped admins: restrict to people inside their scope. */
+  visibleTo?: Visibility;
 }
 
 export const PROFILE_REPOSITORY = Symbol("PROFILE_REPOSITORY");

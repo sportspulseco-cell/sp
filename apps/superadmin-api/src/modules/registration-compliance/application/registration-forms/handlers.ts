@@ -1,3 +1,4 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
@@ -34,6 +35,8 @@ export interface ListFormsInput {
   purpose?: FormPurpose;
   role?: string;
   search?: string;
+  /** Scoped admins: only forms inside their scope. */
+  visibleTo?: UserScope;
 }
 
 @Injectable()
@@ -53,7 +56,8 @@ export class ListFormsHandler
       scopeId: input.scopeId,
       purpose: input.purpose,
       role: input.role,
-      search: input.search
+      search: input.search,
+      visibleTo: input.visibleTo
     });
     return {
       items: page.items.map(RegistrationFormDto.fromDomain),

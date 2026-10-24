@@ -19,7 +19,10 @@ import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { orgVisible, visibleSeasonIds } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { NotificationService } from "../../communications/application/notification.service";
 
@@ -43,7 +46,9 @@ class ListDteQueryDto {
 @ApiTags("league/admin/division-team-entries")
 @ApiBearerAuth()
 @Controller("league/division-team-entries")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Reads: super admin or a scoped admin (filtered to their seasons).
+// Writes: super admin only (guard write rule).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class DivisionEntriesAdminController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -55,10 +60,12 @@ export class DivisionEntriesAdminController {
     summary:
       "Admin list of division team entries. Defaults to status=applied (the pending-decision queue)."
   })
-  async list(@Query() q: ListDteQueryDto) {
+  async list(@Query() q: ListDteQueryDto, @UserScope() scope: UserScopeType) {
     const statusList = q.status
       ? q.status.split(",").map((s) => s.trim()).filter(Boolean)
       : ["applied"];
+    if (q.orgId && !orgVisible(scope, q.orgId)) return { items: [] };
+    const seasons = visibleSeasonIds(scope);
     const rows = await this.db
       .select({
         id: schema.divisionTeamEntries.id,
@@ -92,7 +99,8 @@ export class DivisionEntriesAdminController {
       .where(
         and(
           inArray(schema.divisionTeamEntries.entryStatus, statusList),
-          q.orgId ? eq(schema.teams.orgId, q.orgId) : sql`true`
+          q.orgId ? eq(schema.teams.orgId, q.orgId) : sql`true`,
+          seasons ? sql`${schema.seasons.id} in ${seasons}` : sql`true`
         )
       )
       .orderBy(desc(schema.divisionTeamEntries.createdAt))

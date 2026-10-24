@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsOptional, IsString, IsUUID, MinLength } from "class-validator";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   ROSTER_DROP_REASON_MIN_CHARS,
   assertValidTransferTransition,
@@ -24,7 +24,10 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { orgVisible, unrestricted } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { NotificationService } from "../../communications/application/notification.service";
 
@@ -53,7 +56,8 @@ class ListQueryDto {
 @ApiTags("league/admin/transfers")
 @ApiBearerAuth()
 @Controller("league")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+// Reads: super admin or a scoped admin (their orgs). Writes: super admin only.
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class AdminTransfersController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -65,8 +69,16 @@ export class AdminTransfersController {
     summary:
       "Admin transfer queue. Defaults to status=pending_admin; pass ?status=… to filter."
   })
-  async list(@Query() q: ListQueryDto) {
+  async list(@Query() q: ListQueryDto, @UserScope() scope: UserScopeType) {
     const conds = [];
+    if (q.orgId && !orgVisible(scope, q.orgId)) return { items: [] };
+    if (!unrestricted(scope)) {
+      conds.push(
+        scope.orgIds?.length
+          ? inArray(schema.transferRequests.orgId, scope.orgIds)
+          : sql`false`
+      );
+    }
     if (q.status) {
       conds.push(eq(schema.transferRequests.status, q.status));
     } else {

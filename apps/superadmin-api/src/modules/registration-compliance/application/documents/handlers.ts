@@ -1,3 +1,4 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import { Inject, Injectable } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -30,6 +31,8 @@ import {
 // ---- Documents ----
 
 export interface ListDocumentsInput {
+  /** Scoped admins: documents of their orgs, plus platform-wide ones. */
+  visibleTo?: UserScope;
   limit?: number;
   cursor?: string;
   orgId?: string;

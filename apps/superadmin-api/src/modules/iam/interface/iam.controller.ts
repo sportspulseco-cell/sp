@@ -5,6 +5,7 @@
   ForbiddenException,
   Get,
   Inject,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -19,6 +20,10 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { userVisible } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
 import { GetCurrentUserHandler } from "../application/queries/get-current-user.query";
@@ -222,27 +227,53 @@ export class IamController {
 
   // -------- super admin --------
 
+  // Scoped admins (org / league / season / division) read the people
+  // inside their scope; super admins read everyone. Out-of-scope users
+  // 404 so existence never leaks. Writes below stay super_admin only.
   @Get("users")
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: "List users (super admin only)" })
-  async list(@Query() q: ListProfilesQueryDto): Promise<ProfilePageDto> {
-    return this.listProfiles.execute(q);
+  @UseGuards(ScopedAdminGuard)
+  @ApiOperation({ summary: "List users (super admin: all; scoped admin: people inside their scope)" })
+  async list(
+    @Query() q: ListProfilesQueryDto,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<ProfilePageDto> {
+    return this.listProfiles.execute({
+      ...q,
+      visibleTo: scope.isSuperAdmin ? undefined : { scope, userId: user.userId }
+    });
   }
 
   @Get("users/:id")
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: "Get a user's profile (super admin only)" })
-  async getOne(@Param("id") id: string): Promise<ProfileDto> {
+  @UseGuards(ScopedAdminGuard)
+  @ApiOperation({ summary: "Get a user's profile (admins; 404 outside the caller's scope)" })
+  async getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<ProfileDto> {
+    await this.assertUserVisible(scope, user.userId, id);
     return this.getCurrentUser.execute({ userId: id });
   }
 
+  private async assertUserVisible(scope: UserScopeType, callerId: string, userId: string) {
+    if (scope.isSuperAdmin) return;
+    if (!(await userVisible(this.db, { scope, userId: callerId }, userId))) {
+      throw new NotFoundException("User not found");
+    }
+  }
+
   @Get("users/:id/memberships")
-  @UseGuards(SuperAdminGuard)
+  @UseGuards(ScopedAdminGuard)
   @ApiOperation({
     summary:
       "Team memberships for a user — every team_memberships row joined through persons.user_id, enriched with team / org / season / division names so the user detail page can show 'which teams + divisions is this person on'."
   })
-  async memberships(@Param("id") id: string): Promise<{
+  async memberships(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<{
     items: Array<{
       membershipId: string;
       teamId: string;
@@ -264,6 +295,7 @@ export class IamController {
       effectiveTo: string | null;
     }>;
   }> {
+    await this.assertUserVisible(scope, user.userId, id);
     // Resolve the person record bound to this auth user. Without a
     // person row we have no roster footprint, so return empty.
     const [person] = await this.db

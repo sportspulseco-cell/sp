@@ -1,3 +1,4 @@
+import { visibleSeasonIds } from "../../../../shared/auth/visibility";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -34,6 +35,10 @@ export class DrizzleEligibilityRecordRepository
       cs.push(eq(schema.eligibilityRecords.governingBodyId, q.governingBodyId));
     if (q.status) cs.push(eq(schema.eligibilityRecords.status, q.status));
     if (q.cursor) cs.push(gt(schema.eligibilityRecords.id, q.cursor));
+    if (q.visibleTo) {
+      const seasons = visibleSeasonIds(q.visibleTo);
+      if (seasons) cs.push(sql`${schema.eligibilityRecords.seasonId} in ${seasons}`);
+    }
 
     const rows = await this.db
       .select()

@@ -1,5 +1,6 @@
+import { unrestricted } from "../../../../shared/auth/visibility";
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, desc, eq, gt, ilike, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -36,6 +37,14 @@ export class DrizzleDocumentRepository implements DocumentRepository {
     if (q.kind) cs.push(eq(schema.documents.kind, q.kind));
     if (q.search) cs.push(ilike(schema.documents.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.documents.id, q.cursor));
+    if (q.visibleTo && !unrestricted(q.visibleTo)) {
+      const orgIds = q.visibleTo.orgIds ?? [];
+      cs.push(
+        orgIds.length
+          ? or(isNull(schema.documents.orgId), inArray(schema.documents.orgId, orgIds))!
+          : isNull(schema.documents.orgId)
+      );
+    }
 
     const rows = await this.db
       .select()

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { SuperAdminGuard } from "./guards/super-admin.guard";
 import { RolesGuard } from "./guards/roles.guard";
 import { AuthorizedAccessGuard } from "./guards/authorized-access.guard";
+import { ScopedAdminGuard } from "./guards/scoped-admin.guard";
 import { SupabaseAdminService } from "./supabase-admin.service";
 import { JWT_VERIFIER } from "./auth.tokens";
 
@@ -33,6 +34,7 @@ export { JWT_VERIFIER };
     SuperAdminGuard,
     RolesGuard,
     AuthorizedAccessGuard,
+    ScopedAdminGuard,
     SupabaseAdminService
   ],
   exports: [
@@ -41,6 +43,7 @@ export { JWT_VERIFIER };
     SuperAdminGuard,
     RolesGuard,
     AuthorizedAccessGuard,
+    ScopedAdminGuard,
     SupabaseAdminService
   ]
 })

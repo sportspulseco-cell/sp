@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -14,6 +15,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { userVisible } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
@@ -86,14 +92,15 @@ export class RolesController {
     return this.withNames(await this.activeForUserH.execute({ userId: user.userId }));
   }
 
-  // ---- Roles (super_admin) ----
+  // ---- Roles: the catalogue is readable by any signed-in role holder
+  // (the user pages need it to name roles); changes stay super_admin. ----
   @Get("roles")
-  @UseGuards(SuperAdminGuard)
+  @UseGuards(AuthorizedAccessGuard)
   listRoles(@Query() q: ListRolesQueryDto): Promise<RolePageDto> {
     return this.listRolesH.execute(q);
   }
   @Get("roles/:id")
-  @UseGuards(SuperAdminGuard)
+  @UseGuards(AuthorizedAccessGuard)
   getRole(@Param("id") id: string): Promise<RoleDto> {
     return this.getRoleH.execute({ id });
   }
@@ -123,13 +130,19 @@ export class RolesController {
     return this.deleteRoleH.execute({ id });
   }
 
-  // ---- Role assignments (super_admin) ----
+  // ---- Role assignments: scoped admins see assignments of people
+  // inside their scope; granting and revoking stay super_admin. ----
   @Get("role-assignments")
-  @UseGuards(SuperAdminGuard)
+  @UseGuards(ScopedAdminGuard)
   async listAssignments(
-    @Query() q: ListAssignmentsQueryDto
+    @Query() q: ListAssignmentsQueryDto,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<RoleAssignmentPageDto> {
-    const page = await this.listAssignmentsH.execute(q);
+    const page = await this.listAssignmentsH.execute({
+      ...q,
+      visibleTo: scope.isSuperAdmin ? undefined : { scope, userId: user.userId }
+    });
     return { ...page, items: await this.withNames(page.items) };
   }
   @Post("role-assignments")
@@ -155,9 +168,16 @@ export class RolesController {
     return this.revokeH.execute({ id, revokedByUserId: user.userId });
   }
   @Get("users/:id/roles")
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: "Active role assignments for a user (with role joined)" })
-  async activeForUser(@Param("id") userId: string): Promise<RoleAssignmentDto[]> {
+  @UseGuards(ScopedAdminGuard)
+  @ApiOperation({ summary: "Active role assignments for a user (with role joined); 404 outside the caller's scope" })
+  async activeForUser(
+    @Param("id") userId: string,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<RoleAssignmentDto[]> {
+    if (!scope.isSuperAdmin && !(await userVisible(this.db, { scope, userId: user.userId }, userId))) {
+      throw new NotFoundException("User not found");
+    }
     return this.withNames(await this.activeForUserH.execute({ userId }));
   }
 }
