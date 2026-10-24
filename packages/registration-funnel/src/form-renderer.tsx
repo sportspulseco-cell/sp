@@ -138,6 +138,9 @@ function QuestionField({
                   key={o.value}
                   type="button"
                   disabled={disabled}
+                  // Selection is otherwise only a colour change; screen
+                  // readers (and tests) need to know which chips are on.
+                  aria-pressed={on}
                   onClick={() =>
                     onChange(
                       on
