@@ -81,6 +81,7 @@ export function Dialog({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="-m-2 inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted transition-colors duration-fast ease-ease hover:bg-surface-2 hover:text-fg"
           >
             <X className="h-4 w-4" strokeWidth={1.75} />
