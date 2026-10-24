@@ -46,7 +46,7 @@ export default async function CaptainCompliancePage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Captain console"
-        title="Roster compliance"
+        title="Waivers & documents"
         description="Per-player USA Hockey + playoff eligibility. Read-only — admins issue waivers."
       />
 

@@ -38,38 +38,57 @@ interface NavSection {
   items: NavItem[];
 }
 
+// Coaches and assistants (no captain role): the team's read-only views.
 const BASE_NAV: NavSection[] = [
   {
     items: [
-      { href: "/", label: "Overview", icon: LayoutDashboard },
+      { href: "/", label: "Home", icon: LayoutDashboard },
       { href: "/roster", label: "Roster", icon: Users },
       { href: "/schedule", label: "Schedule", icon: CalendarRange },
-      { href: "/lineups", label: "Lineups", icon: ListChecks },
-      { href: "/stats", label: "Stats", icon: BarChart3 }
+      { href: "/lineups", label: "Game lineups", icon: ListChecks },
+      { href: "/stats", label: "Stats & standings", icon: BarChart3 }
       // Release 1 (PPHL, Oct 2026): Communications (/comms) is a
       // placeholder page and stays out of the navigation until built.
     ]
   }
 ];
 
-const CAPTAIN_NAV: NavSection = {
-  label: "// Captain console",
-  items: [
-    // Always reachable: an in-season team must still be able to
-    // register for the next season (CAP-6). The pulsing CTA above the
-    // nav is the time-bound signal; this is the permanent route.
-    { href: "/captain/register", label: "Register team", icon: Sparkles },
-    { href: "/captain/team", label: "Manage team", icon: Settings },
-    { href: "/captain/roster", label: "Manage roster", icon: Users },
-    { href: "/captain/invites", label: "Invites", icon: Mail },
-    { href: "/captain/join-requests", label: "Join requests", icon: Inbox },
-    { href: "/captain/free-agents", label: "Free agents", icon: Star },
-    { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
-    { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck }
-    // Release 1: Team store (/captain/store) has no checkout yet; the
-    // route stays reachable by URL, not from the navigation.
-  ]
-};
+// Captains: the same jobs grouped the way a team manager thinks of them
+// (doc/ux/competitor-ia.md section F). One Roster entry, the managed one;
+// the read-only /roster stays for coaches.
+const CAPTAIN_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { href: "/", label: "Home", icon: LayoutDashboard },
+      { href: "/schedule", label: "Schedule", icon: CalendarRange },
+      { href: "/lineups", label: "Game lineups", icon: ListChecks },
+      { href: "/stats", label: "Stats & standings", icon: BarChart3 }
+    ]
+  },
+  {
+    label: "Your team",
+    items: [
+      { href: "/captain/roster", label: "Roster", icon: Users },
+      { href: "/captain/invites", label: "Invite players", icon: Mail },
+      { href: "/captain/join-requests", label: "Join requests", icon: Inbox },
+      { href: "/captain/free-agents", label: "Free agents", icon: Star },
+      { href: "/captain/team", label: "Team settings", icon: Settings }
+    ]
+  },
+  {
+    label: "This season",
+    items: [
+      // Always reachable: an in-season team must still be able to
+      // register for the next season (CAP-6). The CTA above the nav is
+      // the time-bound signal; this is the permanent route.
+      { href: "/captain/register", label: "Register the team", icon: Sparkles },
+      { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
+      { href: "/captain/compliance", label: "Waivers & documents", icon: ShieldCheck }
+      // Release 1: Team store (/captain/store) has no checkout yet; the
+      // route stays reachable by URL, not from the navigation.
+    ]
+  }
+];
 
 export function Sidebar({
   isCaptain = false,
@@ -85,7 +104,7 @@ export function Sidebar({
   registrationCall?: RegistrationCall | null;
 }) {
   const { open, setOpen } = useNav();
-  const sections = isCaptain ? [...BASE_NAV, CAPTAIN_NAV] : BASE_NAV;
+  const sections = isCaptain ? CAPTAIN_SECTIONS : BASE_NAV;
 
   return (
     <>
