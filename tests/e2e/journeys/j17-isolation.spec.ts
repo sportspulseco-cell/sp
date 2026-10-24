@@ -192,6 +192,9 @@ test.describe.serial("J17 · role isolation", () => {
       await dialog.locator("#legalName").fill(`${B.org} Inc.`);
       await dialog.locator("#slug").fill(`org-b-${tag}`);
       await dialog.getByRole("button", { name: "Create organization" }).click();
+      // Create continues into "Choose the org admin" (24 Oct); J17 grants roles itself.
+      await expect(page.getByRole("heading", { name: "Choose the org admin" })).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Close dialog" }).click();
       await expect(page.getByRole("link", { name: B.org })).toBeVisible({ timeout: 15_000 });
       await wizard(page, B.org, B);
       ids.bLeague = page.url().split("/leagues/")[1]!.split(/[?#]/)[0]!;

@@ -206,7 +206,11 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     await dialog.locator("#slug").fill(`pphl-${tag}`);
     await dialog.locator("#orgType").selectOption("league_operator");
     await dialog.getByRole("button", { name: "Create organization" }).click();
-    await expect(dialog).toBeHidden({ timeout: 15_000 });
+    // Since 24 Oct the create flow continues into "Choose the org admin"
+    // (SP-Changes blocker 1). J1 assigns admins later; close it here.
+    await expect(page.getByRole("heading", { name: "Choose the org admin" })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Close dialog" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 15_000 });
     // Same-surface refresh: row appears without manual reload.
     await expect(page.getByRole("link", { name: ORG_NAME })).toBeVisible({ timeout: 15_000 });
     const [row] = await stagingSql(

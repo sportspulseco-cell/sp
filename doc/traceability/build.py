@@ -242,6 +242,17 @@ FIXED_BY_HAND = {
 }
 
 
+# Fixed in a commit but not yet proven in a browser on staging/production.
+FIXED_IN_CODE = {
+    "CONSOLE-1": "commit c66e81f: load() + LoadError in 60 pages; awaiting staging deploy + crawl",
+    "CONSOLE-2": "commit c66e81f: roles/[id] page; awaiting deploy",
+    "CONSOLE-3": "commit 3ad966b: ScopedAdminGuard + visibility.ts; awaiting deploy + league-admin-console journey",
+    "CONSOLE-4": "commits 3ad966b + c66e81f; awaiting deploy",
+    "CONSOLE-5": "commit c66e81f: superOnly nav items; awaiting deploy",
+    "CONSOLE-6": "commit c66e81f: DivisionDetail orgHref; awaiting deploy",
+    "CONSOLE-7": "commit c66e81f: nav entries removed; awaiting deploy; PPHL to confirm release-1 list",
+}
+
 # --------------------------------------------------------------------------
 # Evidence loaders
 # --------------------------------------------------------------------------
@@ -559,6 +570,7 @@ def main():
     logs = load_journey_logs()
     bugs = load_bugs()
     fixed = {k: ("fixed", v) for k, v in FIXED_BY_HAND.items()}
+    fixed.update({k: ("fixed in code, not deployed", v) for k, v in FIXED_IN_CODE.items()})
     # A journey re-run that no longer reports a finding counts as fixed for that id.
     for env, specs in logs.items():
         for spec, r in specs.items():

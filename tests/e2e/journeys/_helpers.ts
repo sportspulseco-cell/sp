@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import https from "node:https";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { E2E_URLS, SMOKE_USERS, signIn } from "../fixtures";
 import { BYPASS_STATE_PATH } from "../../../playwright.config";
@@ -118,4 +119,53 @@ export function loadEnvLocal(): Record<string, string> {
     out[line.slice(0, i)] ??= line.slice(i + 1).replace(/^"|"$/g, "");
   }
   return out;
+}
+
+/**
+ * fetch() for *.supabase.co from the test runner. The local ISP hijacks
+ * that DNS; the browser gets `--host-resolver-rules` from
+ * playwright.config.ts, and this gives Node the same pin: connect to
+ * E2E_SUPABASE_IP but keep the real hostname for TLS and the Host header.
+ * Without E2E_SUPABASE_IP it is plain fetch().
+ */
+export async function supabaseFetch(
+  url: string,
+  init: { method?: string; headers?: Record<string, string>; body?: string } = {}
+): Promise<{ ok: boolean; status: number; json: () => Promise<any>; text: () => Promise<string> }> {
+  const ip = process.env.E2E_SUPABASE_IP;
+  const u = new URL(url);
+  if (!ip || !/\.supabase\.co$/.test(u.hostname)) {
+    const r = await fetch(url, init);
+    return { ok: r.ok, status: r.status, json: () => r.json(), text: () => r.text() };
+  }
+  return new Promise((done, fail) => {
+    const req = https.request(
+      {
+        host: u.hostname,
+        servername: u.hostname,
+        port: 443,
+        path: u.pathname + u.search,
+        method: init.method ?? "GET",
+        headers: {
+          ...(init.headers ?? {}),
+          host: u.hostname,
+          ...(init.body ? { "content-length": String(Buffer.byteLength(init.body)) } : {})
+        },
+        lookup: ((_h: string, _o: unknown, cb: (err: Error | null, address: string, family: number) => void) =>
+          cb(null, ip, 4)) as unknown as import("node:net").LookupFunction
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          const status = res.statusCode ?? 0;
+          done({ ok: status >= 200 && status < 300, status, text: async () => text, json: async () => JSON.parse(text) });
+        });
+      }
+    );
+    req.on("error", fail);
+    if (init.body) req.write(init.body);
+    req.end();
+  });
 }

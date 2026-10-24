@@ -1,7 +1,7 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { E2E_URLS } from "../fixtures";
-import { IS_STAGING, RUN_TAG, freshContext, signedInAs, stagingSql } from "./_helpers";
+import { IS_STAGING, RUN_TAG, freshContext, signedInAs, stagingSql, supabaseFetch } from "./_helpers";
 
 /**
  * J6 · Free agent placed on a team (UC-03).
@@ -76,7 +76,7 @@ async function adminCreateUser(email: string, password: string, displayName: str
   const key = process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY!;
   const existing = await stagingSql<{ id: string }>(`select id from auth.users where email = $1`, [email]);
   if (existing[0]) return existing[0].id;
-  const res = await fetch(`${url}/auth/v1/admin/users`, {
+  const res = await supabaseFetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { display_name: displayName } })
