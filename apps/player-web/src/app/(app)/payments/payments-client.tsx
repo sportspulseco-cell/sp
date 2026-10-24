@@ -609,7 +609,7 @@ function PayDialog({
         {cardCharge > 0 && (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              Mock card outcome (Stripe wires later)
+              Test payment: no real card is charged while the league is testing. Pick the outcome to simulate
             </span>
             <select
               value={mockOutcome}

@@ -32,6 +32,7 @@ import {
   ScanSheen
 } from "@/components/motion/kinetic";
 import { GameClock, ProgressBar, BarChart } from "./live-widgets";
+import { SeasonFlow } from "@/components/dashboard/season-flow";
 
 export const metadata = { title: "Dashboard — SportsPulse Super Admin" };
 export const dynamic = "force-dynamic";
@@ -89,6 +90,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-12">
+      {/* Operator home: the season lifecycle with one next step each
+          (PPHL, 24 Oct 2026: "could not understand the flow"). */}
+      <SeasonFlow seasons={seasonsPage.items} leagues={leaguesPage.items} registrations={regsPage.items} />
+
       {/* HERO — the landing-style page-of-record, with the live dashboard
           strip embedded INSIDE the hero (per the landing's pattern). */}
       <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-surface-1">
