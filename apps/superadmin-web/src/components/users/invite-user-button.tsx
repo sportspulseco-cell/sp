@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2, Mail, Plus } from "lucide-react";
 import {
   ROLE_PROFILE_SCHEMAS,
+  SCOPE_TYPES,
+  SCOPE_TYPE_LABELS,
+  SYSTEM_ROLES,
   SYSTEM_ROLE_BY_CODE,
-  SYSTEM_ROLE_CODES,
+  scopeTypeWithArticle,
   type AnswerMap,
   type FormDefinition,
   type ScopeType
@@ -27,6 +30,11 @@ import { ResourcePicker } from "@/components/resources/resource-picker";
  * difference is just the prompt: here the admin can also pick the role
  * scope; in the panel that's already locked to the parent resource.
  */
+/** System roles in hierarchy order (super_admin first), never alphabetic. */
+const ROLE_OPTIONS = [...SYSTEM_ROLES].sort((a, b) => a.rank - b.rank);
+/** Scope types an invite can grant. Game scope comes from the game page. */
+const INVITE_SCOPE_TYPES = SCOPE_TYPES.filter((s) => s !== "game");
+
 export function InviteUserButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -56,6 +64,9 @@ export function InviteUserButton() {
   const [copied, setCopied] = useState(false);
 
   const roleDef = SYSTEM_ROLE_BY_CODE[roleCode];
+  const roleName = roleDef?.name ?? roleCode;
+  const scopeLabel = SCOPE_TYPE_LABELS[scopeType];
+  const scopePlural = `${scopeLabel.toLowerCase()}s`;
   // Source-of-truth flow: prefer the admin-built role_profile form
   // from /forms, fall back to the kernel-default schema. Set on role
   // change via getRoleProfileForm(roleCode).
@@ -261,12 +272,9 @@ export function InviteUserButton() {
                   value={roleCode}
                   onChange={(e) => pickRole(e.target.value)}
                 >
-                  {SYSTEM_ROLE_CODES.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                      {SYSTEM_ROLE_BY_CODE[code]?.name
-                        ? ` — ${SYSTEM_ROLE_BY_CODE[code]!.name}`
-                        : ""}
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.code} value={r.code}>
+                      {r.name}
                     </option>
                   ))}
                 </Select>
@@ -279,24 +287,24 @@ export function InviteUserButton() {
                     setScopeId("");
                   }}
                 >
-                  {(["platform", "org", "league", "season", "division", "team"] as ScopeType[]).map(
-                    (s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    )
-                  )}
+                  {INVITE_SCOPE_TYPES.map((s) => (
+                    <option key={s} value={s}>
+                      {SCOPE_TYPE_LABELS[s]}
+                    </option>
+                  ))}
                 </Select>
               </Field>
               {scopeType !== "platform" && scopeType !== "game" && (
                 <Field
-                  label={`Pick ${scopeType === "org" ? "organization" : scopeType}`}
-                  hint={`Searchable picker — type to filter the list of ${scopeType}s.`}
+                  label={`Pick ${scopeTypeWithArticle(scopeType)}`}
+                  hint={`Type to search ${scopePlural} by name.`}
                 >
                   <ResourcePicker
                     scopeType={scopeType}
                     value={scopeId}
                     onChange={setScopeId}
+                    placeholder={`Pick ${scopeTypeWithArticle(scopeType)}…`}
+                    searchPlaceholder={`Search ${scopePlural} by name…`}
                   />
                 </Field>
               )}
@@ -320,12 +328,12 @@ export function InviteUserButton() {
                   />
                   <span>
                     <span className="font-medium">
-                      Also set up the {roleDef?.name ?? roleCode} profile now.
+                      Also set up the {roleName} profile now.
                     </span>{" "}
                     <span className="text-fg-muted">
                       {profileHasFields
                         ? "Saves you a round-trip. Skip if the user will fill it out themselves."
-                        : `No profile fields are defined for the ${roleCode} role.`}
+                        : `No profile fields are defined for the ${roleName} role.`}
                     </span>
                   </span>
                 </label>
@@ -334,7 +342,7 @@ export function InviteUserButton() {
                   <div className="rounded-md border border-border bg-bg-subtle p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                        // {roleDef?.name ?? roleCode} profile
+                        // {roleName} profile
                       </p>
                       <span
                         title={

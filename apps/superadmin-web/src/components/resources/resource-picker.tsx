@@ -27,12 +27,16 @@ export function ResourcePicker({
   scopeType,
   value,
   onChange,
-  placeholder
+  placeholder,
+  searchPlaceholder
 }: {
   scopeType: ResourceScope;
   value: string;
   onChange: (id: string) => void;
+  /** Trigger text while nothing is picked. Pass a human noun, not the scope code. */
   placeholder?: string;
+  /** Search box text. Pass a human noun, not the scope code. */
+  searchPlaceholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -130,7 +134,7 @@ export function ResourcePicker({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${scopeType}s by name or id…`}
+              placeholder={searchPlaceholder ?? `Search ${scopeType}s by name or id…`}
               className="flex-1 bg-transparent text-[13px] text-fg placeholder:text-fg-muted focus:outline-none"
             />
           </div>

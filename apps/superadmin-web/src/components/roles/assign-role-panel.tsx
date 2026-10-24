@@ -5,6 +5,11 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 import {
+  SCOPE_TYPES,
+  SCOPE_TYPE_LABELS,
+  scopeTypeWithArticle
+} from "@sportspulse/kernel";
+import {
   gameOps,
   iam,
   leagueMgmt,
@@ -15,25 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-const SCOPE_TYPES: RoleScopeType[] = [
-  "platform",
-  "org",
-  "league",
-  "season",
-  "division",
-  "team",
-  "game"
-];
-
-const SCOPE_LABELS: Record<RoleScopeType, string> = {
-  platform: "Platform",
-  org: "Organization",
-  league: "League",
-  season: "Season",
-  division: "Division",
-  team: "Team",
-  game: "Game"
-};
+// Scope codes and their human labels come from the kernel catalogue so
+// this panel and the invite dialog can never drift (SETUP-7).
+const SCOPE_LABELS: Record<RoleScopeType, string> = SCOPE_TYPE_LABELS;
 
 const ROLE_DEFAULT_SCOPE: Record<string, RoleScopeType> = {
   super_admin: "platform",
@@ -285,9 +274,7 @@ export function AssignRolePanel({
         label={
           scopeType === "platform"
             ? "Scope"
-            : scopeType === "org"
-              ? "Pick an organization"
-              : `Pick a ${SCOPE_LABELS[scopeType].toLowerCase()}`
+            : `Pick ${scopeTypeWithArticle(scopeType)}`
         }
         htmlFor="ar-scope-id"
         hint={
@@ -312,7 +299,7 @@ export function AssignRolePanel({
           ) : scopeLoading ? (
             <option value="">Loading...</option>
           ) : scopeOptions.length === 0 ? (
-            <option value="">No {scopeType}s found</option>
+            <option value="">No {SCOPE_LABELS[scopeType].toLowerCase()}s found</option>
           ) : (
             scopeOptions.map((o) => (
               <option key={o.id} value={o.id}>

@@ -271,6 +271,38 @@ export type ScopeType =
   | "team"
   | "game";
 
+/** Scope types in hierarchy order, for pickers. */
+export const SCOPE_TYPES: ReadonlyArray<ScopeType> = [
+  "platform",
+  "org",
+  "league",
+  "season",
+  "division",
+  "team",
+  "game"
+];
+
+/**
+ * Human label per scope type. The only place a scope code is turned
+ * into words: role pickers, invite dialogs and scope badges read this
+ * so no screen prints "org" or "season" as a raw code (SETUP-7).
+ */
+export const SCOPE_TYPE_LABELS: Record<ScopeType, string> = {
+  platform: "Platform",
+  org: "Organisation",
+  league: "League",
+  season: "Season",
+  division: "Division",
+  team: "Team",
+  game: "Game"
+};
+
+/** "an organisation", "a league": the label with its article, for prompts. */
+export function scopeTypeWithArticle(scopeType: ScopeType): string {
+  const label = SCOPE_TYPE_LABELS[scopeType].toLowerCase();
+  return `${/^[aeiou]/.test(label) ? "an" : "a"} ${label}`;
+}
+
 export interface RoleDefinition {
   code: string;
   name: string;
