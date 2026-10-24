@@ -94,19 +94,21 @@ export class RecordPaymentBodyDto {
   @ApiProperty() @IsUUID() orgId!: string;
   @ApiProperty() @Type(() => Number) @IsInt() @Min(1) amountCents!: number;
   @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
+  // "refund" is not a payment method: refunds go through RefundService
+  // (POST /finance/invoices/:id/refund-split) so they can never exceed
+  // what was paid (MON-9).
   @ApiPropertyOptional({
-    enum: ["cash", "check", "credit_card", "etransfer", "bank_transfer", "manual", "refund"]
+    enum: ["cash", "check", "credit_card", "etransfer", "bank_transfer", "manual"]
   })
   @IsOptional()
-  @IsIn(["cash", "check", "credit_card", "etransfer", "bank_transfer", "manual", "refund"])
+  @IsIn(["cash", "check", "credit_card", "etransfer", "bank_transfer", "manual"])
   method?:
     | "cash"
     | "check"
     | "credit_card"
     | "etransfer"
     | "bank_transfer"
-    | "manual"
-    | "refund";
+    | "manual";
   @ApiPropertyOptional({ enum: ["pending", "succeeded", "failed", "refunded"] })
   @IsOptional()
   @IsIn(["pending", "succeeded", "failed", "refunded"])

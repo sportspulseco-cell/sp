@@ -350,3 +350,44 @@ PPHL use case not built
 
 Unidentified: every app page logs one browser console "Failed to load resource: 400" that is not an `/api/` call (watchErrors only
 captures API URLs). Not investigated.
+
+---
+
+## Fix round 25 Oct 2026 (branch `pphl-journey-fixes`, not committed)
+
+Evidence level: **local** = branch code built locally (API + Next dev servers) against the STAGING database and staging
+Supabase auth, driven by Playwright from a script; **staging-db** = SQL on staging. The deployed staging apps still run an
+older build, so nothing below is verified on the deployed staging URLs yet.
+
+- **MON-4 not reproduced on branch.** Fixed earlier in 86201c6 (dialog removed; "New invoice" is a link to `/finance/create`;
+  `orgs.list({ limit: 100 })`). Local browser: link href `/finance/create`, organisation picker lists 33 orgs incl. PPHL Staging.
+  Latent: the org list is one page of 100 (33 on staging today).
+- **MON-5 not reproduced on branch.** `/finance/create` passes `persons` from `orgAdminPersons.list` (super_admin passes the
+  guard). Local API: `GET /org-admin/persons?orgId=<PPHL Staging>` as super_admin → 200, 56 people incl. Staging Player.
+  Local browser: picker lists 67 options incl. "Staging Player · staging-player@…", no "No people loaded" hint.
+  Latent: the page fans out one persons request per org (33 today); a failed one silently shows that org as empty.
+- **MON-9 fixed (local).** One command, `RefundService` (`finance/application/services/refund.service.ts`), reached only
+  through `POST /finance/invoices/:id/refund-split` (needs `X-Idempotency-Key`). Invoice row locked; refund limited to what is
+  still refundable (and card part to card money); card part through `PaymentProcessor.refund` (mock); wallet part credits
+  `wallet_ledger`; invoice `total_cents` and `paid_cents` both drop by the refund (a refund settles that part of the bill, so
+  the player is not chased for it); status recomputed; readback; `refund.issued` notification. Removed: `POST /finance/refunds`,
+  `POST /finance/invoices/:id/refund`, `POST /finance/invoices/:id/apply-wallet-credit` (no callers; second wallet ledger),
+  and `refund` as a record-payment method. `reconcileStatus` subtracts these refunds. Before (local API, branch HEAD):
+  5 refunds totalling 29,691 cents accepted on a 12,345-cent invoice, paid stayed 12,345, replay doubled. After: 50.00 wallet
+  refund → total/paid 7,345; replay with same key → no new row; 123.45 more → 409; 73.45 to card → 0/0; 0.01 more → 409;
+  two parallel 15.00 refunds on 20.00 left → one 201, one 409; void → 409; player → 403. Browser: dialog → "Refunded −$50.00",
+  "Paid (after refunds) $73.45", "Refunds (1)" without reload; over-refund button disabled.
+- **MON-11 fixed (staging-db + local).** Root cause on top of the draft status (already fixed in 86201c6): `sp_overdue_sweep()`
+  aborted on every past-due invoice — escalation level 0 broke `invoice_escalation_level_check`, and the day-1 body read
+  `metadata->>'invoiceNumber'` (NULL for admin invoices, `notifications.body` is NOT NULL). Reproduced in a rolled-back
+  transaction on staging. Migration `0053_overdue_sweep_fix.sql` (applied to staging with the runner, recorded in
+  `manual_migrations`; NOT applied to production). Rolled-back run on staging after: 3 marked overdue, 1 late fee from the fee
+  schedule, 4 reminders, 0 failed; second run adds nothing. Drafts: "Send invoice" on the invoice page (local browser: 201,
+  banner gone, badge "sent"); `send` refuses non-drafts (409). Org console composer no longer offers "Save as draft".
+- **MON-13 fixed in part (local).** Compose has "Part of the organisation" (whole org / league / season / division / team, each a
+  dropdown of the org's own entities), audiences Players / Captains / Coaches / Referees / admins, channels Email and In-app
+  together. Server checks the target is in the caller's org (foreign team → 404) and resolves recipients there (133 rows from
+  17 sends, 0 recipients outside the org, 0 rows with another org id). Browser: division "Open" → 14 queued; player-web inbox
+  (fresh context) shows it. **Not built:** schedule for later (no `scheduled_at` model), attachments, SMS (no provider), push
+  (no subscribed devices), parents audience.
+- **Wallet tab** shows "From INV-…" / "Applied to INV-…" (invoice number from the ledger API), not an id fragment (local browser).

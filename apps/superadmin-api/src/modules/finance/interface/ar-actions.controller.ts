@@ -3,9 +3,11 @@ import {
   ConflictException,
   Controller,
   Get,
+  Headers,
   Inject,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   UseGuards
 } from "@nestjs/common";
@@ -26,10 +28,8 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
-import {
-  PAYMENT_PROCESSOR,
-  type PaymentProcessor
-} from "../../../shared/payments/payment-processor";
+import { RefundService } from "../application/services/refund.service";
+import { statusForMoney } from "../domain/invoice-money";
 
 // ---- DTOs ----
 class WaiveLateFeeBodyDto {
@@ -49,7 +49,7 @@ class SplitRefundBodyDto {
   @IsInt() @Min(0) cardAmountCents!: number;
   @IsInt() @Min(0) walletAmountCents!: number;
   @IsString() @MinLength(10) reason!: string;
-  /** Currency for the wallet credit portion. Defaults to invoice currency. */
+  /** Ignored: a refund is always in the invoice's currency. Kept so older clients still validate. */
   @IsOptional() @IsString() currency?: string;
 }
 
@@ -76,7 +76,7 @@ class RetryQbSyncBodyDto {
 export class FinanceArActionsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
+    private readonly refunds: RefundService
   ) {}
 
   // -------------------------------------------------------------------
@@ -102,10 +102,12 @@ export class FinanceArActionsController {
 
       const meta = (inv.metadata as Record<string, unknown>) ?? {};
       const lateFeeCents = (meta.lateFeeAppliedCents as number) ?? 0;
-      if (!meta.lateFeeAppliedAt) {
+      if (!meta.lateFeeAppliedAt || meta.lateFeeWaivedAt) {
         throw new ConflictException({
           error: "no_late_fee",
-          message: "No late fee on this invoice."
+          message: meta.lateFeeWaivedAt
+            ? "The late fee on this invoice was already waived."
+            : "No late fee on this invoice."
         });
       }
 
@@ -118,10 +120,20 @@ export class FinanceArActionsController {
           )
         );
 
+      const newTotalCents = Math.max(0, inv.totalCents - lateFeeCents);
+      // Waiving can settle the invoice (paid already covers the rest).
+      const newStatus = statusForMoney({
+        status: inv.status,
+        totalCents: newTotalCents,
+        paidCents: inv.paidCents
+      });
       await tx
         .update(schema.invoices)
         .set({
-          totalCents: inv.totalCents - lateFeeCents,
+          totalCents: newTotalCents,
+          lateFeeAppliedCents: 0,
+          status: newStatus,
+          paidAt: newStatus === "paid" ? inv.paidAt ?? new Date() : inv.paidAt,
           metadata: {
             ...meta,
             lateFeeWaivedAt: new Date().toISOString(),
@@ -147,7 +159,8 @@ export class FinanceArActionsController {
       return {
         invoiceId,
         waivedCents: lateFeeCents,
-        newTotalCents: inv.totalCents - lateFeeCents
+        newTotalCents,
+        status: newStatus
       };
     });
   }
@@ -271,179 +284,26 @@ export class FinanceArActionsController {
   }
 
   // -------------------------------------------------------------------
-  // POST /finance/invoices/:id/refund-split  (Phase 4)
+  // POST /finance/invoices/:id/refund-split  (Phase 4, MON-9)
   // -------------------------------------------------------------------
   @Post("invoices/:id/refund-split")
   @ApiOperation({
     summary:
-      "Issue a split refund: partial gateway refund + partial wallet credit. Two writes in sequence — gateway refund first, then wallet ledger credit. Reason required."
+      "Refund an invoice: card part back through the payment processor and/or wallet credit. One transaction; total refunds can never exceed what is still paid; the invoice total and paid amount both drop by the refund. Requires X-Idempotency-Key. Reason required."
   })
   async refundSplit(
     @CurrentUser() user: AuthPrincipal,
-    @Param("id") invoiceId: string,
-    @Body() body: SplitRefundBodyDto
+    @Param("id", new ParseUUIDPipe()) invoiceId: string,
+    @Body() body: SplitRefundBodyDto,
+    @Headers("x-idempotency-key") idempotencyKey: string | undefined
   ) {
-    if (body.cardAmountCents + body.walletAmountCents === 0) {
-      throw new ConflictException({
-        error: "no_amount",
-        message: "Provide cardAmountCents and/or walletAmountCents > 0."
-      });
-    }
-
-    const [inv] = await this.db
-      .select()
-      .from(schema.invoices)
-      .where(eq(schema.invoices.id, invoiceId))
-      .limit(1);
-    if (!inv) throw new NotFoundException("Invoice not found");
-
-    if (
-      body.cardAmountCents + body.walletAmountCents > inv.paidCents
-    ) {
-      throw new ConflictException({
-        error: "exceeds_paid",
-        message: "Refund total exceeds amount paid."
-      });
-    }
-
-    const currency = body.currency ?? inv.currency;
-    const cardRefund: { refundId: string | null } = { refundId: null };
-    const walletLedgerId: { id: string | null } = { id: null };
-
-    return await this.db.transaction(async (tx) => {
-      // 1. Card portion via mock processor
-      if (body.cardAmountCents > 0) {
-        // Find the first succeeded card payment for this invoice
-        const [pay] = await tx
-          .select()
-          .from(schema.payments)
-          .where(
-            and(
-              eq(schema.payments.invoiceId, invoiceId),
-              eq(schema.payments.method, "credit_card"),
-              eq(schema.payments.status, "succeeded")
-            )
-          )
-          .limit(1);
-        if (!pay) {
-          throw new ConflictException({
-            error: "no_card_payment",
-            message: "No succeeded card payment on this invoice to refund."
-          });
-        }
-
-        const proc = await this.processor.refund({
-          chargeId: pay.externalProviderId ?? "mock_pi_unknown",
-          amountCents: body.cardAmountCents,
-          reason: body.reason.trim()
-        });
-        if (proc.status !== "succeeded") {
-          throw new ConflictException({
-            error: "refund_failed",
-            message: proc.failureMessage ?? "Refund failed at processor."
-          });
-        }
-
-        const [r] = await tx
-          .insert(schema.refunds)
-          .values({
-            orgId: inv.orgId,
-            invoiceId,
-            paymentId: pay.id,
-            refundType:
-              body.cardAmountCents === inv.paidCents
-                ? "full_original"
-                : "partial_original",
-            amountCents: body.cardAmountCents,
-            currency,
-            reason: body.reason.trim(),
-            issuedByUserId: user.userId,
-            processorRefundId: proc.refundId,
-            status: "succeeded",
-            processedAt: new Date()
-          })
-          .returning({ id: schema.refunds.id });
-        cardRefund.refundId = r!.id;
-      }
-
-      // 2. Wallet credit portion
-      if (body.walletAmountCents > 0) {
-        if (!inv.recipientPersonId) {
-          throw new ConflictException({
-            error: "no_recipient",
-            message: "Cannot issue wallet credit — invoice has no recipient person."
-          });
-        }
-        // Find or create wallet account
-        let [wallet] = await tx
-          .select()
-          .from(schema.walletAccounts)
-          .where(
-            and(
-              eq(schema.walletAccounts.personId, inv.recipientPersonId),
-              eq(schema.walletAccounts.orgId, inv.orgId),
-              eq(schema.walletAccounts.currency, currency)
-            )
-          )
-          .limit(1);
-        if (!wallet) {
-          const created = await tx
-            .insert(schema.walletAccounts)
-            .values({
-              personId: inv.recipientPersonId,
-              orgId: inv.orgId,
-              currency,
-              balanceCents: 0
-            })
-            .returning();
-          wallet = created[0]!;
-        }
-
-        await tx
-          .update(schema.walletAccounts)
-          .set({
-            balanceCents: wallet.balanceCents + body.walletAmountCents,
-            updatedAt: new Date()
-          })
-          .where(eq(schema.walletAccounts.id, wallet.id));
-
-        const [refundRow] = await tx
-          .insert(schema.refunds)
-          .values({
-            orgId: inv.orgId,
-            invoiceId,
-            refundType: "wallet_credit",
-            amountCents: body.walletAmountCents,
-            currency,
-            reason: body.reason.trim(),
-            issuedByUserId: user.userId,
-            status: "succeeded",
-            processedAt: new Date()
-          })
-          .returning({ id: schema.refunds.id });
-
-        const ledger = await tx
-          .insert(schema.walletLedger)
-          .values({
-            walletId: wallet.id,
-            entryType: "credit_issued",
-            amountCents: body.walletAmountCents,
-            relatedInvoiceId: invoiceId,
-            relatedRefundId: refundRow!.id,
-            reason: body.reason.trim(),
-            issuedByUserId: user.userId
-          })
-          .returning({ id: schema.walletLedger.id });
-        walletLedgerId.id = ledger[0]!.id;
-      }
-
-      return {
-        invoiceId,
-        cardRefundId: cardRefund.refundId,
-        walletLedgerId: walletLedgerId.id,
-        cardAmountCents: body.cardAmountCents,
-        walletAmountCents: body.walletAmountCents
-      };
+    return this.refunds.issue({
+      invoiceId,
+      cardAmountCents: body.cardAmountCents,
+      walletAmountCents: body.walletAmountCents,
+      reason: body.reason,
+      idempotencyKey: (idempotencyKey ?? "").trim(),
+      actorUserId: user.userId
     });
   }
 

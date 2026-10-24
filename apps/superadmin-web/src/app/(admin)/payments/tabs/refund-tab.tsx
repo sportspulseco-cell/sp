@@ -26,8 +26,10 @@ export async function RefundTab({
     );
   }
 
-  const invoice = await finance.getInvoice(invoiceId).catch(() => null);
-  if (!invoice) {
+  // The detail bundle carries the server-computed refund limits (MON-9);
+  // this page never derives "max refundable" from paid_cents itself.
+  const bundle = await finance.invoiceDetail(invoiceId).catch(() => null);
+  if (!bundle) {
     return (
       <EmptyState
         icon={Receipt}
@@ -36,13 +38,8 @@ export async function RefundTab({
       />
     );
   }
-
-  const refunds = await finance.listRefunds({ invoiceId }).catch(() => []);
-  // Subtract any already-issued non-failed refunds from the max.
-  const alreadyRefunded = refunds
-    .filter((r) => r.status !== "failed" && r.status !== "cancelled")
-    .reduce((sum, r) => sum + r.amountCents, 0);
-  const maxRefundable = Math.max(0, invoice.paidCents - alreadyRefunded);
+  const invoice = bundle.invoice;
+  const refunds = bundle.refunds;
 
   // Best-effort player display name (server-side fetch via SDK is overkill —
   // the recipient line is informational; admin sees full details on the
@@ -56,7 +53,7 @@ export async function RefundTab({
       invoiceId={invoiceId}
       invoiceNumber={invoice.invoiceNumber}
       paidCents={invoice.paidCents}
-      maxRefundableCents={maxRefundable}
+      refundable={bundle.refundable}
       currency={invoice.currency}
       playerLabel={playerLabel}
       cardOnFileBrand={readCardBrand(invoice)}

@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import type { Page } from "@sportspulse/kernel";
+import { ConflictError, NotFoundError, type Page } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import type {
   CreateInvoiceInput,
@@ -228,16 +228,24 @@ export class DrizzleFinanceRepository implements FinanceRepository {
   }
 
   async markSent(id: string): Promise<InvoiceRow> {
-    await this.db
+    // Only a draft can be sent. Before MON-11 this overwrote any status,
+    // so "send" on a paid or void invoice re-opened it.
+    const touched = await this.db
       .update(schema.invoices)
       .set({
         status: "sent",
         issuedAt: sql`COALESCE(${schema.invoices.issuedAt}, NOW())`,
         updatedAt: sql`NOW()`
       })
-      .where(eq(schema.invoices.id, id));
+      .where(and(eq(schema.invoices.id, id), eq(schema.invoices.status, "draft")))
+      .returning({ id: schema.invoices.id });
     const found = await this.findInvoice(id);
-    if (!found) throw new Error("invoice not found");
+    if (!found) throw new NotFoundError("Invoice", id);
+    if (touched.length === 0 && found.status !== "sent") {
+      throw new ConflictError(
+        `Invoice ${found.invoiceNumber} is ${found.status}, not a draft, so it cannot be sent again.`
+      );
+    }
     return found;
   }
 
@@ -262,13 +270,34 @@ export class DrizzleFinanceRepository implements FinanceRepository {
     if (!inv) throw new Error("invoice not found");
 
     const pays = await this.listPayments(id);
-    const succeeded = pays
-      .filter((p) => p.status === "succeeded")
+    const received = pays
+      .filter((p) => p.status === "succeeded" && p.method !== "refund")
       .reduce((acc, p) => acc + p.amountCents, 0);
+    // Refunds written by RefundService lowered total_cents and paid_cents
+    // together (MON-9), so they come off what was received here too.
+    // Older refund rows never touched the invoice and are left alone.
+    const [adj] = await this.db
+      .select({
+        cents: sql<number>`COALESCE(SUM(${schema.refunds.amountCents}), 0)::int`
+      })
+      .from(schema.refunds)
+      .where(
+        and(
+          eq(schema.refunds.invoiceId, id),
+          inArray(schema.refunds.status, ["succeeded", "pending"]),
+          sql`COALESCE((${schema.refunds.metadata}->>'invoiceAdjusted')::boolean, false)`
+        )
+      );
+    const adjustedRefunds = Number(adj?.cents ?? 0);
+    const succeeded = Math.max(0, received - adjustedRefunds);
 
     let status: InvoiceStatus = inv.status;
     if (status === "void") status = "void";
-    else if (succeeded >= inv.totalCents && inv.totalCents > 0) status = "paid";
+    else if (
+      succeeded >= inv.totalCents &&
+      (inv.totalCents > 0 || adjustedRefunds > 0)
+    )
+      status = "paid";
     else if (succeeded > 0) status = "partial";
     else if (inv.dueAt && inv.dueAt < new Date()) status = "overdue";
     else if (inv.issuedAt) status = "sent";

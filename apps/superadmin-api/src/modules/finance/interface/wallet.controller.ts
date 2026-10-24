@@ -63,6 +63,8 @@ interface LedgerEntryDto {
   entryType: string;
   amountCents: number;
   relatedInvoiceId: string | null;
+  /** Invoice number for display; null when the entry has no invoice. */
+  relatedInvoiceNumber?: string | null;
   relatedRefundId: string | null;
   reason: string;
   issuedByUserId: string | null;
@@ -111,12 +113,22 @@ export class FinanceWalletController {
   @Get(":walletId/ledger")
   async ledger(@Param("walletId") walletId: string): Promise<LedgerEntryDto[]> {
     const rows = await this.db
-      .select()
+      .select({
+        entry: schema.walletLedger,
+        invoiceNumber: schema.invoices.invoiceNumber
+      })
       .from(schema.walletLedger)
+      .leftJoin(
+        schema.invoices,
+        eq(schema.invoices.id, schema.walletLedger.relatedInvoiceId)
+      )
       .where(eq(schema.walletLedger.walletId, walletId))
       .orderBy(desc(schema.walletLedger.createdAt))
       .limit(200);
-    return rows.map(ledgerToDto);
+    return rows.map((r) => ({
+      ...ledgerToDto(r.entry),
+      relatedInvoiceNumber: r.invoiceNumber ?? null
+    }));
   }
 
   @Post("issue-credit")

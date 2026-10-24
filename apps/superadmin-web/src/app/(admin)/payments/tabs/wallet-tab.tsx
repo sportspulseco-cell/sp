@@ -86,8 +86,10 @@ export async function WalletTab({
                     </p>
                     <p className="font-mono text-[11px] text-fg-muted">
                       {e.reason}
-                      {e.relatedInvoiceId
-                        ? ` · Applied to ${e.relatedInvoiceId.slice(0, 8)}`
+                      {e.relatedInvoiceNumber
+                        ? isCredit
+                          ? ` · From ${e.relatedInvoiceNumber}`
+                          : ` · Applied to ${e.relatedInvoiceNumber}`
                         : ""}
                       {" · "}
                       {fmtDate(e.createdAt)}

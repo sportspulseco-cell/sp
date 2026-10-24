@@ -97,7 +97,23 @@ test("1. org_admin finds Communications → Compose and sees the UC-19 fields", 
   log("compose form:", t.slice(0, 900));
   await shot(p, "01-compose");
   // UC-19: recipients by league / division, schedule for later, attachments, multi-channel.
-  expect.soft(await p.locator("main select, main [role='combobox']").count(), "compose lets the admin target a league or division (UC-19)").toBeGreaterThan(0);
+  // MON-13: "Part of the organisation" picker, then a list of real leagues /
+  // seasons / divisions / teams (never a typed id).
+  const targetType = p.getByLabel("Part of the organisation");
+  await expect(targetType, "compose lets the admin target part of the org (UC-19)").toBeVisible();
+  expect(await targetType.locator("option").allTextContents()).toEqual(
+    expect.arrayContaining(["One league", "One season", "One division", "One team"])
+  );
+  await targetType.selectOption("division");
+  const divisionPicker = p.getByLabel("Division", { exact: true });
+  await expect(divisionPicker, "division picker is a dropdown of real divisions").toBeVisible();
+  const divisionOptions = await divisionPicker.locator("option").allTextContents();
+  log("division options:", JSON.stringify(divisionOptions.slice(0, 6)));
+  expect(divisionOptions.length, "divisions of this org are listed").toBeGreaterThan(1);
+  await targetType.selectOption("org");
+  // Email and In-app are both offered and can be picked together.
+  await expect(p.getByRole("button", { name: "Email" })).toHaveAttribute("aria-pressed", /true|false/);
+  await expect(p.getByRole("button", { name: "In-app" })).toHaveAttribute("aria-pressed", /true|false/);
   expect.soft(/schedule|send later/i.test(t), "compose offers schedule-for-later (UC-19 alt flow)").toBe(true);
   expect.soft(/attach/i.test(t), "compose offers attachments (UC-19)").toBe(true);
   expect.soft(/sms|push/i.test(t), "compose offers SMS / push channels (UC-19)").toBe(true);
@@ -115,7 +131,12 @@ test("2. org_admin sends an in-app announcement to Players + Captains", async ({
   if (!(await caps.isChecked())) await caps.check();
   await p.getByPlaceholder("Roster lock moves to Friday").fill(SUBJECT);
   await p.locator("main textarea").first().fill(BODY);
-  await p.getByRole("button", { name: "In-app" }).click();
+  // In-app only: Email off, In-app on (both start on).
+  const emailBtn = p.getByRole("button", { name: "Email" });
+  if ((await emailBtn.getAttribute("aria-pressed")) === "true") await emailBtn.click();
+  const inAppBtn = p.getByRole("button", { name: "In-app" });
+  if ((await inAppBtn.getAttribute("aria-pressed")) !== "true") await inAppBtn.click();
+  await expect(inAppBtn).toHaveAttribute("aria-pressed", "true");
   const respP = p.waitForResponse((r) => /broadcast/.test(r.url()) && r.request().method() === "POST");
   await p.getByRole("button", { name: "Send broadcast" }).click();
   const resp = await respP;

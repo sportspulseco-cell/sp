@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -27,6 +26,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { assertTargetInOrg } from "../../../shared/audience/org-targets";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
@@ -131,7 +131,9 @@ export class OrgAdminFinanceController {
     // / season) must itself belong to the caller's org. Block cross-org
     // fan-out before the service walks the memberships.
     await this.assertTargetInOrg(body.billingScope, body.targetId, body.orgId);
-    return this.invoicing.createBulkInvoice(idemKey, body);
+    // The org console has no way to send a draft later (no invoice page
+    // yet, MON-19), so its invoices are always created as sent (MON-11).
+    return this.invoicing.createBulkInvoice(idemKey, { ...body, asDraft: false });
   }
 
   private async assertTargetInOrg(
@@ -139,52 +141,9 @@ export class OrgAdminFinanceController {
     targetId: string,
     orgId: string
   ): Promise<void> {
-    if (scope === "individual" || scope === "org") return;
-    if (scope === "team") {
-      const [row] = await this.db
-        .select({ orgId: schema.teams.orgId })
-        .from(schema.teams)
-        .where(eq(schema.teams.id, targetId))
-        .limit(1);
-      if (!row || row.orgId !== orgId)
-        throw new NotFoundException("Target not found in org");
-      return;
-    }
-    if (scope === "league") {
-      const [row] = await this.db
-        .select({ orgId: schema.leagues.orgId })
-        .from(schema.leagues)
-        .where(eq(schema.leagues.id, targetId))
-        .limit(1);
-      if (!row || row.orgId !== orgId)
-        throw new NotFoundException("Target not found in org");
-      return;
-    }
-    if (scope === "season") {
-      const [row] = await this.db
-        .select({ orgId: schema.seasons.orgId })
-        .from(schema.seasons)
-        .where(eq(schema.seasons.id, targetId))
-        .limit(1);
-      if (!row || row.orgId !== orgId)
-        throw new NotFoundException("Target not found in org");
-      return;
-    }
-    if (scope === "division") {
-      const [row] = await this.db
-        .select({ orgId: schema.seasons.orgId })
-        .from(schema.divisions)
-        .innerJoin(
-          schema.seasons,
-          eq(schema.seasons.id, schema.divisions.seasonId)
-        )
-        .where(eq(schema.divisions.id, targetId))
-        .limit(1);
-      if (!row || row.orgId !== orgId)
-        throw new NotFoundException("Target not found in org");
-      return;
-    }
-    throw new BadRequestException(`Unknown billingScope: ${scope}`);
+    // Individual targets are people, checked by the service (MON-20).
+    if (scope === "individual") return;
+    await assertTargetInOrg(this.db, scope, targetId, orgId);
   }
 
   @Post("invoices/:invoiceId/payments")

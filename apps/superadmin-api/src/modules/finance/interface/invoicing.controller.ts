@@ -27,7 +27,6 @@ import {
   IsUUID,
   Max,
   Min,
-  MinLength,
   ValidateNested
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -41,22 +40,12 @@ import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { InvoicingService } from "../application/services/invoicing.service";
+import { RefundService } from "../application/services/refund.service";
 import { BulkCreateInvoiceBodyDto } from "./dto/bulk-invoice.dto";
 
 // =====================================================================
 // DTOs
 // =====================================================================
-
-class ApplyWalletCreditBodyDto {
-  @IsInt() @Min(1) walletCents!: number;
-}
-
-class RefundBodyDto {
-  @IsString() @IsIn(["gateway", "wallet"]) refundType!: "gateway" | "wallet";
-  @IsInt() @Min(1) amountCents!: number;
-  @IsString() @MinLength(10) reason!: string;
-  @IsOptional() @IsDateString() expiresAt?: string;
-}
 
 class PatchInvoiceBodyDto {
   @IsDateString() dueAt!: string;
@@ -88,7 +77,8 @@ class TeamSplitBodyDto {
 export class FinanceInvoicingController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly invoicing: InvoicingService
+    private readonly invoicing: InvoicingService,
+    private readonly refunds: RefundService
   ) {}
 
   // -------------------------------------------------------------------
@@ -241,7 +231,7 @@ export class FinanceInvoicingController {
   @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiOperation({
     summary:
-      "Invoice detail bundle: invoice + items + payments + installments."
+      "Invoice detail bundle: invoice + items + payments + installments + refunds + server-computed refundable amounts."
   })
   async invoiceDetail(@Param("id") id: string) {
     const [inv] = await this.db
@@ -264,7 +254,14 @@ export class FinanceInvoicingController {
       .from(schema.installmentSchedules)
       .where(eq(schema.installmentSchedules.invoiceId, id))
       .orderBy(schema.installmentSchedules.installmentNumber);
-    return { invoice: inv, items, payments, installments };
+    const refunds = await this.db
+      .select()
+      .from(schema.refunds)
+      .where(eq(schema.refunds.invoiceId, id))
+      .orderBy(desc(schema.refunds.createdAt));
+    // Server-computed limits so no screen derives them from paid_cents.
+    const refundable = await this.refunds.refundable(id);
+    return { invoice: inv, items, payments, installments, refunds, refundable };
   }
 
   // -------------------------------------------------------------------
@@ -284,217 +281,14 @@ export class FinanceInvoicingController {
     return this.invoicing.createBulkInvoice(idemKey, body);
   }
 
-  // -------------------------------------------------------------------
-  // POST /finance/invoices/:id/apply-wallet-credit  (player)
-  // -------------------------------------------------------------------
-  @Post("invoices/:id/apply-wallet-credit")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary:
-      "Player applies wallet credit to their own invoice. Atomic: debits wallet_accounts, inserts wallet_transactions, advances paid_cents."
-  })
-  async applyWalletCredit(
-    @CurrentUser() user: AuthPrincipal,
-    @Param("id") invoiceId: string,
-    @Body() body: ApplyWalletCreditBodyDto
-  ) {
-    const personId = await this.resolvePersonId(user.userId);
-    if (!personId) throw new ForbiddenException("No person record");
-
-    return await this.db.transaction(async (tx) => {
-      const [inv] = await tx
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, invoiceId))
-        .limit(1);
-      if (!inv) throw new NotFoundException("Invoice not found");
-      if (inv.recipientPersonId !== personId) {
-        throw new ForbiddenException("Not your invoice");
-      }
-
-      const [wallet] = await tx
-        .select()
-        .from(schema.walletAccounts)
-        .where(
-          and(
-            eq(schema.walletAccounts.personId, personId),
-            eq(schema.walletAccounts.orgId, inv.orgId)
-          )
-        )
-        .limit(1);
-      if (!wallet) throw new NotFoundException("No wallet found");
-      if (wallet.balanceCents < body.walletCents) {
-        throw new BadRequestException("Insufficient wallet balance");
-      }
-
-      const outstanding =
-        inv.totalCents - inv.paidCents - inv.walletCreditAppliedCents;
-      const applyAmount = Math.min(body.walletCents, outstanding);
-      const newPaidCents = inv.paidCents + applyAmount;
-      const newStatus =
-        newPaidCents >= inv.totalCents ? "paid" : inv.status;
-
-      await tx
-        .update(schema.walletAccounts)
-        .set({
-          balanceCents: wallet.balanceCents - applyAmount,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.walletAccounts.id, wallet.id));
-
-      await tx.insert(schema.walletTransactions).values({
-        walletId: wallet.id,
-        type: "credit_applied",
-        amountCents: applyAmount,
-        invoiceId,
-        reason: "Applied to invoice"
-      });
-
-      await tx
-        .update(schema.invoices)
-        .set({
-          walletCreditAppliedCents:
-            inv.walletCreditAppliedCents + applyAmount,
-          paidCents: newPaidCents,
-          status: newStatus,
-          paidAt: newStatus === "paid" ? new Date() : inv.paidAt,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.invoices.id, invoiceId));
-
-      return {
-        appliedCents: applyAmount,
-        newStatus,
-        remainingWalletCents: wallet.balanceCents - applyAmount
-      };
-    });
-  }
-
-  // -------------------------------------------------------------------
-  // POST /finance/invoices/:id/refund-gateway  (admin)
-  // POST /finance/invoices/:id/refund-wallet   (admin)
-  // Single-type variants; the existing /refund-split handles split.
-  // -------------------------------------------------------------------
-  @Post("invoices/:id/refund")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
-  @ApiOperation({
-    summary:
-      "Issue a refund — refundType 'gateway' (mocked Stripe) or 'wallet' (wallet credit). Reason ≥ 10 chars."
-  })
-  async refund(
-    @CurrentUser() user: AuthPrincipal,
-    @Param("id") invoiceId: string,
-    @Body() body: RefundBodyDto
-  ) {
-    if (body.reason.trim().length < 10) {
-      throw new UnprocessableEntityException(
-        "Reason must be at least 10 characters."
-      );
-    }
-    return await this.db.transaction(async (tx) => {
-      const [inv] = await tx
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, invoiceId))
-        .limit(1);
-      if (!inv) throw new NotFoundException("Invoice not found");
-      if (inv.status !== "paid" && inv.status !== "partial") {
-        throw new BadRequestException(
-          "Can only refund paid or partial invoices."
-        );
-      }
-      if (body.amountCents > inv.paidCents) {
-        throw new BadRequestException("Refund exceeds amount paid.");
-      }
-
-      if (body.refundType === "gateway") {
-        await tx.insert(schema.payments).values({
-          orgId: inv.orgId,
-          invoiceId,
-          amountCents: body.amountCents,
-          currency: inv.currency,
-          method: "refund",
-          status: "succeeded",
-          notes: body.reason.trim(),
-          recordedByUserId: user.userId
-        });
-        const newPaidCents = inv.paidCents - body.amountCents;
-        await tx
-          .update(schema.invoices)
-          .set({
-            paidCents: newPaidCents,
-            status: newPaidCents <= 0 ? "sent" : "partial",
-            updatedAt: new Date()
-          })
-          .where(eq(schema.invoices.id, invoiceId));
-      } else {
-        // Wallet refund
-        if (!inv.recipientPersonId) {
-          throw new BadRequestException(
-            "Cannot issue wallet refund — invoice has no recipient person."
-          );
-        }
-        let [wallet] = await tx
-          .select()
-          .from(schema.walletAccounts)
-          .where(
-            and(
-              eq(schema.walletAccounts.personId, inv.recipientPersonId),
-              eq(schema.walletAccounts.orgId, inv.orgId)
-            )
-          )
-          .limit(1);
-        if (!wallet) {
-          const created = await tx
-            .insert(schema.walletAccounts)
-            .values({
-              personId: inv.recipientPersonId,
-              orgId: inv.orgId,
-              currency: inv.currency,
-              balanceCents: 0
-            })
-            .returning();
-          wallet = created[0]!;
-        }
-        await tx
-          .update(schema.walletAccounts)
-          .set({
-            balanceCents: wallet.balanceCents + body.amountCents,
-            updatedAt: new Date()
-          })
-          .where(eq(schema.walletAccounts.id, wallet.id));
-        await tx.insert(schema.walletTransactions).values({
-          walletId: wallet.id,
-          type: "refund_received",
-          amountCents: body.amountCents,
-          invoiceId,
-          reason: body.reason.trim(),
-          expiresAt: body.expiresAt ? new Date(body.expiresAt) : null
-        });
-      }
-
-      // QB outbox event
-      await tx.insert(schema.quickbooksSyncEvents).values({
-        orgId: inv.orgId,
-        eventType: "invoices.refund",
-        resourceType: "invoice",
-        resourceId: invoiceId,
-        payload: {
-          refundType: body.refundType,
-          amountCents: body.amountCents,
-          reason: body.reason.trim()
-        },
-        status: "pending"
-      });
-
-      const [updated] = await tx
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, invoiceId))
-        .limit(1);
-      return { invoice: updated };
-    });
-  }
+  // POST /finance/invoices/:id/apply-wallet-credit was removed with the
+  // refund endpoint (MON-9): no caller, and it wrote wallet_transactions,
+  // a second wallet ledger. Players spend wallet credit through
+  // POST /finance/invoices/:id/pay (walletAmountCents), which writes
+  // wallet_ledger, the one wallet ledger.
+  // POST /finance/invoices/:id/refund was removed (MON-9): it wrote a
+  // second wallet ledger (wallet_transactions) and had no caller. Every
+  // refund goes through RefundService via POST /finance/invoices/:id/refund-split.
 
   // -------------------------------------------------------------------
   // PATCH /finance/invoices/:id  (extend due date)

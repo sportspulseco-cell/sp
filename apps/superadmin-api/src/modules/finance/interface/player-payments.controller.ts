@@ -140,6 +140,24 @@ export class PlayerPaymentsController {
           .orderBy(schema.installmentSchedules.installmentNumber)
       : [];
 
+    // Refunds per invoice, so the player sees why a total went down (MON-9).
+    const refundRows = invoiceIds.length
+      ? await this.db
+          .select({
+            invoiceId: schema.refunds.invoiceId,
+            cents: sql<number>`COALESCE(SUM(${schema.refunds.amountCents}), 0)::int`
+          })
+          .from(schema.refunds)
+          .where(
+            and(
+              inArray(schema.refunds.invoiceId, invoiceIds),
+              inArray(schema.refunds.status, ["succeeded", "pending"])
+            )
+          )
+          .groupBy(schema.refunds.invoiceId)
+      : [];
+    const refundedBy = new Map(refundRows.map((r) => [r.invoiceId, Number(r.cents)]));
+
     const byInvoice = new Map<string, typeof installments>();
     for (const ins of installments) {
       const arr = byInvoice.get(ins.invoiceId) ?? [];
@@ -161,6 +179,7 @@ export class PlayerPaymentsController {
         paidCents: inv.paidCents,
         lateFeeAppliedCents: inv.lateFeeAppliedCents ?? 0,
         walletCreditAppliedCents: inv.walletCreditAppliedCents ?? 0,
+        refundedCents: refundedBy.get(inv.id) ?? 0,
         status: inv.status,
         dueAt: inv.dueAt?.toISOString() ?? null,
         issuedAt: inv.issuedAt?.toISOString() ?? null,

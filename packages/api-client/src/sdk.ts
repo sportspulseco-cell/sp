@@ -4,6 +4,8 @@ import type {
   CaptainDuesBreakdown,
   ConsentSignature,
   CrossOrgGrant,
+  MyRegistrationDocuments,
+  RegistrationDocumentStatus,
   ImportEntityKind,
   ImportJob,
   ImportJobRowEntry,
@@ -34,7 +36,7 @@ import type {
   QuickbooksSyncLog,
   QuickbooksSyncStatus,
   Refund,
-  RefundType,
+  InvoiceRefundable,
   TeamInvoiceSplit,
   TeamInvoiceSplitWithPerson,
   WalletAccount,
@@ -48,6 +50,9 @@ import type {
   Payment,
   PaymentMethod,
   Game,
+  GameEnding,
+  GameFinalizeSummary,
+  GameReschedulePlan,
   GameEvent,
   GameOfficial,
   GameOfficialRole,
@@ -521,7 +526,28 @@ export function createApi(f: Fetcher) {
         f<IdentityVerification>(
           "/compliance/self/identity-verifications",
           { method: "POST", body: JSON.stringify(body) }
-        )
+        ),
+
+      // Self-service documents (COMP-4): what the caller must sign for
+      // their registrations (or a linked minor's), and the sign action.
+      // Same rule and writer as the registration funnel.
+      myDocuments: () =>
+        f<{ items: MyRegistrationDocuments[] }>("/compliance/self/documents"),
+      signMyDocument: (body: {
+        registrationId: string;
+        key: RegistrationDocumentStatus["key"];
+        signatureName: string;
+      }) =>
+        f<{
+          signatureId: string;
+          documentVersionId: string;
+          signedAt: string;
+          alreadySigned: boolean;
+          documents: RegistrationDocumentStatus[];
+        }>("/compliance/self/documents/sign", {
+          method: "POST",
+          body: JSON.stringify(body)
+        })
     },
 
     audit: {
@@ -572,6 +598,8 @@ export function createApi(f: Fetcher) {
             paidCents: number;
             lateFeeAppliedCents: number;
             walletCreditAppliedCents: number;
+            /** Refunded on this invoice; already taken off totalCents. */
+            refundedCents: number;
             status: string;
             dueAt: string | null;
             issuedAt: string | null;
@@ -645,25 +673,36 @@ export function createApi(f: Fetcher) {
           { method: "POST", body: JSON.stringify({ channel }) }
         ),
 
-      // Admin refunds (Phase 4)
+      // Admin refunds (MON-9): the one refund command. Card part goes back
+      // through the payment processor, wallet part is credited; the
+      // invoice total and paid amount both drop by the refund. The
+      // idempotency key makes a double click or retry a no-op.
       refundSplit: (
         invoiceId: string,
         body: {
           cardAmountCents: number;
           walletAmountCents: number;
           reason: string;
-          currency?: string;
-        }
+        },
+        idempotencyKey: string
       ) =>
         f<{
           invoiceId: string;
+          invoiceNumber: string;
+          status: string;
+          totalCents: number;
+          paidCents: number;
           cardRefundId: string | null;
           walletLedgerId: string | null;
           cardAmountCents: number;
           walletAmountCents: number;
+          walletBalanceCents: number | null;
+          refundable: InvoiceRefundable;
+          idempotent: boolean;
         }>(`/finance/invoices/${invoiceId}/refund-split`, {
           method: "POST",
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
+          headers: { "X-Idempotency-Key": idempotencyKey }
         }),
       issueWalletCreditForPerson: (
         personId: string,
@@ -894,6 +933,9 @@ export function createApi(f: Fetcher) {
             attemptCount: number;
             lastError: string | null;
           }>;
+          refunds: Refund[];
+          /** Server-computed limits; screens never derive them. */
+          refundable: InvoiceRefundable;
         }>(`/finance/invoices/${id}/detail`),
       /**
        * Bulk-aware invoice creation. Resolves billingScope+targetId to
@@ -1041,17 +1083,6 @@ export function createApi(f: Fetcher) {
       listRefunds: (
         q: { invoiceId?: string; orgId?: string; status?: string } = {}
       ) => f<Refund[]>(`/finance/refunds${qs(q)}`),
-      issueRefund: (body: {
-        invoiceId: string;
-        paymentId?: string | null;
-        refundType: RefundType;
-        amountCents: number;
-        reason: string;
-      }) =>
-        f<Refund>(`/finance/refunds`, {
-          method: "POST",
-          body: JSON.stringify(body)
-        }),
 
       // ----- Wallet -----
       getWallet: (q: { personId: string; orgId: string; currency?: string }) =>
@@ -1828,6 +1859,7 @@ export function createApi(f: Fetcher) {
       getGame: (id: string) => f<Game>(`/games/${id}`),
       createGame: (body: {
         leagueId: string;
+        seasonId?: string | null;
         divisionId?: string | null;
         homeTeamId: string;
         awayTeamId: string;
@@ -1837,7 +1869,27 @@ export function createApi(f: Fetcher) {
         durationMin?: number;
         venueName?: string | null;
         surfaceLabel?: string | null;
+        /** Show on team schedules now. Omit or false = draft (SCH-7). */
+        publish?: boolean;
       }) => f<Game>("/games", { method: "POST", body: JSON.stringify(body) }),
+      /** Show a hand-made draft on team schedules and notify both teams. */
+      publishGame: (id: string) =>
+        f<Game & { notificationsQueued: number }>(`/games/${id}/publish`, { method: "POST" }),
+      /** Dry run of a move: where it lands and what it clashes with. Writes nothing. */
+      previewReschedule: (id: string, q: { startLocal?: string; surfaceId?: string }) =>
+        f<GameReschedulePlan>(`/games/${id}/reschedule-preview${qs(q)}`),
+      /**
+       * Move a game (UC-07). `startLocal` is rink-local "YYYY-MM-DDTHH:MM".
+       * A clash is refused (409) unless `force` with a `reason`.
+       */
+      rescheduleGame: (
+        id: string,
+        body: { startLocal?: string; surfaceId?: string; force?: boolean; reason?: string }
+      ) =>
+        f<Game & { plan: GameReschedulePlan; notificationsQueued: number }>(
+          `/games/${id}/reschedule`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
       startGame: (id: string) =>
         f<Game>(`/games/${id}/start`, { method: "POST" }),
       applyScore: (id: string, body: { home: number; away: number; period?: number }) =>
@@ -1854,8 +1906,16 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify({ winningTeamId })
         }),
-      finalizeGame: (id: string) =>
-        f<Game>(`/games/${id}/finalize`, { method: "POST" }),
+      /**
+       * Finalize: locks the result and, in the same server transaction,
+       * rebuilds the game's stat lines and the league standings, then
+       * notifies both teams. `endedIn` is required when the score is not tied.
+       */
+      finalizeGame: (id: string, body: { endedIn?: GameEnding } = {}) =>
+        f<Game & { finalizeSummary: GameFinalizeSummary }>(`/games/${id}/finalize`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
 
       // -------- lineups (Backlog #5 / E3) ------------------------------
       getLineup: (gameId: string, teamId: string) =>
@@ -3027,18 +3087,34 @@ export function createApi(f: Fetcher) {
     },
 
     // Backlog #6 · org-admin broadcast composer.
+    // League announcement (UC-19). The server resolves recipients from
+    // the target inside the org; one notification per person per channel.
     orgAdminBroadcast: {
       send: (body: {
         orgId: string;
-        audiences: Array<"captains" | "coaches" | "players" | "all_admins">;
+        audiences: Array<
+          "captains" | "coaches" | "players" | "referees" | "all_admins"
+        >;
+        /** Default: the whole org. */
+        targetType?: "org" | "league" | "season" | "division" | "team";
+        /** Required unless targetType is "org". */
+        targetId?: string;
         subject: string;
         body: string;
-        channel: "email" | "in_app";
+        channels: Array<"email" | "in_app">;
+        /** One per composed announcement; a retry with it does not resend. */
+        idempotencyKey?: string;
       }) =>
         f<{
-          queued: number;
+          broadcastId: string;
+          idempotent: boolean;
+          recipients: number;
+          /** Same as recipients; kept for older screens. */
           audiencesResolved: number;
-          broadcastId?: string;
+          queued: number;
+          failed: number;
+          noEmail: number;
+          channels: Array<"email" | "in_app">;
         }>(`/org-admin/broadcast`, {
           method: "POST",
           body: JSON.stringify(body)

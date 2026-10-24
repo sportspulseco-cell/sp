@@ -330,18 +330,19 @@ test("7. refund dialog (UC-17): wallet-credit refund updates the invoice and can
   await shot(p, "07-after-refund-50");
   const db1 = await stagingSql<{ status: string; paid_cents: number }>(`select status, paid_cents from invoices where id=$1`, [invoiceAId]);
   log("db after refund 50:", JSON.stringify(db1));
-  expect.soft(db1[0]?.paid_cents, "refund reduces invoice paid_cents (12345 → 7345)").toBe(7345);
+  // MON-9: one refund command lowers paid (and total) by the refund.
+  expect(db1[0]?.paid_cents, "refund reduces invoice paid_cents (12345 → 7345)").toBe(7345);
 
   // Second refund of the full original amount: 50 + 123.45 > 123.45 paid.
   const s2 = await refund("123.45");
   await shot(p, "07b-after-second-refund");
-  expect.soft(s2, "second refund that pushes total refunds above the paid amount is refused").toBeGreaterThanOrEqual(400);
+  expect(s2, "second refund that pushes total refunds above the paid amount is refused").toBeGreaterThanOrEqual(400);
   const totals = await stagingSql<{ refunded: number }>(`select coalesce(sum(amount_cents),0)::int as refunded from refunds where invoice_id=$1`, [invoiceAId]);
   log("total refunded on invoice A (cents):", totals[0]?.refunded);
-  expect.soft(totals[0]?.refunded ?? 0, "refunds never exceed the 12345 cents paid").toBeLessThanOrEqual(12345);
+  expect(totals[0]?.refunded ?? 0, "refunds never exceed the 12345 cents paid").toBeLessThanOrEqual(12345);
   const notif = await stagingSql(`select template_code, status from notifications where payload::text like $1 and template_code ilike '%refund%'`, [`%${invoiceAId}%`]);
   log("refund notifications:", JSON.stringify(notif));
-  expect.soft(notif.length, "player is notified of the refund/credit (UC-17)").toBeGreaterThan(0);
+  expect(notif.length, "player is notified of the refund/credit (UC-17)").toBeGreaterThan(0);
 });
 
 test("8. admin issues a standalone wallet credit from the invoice detail", async ({ browser }) => {
@@ -442,8 +443,21 @@ test("11. overdue (UC-18): escalation view and what triggers reminders", async (
     [`${TAG} J13%`]
   );
   log("this run's invoices still in draft (invisible to sp_overdue_sweep):", draft[0]?.n);
+  // MON-11: invoices from "Create and send" are sent, so the sweep sees them.
+  expect(draft[0]?.n ?? 0, "this run's invoices are sent, not drafts").toBe(0);
   const cron = await stagingSql(`select jobname, schedule from cron.job where jobname like '%overdue%'`);
   log("overdue cron:", JSON.stringify(cron));
+  // MON-11: the 0053 sweep reports per-invoice failures instead of aborting.
+  const fn = await stagingSql<{ result: string }>(
+    `select pg_get_function_result('public.sp_overdue_sweep'::regproc) as result`
+  );
+  expect(fn[0]?.result ?? "", "overdue sweep is the 0053 version").toContain("invoices_failed");
+  const lastRun = await stagingSql<{ status: string; return_message: string; start_time: string }>(
+    `select d.status, d.return_message, d.start_time from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+      where j.jobname = 'sp-daily-overdue-sweep' order by d.start_time desc limit 1`
+  ).catch(() => []);
+  log("last overdue sweep run:", JSON.stringify(lastRun));
+  expect.soft(lastRun[0]?.status ?? "succeeded", "last overdue sweep run did not fail").toBe("succeeded");
 });
 
 test("12. org-admin @ org-admin-web /finance parity and isolation", async ({ browser }) => {

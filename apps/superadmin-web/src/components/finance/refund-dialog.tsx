@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Info, Loader2, Wallet } from "lucide-react";
+import type { InvoiceRefundable } from "@sportspulse/api-client";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/components/finance/money";
@@ -10,12 +11,24 @@ import { finance } from "@/lib/api/browser-api";
 
 type RefundKind = "gateway" | "wallet";
 
+function newKey(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `refund-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Issue a refund on one invoice (UC-17, MON-9). The limits come from the
+ * server (`refundable`), never from paid_cents on the client. One
+ * idempotency key per opening of the dialog, so a double click or a
+ * retry after a network error cannot refund twice.
+ */
 export function RefundDialog({
   open,
   onClose,
   invoiceId,
   invoiceNumber,
-  paidCents,
+  refundable,
   currency,
   suggestedRefundCents,
   suggestedRefundLabel
@@ -24,7 +37,7 @@ export function RefundDialog({
   onClose: () => void;
   invoiceId: string;
   invoiceNumber: string;
-  paidCents: number;
+  refundable: InvoiceRefundable;
   currency: string;
   /** Optional pro-rated suggestion from caller (e.g. games-remaining). */
   suggestedRefundCents?: number;
@@ -32,49 +45,64 @@ export function RefundDialog({
   suggestedRefundLabel?: string;
 }) {
   const router = useRouter();
-  const [kind, setKind] = useState<RefundKind>("gateway");
-  const [amount, setAmount] = useState<string>(
-    suggestedRefundCents
-      ? (suggestedRefundCents / 100).toFixed(2)
-      : (paidCents / 100).toFixed(2)
-  );
+  const defaultKind: RefundKind = refundable.cardCents > 0 ? "gateway" : "wallet";
+  const maxFor = (k: RefundKind) =>
+    k === "gateway" ? refundable.cardCents : refundable.totalCents;
+  const startAmount = (k: RefundKind) =>
+    (
+      (suggestedRefundCents != null
+        ? Math.min(suggestedRefundCents, maxFor(k))
+        : maxFor(k)) / 100
+    ).toFixed(2);
+
+  const [kind, setKind] = useState<RefundKind>(defaultKind);
+  const [amount, setAmount] = useState<string>(startAmount(defaultKind));
   const [reason, setReason] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [idemKey, setIdemKey] = useState<string>(newKey);
 
-  // Reset state each time the dialog opens.
+  // Reset each time the dialog opens; a new opening is a new refund.
   useEffect(() => {
     if (open) {
-      setKind("gateway");
-      setAmount(
-        suggestedRefundCents
-          ? (suggestedRefundCents / 100).toFixed(2)
-          : (paidCents / 100).toFixed(2)
-      );
+      setKind(defaultKind);
+      setAmount(startAmount(defaultKind));
       setReason("");
       setError(null);
+      setIdemKey(newKey());
     }
-  }, [open, paidCents, suggestedRefundCents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, refundable.cardCents, refundable.totalCents, suggestedRefundCents]);
 
+  const max = maxFor(kind);
   const amountCents = Math.round(parseFloat(amount || "0") * 100);
-  const exceedsMax = amountCents > paidCents;
-  const valid =
-    amountCents > 0 && amountCents <= paidCents && reason.trim().length >= 10;
+  const exceedsMax = amountCents > max;
+  const valid = amountCents > 0 && !exceedsMax && reason.trim().length >= 10;
+
+  function pick(k: RefundKind) {
+    setKind(k);
+    if (amountCents > maxFor(k)) setAmount((maxFor(k) / 100).toFixed(2));
+  }
 
   async function submit() {
     if (!valid) return;
     setBusy(true);
     setError(null);
     try {
-      await finance.refundSplit(invoiceId, {
-        cardAmountCents: kind === "gateway" ? amountCents : 0,
-        walletAmountCents: kind === "wallet" ? amountCents : 0,
-        reason: reason.trim(),
-        currency
-      });
+      await finance.refundSplit(
+        invoiceId,
+        {
+          cardAmountCents: kind === "gateway" ? amountCents : 0,
+          walletAmountCents: kind === "wallet" ? amountCents : 0,
+          reason: reason.trim()
+        },
+        idemKey
+      );
       onClose();
       router.refresh();
     } catch (e) {
+      // The key stays the same on retry: if the first attempt did land,
+      // the server returns it instead of refunding again.
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -85,29 +113,34 @@ export function RefundDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={`Issue refund — ${invoiceNumber}`}
-      description="Refund a portion or all of the collected amount. Reason is required and shown in the audit log."
+      title={`Issue refund: ${invoiceNumber}`}
+      description="Give back part or all of what was paid. The refunded amount comes off the invoice, so the player is not asked for it again."
     >
       <div className="space-y-4 text-[13px]">
-        {/* Refund type toggle */}
+        {/* Refund destination */}
         <div className="space-y-1.5">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            Refund type
+            Refund to
           </p>
           <div className="grid grid-cols-2 gap-2">
             <KindButton
               icon={CreditCard}
-              title="Gateway refund"
-              subtitle="Back to original card"
+              title="Card"
+              subtitle={
+                refundable.cardCents > 0
+                  ? `Up to ${formatMoney(refundable.cardCents, currency)} paid by card`
+                  : "No card payment on this invoice"
+              }
               active={kind === "gateway"}
-              onClick={() => setKind("gateway")}
+              disabled={refundable.cardCents === 0}
+              onClick={() => pick("gateway")}
             />
             <KindButton
               icon={Wallet}
               title="Wallet credit"
-              subtitle="Instant — stays in SportsPulse"
+              subtitle="Player can spend it on another invoice"
               active={kind === "wallet"}
-              onClick={() => setKind("wallet")}
+              onClick={() => pick("wallet")}
             />
           </div>
         </div>
@@ -122,7 +155,7 @@ export function RefundDialog({
             <input
               type="number"
               min={0}
-              max={paidCents / 100}
+              max={max / 100}
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -137,7 +170,11 @@ export function RefundDialog({
                 : "text-fg-muted")
             }
           >
-            Max refundable: {formatMoney(paidCents, currency)} (amount paid)
+            Max refundable{kind === "gateway" ? " to card" : ""}:{" "}
+            {formatMoney(max, currency)}
+            {refundable.refundedCents > 0
+              ? ` (${formatMoney(refundable.refundedCents, currency)} already refunded)`
+              : ""}
           </p>
         </label>
 
@@ -179,13 +216,14 @@ export function RefundDialog({
           <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
           {kind === "gateway" ? (
             <span>
-              Gateway refunds to card take 5–7 business days. The player will
-              receive an email confirmation.
+              Sent back through the payment processor. While the league is
+              testing, payments run on a test processor and no real card is
+              refunded. The player gets a refund notice.
             </span>
           ) : (
             <span>
-              Wallet credit is instant and stays in SportsPulse for future
-              registrations or fees. No bank-side delay.
+              Added to the player&apos;s SportsPulse wallet for this
+              organisation right away. The player gets a refund notice.
             </span>
           )}
         </div>
@@ -218,20 +256,24 @@ function KindButton({
   title,
   subtitle,
   active,
+  disabled,
   onClick
 }: {
   icon: typeof CreditCard;
   title: string;
   subtitle: string;
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
       className={[
-        "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition",
+        "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50",
         active
           ? "border-accent bg-accent/5"
           : "border-border bg-bg hover:border-fg-muted"

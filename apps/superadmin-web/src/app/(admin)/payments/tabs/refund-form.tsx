@@ -4,34 +4,33 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
 import { Badge, Button } from "@sportspulse/ui";
-import type { Refund, RefundType } from "@sportspulse/api-client";
+import type { InvoiceRefundable, Refund } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/browser-api";
 import { fmtMoney, fmtDate } from "../lib/format";
 
-const REFUND_TYPES: { value: RefundType; label: string }[] = [
-  { value: "full_original", label: "Full refund to original payment method (Stripe)" },
-  { value: "partial_original", label: "Partial refund to original payment method (Stripe)" },
-  { value: "wallet_credit", label: "Issue as SportsPulse wallet credit" },
-  { value: "adjustment", label: "Adjustment (no money movement, audit only)" }
-];
+type Destination = "card" | "wallet";
+
+function newKey(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `refund-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 /**
- * Issue refund or credit form. Mirrors the mockup line-for-line:
- *   - Refund type (dropdown)
- *   - Refund amount + max refundable hint
- *   - Reason (required, ≥10 chars, audit-trail copy)
- *   - Info banner that updates with the chosen refund type
- *   - Confirm refund / Cancel buttons
+ * Issue refund or credit form (Payments > Refund tab). Same command as
+ * the invoice page's Issue refund dialog: finance.refundSplit, which
+ * refunds through the payment processor or credits the wallet, lowers
+ * the invoice total and paid amount, and refuses anything above what is
+ * still refundable (MON-9). Limits come from the server.
  *
- * On submit calls finance.issueRefund. wallet_credit + adjustment land
- * as status=succeeded immediately; original-payment refunds enter
- * status=pending and the worker flips them when Stripe acknowledges.
+ * "Adjustment (audit only)" was removed: it wrote a refund row with no
+ * money movement and no effect on the invoice.
  */
 export function RefundForm({
   invoiceId,
   invoiceNumber,
   paidCents,
-  maxRefundableCents,
+  refundable,
   currency,
   playerLabel,
   cardOnFileBrand,
@@ -41,7 +40,7 @@ export function RefundForm({
   invoiceId: string;
   invoiceNumber: string;
   paidCents: number;
-  maxRefundableCents: number;
+  refundable: InvoiceRefundable;
   currency: string;
   playerLabel: string;
   cardOnFileBrand: string | null;
@@ -49,12 +48,18 @@ export function RefundForm({
   existingRefunds: Refund[];
 }) {
   const router = useRouter();
-  const [refundType, setRefundType] = useState<RefundType>("full_original");
-  const [amountStr, setAmountStr] = useState((maxRefundableCents / 100).toFixed(2));
+  const defaultDest: Destination = refundable.cardCents > 0 ? "card" : "wallet";
+  const maxFor = (d: Destination) =>
+    d === "card" ? refundable.cardCents : refundable.totalCents;
+  const [dest, setDest] = useState<Destination>(defaultDest);
+  const [amountStr, setAmountStr] = useState((maxFor(defaultDest) / 100).toFixed(2));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  // One key per refund attempt; kept across retries, renewed after success.
+  const [idemKey, setIdemKey] = useState<string>(newKey);
+  const maxRefundableCents = maxFor(dest);
 
   const amountCents = useMemo(() => {
     const parsed = Number.parseFloat(amountStr);
@@ -63,23 +68,19 @@ export function RefundForm({
   }, [amountStr]);
 
   const banner = useMemo(() => {
-    switch (refundType) {
-      case "full_original":
-      case "partial_original":
-        return cardOnFileLast4
-          ? `Refund will be sent to original payment method (${cardOnFileBrand ?? "Card"} ending ${cardOnFileLast4}). Processing: instant for cards, 5–7 business days for ACH. QuickBooks credit memo will be created automatically.`
-          : "Refund will be sent to the original payment method as recorded on the invoice's payments. Processing: instant for cards, 5–7 business days for ACH. QuickBooks credit memo will be created automatically.";
-      case "wallet_credit":
-        return "Refund will be issued as a SportsPulse wallet credit on the player's account. Wallet credits never expire unless an expiry is set on the entry. No external gateway involved.";
-      case "adjustment":
-        return "Adjustment-only refund — records the audit row without any money movement. Use when the original payment was never collected (offline write-off).";
+    if (dest === "card") {
+      const card = cardOnFileLast4
+        ? `${cardOnFileBrand ?? "Card"} ending ${cardOnFileLast4}`
+        : "the card the invoice was paid with";
+      return `Sent back to ${card} through the payment processor. While the league is testing, payments run on a test processor and no real card is refunded. The player gets a refund notice.`;
     }
-  }, [refundType, cardOnFileBrand, cardOnFileLast4]);
+    return "Added to the player's SportsPulse wallet for this organisation right away. The player gets a refund notice.";
+  }, [dest, cardOnFileBrand, cardOnFileLast4]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccess(null);
     if (reason.trim().length < 10) {
       setError("Reason must be at least 10 characters (audit requirement).");
       return;
@@ -97,15 +98,21 @@ export function RefundForm({
 
     setBusy(true);
     try {
-      await finance.issueRefund({
+      const res = await finance.refundSplit(
         invoiceId,
-        refundType,
-        amountCents,
-        reason: reason.trim()
-      });
-      setSuccess(true);
-      router.refresh();
+        {
+          cardAmountCents: dest === "card" ? amountCents : 0,
+          walletAmountCents: dest === "wallet" ? amountCents : 0,
+          reason: reason.trim()
+        },
+        idemKey
+      );
+      setSuccess(
+        `Refunded ${fmtMoney(amountCents, currency)}. ${res.invoiceNumber} now shows ${fmtMoney(res.paidCents, currency)} paid.`
+      );
+      setIdemKey(newKey());
       setReason("");
+      router.refresh();
     } catch (e2) {
       setError((e2 as Error).message);
     } finally {
@@ -123,21 +130,29 @@ export function RefundForm({
           <p className="mt-1 font-mono text-[11px] text-fg-muted">
             {invoiceNumber}
             {playerLabel ? ` · ${playerLabel}` : ""} · {fmtMoney(paidCents, currency)} paid
+            {refundable.refundedCents > 0
+              ? ` · ${fmtMoney(refundable.refundedCents, currency)} refunded`
+              : ""}
           </p>
         </header>
 
         <div className="mt-4 space-y-4">
-          <Field label="Refund type" required>
+          <Field label="Refund to" required>
             <select
-              value={refundType}
-              onChange={(e) => setRefundType(e.target.value as RefundType)}
+              value={dest}
+              onChange={(e) => {
+                const d = e.target.value as Destination;
+                setDest(d);
+                if (amountCents > maxFor(d)) setAmountStr((maxFor(d) / 100).toFixed(2));
+              }}
               className="input"
             >
-              {REFUND_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
+              <option value="card" disabled={refundable.cardCents === 0}>
+                {refundable.cardCents > 0
+                  ? "The card it was paid with"
+                  : "The card it was paid with (no card payment on this invoice)"}
+              </option>
+              <option value="wallet">SportsPulse wallet credit</option>
             </select>
           </Field>
 
@@ -189,7 +204,7 @@ export function RefundForm({
           ) : null}
           {success ? (
             <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
-              Refund recorded. Status will flip to succeeded once the gateway acknowledges.
+              {success}
             </p>
           ) : null}
 
@@ -207,8 +222,8 @@ export function RefundForm({
               variant="ghost"
               size="sm"
               onClick={() => {
-                setRefundType("full_original");
-                setAmountStr((maxRefundableCents / 100).toFixed(2));
+                setDest(defaultDest);
+                setAmountStr((maxFor(defaultDest) / 100).toFixed(2));
                 setReason("");
                 setError(null);
               }}
@@ -232,8 +247,12 @@ export function RefundForm({
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <p className="font-mono text-[11px] text-fg">
-                    {r.refundType.replace(/_/g, " ")} ·{" "}
-                    {fmtMoney(r.amountCents, r.currency)}
+                    {r.refundType === "wallet_credit"
+                      ? "wallet credit"
+                      : r.refundType === "adjustment"
+                        ? "adjustment"
+                        : "to card"}{" "}
+                    · {fmtMoney(r.amountCents, r.currency)}
                   </p>
                   <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                     {fmtDate(r.createdAt)}

@@ -1,43 +1,12 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Inject,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-  UseGuards
-} from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, desc, eq, sql } from "drizzle-orm";
-import {
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  MaxLength,
-  Min,
-  MinLength
-} from "class-validator";
+import { Controller, Get, Inject, Query, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { and, desc, eq } from "drizzle-orm";
+import { IsOptional, IsString, IsUUID } from "class-validator";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
-import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
-
-class IssueRefundBodyDto {
-  @IsUUID() invoiceId!: string;
-  @IsOptional() @IsUUID() paymentId?: string | null;
-  @IsIn(["full_original", "partial_original", "wallet_credit", "adjustment"])
-  refundType!: "full_original" | "partial_original" | "wallet_credit" | "adjustment";
-  @IsInt() @Min(1) amountCents!: number;
-  @IsString() @MinLength(10) @MaxLength(2000) reason!: string;
-}
 
 class ListRefundsQueryDto {
   @IsOptional() @IsUUID() invoiceId?: string;
@@ -64,14 +33,10 @@ interface RefundDto {
 }
 
 /**
- * Refund issuance + history. The mockup's "Refund / credit" tab posts
- * to /finance/refunds. The processor side (Stripe RefundCreate) is a
- * separate worker — issuing here records the intent + creates the
- * audit row; status flips to "succeeded" / "failed" once the worker
- * round-trips.
- *
- * For wallet_credit type, we post a credit to the player's wallet in
- * the same transaction (no external gateway needed).
+ * Refund history (read-only). Issuing a refund is one command,
+ * RefundService, reached through POST /finance/invoices/:id/refund-split
+ * (MON-9). The old POST /finance/refunds wrote a refund row without
+ * touching the invoice or calling the processor, so it was removed.
  */
 @ApiTags("finance/refunds")
 @ApiBearerAuth()
@@ -95,117 +60,6 @@ export class FinanceRefundsController {
       .limit(200);
 
     return rows.map(toDto);
-  }
-
-  @Post()
-  @ApiOperation({
-    summary:
-      "Issue a refund. wallet_credit refunds also post a credit_issued ledger entry + bump the wallet balance atomically."
-  })
-  async issue(
-    @Body() body: IssueRefundBodyDto,
-    @CurrentUser() user: AuthPrincipal
-  ): Promise<RefundDto> {
-    // Sanity: invoice exists, refund <= max refundable.
-    const [invoice] = await this.db
-      .select({
-        id: schema.invoices.id,
-        orgId: schema.invoices.orgId,
-        paidCents: schema.invoices.paidCents,
-        currency: schema.invoices.currency,
-        recipientPersonId: schema.invoices.recipientPersonId
-      })
-      .from(schema.invoices)
-      .where(eq(schema.invoices.id, body.invoiceId))
-      .limit(1);
-    if (!invoice) throw new NotFoundException("Invoice not found");
-
-    if (body.amountCents > invoice.paidCents) {
-      throw new BadRequestException(
-        `Refund amount ${body.amountCents} exceeds maximum refundable ${invoice.paidCents}`
-      );
-    }
-
-    // Issue the refund row (status=pending; worker flips to succeeded
-    // when the gateway acknowledges, or we flip immediately for wallet_credit).
-    const initialStatus =
-      body.refundType === "wallet_credit" || body.refundType === "adjustment"
-        ? "succeeded"
-        : "pending";
-    const processedAt =
-      initialStatus === "succeeded" ? new Date() : null;
-
-    const refund = await this.db.transaction(async (tx) => {
-      const [r] = await tx
-        .insert(schema.refunds)
-        .values({
-          orgId: invoice.orgId,
-          invoiceId: body.invoiceId,
-          paymentId: body.paymentId ?? null,
-          refundType: body.refundType,
-          amountCents: body.amountCents,
-          currency: invoice.currency,
-          reason: body.reason,
-          issuedByUserId: user.userId,
-          status: initialStatus,
-          processedAt
-        })
-        .returning();
-      const row = r!;
-
-      // Wallet credit type: bump the player's wallet + write a ledger row.
-      if (body.refundType === "wallet_credit" && invoice.recipientPersonId) {
-        // Upsert wallet account (one per person+org+currency).
-        const [existingWallet] = await tx
-          .select({ id: schema.walletAccounts.id })
-          .from(schema.walletAccounts)
-          .where(
-            and(
-              eq(schema.walletAccounts.personId, invoice.recipientPersonId),
-              eq(schema.walletAccounts.orgId, invoice.orgId),
-              eq(schema.walletAccounts.currency, invoice.currency)
-            )
-          )
-          .limit(1);
-
-        let walletId: string;
-        if (existingWallet) {
-          walletId = existingWallet.id;
-          await tx
-            .update(schema.walletAccounts)
-            .set({
-              balanceCents: sql`${schema.walletAccounts.balanceCents} + ${body.amountCents}`,
-              updatedAt: sql`now()`
-            })
-            .where(eq(schema.walletAccounts.id, walletId));
-        } else {
-          const [created] = await tx
-            .insert(schema.walletAccounts)
-            .values({
-              personId: invoice.recipientPersonId,
-              orgId: invoice.orgId,
-              currency: invoice.currency,
-              balanceCents: body.amountCents
-            })
-            .returning({ id: schema.walletAccounts.id });
-          walletId = created!.id;
-        }
-
-        await tx.insert(schema.walletLedger).values({
-          walletId,
-          entryType: "credit_issued",
-          amountCents: body.amountCents,
-          relatedInvoiceId: body.invoiceId,
-          relatedRefundId: row.id,
-          reason: body.reason,
-          issuedByUserId: user.userId
-        });
-      }
-
-      return row;
-    });
-
-    return toDto(refund);
   }
 }
 

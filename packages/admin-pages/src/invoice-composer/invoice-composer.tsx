@@ -126,6 +126,13 @@ export interface InvoiceComposerProps {
   onSuccess: (result: InvoiceComposerResult) => void;
   /** Optional Cancel target — typically `() => router.back()`. */
   onCancel?: () => void;
+  /**
+   * Offer "Save as draft". Only where the console can later send a draft
+   * (superadmin invoice page); a draft nobody can send is never seen by
+   * the player and never chased by the overdue sweep (MON-11).
+   * Default true.
+   */
+  allowDraft?: boolean;
 }
 
 const ITEM_KINDS: Array<{ value: InvoiceItemKind; label: string }> = [
@@ -712,14 +719,16 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             Cancel
           </Button>
         ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={!valid || submitting}
-          onClick={(e) => onSubmit(e, true)}
-        >
-          Save as draft
-        </Button>
+        {props.allowDraft !== false ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!valid || submitting}
+            onClick={(e) => onSubmit(e, true)}
+          >
+            Save as draft
+          </Button>
+        ) : null}
         <Button type="submit" disabled={!valid || submitting}>
           {submitting ? (
             <>

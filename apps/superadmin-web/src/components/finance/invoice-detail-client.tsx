@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { RefundDialog } from "@/components/finance/refund-dialog";
 import { finance } from "@/lib/api/browser-api";
 import type { Invoice, Payment } from "@/lib/api/types";
+import type { InvoiceRefundable, Refund } from "@sportspulse/api-client";
 
 type Bundle = {
   invoice: Invoice & {
@@ -56,6 +57,10 @@ type Bundle = {
     attemptCount: number;
     lastError: string | null;
   }>;
+  /** Refund history, newest first (MON-9). */
+  refunds: Refund[];
+  /** Server-computed refund limits; the dialog never derives them. */
+  refundable: InvoiceRefundable;
 };
 
 export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
@@ -76,6 +81,11 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
       : ""
   );
 
+  const refunds = bundle.refunds ?? [];
+  const refundedCents = refunds
+    .filter((r) => r.status === "succeeded" || r.status === "pending")
+    .reduce((a, r) => a + r.amountCents, 0);
+  const isDraft = invoice.status === "draft";
   const lateFee = invoice.lateFeeAppliedCents ?? 0;
   const walletApplied = invoice.walletCreditAppliedCents ?? 0;
   const subtotal = invoice.subtotalCents;
@@ -101,6 +111,20 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
     try {
       await finance.manualRemind(invoice.id, "email");
       setFlash("Reminder queued — captain + recipient will get an email.");
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendDraft() {
+    setBusy("send");
+    setError(null);
+    try {
+      await finance.sendInvoice(invoice.id);
+      setFlash("Invoice sent. The player can see and pay it now.");
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -164,6 +188,22 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
           )}
         </div>
       </header>
+
+      {isDraft && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-bg-subtle/60 px-4 py-3 text-[13px] text-fg">
+          <p>
+            Draft. The player cannot see this invoice and overdue reminders
+            skip it until you send it.
+          </p>
+          <Button size="sm" onClick={sendDraft} disabled={busy === "send"}>
+            {busy === "send" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Send invoice"
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Alert banner */}
       {(isOverdue || lateFee > 0) && (
@@ -247,7 +287,9 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {items.map((it) => (
+                  {items
+                    .filter((it) => !(lateFee > 0 && it.kind === "late_fee"))
+                    .map((it) => (
                     <tr key={it.id}>
                       <td className="py-2 text-fg">{it.description}</td>
                       <td className="py-2 font-mono text-[11px] text-fg-muted">
@@ -302,8 +344,14 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
                     tone="emerald"
                   />
                 )}
+                {refundedCents > 0 && (
+                  <TotalRow
+                    label="Refunded"
+                    value={"−" + formatMoney(refundedCents, invoice.currency)}
+                  />
+                )}
                 <TotalRow
-                  label="Paid"
+                  label={refundedCents > 0 ? "Paid (after refunds)" : "Paid"}
                   value={formatMoney(invoice.paidCents, invoice.currency)}
                   tone={invoice.paidCents > 0 ? "emerald" : undefined}
                 />
@@ -342,6 +390,39 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
               </ul>
             </section>
           )}
+
+          {refunds.length > 0 && (
+            <section className="rounded-xl border border-border bg-surface-1">
+              <header className="border-b border-border px-5 py-3">
+                <Eyebrow>Refunds ({refunds.length})</Eyebrow>
+              </header>
+              <ul className="divide-y divide-border">
+                {refunds.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-start justify-between gap-3 px-5 py-2.5 text-[13px]"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-mono tabular-nums text-fg">
+                        −{formatMoney(r.amountCents, r.currency)}{" "}
+                        <span className="text-fg-muted">
+                          {r.refundType === "wallet_credit"
+                            ? "to wallet"
+                            : r.refundType === "adjustment"
+                              ? "adjustment"
+                              : "to card"}
+                        </span>
+                      </p>
+                      <p className="truncate text-[12px] text-fg-muted">{r.reason}</p>
+                    </div>
+                    <p className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                      {r.status} · {fmtDate(r.createdAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
         {/* Admin actions sidebar */}
@@ -374,7 +455,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
               <ActionButton
                 icon={RotateCcw}
                 onClick={() => setShowRefund(true)}
-                disabled={invoice.paidCents === 0}
+                disabled={bundle.refundable.totalCents === 0}
               >
                 Issue refund
               </ActionButton>
@@ -434,7 +515,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
         onClose={() => setShowRefund(false)}
         invoiceId={invoice.id}
         invoiceNumber={invoice.invoiceNumber}
-        paidCents={invoice.paidCents}
+        refundable={bundle.refundable}
         currency={invoice.currency}
       />
       <ExtendDueDialog

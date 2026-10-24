@@ -5,10 +5,16 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
+import {
+  activeMemberPersonIds,
+  ORG_TARGET_TYPES,
+  type OrgTargetType,
+  teamIdsInTarget
+} from "../../../../shared/audience/org-targets";
 import type { BulkCreateInvoiceBodyDto } from "../../interface/dto/bulk-invoice.dto";
 
 /**
@@ -234,105 +240,17 @@ export class InvoicingService {
       if (!p) throw new NotFoundException("Person not found in this org");
       return [p.id];
     }
-    if (scope === "team") {
-      const rows = await this.db
-        .select({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .where(
-          and(
-            eq(schema.teamMemberships.teamId, targetId),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return [...new Set(rows.map((r) => r.personId))];
-    }
-    if (scope === "division") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.divisionTeamEntries,
-          eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId)
-        )
-        .where(
-          and(
-            eq(schema.divisionTeamEntries.divisionId, targetId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "confirmed"
-            ]),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    if (scope === "league") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.divisionTeamEntries,
-          eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId)
-        )
-        .innerJoin(
-          schema.divisions,
-          eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-        )
-        .innerJoin(
-          schema.seasons,
-          eq(schema.seasons.id, schema.divisions.seasonId)
-        )
-        .where(
-          and(
-            eq(schema.seasons.leagueId, targetId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "confirmed"
-            ]),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    if (scope === "season") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.divisionTeamEntries,
-          eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId)
-        )
-        .innerJoin(
-          schema.divisions,
-          eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-        )
-        .where(
-          and(
-            eq(schema.divisions.seasonId, targetId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "confirmed"
-            ]),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
-    }
-    if (scope === "org") {
-      const rows = await this.db
-        .selectDistinct({ personId: schema.teamMemberships.personId })
-        .from(schema.teamMemberships)
-        .innerJoin(
-          schema.teams,
-          eq(schema.teams.id, schema.teamMemberships.teamId)
-        )
-        .where(
-          and(
-            eq(schema.teams.orgId, orgId),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      return rows.map((r) => r.personId);
+    if (ORG_TARGET_TYPES.includes(scope as OrgTargetType)) {
+      // Same "who is in this target" rule as the league announcement
+      // (shared/audience/org-targets.ts): active members of teams with an
+      // applied or confirmed entry under the target; org = every org team.
+      const teamIds = await teamIdsInTarget(
+        this.db,
+        scope as OrgTargetType,
+        targetId,
+        orgId
+      );
+      return activeMemberPersonIds(this.db, teamIds);
     }
     throw new BadRequestException(`Unknown billingScope: ${scope}`);
   }

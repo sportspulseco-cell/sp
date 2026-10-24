@@ -387,6 +387,38 @@ export interface ConsentSignature {
   documentVersionNumber?: number | null;
 }
 
+/**
+ * One document a registration must have signed before it can be
+ * submitted (REG-5): the liability waiver or the code of conduct. Same
+ * shape the funnel and the player /compliance page read.
+ */
+export interface RegistrationDocumentStatus {
+  key: "liability_waiver" | "code_of_conduct";
+  kind: "waiver" | "code_of_conduct";
+  title: string;
+  contentHtml: string;
+  /** typed_name: scroll + type full legal name. acknowledge: one confirmation. */
+  signMode: "typed_name" | "acknowledge";
+  documentVersionId: string | null;
+  signed: boolean;
+  signedAt: string | null;
+  signatureId: string | null;
+}
+
+/** A registration of the caller (or their linked minor) and its documents. */
+export interface MyRegistrationDocuments {
+  registrationId: string;
+  seasonId: string;
+  seasonName: string;
+  orgName: string | null;
+  status: string;
+  subjectName: string;
+  signingFor: "self" | "minor";
+  /** Name the caller types to sign; null when none is on file. */
+  signerName: string | null;
+  documents: RegistrationDocumentStatus[];
+}
+
 export interface IdentityVerification {
   id: string;
   personId: string;
@@ -469,12 +501,24 @@ export type WalletLedgerEntryType =
   | "credit_expired"
   | "adjustment";
 
+/** Refund limits for one invoice, computed by the API (MON-9). */
+export interface InvoiceRefundable {
+  /** Most that can be refunded now, card and wallet together. */
+  totalCents: number;
+  /** Most that can go back to a card (card payments minus card refunds). */
+  cardCents: number;
+  /** Every refund already recorded on the invoice. */
+  refundedCents: number;
+}
+
 export interface WalletLedgerEntry {
   id: string;
   walletId: string;
   entryType: WalletLedgerEntryType;
   amountCents: number;
   relatedInvoiceId: string | null;
+  /** Invoice number of relatedInvoiceId, for display. */
+  relatedInvoiceNumber: string | null;
   relatedRefundId: string | null;
   reason: string;
   issuedByUserId: string | null;
@@ -610,6 +654,56 @@ export interface Game {
   /** Team names (null when unknown). */
   homeTeamName?: string | null;
   awayTeamName?: string | null;
+  /** Set = shown on team schedules. Null = draft only admins and officials see (SCH-7). */
+  publishedAt: string | null;
+  /** Null = hand-made game; set = placed by a schedule run (published with the run). */
+  scheduleRunId: string | null;
+  surfaceId: string | null;
+  /** How the game ended, recorded at finalize. Null before, or for a tie left blank. */
+  endedIn: GameEnding | null;
+  /** Manual moves, oldest first (SCH-6). */
+  reschedules: GameRescheduleRecord[];
+  /**
+   * GET /games/:id only: the game actions this viewer may take
+   * ("game.start", "score.write", "game_event.write", "game.finalize",
+   * "game.postpone", "game.cancel", "game.forfeit", "game.reschedule",
+   * "game.publish", "game.assign_officials", "stats.recompute").
+   */
+  viewerPermissions?: string[];
+}
+
+export type GameEnding = "regulation" | "overtime" | "shootout";
+
+export interface GameRescheduleRecord {
+  at: string;
+  byUserId: string;
+  from: { startTsUtc: string; venueName: string | null; surfaceLabel: string | null; surfaceId: string | null };
+  to: { startTsUtc: string; venueName: string | null; surfaceLabel: string | null; surfaceId: string | null };
+  reason: string | null;
+  overriddenConflicts: string[];
+}
+
+/** Where a game would land after a move, and what it would clash with. */
+export interface GameReschedulePlan {
+  startTsUtc: string;
+  startLocal: string;
+  tz: string;
+  venueName: string | null;
+  surfaceLabel: string | null;
+  surfaceId: string | null;
+  durationMin: number;
+  conflicts: Array<{ kind: "rink" | "team"; gameId: string; message: string }>;
+}
+
+/** What one finalize command did (SCH-17). */
+export interface GameFinalizeSummary {
+  endedIn: GameEnding | null;
+  statLinesWritten: number;
+  standingsTeamsRanked: number;
+  standingsGamesCounted: number;
+  pointsRuleSource: "default" | "request";
+  notificationRecipients: number;
+  notificationsQueued: number;
 }
 
 export interface GameEvent {

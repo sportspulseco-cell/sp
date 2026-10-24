@@ -47,6 +47,9 @@ export function InvoiceComposerShell({
       createBulkInvoice={(body, key) =>
         orgAdminFinance.createBulkInvoice(body, key)
       }
+      // The org console has no invoice page to send a draft from yet
+      // (MON-19), so it only creates sent invoices.
+      allowDraft={false}
       onSuccess={() => {
         router.push("/finance");
         router.refresh();

@@ -129,6 +129,9 @@ export function PaymentsClient({
                   <span className="font-mono text-fg">{inv.invoiceNumber}</span>
                   <span className="font-mono tabular-nums text-fg-muted">
                     {fmt(inv.totalCents, inv.currency)}
+                    {(inv.refundedCents ?? 0) > 0
+                      ? ` (${fmt(inv.refundedCents, inv.currency)} refunded)`
+                      : ""}
                   </span>
                   <Badge tone={inv.status === "paid" ? "success" : "neutral"} mono>
                     {inv.status}
@@ -249,6 +252,19 @@ function InvoiceCard({
             label="Late fee"
             value={"+" + fmt(invoice.lateFeeAppliedCents, invoice.currency)}
             tone="rose"
+          />
+        )}
+        {(invoice.refundedCents ?? 0) > 0 && (
+          <BreakdownRow
+            label="Refunded to you"
+            value={"−" + fmt(invoice.refundedCents, invoice.currency)}
+            tone="emerald"
+          />
+        )}
+        {invoice.paidCents > 0 && (
+          <BreakdownRow
+            label="Paid"
+            value={"−" + fmt(invoice.paidCents, invoice.currency)}
           />
         )}
         <BreakdownRow

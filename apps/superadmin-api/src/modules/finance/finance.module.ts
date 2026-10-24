@@ -12,6 +12,7 @@ import { CaptainDuesController } from "./interface/captain-dues.controller";
 import { FinanceInvoicingController } from "./interface/invoicing.controller";
 import { FinanceService } from "./application/finance.service";
 import { InvoicingService } from "./application/services/invoicing.service";
+import { RefundService } from "./application/services/refund.service";
 import {
   GetInvoiceHandler,
   ListFeeSchedulesHandler,
@@ -50,6 +51,7 @@ import {
   providers: [
     FinanceService,
     InvoicingService,
+    RefundService,
     ListFeeSchedulesHandler,
     UpsertFeeScheduleHandler,
     ListInvoicesHandler,
