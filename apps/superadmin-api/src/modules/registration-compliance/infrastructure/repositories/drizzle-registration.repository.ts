@@ -1,3 +1,4 @@
+import { visibleRegistrationsWhere } from "../../../../shared/auth/visibility";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -51,6 +52,10 @@ export class DrizzleRegistrationRepository implements RegistrationRepository {
     if (q.subjectPersonId)
       cs.push(eq(schema.registrations.subjectPersonId, q.subjectPersonId));
     if (q.cursor) cs.push(gt(schema.registrations.id, q.cursor));
+    if (q.visibleTo) {
+      const visible = visibleRegistrationsWhere(q.visibleTo);
+      if (visible) cs.push(visible);
+    }
 
     const rows = await this.db
       .select()

@@ -1,8 +1,11 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import type { Page, PageQuery } from "@sportspulse/kernel";
 import type { Registration } from "../entities/registration.entity";
 import { RegistrationId } from "../identifiers";
 
 export interface ListRegistrationsQuery extends PageQuery {
+  /** Scoped admins: only registrations inside their scope. */
+  visibleTo?: UserScope;
   orgId?: string;
   status?: string;
   leagueId?: string;

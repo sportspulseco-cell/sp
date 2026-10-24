@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Get,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -15,7 +16,11 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
-import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
+import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { orgVisible, registrationVisible, visibleRegistrationsWhere } from "../../../shared/auth/visibility";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import type { Database } from "@sportspulse/db";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
@@ -53,20 +58,26 @@ export class RegistrationsController {
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  // Read by the shared forms-builder Submissions tab in both admin apps;
-  // org admins may list their own org (it was super_admin only, so the
-  // org-admin tab was always empty). Everything else stays super_admin.
+  // Read by the shared forms-builder Submissions tab in both admin apps
+  // and by the admin console registrations page. Scoped admins (org /
+  // league / season / division) see the registrations inside their
+  // scope; nobody else sees the list. Writes stay super_admin.
   @Get() async list(
     @Query() q: ListRegistrationsQueryDto,
     @CurrentUser() user: AuthPrincipal
   ): Promise<RegistrationPageDto> {
     const scope = await loadUserScope(this.db, user.userId);
     if (!scope.isSuperAdmin) {
-      if (!q.orgId || !(await userHasOrgAdminOnOrg(this.db, user.userId, q.orgId))) {
-        throw new ForbiddenException("Requires super_admin, or org_admin on the requested orgId.");
+      if (!(await userIsPeopleAdmin(this.db, user.userId))) {
+        throw new ForbiddenException(
+          "Requires an admin role (org, league, season or division admin)."
+        );
+      }
+      if (q.orgId && !orgVisible(scope, q.orgId)) {
+        throw new ForbiddenException("That organisation is outside the scope of your role.");
       }
     }
-    const page = await this.listH.execute(q);
+    const page = await this.listH.execute({ ...q, visibleTo: scope });
     // Add subjectName + teamName so screens never print raw ids.
     const names = await resolveEntityNames(this.db, [
       ...page.items.map((r) => ({ type: "person", id: r.subjectPersonId })),
@@ -81,7 +92,11 @@ export class RegistrationsController {
       }))
     };
   }
-  @Get(":id") @UseGuards(SuperAdminGuard) getOne(@Param("id") id: string): Promise<RegistrationDto> {
+  @Get(":id") @UseGuards(ScopedAdminGuard) async getOne(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ): Promise<RegistrationDto> {
+    if (!(await registrationVisible(this.db, scope, id))) throw new NotFoundException("Registration not found");
     return this.getH.execute({ id });
   }
   @UseGuards(SuperAdminGuard)

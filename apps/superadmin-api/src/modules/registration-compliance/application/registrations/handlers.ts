@@ -1,3 +1,4 @@
+import type { UserScope } from "../../../../shared/auth/scope";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
@@ -28,6 +29,8 @@ import { SupabaseAdminService } from "../../../../shared/auth/supabase-admin.ser
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 
 export interface ListRegistrationsInput {
+  /** Scoped admins: only registrations inside their scope (shared/auth/visibility.ts). */
+  visibleTo?: UserScope;
   limit?: number;
   cursor?: string;
   orgId?: string;

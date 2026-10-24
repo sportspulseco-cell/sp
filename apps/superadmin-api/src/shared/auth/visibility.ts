@@ -138,3 +138,12 @@ export async function formVisible(db: Database, scope: UserScope, formId: string
   );
   return hasRows(rows);
 }
+
+export async function registrationVisible(db: Database, scope: UserScope, registrationId: string): Promise<boolean> {
+  const where = visibleRegistrationsWhere(scope);
+  if (!where) return true;
+  const rows = await db.execute(
+    sql`select 1 from registrations where id = ${registrationId}::uuid and ${where} limit 1`
+  );
+  return hasRows(rows);
+}
