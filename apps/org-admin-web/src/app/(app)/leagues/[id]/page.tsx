@@ -1,5 +1,6 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { LeagueDetail } from "@sportspulse/admin-pages";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import { iam, leagueMgmt, orgs } from "@/lib/api/server-api";
@@ -24,8 +25,18 @@ export default async function OrgAdminLeagueDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const league = await leagueMgmt.getLeague(id).catch(() => null);
-  if (!league) notFound();
+  const leagueResult = await load(leagueMgmt.getLeague(id));
+  if (!leagueResult.ok) {
+    if (leagueResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this league"
+        status={leagueResult.status}
+        message={leagueResult.message}
+      />
+    );
+  }
+  const league = leagueResult.data;
 
   // Defense in depth — the API already 404s out-of-scope leagues for
   // org_admin reads, but verify the league belongs to the caller's

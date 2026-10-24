@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { CalendarRange, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -23,10 +24,14 @@ export const metadata = { title: "Schedule — SportsPulse" };
  * ones for archival exports. Status is shown so they pick correctly.
  */
 export default async function SchedulingIndexPage() {
-  const [seasonsPage, leaguesPage] = await Promise.all([
-    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] })),
+  const [seasonsResult, leaguesPage] = await Promise.all([
+    load(fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor }))),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
+  if (!seasonsResult.ok) {
+    console.error("[scheduling] listSeasons failed", seasonsResult.status, seasonsResult.message);
+  }
+  const seasonsPage = seasonsResult.ok ? seasonsResult.data : { items: [] };
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
 
   return (
@@ -36,7 +41,13 @@ export default async function SchedulingIndexPage() {
         title="Schedule"
         description="Pick a season to generate, publish, verify, or resolve conflicts."
       />
-      {seasonsPage.items.length === 0 ? (
+      {!seasonsResult.ok ? (
+        <LoadError
+          what="seasons"
+          status={seasonsResult.status}
+          message={seasonsResult.message}
+        />
+      ) : seasonsPage.items.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No seasons yet"

@@ -1,3 +1,5 @@
+import { load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { ScrollText, Activity, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { audit } from "@/lib/api/server-api";
@@ -45,16 +47,20 @@ export default async function AuditPage({
 }) {
   const sp = await searchParams;
 
-  const [page, facets] = await Promise.all([
-    audit
-      .list({
+  const [auditResult, facets] = await Promise.all([
+    load(
+      audit.list({
         resourceType: sp?.resourceType,
         action: sp?.action,
         limit: 100
       })
-      .catch(() => ({ items: [], nextCursor: null })),
+    ),
     audit.facets().catch(() => ({ actions: [], resourceTypes: [] }))
   ]);
+  if (!auditResult.ok) {
+    console.error("[audit] list failed", auditResult.status, auditResult.message);
+  }
+  const page = auditResult.ok ? auditResult.data : { items: [], nextCursor: null };
 
   // Search within the loaded events (the latest 100 under the facets):
   // action, resource type, resource name, actor name.
@@ -204,7 +210,13 @@ export default async function AuditPage({
         </p>
       </div>
 
-      {page.items.length === 0 ? (
+      {!auditResult.ok ? (
+        <LoadError
+          what="audit events"
+          status={auditResult.status}
+          message={auditResult.message}
+        />
+      ) : page.items.length === 0 ? (
         <EmptyState
           icon={ScrollText}
           title="No audit events"

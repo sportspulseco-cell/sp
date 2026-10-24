@@ -34,8 +34,25 @@ import {
 import { useNav } from "./nav-context";
 
 type NavItem =
-  | { href: string; label: string; icon: LucideIcon }
+  | { href: string; label: string; icon: LucideIcon; superOnly?: boolean }
   | { section: string };
+
+/**
+ * Scoped admins (league / org / season / division) sign in here and see
+ * a role-filtered console. Modules that only a super admin can use are
+ * dropped from their navigation instead of opening to "Super admin
+ * access required" (PPHL, 24 Oct 2026: "so many modules").
+ */
+function navFor(items: NavItem[], isSuperAdmin: boolean): NavItem[] {
+  if (isSuperAdmin) return items;
+  const kept = items.filter((item) => "section" in item || !item.superOnly);
+  // Drop a section header whose every item was removed.
+  return kept.filter((item, i) => {
+    if (!("section" in item)) return true;
+    const next = kept[i + 1];
+    return next !== undefined && !("section" in next);
+  });
+}
 
 const PLATFORM_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -44,7 +61,7 @@ const PLATFORM_NAV: NavItem[] = [
   { href: "/persons", label: "Persons", icon: UserCircle2 },
   { href: "/roles", label: "Roles", icon: ShieldCheck },
   { href: "/audit", label: "Audit", icon: ScrollText },
-  { href: "/admin", label: "Admin Console", icon: Settings2 }
+  { href: "/admin", label: "Admin Console", icon: Settings2, superOnly: true }
 ];
 
 const PROJECT_NAV: NavItem[] = [
@@ -77,11 +94,12 @@ const PROJECT_NAV: NavItem[] = [
   { href: "/payments", label: "Finance ops", icon: Wallet },
   { href: "/communications", label: "Communications", icon: MessageSquare },
   { href: "/reports", label: "Reports", icon: FileBarChart },
-  { href: "/data-migration", label: "Data Migration", icon: Database }
+  { href: "/data-migration", label: "Data Migration", icon: Database, superOnly: true }
 ];
 
-export function Sidebar() {
+export function Sidebar({ isSuperAdmin = true }: { isSuperAdmin?: boolean }) {
   const { open, setOpen } = useNav();
+  const platformNav = navFor(PLATFORM_NAV, isSuperAdmin);
 
   return (
     <>
@@ -91,9 +109,9 @@ export function Sidebar() {
           <WorkspaceSwitcher />
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
-          <NavGroup items={PLATFORM_NAV} />
+          <NavGroup items={platformNav} />
           <div className="my-3 mx-2 h-px bg-border" />
-          <ProjectNav />
+          <ProjectNav isSuperAdmin={isSuperAdmin} />
         </nav>
         <SidebarFooter />
       </aside>
@@ -130,9 +148,9 @@ export function Sidebar() {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
-          <NavGroup items={PLATFORM_NAV} />
+          <NavGroup items={platformNav} />
           <div className="my-3 mx-2 h-px bg-border" />
-          <ProjectNav />
+          <ProjectNav isSuperAdmin={isSuperAdmin} />
         </nav>
         <SidebarFooter />
       </aside>
@@ -148,10 +166,10 @@ function SidebarFooter() {
   );
 }
 
-function ProjectNav() {
+function ProjectNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const pathname = usePathname();
   const groups: { label: string; items: NavItem[] }[] = [];
-  for (const item of PROJECT_NAV) {
+  for (const item of navFor(PROJECT_NAV, isSuperAdmin)) {
     if ("section" in item) groups.push({ label: item.section, items: [] });
     else groups[groups.length - 1]?.items.push(item);
   }

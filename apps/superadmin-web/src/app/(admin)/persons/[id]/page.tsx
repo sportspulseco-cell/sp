@@ -1,4 +1,4 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import {
   ArrowLeft,
   CalendarRange,
@@ -16,6 +16,7 @@ import { EditPersonButton } from "@/components/persons/edit-person-button";
 import { LinkPersonButton } from "@/components/persons/link-person-button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import {
   communications,
   compliance,
@@ -73,8 +74,27 @@ export default async function PersonDetailPage({
 }) {
   const { id } = await params;
 
-  const person = await iam.getPerson(id).catch(() => null);
-  if (!person) notFound();
+  const personResult = await load(iam.getPerson(id));
+  if (!personResult.ok) {
+    if (personResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this person"
+        status={personResult.status}
+        message={personResult.message}
+        action={
+          <Link
+            href="/persons"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All persons
+          </Link>
+        }
+      />
+    );
+  }
+  const person = personResult.data;
 
   const [
     eligibility,

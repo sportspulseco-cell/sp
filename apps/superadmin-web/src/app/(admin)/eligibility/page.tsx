@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
@@ -52,10 +53,8 @@ export default async function EligibilityPage({
   const sp = await searchParams;
   const status = sp?.status;
 
-  const [filteredPage, allPage, persons, seasonsPage] = await Promise.all([
-    compliance
-      .listEligibility({ status, limit: 100 })
-      .catch(() => ({ items: [], nextCursor: null })),
+  const [filteredResult, allPage, persons, seasonsPage] = await Promise.all([
+    load(compliance.listEligibility({ status, limit: 100 })),
     status
       ? compliance
           .listEligibility({ limit: 100 })
@@ -64,6 +63,12 @@ export default async function EligibilityPage({
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!filteredResult.ok) {
+    console.error("[eligibility] listEligibility failed", filteredResult.status, filteredResult.message);
+  }
+  const filteredPage = filteredResult.ok
+    ? filteredResult.data
+    : { items: [], nextCursor: null };
 
   const personMap = new Map(
     persons.items.map((p) => [
@@ -151,7 +156,13 @@ export default async function EligibilityPage({
         })}
       </div>
 
-      {filteredPage.items.length === 0 ? (
+      {!filteredResult.ok ? (
+        <LoadError
+          what="eligibility records"
+          status={filteredResult.status}
+          message={filteredResult.message}
+        />
+      ) : filteredPage.items.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}
           title="No eligibility records"

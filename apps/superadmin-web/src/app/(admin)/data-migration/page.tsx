@@ -1,3 +1,5 @@
+import { load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { Database, Upload, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { dataMigration, orgs } from "@/lib/api/server-api";
@@ -55,13 +57,15 @@ function fmt(iso: string | null) {
 }
 
 export default async function DataMigrationPage() {
-  const [supported, jobs, orgList] = await Promise.all([
+  const [supported, jobsResult, orgList] = await Promise.all([
     dataMigration.supportedKinds().catch(() => ({ kinds: [] })),
-    dataMigration
-      .listJobs({ limit: 50 })
-      .catch(() => ({ items: [], nextCursor: null })),
+    load(dataMigration.listJobs({ limit: 50 })),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!jobsResult.ok) {
+    console.error("[data-migration] listJobs failed", jobsResult.status, jobsResult.message);
+  }
+  const jobs = jobsResult.ok ? jobsResult.data : { items: [], nextCursor: null };
 
   const total = jobs.items.length;
   const succeeded = jobs.items.filter((j) => j.status === "succeeded").length;
@@ -134,7 +138,15 @@ export default async function DataMigrationPage() {
             </p>
           </div>
         </header>
-        {jobs.items.length === 0 ? (
+        {!jobsResult.ok ? (
+          <div className="px-6 py-6">
+            <LoadError
+              what="import jobs"
+              status={jobsResult.status}
+              message={jobsResult.message}
+            />
+          </div>
+        ) : jobs.items.length === 0 ? (
           <div className="px-6 py-12">
             <EmptyState
               icon={Database}

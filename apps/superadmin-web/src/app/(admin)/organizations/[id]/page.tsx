@@ -1,4 +1,4 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import {
   ArrowLeft,
   Building2,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import {
   crossOrgGrants,
   iam,
@@ -49,8 +50,27 @@ export default async function OrgDetailPage({
 }) {
   const { id } = await params;
 
-  const org = await orgs.get(id).catch(() => null);
-  if (!org) notFound();
+  const orgResult = await load(orgs.get(id));
+  if (!orgResult.ok) {
+    if (orgResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this organization"
+        status={orgResult.status}
+        message={orgResult.message}
+        action={
+          <Link
+            href="/organizations"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All organizations
+          </Link>
+        }
+      />
+    );
+  }
+  const org = orgResult.data;
 
   const [
     children,

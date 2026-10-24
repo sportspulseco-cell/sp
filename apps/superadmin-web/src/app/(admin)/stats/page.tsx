@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { BarChart3, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, stats } from "@/lib/api/server-api";
@@ -149,9 +150,18 @@ async function LinesTab({
   leagueId?: string;
   teamMap: Map<string, string>;
 }) {
-  const linesPage = await stats
-    .listLines({ leagueId, limit: 100 })
-    .catch(() => ({ items: [], nextCursor: null }));
+  const linesResult = await load(stats.listLines({ leagueId, limit: 100 }));
+  if (!linesResult.ok) {
+    console.error("[stats] listLines failed", linesResult.status, linesResult.message);
+    return (
+      <LoadError
+        what="stat lines"
+        status={linesResult.status}
+        message={linesResult.message}
+      />
+    );
+  }
+  const linesPage = linesResult.data;
 
   if (linesPage.items.length === 0) {
     return (
@@ -220,7 +230,11 @@ async function StandingsTab({
       />
     );
   }
-  const rows = await stats.standings(leagueId, divisionId).catch(() => []);
+  const rowsResult = await load(stats.standings(leagueId, divisionId));
+  if (!rowsResult.ok) {
+    console.error("[stats] standings failed", rowsResult.status, rowsResult.message);
+  }
+  const rows = rowsResult.ok ? rowsResult.data : [];
 
   return (
     <div className="space-y-4">
@@ -262,7 +276,13 @@ async function StandingsTab({
         </div>
       ) : null}
 
-      {rows.length === 0 ? (
+      {!rowsResult.ok ? (
+        <LoadError
+          what="standings"
+          status={rowsResult.status}
+          message={rowsResult.message}
+        />
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={Trophy}
           title="No standings"

@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { FileSignature, CheckCircle2, Layers, Building2 } from "lucide-react";
 import Link from "next/link";
 import { compliance, orgs } from "@/lib/api/server-api";
@@ -19,12 +20,16 @@ import { CreateDocumentButton } from "@/components/documents/create-document-but
 export const metadata = { title: "Compliance documents — SportsPulse" };
 
 export default async function DocumentsPage() {
-  const [docs, orgList] = await Promise.all([
-    compliance
-      .listDocuments({ limit: 100 })
-      .catch(() => ({ items: [], nextCursor: null })),
+  const [docsResult, orgList] = await Promise.all([
+    load(compliance.listDocuments({ limit: 100 })),
     fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  // Show the failure; an empty list here read as "No documents yet"
+  // (PPHL crawl, 24 Oct 2026: a league admin's 403 was swallowed).
+  if (!docsResult.ok) {
+    console.error("[documents] listDocuments failed", docsResult.status, docsResult.message);
+  }
+  const docs = docsResult.ok ? docsResult.data : { items: [], nextCursor: null };
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
   const total = docs.items.length;
@@ -54,7 +59,13 @@ export default async function DocumentsPage() {
         ]}
       />
 
-      {docs.items.length === 0 ? (
+      {!docsResult.ok ? (
+        <LoadError
+          what="documents"
+          status={docsResult.status}
+          message={docsResult.message}
+        />
+      ) : docs.items.length === 0 ? (
         <EmptyState
           icon={FileSignature}
           title="No documents yet"

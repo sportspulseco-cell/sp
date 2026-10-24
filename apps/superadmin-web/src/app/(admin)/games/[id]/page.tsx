@@ -1,7 +1,8 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -43,8 +44,27 @@ export default async function GameDetailPage({
 }) {
   const { id } = await params;
 
-  const game = await gameOps.getGame(id).catch(() => null);
-  if (!game) notFound();
+  const gameResult = await load(gameOps.getGame(id));
+  if (!gameResult.ok) {
+    if (gameResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this game"
+        status={gameResult.status}
+        message={gameResult.message}
+        action={
+          <Link
+            href="/games"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All games
+          </Link>
+        }
+      />
+    );
+  }
+  const game = gameResult.data;
 
   const [events, statLines, teamsPage, leaguesPage, officials, personsPage] = await Promise.all([
     gameOps.eventsForGame(id).catch(() => []),

@@ -1,5 +1,6 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { SeasonDetail } from "@sportspulse/admin-pages";
 import { SeasonActions } from "@/components/edit/detail-actions";
 import { leagueMgmt, registration } from "@/lib/api/server-api";
@@ -26,11 +27,18 @@ export default async function SeasonDetailPage({
   const { id } = await params;
   // Only a real 404 is "not found"; a server error must not pose as one
   // (a pool outage showed existing seasons as 404).
-  const season = await leagueMgmt.getSeason(id).catch((e: { status?: number }) => {
-    if (e?.status === 404) return null;
-    throw e;
-  });
-  if (!season) notFound();
+  const seasonResult = await load(leagueMgmt.getSeason(id));
+  if (!seasonResult.ok) {
+    if (seasonResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this season"
+        status={seasonResult.status}
+        message={seasonResult.message}
+      />
+    );
+  }
+  const season = seasonResult.data;
 
   const [parentLeague, divisionsPage, formsPage, regions] = await Promise.all([
     leagueMgmt.getLeague(season.leagueId).catch(() => null),

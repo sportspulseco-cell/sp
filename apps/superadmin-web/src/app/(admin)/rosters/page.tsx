@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
@@ -32,20 +33,26 @@ export default async function RostersPage({
   const sp = await searchParams;
   const activeOnly = sp?.activeOnly !== "false";
 
-  const [memberships, teamsPage, personsPage, seasonsPage] = await Promise.all([
-    roster
-      .listMemberships({
+  const [membershipsResult, teamsPage, personsPage, seasonsPage] = await Promise.all([
+    load(
+      roster.listMemberships({
         teamId: sp?.teamId,
         seasonId: sp?.seasonId,
         activeOnly
       })
-      .catch(() => ({ items: [], nextCursor: null })),
+    ),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!membershipsResult.ok) {
+    console.error("[rosters] listMemberships failed", membershipsResult.status, membershipsResult.message);
+  }
+  const memberships = membershipsResult.ok
+    ? membershipsResult.data
+    : { items: [], nextCursor: null };
   const teamMap = new Map(
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
   );
@@ -138,7 +145,13 @@ export default async function RostersPage({
         </Link>
       </div>
 
-      {memberships.items.length === 0 ? (
+      {!membershipsResult.ok ? (
+        <LoadError
+          what="memberships"
+          status={membershipsResult.status}
+          message={membershipsResult.message}
+        />
+      ) : memberships.items.length === 0 ? (
         <EmptyState
           icon={ListChecks}
           title="No memberships"

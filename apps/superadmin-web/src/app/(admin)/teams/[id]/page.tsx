@@ -1,4 +1,6 @@
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { TeamDetail } from "@sportspulse/admin-pages";
 import { leagueMgmt, orgAdminTeams } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
@@ -13,11 +15,21 @@ export default async function TeamDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [team, detail] = await Promise.all([
-    leagueMgmt.getTeam(id).catch(() => null),
+  const [teamResult, detail] = await Promise.all([
+    load(leagueMgmt.getTeam(id)),
     orgAdminTeams.detail(id).catch(() => null)
   ]);
-  if (!team) notFound();
+  if (!teamResult.ok) {
+    if (teamResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this team"
+        status={teamResult.status}
+        message={teamResult.message}
+      />
+    );
+  }
+  const team = teamResult.data;
 
   return (
     <TeamDetail

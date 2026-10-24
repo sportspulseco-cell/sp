@@ -1,8 +1,8 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarX, Users } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import { leagueMgmt, registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { FindTeamClient } from "./find-team-client";
@@ -17,8 +17,27 @@ export default async function FindTeamPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const r = await registration.getMyRegistration(id).catch(() => null);
-  if (!r) notFound();
+  const regResult = await load(registration.getMyRegistration(id));
+  if (!regResult.ok) {
+    if (regResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this registration"
+        status={regResult.status}
+        message={regResult.message}
+        action={
+          <Link
+            href={`/registrations/${id}`}
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Back to registration
+          </Link>
+        }
+      />
+    );
+  }
+  const r = regResult.data;
   if (r.status !== "approved") {
     return (
       <div className="space-y-6">

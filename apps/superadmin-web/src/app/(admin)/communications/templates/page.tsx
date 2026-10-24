@@ -1,6 +1,7 @@
 import { ArrowLeft, FileText } from "lucide-react";
 import Link from "next/link";
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { communications, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,12 +21,16 @@ import { DeleteTemplateButton } from "@/components/communications/delete-templat
 export const metadata = { title: "Notification templates — SportsPulse" };
 
 export default async function TemplatesPage() {
-  const [page, orgList] = await Promise.all([
-    communications
-      .listTemplates({ limit: 200 })
-      .catch(() => ({ items: [], nextCursor: null })),
+  const [templatesResult, orgList] = await Promise.all([
+    load(communications.listTemplates({ limit: 200 })),
     fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
+  if (!templatesResult.ok) {
+    console.error("[templates] listTemplates failed", templatesResult.status, templatesResult.message);
+  }
+  const page = templatesResult.ok
+    ? templatesResult.data
+    : { items: [], nextCursor: null };
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
   const grouped = new Map<string, typeof page.items>();
@@ -52,7 +57,13 @@ export default async function TemplatesPage() {
         action={<UpsertTemplateButton />}
       />
 
-      {page.items.length === 0 ? (
+      {!templatesResult.ok ? (
+        <LoadError
+          what="notification templates"
+          status={templatesResult.status}
+          message={templatesResult.message}
+        />
+      ) : page.items.length === 0 ? (
         <EmptyState
           icon={FileText}
           title="No templates yet"

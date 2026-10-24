@@ -1,5 +1,6 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import type { Division, PricingTier, EmailTemplate } from "@sportspulse/api-client";
 import {
   league,
@@ -48,8 +49,18 @@ export default async function FormSetupPage({
   const sectionParam = (sp.section ?? "season") as SectionKey;
   const active = VALID_SECTIONS.includes(sectionParam) ? sectionParam : "season";
 
-  const form = await registration.getForm(id).catch(() => null);
-  if (!form) notFound();
+  const formResult = await load(registration.getForm(id));
+  if (!formResult.ok) {
+    if (formResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this form"
+        status={formResult.status}
+        message={formResult.message}
+      />
+    );
+  }
+  const form = formResult.data;
 
   // Resolve season + org context for the chrome.
   const [season, org] = await Promise.all([

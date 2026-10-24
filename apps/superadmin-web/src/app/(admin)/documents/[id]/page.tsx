@@ -1,6 +1,8 @@
 import { ArrowLeft, FileSignature } from "lucide-react";
 import Link from "next/link";
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { compliance, orgs } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +28,27 @@ export default async function DocumentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const doc = await compliance.getDocument(id).catch(() => null);
-  if (!doc) notFound();
+  const docResult = await load(compliance.getDocument(id));
+  if (!docResult.ok) {
+    if (docResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this document"
+        status={docResult.status}
+        message={docResult.message}
+        action={
+          <Link
+            href="/documents"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All documents
+          </Link>
+        }
+      />
+    );
+  }
+  const doc = docResult.data;
 
   const [versions, org] = await Promise.all([
     compliance.listDocumentVersions(id).catch(() => []),

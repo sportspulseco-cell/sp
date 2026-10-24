@@ -1,5 +1,6 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
 import { SchedulingGenerateForm } from "@sportspulse/admin-pages";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
@@ -22,8 +23,18 @@ export default async function OrgAdminSchedulingGeneratePage({
   params: Promise<{ seasonId: string }>;
 }) {
   const { seasonId } = await params;
-  const season = await leagueMgmt.getSeason(seasonId).catch(() => null);
-  if (!season) notFound();
+  const seasonResult = await load(leagueMgmt.getSeason(seasonId));
+  if (!seasonResult.ok) {
+    if (seasonResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this season"
+        status={seasonResult.status}
+        message={seasonResult.message}
+      />
+    );
+  }
+  const season = seasonResult.data;
 
   const scope = await iam.meScope().catch(() => null);
   const activeOrgId = await getActiveOrgId(scope);

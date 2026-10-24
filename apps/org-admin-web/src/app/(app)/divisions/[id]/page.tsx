@@ -1,4 +1,6 @@
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { DivisionDetail } from "@sportspulse/admin-pages";
 import { DivisionActions } from "@/components/edit/detail-actions";
 import { adminTransfers, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
@@ -26,8 +28,18 @@ export default async function OrgAdminDivisionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const division = await leagueMgmt.getDivision(id).catch(() => null);
-  if (!division) notFound();
+  const divisionResult = await load(leagueMgmt.getDivision(id));
+  if (!divisionResult.ok) {
+    if (divisionResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this division"
+        status={divisionResult.status}
+        message={divisionResult.message}
+      />
+    );
+  }
+  const division = divisionResult.data;
 
   const parentSeason = await leagueMgmt
     .getSeason(division.seasonId)
@@ -56,6 +68,8 @@ export default async function OrgAdminDivisionDetailPage({
       division={division}
       parentSeason={parentSeason}
       parentOrg={parentOrg}
+      // org-admin has one organisation page, not /organizations/:id (crawl 24 Oct: 404).
+      orgHref="/organization"
       divisionTeams={divisionTeams.items}
       actions={
         <DivisionActions

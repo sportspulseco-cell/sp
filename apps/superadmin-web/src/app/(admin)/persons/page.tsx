@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { UserCircle2, Link2, Cake, Globe2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -19,10 +20,15 @@ import { CreatePersonButton } from "@/components/persons/create-person-button";
 export const metadata = { title: "Persons — SportsPulse" };
 
 export default async function PersonsPage() {
-  const page = await fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({
-    items: [],
-    nextCursor: null
-  }));
+  const personsResult = await load(
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
+  );
+  if (!personsResult.ok) {
+    console.error("[persons] listPersons failed", personsResult.status, personsResult.message);
+  }
+  const page = personsResult.ok
+    ? personsResult.data
+    : { items: [], nextCursor: null };
 
   const total = page.items.length;
   const linked = page.items.filter((p) => p.userId).length;
@@ -63,7 +69,13 @@ export default async function PersonsPage() {
         ]}
       />
 
-      {page.items.length === 0 ? (
+      {!personsResult.ok ? (
+        <LoadError
+          what="persons"
+          status={personsResult.status}
+          message={personsResult.message}
+        />
+      ) : page.items.length === 0 ? (
         <EmptyState
           icon={UserCircle2}
           title="No persons yet"

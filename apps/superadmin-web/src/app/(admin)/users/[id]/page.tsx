@@ -1,6 +1,8 @@
 import { ArrowLeft, Building2, ShieldCheck, Trophy, UserCog } from "lucide-react";
 import Link from "next/link";
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -32,13 +34,32 @@ export default async function UserDetailPage({
 }) {
   const { id } = await params;
 
-  const [user, assignments, roles, memberships] = await Promise.all([
-    iam.getUser(id).catch(() => null),
+  const [userResult, assignments, roles, memberships] = await Promise.all([
+    load(iam.getUser(id)),
     iam.activeRolesForUser(id).catch(() => []),
     iam.listRoles({ limit: 200 }).catch(() => ({ items: [] })),
     iam.userMemberships(id).catch(() => ({ items: [] }))
   ]);
-  if (!user) notFound();
+  if (!userResult.ok) {
+    if (userResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this user"
+        status={userResult.status}
+        message={userResult.message}
+        action={
+          <Link
+            href="/users"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All users
+          </Link>
+        }
+      />
+    );
+  }
+  const user = userResult.data;
 
   const display =
     user.displayName ||

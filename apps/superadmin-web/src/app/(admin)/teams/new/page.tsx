@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { fetchAll } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, orgs, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -23,11 +24,22 @@ export default async function NewTeamPage({
   searchParams?: Promise<{ orgId?: string }>;
 }) {
   const sp = await searchParams;
-  const [orgsPage, sports, leaguesPage] = await Promise.all([
-    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
+  const [orgsResult, sports, leaguesPage] = await Promise.all([
+    load(orgs.list({ limit: 100 })),
     admin.listSports().catch(() => []),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!orgsResult.ok) {
+    // A failed organisation list is not "no organisations".
+    return (
+      <LoadError
+        what="organizations"
+        status={orgsResult.status}
+        message={orgsResult.message}
+      />
+    );
+  }
+  const orgsPage = orgsResult.data;
 
   if (orgsPage.items.length === 0) {
     notFound();

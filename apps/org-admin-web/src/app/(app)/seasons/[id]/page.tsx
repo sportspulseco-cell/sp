@@ -1,5 +1,6 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { SeasonDetail } from "@sportspulse/admin-pages";
 import { SeasonActions } from "@/components/edit/detail-actions";
 import { iam, leagueMgmt, registration } from "@/lib/api/server-api";
@@ -25,8 +26,18 @@ export default async function OrgAdminSeasonDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const season = await leagueMgmt.getSeason(id).catch(() => null);
-  if (!season) notFound();
+  const seasonResult = await load(leagueMgmt.getSeason(id));
+  if (!seasonResult.ok) {
+    if (seasonResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this season"
+        status={seasonResult.status}
+        message={seasonResult.message}
+      />
+    );
+  }
+  const season = seasonResult.data;
 
   // Defense in depth — the API already 404s out-of-scope seasons for
   // org_admin reads, but verify the season belongs to the caller's

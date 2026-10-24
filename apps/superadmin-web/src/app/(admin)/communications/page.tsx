@@ -1,6 +1,7 @@
 import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { communications, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
@@ -69,10 +70,8 @@ export default async function CommunicationsPage({
   // We pull a wide page so the KPI counts are accurate across statuses on the
   // overview row. With our outbox volumes that's fine; later we'd add a
   // dedicated /counts endpoint.
-  const [filteredPage, allPage, personsPage] = await Promise.all([
-    communications
-      .listNotifications({ status, limit: 100 })
-      .catch(() => ({ items: [], nextCursor: null })),
+  const [filteredResult, allPage, personsPage] = await Promise.all([
+    load(communications.listNotifications({ status, limit: 100 })),
     status
       ? communications
           .listNotifications({ limit: 200 })
@@ -81,6 +80,12 @@ export default async function CommunicationsPage({
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!filteredResult.ok) {
+    console.error("[communications] listNotifications failed", filteredResult.status, filteredResult.message);
+  }
+  const filteredPage = filteredResult.ok
+    ? filteredResult.data
+    : { items: [], nextCursor: null };
   const personMap = new Map(
     personsPage.items.map((p) => [
       p.id,
@@ -168,7 +173,13 @@ export default async function CommunicationsPage({
         })}
       </div>
 
-      {filteredPage.items.length === 0 ? (
+      {!filteredResult.ok ? (
+        <LoadError
+          what="notifications"
+          status={filteredResult.status}
+          message={filteredResult.message}
+        />
+      ) : filteredPage.items.length === 0 ? (
         <EmptyState
           icon={MessageSquare}
           title="No notifications"

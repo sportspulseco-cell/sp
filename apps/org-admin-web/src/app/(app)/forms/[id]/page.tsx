@@ -1,7 +1,7 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { AlertTriangle } from "lucide-react";
 import { notFound } from "next/navigation";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import type {
   Division,
   EmailTemplate,
@@ -70,8 +70,18 @@ export default async function OrgAdminFormSetupPage({
   const scope = await iam.meScope().catch(() => null);
   const activeOrgId = await getActiveOrgId(scope);
 
-  const form = await registration.getForm(id).catch(() => null);
-  if (!form) notFound();
+  const formResult = await load(registration.getForm(id));
+  if (!formResult.ok) {
+    if (formResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this form"
+        status={formResult.status}
+        message={formResult.message}
+      />
+    );
+  }
+  const form = formResult.data;
   // Scope safety net — the proxy already enforces this, but a
   // defense-in-depth check here avoids leaking form metadata if the
   // proxy ever drifts.

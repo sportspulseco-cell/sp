@@ -1,3 +1,4 @@
+import { load } from "@sportspulse/api-client";
 import Link from "next/link";
 import {
   ExternalLink,
@@ -9,7 +10,7 @@ import {
 import type { PublicSeasonContext } from "@sportspulse/registration-funnel";
 import { ReviewQueue } from "@/components/registrations/review-queue";
 import { registration } from "@/lib/api/server-api";
-import { Reveal } from "@sportspulse/ui";
+import { Reveal, LoadError } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
   EkgLine,
@@ -49,12 +50,16 @@ async function getContext(seasonId: string): Promise<PublicSeasonContext | null>
  * specialised to registration data: Inbox / Throughput / Form binding.
  */
 export default async function RegistrationsPage() {
-  const [formsPage, regsPage] = await Promise.all([
+  const [formsPage, regsResult] = await Promise.all([
     registration
       .listForms({ purpose: "season_registration" })
       .catch(() => ({ items: [], nextCursor: null })),
-    registration.listRegistrations().catch(() => ({ items: [] }))
+    load(registration.listRegistrations())
   ]);
+  if (!regsResult.ok) {
+    console.error("[registrations] listRegistrations failed", regsResult.status, regsResult.message);
+  }
+  const regsPage = regsResult.ok ? regsResult.data : { items: [] };
 
   const seasonForms = formsPage.items
     .filter((f) => !!f.seasonId)
@@ -117,6 +122,13 @@ export default async function RegistrationsPage() {
 
   return (
     <div className="space-y-12">
+      {!regsResult.ok ? (
+        <LoadError
+          what="registrations"
+          status={regsResult.status}
+          message={regsResult.message}
+        />
+      ) : null}
       {/* HERO with kinetic strip embedded */}
       <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-surface-1">
         <div

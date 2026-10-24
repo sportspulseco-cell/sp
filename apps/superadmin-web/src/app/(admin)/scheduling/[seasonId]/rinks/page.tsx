@@ -1,4 +1,6 @@
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
 import { SchedulingRinkNotifications } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -21,8 +23,18 @@ export default async function RinksPage({
   params: Promise<{ seasonId: string }>;
 }) {
   const { seasonId } = await params;
-  const season = await leagueMgmt.getSeason(seasonId).catch(() => null);
-  if (!season) notFound();
+  const seasonResult = await load(leagueMgmt.getSeason(seasonId));
+  if (!seasonResult.ok) {
+    if (seasonResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this season"
+        status={seasonResult.status}
+        message={seasonResult.message}
+      />
+    );
+  }
+  const season = seasonResult.data;
 
   return (
     <div className="space-y-8">

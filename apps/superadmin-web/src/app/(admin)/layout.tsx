@@ -47,7 +47,7 @@ export default async function AdminLayout({
   return (
     <NavProvider>
       <div className="flex min-h-screen bg-bg">
-        <Sidebar />
+        <Sidebar isSuperAdmin={!!profile?.is_super_admin} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             email={profile?.email ?? user.email ?? ""}

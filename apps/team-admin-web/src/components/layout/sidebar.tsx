@@ -12,7 +12,6 @@ import {
   Mail,
   Settings,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
   Star,
   Users,
@@ -41,8 +40,9 @@ const BASE_NAV: NavSection[] = [
       { href: "/roster", label: "Roster", icon: Users },
       { href: "/schedule", label: "Schedule", icon: CalendarRange },
       { href: "/lineups", label: "Lineups", icon: ListChecks },
-      { href: "/stats", label: "Stats", icon: BarChart3 },
-      { href: "/comms", label: "Communications", icon: Mail }
+      { href: "/stats", label: "Stats", icon: BarChart3 }
+      // Release 1 (PPHL, Oct 2026): Communications (/comms) is a
+      // placeholder page and stays out of the navigation until built.
     ]
   }
 ];
@@ -56,8 +56,9 @@ const CAPTAIN_NAV: NavSection = {
     { href: "/captain/join-requests", label: "Join requests", icon: Inbox },
     { href: "/captain/free-agents", label: "Free agents", icon: Star },
     { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
-    { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck },
-    { href: "/captain/store", label: "Team store", icon: ShoppingBag }
+    { href: "/captain/compliance", label: "Compliance", icon: ShieldCheck }
+    // Release 1: Team store (/captain/store) has no checkout yet; the
+    // route stays reachable by URL, not from the navigation.
   ]
 };
 

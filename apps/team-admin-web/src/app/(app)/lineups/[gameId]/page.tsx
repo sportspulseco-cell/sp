@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock, Users } from "lucide-react";
-import { Badge, EmptyState } from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError } from "@sportspulse/ui";
 import { captain, gameOps, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { LineupEditor } from "./lineup-editor";
@@ -25,12 +26,49 @@ export default async function LineupEditorPage({
   params: Promise<{ gameId: string }>;
 }) {
   const { gameId } = await params;
-  const scope = await iam.meScope().catch(() => null);
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const scopeResult = await load(iam.meScope());
+  if (!scopeResult.ok) {
+    return (
+      <LoadError
+        what="your team"
+        status={scopeResult.status}
+        message={scopeResult.message}
+        action={
+          <Link
+            href="/lineups"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All games
+          </Link>
+        }
+      />
+    );
+  }
+  const myTeamId = scopeResult.data.teamIds[0] ?? null;
   if (!myTeamId) notFound();
 
-  const game = await gameOps.getGame(gameId).catch(() => null);
-  if (!game) notFound();
+  const gameResult = await load(gameOps.getGame(gameId));
+  if (!gameResult.ok) {
+    if (gameResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this game"
+        status={gameResult.status}
+        message={gameResult.message}
+        action={
+          <Link
+            href="/lineups"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All games
+          </Link>
+        }
+      />
+    );
+  }
+  const game = gameResult.data;
   if (game.homeTeamId !== myTeamId && game.awayTeamId !== myTeamId) {
     notFound();
   }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
@@ -14,7 +15,7 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { Badge, Eyebrow } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError } from "@sportspulse/ui";
 import { registration } from "@/lib/api/server-api";
 import { LegacyDivisionPrompt } from "./legacy-division-prompt";
 
@@ -57,8 +58,27 @@ export default async function RegistrationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const r = await registration.getMyRegistration(id).catch(() => null);
-  if (!r) notFound();
+  const regResult = await load(registration.getMyRegistration(id));
+  if (!regResult.ok) {
+    if (regResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this registration"
+        status={regResult.status}
+        message={regResult.message}
+        action={
+          <Link
+            href="/registrations"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            My registrations
+          </Link>
+        }
+      />
+    );
+  }
+  const r = regResult.data;
 
   const isApproved = r.status === "approved";
   const isRejected = r.status === "rejected";

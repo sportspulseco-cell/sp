@@ -60,6 +60,7 @@ export function DivisionDetail({
   seasonHrefBase,
   teamHrefBase,
   orgHrefBase,
+  orgHref: orgHrefOverride,
   editHref,
   applicationsQueueHref,
   pendingApplications,
@@ -81,6 +82,12 @@ export function DivisionDetail({
   teamHrefBase?: string;
   /** Default `/organizations`. The org row in Identity links here. */
   orgHrefBase?: string;
+  /**
+   * Full href for the org row, used instead of `${orgHrefBase}/${id}`.
+   * org-admin passes `/organization` (its own org has no id route);
+   * `null` renders the name without a link.
+   */
+  orgHref?: string | null;
   /**
    * Where the "Edit in Org setup →" CTA points. Only rendered when
    * explicitly provided — sa-web passes `/org-setup`, org-admin omits
@@ -127,7 +134,9 @@ export function DivisionDetail({
   const backTo = backHref ?? "/divisions";
   const seasonHref = seasonHrefBase ?? "/seasons";
   const teamHref = teamHrefBase ?? "/teams";
-  const orgHref = orgHrefBase ?? "/organizations";
+  const orgHrefBase_ = orgHrefBase ?? "/organizations";
+  const orgLink = (orgId: string) =>
+    orgHrefOverride === undefined ? `${orgHrefBase_}/${orgId}` : orgHrefOverride;
 
   return (
     <div className="space-y-8">
@@ -180,12 +189,16 @@ export function DivisionDetail({
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Organization" tag="orgs.display_name">
             {parentOrg ? (
-              <Link
-                href={`${orgHref}/${parentOrg.id}`}
-                className="text-accent hover:underline"
-              >
-                {parentOrg.displayName}
-              </Link>
+              orgLink(parentOrg.id) ? (
+                <Link
+                  href={orgLink(parentOrg.id)!}
+                  className="text-accent hover:underline"
+                >
+                  {parentOrg.displayName}
+                </Link>
+              ) : (
+                parentOrg.displayName
+              )
             ) : (
               "—"
             )}

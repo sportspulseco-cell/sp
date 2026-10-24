@@ -10,10 +10,8 @@ import {
   CreditCard,
   LayoutDashboard,
   ShieldCheck,
-  ShoppingBag,
   User,
   UsersRound,
-  Video,
   X,
   type LucideIcon
 } from "lucide-react";
@@ -35,7 +33,7 @@ interface NavSection {
 /**
  * Player app nav — grouped per Workflow 5 §1.3:
  *   - top: Home (no section label)
- *   - "My game" — Schedule, Stats, Video
+ *   - "My game" — Schedule, Stats (Video hidden until release 2)
  *   - "My team" — Team, Team store
  *   - "My account" — Payments, Compliance, Notifications
  *   - "Discover" — Open registrations, Profile
@@ -54,15 +52,17 @@ const BASE_NAV: NavSection[] = [
     label: "// My game",
     items: [
       { href: "/schedule", label: "Schedule", icon: CalendarRange },
-      { href: "/stats", label: "Stats", icon: ChartBar },
-      { href: "/video", label: "Video", icon: Video }
+      { href: "/stats", label: "Stats", icon: ChartBar }
+      // Release 1 (PPHL, Oct 2026): Video (/video) is a placeholder page
+      // and stays out of the navigation until the pipeline exists.
     ]
   },
   {
     label: "// My team",
     items: [
-      { href: "/team", label: "Team", icon: UsersRound },
-      { href: "/store", label: "Team store", icon: ShoppingBag }
+      { href: "/team", label: "Team", icon: UsersRound }
+      // Release 1: Team store (/store) has no checkout yet; the route
+      // stays reachable by URL, not from the navigation.
     ]
   },
   {

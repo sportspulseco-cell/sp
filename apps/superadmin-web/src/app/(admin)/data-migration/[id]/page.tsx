@@ -1,6 +1,8 @@
 import { ArrowLeft, Database } from "lucide-react";
 import Link from "next/link";
+import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
+import { LoadError } from "@sportspulse/ui";
 import { dataMigration } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +27,27 @@ export default async function ImportJobDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const job = await dataMigration.getJob(id).catch(() => null);
-  if (!job) notFound();
+  const jobResult = await load(dataMigration.getJob(id));
+  if (!jobResult.ok) {
+    if (jobResult.status === 404) notFound();
+    return (
+      <LoadError
+        what="this import job"
+        status={jobResult.status}
+        message={jobResult.message}
+        action={
+          <Link
+            href="/data-migration"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            All imports
+          </Link>
+        }
+      />
+    );
+  }
+  const job = jobResult.data;
 
   const failedRows = await dataMigration.jobRows(id, "failed").catch(() => []);
 

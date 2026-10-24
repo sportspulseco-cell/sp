@@ -1,3 +1,5 @@
+import { load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { finance, orgs } from "@/lib/api/server-api";
@@ -26,7 +28,7 @@ export default async function FinancePage({
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const limit = 25;
 
-  const [summary, invoices, orgList] = await Promise.all([
+  const [summary, invoicesResult, orgList] = await Promise.all([
     finance
       .dashboardSummary(orgId)
       .catch(() => ({
@@ -37,11 +39,17 @@ export default async function FinancePage({
         invoiceCount: 0,
         overdueCount: 0
       })),
-    finance
-      .adminInvoicesList({ orgId, status, billingScope: scope, search, page, limit })
-      .catch(() => ({ items: [], page: 1, limit })),
+    load(
+      finance.adminInvoicesList({ orgId, status, billingScope: scope, search, page, limit })
+    ),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!invoicesResult.ok) {
+    console.error("[finance] adminInvoicesList failed", invoicesResult.status, invoicesResult.message);
+  }
+  const invoices = invoicesResult.ok
+    ? invoicesResult.data
+    : { items: [], page: 1, limit };
 
   return (
     <div className="space-y-8">
@@ -59,6 +67,13 @@ export default async function FinancePage({
           </Link>
         }
       />
+      {!invoicesResult.ok ? (
+        <LoadError
+          what="invoices"
+          status={invoicesResult.status}
+          message={invoicesResult.message}
+        />
+      ) : null}
       <ArDashboardClient
         summary={summary}
         invoices={invoices}

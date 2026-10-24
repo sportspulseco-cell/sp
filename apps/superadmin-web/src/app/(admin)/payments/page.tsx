@@ -1,6 +1,7 @@
+import { load } from "@sportspulse/api-client";
 import { redirect } from "next/navigation";
 import { Wallet } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import { finance, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { PaymentsHeader, type TabKey } from "./payments-header";
 import { DEMO_MODE, mockQbSyncStatus } from "./lib/mock-data";
@@ -40,12 +41,21 @@ export default async function PaymentsPage({
   // orgId comes from the URL when present; otherwise we pick the first
   // org the admin has access to.
   const orgId = sp.orgId ?? null;
-  const [orgsPage] = await Promise.all([
-    orgs.list({ limit: 1 }).catch(() => ({ items: [], nextCursor: null }))
-  ]);
+  const orgsResult = orgId ? null : await load(orgs.list({ limit: 1 }));
+  if (orgsResult && !orgsResult.ok) {
+    // A failed organisation list is not "no organisation in scope".
+    console.error("[payments] orgs.list failed", orgsResult.status, orgsResult.message);
+    return (
+      <LoadError
+        what="organizations"
+        status={orgsResult.status}
+        message={orgsResult.message}
+      />
+    );
+  }
   const resolvedOrg = orgId
     ? await orgs.get(orgId).catch(() => null)
-    : (orgsPage.items[0] ?? null);
+    : (orgsResult?.data.items[0] ?? null);
 
   if (!resolvedOrg) {
     return (

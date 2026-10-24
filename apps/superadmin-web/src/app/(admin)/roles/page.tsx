@@ -19,29 +19,9 @@ import {
 import { CreateRoleButton } from "@/components/roles/create-role-button";
 import { DeleteRoleButton } from "@/components/roles/delete-role-button";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
+import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 
 export const metadata = { title: "Roles — SportsPulse" };
-
-const HIERARCHY = [
-  "super_admin",
-  "org_admin",
-  "league_admin",
-  "season_admin",
-  "division_admin",
-  "captain",
-  "coach",
-  "registrar",
-  "referee",
-  "scorekeeper",
-  "player",
-  "parent",
-  "spectator"
-];
-
-function hierarchyOrder(code: string): number {
-  const i = HIERARCHY.indexOf(code);
-  return i === -1 ? HIERARCHY.length : i;
-}
 
 export default async function RolesPage() {
   const [page, orgList] = await Promise.all([

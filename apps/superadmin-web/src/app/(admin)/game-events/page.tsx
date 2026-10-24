@@ -1,4 +1,5 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
 import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
@@ -51,19 +52,23 @@ export default async function GameEventsPage({
 }) {
   const sp = await searchParams;
 
-  const [page, teamsPage, personsPage] = await Promise.all([
-    gameOps
-      .listEvents({
+  const [eventsResult, teamsPage, personsPage] = await Promise.all([
+    load(
+      gameOps.listEvents({
         eventType: sp?.eventType,
         gameId: sp?.gameId,
         limit: 100
       })
-      .catch(() => ({ items: [], nextCursor: null })),
+    ),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
+  if (!eventsResult.ok) {
+    console.error("[game-events] listEvents failed", eventsResult.status, eventsResult.message);
+  }
+  const page = eventsResult.ok ? eventsResult.data : { items: [], nextCursor: null };
 
   const teamMap = new Map(
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
@@ -156,7 +161,13 @@ export default async function GameEventsPage({
         </div>
       ) : null}
 
-      {page.items.length === 0 ? (
+      {!eventsResult.ok ? (
+        <LoadError
+          what="game events"
+          status={eventsResult.status}
+          message={eventsResult.message}
+        />
+      ) : page.items.length === 0 ? (
         <EmptyState
           icon={Activity}
           title="No events yet"
