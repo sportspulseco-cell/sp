@@ -1,6 +1,7 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Check, Plus } from "lucide-react";
 import type { Org } from "@sportspulse/api-client";
 import { cn } from "@sportspulse/ui";
 
@@ -11,18 +12,43 @@ import { cn } from "@sportspulse/ui";
 export function OrgStep({
   orgs,
   selectedId,
-  onSelect
+  onSelect,
+  renderCreateOrg
 }: {
   orgs: Org[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /**
+   * Super admin only: renders the create-organisation form; the callback
+   * closes it. Omitted (org-admin console) = no "New organisation" option.
+   */
+  renderCreateOrg?: (close: () => void) => ReactNode;
 }) {
+  const [creating, setCreating] = useState(false);
   return (
     <div className="space-y-6">
       <SectionHeader
         title="Organisation"
         hint="All orgs you have access to"
       />
+
+      {renderCreateOrg ? (
+        creating ? (
+          renderCreateOrg(() => setCreating(false))
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border bg-surface-1 px-4 py-3 text-left text-[14px] font-medium text-fg transition-colors hover:border-accent"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-bg-subtle">
+              <Plus className="h-4 w-4" strokeWidth={2} />
+            </span>
+            New organisation
+            <span className="ml-auto font-mono text-[11px] text-fg-muted">create it and choose its org admin</span>
+          </button>
+        )
+      ) : null}
 
       <ul className="space-y-2">
         {orgs.map((o) => {

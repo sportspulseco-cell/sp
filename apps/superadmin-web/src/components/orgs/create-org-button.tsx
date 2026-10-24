@@ -8,7 +8,8 @@ import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { orgs } from "@/lib/api/browser-api";
-import type { OrgType } from "@/lib/api/types";
+import type { Org, OrgType } from "@/lib/api/types";
+import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 
 const ORG_TYPES: { value: OrgType; label: string }[] = [
   { value: "club", label: "Club" },
@@ -33,14 +34,18 @@ export function CreateOrgButton() {
   );
 }
 
-function CreateOrgDialog({
-  open,
-  onClose
+/**
+ * Create-organisation form (same fields as before), reused by the dialog
+ * on /organizations and inline in Org setup step 1. Calls `onCreated`
+ * with the new org; the caller then offers the org-admin step.
+ */
+export function CreateOrgForm({
+  onCreated,
+  onCancel
 }: {
-  open: boolean;
-  onClose: () => void;
+  onCreated: (org: Org) => void;
+  onCancel: () => void;
 }) {
-  const router = useRouter();
   const [form, setForm] = useState({
     slug: "",
     legalName: "",
@@ -63,9 +68,8 @@ function CreateOrgDialog({
     setLoading(true);
     setError(null);
     try {
-      await orgs.create(form);
-      onClose();
-      router.refresh();
+      const created = await orgs.create(form);
+      onCreated(created);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -74,13 +78,6 @@ function CreateOrgDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title="Create organization"
-      description="Tenants are top-level isolation units. Slug must be globally unique."
-      size="lg"
-    >
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
@@ -199,7 +196,7 @@ function CreateOrgDialog({
         ) : null}
 
         <DialogActions>
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>
@@ -213,6 +210,85 @@ function CreateOrgDialog({
           </Button>
         </DialogActions>
       </form>
+  );
+}
+
+/**
+ * Step 2 after creating an organisation: choose its org admin. Reuses the
+ * canonical RoleAssignmentPanel, so the admin can pick an existing user
+ * by name or invite someone by email. Skippable; admins can be added
+ * later from the organisation page.
+ */
+export function ChooseOrgAdmin({
+  org,
+  doneLabel,
+  onDone
+}: {
+  org: Org;
+  doneLabel: string;
+  onDone: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[13px] text-fg">
+        <span className="font-medium">{org.displayName}</span> is created. Choose its org admin:
+        search an existing user by name, or invite one by email.
+      </p>
+      <RoleAssignmentPanel
+        scopeType="org"
+        scopeId={org.id}
+        allowedRoleCodes={["org_admin"]}
+        resourceLabel={org.displayName}
+        initialAssignments={[]}
+      />
+      <DialogActions>
+        <Button type="button" onClick={onDone}>
+          {doneLabel}
+        </Button>
+      </DialogActions>
+    </div>
+  );
+}
+
+function CreateOrgDialog({
+  open,
+  onClose
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [created, setCreated] = useState<Org | null>(null);
+  function close() {
+    setCreated(null);
+    onClose();
+  }
+  return (
+    <Dialog
+      open={open}
+      onClose={close}
+      title={created ? "Choose the org admin" : "Create organization"}
+      description={
+        created
+          ? "Org admins manage this organisation's leagues, seasons, teams and registrations."
+          : "Tenants are top-level isolation units. Slug must be globally unique."
+      }
+      size="lg"
+    >
+      {created ? (
+        <ChooseOrgAdmin
+          org={created}
+          doneLabel="Done"
+          onDone={() => {
+            const id = created.id;
+            close();
+            router.push(`/organizations/${id}`);
+            router.refresh();
+          }}
+        />
+      ) : (
+        <CreateOrgForm onCreated={setCreated} onCancel={close} />
+      )}
     </Dialog>
   );
 }

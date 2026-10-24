@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Alert, Button } from "@sportspulse/ui";
-import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
+import type { GoverningBody, League, Org, Season, Sport } from "@sportspulse/api-client";
 import {
   DEFAULT_TIEBREAKERS,
   NEW_REGION,
@@ -21,6 +21,7 @@ import { OrgStep } from "./steps/org-step";
 import { LeagueStep } from "./steps/league-step";
 import { SeasonStep } from "./steps/season-step";
 import { DivisionsStep } from "./steps/divisions-step";
+import { ExistingChoice } from "./steps/existing-choice";
 
 const STEP_LABELS: Record<WizardStep, string> = {
   1: "Organisation",
@@ -100,7 +101,10 @@ export function OrgSetupWizard({
   createRegion,
   changeLeagueStatus,
   onComplete,
-  orgSports = {}
+  orgSports = {},
+  renderCreateOrg,
+  listLeagues,
+  listSeasons
 }: {
   /** Pre-filtered to the orgs the caller is allowed to write to. */
   orgs: Org[];
@@ -148,7 +152,24 @@ export function OrgSetupWizard({
   changeLeagueStatus: (leagueId: string, status: string) => Promise<unknown>;
   /** Called after a successful run. Consuming app decides where to send the admin. */
   onComplete: (result: { leagueId: string }) => void;
+  /**
+   * Step 1 "New organisation" (super admin only). The app renders its own
+   * create form + org-admin picker and calls `onCreated` with the new org.
+   * Omitted (org-admin console) = no create option.
+   */
+  renderCreateOrg?: (onCreated: (org: Org) => void, onCancel: () => void) => ReactNode;
+  /** Leagues of an org, so step 2 can add to an existing league. */
+  listLeagues?: (orgId: string) => Promise<League[]>;
+  /** Seasons of a league, so step 3 can add divisions to an existing season. */
+  listSeasons?: (leagueId: string) => Promise<Season[]>;
 }) {
+  // Orgs created in step 1 join the list without a page reload.
+  const [orgList, setOrgList] = useState<Org[]>(orgs);
+  // Step 2 / 3 "use existing" choices (SP-Changes item 2). Null = create new.
+  const [existingLeague, setExistingLeague] = useState<League | null>(null);
+  const [existingSeason, setExistingSeason] = useState<Season | null>(null);
+  const [orgLeagues, setOrgLeagues] = useState<League[]>([]);
+  const [leagueSeasons, setLeagueSeasons] = useState<Season[]>([]);
   const [state, setState] = useState<WizardState>(() => ({
     step: 1,
     // Auto-select when there's only one option (org-admin case).
@@ -168,10 +189,11 @@ export function OrgSetupWizard({
     seasonId?: string;
     divisionUids: Set<string>;
   }>({ divisionUids: new Set() });
-  // A league saved for one organisation must not be reused for another.
+  // What was saved for one organisation / league choice must not be
+  // reused for another.
   useEffect(() => {
     progress.current = { divisionUids: new Set() };
-  }, [state.orgId]);
+  }, [state.orgId, existingLeague?.id, existingSeason?.id]);
   // Regions belong to the org picked in step 1; reload when it changes.
   const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
   useEffect(() => {
@@ -229,9 +251,80 @@ export function OrgSetupWizard({
     }));
   }
 
+  // Leagues of the chosen org (step 2 "existing league" option).
+  useEffect(() => {
+    let cancelled = false;
+    setExistingLeague(null);
+    setExistingSeason(null);
+    if (!state.orgId || !listLeagues) {
+      setOrgLeagues([]);
+      return;
+    }
+    listLeagues(state.orgId)
+      .then((l) => {
+        if (!cancelled) setOrgLeagues(l.filter((x) => x.status !== "archived"));
+      })
+      .catch(() => {
+        if (!cancelled) setOrgLeagues([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.orgId]);
+
+  function pickLeague(id: string | null) {
+    const l = id ? orgLeagues.find((x) => x.id === id) ?? null : null;
+    setExistingLeague(l);
+    setExistingSeason(null);
+    setLeagueSeasons([]);
+    if (!l) return;
+    // Mirror the league into the draft so the review summary reads right.
+    const md = (l.metadata ?? {}) as { slug?: string; timezone?: string; privacy?: LeagueDraft["privacy"] };
+    setState((st) => ({
+      ...st,
+      league: {
+        ...st.league,
+        name: l.name,
+        slug: md.slug ?? st.league.slug,
+        sportCode: l.sportCode,
+        format: l.format as LeagueDraft["format"],
+        governingBodyId: l.governingBodyId,
+        timezone: md.timezone ?? st.league.timezone,
+        privacy: md.privacy ?? st.league.privacy
+      }
+    }));
+    if (listSeasons) {
+      listSeasons(l.id)
+        .then((x) => setLeagueSeasons(x.filter((y) => y.status !== "completed" && y.status !== "archived")))
+        .catch(() => setLeagueSeasons([]));
+    }
+  }
+
+  function pickSeason(id: string | null) {
+    const x = id ? leagueSeasons.find((y) => y.id === id) ?? null : null;
+    setExistingSeason(x);
+    if (!x) return;
+    const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
+    setState((st) => ({
+      ...st,
+      season: {
+        ...st.season,
+        name: x.name,
+        startDate: x.startDate,
+        endDate: x.endDate,
+        playoffStartDate: x.playoffStartDate ?? "",
+        playoffEndDate: x.playoffEndDate ?? "",
+        registrationOpensAt: day(x.registrationOpensAt),
+        registrationClosesAt: day(x.registrationClosesAt),
+        rosterLockAt: day(x.rosterLockAt)
+      }
+    }));
+  }
+
   const currentOrg = useMemo(
-    () => orgs.find((o) => o.id === state.orgId) ?? null,
-    [orgs, state.orgId]
+    () => orgList.find((o) => o.id === state.orgId) ?? null,
+    [orgList, state.orgId]
   );
 
   const stepValidation = useMemo(() => {
@@ -243,12 +336,14 @@ export function OrgSetupWizard({
     return {
       1: !!state.orgId,
       2:
-        state.league.name.trim().length > 0 &&
-        state.league.slug.trim().length > 0 &&
-        !!state.league.sportCode &&
-        !!state.league.format &&
-        !!state.league.timezone,
+        !!existingLeague ||
+        (state.league.name.trim().length > 0 &&
+          state.league.slug.trim().length > 0 &&
+          !!state.league.sportCode &&
+          !!state.league.format &&
+          !!state.league.timezone),
       3: (() => {
+        if (existingSeason) return true;
         const s = state.season;
         if (s.name.trim().length === 0) return false;
         if (!isFutureOrToday(s.startDate)) return false;
@@ -314,8 +409,12 @@ export function OrgSetupWizard({
     const saved = progress.current;
     let stepLabel = "league";
     try {
-      if (!saved.leagueId) {
-        const league = await createLeague({
+      // Existing league / season chosen in steps 2-3: reuse, create nothing.
+      if (existingLeague) {
+        saved.leagueId = existingLeague.id;
+        saved.leagueName = existingLeague.name;
+      } else if (!saved.leagueId) {
+        const created = await createLeague({
           orgId: state.orgId,
           sportCode: state.league.sportCode,
           name: state.league.name,
@@ -328,15 +427,17 @@ export function OrgSetupWizard({
             timezone: state.league.timezone
           }
         });
-        saved.leagueId = league.id;
+        saved.leagueId = created.id;
         saved.leagueName = state.league.name;
       }
       const league = { id: saved.leagueId };
 
       stepLabel = "season";
-      const season = saved.seasonId
-        ? { id: saved.seasonId }
-        : await createSeason({
+      const season = existingSeason
+        ? existingSeason
+        : saved.seasonId
+          ? { id: saved.seasonId }
+          : await createSeason({
         leagueId: league.id,
         name: state.season.name,
         sportCode: state.league.sportCode,
@@ -406,7 +507,7 @@ export function OrgSetupWizard({
         saved.divisionUids.add(d.uid);
       }
 
-      if (publish) {
+      if (publish && existingLeague?.status !== "active") {
         stepLabel = "publish";
         await changeLeagueStatus(league.id, "active");
       }
@@ -496,7 +597,17 @@ export function OrgSetupWizard({
       >
         {state.step === 1 ? (
           <OrgStep
-            orgs={orgs}
+            orgs={orgList}
+            renderCreateOrg={
+              renderCreateOrg
+                ? (close) =>
+                    renderCreateOrg((org) => {
+                      setOrgList((l) => [org, ...l.filter((o) => o.id !== org.id)]);
+                      setState((st) => ({ ...st, orgId: org.id }));
+                      close();
+                    }, close)
+                : undefined
+            }
             selectedId={state.orgId}
             onSelect={(id) =>
               setState((s) => ({
@@ -511,20 +622,51 @@ export function OrgSetupWizard({
           />
         ) : null}
         {state.step === 2 ? (
-          <LeagueStep
-            draft={state.league}
-            org={currentOrg}
-            sports={sports}
-            governingBodies={governingBodies}
-            onChange={patchLeague}
-          />
+          <div className="space-y-6">
+            {orgLeagues.length > 0 ? (
+              <ExistingChoice
+                newLabel="Create a new league"
+                existingLabel="Add to an existing league"
+                pickLabel="League"
+                items={orgLeagues.map((l) => ({ id: l.id, name: l.name }))}
+                selectedId={existingLeague?.id ?? null}
+                onPick={(id) => pickLeague(id)}
+              />
+            ) : null}
+            {existingLeague ? null : (
+              <LeagueStep
+                draft={state.league}
+                org={currentOrg}
+                sports={sports}
+                governingBodies={governingBodies}
+                onChange={patchLeague}
+              />
+            )}
+          </div>
         ) : null}
         {state.step === 3 ? (
-          <SeasonStep
-            draft={state.season}
-            leagueName={state.league.name}
-            onChange={patchSeason}
-          />
+          <div className="space-y-6">
+            {existingLeague && leagueSeasons.length > 0 ? (
+              <ExistingChoice
+                newLabel="Create a new season"
+                existingLabel="Add divisions to an existing season"
+                pickLabel="Season"
+                items={leagueSeasons.map((x) => ({
+                  id: x.id,
+                  name: `${x.name} (${x.status.replace(/_/g, " ")})`
+                }))}
+                selectedId={existingSeason?.id ?? null}
+                onPick={(id) => pickSeason(id)}
+              />
+            ) : null}
+            {existingSeason ? null : (
+              <SeasonStep
+                draft={state.season}
+                leagueName={state.league.name}
+                onChange={patchSeason}
+              />
+            )}
+          </div>
         ) : null}
         {state.step === 4 ? (
           <DivisionsStep

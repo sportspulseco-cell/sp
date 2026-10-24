@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { OrgSetupWizard } from "@sportspulse/admin-pages";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
+import { fetchAll } from "@sportspulse/api-client";
 import { leagueMgmt } from "@/lib/api/browser-api";
 
 /**
@@ -39,6 +40,12 @@ export function OrgSetupShell({
       createDivision={(input) => leagueMgmt.createDivision(input)}
       listRegions={(orgId) => leagueMgmt.listRegions({ orgId }).then((r) => r.items)}
       createRegion={(input) => leagueMgmt.createRegion(input)}
+      listLeagues={(orgId) =>
+        fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor })).then((p) => p.items)
+      }
+      listSeasons={(leagueId) =>
+        fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor })).then((p) => p.items)
+      }
       changeLeagueStatus={(id, status) =>
         leagueMgmt.changeLeagueStatus(id, status)
       }

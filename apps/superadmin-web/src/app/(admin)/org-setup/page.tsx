@@ -1,5 +1,3 @@
-import { Building2 } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
 import { fetchAll } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, leagueMgmt, orgs } from "@/lib/api/server-api";
@@ -21,19 +19,8 @@ export default async function OrgSetupPage() {
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
   ]);
 
-  if (orgsPage.items.length === 0) {
-    return (
-      <div className="space-y-6">
-        <PageHeader eyebrow="// Org setup" title="Org setup" />
-        <EmptyState
-          icon={Building2}
-          title="No organizations to set up under"
-          description="Create an organization first — the wizard nests a new league + season + divisions under it."
-        />
-      </div>
-    );
-  }
-
+  // No early empty state: super admins can create the first organisation
+  // from step 1 of the wizard.
   return (
     <OrgSetupShell
       orgs={orgsPage.items}
