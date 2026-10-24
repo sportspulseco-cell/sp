@@ -81,6 +81,26 @@ export class SetRoleProfileHandler {
       `roleProfile updated for user=${input.userId} role=${input.roleCode}`
     );
 
+    // Eligibility, consent and rosters read date of birth (and gender)
+    // from the person record, not from this profile JSON. Keep them in
+    // step so a player who corrects their DOB on Profile is judged on it.
+    if (input.roleCode === "player" || input.roleCode === "free_agent") {
+      const data = input.data as Record<string, unknown>;
+      const set: Partial<typeof schema.persons.$inferInsert> = {};
+      if (typeof data.dob === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.dob)) set.dobDate = data.dob;
+      if (typeof data.gender === "string" && data.gender.trim()) set.genderSelfId = data.gender.trim();
+      if (Object.keys(set).length > 0) {
+        const rows = await this.db
+          .update(schema.persons)
+          .set(set)
+          .where(eq(schema.persons.userId, input.userId))
+          .returning({ id: schema.persons.id });
+        this.log.log(
+          `roleProfile → persons sync user=${input.userId} fields=${Object.keys(set).join(",")} rows=${rows.length}`
+        );
+      }
+    }
+
     // Onboarding finish: flip the JWT flag so middleware stops
     // redirecting. Failure here is non-fatal — the profile data
     // landed; the flag will get set on the next save.
