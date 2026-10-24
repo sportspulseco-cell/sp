@@ -265,7 +265,9 @@ def load_crawls():
     if not EVIDENCE.exists():
         return out
     for f in EVIDENCE.rglob("crawl-*.json"):
-        env = f.parent.name if f.parent != EVIDENCE else "staging"
+        # Folder name = run label (staging, prod, staging-v2 ...). The very
+        # first staging crawl (24 Oct, before the fixes) landed in the root.
+        env = f.parent.name if f.parent != EVIDENCE else "staging-before-fixes"
         role = f.stem.replace("crawl-", "")
         try:
             out[env][role] = json.loads(f.read_text(encoding="utf8"))
@@ -315,6 +317,7 @@ def load_journey_logs():
         for child in suite.get("suites", []):
             walk(child, file, env)
 
+    files.sort(key=lambda ef: ef[1].stat().st_mtime)  # later runs override earlier ones
     for env, f in files:
         try:
             data = json.loads(f.read_text(encoding="utf8"))
@@ -374,23 +377,47 @@ def route_evidence(crawls, module):
     return rows
 
 
+# Tests that only summarise findings ("8. no bug findings were recorded",
+# "J7.z no defects recorded during the walk", "9 report findings") are not
+# steps of the flow; they fail whenever any logged finding is still open.
+STEP_SKIP = re.compile(r"finding|defects recorded|no bug", re.I)
+
+
+def journey_steps(r):
+    return [(t, st) for t, st in r.get("tests", []) if not STEP_SKIP.search(t)]
+
+
 def journey_status(logs, journey_ids):
-    """Combine journey runs: returns (verdict, detail)."""
+    """Combine journey runs: (verdict pass|partial|fail|None, detail)."""
     seen = []
-    verdict = None
+    worst = None
+    order = {"pass": 0, "partial": 1, "fail": 2}
     for env, specs in logs.items():
         for j in journey_ids:
             spec = JOURNEYS.get(j)
             if not spec or spec not in specs:
                 continue
             r = specs[spec]
-            if r["failed"] == 0:
-                seen.append(f"{j} pass ({env})")
-                verdict = verdict or "pass"
+            steps = journey_steps(r)
+            if not steps:
+                continue
+            passed = sum(1 for _, st in steps if st == "passed")
+            failed = [t for t, st in steps if st == "failed"]
+            skipped = sum(1 for _, st in steps if st == "skipped")
+            if not failed and not skipped:
+                v = "pass"
+                line = f"{j}: all {passed} steps pass ({env})"
+            elif passed == 0:
+                v = "fail"
+                line = f"{j}: first step fails: {failed[0][:70] if failed else 'skipped'} ({env})"
             else:
-                seen.append(f"{j} {r['failed']} failing ({env})")
-                verdict = "fail"
-    return verdict, "; ".join(seen)
+                v = "partial"
+                line = f"{j}: {passed} of {len(steps)} steps pass; failing: {'; '.join(x[:60] for x in failed[:2])} ({env})"
+            if r.get("findings"):
+                line += f"; open findings {', '.join(sorted(r['findings']))}"
+            seen.append(line)
+            worst = v if worst is None or order[v] > order[worst] else worst
+    return worst, "; ".join(seen)
 
 
 def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
@@ -407,6 +434,8 @@ def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
         return "Broken", "Route 404/error in crawl: " + ", ".join(f"{a}{r}" for a, r, _ in broken[:4])
     if jv == "fail":
         return "Broken", jdetail
+    if jv == "partial":
+        return "Partly working", jdetail
     if jv == "pass":
         return "Working", jdetail
     if loads:
@@ -419,7 +448,7 @@ def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
 
 
 STATUS_FILL = {
-    "Working": "D1FAE5", "Degraded": "FEF3C7", "Renders, flow untested": "E0E7FF",
+    "Working": "D1FAE5", "Partly working": "FEF3C7", "Degraded": "FEF3C7", "Renders, flow untested": "E0E7FF",
     "Broken": "FEE2E2", "Not built": "F3F4F6", "No evidence": "FDE68A",
 }
 
@@ -510,8 +539,11 @@ def write_md(req_rows, crawls, logs, bugs, fixed):
                          f"{sum(1 for v in visits if v['apiFailures'])} with a failed API call.")
     for env, specs in sorted(logs.items()):
         for spec, r in sorted(specs.items()):
-            lines.append(f"- Journey **{spec}** on **{env}**: {r['passed']} passed, {r['failed']} failed, {r.get('skipped', 0)} skipped"
-                         + (f"; findings still reported: {', '.join(sorted(r['findings']))}" if r['findings'] else ""))
+            steps = journey_steps(r)
+            failed = [t for t, st in steps if st == "failed"]
+            lines.append(f"- Journey **{spec}** on **{env}**: {sum(1 for _, st in steps if st == 'passed')} of {len(steps)} steps pass"
+                         + (f"; failing: {'; '.join(x[:70] for x in failed)}" if failed else "")
+                         + (f"; open findings: {', '.join(sorted(r['findings']))}" if r['findings'] else ""))
     if not crawls and not logs:
         lines.append("- No evidence files found yet.")
     # Totals
@@ -525,7 +557,7 @@ def write_md(req_rows, crawls, logs, bugs, fixed):
         tier_counts[tier][status] += 1
         rows_md.append((fr_id, module_id, tier, status, fr_text, uc_refs, ", ".join(journeys) or "—", detail))
     lines += ["", "## Totals", "", "| Status | All 78 FRs | Release 1 core | Release 1 if works | Later |", "|---|---|---|---|---|"]
-    for st in ["Working", "Degraded", "Renders, flow untested", "Broken", "No evidence", "Not built"]:
+    for st in ["Working", "Partly working", "Degraded", "Renders, flow untested", "Broken", "No evidence", "Not built"]:
         lines.append(f"| {st} | {counts[st]} | {tier_counts['core'][st]} | {tier_counts['r1'][st]} | {tier_counts['later'][st]} |")
     # Release 1 scope
     lines += ["", "## Release 1 scope (proposal for PPHL to confirm)", "",

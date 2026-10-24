@@ -18,7 +18,9 @@ import { IS_STAGING, signedInAs, type Role } from "../journeys/_helpers";
 const TARGET = process.env.AUDIT_TARGET ?? (IS_STAGING ? "staging" : "");
 test.skip(!TARGET, "set E2E_TARGET=staging, or AUDIT_TARGET=prod for a read-only production crawl");
 
-const OUT_DIR = `test-results-audit/${TARGET}`;
+// AUDIT_OUT names the folder (e.g. staging-v2 for a post-deploy re-run) so
+// runs can be compared instead of overwriting each other.
+const OUT_DIR = `test-results-audit/${process.env.AUDIT_OUT ?? TARGET}`;
 const MAX_PAGES = Number(process.env.AUDIT_MAX_PAGES ?? 220);
 const MAX_DEPTH = 3;
 // Same list-of-ids pages differ only by id; visit at most this many per pattern.
