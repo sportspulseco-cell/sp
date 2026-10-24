@@ -122,12 +122,12 @@ export default async function DashboardPage() {
           </div>
 
           <h1 className="mt-5 max-w-[18ch] text-balance font-sans text-[clamp(40px,7vw,96px)] font-semibold leading-[0.92] tracking-tighter text-fg">
-            The pulse of every league.
+            Your leagues at a glance.
           </h1>
 
           <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
-            A live read on every tenant on the platform — registrations,
-            rosters, leagues, and the queues waiting for your attention.
+            Live numbers across your organisations: registrations, rosters,
+            games, and the queues waiting for you.
           </p>
 
           {/* Pill CTAs */}

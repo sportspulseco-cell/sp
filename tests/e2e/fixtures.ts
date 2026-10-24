@@ -56,7 +56,7 @@ export interface RouteCheck {
 
 export const ROUTES = {
   superadmin: [
-    { path: "/dashboard", anchor: /The pulse of every league/i },
+    { path: "/dashboard", anchor: /Where each season stands|Your leagues at a glance/i },
     { path: "/organizations", anchor: /Organizations/i },
     { path: "/users", anchor: /Users/i },
     { path: "/persons", anchor: /People/i },
