@@ -72,12 +72,18 @@ export function RegisterWizard({
   season,
   league,
   divisions,
+  approvedDivision = null,
   thresholdCents
 }: {
   team: Team;
   season: { id: string; name: string; registrationClosesAt: string | null };
   league: { id: string; name: string };
   divisions: DivisionItem[];
+  /**
+   * The division the league admin approved the team for. When set,
+   * step 2 is preselected and locked to it (read-only with a note).
+   */
+  approvedDivision?: { id: string; name: string } | null;
   thresholdCents: number;
 }) {
   const [step, setStep] = useState<StepIndex>(1);
@@ -112,7 +118,14 @@ export function RegisterWizard({
   }
 
   // ----- step 2 state ------------------------------------------------
-  const [divisionId, setDivisionId] = useState<string | null>(null);
+  const [divisionId, setDivisionId] = useState<string | null>(
+    approvedDivision?.id ?? null
+  );
+  // The approved division is in `divisions` unless the admin deactivated
+  // it after approval; then step 2 shows a notice instead of a card.
+  const approvedListed = approvedDivision
+    ? divisions.some((d) => d.id === approvedDivision.id)
+    : false;
   const division = useMemo(
     () => divisions.find((d) => d.id === divisionId) ?? null,
     [divisions, divisionId]
@@ -297,7 +310,26 @@ export function RegisterWizard({
             </StepCard>
           ) : null}
 
-          {step === 2 ? (
+          {step === 2 && approvedDivision ? (
+            <StepCard
+              title="Your division"
+              subtitle={`Approved by your league admin for ${approvedDivision.name}. The division is fixed for this registration; contact your league admin to change it.`}
+            >
+              {approvedListed && division ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DivisionCard division={division} selected locked />
+                </div>
+              ) : (
+                <p className="rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--warning)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-amber-fg)]">
+                  {approvedDivision.name} is no longer listed for this season.
+                  Contact your league admin before continuing.
+                </p>
+              )}
+              {division ? <PricingTimeline division={division} /> : null}
+            </StepCard>
+          ) : null}
+
+          {step === 2 && !approvedDivision ? (
             <StepCard
               title="Pick your division"
               subtitle="Each card shows the seasonal fee + capacity. Selecting one reveals the payment-plan timeline below."
@@ -810,11 +842,14 @@ function EditableRow({
 function DivisionCard({
   division,
   selected,
+  locked = false,
   onSelect
 }: {
   division: DivisionItem;
   selected: boolean;
-  onSelect: () => void;
+  /** Read-only: the admin-approved division. Not a button. */
+  locked?: boolean;
+  onSelect?: () => void;
 }) {
   const fee = division.pricing
     ? `${(division.pricing.fullPriceCents / 100).toFixed(0)}`
@@ -822,6 +857,41 @@ function DivisionCard({
   const full =
     division.maxTeams !== null &&
     division.currentTeamCount >= division.maxTeams;
+  const body = (
+    <>
+      {selected ? (
+        <span className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[--accent] text-bg">
+          <Check className="h-3 w-3" strokeWidth={2.5} />
+        </span>
+      ) : null}
+      <p className="font-semibold tracking-tight text-fg">{division.name}</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {locked ? <Badge mono tone="success">Approved</Badge> : null}
+        {division.tier ? <Badge mono>Tier {division.tier}</Badge> : null}
+        <Badge mono>{division.genderEligibility}</Badge>
+        {full && !locked ? <Badge mono tone="warning">Waitlist</Badge> : null}
+      </div>
+      <p className="mt-1 flex items-center justify-between text-[12px] text-fg-muted">
+        <span>
+          {division.currentTeamCount}
+          {division.maxTeams ? ` / ${division.maxTeams}` : ""} teams
+        </span>
+        <span className="font-mono text-fg">${fee}</span>
+      </p>
+    </>
+  );
+  if (locked) {
+    return (
+      <div
+        role="group"
+        aria-label={`Approved division: ${division.name}`}
+        data-locked="true"
+        className="relative flex flex-col gap-2 rounded-xl border-2 border-[--accent] bg-surface-1 p-4 text-left ring-1 ring-[--accent]/30"
+      >
+        {body}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
@@ -832,24 +902,7 @@ function DivisionCard({
           : "relative flex flex-col gap-2 rounded-xl border border-border bg-surface-1 p-4 text-left hover:border-fg-muted"
       }
     >
-      {selected ? (
-        <span className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[--accent] text-bg">
-          <Check className="h-3 w-3" strokeWidth={2.5} />
-        </span>
-      ) : null}
-      <p className="font-semibold tracking-tight text-fg">{division.name}</p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {division.tier ? <Badge mono>Tier {division.tier}</Badge> : null}
-        <Badge mono>{division.genderEligibility}</Badge>
-        {full ? <Badge mono tone="warning">Waitlist</Badge> : null}
-      </div>
-      <p className="mt-1 flex items-center justify-between text-[12px] text-fg-muted">
-        <span>
-          {division.currentTeamCount}
-          {division.maxTeams ? ` / ${division.maxTeams}` : ""} teams
-        </span>
-        <span className="font-mono text-fg">${fee}</span>
-      </p>
+      {body}
     </button>
   );
 }

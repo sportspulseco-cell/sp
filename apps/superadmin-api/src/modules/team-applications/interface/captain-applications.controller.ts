@@ -209,6 +209,10 @@ export class CaptainApplicationsController {
         entryStatus: schema.divisionTeamEntries.entryStatus,
         createdAt: schema.divisionTeamEntries.createdAt,
         metadata: schema.divisionTeamEntries.metadata,
+        // Set when the captain completed the roster + dues wizard; the
+        // console uses it to tell "approved, set-up pending" apart from
+        // "set up, awaiting deposits".
+        invoiceId: schema.divisionTeamEntries.invoiceId,
         thresholdCents: schema.divisionTeamEntries.confirmationThresholdCents,
         collectedCents: schema.divisionTeamEntries.collectedCents,
         divisionId: schema.divisions.id,
@@ -216,8 +220,10 @@ export class CaptainApplicationsController {
         divisionMaxTeams: schema.divisions.maxTeams,
         seasonId: schema.divisions.seasonId,
         seasonName: schema.seasons.name,
+        seasonStatus: schema.seasons.status,
         seasonStartDate: schema.seasons.startDate,
         seasonEndDate: schema.seasons.endDate,
+        registrationOpensAt: schema.seasons.registrationOpensAt,
         registrationClosesAt: schema.seasons.registrationClosesAt,
         leagueName: schema.leagues.name
       })
@@ -271,6 +277,7 @@ export class CaptainApplicationsController {
           entryStatus: r.entryStatus,
           createdAt: r.createdAt.toISOString(),
           metadata: r.metadata as Record<string, unknown>,
+          invoiceId: r.invoiceId ?? null,
           thresholdCents: r.thresholdCents ?? 0,
           collectedCents: r.collectedCents ?? 0,
           divisionId: r.divisionId,
@@ -278,8 +285,10 @@ export class CaptainApplicationsController {
           divisionMaxTeams: r.divisionMaxTeams ?? null,
           seasonId: r.seasonId,
           seasonName: r.seasonName,
+          seasonStatus: r.seasonStatus,
           seasonStartDate: r.seasonStartDate ?? null,
           seasonEndDate: r.seasonEndDate ?? null,
+          registrationOpensAt: r.registrationOpensAt?.toISOString() ?? null,
           registrationClosesAt: r.registrationClosesAt?.toISOString() ?? null,
           leagueName: r.leagueName,
           feeCents: fee?.fullPriceCents ?? null,

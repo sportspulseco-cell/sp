@@ -179,11 +179,14 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     code: "TEAM_INVITE_NEW",
     channel: "email",
     subject: "{{teamName}} is registering — your spot is reserved",
+    // Payload comes from buildTeamInvitePayload (team-invite-payload.ts):
+    // `inviteUrl` is the full player-app link, `expiryClause` a readable
+    // sentence or "" when the invite has no expiry.
     body:
-      "You've been invited to join {{teamName}} for the upcoming season.\n\n" +
-      "Click to register and pay your share: {{token}}\n\n" +
-      "This invite expires {{expiresAt}}.",
-    variables: ["teamName", "token", "expiresAt"]
+      "You've been invited to join {{teamName}} for {{seasonName}}.\n\n" +
+      "Open this link to join the team and pay your share:\n{{inviteUrl}}\n\n" +
+      "{{expiryClause}}",
+    variables: ["teamName", "seasonName", "inviteUrl", "expiryClause"]
   },
   {
     code: "TEAM_INVITE_RETURNING",
@@ -191,9 +194,9 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Welcome back — {{teamName}} is registering",
     body:
       "Hi! {{teamName}} is registering again and has reserved your spot. " +
-      "Most of your details are pre-filled — confirm and pay your deposit here: {{token}}\n\n" +
-      "This invite expires {{expiresAt}}.",
-    variables: ["teamName", "token", "expiresAt"]
+      "Most of your details are pre-filled. Confirm and pay your deposit here:\n{{inviteUrl}}\n\n" +
+      "{{expiryClause}}",
+    variables: ["teamName", "inviteUrl", "expiryClause"]
   },
   {
     code: "SUB_INVOICE_SENT",
@@ -238,18 +241,18 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     channel: "email",
     subject: "Reminder — your spot on {{teamName}}",
     body:
-      "Just a reminder: {{teamName}} is holding your spot. " +
-      "Complete your registration here before {{expiresAt}}: {{token}}",
-    variables: ["teamName", "token", "expiresAt"]
+      "Just a reminder: {{teamName}} is holding your spot for {{seasonName}}. " +
+      "Complete your registration here before {{expiresOn}}:\n{{inviteUrl}}",
+    variables: ["teamName", "seasonName", "inviteUrl", "expiresOn"]
   },
   {
     code: "INVITE_REMINDER_2",
     channel: "email",
     subject: "Second reminder — your {{teamName}} spot expires soon",
     body:
-      "Your spot on {{teamName}} expires {{expiresAt}}. " +
-      "If you still want to play, finish registration now: {{token}}",
-    variables: ["teamName", "token", "expiresAt"]
+      "Your spot on {{teamName}} for {{seasonName}} expires on {{expiresOn}}. " +
+      "If you still want to play, finish registration now:\n{{inviteUrl}}",
+    variables: ["teamName", "seasonName", "inviteUrl", "expiresOn"]
   },
   {
     code: "INVITE_EXPIRED_CAPTAIN",

@@ -11,7 +11,8 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { TeamInvite } from "@sportspulse/api-client";
-import { iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
+import { sortSeasonsByCurrency } from "@sportspulse/kernel";
+import { captain, iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
@@ -71,12 +72,44 @@ export default async function CaptainInvitesPage() {
     );
   }
 
-  const [team, invitesRaw] = await Promise.all([
+  const [team, invitesRaw, applications] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
     registrationV2
       .listTeamInvites({ teamId: myTeamId })
-      .catch(() => [] as TeamInvite[])
+      .catch(() => [] as TeamInvite[]),
+    captain.myApplications(myTeamId).catch(() => ({ items: [] }))
   ]);
+
+  // Seasons the team is live in (entry applied / accepted / confirmed),
+  // most current first by the same kernel rule the roster page uses. The
+  // picker used to list every season in the org and default to an
+  // arbitrary one (CAP-15), which is how a player ended up on the team
+  // twice, once per season (CAP-24).
+  const liveBySeason = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      startDate: string | null;
+      endDate: string | null;
+      registrationOpensAt: string | null;
+      registrationClosesAt: string | null;
+    }
+  >();
+  for (const a of applications.items) {
+    if (!["applied", "accepted", "confirmed"].includes(a.entryStatus)) continue;
+    if (liveBySeason.has(a.seasonId)) continue;
+    liveBySeason.set(a.seasonId, {
+      id: a.seasonId,
+      name: a.seasonName,
+      startDate: a.seasonStartDate,
+      endDate: a.seasonEndDate,
+      registrationOpensAt: a.registrationOpensAt,
+      registrationClosesAt: a.registrationClosesAt
+    });
+  }
+  const teamSeasons = sortSeasonsByCurrency([...liveBySeason.values()]);
+  const currentSeason = teamSeasons[0] ?? null;
   // Some endpoints have shipped both shapes ({ items } page vs raw array).
   // Normalise so this page works against either.
   const invites: TeamInvite[] = Array.isArray(invitesRaw)
@@ -91,7 +124,7 @@ export default async function CaptainInvitesPage() {
       <PageHeader
         eyebrow="Captain console"
         title="Invites"
-        description={`Issue + revoke invites for ${team?.name ?? "your team"}. Personal invites expire in 7 days; generic team URLs last until roster lock.`}
+        description={`${currentSeason ? `Season: ${currentSeason.name} · ` : ""}Issue + revoke invites for ${team?.name ?? "your team"}. Personal invites expire in 7 days; generic team URLs last until roster lock.`}
       />
 
       <section className="rounded-xl border border-border bg-surface-1 p-6">
@@ -100,7 +133,11 @@ export default async function CaptainInvitesPage() {
           Email a personal invite or generate a shareable team URL.
         </p>
         <div className="mt-4">
-          <CreateInviteForm teamId={myTeamId} />
+          <CreateInviteForm
+            teamId={myTeamId}
+            seasons={teamSeasons.map((s) => ({ id: s.id, name: s.name }))}
+            defaultSeasonId={currentSeason?.id ?? null}
+          />
         </div>
       </section>
 

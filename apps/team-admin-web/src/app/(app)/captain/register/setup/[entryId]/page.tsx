@@ -124,6 +124,10 @@ export default async function CaptainRegisterSetupPage({
       }}
       league={{ id: "", name: entry.leagueName }}
       divisions={divisions.items}
+      // The admin approved one division. Step 2 shows it fixed instead of
+      // a free choice; before this the captain could pick a different,
+      // even denied, division (CAP-2).
+      approvedDivision={{ id: entry.divisionId, name: entry.divisionName }}
       thresholdCents={team.confirmationThresholdCents ?? 0}
     />
   );

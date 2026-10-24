@@ -24,6 +24,10 @@ export const compliance = api.compliance;
 export const registrationV2 = api.registrationV2;
 export const captain = {
   ...api.captain,
-  dashboardState: cache(api.captain.dashboardState)
+  dashboardState: cache(api.captain.dashboardState),
+  // Layout (banner + sidebar CTA) and the home / register pages read
+  // these in the same request; one fetch each.
+  openSeasons: cache(api.captain.openSeasons),
+  myApplications: cache(api.captain.myApplications)
 };
 export const teamStore = api.teamStore;

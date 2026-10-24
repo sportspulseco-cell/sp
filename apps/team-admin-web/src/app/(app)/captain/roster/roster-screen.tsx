@@ -19,6 +19,7 @@ import {
   Button,
   EmptyState,
   Eyebrow,
+  Select,
   TBody,
   TD,
   TH,
@@ -52,6 +53,14 @@ export function RosterScreen({
   initial: RosterPayload | null;
 }) {
   const [data, setData] = useState<RosterPayload | null>(initial);
+  // The season every action on this page works on. Default = the team's
+  // current season as the server picked it (shared kernel rule); the
+  // switcher changes it, and refresh keeps it instead of jumping back
+  // to the default (CAP-8, CAP-24).
+  const [seasonId, setSeasonId] = useState<string | null>(
+    initial?.season?.id ?? null
+  );
+  const [switching, setSwitching] = useState(false);
   const [tab, setTab] = useState<TabKey>("active");
   const [addOpen, setAddOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState<MembershipRow | null>(null);
@@ -60,12 +69,27 @@ export function RosterScreen({
   );
   const [flash, setFlash] = useState<string | null>(null);
 
-  async function refresh() {
+  async function load(nextSeasonId: string | null) {
     try {
-      const next = await captain.roster.list(teamId);
+      const next = await captain.roster.list(teamId, nextSeasonId ?? undefined);
       setData(next);
+      setSeasonId(next.season?.id ?? null);
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function refresh() {
+    await load(seasonId);
+  }
+
+  async function switchSeason(nextSeasonId: string) {
+    setSwitching(true);
+    setFlash(null);
+    try {
+      await load(nextSeasonId);
+    } finally {
+      setSwitching(false);
     }
   }
 
@@ -93,9 +117,12 @@ export function RosterScreen({
     };
   }, [memberships, invites]);
 
+  const seasons = data?.seasons ?? [];
   const headerSub =
     rules && data
-      ? `${memberships.length} / ${rules.maxRosterSize} players · ${data.season?.name ?? "no active season"}${data.division ? " · " + data.division.name : ""}`
+      ? data.season
+        ? `Season: ${data.season.name}${data.division ? " · " + data.division.name : ""} · ${memberships.length} / ${rules.maxRosterSize} players`
+        : "No active season. Register the team to open a roster."
       : "";
 
   return (
@@ -104,6 +131,28 @@ export function RosterScreen({
         eyebrow="Captain console"
         title="Manage roster"
         description={headerSub}
+        action={
+          seasons.length > 1 && data?.season ? (
+            <label className="grid gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                Season
+              </span>
+              <Select
+                aria-label="Season"
+                value={data.season.id}
+                disabled={switching}
+                onChange={(e) => void switchSeason(e.target.value)}
+              >
+                {seasons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                    {s.isCurrent ? " (current)" : ""}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : null
+        }
       />
 
       {/* Lock countdown */}

@@ -5,14 +5,17 @@ import { NavProvider } from "@/components/layout/nav-context";
 import { RegistrationBanner } from "@/components/layout/registration-banner";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
+import { loadRegistrationCall } from "@/lib/captain-registration";
 
 /**
  * Auth-gate + chrome wrapper for the Team admin app.
  *
- * Workflow 7A Phase 2 hook: when the captain's primary team is in
- * `registration_open` mode, the top-of-page green banner AND the
- * sidebar's pulsing "Register the team" entry render at the same
- * time (driven by the same `mode` flag — never one without the other).
+ * Registration call-to-action: the banner under the TopBar and the
+ * sidebar CTA render from one value (`loadRegistrationCall`): an open
+ * season the team has not applied to, a denial to act on, a pending
+ * application, or an approved one whose set-up is still to do. Never
+ * one without the other. Gating on `mode === registration_open` alone
+ * hid the CTA from every in-season team (CAP-6).
  */
 export default async function AppLayout({
   children
@@ -43,14 +46,15 @@ export default async function AppLayout({
     isCaptain && primaryTeamId
       ? await captain.dashboardState(primaryTeamId).catch(() => null)
       : null;
+  const registrationCall =
+    isCaptain && primaryTeamId
+      ? await loadRegistrationCall(primaryTeamId, dashboardState)
+      : null;
 
   return (
     <NavProvider>
       <div className="flex min-h-screen bg-bg">
-        <Sidebar
-          isCaptain={isCaptain}
-          registrationOpen={dashboardState?.mode === "registration_open"}
-        />
+        <Sidebar isCaptain={isCaptain} registrationCall={registrationCall} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar
             email={profile?.email ?? user.email ?? ""}
@@ -58,12 +62,8 @@ export default async function AppLayout({
             roleLine={roleLine}
             isCaptain={isCaptain}
           />
-          {dashboardState?.mode === "registration_open" ? (
-            <RegistrationBanner
-              seasonName={dashboardState.seasonName ?? "season"}
-              leagueName={dashboardState.leagueName ?? "league"}
-              registrationClosesAt={dashboardState.registrationClosesAt}
-            />
+          {registrationCall ? (
+            <RegistrationBanner call={registrationCall} />
           ) : null}
           <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
             <div className="mx-auto max-w-6xl">{children}</div>

@@ -15,6 +15,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
 import {
   IsArray,
   IsEmail,
@@ -26,15 +27,18 @@ import {
   ValidateNested
 } from "class-validator";
 import { Type } from "class-transformer";
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
+import { pickCurrentSeason } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { playerWebUrl } from "../../../shared/app-urls";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 
 /**
  * Captain console endpoints (Workflow 7A · Phase 2).
@@ -77,7 +81,8 @@ export class CaptainController {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly notify: NotificationService
+    private readonly notify: NotificationService,
+    private readonly config: ConfigService
   ) {}
 
   // -------------------------------------------------------------------
@@ -181,7 +186,12 @@ export class CaptainController {
     const now = new Date();
 
     // 1. Active entry — is the team currently mid-rollover (applied)
-    //    or already confirmed/in-progress in a current season?
+    //    or already confirmed/in-progress in a current season? When the
+    //    team is live in several seasons, the shared kernel rule picks
+    //    the current one (in progress today, else registration open,
+    //    else newest), the same rule the roster page uses. The old
+    //    "newest start date" pick made a future season the home page's
+    //    season while the roster page showed another (CAP-24).
     const activeEntries = await this.db
       .select({
         entryId: schema.divisionTeamEntries.id,
@@ -193,6 +203,9 @@ export class CaptainController {
         seasonId: schema.divisions.seasonId,
         seasonName: schema.seasons.name,
         seasonStatus: schema.seasons.status,
+        startDate: schema.seasons.startDate,
+        endDate: schema.seasons.endDate,
+        registrationOpensAt: schema.seasons.registrationOpensAt,
         registrationClosesAt: schema.seasons.registrationClosesAt,
         leagueId: schema.seasons.leagueId,
         leagueName: schema.leagues.name
@@ -219,12 +232,11 @@ export class CaptainController {
             "confirmed"
           ])
         )
-      )
-      .orderBy(desc(schema.seasons.startDate))
-      .limit(1);
+      );
 
-    if (activeEntries[0]) {
-      const e = activeEntries[0];
+    const currentEntry = pickCurrentSeason(activeEntries, now);
+    if (currentEntry) {
+      const e = currentEntry;
       const mode =
         e.entryStatus === "applied" || e.entryStatus === "accepted"
           ? ("applied" as const)
@@ -575,6 +587,7 @@ export class CaptainController {
     const [team] = await this.db
       .select({
         id: schema.teams.id,
+        name: schema.teams.name,
         orgId: schema.teams.orgId,
         captainUserId: schema.teams.captainUserId,
         confirmationThresholdCents: schema.teams.confirmationThresholdCents,
@@ -957,6 +970,9 @@ export class CaptainController {
     }
 
     // ----- STEP 6 — batch notifications (fire-and-forget, post-tx) -----
+    // The old payload sent `inviteToken` and no `teamName`, so the email
+    // body rendered blank where the team and the link belong (CAP-4).
+    const inviteBase = playerWebUrl(this.config);
     for (const inv of result.invites) {
       this.notify.queue({
         orgId: team.orgId,
@@ -965,9 +981,15 @@ export class CaptainController {
         recipientEmail: inv.email,
         payload: {
           teamId: team.id,
-          divisionName: division.name,
-          seasonName: season.name,
-          inviteToken: inv.token
+          ...buildTeamInvitePayload({
+            teamName: team.name,
+            seasonName: season.name,
+            seasonId: season.id,
+            divisionName: division.name,
+            token: inv.token,
+            expiresAt: personalInviteExpiry,
+            playerWebUrl: inviteBase
+          })
         }
       });
     }

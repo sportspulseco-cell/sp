@@ -194,7 +194,10 @@ test("J8.1 captain sends a personal invite from /captain/invites", async () => {
   const options = await season.locator("option").allInnerTexts();
   const selected = await season.locator("option:checked").innerText();
   writeFileSync(`${OUT}/10-season-options.json`, JSON.stringify({ options, selected }, null, 2));
-  finding(selected.includes("Staging 2026-27"), `CAP: invite season defaults to "${selected}", not the team's current season (Staging 2026-27); list has ${options.length - 1} org seasons`);
+  // The picker lists the seasons the team is live in and defaults to the
+  // team's current one, the same rule as the roster page (CAP-15, CAP-24).
+  expect(selected, `invite season defaults to the team's current season (list: ${options.join(" | ")})`).toContain("Staging 2026-27");
+  expect(options.some((o) => /Select a season/i.test(o)), "no empty placeholder option").toBe(false);
   await season.selectOption({ label: "Staging 2026-27" });
   await p.locator("#kind").selectOption("personal");
   await p.locator("#email").fill(INVITEE_EMAIL);
@@ -319,8 +322,11 @@ test("J8.4 captain invites by email from /captain/roster", async () => {
   await p.goto(`${cap.app}/captain/roster`);
   await settle(p);
   const rosterHead = await snap(p, "39-roster-before-invite");
-  writeFileSync(`${OUT}/39-roster-season.txt`, rosterHead.split(String.fromCharCode(10)).find((l) => /players ·/.test(l)) ?? "");
-  finding(/Staging 2026-27/.test(rosterHead), "CAP: Manage roster jumped to the newest registered season; the in-progress season roster (Staging 2026-27) is unreachable (no season switcher)");
+  writeFileSync(`${OUT}/39-roster-season.txt`, rosterHead.split(String.fromCharCode(10)).find((l) => /Season:/.test(l)) ?? "");
+  // The header names the season every action works on, and it is the
+  // team's current season (in progress today), not the newest registered
+  // one (CAP-8, CAP-24).
+  expect(rosterHead, "roster header names the current season").toMatch(/Season: Staging 2026-27/);
   await p.getByRole("button", { name: /invite by email/i }).first().click();
   // The button opens the "Add player" dialog; the email form is a second tab.
   const dlg = p.getByRole("dialog");
@@ -352,6 +358,9 @@ test("J8.5 captain adds the plain player by name; player sees the team; captain 
   await p.goto(`${cap.app}/captain/roster`);
   await settle(p);
   const before = await p.locator("main").first().innerText();
+  // Destination of J8.2 on the captain's side: the invitee is on the
+  // current-season roster the page opens on.
+  expect(before, "J8.2 invitee is listed on the current-season roster").toContain(PLAIN_FIRST);
   const searches: string[] = [];
   p.on("response", async (r) => {
     if (/\/iam\/persons\?/.test(r.url())) {
@@ -379,23 +388,50 @@ test("J8.5 captain adds the plain player by name; player sees the team; captain 
   if (!found) return;
   await hit.click();
   await p.getByRole("button", { name: /add to roster/i }).click();
-  await p.getByText(/Added .* to the roster/).waitFor({ timeout: 30_000 }).catch(() => {});
-  await settle(p);
-  const after = await snap(p, "52-after-add");
-  finding(after.includes(PLAIN_FIRST) && after !== before, "CAP: roster did not refresh with the added player");
-  const mem = await stagingSql<{ n: number }>(
+  // J8.2 already put this player on the roster of the team's current
+  // season (invite accept). The roster page defaults to that same season,
+  // so the add is refused instead of creating a second membership; the
+  // dialog says so and the DB count stays at 1 (CAP-24).
+  const dlg = p.getByRole("dialog");
+  await expect(dlg.getByText(/already on (this team's|the) active roster/i), "same-season duplicate add is refused").toBeVisible({ timeout: 20_000 });
+  await snap(p, "52-add-refused-same-season");
+  const membershipCountSql =
     `select count(*)::int n from team_memberships m join persons pe on pe.id=m.person_id join auth.users u on u.id=pe.user_id
-      where m.team_id=$1 and u.email=$2 and m.current_status='active'`,
-    [TEAM_ID, PLAIN_EMAIL]
-  );
-  // Two active rows here are two seasons (invite accepted into the team's
-  // current season, add-by-name into the season the roster page defaulted
-  // to): CAP-24. Keep walking; the destination checks below still apply.
-  finding((mem[0]?.n ?? 0) >= 1, "CAP: no active membership after add-by-name");
-  finding(
-    (mem[0]?.n ?? 0) <= 1,
-    `CAP-24: ${mem[0]?.n} active memberships for one player on one team (roster page and invite flow default to different seasons)`
-  );
+      where m.team_id=$1 and u.email=$2 and m.current_status='active'`;
+  const sameSeason = await stagingSql<{ n: number }>(membershipCountSql, [TEAM_ID, PLAIN_EMAIL]);
+  expect(sameSeason[0]?.n, "one active membership after a refused duplicate add").toBe(1);
+  await dlg.getByRole("button", { name: /^cancel$/i }).click();
+  // Cross-season guard: switch the roster to another season the team is
+  // live in (if staging has one) and try the same add. The API refuses
+  // and names the season the player is already on.
+  const seasonPicker = p.getByLabel("Season", { exact: true });
+  const options = (await seasonPicker.isVisible().catch(() => false))
+    ? await Promise.all((await seasonPicker.locator("option").all()).map(async (o) => ({ value: (await o.getAttribute("value")) ?? "", text: await o.innerText() })))
+    : [];
+  const current = options.find((o) => /Staging 2026-27/.test(o.text));
+  const other = options.find((o) => o.value && !/Staging 2026-27/.test(o.text));
+  writeFileSync(`${OUT}/52-season-options.json`, JSON.stringify(options, null, 2));
+  if (current && other) {
+    await seasonPicker.selectOption(other.value);
+    await expect(p.locator("main").first()).toContainText(`Season: ${other.text.replace(/ \(current\)$/, "")}`, { timeout: 20_000 });
+    await p.getByRole("button", { name: /add player/i }).click();
+    const search2 = p.getByPlaceholder("e.g. jane smith");
+    await search2.pressSequentially(PLAIN_FIRST.slice(0, 8), { delay: 80 });
+    await p.getByText(/searching/i).waitFor({ state: "hidden", timeout: 20_000 }).catch(() => {});
+    await p.getByRole("button").filter({ hasText: PLAIN_FIRST }).first().click();
+    await p.getByRole("button", { name: /add to roster/i }).click();
+    await expect(p.getByRole("dialog").getByText(/already on this team's active roster for Staging 2026-27/i), "cross-season add is refused and names the season").toBeVisible({ timeout: 20_000 });
+    await snap(p, "52b-add-refused-other-season");
+    const crossSeason = await stagingSql<{ n: number }>(membershipCountSql, [TEAM_ID, PLAIN_EMAIL]);
+    expect(crossSeason[0]?.n, "still one active membership after a cross-season add attempt").toBe(1);
+    await p.getByRole("dialog").getByRole("button", { name: /^cancel$/i }).click();
+    await seasonPicker.selectOption(current.value);
+    await expect(p.locator("main").first()).toContainText("Season: Staging 2026-27", { timeout: 20_000 });
+  } else {
+    test.info().annotations.push({ type: "note", description: "team is live in one season only on staging; cross-season guard not exercised in the browser" });
+  }
+  const after = await snap(p, "52-roster-after-add-attempts");
+  expect(after, "roster still lists the player added by invite in J8.2").toContain(PLAIN_FIRST);
   // Destination: the player's own app shows the team.
   const pl = await signedInAs(browser, "player", { email: PLAIN_EMAIL, password: PLAIN_PASSWORD });
   await pl.page.goto(`${pl.app}/team`);

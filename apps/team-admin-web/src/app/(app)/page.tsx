@@ -4,8 +4,10 @@ import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { OffSeasonView } from "@/components/dashboard/off-season-view";
 import { RegistrationOpenView } from "@/components/dashboard/registration-open-view";
+import { RegistrationCallCard } from "@/components/dashboard/registration-call-card";
 import { InSeasonView } from "@/components/dashboard/in-season-view";
 import { PostSeasonView } from "@/components/dashboard/post-season-view";
+import { loadRegistrationCall } from "@/lib/captain-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,7 @@ export default async function TeamAdminHome() {
   if (!scope || !myTeamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Team admin" title="Your team" />
+        <PageHeader eyebrow="Team admin" title="Your team" />
         <EmptyState
           icon={Users}
           title="No team in scope"
@@ -44,7 +46,7 @@ export default async function TeamAdminHome() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Team admin"
+          eyebrow="Team admin"
           title={team?.name ?? "Your team"}
           description="Access roster, schedule, and stats from the sidebar."
         />
@@ -72,6 +74,13 @@ export default async function TeamAdminHome() {
     );
   }
 
+  // Registration call-to-action for any mode. The registration-open
+  // view already carries its own "Register" CTA for a plain open
+  // season, so skip the card only in that one case.
+  const call = await loadRegistrationCall(myTeamId, state);
+  const showCall =
+    !!call && !(state.mode === "registration_open" && call.kind === "open");
+
   let dashboard;
   switch (state.mode) {
     case "off_season":
@@ -93,7 +102,8 @@ export default async function TeamAdminHome() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="// Team workspace" title={team.name} />
+      <PageHeader eyebrow="Team workspace" title={team.name} />
+      {showCall && call ? <RegistrationCallCard call={call} /> : null}
       {dashboard}
     </div>
   );

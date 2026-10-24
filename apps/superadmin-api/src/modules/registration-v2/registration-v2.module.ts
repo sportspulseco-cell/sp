@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CommunicationsModule } from "../communications/communications.module";
 import { RegistrationV2Service } from "./application/registration-v2.service";
 import { PricingTiersController } from "./interface/pricing-tiers.controller";
 import { PricingTierDivisionsController } from "./interface/pricing-tier-divisions.controller";
@@ -11,6 +12,9 @@ import { SeasonRolloverController } from "./interface/season-rollover.controller
 import { AdminReviewController } from "./interface/admin-review.controller";
 
 @Module({
+  // NotificationService: personal team invites queue the TEAM_INVITE_NEW
+  // email (before this the /captain/invites "Invite sent" sent nothing, CAP-4).
+  imports: [CommunicationsModule],
   controllers: [
     PricingTiersController,
     PricingTierDivisionsController,

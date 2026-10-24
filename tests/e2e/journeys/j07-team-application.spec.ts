@@ -262,9 +262,11 @@ test("J7.4 captain finds the open season and applies to division A", async () =>
   await p.goto(`${cap.app}/`);
   await settle(p);
   await snap(p, "20-captain-home");
-  // Entry point: sidebar "Register the team" CTA shows while a season is open.
+  // Entry point: the "Register the team" CTA (banner + sidebar + home card)
+  // shows while a season is open, also for a team that is in season (CAP-6).
   const cta = p.getByRole("link", { name: /register the team/i }).first();
-  finding(await cta.isVisible().catch(() => false), "CAP: captain home has no 'Register the team' entry while a season is open");
+  await expect(cta, "captain home offers 'Register the team' while a season is open").toBeVisible();
+  await expect(p.getByRole("link", { name: /^register team$/i }).first(), "permanent 'Register team' nav item").toBeVisible();
   await p.goto(`${cap.app}/captain/register`);
   await settle(p);
   await snap(p, "21-captain-register-landing");
@@ -343,7 +345,10 @@ test("J7.6 captain sees the denial with reason and re-applies to division B", as
   await p.goto(`${cap.app}/captain/register`);
   await settle(p);
   const t = await snap(p, "40-captain-sees-denial");
-  finding(/not approved/i.test(t) && t.includes("wrong skill tier"), "CAP: captain register page does not show the denial + admin reason");
+  // The denial is shown per season, with the admin's reason, even while
+  // the team is confirmed in another season (CAP-5).
+  expect(t, "register page shows the denial").toMatch(/not approved/i);
+  expect(t, "register page shows the admin's reason").toContain("wrong skill tier");
   const reapply = p.getByRole("link", { name: /apply to a different division/i });
   if (await reapply.isVisible().catch(() => false)) {
     await reapply.click();
@@ -398,13 +403,14 @@ test("J7.8 captain sees approval and completes the set-up wizard (roster + dues 
   await snap(p, "61-wizard-step1");
   const nextBtn = p.getByRole("button", { name: /^next$/i });
   await nextBtn.click();
-  // Step 2: the admin-approved division should be preselected.
+  // Step 2: the admin-approved division is preselected and locked; no
+  // division is offered as a clickable choice (CAP-2).
   await snap(p, "62-wizard-step2");
-  finding(
-    await nextBtn.isEnabled(),
-    "CAP: wizard step 2 does not preselect the approved division (captain must re-pick and can pick a different one)"
-  );
-  await p.getByRole("button").filter({ hasText: DIV_B }).first().click();
+  await expect(p.getByText(/approved by your league admin/i).first()).toBeVisible();
+  await expect(p.getByRole("group", { name: new RegExp(`approved division: ${DIV_B}`, "i") })).toBeVisible();
+  expect(await p.getByRole("button").filter({ hasText: DIV_A }).count(), "denied division is not offered").toBe(0);
+  expect(await p.getByRole("button").filter({ hasText: DIV_B }).count(), "approved division is fixed, not a choice").toBe(0);
+  await expect(nextBtn, "step 2 is complete without re-picking").toBeEnabled();
   await nextBtn.click();
   // Step 3: roster by email only.
   const email1 = `staging-e2e+${RUN_TAG.toLowerCase()}-w1@sportspulse.us`;
@@ -450,11 +456,16 @@ test("J7.8 captain sees approval and completes the set-up wizard (roster + dues 
   );
   writeFileSync(`${OUT}/66-invite-notifications.json`, JSON.stringify(notes, null, 2));
   const inviteNotes = notes.filter((n) => n.template_code === "TEAM_INVITE_NEW");
-  finding(inviteNotes.length === 2, `CAP: wizard submit queued ${inviteNotes.length} TEAM_INVITE_NEW notifications for 2 invited players`);
-  finding(
-    inviteNotes.length > 0 && inviteNotes.every((n) => !!n.body && /https?:\/\//.test(n.body)),
-    `CAP: invite email body has no usable link (bodies: ${JSON.stringify(inviteNotes.map((n) => n.body)).slice(0, 400)})`
-  );
+  expect(inviteNotes.length, "one TEAM_INVITE_NEW per invited player").toBe(2);
+  // The body carries the team, the season, a full player-app invite link
+  // and a readable expiry (CAP-4: bodies used to be blank).
+  for (const n of inviteNotes) {
+    const body = n.body ?? "";
+    expect(body, "invite body names the team").toContain("Staging Skaters");
+    expect(body, "invite body names the season").toContain(SEASON_NAME);
+    expect(body, "invite body has a full /invite/<token> link").toMatch(/https?:\/\/\S+\/invite\/[A-Za-z0-9_-]{20,}/);
+    expect(body, "invite body states the expiry").toMatch(/expires on /);
+  }
 });
 
 test("J7.9 team appears in SA and OA division detail", async ({ browser }) => {
@@ -489,36 +500,32 @@ test("J7.10 player-web captain entry deep-links to team-admin (no duplicate rout
   await pl.context.close();
 });
 
-test("J7.11 approval gate: re-opening the wizard must not register the team in the denied division", async () => {
-  // The wizard URL stays reachable after confirmation, and step 2 lists
-  // every division in the season. Picking the DENIED division and
-  // submitting must not produce an active entry there.
+test("J7.11 approval gate: the reopened wizard cannot be steered into the denied division", async () => {
+  // Step 2 is locked to the admin-approved division (CAP-2, J7.8), so the
+  // denied division is not selectable at all. Reopen the wizard, prove it
+  // from the DOM, then from the DB.
   const p = cap.page;
   await p.goto(`${cap.app}/captain/register/setup/${ids.entryB}`);
   await settle(p);
   const t = await snap(p, "90-wizard-reopened");
-  if (!/Pick your division|Team details/i.test(t)) return; // wizard locked: gate holds
-  const nextBtn = p.getByRole("button", { name: /^next$/i });
-  await nextBtn.click();
-  await p.getByRole("button").filter({ hasText: DIV_A }).first().click();
-  await nextBtn.click();
-  const box = p.getByPlaceholder(/player@example.com/);
-  await box.fill(`staging-e2e+${RUN_TAG.toLowerCase()}-w3@sportspulse.us`);
-  await box.press("Enter");
-  await nextBtn.click();
-  await p.getByRole("button", { name: /submit registration/i }).click();
-  await settle(p);
-  await p.waitForTimeout(5000);
-  await snap(p, "91-wizard-denied-division-submitted");
+  if (/Confirm your team|Team details/i.test(t)) {
+    await p.getByRole("button", { name: /^next$/i }).click();
+    await snap(p, "91-wizard-step2-locked");
+    await expect(p.getByRole("group", { name: new RegExp(`approved division: ${DIV_B}`, "i") })).toBeVisible();
+    expect(await p.getByRole("button").filter({ hasText: DIV_A }).count(), "denied division is not offered").toBe(0);
+    expect(await p.getByRole("button").filter({ hasText: DIV_B }).count(), "approved division is fixed, not a choice").toBe(0);
+  } else {
+    test.info().annotations.push({ type: "note", description: "wizard not reachable after submit; the gate holds by construction" });
+  }
   const rows = await stagingSql<{ entry_status: string }>(
     `select entry_status from division_team_entries where team_id = $1 and division_id = $2 order by created_at`,
     [TEAM_ID, ids.divA]
   );
   writeFileSync(`${OUT}/92-divA-entries.json`, JSON.stringify(rows));
-  finding(
-    !rows.some((r) => ["applied", "accepted", "confirmed"].includes(r.entry_status)),
-    `CAP: wizard registered the team into the DENIED division without admin approval (div A entries: ${JSON.stringify(rows)})`
-  );
+  expect(
+    rows.some((r) => ["applied", "accepted", "confirmed"].includes(r.entry_status)),
+    `no active entry in the denied division (div A entries: ${JSON.stringify(rows)})`
+  ).toBe(false);
 });
 
 test("J7.z no defects recorded during the walk", async () => {

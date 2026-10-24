@@ -13,8 +13,13 @@ import {
   XCircle
 } from "lucide-react";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  latestApplicationPerSeason,
+  rejectionOf
+} from "@/lib/registration-call";
 import { WithdrawButton } from "./withdraw-button";
 
 export const dynamic = "force-dynamic";
@@ -84,42 +89,74 @@ export default async function CaptainRegisterPage({
     }
   }
 
-  const activeApp = applications.items.find(
-    (a) =>
-      a.entryStatus === "pending_approval" ||
-      a.entryStatus === "applied" ||
-      a.entryStatus === "accepted" ||
-      a.entryStatus === "confirmed"
+  // One card per season, from the newest application in that season.
+  // Order: approved (set-up pending or awaiting deposits), pending
+  // review, denied in a season that is still open (with the admin's
+  // reason), then the seasons the team is confirmed in. The page used
+  // to have one slot for "the active application" across every season,
+  // so a denial for the next season hid behind "You're confirmed" for
+  // the current one (CAP-5).
+  const latest = latestApplicationPerSeason(applications.items);
+  const openIds = new Set(openSeasons.items.map((s) => s.seasonId));
+  const today = new Date().toISOString().slice(0, 10);
+  const approvedApps = latest.filter(
+    (a) => a.entryStatus === "applied" || a.entryStatus === "accepted"
   );
-  const lastRejection = applications.items.find(
-    (a) => a.entryStatus === "rejected"
+  const pendingApps = latest.filter(
+    (a) => a.entryStatus === "pending_approval"
   );
+  const deniedApps = latest.filter(
+    (a) => a.entryStatus === "rejected" && openIds.has(a.seasonId)
+  );
+  const confirmedApps = sortSeasonsByCurrency(
+    latest
+      .filter(
+        (a) =>
+          a.entryStatus === "confirmed" &&
+          (!a.seasonEndDate || a.seasonEndDate >= today)
+      )
+      .map((a) => ({
+        ...a,
+        startDate: a.seasonStartDate,
+        endDate: a.seasonEndDate
+      }))
+  );
+  const deniedSeasonIds = new Set(deniedApps.map((a) => a.seasonId));
+  // The denied season is reachable from its own card ("Apply to a
+  // different division"); do not list it twice.
+  const otherOpen = openSeasons.items.filter(
+    (s) => !deniedSeasonIds.has(s.seasonId)
+  );
+  const hasCards =
+    approvedApps.length +
+      pendingApps.length +
+      deniedApps.length +
+      confirmedApps.length >
+    0;
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="captain console"
         title="Register your team"
-        description="Open seasons your team can register for. Select a season to view available divisions."
+        description="Your applications by season, and the open seasons your team can still register for."
       />
 
-      {activeApp && activeApp.entryStatus === "pending_approval" && (
-        <PendingApplicationCard app={activeApp} />
-      )}
+      {approvedApps.map((a) => (
+        <ApprovedDetailCard key={a.id} teamName={teamName} app={a} />
+      ))}
+      {pendingApps.map((a) => (
+        <PendingApplicationCard key={a.id} app={a} />
+      ))}
+      {deniedApps.map((a) => (
+        <RejectionDetailCard key={a.id} app={a} />
+      ))}
+      {confirmedApps.map((a) => (
+        <ApprovedDetailCard key={a.id} teamName={teamName} app={a} />
+      ))}
 
-      {activeApp &&
-        (activeApp.entryStatus === "applied" ||
-          activeApp.entryStatus === "accepted" ||
-          activeApp.entryStatus === "confirmed") && (
-          <ApprovedDetailCard teamName={teamName} app={activeApp} />
-        )}
-
-      {!activeApp && lastRejection && (
-        <RejectionDetailCard app={lastRejection} />
-      )}
-
-      {openSeasons.items.length === 0 ? (
-        !activeApp && !lastRejection && (
+      {otherOpen.length === 0 ? (
+        !hasCards && (
           <EmptyState
             icon={Sparkles}
             title="No open registrations"
@@ -128,9 +165,9 @@ export default async function CaptainRegisterPage({
         )
       ) : (
         <section className="space-y-3">
-          <Eyebrow>other open seasons</Eyebrow>
+          <Eyebrow>{hasCards ? "other open seasons" : "open seasons"}</Eyebrow>
           <ul className="space-y-3">
-            {openSeasons.items.map((s) => (
+            {otherOpen.map((s) => (
               <li key={s.seasonId}>
                 <SeasonCard season={s} />
               </li>
@@ -244,6 +281,9 @@ function ApprovedDetailCard({
   app: Application;
 }) {
   const isConfirmed = app.entryStatus === "confirmed";
+  // invoiceId is set once the roster + dues wizard ran: approved but not
+  // yet set up -> "Set up roster & dues"; set up -> deposits in progress.
+  const setupDone = !isConfirmed && !!app.invoiceId;
   const setupHref = `/captain/register/setup/${app.id}`;
   return (
     <section className="rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-6 dark:bg-[var(--tint-emerald-bg)]">
@@ -252,7 +292,11 @@ function ApprovedDetailCard({
           <CheckCircle2 className="h-6 w-6 text-[var(--tint-emerald-fg)]" strokeWidth={1.75} />
         </div>
         <h2 className="mt-3 text-[18px] font-semibold tracking-tight text-fg">
-          {isConfirmed ? "You're confirmed!" : "Application approved!"}
+          {isConfirmed
+            ? "You're confirmed!"
+            : setupDone
+              ? "Set-up complete, collecting deposits"
+              : "Application approved!"}
         </h2>
         <p className="mt-1.5 max-w-md text-[13px] text-fg-muted">
           {isConfirmed ? (
@@ -265,7 +309,10 @@ function ApprovedDetailCard({
             <>
               {teamName} has been accepted into{" "}
               <span className="font-medium text-fg">{app.divisionName}</span> for{" "}
-              <span className="font-medium text-fg">{app.seasonName}</span>. Complete your setup to confirm your spot.
+              <span className="font-medium text-fg">{app.seasonName}</span>.{" "}
+              {setupDone
+                ? "The team confirms once the deposit threshold is reached."
+                : "Complete your setup to confirm your spot."}
             </>
           )}
         </p>
@@ -305,11 +352,11 @@ function ApprovedDetailCard({
             { status: "done", title: "Application submitted" },
             { status: "done", title: "Admin approved your application" },
             {
-              status: isConfirmed ? "done" : "current",
+              status: isConfirmed || setupDone ? "done" : "current",
               title: "Invite your players and configure dues split"
             },
             {
-              status: isConfirmed ? "done" : "future",
+              status: isConfirmed ? "done" : setupDone ? "current" : "future",
               title: "Collect deposits to confirm your spot"
             }
           ]}
@@ -317,10 +364,14 @@ function ApprovedDetailCard({
       </div>
 
       <Link
-        href={isConfirmed ? "/" : setupHref}
+        href={isConfirmed ? "/" : setupDone ? "/captain/dues" : setupHref}
         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-[var(--success)] px-3 py-2.5 text-[13px] font-medium text-white hover:bg-[var(--success)]"
       >
-        {isConfirmed ? "Open team console" : "Set up roster & dues"}
+        {isConfirmed
+          ? "Open team console"
+          : setupDone
+            ? "View dues"
+            : "Set up roster & dues"}
         <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
       </Link>
     </section>
@@ -328,10 +379,11 @@ function ApprovedDetailCard({
 }
 
 function RejectionDetailCard({ app }: { app: Application }) {
-  const meta = (app.metadata as {
-    rejectionReason?: string;
-    rejectedAt?: string;
-  }) ?? {};
+  const decision = rejectionOf(app);
+  const meta = {
+    rejectionReason: decision.reason ?? undefined,
+    rejectedAt: decision.rejectedAt ?? undefined
+  };
   return (
     <section className="rounded-2xl border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] p-6 dark:bg-[var(--tint-rose-bg)]">
       <div className="flex flex-col items-center text-center">

@@ -15,6 +15,7 @@ import {
   UnprocessableEntityException
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
 import {
   IsEmail,
   IsInt,
@@ -24,7 +25,7 @@ import {
   Min,
   MinLength
 } from "class-validator";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -33,14 +34,18 @@ import {
   INVITE_RESEND_COOLDOWN_HOURS,
   MAX_INVITE_EXTENSIONS,
   ROSTER_DROP_REASON_MIN_CHARS,
-  resolveDivisionRules
+  pickCurrentSeason,
+  resolveDivisionRules,
+  sortSeasonsByCurrency
 } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { playerWebUrl } from "../../../shared/app-urls";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 
 /**
  * Workflow 7B · Sprint 5 — captain roster management (cases 1–5).
@@ -98,7 +103,8 @@ class GuestBodyDto {
 export class CaptainRosterController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly notify: NotificationService
+    private readonly notify: NotificationService,
+    private readonly config: ConfigService
   ) {}
 
   // -------------------------------------------------------------------
@@ -112,18 +118,41 @@ export class CaptainRosterController {
   async listRoster(
     @CurrentUser() user: AuthPrincipal,
     @Param("teamId") teamId: string,
-    @Query("seasonId") seasonId?: string
+    @Query("seasonId") seasonId?: string,
+    @Query("asOf") asOf?: string
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
 
+    // Every season the team is live in, most current first (shared rule
+    // in @sportspulse/kernel). The first one is the default; the list
+    // feeds the season switcher so the roster page and the invite flow
+    // can never silently work on different seasons (CAP-8, CAP-24).
+    // `asOf` evaluates the same rule at another instant: the lineup
+    // editor passes the game's kickoff so a game in an earlier-starting
+    // season gets that season's roster, not today's (SCH-23).
+    const asOfDate = asOf ? new Date(asOf) : null;
+    if (asOfDate && Number.isNaN(asOfDate.getTime())) {
+      throw new BadRequestException("asOf must be an ISO date-time");
+    }
+    const teamSeasons = await this.loadTeamSeasons(teamId);
     const season = seasonId
       ? await this.loadSeason(seasonId)
-      : await this.loadActiveSeason(teamId);
+      : asOfDate
+        ? pickCurrentSeason(teamSeasons, asOfDate)
+        : teamSeasons[0] ?? null;
+    const seasons = teamSeasons.map((s) => ({
+      id: s.id,
+      name: s.name,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      isCurrent: s.id === teamSeasons[0]?.id
+    }));
 
     if (!season) {
       return {
         team: { id: team.id, name: team.name },
         season: null,
+        seasons,
         division: null,
         rules: resolveDivisionRules(null),
         memberships: [],
@@ -202,6 +231,7 @@ export class CaptainRosterController {
         name: season.name,
         rosterLockAt: season.rosterLockAt?.toISOString() ?? null
       },
+      seasons,
       division: division
         ? { id: division.id, name: division.name, tier: division.tier }
         : null,
@@ -252,6 +282,38 @@ export class CaptainRosterController {
       .where(eq(schema.persons.id, body.personId))
       .limit(1);
     if (!person) throw new NotFoundException("Person not found");
+
+    // The per-season duplicate guard inside addToRoster cannot see a
+    // membership in another season of the same team. The roster page
+    // and the invite flow used to default to different seasons, so one
+    // player ended up active twice on one team (CAP-24). Refuse here
+    // with the same conflict shape and name the season they are on.
+    const today = new Date().toISOString().slice(0, 10);
+    const [elsewhere] = await this.db
+      .select({ seasonName: schema.seasons.name })
+      .from(schema.teamMemberships)
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.teamMemberships.seasonId)
+      )
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, teamId),
+          eq(schema.teamMemberships.personId, body.personId),
+          eq(schema.teamMemberships.currentStatus, "active"),
+          ne(schema.teamMemberships.seasonId, season.id),
+          sql`${schema.seasons.status} NOT IN ('completed','archived')`,
+          sql`${schema.seasons.endDate} >= ${today}`
+        )
+      )
+      .limit(1);
+    if (elsewhere) {
+      throw new ConflictException({
+        error: "Already on roster",
+        message: `This player is already on this team's active roster for ${elsewhere.seasonName}. Switch the season to ${elsewhere.seasonName} to manage them, or drop them there first.`,
+        seasonName: elsewhere.seasonName
+      });
+    }
 
     return this.addToRoster({
       teamId,
@@ -668,12 +730,14 @@ export class CaptainRosterController {
       templateCode: "TEAM_INVITE_NEW",
       idempotencyKey: `invite-${invite.id}`,
       recipientEmail: body.email,
-      payload: {
+      payload: buildTeamInvitePayload({
         teamName: team.name,
+        seasonName: season.name,
+        seasonId: season.id,
         token,
-        expiresAt: expiresAt.toISOString(),
-        seasonId: season.id
-      }
+        expiresAt,
+        playerWebUrl: playerWebUrl(this.config)
+      })
     });
 
     return { invite };
@@ -752,16 +816,20 @@ export class CaptainRosterController {
       .where(eq(schema.teamInvites.id, inviteId))
       .returning();
 
+    const inviteSeason = await this.loadSeason(invite.seasonId);
     void this.notify.queue({
       orgId: team.orgId,
       templateCode: "INVITE_REMINDER_2",
       idempotencyKey: `remind-${invite.id}-${invite.extensionCount + 1}`,
       recipientEmail: invite.inviteeEmail ?? undefined,
-      payload: {
+      payload: buildTeamInvitePayload({
         teamName: team.name,
+        seasonName: inviteSeason?.name ?? "the upcoming season",
+        seasonId: invite.seasonId,
         token: invite.token,
-        expiresAt: newExpiry.toISOString()
-      }
+        expiresAt: newExpiry,
+        playerWebUrl: playerWebUrl(this.config)
+      })
     });
 
     return { invite: updated };
@@ -984,9 +1052,16 @@ export class CaptainRosterController {
     return s ?? null;
   }
 
-  private async loadActiveSeason(teamId: string) {
+  /**
+   * Seasons the team is live in (entry applied / accepted / confirmed),
+   * most current first per `sortSeasonsByCurrency` in @sportspulse/kernel:
+   * in progress today, else registration window open now, else newest.
+   * The old `ORDER BY start_date DESC LIMIT 1` sent captains of a team
+   * registered for a future season to that season's empty roster (CAP-8).
+   */
+  private async loadTeamSeasons(teamId: string) {
     const rows = await this.db
-      .select({
+      .selectDistinctOn([schema.seasons.id], {
         seasonId: schema.seasons.id,
         season: schema.seasons
       })
@@ -1009,9 +1084,8 @@ export class CaptainRosterController {
           ])
         )
       )
-      .orderBy(desc(schema.seasons.startDate))
-      .limit(1);
-    return rows[0]?.season ?? null;
+      .orderBy(schema.seasons.id, desc(schema.seasons.startDate));
+    return sortSeasonsByCurrency(rows.map((r) => r.season));
   }
 
   private async loadCurrentDivision(teamId: string, seasonId: string) {

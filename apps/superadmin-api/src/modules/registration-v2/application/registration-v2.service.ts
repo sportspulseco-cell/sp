@@ -1,10 +1,14 @@
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { playerWebUrl } from "../../../shared/app-urls";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
+import { NotificationService } from "../../communications/application/notification.service";
+import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -17,7 +21,9 @@ export class RegistrationV2Service {
   private readonly log = new Logger(RegistrationV2Service.name);
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly supabase: SupabaseAdminService
+    private readonly supabase: SupabaseAdminService,
+    private readonly notify: NotificationService,
+    private readonly config: ConfigService
   ) {}
 
   // ================= PRICING TIERS =================
@@ -181,6 +187,44 @@ export class RegistrationV2Service {
         lastSentAt: kind === "personal" ? new Date() : null
       })
       .returning();
+
+    // Personal invites email the player the same TEAM_INVITE_NEW body the
+    // roster "Invite by email" and the wizard send (full player-app link,
+    // team, season, expiry). Generic team URLs have no recipient; the
+    // captain shares the link shown on screen. Fire-and-forget: the
+    // notification service logs and never throws.
+    if (row && kind === "personal" && input.inviteeEmail) {
+      const [ctx] = await this.db
+        .select({
+          teamName: schema.teams.name,
+          orgId: schema.teams.orgId,
+          seasonName: schema.seasons.name
+        })
+        .from(schema.teams)
+        .innerJoin(schema.seasons, eq(schema.seasons.id, input.seasonId))
+        .where(eq(schema.teams.id, input.teamId))
+        .limit(1);
+      if (ctx) {
+        void this.notify.queue({
+          orgId: ctx.orgId,
+          templateCode: "TEAM_INVITE_NEW",
+          idempotencyKey: `invite-${row.id}`,
+          recipientEmail: input.inviteeEmail.toLowerCase(),
+          payload: buildTeamInvitePayload({
+            teamName: ctx.teamName,
+            seasonName: ctx.seasonName,
+            seasonId: input.seasonId,
+            token,
+            expiresAt,
+            playerWebUrl: playerWebUrl(this.config)
+          })
+        });
+      } else {
+        this.log.warn(
+          `team invite ${row.id}: no team/season context for email (team=${input.teamId} season=${input.seasonId})`
+        );
+      }
+    }
     return row;
   }
 

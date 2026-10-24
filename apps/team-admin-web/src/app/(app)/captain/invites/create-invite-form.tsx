@@ -1,17 +1,18 @@
 "use client";
-import { fetchAll } from "@sportspulse/api-client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Plus } from "lucide-react";
+import { ArrowRight, Loader2, Mail, Plus } from "lucide-react";
 import { Button, Field, Input, Select } from "@sportspulse/ui";
-import { iam, leagueMgmt, registrationV2 } from "@/lib/api/browser-api";
-import type { Season } from "@sportspulse/api-client";
+import { registrationV2 } from "@/lib/api/browser-api";
 
 /**
- * Captain-side invite issuance. Picks a season the captain's team is
- * registered in (we don't have a team→season join exposed yet, so the
- * captain picks from the org's open seasons), then either:
+ * Captain-side invite issuance. The season picker lists only the
+ * seasons the team is live in and defaults to the team's current one;
+ * both come from the server page (same kernel rule as the roster page),
+ * so the two surfaces can never default to different seasons (CAP-15,
+ * CAP-24). Then either:
  *   - emails a personal invite (kind=personal, expires 7d), or
  *   - generates a generic team URL (kind=generic, expires 365d).
  */
@@ -28,52 +29,40 @@ function playerAppOrigin(): string {
   return `${protocol}//${host.replace(/(^|-)team\./, "$1player.")}`;
 }
 
-export function CreateInviteForm({ teamId }: { teamId: string }) {
+export function CreateInviteForm({
+  teamId,
+  seasons,
+  defaultSeasonId
+}: {
+  teamId: string;
+  /** Seasons the team is live in, most current first. */
+  seasons: Array<{ id: string; name: string }>;
+  /** The team's current season; null when the team is in no season. */
+  defaultSeasonId: string | null;
+}) {
   const router = useRouter();
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [seasonId, setSeasonId] = useState("");
+  const [seasonId, setSeasonId] = useState(defaultSeasonId ?? "");
   const [email, setEmail] = useState("");
   const [kind, setKind] = useState<"personal" | "generic">("personal");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  // Fetch seasons in the captain's org so we have a season picker.
-  // Captains are TEAM-scoped (no org assignment in scope.orgIds), so
-  // we derive the org from the team itself — using `scope.orgIds[0]`
-  // would silently leave the dropdown empty for every real captain
-  // (BUG-024). Falls through to scope.orgIds for super-admin / org-
-  // admin who hit this page from the captain-bypass path.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        let orgId: string | undefined;
-        try {
-          const team = await leagueMgmt.getTeam(teamId);
-          orgId = team?.orgId;
-        } catch {
-          // ignore, fall through
-        }
-        if (!orgId) {
-          const scope = await iam.meScope();
-          orgId = scope.orgIds[0];
-        }
-        if (!orgId) return;
-        const page = await fetchAll((cursor) => leagueMgmt.listSeasons({ orgId, limit: 100, cursor }));
-        if (cancelled) return;
-        const list = page.items;
-        setSeasons(list);
-        // No guessing: list[0] was an arbitrary season of the org (CAP-15).
-        if (list.length === 1) setSeasonId(list[0]!.id);
-      } catch {
-        // non-fatal: captain just won't be able to pick a season
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [teamId]);
+  if (seasons.length === 0) {
+    return (
+      <div className="rounded-md border border-border bg-bg-subtle px-4 py-3 text-[13px] text-fg-muted">
+        Your team is not entered in a season yet, so there is nothing to
+        invite players into.{" "}
+        <Link
+          href="/captain/register"
+          className="inline-flex items-center gap-1 font-medium text-accent hover:underline"
+        >
+          Register the team first
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+        </Link>
+      </div>
+    );
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -91,13 +80,13 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
         kind,
         ...(kind === "personal" ? { inviteeEmail: email.trim() } : {})
       });
-      // No invite email is sent yet (CAP-4), so always hand the captain
-      // the full link to share.
+      // Personal invites are emailed with this same link; show it too so
+      // the captain can share it directly.
       const link = `${playerAppOrigin()}/invite/${inv.token}`;
       setOkMsg(
         kind === "generic"
           ? `Team link created. Share it with your players: ${link}`
-          : `Invite created for ${email}. Send them this link: ${link}`
+          : `Invite created for ${email}. They get an email with this link: ${link}`
       );
       setEmail("");
       router.refresh();
@@ -119,7 +108,6 @@ export function CreateInviteForm({ teamId }: { teamId: string }) {
           value={seasonId}
           onChange={(e) => setSeasonId(e.target.value)}
         >
-          <option value="">Select a season…</option>
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

@@ -20,6 +20,11 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { cn } from "@sportspulse/ui";
+import {
+  registrationCallHref,
+  registrationCallLabel,
+  type RegistrationCall
+} from "@/lib/registration-call";
 import { useNav } from "./nav-context";
 
 interface NavItem {
@@ -50,6 +55,10 @@ const BASE_NAV: NavSection[] = [
 const CAPTAIN_NAV: NavSection = {
   label: "// Captain console",
   items: [
+    // Always reachable: an in-season team must still be able to
+    // register for the next season (CAP-6). The pulsing CTA above the
+    // nav is the time-bound signal; this is the permanent route.
+    { href: "/captain/register", label: "Register team", icon: Sparkles },
     { href: "/captain/team", label: "Manage team", icon: Settings },
     { href: "/captain/roster", label: "Manage roster", icon: Users },
     { href: "/captain/invites", label: "Invites", icon: Mail },
@@ -64,15 +73,16 @@ const CAPTAIN_NAV: NavSection = {
 
 export function Sidebar({
   isCaptain = false,
-  registrationOpen = false
+  registrationCall = null
 }: {
   isCaptain?: boolean;
   /**
-   * Workflow 7A flag — when true, the sidebar renders a pulsing
-   * "Register the team" CTA at the very top. Pairs with the
-   * RegistrationBanner; both come from the same dashboard-state mode.
+   * The registration call-to-action (open season, denial, pending or
+   * approved application). When set, the sidebar renders the CTA at
+   * the very top. Pairs with the RegistrationBanner; both come from
+   * the same value in (app)/layout.tsx.
    */
-  registrationOpen?: boolean;
+  registrationCall?: RegistrationCall | null;
 }) {
   const { open, setOpen } = useNav();
   const sections = isCaptain ? [...BASE_NAV, CAPTAIN_NAV] : BASE_NAV;
@@ -82,7 +92,7 @@ export function Sidebar({
       {/* Desktop — sticky rail */}
       <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border bg-bg-subtle lg:flex">
         <SidebarBrand />
-        {registrationOpen ? <RegistrationCta /> : null}
+        {registrationCall ? <RegistrationCta call={registrationCall} /> : null}
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
           {sections.map((s, i) => (
             <NavGroup key={i} section={s} />
@@ -118,7 +128,7 @@ export function Sidebar({
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
-        {registrationOpen ? <RegistrationCta /> : null}
+        {registrationCall ? <RegistrationCta call={registrationCall} /> : null}
         <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin">
           {sections.map((s, i) => (
             <NavGroup key={i} section={s} />
@@ -130,32 +140,74 @@ export function Sidebar({
   );
 }
 
+const CTA_EYEBROW: Record<RegistrationCall["kind"], string> = {
+  open: "season open",
+  setup: "approved",
+  pending: "pending review",
+  denied: "not approved"
+};
+
+const CTA_TONE: Record<RegistrationCall["kind"], { box: string; fg: string; dot: string; ping: boolean }> = {
+  open: {
+    box: "border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.08] hover:bg-[var(--success)]/[0.12]",
+    fg: "text-[var(--tint-emerald-fg)]",
+    dot: "bg-[var(--success)]",
+    ping: true
+  },
+  setup: {
+    box: "border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.08] hover:bg-[var(--success)]/[0.12]",
+    fg: "text-[var(--tint-emerald-fg)]",
+    dot: "bg-[var(--success)]",
+    ping: true
+  },
+  pending: {
+    box: "border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)]",
+    fg: "text-[var(--tint-amber-fg)]",
+    dot: "bg-[var(--tint-amber-fg)]",
+    ping: false
+  },
+  denied: {
+    box: "border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)]",
+    fg: "text-[var(--tint-rose-fg)]",
+    dot: "bg-[var(--tint-rose-fg)]",
+    ping: false
+  }
+};
+
 /**
- * Pulsing "Register the team" CTA. Renders at the top of the sidebar
- * whenever the layout receives `registrationOpen=true`. The dot ping
- * + emerald background match the RegistrationBanner so users see the
- * same signal in both spots simultaneously.
+ * Registration CTA at the top of the sidebar. Copy and tone follow the
+ * call kind so the captain reads the same signal here and in the
+ * RegistrationBanner: "Register the team" (open season or a denial to
+ * act on), "View application" (pending), "Set up roster & dues"
+ * (approved, wizard not run).
  */
-function RegistrationCta() {
+function RegistrationCta({ call }: { call: RegistrationCall }) {
   const { setOpen } = useNav();
+  const tone = CTA_TONE[call.kind];
   return (
     <div className="border-b border-border p-2">
       <Link
-        href="/captain/register"
+        href={registrationCallHref(call)}
         onClick={() => setOpen(false)}
-        className="group relative flex items-center gap-2.5 rounded-lg border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.08] px-3 py-2.5 transition-all hover:border-[var(--tint-emerald-fg)]/30 hover:bg-[var(--success)]/[0.12]"
+        className={cn(
+          "group relative flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition-all",
+          tone.box
+        )}
+        data-registration-call={call.kind}
       >
         <span className="relative inline-flex h-2 w-2 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
+          {tone.ping ? (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
+          ) : null}
+          <span className={cn("relative inline-flex h-2 w-2 rounded-full", tone.dot)} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--tint-emerald-fg)]">
+          <p className={cn("flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.2em]", tone.fg)}>
             <Sparkles className="h-2.5 w-2.5" strokeWidth={2} />
-            season open
+            {CTA_EYEBROW[call.kind]} · {call.seasonName}
           </p>
           <p className="mt-0.5 truncate text-[12px] font-medium text-fg">
-            Register the team
+            {registrationCallLabel(call)}
           </p>
         </div>
       </Link>
