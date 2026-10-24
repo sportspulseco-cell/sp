@@ -31,7 +31,8 @@ export function SeasonDetail({
   schedulingHref,
   statusControl,
   actions,
-  extras
+  extras,
+  lifecycle
 }: {
   season: Season;
   parentLeague: League | null;
@@ -55,6 +56,8 @@ export function SeasonDetail({
   actions?: ReactNode;
   /** App-specific bottom slot (e.g. sa-web's role-assignments). */
   extras?: ReactNode;
+  /** The season lifecycle strip (SeasonFlow for this one season); shown first. */
+  lifecycle?: ReactNode;
 }) {
   const cfg = (season.config ?? {}) as {
     requireUsaHockeyId?: boolean;
@@ -120,6 +123,8 @@ export function SeasonDetail({
           ) : null}
         </div>
       </Reveal>
+
+      {lifecycle}
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">

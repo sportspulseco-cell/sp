@@ -1,9 +1,9 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
-import { SeasonDetail } from "@sportspulse/admin-pages";
+import { SeasonDetail, SeasonFlow } from "@sportspulse/admin-pages";
 import { SeasonActions } from "@/components/edit/detail-actions";
-import { iam, leagueMgmt, registration } from "@/lib/api/server-api";
+import { adminTransfers, gameOps, iam, leagueMgmt, registration, roster } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
 
@@ -66,6 +66,15 @@ export default async function OrgAdminSeasonDetailPage({
       divisions={divisionsPage.items}
       setupHref={setupHref}
       schedulingHref={`/scheduling/${season.id}/generate`}
+      lifecycle={
+        <SeasonFlow
+          api={{ leagueMgmt, adminTransfers, gameOps, registration, roster }}
+          seasons={[season]}
+          leagues={parentLeague ? [parentLeague] : []}
+          orgId={season.orgId}
+          links={{ rosters: "/teams", results: "/scheduling" }}
+        />
+      }
       statusControl={<ChangeSeasonStatusButton season={season} />}
       actions={
         <SeasonActions
