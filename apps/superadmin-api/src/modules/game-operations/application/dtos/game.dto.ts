@@ -36,6 +36,20 @@ export class GameDto {
   /** Team names, so screens never print raw ids. */
   @ApiPropertyOptional({ nullable: true }) homeTeamName?: string | null;
   @ApiPropertyOptional({ nullable: true }) awayTeamName?: string | null;
+  /** Set = shown on team schedules (SCH-7). Null = draft. */
+  @ApiPropertyOptional({ nullable: true }) publishedAt!: string | null;
+  /** Null = hand-made; set = placed by a schedule run. */
+  @ApiPropertyOptional({ nullable: true }) scheduleRunId!: string | null;
+  @ApiPropertyOptional({ nullable: true }) surfaceId!: string | null;
+  /** regulation | overtime | shootout, recorded at finalize; null before or when not given. */
+  @ApiPropertyOptional({ nullable: true }) endedIn!: string | null;
+  /** Manual moves, oldest first (SCH-6). */
+  @ApiPropertyOptional() reschedules!: Array<Record<string, unknown>>;
+  /**
+   * Game actions the caller may take (GET /games/:id only), so the page
+   * shows only buttons the server will accept.
+   */
+  @ApiPropertyOptional({ type: [String] }) viewerPermissions?: string[];
 
   static fromDomain(g: Game): GameDto {
     const x = g.toSnapshot();
@@ -58,7 +72,14 @@ export class GameDto {
       period: x.period,
       finalizedAt: x.finalizedAt?.toISOString() ?? null,
       createdAt: x.createdAt.toISOString(),
-      updatedAt: x.updatedAt.toISOString()
+      updatedAt: x.updatedAt.toISOString(),
+      publishedAt: x.publishedAt?.toISOString() ?? null,
+      scheduleRunId: x.scheduleRunId,
+      surfaceId: x.surfaceId,
+      endedIn: g.endedIn,
+      reschedules: Array.isArray(x.metadata.reschedules)
+        ? (x.metadata.reschedules as Array<Record<string, unknown>>)
+        : []
     };
   }
 }

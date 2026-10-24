@@ -16,7 +16,10 @@ import {
   PostponeGameHandler,
   CancelGameHandler,
   ForfeitGameHandler,
-  FinalizeGameHandler
+  FinalizeGameHandler,
+  PublishGameHandler,
+  PreviewRescheduleHandler,
+  RescheduleGameHandler
 } from "./application/games/handlers";
 import {
   AppendEventHandler,
@@ -67,6 +70,9 @@ import { DrizzleGameOfficialRepository } from "./infrastructure/repositories/dri
     CancelGameHandler,
     ForfeitGameHandler,
     FinalizeGameHandler,
+    PublishGameHandler,
+    PreviewRescheduleHandler,
+    RescheduleGameHandler,
     // Events
     AppendEventHandler,
     ListEventsHandler,

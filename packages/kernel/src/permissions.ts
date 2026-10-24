@@ -115,7 +115,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ["finalize", "Finalize", "Mark a game completed."],
     ["postpone", "Postpone", "Postpone a scheduled game."],
     ["cancel", "Cancel", "Cancel a game."],
-    ["forfeit", "Forfeit", "Award a forfeit."]
+    ["forfeit", "Forfeit", "Award a forfeit."],
+    ["reschedule", "Reschedule", "Move a game's date, time or rink."],
+    ["publish", "Publish", "Show a hand-made game on team schedules."],
+    ["assign_officials", "Assign officials", "Assign referees and scorekeepers to a game."]
   ]),
   G("game_event", "Game events", [
     ["read", "Read", "View per-game events."],
@@ -227,6 +230,21 @@ export function expandPermissions(
     out.add(p);
   }
   return Array.from(out);
+}
+
+/**
+ * True when `granted` (which may hold wildcards) covers `required`.
+ * Same semantics as `expandPermissions` and the Edge Function gate
+ * (supabase/functions/_shared/permissions.ts): "*", the exact code, or
+ * "<module>.*" where module is the segment before the first dot.
+ */
+export function permissionGranted(
+  granted: readonly PermissionString[],
+  required: PermissionString
+): boolean {
+  if (granted.includes("*") || granted.includes(required)) return true;
+  const module = required.split(".")[0];
+  return granted.includes(`${module}.*`);
 }
 
 /** Number of effective permissions after wildcard expansion. */
@@ -369,7 +387,18 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Manages a single league: divisions, teams, schedules.",
     scopeType: "league",
     rank: 2,
-    defaultPermissions: ["league.*", "division.*", "team.read", "scheduler.*"]
+    // Runs game day too: PPHL permission matrix (requirements 7.1) gives
+    // League Admin "Submit/Finalize scoresheet (override)", "Create
+    // season/division/schedule" and "Assign refs" (SCH-12).
+    defaultPermissions: [
+      "league.*",
+      "division.*",
+      "team.read",
+      "scheduler.*",
+      "game.*",
+      "game_event.*",
+      "score.*"
+    ]
   },
   {
     code: "season_admin",
@@ -436,7 +465,17 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Officiates games — append events, issue suspensions.",
     scopeType: "league",
     rank: 9,
-    defaultPermissions: ["game.read", "game_event.write", "suspension.issue"]
+    // Game-day access to the scoresheet inside their scope: start play,
+    // log events, apply the score, finalize (PPHL 7.1 "Submit/Finalize
+    // scoresheet"; SCH-12).
+    defaultPermissions: [
+      "game.read",
+      "game.start",
+      "game_event.write",
+      "score.write",
+      "game.finalize",
+      "suspension.issue"
+    ]
   },
   {
     code: "scorekeeper",
@@ -444,7 +483,14 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     description: "Records scores + events during games.",
     scopeType: "league",
     rank: 10,
-    defaultPermissions: ["game.read", "game_event.write", "score.write"]
+    // Same scoresheet access as a referee, without discipline (SCH-12).
+    defaultPermissions: [
+      "game.read",
+      "game.start",
+      "game_event.write",
+      "score.write",
+      "game.finalize"
+    ]
   },
   {
     code: "player",

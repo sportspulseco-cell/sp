@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -49,6 +49,18 @@ export class DrizzleGameEventRepository implements GameEventRepository {
     if (q.primaryPersonId)
       cs.push(eq(schema.gameEvents.primaryPersonId, q.primaryPersonId));
     if (q.cursor) cs.push(gt(schema.gameEvents.id, q.cursor));
+    if (q.leagueIdsFilter) {
+      if (q.leagueIdsFilter.length === 0) return { items: [], nextCursor: null };
+      cs.push(
+        inArray(
+          schema.gameEvents.gameId,
+          this.db
+            .select({ id: schema.games.id })
+            .from(schema.games)
+            .where(inArray(schema.games.leagueId, q.leagueIdsFilter))
+        )
+      );
+    }
 
     const rows = await this.db
       .select()

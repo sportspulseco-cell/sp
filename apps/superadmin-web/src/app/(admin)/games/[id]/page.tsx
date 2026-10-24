@@ -3,6 +3,10 @@ import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
+import {
+  GAME_ENDING_LABELS,
+  HOCKEY_INFRACTION_LABELS
+} from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -66,14 +70,25 @@ export default async function GameDetailPage({
   }
   const game = gameResult.data;
 
-  const [events, statLines, teamsPage, leaguesPage, officials, personsPage] = await Promise.all([
+  const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division] = await Promise.all([
     gameOps.eventsForGame(id).catch(() => []),
     stats.linesForGame(id).catch(() => []),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     gameOps.listOfficials(id).catch(() => []),
-    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    game.divisionId ? leagueMgmt.getDivision(game.divisionId).catch(() => null) : Promise.resolve(null)
   ]);
+  const can = (p: string) => (game.viewerPermissions ?? []).includes(p);
+  const leagueOrgId = leaguesPage.items.find((l) => l.id === game.leagueId)?.orgId ?? null;
+  // Regulation length from the division's game rules (org setup), else 3.
+  const gameRules = (division?.ruleSetOverrides as { gameRules?: { numberOfPeriods?: unknown } } | undefined)
+    ?.gameRules;
+  const regulationPeriods =
+    typeof gameRules?.numberOfPeriods === "number" && gameRules.numberOfPeriods > 0
+      ? gameRules.numberOfPeriods
+      : 3;
+  const lastMove = game.reschedules?.length ? game.reschedules[game.reschedules.length - 1] : null;
 
   const teamMap = new Map(
     teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
@@ -116,9 +131,25 @@ export default async function GameDetailPage({
               {fmtTime(game.scheduledStartTsUtc)} ·{" "}
               <span className="font-mono text-[11px]">{game.tz}</span>
               {game.venueName ? ` · ${game.venueName}` : ""}
+              {game.surfaceLabel ? ` · ${game.surfaceLabel}` : ""}
             </p>
+            {lastMove ? (
+              <p className="text-[12px] text-fg-muted">
+                Moved from {fmtTime(lastMove.from.startTsUtc)}
+                {lastMove.from.venueName ? ` at ${lastMove.from.venueName}` : ""}
+                {lastMove.reason ? `. Reason: ${lastMove.reason}` : ""}
+                {lastMove.overriddenConflicts.length ? ". Clash overridden." : ""}
+              </p>
+            ) : null}
           </div>
-          <GameStatusBadge status={game.status} />
+          <div className="flex items-center gap-2">
+            {!game.publishedAt && game.status !== "cancelled" ? (
+              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                Draft
+              </span>
+            ) : null}
+            <GameStatusBadge status={game.status} />
+          </div>
         </header>
 
         <div className="grid grid-cols-1 gap-4 px-6 py-8 md:grid-cols-[1fr_auto_1fr] md:items-center">
@@ -144,16 +175,24 @@ export default async function GameDetailPage({
             Period {game.period}
           </p>
         ) : null}
+        {game.status === "completed" && game.endedIn && game.endedIn !== "regulation" ? (
+          <p className="border-t border-border px-6 py-3 text-center font-mono text-[11px] uppercase tracking-wide text-fg-muted">
+            Final · {GAME_ENDING_LABELS[game.endedIn]}
+          </p>
+        ) : null}
       </section>
 
       {/* Action panel */}
       <section className="rounded-xl border border-border bg-surface-1 p-6">
         <Eyebrow>Actions</Eyebrow>
-        <p className="mt-1 text-[13px] text-fg-muted">
-          Drive the game lifecycle. Each action emits an audit event.
-        </p>
         <div className="mt-5">
-          <GameActions game={game} />
+          <GameActions
+            game={game}
+            homeName={homeName}
+            awayName={awayName}
+            orgId={leagueOrgId}
+            regulationPeriods={regulationPeriods}
+          />
         </div>
       </section>
 
@@ -163,6 +202,7 @@ export default async function GameDetailPage({
         officials={officials}
         persons={personsPage.items}
         personMap={Array.from(personMap.entries())}
+        canEdit={can("game.assign_officials")}
       />
 
       {/* Event log + stat lines */}
@@ -176,10 +216,11 @@ export default async function GameDetailPage({
                 {events.length === 1 ? "entry" : "entries"}
               </p>
             </div>
-            {game.status === "in_play" ? (
+            {game.status === "in_play" && can("game_event.write") ? (
               <AppendEventButton
                 gameId={game.id}
                 sportCode={game.sportCode}
+                seasonId={game.seasonId}
                 homeTeam={{ id: game.homeTeamId, label: homeShort }}
                 awayTeam={{ id: game.awayTeamId, label: awayShort }}
               />
@@ -216,6 +257,18 @@ export default async function GameDetailPage({
                       {e.primaryPersonId ? (
                         <p className="mt-0.5 text-[12px] text-fg-muted">
                           {personMap.get(e.primaryPersonId) ?? "Unknown player"}
+                          {e.secondaryPersonIds?.length
+                            ? ` · Assists: ${e.secondaryPersonIds
+                                .map((pid) => personMap.get(pid) ?? "Unknown player")
+                                .join(", ")}`
+                            : ""}
+                        </p>
+                      ) : null}
+                      {e.eventType === "penalty" &&
+                      typeof e.attributes?.minutes === "number" ? (
+                        <p className="mt-0.5 text-[12px] text-fg-muted">
+                          {HOCKEY_INFRACTION_LABELS[String(e.attributes.infraction)] ?? "Penalty"},{" "}
+                          {e.attributes.minutes} min
                         </p>
                       ) : null}
                     </div>
@@ -244,7 +297,9 @@ export default async function GameDetailPage({
           </header>
           {statLines.length === 0 ? (
             <p className="px-6 py-12 text-center text-sm text-fg-muted">
-              No projected lines. Run "Project stats" once events exist.
+              {game.status === "completed"
+                ? "No player stat lines. No event in the log names a player."
+                : "Player stats are built when the game is finalized."}
             </p>
           ) : (
             <Table>

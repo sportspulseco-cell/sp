@@ -3,6 +3,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
+import {
+  HOCKEY_INFRACTIONS,
+  HOCKEY_PENALTY_MINUTES,
+  HOCKEY_PENALTY_MINUTE_LABELS,
+  HOCKEY_SCORESHEET_EVENT_TYPES,
+  HOCKEY_SPORT_CODE,
+  validateHockeyEvent
+} from "@sportspulse/kernel";
 import { gameOps, iam, roster } from "@/lib/api/browser-api";
 import type { Person } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
@@ -10,28 +18,15 @@ import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-const HOCKEY_TYPES = [
-  "goal",
-  "assist",
-  "save",
-  "penalty",
-  "shot",
-  "faceoff_won",
-  "block",
-  "hit"
-];
-const SOCCER_TYPES = [
-  "goal",
-  "assist",
-  "yellow_card",
-  "red_card",
-  "save",
-  "shot"
-];
+// Assists ride on the goal (Assist 1 / Assist 2), never as their own
+// event, so each one is counted once (SCH-13). Penalties carry an
+// infraction and minutes (SCH-14). Both lists come from the kernel, the
+// same rules the API enforces.
+const SOCCER_TYPES = ["goal", "assist", "yellow_card", "red_card", "save", "shot"];
 const GENERIC_TYPES = ["score", "event", "note"];
 
 function typesForSport(sportCode: string): string[] {
-  if (sportCode === "HOCKEY_ICE") return HOCKEY_TYPES;
+  if (sportCode === HOCKEY_SPORT_CODE) return [...HOCKEY_SCORESHEET_EVENT_TYPES];
   if (sportCode === "SOCCER") return SOCCER_TYPES;
   return [...GENERIC_TYPES];
 }
@@ -41,14 +36,21 @@ interface TeamLite {
   label: string;
 }
 
+function personName(p: Person): string {
+  return p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`;
+}
+
 export function AppendEventButton({
   gameId,
   sportCode,
+  seasonId,
   homeTeam,
   awayTeam
 }: {
   gameId: string;
   sportCode: string;
+  /** The game's season: the picker lists that season's roster only. */
+  seasonId: string | null;
   homeTeam: TeamLite;
   awayTeam: TeamLite;
 }) {
@@ -63,6 +65,7 @@ export function AppendEventButton({
         <AppendDialog
           gameId={gameId}
           sportCode={sportCode}
+          seasonId={seasonId}
           homeTeam={homeTeam}
           awayTeam={awayTeam}
           onClose={() => setOpen(false)}
@@ -75,22 +78,29 @@ export function AppendEventButton({
 function AppendDialog({
   gameId,
   sportCode,
+  seasonId,
   homeTeam,
   awayTeam,
   onClose
 }: {
   gameId: string;
   sportCode: string;
+  seasonId: string | null;
   homeTeam: TeamLite;
   awayTeam: TeamLite;
   onClose: () => void;
 }) {
   const router = useRouter();
   const types = typesForSport(sportCode);
+  const isHockey = sportCode === HOCKEY_SPORT_CODE;
   const [form, setForm] = useState({
     eventType: types[0] ?? "event",
     teamId: homeTeam.id,
     primaryPersonId: "",
+    assist1: "",
+    assist2: "",
+    infraction: "",
+    minutes: "",
     period: 1,
     clockRemainingSec: ""
   });
@@ -99,17 +109,17 @@ function AppendDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Only the selected team's active roster. Filtering a platform-wide
-  // person page dropped anyone past the first page (SCH-22), and the old
-  // fallback offered unrelated people.
+  // Only the selected team's active roster for the game's season, the
+  // same set the API accepts (SCH-22).
   useEffect(() => {
     let cancelled = false;
     setPersonsLoading(true);
-    setForm((f) => ({ ...f, primaryPersonId: "" }));
+    setForm((f) => ({ ...f, primaryPersonId: "", assist1: "", assist2: "" }));
     (async () => {
       try {
         const memberships = await roster.listMemberships({
           teamId: form.teamId,
+          seasonId: seasonId ?? undefined,
           activeOnly: true,
           limit: 100
         });
@@ -117,6 +127,7 @@ function AppendDialog({
         const rostered = (
           await Promise.all(personIds.map((id) => iam.getPerson(id).catch(() => null)))
         ).filter((p): p is Person => p !== null);
+        rostered.sort((a, b) => personName(a).localeCompare(personName(b)));
         if (cancelled) return;
         setPersons(rostered);
       } catch {
@@ -129,18 +140,44 @@ function AppendDialog({
     return () => {
       cancelled = true;
     };
-  }, [form.teamId]);
+  }, [form.teamId, seasonId]);
+
+  const isGoal = form.eventType === "goal";
+  const isPenalty = form.eventType === "penalty";
+  const showAssists = isHockey && isGoal;
+  const showPenalty = isHockey && isPenalty;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+    const secondaryPersonIds = showAssists
+      ? [form.assist1, form.assist2].filter((id) => id !== "")
+      : [];
+    const attributes = showPenalty
+      ? { infraction: form.infraction, minutes: Number(form.minutes) }
+      : undefined;
+    if (isHockey) {
+      const problem = validateHockeyEvent({
+        eventType: form.eventType,
+        teamId: form.teamId,
+        primaryPersonId: form.primaryPersonId || null,
+        secondaryPersonIds,
+        attributes: attributes ?? {}
+      });
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
+    setLoading(true);
     try {
       await gameOps.appendEvent({
         gameId,
         eventType: form.eventType,
         teamId: form.teamId,
         primaryPersonId: form.primaryPersonId || undefined,
+        secondaryPersonIds: secondaryPersonIds.length ? secondaryPersonIds : undefined,
+        attributes,
         period: Number(form.period),
         clockRemainingSec: form.clockRemainingSec
           ? Number(form.clockRemainingSec)
@@ -156,12 +193,21 @@ function AppendDialog({
     }
   }
 
+  const personOptions = (exclude: string[]) =>
+    persons
+      .filter((p) => !exclude.includes(p.id))
+      .map((p) => (
+        <option key={p.id} value={p.id}>
+          {personName(p)}
+        </option>
+      ));
+
   return (
     <Dialog
       open
       onClose={onClose}
       title="Log game event"
-      description="Append an immutable event to the game's append-only log. Events feed the stat reducer."
+      description="Each event is kept in the game's log and feeds player stats."
     >
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Event type" htmlFor="eventType">
@@ -169,7 +215,9 @@ function AppendDialog({
             id="eventType"
             required
             value={form.eventType}
-            onChange={(e) => setForm({ ...form, eventType: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, eventType: e.target.value, assist1: "", assist2: "" })
+            }
           >
             {types.map((t) => (
               <option key={t} value={t}>
@@ -195,8 +243,10 @@ function AppendDialog({
             personsLoading
               ? "Loading roster…"
               : persons.length === 0
-                ? "This team has no active roster players. Leave blank for a team-level event."
-                : "Optional — leave blank for team-level events (e.g. timeouts)."
+                ? "This team has no active players on this season's roster. Leave blank for a team-level event."
+                : isGoal
+                  ? "The goal scorer. Leave blank only if the scorer is unknown."
+                  : "Optional. Leave blank for team-level events (bench minor, timeout)."
           }
         >
           <Select
@@ -204,17 +254,91 @@ function AppendDialog({
             disabled={personsLoading}
             value={form.primaryPersonId}
             onChange={(e) =>
-              setForm({ ...form, primaryPersonId: e.target.value })
+              setForm({
+                ...form,
+                primaryPersonId: e.target.value,
+                assist1: form.assist1 === e.target.value ? "" : form.assist1,
+                assist2: form.assist2 === e.target.value ? "" : form.assist2
+              })
             }
           >
-            <option value="">— No specific player —</option>
-            {persons.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`}
-              </option>
-            ))}
+            <option value="">No specific player</option>
+            {personOptions([])}
           </Select>
         </Field>
+
+        {showAssists ? (
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Assist 1" htmlFor="assist1">
+              <Select
+                id="assist1"
+                disabled={personsLoading || !form.primaryPersonId}
+                value={form.assist1}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    assist1: e.target.value,
+                    assist2: e.target.value ? form.assist2 : ""
+                  })
+                }
+              >
+                <option value="">Unassisted</option>
+                {personOptions([form.primaryPersonId, form.assist2])}
+              </Select>
+            </Field>
+            <Field label="Assist 2" htmlFor="assist2">
+              <Select
+                id="assist2"
+                disabled={personsLoading || !form.assist1}
+                value={form.assist2}
+                onChange={(e) => setForm({ ...form, assist2: e.target.value })}
+              >
+                <option value="">None</option>
+                {personOptions([form.primaryPersonId, form.assist1])}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+
+        {showPenalty ? (
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Infraction" htmlFor="infraction">
+              <Select
+                id="infraction"
+                required
+                value={form.infraction}
+                onChange={(e) => setForm({ ...form, infraction: e.target.value })}
+              >
+                <option value="" disabled>
+                  Choose infraction
+                </option>
+                {HOCKEY_INFRACTIONS.map((i) => (
+                  <option key={i.code} value={i.code}>
+                    {i.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Minutes" htmlFor="minutes">
+              <Select
+                id="minutes"
+                required
+                value={form.minutes}
+                onChange={(e) => setForm({ ...form, minutes: e.target.value })}
+              >
+                <option value="" disabled>
+                  Choose length
+                </option>
+                {HOCKEY_PENALTY_MINUTES.map((m) => (
+                  <option key={m} value={String(m)}>
+                    {HOCKEY_PENALTY_MINUTE_LABELS[m]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 gap-4">
           <Field label="Period" htmlFor="period">
             <Input

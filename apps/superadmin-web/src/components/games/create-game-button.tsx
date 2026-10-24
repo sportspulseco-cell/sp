@@ -62,7 +62,10 @@ function CreateGameDialog({
     scheduledStartTsUtc: "",
     tz: "America/New_York",
     durationMin: 60,
-    venueName: ""
+    venueName: "",
+    // A hand-made game is usually meant to be seen right away (SCH-7);
+    // untick to keep it as a draft.
+    publish: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +104,8 @@ function CreateGameDialog({
         scheduledStartTsUtc: new Date(form.scheduledStartTsUtc).toISOString(),
         tz: form.tz,
         durationMin: Number(form.durationMin),
-        venueName: form.venueName || null
+        venueName: form.venueName || null,
+        publish: form.publish
       });
       onClose();
       router.refresh();
@@ -205,6 +209,22 @@ function CreateGameDialog({
             />
           </Field>
         </div>
+
+        <label className="flex items-start gap-2 text-sm text-fg">
+          <input
+            id="publish"
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.publish}
+            onChange={(e) => set("publish", e.target.checked)}
+          />
+          <span>
+            Show on team schedules now
+            <span className="block text-xs text-fg-muted">
+              Both teams get a notice. Untick to save a draft only admins and officials see.
+            </span>
+          </span>
+        </label>
 
         {error ? (
           <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">

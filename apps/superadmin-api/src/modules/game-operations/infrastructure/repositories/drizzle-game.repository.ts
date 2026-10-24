@@ -4,12 +4,100 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
-import { Game } from "../../domain/entities/game.entity";
+import { Game, type GameSnapshot } from "../../domain/entities/game.entity";
 import { GameId } from "../../domain/identifiers";
 import type {
   GameRepository,
   ListGamesQuery
 } from "../../domain/repositories/game.repository";
+
+type GameRow = typeof schema.games.$inferSelect;
+
+/** Row -> aggregate. Shared with transactional handlers (finalize, reschedule). */
+export function rowToGame(r: GameRow): Game {
+  return Game.rehydrate({
+    id: r.id,
+    leagueId: r.leagueId,
+    seasonId: r.seasonId,
+    divisionId: r.divisionId,
+    homeTeamId: r.homeTeamId,
+    awayTeamId: r.awayTeamId,
+    sportCode: r.sportCode,
+    scheduledStartTsUtc: r.scheduledStartTsUtc,
+    tz: r.tz,
+    durationMin: r.durationMin,
+    venueName: r.venueName,
+    surfaceLabel: r.surfaceLabel,
+    status: r.status as never,
+    homeScore: r.homeScore,
+    awayScore: r.awayScore,
+    period: r.period,
+    metadata: r.metadata as Record<string, unknown>,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    finalizedAt: r.finalizedAt,
+    finalizedByUserId: r.finalizedByUserId,
+    publishedAt: r.publishedAt,
+    slotId: r.slotId,
+    surfaceId: r.surfaceId,
+    scheduleRunId: r.scheduleRunId,
+    lockedAt: r.lockedAt,
+    lockedByUserId: r.lockedByUserId,
+    source: r.source
+  });
+}
+
+/**
+ * Lifecycle columns the plain `save()` writes (start, score, postpone,
+ * cancel, forfeit). Publish, slot and lock columns are left alone so a
+ * lifecycle click never overwrites a concurrent scheduler publish or move.
+ */
+function gameLifecycleValues(x: GameSnapshot) {
+  return {
+    scheduledStartTsUtc: x.scheduledStartTsUtc,
+    tz: x.tz,
+    durationMin: x.durationMin,
+    venueName: x.venueName,
+    surfaceLabel: x.surfaceLabel,
+    status: x.status,
+    homeScore: x.homeScore,
+    awayScore: x.awayScore,
+    period: x.period,
+    metadata: x.metadata,
+    finalizedAt: x.finalizedAt,
+    finalizedByUserId: x.finalizedByUserId,
+    updatedAt: sql`NOW()`
+  };
+}
+
+/**
+ * Every column an aggregate command may change, for the commands that
+ * lock the row first (finalize, publish, reschedule). Ids, teams and
+ * season never change.
+ */
+export function gameUpdateValues(x: GameSnapshot) {
+  return {
+    scheduledStartTsUtc: x.scheduledStartTsUtc,
+    tz: x.tz,
+    durationMin: x.durationMin,
+    venueName: x.venueName,
+    surfaceLabel: x.surfaceLabel,
+    status: x.status,
+    homeScore: x.homeScore,
+    awayScore: x.awayScore,
+    period: x.period,
+    metadata: x.metadata,
+    finalizedAt: x.finalizedAt,
+    finalizedByUserId: x.finalizedByUserId,
+    publishedAt: x.publishedAt,
+    slotId: x.slotId,
+    surfaceId: x.surfaceId,
+    lockedAt: x.lockedAt,
+    lockedByUserId: x.lockedByUserId,
+    source: x.source,
+    updatedAt: sql`NOW()`
+  };
+}
 
 @Injectable()
 export class DrizzleGameRepository implements GameRepository {
@@ -21,7 +109,7 @@ export class DrizzleGameRepository implements GameRepository {
       .from(schema.games)
       .where(eq(schema.games.id, id.value))
       .limit(1);
-    return row ? this.toDomain(row) : null;
+    return row ? rowToGame(row) : null;
   }
 
   async list(q: ListGamesQuery): Promise<Page<Game>> {
@@ -52,9 +140,7 @@ export class DrizzleGameRepository implements GameRepository {
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
-    const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
-      this.toDomain(r)
-    );
+    const items = (hasMore ? rows.slice(0, q.limit) : rows).map(rowToGame);
     const nextCursor = hasMore ? rows[q.limit - 1]!.id : null;
     return { items, nextCursor };
   }
@@ -78,7 +164,9 @@ export class DrizzleGameRepository implements GameRepository {
       homeScore: x.homeScore,
       awayScore: x.awayScore,
       period: x.period,
-      metadata: x.metadata
+      metadata: x.metadata,
+      publishedAt: x.publishedAt,
+      source: x.source
     });
   }
 
@@ -86,47 +174,7 @@ export class DrizzleGameRepository implements GameRepository {
     const x = g.toSnapshot();
     await this.db
       .update(schema.games)
-      .set({
-        scheduledStartTsUtc: x.scheduledStartTsUtc,
-        tz: x.tz,
-        durationMin: x.durationMin,
-        venueName: x.venueName,
-        surfaceLabel: x.surfaceLabel,
-        status: x.status,
-        homeScore: x.homeScore,
-        awayScore: x.awayScore,
-        period: x.period,
-        metadata: x.metadata,
-        finalizedAt: x.finalizedAt,
-        finalizedByUserId: x.finalizedByUserId,
-        updatedAt: sql`NOW()`
-      })
+      .set(gameLifecycleValues(x))
       .where(eq(schema.games.id, x.id));
-  }
-
-  private toDomain(r: typeof schema.games.$inferSelect): Game {
-    return Game.rehydrate({
-      id: r.id,
-      leagueId: r.leagueId,
-      seasonId: r.seasonId,
-      divisionId: r.divisionId,
-      homeTeamId: r.homeTeamId,
-      awayTeamId: r.awayTeamId,
-      sportCode: r.sportCode,
-      scheduledStartTsUtc: r.scheduledStartTsUtc,
-      tz: r.tz,
-      durationMin: r.durationMin,
-      venueName: r.venueName,
-      surfaceLabel: r.surfaceLabel,
-      status: r.status as never,
-      homeScore: r.homeScore,
-      awayScore: r.awayScore,
-      period: r.period,
-      metadata: r.metadata as Record<string, unknown>,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-      finalizedAt: r.finalizedAt,
-      finalizedByUserId: r.finalizedByUserId
-    });
   }
 }

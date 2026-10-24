@@ -56,12 +56,15 @@ export function GameOfficialsPanel({
   gameId,
   officials,
   persons,
-  personMap
+  personMap,
+  canEdit = true
 }: {
   gameId: string;
   officials: GameOfficial[];
   persons: Person[];
   personMap: [string, string][];
+  /** False hides Assign and Revoke (viewer lacks game.assign_officials). */
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const lookup = useMemo(() => new Map(personMap), [personMap]);
@@ -84,13 +87,15 @@ export function GameOfficialsPanel({
             </p>
           </div>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setOpen((s) => !s)}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          {open ? "Close" : "Assign"}
-        </Button>
+        {canEdit ? (
+          <Button size="sm" variant="outline" onClick={() => setOpen((s) => !s)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            {open ? "Close" : "Assign"}
+          </Button>
+        ) : null}
       </header>
 
-      {open ? (
+      {open && canEdit ? (
         <AssignForm
           gameId={gameId}
           persons={persons}
@@ -103,8 +108,9 @@ export function GameOfficialsPanel({
 
       {officials.length === 0 ? (
         <p className="px-6 py-12 text-center text-sm text-fg-muted">
-          No officials assigned. Use the Assign button above to add referees,
-          linesmen, scorekeepers.
+          {canEdit
+            ? "No officials assigned. Use the Assign button above to add referees, linesmen, scorekeepers."
+            : "No officials assigned yet."}
         </p>
       ) : (
         <ul className="divide-y divide-border">
@@ -131,7 +137,7 @@ export function GameOfficialsPanel({
               <Badge tone={statusTone(o.status)} mono>
                 {o.status}
               </Badge>
-              <RevokeOfficialBtn id={o.id} />
+              {canEdit ? <RevokeOfficialBtn id={o.id} /> : null}
             </li>
           ))}
         </ul>

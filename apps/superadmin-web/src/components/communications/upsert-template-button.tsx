@@ -16,6 +16,7 @@ const CODES = [
   "registration.rejected",
   "registration.waitlisted",
   "game.scheduled",
+  "game.rescheduled",
   "game.postponed",
   "game.cancelled",
   "game.finalized",

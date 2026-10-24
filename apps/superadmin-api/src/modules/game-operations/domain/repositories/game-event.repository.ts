@@ -6,6 +6,8 @@ export interface ListGameEventsQuery extends PageQuery {
   gameId?: string;
   eventType?: string;
   primaryPersonId?: string;
+  /** When set, only events of games in these leagues (empty = none). */
+  leagueIdsFilter?: string[];
 }
 
 export interface GameEventRepository {

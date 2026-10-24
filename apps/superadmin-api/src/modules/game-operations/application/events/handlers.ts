@@ -1,11 +1,19 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { and, eq, inArray } from "drizzle-orm";
+import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import {
   clampLimit,
+  DomainError,
+  HOCKEY_SPORT_CODE,
   NotFoundError,
+  ValidationError,
+  validateHockeyEvent,
   type CommandHandler,
   type QueryHandler
 } from "@sportspulse/kernel";
+import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import {
   GAME_EVENT_REPOSITORY,
   type GameEventRepository
@@ -38,13 +46,22 @@ export interface AppendEventInput {
   loggedByUserId?: string | null;
 }
 
+/**
+ * Append one scoresheet event. The server checks what the dialog offers:
+ * the game is in play, the team is one of the two playing, hockey events
+ * have the right shape (assists on the goal, penalty infraction and
+ * minutes; kernel validateHockeyEvent), and every named player is on
+ * that team's active roster for the game's season or checked in to this
+ * game for that team (guests). Nothing unrostered reaches the stat lines.
+ */
 @Injectable()
 export class AppendEventHandler
   implements CommandHandler<AppendEventInput, GameEventDto>
 {
   constructor(
     @Inject(GAME_EVENT_REPOSITORY) private readonly events: GameEventRepository,
-    @Inject(GAME_REPOSITORY) private readonly games: GameRepository
+    @Inject(GAME_REPOSITORY) private readonly games: GameRepository,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
   async execute(input: AppendEventInput): Promise<GameEventDto> {
     if (input.idempotencyKey) {
@@ -55,6 +72,33 @@ export class AppendEventHandler
     }
     const game = await this.games.findById(GameId.of(input.gameId));
     if (!game) throw new NotFoundError("Game", input.gameId);
+    if (game.status !== "in_play") {
+      throw new DomainError(
+        "GAME_NOT_IN_PLAY",
+        "Events can only be logged while the game is in play."
+      );
+    }
+    if (input.teamId && input.teamId !== game.homeTeamId && input.teamId !== game.awayTeamId) {
+      throw new ValidationError("That team is not playing in this game.");
+    }
+    if (game.sportCode === HOCKEY_SPORT_CODE) {
+      const problem = validateHockeyEvent({
+        eventType: input.eventType,
+        teamId: input.teamId,
+        primaryPersonId: input.primaryPersonId,
+        secondaryPersonIds: input.secondaryPersonIds,
+        attributes: input.attributes
+      });
+      if (problem) throw new ValidationError(problem);
+    }
+    const named = [
+      ...(input.primaryPersonId ? [input.primaryPersonId] : []),
+      ...(input.secondaryPersonIds ?? [])
+    ];
+    if (named.length > 0) {
+      if (!input.teamId) throw new ValidationError("Pick the player's team.");
+      await this.assertOnRoster(game.id.value, input.teamId, game.seasonId, game.divisionId, named);
+    }
 
     const event = GameEvent.create({
       id: GameEventId.of(randomUUID()),
@@ -77,6 +121,57 @@ export class AppendEventHandler
     await this.events.insert(event);
     return GameEventDto.fromDomain(event);
   }
+
+  private async assertOnRoster(
+    gameId: string,
+    teamId: string,
+    gameSeasonId: string | null,
+    divisionId: string | null,
+    personIds: string[]
+  ): Promise<void> {
+    let seasonId = gameSeasonId;
+    if (!seasonId && divisionId) {
+      const [d] = await this.db
+        .select({ seasonId: schema.divisions.seasonId })
+        .from(schema.divisions)
+        .where(eq(schema.divisions.id, divisionId))
+        .limit(1);
+      seasonId = d?.seasonId ?? null;
+    }
+    const ids = [...new Set(personIds)];
+    const [members, guests] = await Promise.all([
+      this.db
+        .selectDistinct({ personId: schema.teamMemberships.personId })
+        .from(schema.teamMemberships)
+        .where(
+          and(
+            eq(schema.teamMemberships.teamId, teamId),
+            eq(schema.teamMemberships.currentStatus, "active"),
+            inArray(schema.teamMemberships.personId, ids),
+            ...(seasonId ? [eq(schema.teamMemberships.seasonId, seasonId)] : [])
+          )
+        ),
+      this.db
+        .selectDistinct({ personId: schema.gameAttendance.personId })
+        .from(schema.gameAttendance)
+        .where(
+          and(
+            eq(schema.gameAttendance.gameId, gameId),
+            eq(schema.gameAttendance.teamId, teamId),
+            inArray(schema.gameAttendance.personId, ids)
+          )
+        )
+    ]);
+    const ok = new Set([...members, ...guests].map((r) => r.personId));
+    const missing = ids.filter((id) => !ok.has(id));
+    if (missing.length > 0) {
+      throw new ValidationError(
+        missing.length === 1
+          ? "A player you picked is not on this team's roster for the game's season."
+          : `${missing.length} players you picked are not on this team's roster for the game's season.`
+      );
+    }
+  }
 }
 
 export interface ListEventsInput {
@@ -85,6 +180,8 @@ export interface ListEventsInput {
   gameId?: string;
   eventType?: string;
   primaryPersonId?: string;
+  /** Scoped callers: only events of games in these leagues. */
+  leagueIdsFilter?: string[];
 }
 
 @Injectable()

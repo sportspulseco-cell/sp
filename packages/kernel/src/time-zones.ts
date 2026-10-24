@@ -1,0 +1,83 @@
+/**
+ * Wall-clock time in an IANA time zone <-> UTC instant. Games and ice
+ * slots are stored in UTC with the rink's zone beside them; admins type
+ * rink-local times. The server converts, so the result never depends on
+ * the browser's zone. Unit tests: time-zones.test.ts.
+ */
+
+const WALL = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+export function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function wallParts(instant: number, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).formatToParts(new Date(instant));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return {
+    y: get("year"),
+    mo: get("month"),
+    d: get("day"),
+    h: get("hour") % 24,
+    mi: get("minute")
+  };
+}
+
+/** Offset of `timeZone` from UTC at `instant`, in ms (east positive). */
+function offsetMs(instant: number, timeZone: string): number {
+  const p = wallParts(instant, timeZone);
+  const asUtc = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi);
+  return asUtc - Math.floor(instant / 60_000) * 60_000;
+}
+
+/** "YYYY-MM-DDTHH:MM" (an <input type="datetime-local"> value) for `instant` in `timeZone`. */
+export function utcToZonedWallTime(instant: Date | string, timeZone: string): string {
+  const t = typeof instant === "string" ? Date.parse(instant) : instant.getTime();
+  const p = wallParts(t, timeZone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:${pad(p.mi)}`;
+}
+
+/**
+ * The UTC instant at which the clocks in `timeZone` read `local`
+ * ("YYYY-MM-DDTHH:MM"). When the clocks go back and the time happens
+ * twice, the earlier instant wins. When the clocks go forward and the
+ * time never happens, the result is pushed forward by the gap (02:30 on
+ * a spring-forward night becomes 03:30), as calendar apps do.
+ * Throws on a malformed time or unknown zone.
+ */
+export function zonedWallTimeToUtc(local: string, timeZone: string): Date {
+  const m = WALL.exec(local);
+  if (!m) throw new RangeError(`Expected YYYY-MM-DDTHH:MM, got "${local}"`);
+  if (!isValidTimeZone(timeZone)) throw new RangeError(`Unknown time zone "${timeZone}"`);
+  const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number];
+  const asUtc = Date.UTC(y, mo - 1, d, h, mi);
+  const check = new Date(asUtc);
+  if (
+    check.getUTCFullYear() !== y ||
+    check.getUTCMonth() !== mo - 1 ||
+    check.getUTCDate() !== d ||
+    h > 23 ||
+    mi > 59
+  ) {
+    throw new RangeError(`Not a real date and time: "${local}"`);
+  }
+  const first = asUtc - offsetMs(asUtc, timeZone);
+  const second = asUtc - offsetMs(first, timeZone);
+  const matches = (t: number) => utcToZonedWallTime(new Date(t), timeZone) === local;
+  const candidates = [first, second].filter(matches).sort((a, b) => a - b);
+  return new Date(candidates[0] ?? first);
+}

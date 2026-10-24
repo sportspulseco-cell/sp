@@ -13,6 +13,8 @@ export const TEMPLATE_CODES = [
   "game.postponed",
   "game.cancelled",
   "game.finalized",
+  // UC-07 / UC-21 manual move of a game's time or rink (SCH-6).
+  "game.rescheduled",
   "suspension.issued",
   "suspension.lifted",
   "roster.added",
@@ -137,6 +139,68 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "The game between {{awayTeam}} and {{homeTeam}} is final.\n\n" +
       "Final score: {{awayTeam}} {{awayScore}} – {{homeScore}} {{homeTeam}}.",
     variables: ["awayTeam", "homeTeam", "awayScore", "homeScore"]
+  },
+  // Game notices go to both teams' rostered players and captains, one row
+  // per person: email when the person has an address, in-app otherwise
+  // (the inbox lists every row addressed to the person).
+  {
+    code: "game.finalized",
+    channel: "in_app",
+    subject: "Final: {{awayTeam}} {{awayScore}}, {{homeTeam}} {{homeScore}}",
+    body:
+      "Final score: {{awayTeam}} {{awayScore}}, {{homeTeam}} {{homeScore}}{{endedInClause}}. " +
+      "Stats and standings are updated.",
+    variables: ["awayTeam", "homeTeam", "awayScore", "homeScore", "endedInClause"]
+  },
+  {
+    code: "game.scheduled",
+    channel: "email",
+    subject: "New game: {{awayTeam}} at {{homeTeam}}, {{whenLabel}}",
+    body:
+      "{{awayTeam}} play at {{homeTeam}} on {{whenLabel}}{{venueClause}}.\n\n" +
+      "The game is on your team schedule.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.scheduled",
+    channel: "in_app",
+    subject: "New game: {{awayTeam}} at {{homeTeam}}",
+    body: "{{awayTeam}} play at {{homeTeam}} on {{whenLabel}}{{venueClause}}.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.rescheduled",
+    channel: "email",
+    subject: "Game moved: {{awayTeam}} at {{homeTeam}}",
+    body:
+      "Your game {{awayTeam}} at {{homeTeam}} has moved.\n\n" +
+      "Was: {{fromLabel}}{{fromVenueClause}}\n" +
+      "Now: {{toLabel}}{{toVenueClause}}{{reasonClause}}",
+    variables: [
+      "awayTeam",
+      "homeTeam",
+      "fromLabel",
+      "fromVenueClause",
+      "toLabel",
+      "toVenueClause",
+      "reasonClause"
+    ]
+  },
+  {
+    code: "game.rescheduled",
+    channel: "in_app",
+    subject: "Game moved: {{awayTeam}} at {{homeTeam}}",
+    body:
+      "Now {{toLabel}}{{toVenueClause}}. Was {{fromLabel}}{{fromVenueClause}}.{{reasonClause}}",
+    variables: [
+      "awayTeam",
+      "homeTeam",
+      "fromLabel",
+      "fromVenueClause",
+      "toLabel",
+      "toVenueClause",
+      "reasonClause"
+    ]
   },
   {
     code: "suspension.issued",

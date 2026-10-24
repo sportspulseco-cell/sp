@@ -6,7 +6,8 @@ import { stagingDbUrl } from "./_helpers";
  * that works on staging; scheduler Edge Functions are not deployed, SCH-1).
  * captain @ team-admin-web /lineups/[gameId] sets a lineup. super_admin @
  * superadmin-web /games/[id] starts play, logs goal + assist + penalty,
- * applies the score and finalizes. Then superadmin /stats, team-admin /stats
+ * applies the score and finalizes (league_admin starts play, SCH-12).
+ * Finalize itself writes stat lines, standings and notices (SCH-17). Then superadmin /stats, team-admin /stats
  * and player-web /stats (fresh contexts) must attribute the goal correctly.
  *
  * Bugs: doc/testing/bugs/schedule.md (SCH-N).
@@ -169,7 +170,7 @@ test.describe("J11 game day to stats", () => {
         where m.team_id = $1 and (m.effective_to is null or m.effective_to > now())`, [skaters?.id]);
     console.log(`[J11] skaters=${skaters?.id} player=${JSON.stringify(player)} roster=${JSON.stringify(roster)}`);
     const scorer = player ?? (roster[0] ? { id: roster[0].person_id, name: roster[0].name } : undefined);
-    const assister = roster.find((r) => r.person_id !== scorer?.id);
+    const assister = roster.find((r: any) => r.person_id !== scorer?.id && r.current_status === "active");
 
     await test.step("1 · create opponent team + game via /games (fixture setup through UI)", async () => {
       await page.goto(`${app}/teams`);
@@ -223,7 +224,7 @@ test.describe("J11 game day to stats", () => {
       await cap.context.close();
     });
 
-    await test.step("3 · league_admin tries to start the game (UC-11 role check)", async () => {
+    await test.step("3 · league_admin starts the game (UC-11 role check, SCH-12)", async () => {
       const la = await signedInAs(browser, "leagueAdmin");
       const laErr = watchErrors(la.page);
       await la.page.goto(`${la.app}/games/${gameId}`);
@@ -241,22 +242,25 @@ test.describe("J11 game day to stats", () => {
       const main = await la.page.locator("main").innerText().catch(() => "");
       console.log(`[J11] league_admin start → ${outcome}; page shows: ${main.replace(/\s+/g, " ").slice(0, 300)}`);
       await la.page.screenshot({ path: `${OUTPUT_DIR}/j11/03-league-admin-start.png`, fullPage: true });
-      expect.soft(outcome, "SCH-12 league admin (scorekeeper stand-in) can run the scoresheet").toMatch(/^http 2/);
+      expect(visible, "SCH-12 Start play shown to the league admin").toBe(true);
+      expect(outcome, "SCH-12 league admin (scorekeeper stand-in) can run the scoresheet").toMatch(/^http 2/);
       console.log(`[J11] league_admin errors: ${laErr.join(" | ")}`);
       await la.context.close();
     });
 
-    await test.step("4 · super_admin starts play, logs goal + assist + penalty, applies score", async () => {
+    await test.step("4 · super_admin logs goal (with assist) + penalty, applies score", async () => {
       await page.goto(`${app}/games/${gameId}`);
+      // The league admin started play in step 3; only start here if that failed.
       const start = page.getByRole("button", { name: /Start play/i });
-      await expect(start).toBeVisible({ timeout: 20_000 });
-      const startResp = page.waitForResponse((r) => r.url().includes(`/games/${gameId}/start`), { timeout: 20_000 }).catch(() => null);
-      await start.click();
-      const sr = await startResp;
-      console.log(`[J11] super_admin start → ${sr ? sr.status() : "no request"}`);
+      if (await start.isVisible().catch(() => false)) {
+        const startResp = page.waitForResponse((r) => r.url().includes(`/games/${gameId}/start`), { timeout: 20_000 }).catch(() => null);
+        await start.click();
+        const sr = await startResp;
+        console.log(`[J11] super_admin start → ${sr ? sr.status() : "no request"}`);
+      }
       const logBtn = page.getByRole("button", { name: /Log event/i });
       const refreshed = await logBtn.waitFor({ state: "visible", timeout: 20_000 }).then(() => true).catch(() => false);
-      expect.soft(refreshed, "game page flips to in_play without a manual reload").toBe(true);
+      expect.soft(refreshed, "game page shows in_play controls without a manual reload").toBe(true);
       if (!refreshed) await page.reload();
       await expect(logBtn).toBeVisible({ timeout: 20_000 });
       const lockRow = await stagingSql<{ locked_at: string | null }>(`select locked_at from game_lineups where game_id = $1`, [gameId]);
@@ -277,9 +281,19 @@ test.describe("J11 game day to stats", () => {
         if (hasPerson) await sel.selectOption(personId!);
         else console.log(`[J11] ${type}: player ${personId} not in picker; logging unattributed (blocked)`);
         const extra = {
-          assistField: await dlg.getByLabel(/assist/i).count(),
-          minutesField: await dlg.getByLabel(/minutes|infraction|PIM/i).count()
+          assistField: await dlg.getByLabel(/^Assist 1$/).count(),
+          minutesField: await dlg.getByLabel(/^(Minutes|Infraction)$/).count()
         };
+        // SCH-13: assists ride on the goal. SCH-14: penalty infraction + minutes.
+        if (type === "goal" && extra.assistField > 0 && assister) {
+          const a1 = dlg.getByLabel(/^Assist 1$/);
+          if ((await a1.locator(`option[value="${assister.person_id}"]`).count()) > 0) await a1.selectOption(assister.person_id);
+          else console.log(`[J11] assister ${assister.person_id} not in Assist 1 picker`);
+        }
+        if (type === "penalty" && extra.minutesField > 0) {
+          await dlg.getByLabel(/^Infraction$/).selectOption("tripping");
+          await dlg.getByLabel(/^Minutes$/).selectOption("2");
+        }
         await dlg.getByLabel("Period").fill(String(period));
         await dlg.locator('button[type="submit"]').click();
         await expect(dlg).toBeHidden({ timeout: 20_000 });
@@ -287,10 +301,10 @@ test.describe("J11 game day to stats", () => {
       }
       const goal = await logEvent("goal", scorer?.id);
       console.log(`[J11] home player options: ${goal.opts.length} → ${goal.opts.slice(0, 8).join(" | ")}`);
-      expect.soft(goal.extra.assistField, "SCH-13 goal dialog has assist picker(s)").toBeGreaterThan(0);
-      await logEvent("assist", assister?.person_id ?? scorer?.id);
+      expect(goal.extra.assistField, "SCH-13 goal dialog has assist picker(s)").toBeGreaterThan(0);
+      // "assist" is no longer its own event type (it would double count).
       const pen = await logEvent("penalty", scorer?.id, 2);
-      expect.soft(pen.extra.minutesField, "SCH-14 penalty dialog has infraction/minutes").toBeGreaterThan(0);
+      expect(pen.extra.minutesField, "SCH-14 penalty dialog has infraction/minutes").toBeGreaterThan(0);
 
       await page.waitForTimeout(2000);
       const logText = await page.locator("main").innerText();
@@ -312,20 +326,31 @@ test.describe("J11 game day to stats", () => {
     await test.step("5 · officials (UC-30) + finalize (UC-12)", async () => {
       const assign = page.getByRole("button", { name: /^Assign$/ }).first();
       console.log(`[J11] officials Assign button visible: ${await assign.isVisible().catch(() => false)}`);
-      const confirmSeen: string[] = [];
-      page.once("dialog", async (d) => { confirmSeen.push(d.message()); await d.accept(); });
+      // UC-12 review step: the dialog shows the final score and asks how the game ended.
       await page.getByRole("button", { name: /^Finalize$/ }).click();
-      await page.waitForTimeout(4000);
-      console.log(`[J11] finalize confirmation dialog: ${confirmSeen.join(" | ") || "none"}`);
+      const fd = page.getByRole("dialog");
+      await expect(fd.getByText(/How did the game end/), "finalize review step").toBeVisible({ timeout: 10_000 });
+      await fd.getByRole("radio", { name: /Regulation/ }).check();
+      const finResp = page.waitForResponse((r) => r.url().includes(`/games/${gameId}/finalize`), { timeout: 30_000 });
+      await fd.getByRole("button", { name: /Confirm final score/ }).click();
+      const fr = await finResp;
+      console.log(`[J11] finalize → ${fr.status()} ${(await fr.text().catch(() => "")).slice(0, 300)}`);
+      expect(fr.status(), "finalize accepted").toBeLessThan(400);
+      await expect(fd).toBeHidden({ timeout: 20_000 });
+      await expect(page.getByText(/^Final\. /).first(), "finalize summary shown on the same screen").toBeVisible({ timeout: 20_000 });
       const [g] = await stagingSql<{ status: string; finalized_at: string | null; home_score: number; away_score: number }>(
         `select status, finalized_at, home_score, away_score from games where id = $1`, [gameId]);
       console.log(`[J11] game after finalize: ${JSON.stringify(g)}`);
       expect(g?.status).toBe("completed");
       const lines = await stagingSql(`select person_id, core from stat_lines where game_id = $1`, [gameId]);
       console.log(`[J11] stat_lines right after finalize: ${lines.length}`);
-      expect.soft(lines.length, "SCH-17 finalize triggers stat projection (UC-13)").toBeGreaterThan(0);
-      const notif = await stagingSql(`select template_code, payload, recipient_person_id, status from notifications where idempotency_key like $1`, [`game.finalized:${gameId}%`]);
-      console.log(`[J11] game.finalized notifications: ${JSON.stringify(notif)}`);
+      expect(lines.length, "SCH-17 finalize triggers stat projection (UC-13)").toBeGreaterThan(0);
+      const notif = await stagingSql<{ recipient_person_id: string | null; payload: any; status: string }>(
+        `select template_code, payload, recipient_person_id, status from notifications where idempotency_key like $1`, [`game.finalized:${gameId}%`]);
+      console.log(`[J11] game.finalized notifications: ${JSON.stringify(notif).slice(0, 600)}`);
+      expect(notif.length, "SCH-17 finalize queues notices for both teams").toBeGreaterThan(0);
+      expect(notif.every((n) => n.recipient_person_id), "SCH-17 every notice has a recipient").toBe(true);
+      expect(notif[0]?.payload?.homeTeam, "SCH-17 notice names the team, not an id").toBe(BASE_TEAM);
       await shot(page, "05-finalized");
     });
 
@@ -336,10 +361,10 @@ test.describe("J11 game day to stats", () => {
       const lines = await stagingSql<{ person_id: string; core: any }>(`select person_id, core from stat_lines where game_id = $1`, [gameId]);
       console.log(`[J11] stat_lines after Project stats: ${JSON.stringify(lines)}`);
       const sLine = lines.find((l) => l.person_id === scorer?.id);
-      expect.soft(sLine?.core?.goals, "goal attributed to the scorer").toBe(1);
-      const aLine = lines.find((l) => l.person_id === (assister?.person_id ?? scorer?.id));
-      expect.soft(aLine?.core?.assists ?? 0, "SCH-13 assist counted").toBeGreaterThan(0);
-      expect.soft(sLine?.core?.pim ?? 0, "SCH-14 penalty minutes counted").toBeGreaterThan(0);
+      expect(sLine?.core?.goals, "goal attributed to the scorer").toBe(1);
+      const aLine = lines.find((l) => l.person_id === assister?.person_id);
+      expect(aLine?.core?.assists ?? 0, "SCH-13 assist counted").toBeGreaterThan(0);
+      expect(sLine?.core?.pim ?? 0, "SCH-14 penalty minutes counted").toBe(2);
 
       await page.goto(`${app}/stats`);
       await page.waitForLoadState("networkidle").catch(() => {});
@@ -382,10 +407,20 @@ test.describe("J11 game day to stats", () => {
       const capText = await cap.page.locator("main").innerText();
       await cap.page.screenshot({ path: `${OUTPUT_DIR}/j11/07-captain-stats.png`, fullPage: true });
       console.log(`[J11] captain /stats: ${capText.replace(/\s+/g, " ").slice(0, 600)}`);
-      expect.soft(capText, "SCH-24 captain /stats shows standings / team stats after a finalized game").not.toMatch(/No stats yet/);
+      expect(capText, "SCH-24 captain /stats shows standings after a finalized game").not.toMatch(/No standings yet/);
+      // Player lines are per season. The New game dialog still sends no
+      // season (SCH-5), so this game's lines carry none and cannot appear in
+      // a season's player stats; only assert it when the game has one.
+      const [gs] = await stagingSql<{ season_id: string | null }>(`select season_id from games where id = $1`, [gameId]);
+      if (gs?.season_id) {
+        expect(capText, "SCH-24 captain /stats lists the scorer").toContain(scorer?.name ?? "???");
+      } else {
+        console.log("[J11] captain player stats for this game blocked by SCH-5 (game has no season)");
+        expect.soft(gs?.season_id, "SCH-5 manual game carries a season (needed for season player stats)").not.toBeNull();
+      }
       await cap.page.goto(`${cap.app}/schedule`);
       const capSched = await cap.page.locator("main").innerText();
-      expect.soft(capSched, "SCH-7 captain /schedule shows the completed game").toContain(oppName);
+      expect(capSched, "SCH-7 captain /schedule shows the completed game").toContain(oppName);
       await cap.context.close();
 
       const pl = await signedInAs(browser, "player");
@@ -399,6 +434,7 @@ test.describe("J11 game day to stats", () => {
       await pl.page.waitForLoadState("networkidle").catch(() => {});
       const nText = await pl.page.locator("main").innerText();
       console.log(`[J11] player /notifications: ${nText.replace(/\s+/g, " ").slice(0, 300)}`);
+      expect.soft(nText, "SCH-17 player inbox has the final-score notice").toMatch(/Final score|Final:/);
       await pl.context.close();
     });
 

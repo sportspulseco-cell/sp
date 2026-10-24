@@ -1,4 +1,4 @@
-import { AggregateRoot, DomainError } from "@sportspulse/kernel";
+import { AggregateRoot, DomainError, type GameEnding } from "@sportspulse/kernel";
 import { GameId } from "../identifiers";
 import {
   type GameStatus,
@@ -29,6 +29,29 @@ export interface GameSnapshot {
   updatedAt: Date;
   finalizedAt: Date | null;
   finalizedByUserId: string | null;
+  /** Public on team schedules iff set (SCH-7). */
+  publishedAt: Date | null;
+  /** Ice slot the game occupies; null for hand-made games or after a manual move. */
+  slotId: string | null;
+  surfaceId: string | null;
+  /** Generation run that placed it; null = hand-made. */
+  scheduleRunId: string | null;
+  /** Set = the scheduler engine must never move this game. */
+  lockedAt: Date | null;
+  lockedByUserId: string | null;
+  /** manual | generated | manual_import | manual_override */
+  source: string;
+}
+
+/** One entry of `metadata.reschedules`, newest last (SCH-6). */
+export interface RescheduleRecord {
+  at: string;
+  byUserId: string;
+  from: { startTsUtc: string; venueName: string | null; surfaceLabel: string | null; surfaceId: string | null };
+  to: { startTsUtc: string; venueName: string | null; surfaceLabel: string | null; surfaceId: string | null };
+  reason: string | null;
+  /** Conflict messages the admin overrode, empty when there were none. */
+  overriddenConflicts: string[];
 }
 
 export class Game extends AggregateRoot<GameId> {
@@ -53,7 +76,14 @@ export class Game extends AggregateRoot<GameId> {
     private readonly _createdAt: Date,
     private _updatedAt: Date,
     private _finalizedAt: Date | null,
-    private _finalizedByUserId: string | null
+    private _finalizedByUserId: string | null,
+    private _publishedAt: Date | null,
+    private _slotId: string | null,
+    private _surfaceId: string | null,
+    private readonly _scheduleRunId: string | null,
+    private _lockedAt: Date | null,
+    private _lockedByUserId: string | null,
+    private _source: string
   ) {
     super(id);
   }
@@ -100,7 +130,14 @@ export class Game extends AggregateRoot<GameId> {
       now,
       now,
       null,
-      null
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "manual"
     );
   }
 
@@ -126,7 +163,14 @@ export class Game extends AggregateRoot<GameId> {
       s.createdAt,
       s.updatedAt,
       s.finalizedAt,
-      s.finalizedByUserId
+      s.finalizedByUserId,
+      s.publishedAt,
+      s.slotId,
+      s.surfaceId,
+      s.scheduleRunId,
+      s.lockedAt,
+      s.lockedByUserId,
+      s.source
     );
   }
 
@@ -227,17 +271,108 @@ export class Game extends AggregateRoot<GameId> {
     this._touch();
   }
 
-  finalize(byUserId: string): void {
+  /**
+   * Terminal completion. `endedIn` is stored in metadata so standings can
+   * tell an overtime or shootout loss from a regulation loss; null when
+   * not recorded (ties may leave it blank).
+   */
+  finalize(byUserId: string, endedIn: GameEnding | null = null): void {
     if (!canTransitionGame(this._status, "completed")) {
       throw new DomainError(
         "INVALID_GAME_TRANSITION",
-        `Cannot finalize from ${this._status}`
+        this._status === "completed"
+          ? "This game is already final."
+          : `Only a game in play can be finalized. This game is ${this._status.replace(/_/g, " ")}.`
       );
     }
     this._status = "completed";
     this._finalizedAt = new Date();
     this._finalizedByUserId = byUserId;
+    this._metadata = { ...this._metadata, endedIn };
     this._touch();
+  }
+
+  /**
+   * Show a hand-made game on team schedules. Generated games are
+   * published with their schedule run (scheduler-publish), never one by
+   * one, so the engine's draft set stays whole.
+   * Returns false when the game was already published (idempotent).
+   */
+  publish(at: Date = new Date()): boolean {
+    if (this._scheduleRunId) {
+      throw new DomainError(
+        "GAME_PUBLISHED_WITH_SCHEDULE",
+        "This game belongs to a generated schedule. Publish the schedule from Scheduling."
+      );
+    }
+    if (this._status === "cancelled") {
+      throw new DomainError("GAME_TERMINAL", "A cancelled game cannot be published.");
+    }
+    if (this._publishedAt) return false;
+    this._publishedAt = at;
+    this._touch();
+    return true;
+  }
+
+  /**
+   * Manual override of time and/or rink (UC-07, SCH-6). Only a game that
+   * has not started can move; a postponed game moved to a new time is
+   * scheduled again. The game leaves its ice slot (the caller frees the
+   * slot) and is pinned so the scheduler engine never moves it back.
+   */
+  moveTo(input: {
+    startTsUtc: Date;
+    tz: string;
+    venueName: string | null;
+    surfaceLabel: string | null;
+    surfaceId: string | null;
+    byUserId: string;
+    reason: string | null;
+    overriddenConflicts: string[];
+  }): RescheduleRecord {
+    if (this._status !== "scheduled" && this._status !== "postponed") {
+      throw new DomainError(
+        "GAME_NOT_MOVABLE",
+        `Only a scheduled or postponed game can be moved. This game is ${this._status.replace(/_/g, " ")}.`
+      );
+    }
+    const now = new Date();
+    const record: RescheduleRecord = {
+      at: now.toISOString(),
+      byUserId: input.byUserId,
+      from: {
+        startTsUtc: this._scheduledStartTsUtc.toISOString(),
+        venueName: this._venueName,
+        surfaceLabel: this._surfaceLabel,
+        surfaceId: this._surfaceId
+      },
+      to: {
+        startTsUtc: input.startTsUtc.toISOString(),
+        venueName: input.venueName,
+        surfaceLabel: input.surfaceLabel,
+        surfaceId: input.surfaceId
+      },
+      reason: input.reason,
+      overriddenConflicts: input.overriddenConflicts
+    };
+    const history = Array.isArray(this._metadata.reschedules)
+      ? (this._metadata.reschedules as RescheduleRecord[])
+      : [];
+    this._metadata = { ...this._metadata, reschedules: [...history, record] };
+    this._scheduledStartTsUtc = input.startTsUtc;
+    this._tz = input.tz;
+    this._venueName = input.venueName;
+    this._surfaceLabel = input.surfaceLabel;
+    this._surfaceId = input.surfaceId;
+    this._slotId = null;
+    if (this._status === "postponed") this._status = "scheduled";
+    if (this._scheduleRunId) this._source = "manual_override";
+    if (!this._lockedAt) {
+      this._lockedAt = now;
+      this._lockedByUserId = input.byUserId;
+    }
+    this._touch();
+    return record;
   }
 
   private _touch(): void {
@@ -266,6 +401,14 @@ export class Game extends AggregateRoot<GameId> {
   get updatedAt(): Date { return this._updatedAt; }
   get finalizedAt(): Date | null { return this._finalizedAt; }
   get finalizedByUserId(): string | null { return this._finalizedByUserId; }
+  get publishedAt(): Date | null { return this._publishedAt; }
+  get slotId(): string | null { return this._slotId; }
+  get surfaceId(): string | null { return this._surfaceId; }
+  get scheduleRunId(): string | null { return this._scheduleRunId; }
+  get endedIn(): GameEnding | null {
+    const v = this._metadata.endedIn;
+    return v === "regulation" || v === "overtime" || v === "shootout" ? v : null;
+  }
 
   toSnapshot(): GameSnapshot {
     return {
@@ -289,7 +432,14 @@ export class Game extends AggregateRoot<GameId> {
       createdAt: this._createdAt,
       updatedAt: this._updatedAt,
       finalizedAt: this._finalizedAt,
-      finalizedByUserId: this._finalizedByUserId
+      finalizedByUserId: this._finalizedByUserId,
+      publishedAt: this._publishedAt,
+      slotId: this._slotId,
+      surfaceId: this._surfaceId,
+      scheduleRunId: this._scheduleRunId,
+      lockedAt: this._lockedAt,
+      lockedByUserId: this._lockedByUserId,
+      source: this._source
     };
   }
 }

@@ -7,6 +7,8 @@
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { DRIZZLE } from "../../database/database.tokens";
 import { ALLOW_SCOPED_WRITE_KEY } from "../decorators/allow-scoped-write.decorator";
 import { loadUserScope } from "../scope";
@@ -45,8 +47,11 @@ export class AuthorizedAccessGuard implements CanActivate {
       [ctx.getHandler(), ctx.getClass()]
     );
     if (!isRead && !allowScopedWrite) {
+      // Plain words for the screen (SCH-12 showed the old internal text).
+      // A handler opts scoped admins in with @AllowScopedWrite() and then
+      // does its own row-level check.
       throw new ForbiddenException(
-        "Write operations require super_admin (or a @AllowScopedWrite() handler that does its own row-level check)"
+        "Only a platform admin can make this change."
       );
     }
 
@@ -58,7 +63,29 @@ export class AuthorizedAccessGuard implements CanActivate {
     const noOrgAccess = scope.orgIds !== null && scope.orgIds.length === 0;
     const noTeamAccess = scope.teamIds !== null && scope.teamIds.length === 0;
     if (noLeagueAccess && noOrgAccess && noTeamAccess) {
-      throw new ForbiddenException("No active role assignment");
+      // Season- and game-scoped assignments (a scorekeeper for one season
+      // or one game, SCH-12) do not project into the three lists above but
+      // are still an active assignment. Handlers keep filtering rows: an
+      // empty list still means "nothing" to every scope-filtered query.
+      // Only the game-operations roles get this pass. A season-scoped
+      // captain (3 such users on production, 25 Oct 2026) stays blocked
+      // here exactly as before; captains read through their team scope.
+      const [anyAssignment] = await this.db
+        .select({ id: schema.userRoleAssignments.id })
+        .from(schema.userRoleAssignments)
+        .innerJoin(schema.roles, eq(schema.roles.id, schema.userRoleAssignments.roleId))
+        .where(
+          and(
+            eq(schema.userRoleAssignments.userId, principal.userId),
+            isNull(schema.userRoleAssignments.revokedAt),
+            inArray(schema.userRoleAssignments.scopeType, ["season", "game"]),
+            inArray(schema.roles.code, ["season_admin", "scorekeeper", "referee"])
+          )
+        )
+        .limit(1);
+      if (!anyAssignment) {
+        throw new ForbiddenException("No active role assignment");
+      }
     }
     return true;
   }

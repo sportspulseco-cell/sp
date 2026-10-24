@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
   NotFoundException,
@@ -11,7 +12,8 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
+import type { AuthPrincipal } from "@sportspulse/auth";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -19,7 +21,14 @@ import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import {
+  accessCan,
+  accessForScope,
+  requireGamePermission
+} from "../../../shared/auth/game-access";
 import {
   LeaderboardDto,
   StandingDto,
@@ -124,13 +133,52 @@ export class StatsController {
     return this.withNames(await this.forGameH.execute({ gameId }));
   }
 
+  /**
+   * Captains and players hold teams, not leagues (BUG-029). A team that is
+   * entered in one of the league's divisions, or plays a game in it, may
+   * read that league's standings (SCH-24).
+   */
+  private async teamsPlayInLeague(teamIds: string[], leagueId: string): Promise<boolean> {
+    if (teamIds.length === 0) return false;
+    const [entry] = await this.db
+      .select({ id: schema.divisionTeamEntries.id })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
+      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
+      .where(
+        and(
+          inArray(schema.divisionTeamEntries.teamId, teamIds),
+          eq(schema.seasons.leagueId, leagueId)
+        )
+      )
+      .limit(1);
+    if (entry) return true;
+    const [game] = await this.db
+      .select({ id: schema.games.id })
+      .from(schema.games)
+      .where(
+        and(
+          eq(schema.games.leagueId, leagueId),
+          or(inArray(schema.games.homeTeamId, teamIds), inArray(schema.games.awayTeamId, teamIds))
+        )
+      )
+      .limit(1);
+    return !!game;
+  }
+
   // ---------- Projection ----------
+  // Finalize runs both projections itself (SCH-17); these are the manual
+  // fallbacks, open to anyone with stats.recompute on the game or league.
   @Post("games/:gameId/project")
+  @AllowScopedWrite()
   @ApiOperation({ summary: "Re-project stat lines from a game's events" })
-  project(
+  async project(
     @Param("gameId") gameId: string,
-    @Body() body: ProjectStatsBodyDto
+    @Body() body: ProjectStatsBodyDto,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ) {
+    await requireGamePermission(this.db, user.userId, scope, gameId, "stats.recompute", "rebuild stats");
     return this.projectH.execute({
       gameId,
       allowInProgress: body.allowInProgress
@@ -145,7 +193,11 @@ export class StatsController {
     @Query() q: ListStandingsQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<StandingDto[]> {
-    if (scope.leagueIds && !scope.leagueIds.includes(leagueId)) {
+    if (
+      scope.leagueIds &&
+      !scope.leagueIds.includes(leagueId) &&
+      !(await this.teamsPlayInLeague(scope.teamIds ?? [], leagueId))
+    ) {
       throw new NotFoundException(`League ${leagueId} not found`);
     }
     return this.withNames(
@@ -156,11 +208,32 @@ export class StatsController {
     );
   }
   @Post("standings/:leagueId/recompute")
+  @AllowScopedWrite()
   @ApiOperation({ summary: "Recompute standings from completed games" })
-  recompute(
+  async recompute(
     @Param("leagueId") leagueId: string,
-    @Body() body: RecomputeStandingsBodyDto
+    @Body() body: RecomputeStandingsBodyDto,
+    @CurrentUser() user: AuthPrincipal
   ) {
+    const [league] = await this.db
+      .select({ orgId: schema.leagues.orgId })
+      .from(schema.leagues)
+      .where(eq(schema.leagues.id, leagueId))
+      .limit(1);
+    if (!league) throw new NotFoundException(`League ${leagueId} not found`);
+    const access = await accessForScope(this.db, user.userId, {
+      id: "",
+      orgId: league.orgId,
+      leagueId,
+      seasonId: null,
+      divisionId: null,
+      homeTeamId: "",
+      awayTeamId: ""
+    });
+    if (!access.superAdmin && !access.covered) throw new NotFoundException(`League ${leagueId} not found`);
+    if (!accessCan(access, "stats.recompute")) {
+      throw new ForbiddenException("Your role cannot recompute standings. Ask your league admin.");
+    }
     return this.recomputeH.execute({ leagueId, ...body });
   }
 

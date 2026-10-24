@@ -365,15 +365,55 @@ test.describe("J10 schedule generate and publish", () => {
     await expect.soft(page.getByRole("link", { name: /Wolves|Skaters/ }).first()).toBeVisible();
     await shot(page, "05-manual-game");
 
-    // UC-07: move time / rink on the game detail page.
+    // SCH-7: "Show on team schedules now" is on by default, so the game is
+    // published at creation and both teams are queued a notice.
+    expect(g[0]?.published_at, "SCH-7 manual game published at creation").not.toBeNull();
+    const scheduledNotices = await stagingSql<{ n: number }>(
+      `select count(*)::int n from notifications where idempotency_key like $1 and recipient_person_id is not null`,
+      [`game.scheduled:${gameId}%`]
+    );
+    expect(scheduledNotices[0]?.n ?? 0, "SCH-7 game.scheduled notices queued per person").toBeGreaterThan(0);
+
+    // UC-07 / SCH-6: move the game one hour later on the game detail page.
     await page.goto(`${app}/games/${gameId}`);
     await page.waitForLoadState("networkidle").catch(() => {});
-    const reschedule = page.getByRole("button", { name: /reschedule|edit|move|change time/i });
-    expect.soft(await reschedule.count(), "SCH-6 admin can change a game's time/rink (UC-07)").toBeGreaterThan(0);
-    // UC-08: publish this game.
-    const publish = page.getByRole("button", { name: /publish/i });
-    expect.soft(await publish.count(), "SCH-7 manual game can be published").toBeGreaterThan(0);
     await shot(page, "05-game-detail");
+    await page.getByRole("button", { name: /^Reschedule$/ }).click();
+    const mv = page.getByRole("dialog");
+    const startInput = mv.getByLabel("Date and time");
+    const current = await startInput.inputValue();
+    const later = `${current.slice(0, 11)}${String((Number(current.slice(11, 13)) + 1) % 24).padStart(2, "0")}${current.slice(13)}`;
+    await startInput.fill(later);
+    const moveResp = page.waitForResponse((r) => r.url().includes(`/games/${gameId}/reschedule`) && r.request().method() === "POST", { timeout: 30_000 });
+    const previewResp = page.waitForResponse((r) => r.url().includes(`/games/${gameId}/reschedule-preview`), { timeout: 30_000 });
+    await mv.getByRole("button", { name: /^Move game$/ }).click();
+    await previewResp;
+    // Staging is shared: if another run already booked Staging Skaters at
+    // that hour, the dialog lists the clash; override it with a reason the
+    // way an admin would (UC-07 force override).
+    if (await mv.getByText(/This move clashes/).isVisible().catch(() => false)) {
+      console.log(`[J10] reschedule clash: ${(await mv.innerText()).replace(/\s+/g, " ").slice(0, 300)}`);
+      await mv.getByLabel("Reason").fill(`${RUN_TAG} J10 override`);
+      await mv.getByRole("button", { name: /^Move anyway$/ }).click();
+    }
+    const mr = await moveResp;
+    expect(mr.status(), "SCH-6 reschedule accepted").toBeLessThan(400);
+    await expect(mv).toBeHidden({ timeout: 20_000 });
+    // Same-screen refresh: the move shows without a reload.
+    await expect(page.getByText(/Moved from/).first(), "SCH-6 game page shows the move").toBeVisible({ timeout: 20_000 });
+    const moved = await stagingSql<{ start: string; locked_at: string | null; moves: number }>(
+      `select scheduled_start_ts_utc as start, locked_at, jsonb_array_length(coalesce(metadata->'reschedules','[]'::jsonb))::int moves from games where id = $1`,
+      [gameId]
+    );
+    console.log(`[J10] after reschedule: ${JSON.stringify(moved[0])}`);
+    expect(moved[0]?.moves, "SCH-6 move recorded on the game").toBe(1);
+    expect(moved[0]?.locked_at, "SCH-6 moved game pinned against the scheduler").toBeTruthy();
+    const movedNotices = await stagingSql<{ n: number }>(
+      `select count(*)::int n from notifications where idempotency_key like $1`,
+      [`game.rescheduled:${gameId}%`]
+    );
+    expect(movedNotices[0]?.n ?? 0, "SCH-6 game.rescheduled notices queued").toBeGreaterThan(0);
+    await shot(page, "05-game-rescheduled");
   });
 
   await test.step("6 · captain and player see the scheduled game (UC-08 destination)", async () => {
@@ -386,8 +426,8 @@ test.describe("J10 schedule generate and publish", () => {
     await cap.page.waitForLoadState("networkidle").catch(() => {});
     const capText = await cap.page.locator("main").innerText();
     await cap.page.screenshot({ path: `${OUTPUT_DIR}/j10/06-captain-schedule.png`, fullPage: true });
-    expect.soft(capText, "SCH-7 captain /schedule lists the game vs the new team").toContain(RUN_TAG);
-    // The captain's lineups page lists unpublished games (inconsistent with /schedule).
+    expect(capText, "SCH-7 captain /schedule lists the game vs the new team").toContain(RUN_TAG);
+    // Lineups and schedule now read the same server rule (drafts never reach captains).
     await cap.page.goto(`${cap.app}/lineups`);
     const lineupsText = await cap.page.locator("main").innerText();
     console.log(`[J10] captain /lineups contains game: ${lineupsText.includes(RUN_TAG) || lineupsText.includes("Wolves")}`);
@@ -400,7 +440,7 @@ test.describe("J10 schedule generate and publish", () => {
     await pl.page.waitForLoadState("networkidle").catch(() => {});
     const plText = await pl.page.locator("main").innerText();
     await pl.page.screenshot({ path: `${OUTPUT_DIR}/j10/06-player-schedule.png`, fullPage: true });
-    expect.soft(plText, "SCH-7 player /schedule lists the game").toContain(RUN_TAG);
+    expect(plText, "SCH-7 player /schedule lists the game").toContain(RUN_TAG);
     // iCal export exists on player schedule (download only, no subscribe URL).
     const ical = pl.page.getByRole("button", { name: /calendar|ical|\.ics/i });
     console.log(`[J10] player iCal buttons: ${await ical.count()}`);

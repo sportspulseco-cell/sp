@@ -169,7 +169,19 @@ async function main() {
         // so league_admins can drive the scheduler subsystem within
         // their league — without this the league_admin can't even
         // run a fairness report.
-        permissions: ["league.*", "division.*", "team.read", "scheduler.*"]
+        // game.* / game_event.* / score.*: league admins run game day
+        // (SCH-12). The seed inserts with onConflictDoNothing, so existing
+        // databases keep their old row; the API reads system-role
+        // permissions from the kernel catalogue, not this copy.
+        permissions: [
+          "league.*",
+          "division.*",
+          "team.read",
+          "scheduler.*",
+          "game.*",
+          "game_event.*",
+          "score.*"
+        ]
       },
       {
         orgId: null,
@@ -230,7 +242,15 @@ async function main() {
         name: "Referee / Official",
         description: "Officiates assigned games. Logs events + cards.",
         isSystem: true,
-        permissions: ["game.read", "game_event.write", "suspension.issue"]
+        // Must mirror SYSTEM_ROLES.referee in packages/kernel/src/permissions.ts.
+        permissions: [
+          "game.read",
+          "game.start",
+          "game_event.write",
+          "score.write",
+          "game.finalize",
+          "suspension.issue"
+        ]
       },
       {
         orgId: null,
@@ -238,7 +258,14 @@ async function main() {
         name: "Scorekeeper",
         description: "Operates the scoresheet for assigned games.",
         isSystem: true,
-        permissions: ["game.read", "game_event.write", "score.write"]
+        // Must mirror SYSTEM_ROLES.scorekeeper in packages/kernel/src/permissions.ts.
+        permissions: [
+          "game.read",
+          "game.start",
+          "game_event.write",
+          "score.write",
+          "game.finalize"
+        ]
       },
       {
         orgId: null,

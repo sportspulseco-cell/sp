@@ -10,9 +10,12 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
+  MaxLength,
   Min
 } from "class-validator";
+import { GAME_ENDINGS } from "@sportspulse/kernel";
 import { Transform } from "class-transformer";
 import {
   GAME_STATUSES,
@@ -33,6 +36,44 @@ export class CreateGameBodyDto {
   durationMin?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() venueName?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() surfaceLabel?: string | null;
+  /**
+   * Show the game on team schedules now (SCH-7). Omitted or false keeps
+   * it as a draft that only admins and officials see until Publish.
+   */
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() publish?: boolean;
+}
+
+export class FinalizeGameBodyDto {
+  /**
+   * How the game ended. Required when the score is not tied, so
+   * standings can tell an overtime or shootout loss from a regulation
+   * loss (kernel checkFinalResult).
+   */
+  @ApiPropertyOptional({ enum: GAME_ENDINGS })
+  @IsOptional()
+  @IsIn(GAME_ENDINGS as unknown as string[])
+  endedIn?: (typeof GAME_ENDINGS)[number];
+}
+
+export class RescheduleGameBodyDto {
+  /** New start as rink-local wall time "YYYY-MM-DDTHH:MM". Omit to keep the time. */
+  @ApiPropertyOptional({ example: "2026-11-07T20:00" })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, { message: "startLocal must look like 2026-11-07T20:00" })
+  startLocal?: string;
+  /** Rink (surface) to move to. Omit to keep the rink. */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() surfaceId?: string;
+  /** Apply even when the move clashes with another game; needs a reason. */
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() force?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) reason?: string;
+}
+
+export class ReschedulePreviewQueryDto {
+  @ApiPropertyOptional({ example: "2026-11-07T20:00" })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, { message: "startLocal must look like 2026-11-07T20:00" })
+  startLocal?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() surfaceId?: string;
 }
 
 export class ApplyScoreBodyDto {
@@ -81,7 +122,7 @@ export class AppendEventBodyDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() teamId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() primaryPersonId?: string;
   @ApiPropertyOptional({ type: [String] })
-  @IsOptional() @IsArray() secondaryPersonIds?: string[];
+  @IsOptional() @IsArray() @IsUUID("all", { each: true }) secondaryPersonIds?: string[];
   @ApiPropertyOptional() @IsOptional() @IsObject() attributes?: Record<string, unknown>;
   @ApiPropertyOptional() @IsOptional() @IsString() idempotencyKey?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() correctionOfEventId?: string;
