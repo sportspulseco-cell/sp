@@ -93,8 +93,11 @@ function InvoiceRow({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-mono text-[11px] text-fg-muted">
-            {invoice.id.slice(0, 8)}
+          <p className="text-[13px] font-medium text-fg">
+            {invoice.invoiceNumber || "Invoice"}
+            {invoice.recipientEmail ? (
+              <span className="ml-2 text-[12px] font-normal text-fg-muted">{invoice.recipientEmail}</span>
+            ) : null}
           </p>
           <p className="text-[12px] text-fg-muted">
             {fmt(invoice.totalCents, invoice.currency)} total ·{" "}
