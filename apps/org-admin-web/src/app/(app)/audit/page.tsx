@@ -45,8 +45,8 @@ export default async function AuditPage() {
   return (
     <div className="space-y-12">
       <PageHeader
-        eyebrow="Audit"
-        title="Audit log"
+        eyebrow="History"
+        title="Activity log"
         description="Who changed what in your organisation, and when. Read-only."
       />
 

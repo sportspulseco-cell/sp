@@ -52,7 +52,7 @@ export default async function FormsPage() {
   return (
     <div className="space-y-12">
       <PageHeader
-        eyebrow="Forms"
+        eyebrow="Registration"
         title="Registration forms"
         description="Forms bound to your org's seasons. Each form drives a chunk of the public registration funnel — questions, waivers, pricing tiers, and email templates."
         action={

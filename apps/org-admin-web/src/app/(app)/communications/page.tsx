@@ -67,8 +67,8 @@ export default async function CommunicationsPage() {
   return (
     <div className="space-y-12">
       <PageHeader
-        eyebrow="Communications"
-        title="Notification outbox"
+        eyebrow="Messages"
+        title="Messages"
         description="Every notification the platform has queued for this org. Compose ad-hoc broadcasts to your audience here too."
         action={
           <Link

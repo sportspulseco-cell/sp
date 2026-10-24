@@ -36,8 +36,8 @@ export default function OrgAdminVenuesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="venues"
-        title="Venues, surfaces, ice slots"
+        eyebrow="Schedule"
+        title="Rinks & ice time"
         description="The rinks and ice slots the schedule uses. Add a rink, then its surfaces, then single slots or a weekly pattern."
       />
       <VenuesPage api={api} loadSeasons={loadSeasons} orgId={activeOrgId} ownableOrgs={orgs} />

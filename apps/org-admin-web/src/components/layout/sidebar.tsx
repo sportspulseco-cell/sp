@@ -42,15 +42,15 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const OPERATIONS_NAV: NavItem[] = [
-  { href: "/venues", label: "Venues", icon: Building2 },
+  { href: "/venues", label: "Rinks & ice time", icon: Building2 },
   { href: "/registrations", label: "Registrations", icon: ScrollText },
-  { href: "/forms", label: "Forms", icon: FileSignature },
+  { href: "/forms", label: "Registration forms", icon: FileSignature },
   { href: "/finance", label: "Finance", icon: Wallet },
-  { href: "/disputes", label: "Disputes", icon: Gavel },
-  { href: "/communications", label: "Communications", icon: Mail }
+  { href: "/disputes", label: "Refund disputes", icon: Gavel },
+  { href: "/communications", label: "Messages", icon: Mail }
 ];
 const RECORDS_NAV: NavItem[] = [
-  { href: "/audit", label: "Audit", icon: FileBarChart }
+  { href: "/audit", label: "Activity log", icon: FileBarChart }
 ];
 
 export function Sidebar() {

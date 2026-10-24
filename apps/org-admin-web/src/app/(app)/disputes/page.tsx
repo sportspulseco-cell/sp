@@ -32,7 +32,7 @@ export default async function DisputesPage({
   if (!orgId) {
     return (
       <div className="space-y-12">
-        <PageHeader eyebrow="Disputes" title="Disputes" />
+        <PageHeader eyebrow="Payments" title="Refund disputes" />
         <EmptyState
           icon={Gavel}
           title="No org in scope"
