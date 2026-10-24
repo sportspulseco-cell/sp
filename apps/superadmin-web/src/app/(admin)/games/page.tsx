@@ -110,15 +110,29 @@ export default async function GamesPage({
     return true;
   });
 
-  // Options by name. Divisions follow the chosen season when one is set.
+  // Options by name, only for leagues / seasons / divisions that have
+  // games (a picker of 70 empty seasons is noise). The selected value is
+  // always kept so a deep link still shows what it filtered on.
+  // Divisions follow the chosen season when one is set.
+  const gameDivisionIds = new Set(gamesPage.items.map((g) => g.divisionId).filter(Boolean));
+  const gameSeasonIds = new Set(
+    divisionsPage.items.filter((d) => gameDivisionIds.has(d.id)).map((d) => d.seasonId)
+  );
+  const gameLeagueIds = new Set(gamesPage.items.map((g) => g.leagueId));
+  // The API already narrowed games by league/division; then the loaded
+  // games no longer tell which other options have games, so keep all.
+  const narrowedByServer = !!leagueId || !!sp.divisionId;
   const leagueOptions = leaguesPage.items
+    .filter((l) => narrowedByServer || gameLeagueIds.has(l.id) || l.id === leagueId)
     .map((l) => ({ value: l.id, label: l.name }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const seasonOptions = seasonsPage.items
+    .filter((s) => narrowedByServer || gameSeasonIds.has(s.id) || s.id === sp.seasonId)
     .filter((s) => !leagueId || s.leagueId === leagueId)
     .sort((a, b) => b.startDate.localeCompare(a.startDate))
     .map((s) => ({ value: s.id, label: `${s.name} · ${leagueMap.get(s.leagueId) ?? "Unknown league"}` }));
   const divisionOptions = divisionsPage.items
+    .filter((d) => narrowedByServer || gameDivisionIds.has(d.id) || d.id === sp.divisionId)
     .filter((d) => (sp.seasonId ? d.seasonId === sp.seasonId : true))
     .filter((d) => (leagueId ? seasonMap.get(d.seasonId)?.leagueId === leagueId : true))
     .map((d) => ({
