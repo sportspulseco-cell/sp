@@ -89,6 +89,8 @@ export class SetRoleProfileHandler {
       const set: Partial<typeof schema.persons.$inferInsert> = {};
       if (typeof data.dob === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.dob)) set.dobDate = data.dob;
       if (typeof data.gender === "string" && data.gender.trim()) set.genderSelfId = data.gender.trim();
+      // Rosters and player pages read the photo from the person record.
+      if (typeof data.photoUrl === "string" && /^https:\/\//.test(data.photoUrl)) set.photoUrl = data.photoUrl;
       if (Object.keys(set).length > 0) {
         const rows = await this.db
           .update(schema.persons)

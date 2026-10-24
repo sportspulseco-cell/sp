@@ -6,6 +6,7 @@ import {
   type FormDefinition,
   type FormQuestion
 } from "@sportspulse/kernel";
+import { useState } from "react";
 import { Field, Input, Select } from "@sportspulse/ui";
 
 /**
@@ -28,13 +29,19 @@ export function FormRenderer({
   definition,
   initialAnswers,
   onChange,
-  disabled = false
+  disabled = false,
+  uploadFile
 }: {
   definition: FormDefinition;
   initialAnswers?: AnswerMap;
   onChange?: (answers: AnswerMap) => void;
   /** Read-only preview mode (used by the admin builder). */
   disabled?: boolean;
+  /**
+   * Stores a chosen file and resolves with its URL. When absent, file
+   * questions keep only the file name (forms without storage).
+   */
+  uploadFile?: (file: File) => Promise<string>;
 }) {
   const answers = initialAnswers ?? {};
   const visible = visibleQuestions(definition, answers);
@@ -61,6 +68,7 @@ export function FormRenderer({
           value={answers[q.key]}
           onChange={(v) => setAnswer(q.key, v)}
           disabled={disabled}
+          uploadFile={uploadFile}
         />
       ))}
     </div>
@@ -71,12 +79,14 @@ function QuestionField({
   q,
   value,
   onChange,
-  disabled
+  disabled,
+  uploadFile
 }: {
   q: FormQuestion;
   value: unknown;
   onChange: (next: unknown) => void;
   disabled: boolean;
+  uploadFile?: (file: File) => Promise<string>;
 }) {
   const label = q.required ? `${q.label} *` : q.label;
 
@@ -163,6 +173,18 @@ function QuestionField({
       );
     }
     case "file_upload":
+      if (uploadFile) {
+        return (
+          <UploadField
+            label={label}
+            hint={q.helpText}
+            value={typeof value === "string" ? value : null}
+            disabled={disabled}
+            upload={uploadFile}
+            onChange={onChange}
+          />
+        );
+      }
       return (
         <Field label={label} hint={q.helpText ?? "PDF, JPG, PNG. Max 5 MB."}>
           <input
@@ -205,4 +227,64 @@ function typeFor(t: FormQuestion["type"]): string {
     default:
       return "text";
   }
+}
+
+/**
+ * File question with real storage: uploads on pick, shows the stored
+ * image (or a link), and keeps the URL as the answer. Errors stay next
+ * to the field; the previous value is kept when an upload fails.
+ */
+function UploadField({
+  label,
+  hint,
+  value,
+  disabled,
+  upload,
+  onChange
+}: {
+  label: string;
+  hint?: string;
+  value: string | null;
+  disabled: boolean;
+  upload: (file: File) => Promise<string>;
+  onChange: (next: unknown) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isUrl = !!value && /^https?:\/\//.test(value);
+  return (
+    <Field label={label} hint={hint}>
+      <div className="flex items-center gap-3">
+        {isUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value!} alt="" className="h-12 w-12 rounded-full border border-border object-cover" />
+        ) : null}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          disabled={disabled || busy}
+          aria-label={label}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            setBusy(true);
+            setError(null);
+            try {
+              onChange(await upload(file));
+            } catch (err) {
+              setError((err as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="block w-full text-[12px] text-fg-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-fg hover:file:bg-bg-elev"
+        />
+      </div>
+      {busy ? <p className="mt-1 text-[12px] text-fg-muted">Uploading…</p> : null}
+      {!busy && isUrl ? <p className="mt-1 text-[12px] text-fg-muted">Photo uploaded. Save to keep it.</p> : null}
+      {!isUrl && value ? <p className="mt-1 text-[12px] text-fg-muted">{value} (not uploaded yet; choose it again)</p> : null}
+      {error ? <p className="mt-1 text-[12px] text-rose-600 dark:text-rose-400">{error}</p> : null}
+    </Field>
+  );
 }

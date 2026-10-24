@@ -1,6 +1,7 @@
 ﻿import {
   Body,
   Controller,
+  BadRequestException,
   ForbiddenException,
   Get,
   Inject,
@@ -39,6 +40,8 @@ import { UpdateProfileBodyDto } from "./dto/update-profile.body-dto";
 import { InviteUserBodyDto } from "./dto/invite-user.body-dto";
 import { SetUserPasswordBodyDto } from "./dto/set-user-password.body-dto";
 import { SetRoleProfileBodyDto } from "./dto/set-role-profile.body-dto";
+import { UploadAvatarBodyDto } from "./dto/upload-avatar.body-dto";
+import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 
 @ApiTags("iam")
 @ApiBearerAuth()
@@ -56,7 +59,8 @@ export class IamController {
     private readonly sendRecoveryEmailH: SendRecoveryEmailHandler,
     private readonly setRoleProfile: SetRoleProfileHandler,
     private readonly getRoleProfile: GetRoleProfileHandler,
-    @Inject(DRIZZLE) private readonly db: Database
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly supabaseAdmin: SupabaseAdminService
   ) {}
 
   // -------- self --------
@@ -474,6 +478,31 @@ export class IamController {
   ): Promise<{ data: Record<string, unknown> }> {
     await this.assertSelfOrSuperAdmin(user, id);
     return this.getRoleProfile.execute({ userId: id, roleCode: code });
+  }
+
+  @Post("users/:id/avatar")
+  @ApiOperation({
+    summary:
+      "Upload a profile photo (PNG/JPG/WebP, base64, max 2 MB) and get its public URL. Self or super_admin. The caller saves the URL in the role profile."
+  })
+  async uploadAvatar(
+    @Param("id") id: string,
+    @Body() body: UploadAvatarBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<{ url: string }> {
+    await this.assertSelfOrSuperAdmin(user, id);
+    const bytes = Buffer.from(body.dataBase64, "base64");
+    if (bytes.length === 0 || bytes.length > 2 * 1024 * 1024) {
+      throw new BadRequestException("The image must be between 1 byte and 2 MB.");
+    }
+    // Trust the bytes, not the declared type.
+    const isPng = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isWebp = bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+    const actual = isPng ? "image/png" : isJpeg ? "image/jpeg" : isWebp ? "image/webp" : null;
+    if (!actual) throw new BadRequestException("That file is not a PNG, JPG or WebP image.");
+    const url = await this.supabaseAdmin.uploadAvatar({ userId: id, contentType: actual, bytes });
+    return { url };
   }
 
   @Patch("users/:id/role-profile")

@@ -47,7 +47,8 @@ export function RoleProfileDialog({
     {
       getRoleProfile: (id, code) => iam.getRoleProfile(id, code),
       getRoleProfileForm: (code) => iam.getRoleProfileForm(code),
-      setRoleProfile: (id, body) => iam.setRoleProfile(id, body)
+      setRoleProfile: (id, body) => iam.setRoleProfile(id, body),
+      uploadImage: (id, body) => iam.uploadAvatar(id, body)
     },
     userId,
     userType || null,

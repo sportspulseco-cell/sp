@@ -18,7 +18,9 @@ const transport = {
   getRoleProfile: (id: string, code: string) => iam.getRoleProfile(id, code),
   getRoleProfileForm: (code: string) => iam.getRoleProfileForm(code),
   setRoleProfile: (id: string, body: Parameters<typeof iam.setRoleProfile>[1]) =>
-    iam.setRoleProfile(id, body)
+    iam.setRoleProfile(id, body),
+  uploadImage: (id: string, body: { contentType: string; dataBase64: string }) =>
+    iam.uploadAvatar(id, body)
 };
 
 /**

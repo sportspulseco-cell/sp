@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 
 /**
  * Wraps Supabase's service-role admin client. The client is created lazily
@@ -27,6 +28,43 @@ export class SupabaseAdminService {
       auth: { autoRefreshToken: false, persistSession: false }
     });
     return this.client;
+  }
+
+  /**
+   * Store a profile image in the public `avatars` bucket (created on
+   * first use) under a random name, and return its public URL. Avatars
+   * are shown on rosters and player pages, so they are public by design;
+   * the random path keeps them from being listed or guessed.
+   */
+  async uploadAvatar(input: {
+    userId: string;
+    contentType: "image/png" | "image/jpeg" | "image/webp";
+    bytes: Buffer;
+  }): Promise<string> {
+    const storage = this.get().storage;
+    const bucket = "avatars";
+    const { data: existing } = await storage.getBucket(bucket);
+    if (!existing) {
+      const { error } = await storage.createBucket(bucket, {
+        public: true,
+        fileSizeLimit: 2 * 1024 * 1024,
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp"]
+      });
+      if (error && !/already exists/i.test(error.message)) {
+        throw new Error(`Could not create the avatars bucket: ${error.message}`);
+      }
+      this.log.log("Created storage bucket avatars");
+    }
+    const ext = input.contentType === "image/png" ? "png" : input.contentType === "image/webp" ? "webp" : "jpg";
+    const path = `${input.userId}/${randomUUID()}.${ext}`;
+    const { error } = await storage.from(bucket).upload(path, input.bytes, {
+      contentType: input.contentType,
+      upsert: false
+    });
+    if (error) throw new Error(`Could not store the image: ${error.message}`);
+    const url = storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    this.log.log(`avatar stored user=${input.userId} bytes=${input.bytes.length} path=${path}`);
+    return url;
   }
 
   /**

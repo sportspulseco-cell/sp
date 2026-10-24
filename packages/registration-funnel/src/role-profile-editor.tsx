@@ -31,6 +31,38 @@ export interface RoleProfileTransport {
     schema: Record<string, unknown> | null;
   }>;
   setRoleProfile: (userId: string, body: { roleCode: string; data: AnswerMap }) => Promise<unknown>;
+  /** Stores a profile image; resolves with its public URL. Optional. */
+  uploadImage?: (
+    userId: string,
+    body: { contentType: string; dataBase64: string }
+  ) => Promise<{ url: string }>;
+}
+
+/**
+ * Shrinks a chosen photo to an avatar (longest side 400 px, JPEG) in the
+ * browser, so the upload is small and fast whatever the camera made.
+ */
+async function toAvatar(file: File): Promise<{ contentType: string; dataBase64: string }> {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error("Choose a PNG, JPG or WebP image.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("That image is over 10 MB. Choose a smaller one.");
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("That file could not be read as an image."));
+      el.src = url;
+    });
+    const scale = Math.min(1, 400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    return { contentType: "image/jpeg", dataBase64: dataUrl.slice(dataUrl.indexOf(",") + 1) };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export interface LoadedRoleProfile {
@@ -72,6 +104,8 @@ export interface RoleProfileState {
   hasFields: boolean;
   /** Validates, then saves; throws with the first problem if invalid. */
   save: () => Promise<void>;
+  /** Uploads a profile image when the transport supports it. */
+  uploadFile?: (file: File) => Promise<string>;
 }
 
 /** Load / edit / validate / save one user's profile for one role. */
@@ -131,7 +165,10 @@ export function useRoleProfile(
     setAnswers,
     errors,
     hasFields: definition.questions.length > 0,
-    save
+    save,
+    uploadFile: api.uploadImage
+      ? async (file: File) => (await api.uploadImage!(userId, await toAvatar(file))).url
+      : undefined
   };
 }
 
@@ -170,6 +207,7 @@ export function RoleProfileFields({
         definition={state.definition}
         initialAnswers={state.answers}
         onChange={state.setAnswers}
+        uploadFile={state.uploadFile}
       />
       {showErrors && problems.length > 0 ? (
         <Alert tone="error">

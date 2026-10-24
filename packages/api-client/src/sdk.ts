@@ -196,6 +196,12 @@ export function createApi(f: Fetcher) {
           method: "PATCH",
           body: JSON.stringify(body)
         }),
+      /** Store a profile photo (self or super admin); returns its public URL. */
+      uploadAvatar: (id: string, body: { contentType: string; dataBase64: string }) =>
+        f<{ url: string }>(`/iam/users/${id}/avatar`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       /**
        * Resolve the role-profile FormDefinition for a given role.
        * Returns `source: 'admin'` with the admin-configured schema if

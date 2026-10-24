@@ -10,7 +10,13 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, NotFoundException } from "@nestjs/common";
+import type { AuthPrincipal } from "@sportspulse/auth";
+import type { Database } from "@sportspulse/db";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
@@ -51,7 +57,8 @@ export class OrgsController {
     private readonly updateH: UpdateOrgHandler,
     private readonly suspendH: SuspendOrgHandler,
     private readonly reactivateH: ReactivateOrgHandler,
-    private readonly archiveH: ArchiveOrgHandler
+    private readonly archiveH: ArchiveOrgHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   @Get() @ApiOperation({ summary: "List organizations (scope-filtered)" })
@@ -83,17 +90,24 @@ export class OrgsController {
   create(@Body() body: CreateOrgBodyDto): Promise<OrgDto> {
     return this.createH.execute(body);
   }
-  @Patch(":id") @ApiOperation({ summary: "Update an organization" })
+  @Patch(":id") @ApiOperation({ summary: "Update an organization (super_admin, or org_admin of this org)" })
+  @AllowScopedWrite()
   async update(
     @Param("id") id: string,
     @Body() body: UpdateOrgBodyDto,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<OrgDto> {
-    // org_admin can edit their own org's display fields; everyone
-    // else needs super_admin.
+    // An org admin edits their own org. Scope alone is not enough: a
+    // captain or league admin also reaches the org through their team or
+    // league. Without @AllowScopedWrite the class guard refused every
+    // org admin before this check ran.
     if (!scope.isSuperAdmin) {
-      if (scope.orgIds === null || !scope.orgIds.includes(id)) {
-        throw new ForbiddenException("Cannot edit this org");
+      if (scope.orgIds !== null && !scope.orgIds.includes(id)) {
+        throw new NotFoundException(`Org ${id} not found`);
+      }
+      if (!(await userHasOrgAdminOnOrg(this.db, user.userId, id))) {
+        throw new ForbiddenException("Only this organisation's org admins can edit it.");
       }
     }
     return this.updateH.execute({ id, ...body });

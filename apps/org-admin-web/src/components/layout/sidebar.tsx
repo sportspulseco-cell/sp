@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Building,
   Building2,
   CalendarClock,
   CalendarRange,
@@ -31,6 +32,7 @@ interface NavItem {
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/organization", label: "Organisation", icon: Building },
   { href: "/org-setup", label: "Org setup", icon: Wand2 },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/seasons", label: "Seasons", icon: CalendarRange },
