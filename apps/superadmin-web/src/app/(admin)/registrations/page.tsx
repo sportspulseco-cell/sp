@@ -152,14 +152,14 @@ export default async function RegistrationsPage() {
             <span>queue</span>
           </div>
 
-          <h1 className="mt-5 max-w-[18ch] text-balance font-sans text-[clamp(40px,7vw,96px)] font-semibold leading-[0.92] tracking-tighter text-fg">
-            Every registration, in flight.
+          <h1 className="mt-5 max-w-[18ch] text-balance font-sans text-[clamp(36px,5vw,64px)] font-semibold leading-[0.96] tracking-tighter text-fg">
+            Registrations
           </h1>
 
           <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
-            Player and team submissions across every org. Live throughput
-            on the right; the review queue below; the wizard your players
-            see is rendered inline at the bottom.
+            Player and team registrations for every season. Review the queue
+            below: approve, ask for changes, or reject with a reason. Further
+            down you can see the form exactly as players see it.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-2.5">

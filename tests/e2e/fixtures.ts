@@ -67,7 +67,7 @@ export const ROUTES = {
     { path: "/divisions", anchor: /Divisions/i },
     { path: "/teams", anchor: /Teams/i },
     { path: "/rosters", anchor: /Rosters/i },
-    { path: "/registrations", anchor: /Every registration, in flight/i },
+    { path: "/registrations", anchor: /Registrations/i },
     { path: "/forms", anchor: /Registration forms/i },
     { path: "/finance", anchor: /Finance/i },
     { path: "/finance/ar", anchor: /^Finance$/i }
