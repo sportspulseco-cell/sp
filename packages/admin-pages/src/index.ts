@@ -17,6 +17,7 @@ export { SeasonFlow } from "./season-flow";
 export type { SeasonFlowApi, SeasonFlowLinks } from "./season-flow";
 export { SeasonStatusControl } from "./season-status-control";
 export { DivisionDetail } from "./division-detail";
+export { PlaceTeamControl } from "./divisions/place-team-control";
 export type { DivisionTeamRow } from "./division-detail";
 export { TeamDetail } from "./team-detail";
 export { AuditEventDetail } from "./audit-event-detail";

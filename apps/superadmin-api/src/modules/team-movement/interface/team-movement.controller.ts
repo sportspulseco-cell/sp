@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   Inject,
@@ -23,10 +24,16 @@ import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-w
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
+import { seasonVisible } from "../../../shared/auth/visibility";
 import { TeamMovementService, type MovementResult } from "../application/team-movement.service";
 
 class MoveBaseDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) reason?: string;
+}
+
+class PlaceBodyDto extends MoveBaseDto {
+  @ApiProperty() @IsUUID() divisionId!: string;
 }
 
 class RolloverBodyDto extends MoveBaseDto {
@@ -81,8 +88,50 @@ export class TeamMovementController {
     if (!scope.orgIds.includes(t.orgId)) throw new NotFoundException("Team not found");
   }
 
+  /**
+   * Movement writes are for admins: super admin, or an org / league /
+   * season / division admin. Team scope alone (captains, players) is not
+   * enough even when the team is in the caller's organisation.
+   */
+  private async assertAdmin(user: AuthPrincipal, scope: UserScopeType) {
+    if (scope.isSuperAdmin) return;
+    if (!(await userIsPeopleAdmin(this.db, user.userId))) {
+      throw new ForbiddenException("Only league or organisation admins can move teams.");
+    }
+  }
+
+  /** The division must sit in a season the admin may manage; 404 otherwise. */
+  private async assertDivisionInScope(divisionId: string, scope: UserScopeType) {
+    const [d] = await this.db
+      .select({ seasonId: schema.divisions.seasonId })
+      .from(schema.divisions)
+      .where(eq(schema.divisions.id, divisionId))
+      .limit(1);
+    if (!d || !(await seasonVisible(this.db, scope, d.seasonId))) {
+      throw new NotFoundException("Division not found");
+    }
+  }
+
   private actor(user: AuthPrincipal, key: string | undefined, reason?: string) {
     return { userId: user.userId, idempotencyKey: key?.trim() || null, reason: reason ?? null };
+  }
+
+  @Post(":id/place")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Admin puts a team into a division (no previous entry needed); the entry is accepted" })
+  async place(
+    @Param("id") id: string,
+    @Body() body: PlaceBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    await this.assertAdmin(user, scope);
+    await this.assertDivisionInScope(body.divisionId, scope);
+    return this.svc.placeInDivision({
+      teamId: id,
+      divisionId: body.divisionId,
+      actor: this.actor(user, undefined, body.reason)
+    });
   }
 
   @Get(":id/entries")
@@ -109,6 +158,7 @@ export class TeamMovementController {
     @UserScope() scope: UserScopeType,
     @Headers("x-idempotency-key") key?: string
   ): Promise<MovementResult> {
+    await this.assertAdmin(user, scope);
     await this.assertTeamInScope(id, scope);
     return this.svc.rollover({
       teamId: id,
@@ -129,6 +179,7 @@ export class TeamMovementController {
     @UserScope() scope: UserScopeType,
     @Headers("x-idempotency-key") key?: string
   ): Promise<MovementResult> {
+    await this.assertAdmin(user, scope);
     await this.assertTeamInScope(id, scope);
     return this.svc.divisionShift({
       teamId: id,
@@ -149,6 +200,7 @@ export class TeamMovementController {
     @UserScope() scope: UserScopeType,
     @Headers("x-idempotency-key") key?: string
   ): Promise<MovementResult> {
+    await this.assertAdmin(user, scope);
     await this.assertTeamInScope(id, scope);
     return this.svc.leagueMigration({
       teamId: id,

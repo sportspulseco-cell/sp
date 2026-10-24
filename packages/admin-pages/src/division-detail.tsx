@@ -64,6 +64,7 @@ export function DivisionDetail({
   editHref,
   applicationsQueueHref,
   pendingApplications,
+  addTeam,
   actions,
   extras
 }: {
@@ -102,6 +103,8 @@ export function DivisionDetail({
   applicationsQueueHref?: string;
   /** Optional pending-applications card (sa-web today). */
   pendingApplications?: ReactNode;
+  /** "Add a team" control for admins (PlaceTeamControl), shown in the teams card. */
+  addTeam?: ReactNode;
   /** Header actions (edit, add a child record), injected per app. */
   actions?: ReactNode;
   /** Optional bottom slot (e.g. sa-web's role-assignments). */
@@ -343,13 +346,13 @@ export function DivisionDetail({
       {pendingApplications}
 
       <Reveal as="section" delay={0.25} className="rounded-xl border border-border bg-surface-1 p-6">
-        <Eyebrow>teams registered in this division</Eyebrow>
+        <Eyebrow>Teams in this division</Eyebrow>
         <p className="mt-1 text-[13px] text-fg-muted">
-          Captains apply via{" "}
-          <code className="font-mono">/captain/register</code>; once a
-          league/org/super admin approves the application, the team
-          shows here.
+          Captains apply from the team app (Register the team); an admin
+          approves the application and the team shows here. You can also
+          add a team yourself.
         </p>
+        {addTeam ? <div className="mt-3">{addTeam}</div> : null}
         {divisionTeams.length === 0 ? (
           <p className="mt-4 rounded-md border border-dashed border-border bg-bg-subtle px-3 py-6 text-center text-[13px] text-fg-muted">
             No approved teams yet.

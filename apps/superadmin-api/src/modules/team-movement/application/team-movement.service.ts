@@ -249,6 +249,70 @@ export class TeamMovementService {
    * closes as `moved`, a new one opens, and standings either restart at
    * 0-0-0 (`resetStandings`) or carry the played games across.
    */
+  /**
+   * An admin puts a team straight into a division (SCH-4). Captains
+   * reach a division through apply + approval; an admin needs a direct
+   * path when a team has no captain yet or registers on paper. The entry
+   * is `accepted` (admin-approved; the captain can still run roster and
+   * dues set-up). A team plays one division per season, so a live entry
+   * in another division of the same season is refused with a pointer to
+   * "Move to another division" (division shift).
+   */
+  async placeInDivision(input: {
+    teamId: string;
+    divisionId: string;
+    actor: MovementActor;
+  }): Promise<{ entryId: string; entry: EntryView | null }> {
+    const team = await this.loadTeam(input.teamId);
+    const target = await this.loadDivisionContext(input.divisionId);
+    this.assertSeasonOpenForEntries(target);
+
+    const entryId = await this.db.transaction(async (tx) => {
+      await this.lockDivisionAndAssertRoom(tx, target);
+      await this.assertNoLiveEntryIn(tx, team.id, target.division.id);
+      const [other] = await tx
+        .select({ divisionName: schema.divisions.name })
+        .from(schema.divisionTeamEntries)
+        .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
+        .where(
+          and(
+            eq(schema.divisionTeamEntries.teamId, team.id),
+            eq(schema.divisions.seasonId, target.season.id),
+            sql`${schema.divisionTeamEntries.entryStatus} NOT IN ('rejected','withdrawn','disqualified','moved')`
+          )
+        )
+        .limit(1);
+      if (other) {
+        throw new ConflictException(
+          `${team.name} already plays in ${other.divisionName} this season. Open the team and use "Move to another division" to change it.`
+        );
+      }
+      const [created] = await tx
+        .insert(schema.divisionTeamEntries)
+        .values({
+          divisionId: target.division.id,
+          teamId: team.id,
+          entryStatus: "accepted",
+          confirmationThresholdCents: team.confirmationThresholdCents,
+          collectedCents: 0,
+          metadata: {
+            placedByUserId: input.actor.userId,
+            placedAt: new Date().toISOString(),
+            ...(input.actor.reason ? { placementReason: input.actor.reason } : {})
+          }
+        })
+        .returning({ id: schema.divisionTeamEntries.id });
+      if (!created) throw new Error("division entry insert returned no row");
+      return created.id;
+    });
+
+    this.log.log(
+      `team.place team=${team.id} division=${target.division.id} season=${target.season.id} entry=${entryId} by=${input.actor.userId}`
+    );
+    const entries = await this.listEntries(team.id);
+    return { entryId, entry: entries.find((e) => e.id === entryId) ?? null };
+  }
+
   async divisionShift(input: {
     teamId: string;
     entryId: string;

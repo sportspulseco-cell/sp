@@ -1,4 +1,4 @@
-import { load } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import { DivisionDetail } from "@sportspulse/admin-pages";
@@ -6,6 +6,7 @@ import { DivisionActions } from "@/components/edit/detail-actions";
 import { adminTransfers, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { DivisionRegionControl } from "@/components/divisions/division-region-control";
+import { PlaceTeam } from "@/components/divisions/place-team";
 
 export const metadata = { title: "Division — Org Admin" };
 export const dynamic = "force-dynamic";
@@ -44,15 +45,24 @@ export default async function OrgAdminDivisionDetailPage({
   const parentSeason = await leagueMgmt
     .getSeason(division.seasonId)
     .catch(() => null);
-  const [parentOrg, divisionTeams, regions] = await Promise.all([
+  const [parentOrg, divisionTeams, regions, orgTeams] = await Promise.all([
     parentSeason
       ? orgs.get(parentSeason.orgId).catch(() => null)
       : Promise.resolve(null),
     adminTransfers.listDivisionTeams(id).catch(() => ({ items: [] })),
     parentSeason
       ? leagueMgmt.listRegions({ orgId: parentSeason.orgId }).catch(() => ({ items: [] }))
-      : Promise.resolve({ items: [] })
+      : Promise.resolve({ items: [] }),
+    parentSeason
+      ? fetchAll((cursor) => leagueMgmt.listTeams({ orgId: parentSeason.orgId, status: "active", limit: 100, cursor }))
+          .catch(() => ({ items: [], nextCursor: null }))
+      : Promise.resolve({ items: [], nextCursor: null })
   ]);
+  const inDivision = new Set(divisionTeams.items.map((t) => t.teamId));
+  const candidateTeams = orgTeams.items
+    .filter((t) => !inDivision.has(t.id))
+    .map((t) => ({ id: t.id, name: t.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Defense in depth — the API already 404s out-of-scope divisions
   // for org_admin, but verify the parent season's org matches the
@@ -70,6 +80,7 @@ export default async function OrgAdminDivisionDetailPage({
       parentOrg={parentOrg}
       // org-admin has one organisation page, not /organizations/:id (crawl 24 Oct: 404).
       orgHref="/organization"
+      addTeam={<PlaceTeam divisionId={division.id} divisionName={division.name} teams={candidateTeams} />}
       divisionTeams={divisionTeams.items}
       actions={
         <DivisionActions

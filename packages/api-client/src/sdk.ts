@@ -3347,6 +3347,12 @@ export function createApi(f: Fetcher) {
     // Team movement (PPHL item 8): rollover, division shift, league
     // migration, org move. Isolated from leagueMgmt on purpose.
     teamMovement: {
+      /** Admin puts a team into a division directly (SCH-4). */
+      place: (teamId: string, body: { divisionId: string; reason?: string }) =>
+        f<{ entryId: string; entry: TeamEntry | null }>(`/league/teams/${teamId}/place`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       entries: (teamId: string) =>
         f<{ items: TeamEntry[] }>(`/league/teams/${teamId}/entries`),
       history: (teamId: string) =>

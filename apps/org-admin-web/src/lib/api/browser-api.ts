@@ -138,3 +138,4 @@ export const orgAdminRegistrations = api.orgAdminRegistrations;
 export const registration = api.registration;
 export const registrationV2 = api.registrationV2;
 export const leagueMgmt = api.leagueMgmt;
+export const teamMovement = api.teamMovement;
