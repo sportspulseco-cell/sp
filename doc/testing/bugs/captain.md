@@ -398,3 +398,17 @@ Join requests (/captain/join-requests): Blocked. The player side ("Apply to join
 | captain-dual-role.spec.ts (existing) | Not re-run in this cluster; staging-player holds player+captain on Staging Skaters (db-row), staging-team holds captain only | |
 
 Counts (journey steps above): 19 pass (some with defects), 7 fail, 4 blocked/partial.
+
+[CAP-24] Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) · major
+
+  Journey: J8.4 → J8.5 · M10
+
+  Surface: team-admin-web /captain/roster (Add player by name) vs /captain/invites → player accepts
+
+  Repro: 1. Team has entries in two open seasons (staging: Staging 2026-27 and an E2E season). 2. Invite a player by email; player accepts (membership in Staging 2026-27). 3. Add the same player by name from /captain/roster (membership in the other season).
+
+  Expected: both surfaces work on the same, clearly shown season; adding an already-rostered player says so.
+
+  Actual: two active rows for one person on one team (captain-v3 run, memberships 097fd6bf… in Staging 2026-27 at 16:24:27 and b79561d3… in E2EMVMIKJKG Season at 16:25:01). The per-season guard in captain-roster.controller.ts (already on the active roster) cannot see it because the seasons differ.
+
+  Root cause: season selection is implicit and differs per page. Fix: one season picker shared by the captain roster/invites pages (default = the season with the team's live division entry), and the add guard should warn when the person is active in another open season of the same team.

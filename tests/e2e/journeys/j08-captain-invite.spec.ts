@@ -388,7 +388,14 @@ test("J8.5 captain adds the plain player by name; player sees the team; captain 
       where m.team_id=$1 and u.email=$2 and m.current_status='active'`,
     [TEAM_ID, PLAIN_EMAIL]
   );
-  expect(mem[0]?.n, "active membership row").toBe(1);
+  // Two active rows here are two seasons (invite accepted into the team's
+  // current season, add-by-name into the season the roster page defaulted
+  // to): CAP-24. Keep walking; the destination checks below still apply.
+  finding((mem[0]?.n ?? 0) >= 1, "CAP: no active membership after add-by-name");
+  finding(
+    (mem[0]?.n ?? 0) <= 1,
+    `CAP-24: ${mem[0]?.n} active memberships for one player on one team (roster page and invite flow default to different seasons)`
+  );
   // Destination: the player's own app shows the team.
   const pl = await signedInAs(browser, "player", { email: PLAIN_EMAIL, password: PLAIN_PASSWORD });
   await pl.page.goto(`${pl.app}/team`);
