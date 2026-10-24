@@ -1,23 +1,66 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Inject,
   NotFoundException,
   Post,
+  Req,
+  UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { IsNotEmpty, IsString, MaxLength } from "class-validator";
+import { and, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { IsIn, IsNotEmpty, IsString, IsUUID, MaxLength } from "class-validator";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { validateGoverningBodyId } from "@sportspulse/kernel";
+import {
+  REGISTRATION_DOCUMENT_KEYS,
+  validateGoverningBodyId,
+  type RegistrationDocumentKey
+} from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import {
+  RegistrationRequirementsService,
+  requestClientIp,
+  requestUserAgent,
+  type RegistrationDocumentStatus
+} from "../../registration-v2/application/registration-requirements.service";
+
+class SignMyDocumentBodyDto {
+  @IsUUID()
+  registrationId!: string;
+
+  @IsIn([...REGISTRATION_DOCUMENT_KEYS])
+  key!: RegistrationDocumentKey;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  signatureName!: string;
+}
+
+/** Registrations that no longer need documents: nothing to sign there. */
+const CLOSED_REGISTRATION_STATES = ["cancelled", "rejected", "withdrawn"];
+
+export interface MyRegistrationDocumentsDto {
+  registrationId: string;
+  seasonId: string;
+  seasonName: string;
+  orgName: string | null;
+  status: string;
+  subjectName: string;
+  /** "self": the caller is the registrant. "minor": the caller is their linked guardian. */
+  signingFor: "self" | "minor";
+  /** The name the caller types to sign; null when no name is on file. */
+  signerName: string | null;
+  documents: RegistrationDocumentStatus[];
+}
 
 class SubmitIdentityVerificationBodyDto {
   @IsString()
@@ -56,7 +99,157 @@ interface IdentityVerificationDto {
 @Controller("compliance/self")
 @UseGuards(JwtAuthGuard)
 export class SelfComplianceController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly requirements: RegistrationRequirementsService
+  ) {}
+
+  /**
+   * People the caller may sign registration documents for: their own
+   * person row(s), plus minors linked to them in family_links (not
+   * unlinked). Nothing else; an admin signs through the admin route.
+   */
+  private async signablePeople(userId: string): Promise<{
+    self: Array<{ id: string; name: string }>;
+    minorIds: string[];
+  }> {
+    const own = await this.db
+      .select({
+        id: schema.persons.id,
+        first: schema.persons.legalFirstName,
+        last: schema.persons.legalLastName
+      })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, userId));
+    const links = await this.db
+      .select({ minorPersonId: schema.familyLinks.minorPersonId })
+      .from(schema.familyLinks)
+      .where(
+        and(
+          eq(schema.familyLinks.guardianUserId, userId),
+          isNull(schema.familyLinks.unlinkedAt)
+        )
+      );
+    return {
+      self: own.map((p) => ({ id: p.id, name: `${p.first} ${p.last}`.trim() })),
+      minorIds: links.map((l) => l.minorPersonId)
+    };
+  }
+
+  @Get("documents")
+  @ApiOperation({
+    summary:
+      "Documents the caller must sign for their registrations (and their linked minors'), with signed/unsigned state. Same rule the registration funnel and the pay gate use (COMP-4, REG-5)."
+  })
+  async myDocuments(
+    @CurrentUser() principal: AuthPrincipal
+  ): Promise<{ items: MyRegistrationDocumentsDto[] }> {
+    const people = await this.signablePeople(principal.userId);
+    const subjectIds = [...people.self.map((p) => p.id), ...people.minorIds];
+    if (subjectIds.length === 0) return { items: [] };
+    const regs = await this.db
+      .select({
+        id: schema.registrations.id,
+        seasonId: schema.registrations.seasonId,
+        formVersionId: schema.registrations.formVersionId,
+        subjectPersonId: schema.registrations.subjectPersonId,
+        status: schema.registrations.status,
+        seasonName: schema.seasons.name,
+        orgName: schema.orgs.displayName,
+        first: schema.persons.legalFirstName,
+        last: schema.persons.legalLastName
+      })
+      .from(schema.registrations)
+      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.registrations.seasonId))
+      .innerJoin(schema.persons, eq(schema.persons.id, schema.registrations.subjectPersonId))
+      .leftJoin(schema.orgs, eq(schema.orgs.id, schema.registrations.orgId))
+      .where(
+        and(
+          inArray(schema.registrations.subjectPersonId, subjectIds),
+          notInArray(schema.registrations.status, CLOSED_REGISTRATION_STATES)
+        )
+      )
+      .orderBy(desc(schema.registrations.createdAt))
+      .limit(25);
+
+    const selfIds = new Set(people.self.map((p) => p.id));
+    const guardianName = people.self[0]?.name || null;
+    const items: MyRegistrationDocumentsDto[] = [];
+    for (const r of regs) {
+      const { documents } = await this.requirements.listDocuments(r);
+      const isSelf = selfIds.has(r.subjectPersonId);
+      const subjectName = `${r.first} ${r.last}`.trim();
+      items.push({
+        registrationId: r.id,
+        seasonId: r.seasonId!,
+        seasonName: r.seasonName,
+        orgName: r.orgName ?? null,
+        status: r.status,
+        subjectName,
+        signingFor: isSelf ? "self" : "minor",
+        signerName: isSelf ? subjectName || null : guardianName,
+        documents
+      });
+    }
+    return { items };
+  }
+
+  @Post("documents/sign")
+  @ApiOperation({
+    summary:
+      "Sign one required registration document (liability_waiver | code_of_conduct) for yourself, or for a minor linked to you as guardian. The typed name must match your legal name. Same writer as the funnel: one consent_signatures row per person and document text, with timestamp, IP and user agent."
+  })
+  async signMyDocument(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: SignMyDocumentBodyDto,
+    @Req() req: { ip?: string; headers?: Record<string, string | string[] | undefined> }
+  ) {
+    const [reg] = await this.db
+      .select({
+        id: schema.registrations.id,
+        seasonId: schema.registrations.seasonId,
+        formVersionId: schema.registrations.formVersionId,
+        subjectPersonId: schema.registrations.subjectPersonId,
+        status: schema.registrations.status
+      })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, body.registrationId))
+      .limit(1);
+    const people = await this.signablePeople(principal.userId);
+    const self = people.self.find((p) => p.id === reg?.subjectPersonId) ?? null;
+    const isGuardian = !!reg && people.minorIds.includes(reg.subjectPersonId);
+    // Same 404 whether the registration is missing or someone else's.
+    if (!reg || (!self && !isGuardian)) {
+      throw new NotFoundException("Registration not found");
+    }
+    if (CLOSED_REGISTRATION_STATES.includes(reg.status)) {
+      throw new ConflictException(
+        `This registration is ${reg.status}, so there is nothing to sign.`
+      );
+    }
+    const signerName = self ? self.name : people.self[0]?.name ?? "";
+    if (!signerName) {
+      throw new UnprocessableEntityException(
+        "Your account has no legal name on file. Add it to your profile, then sign."
+      );
+    }
+    const result = await this.requirements.signRequirement({
+      registration: reg,
+      key: body.key,
+      signatureName: body.signatureName,
+      expectedSignerName: signerName,
+      signedByUserId: principal.userId,
+      ipAddr: requestClientIp(req),
+      userAgent: requestUserAgent(req)
+    });
+    return {
+      signatureId: result.signatureId,
+      documentVersionId: result.documentVersionId,
+      signedAt: result.signedAt,
+      alreadySigned: !result.created,
+      documents: result.documents
+    };
+  }
 
   @Get("eligibility")
   @ApiOperation({

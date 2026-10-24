@@ -93,9 +93,13 @@ test("1 player finds /compliance from the sidebar", async () => {
   const fileInputs = await page.locator("input[type=file]").count();
   check(fileInputs > 0, "COMP-3: /compliance has no file upload for an ID or eligibility document");
 
-  // UC-27: outstanding waivers listed with a sign action.
-  const signButtons = await page.getByRole("button", { name: /sign/i }).count();
-  check(signButtons > 0, "COMP-4: /compliance lists no waivers and has no Sign action");
+  // UC-27 / COMP-4: the player's registration documents are listed, each
+  // signed or with a Sign action (staging-player has a registration).
+  await expect(page.getByRole("heading", { name: "Registration waivers" })).toBeVisible();
+  await expect(page.getByText(/Liability waiver/).first()).toBeVisible();
+  const signButtons = await page.getByRole("button", { name: /^Sign$/ }).count();
+  const allSigned = await page.getByText(/All signed/i).count();
+  expect(signButtons > 0 || allSigned > 0, "COMP-4: each waiver is signed or has a Sign action").toBe(true);
   writeFileSync(`${OUT}/01-controls.txt`, `fileInputs=${fileInputs} signButtons=${signButtons}\n\n${txt}`);
 });
 

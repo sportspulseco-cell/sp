@@ -52,6 +52,8 @@ export interface PublicSeasonContext {
     registrationClosesAt: string | null;
     rosterLockAt: string | null;
     status: string;
+    /** IANA zone the season's dates are shown in. */
+    timezone?: string;
     /**
      * Per-season toggles from the admin wizard's Divisions &
      * eligibility step. Funnel reads `allowFreeAgent` (gates the
@@ -68,6 +70,16 @@ export interface PublicSeasonContext {
    * One element → auto-pick + skip. Two+ → render the step.
    */
   divisions: PublicDivision[];
+  /**
+   * Server-computed registration window (REG-16). When `state` is not
+   * "open" the funnel shows `message` instead of the form; the API
+   * refuses create and pay the same way. Optional for older APIs.
+   */
+  registrationWindow?: {
+    state: "open" | "not_yet_open" | "closed" | "not_scheduled" | "season_closed";
+    message: string | null;
+  };
+  /** The season's published form version; null when none is published. */
   formVersionId: string | null;
   formDefinition: FormDefinition;
 }
@@ -86,4 +98,11 @@ export interface WaiverDoc {
   versionId: string;
   contentHtml: string;
   languageCode: string;
+  /** Requirement key the API signs against (REG-5). */
+  key?: "liability_waiver" | "code_of_conduct";
+  /** typed_name: scroll + type full legal name. acknowledge: one confirmation. */
+  signMode?: "typed_name" | "acknowledge";
+  /** Server state for this registrant; absent on the season preview. */
+  signed?: boolean;
+  signedAt?: string | null;
 }

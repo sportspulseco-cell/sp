@@ -113,6 +113,8 @@ test.describe.serial("J4 · player registers and pays", () => {
   let submissionId = "";
   let approvedBy = "";
   let oaQueueHeader = "";
+  /** API base the funnel itself calls, captured from its network traffic. */
+  let apiBase = "";
 
   /** Debug aid: J4_FROM=<n> resumes the previous run's player from step n. */
   const FROM = Number(process.env.J4_FROM ?? 0);
@@ -191,7 +193,22 @@ test.describe.serial("J4 · player registers and pays", () => {
     player = await ctx.newPage();
     const errs = watchErrors(player);
     (player as any).__errs = errs;
+    player.on("request", (r) => {
+      const i = r.url().indexOf("/public/registration/");
+      if (i > 0 && !apiBase) apiBase = r.url().slice(0, i);
+    });
+    // REG-16: outside the window the funnel shows the server's sentence,
+    // not the form, and the API refuses to create a registration.
+    const [win] = await stagingSql<{ open: boolean; opens: Date | null }>(
+      "select (registration_opens_at <= now() and registration_closes_at >= now()) open, registration_opens_at opens from seasons where id = $1",
+      [j3.seasonId]
+    );
     await player.goto(`${E2E_URLS.player}/register/${j3.seasonId}`);
+    if (!win?.open) {
+      await expect(player.getByRole("heading", { name: /Registration is not open yet|Registration is closed/ })).toBeVisible({ timeout: 30_000 });
+      await shot(player, "03-window-not-open");
+      test.skip(true, `BLOCKED: J3 season window is not open (opens ${win?.opens ? new Date(win.opens).toISOString() : "unset"}); the funnel shows the closed state (REG-16)`);
+    }
     await expect(player.locator("ol").first()).toBeVisible({ timeout: 30_000 });
     phases.push(`path:${await activePhase(player)}`);
     await shot(player, "03-path");
@@ -220,7 +237,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     expect(rows[0]!.status).toBe("pending_payment");
     // The registration must point at THIS form's version, not an arbitrary one.
     const [fv] = await stagingSql<{ form_id: string }>("select form_id from registration_form_versions where id = $1", [rows[0]!.form_version_id]);
-    softExpect(fv?.form_id, "registrations.form_version_id belongs to the season's form").toBe(j3.formId);
+    expect(fv?.form_id, "registrations.form_version_id belongs to the season's form (REG-8)").toBe(j3.formId);
   });
 
   test("4 · details → compliance (waivers) → payment option", async () => {
@@ -255,9 +272,23 @@ test.describe.serial("J4 · player registers and pays", () => {
     phases.push(`compliance:${await activePhase(player)}`);
     await shot(player, "04-compliance");
     const hasLiability = await player.getByText(/Type your full legal name to sign/i).first().isVisible().catch(() => false);
-    // J3 left "Require liability waiver" ON (default) and saved eligibility rules.
-    softExpect(hasLiability, "required liability waiver is presented for signature (UC-27)").toBe(true);
-    if (hasLiability) {
+    // J3 left "Require liability waiver" ON (default) with empty text and saved eligibility rules.
+    expect(hasLiability, "required liability waiver is presented for signature (UC-27, REG-5)").toBe(true);
+    await expect(player.getByText(/Still to do:.*Liability waiver/)).toBeVisible();
+    await expect(player.getByRole("button", { name: /documents to sign/ })).toBeDisabled();
+    // Server gate (REG-5): paying before signing is refused and changes nothing.
+    expect(apiBase, "API base captured from the funnel's own requests").toBeTruthy();
+    const early = await fetch(`${apiBase}/public/registration/submissions/${submissionId}/pay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, mockOutcome: "succeeded" })
+    });
+    const earlyBody = await early.text();
+    expect(early.status, `pay before signing is refused (REG-5): ${earlyBody.slice(0, 160)}`).toBe(409);
+    expect(earlyBody).toMatch(/Liability waiver/);
+    const [still] = await stagingSql<{ status: string }>("select status from registrations where id = $1", [submissionId]);
+    expect(still!.status, "registration unchanged after the refused pay (db-row)").toBe("pending_payment");
+    {
       const docs = player.locator("div.max-h-48.overflow-y-auto");
       for (let i = 0; i < (await docs.count()); i++) {
         await docs.nth(i).evaluate((el) => {
@@ -292,7 +323,8 @@ test.describe.serial("J4 · player registers and pays", () => {
     const sigs = await stagingSql("select cs.id from consent_signatures cs join registrations r on r.subject_person_id = cs.person_id where r.id = $1", [submissionId]).catch(
       async () => stagingSql("select id from consent_signatures where signed_at > now() - interval '30 minutes'")
     );
-    softExpect(sigs.length, "waiver signature stored (consent_signatures)").toBeGreaterThan(0);
+    // Liability waiver + code of conduct acknowledgment (REG-5).
+    expect(sigs.length, "waiver + code of conduct signatures stored (consent_signatures)").toBeGreaterThanOrEqual(2);
   });
 
   test("5 · pay with the payment plan; stepper order matches runtime order", async () => {

@@ -263,7 +263,8 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     phases.push(`waivers:${await activePhase(minor)}`);
     await shot(minor, "05-minor-compliance");
     const hasLiability = await minor.getByText(/Type your full legal name to sign/i).first().isVisible().catch(() => false);
-    softExpect(hasLiability, "required liability waiver presented to the minor's guardian (UC-27)").toBe(true);
+    // REG-5: the required waiver is always presented (server-resolved list).
+    expect(hasLiability, "required liability waiver presented in the minor's funnel (UC-27, REG-5)").toBe(true);
     // UC-27: for a minor the guardian signs the waiver, not the child.
     const pageText = await minor.locator("body").innerText();
     softExpect(/guardian|parent/i.test(pageText.slice(pageText.indexOf("Automated eligibility"))), "waiver step asks the guardian (not the minor) to sign").toBe(true);

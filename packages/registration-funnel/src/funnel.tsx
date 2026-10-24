@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Clock, Loader2 } from "lucide-react";
-import type { AnswerMap, FormWaiversConfig } from "@sportspulse/kernel";
+import { resolveRegistrationWaivers, type AnswerMap } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
 import { Button, Chip, Field, Input } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
+import { WaiverCard } from "./waiver-card";
 
 type Step =
   | "path"
@@ -112,10 +113,9 @@ export function RegistrationFunnel({
   const [teamName, setTeamName] = useState("");
   const [teamDivision, setTeamDivision] = useState("");
   const [teamColor, setTeamColor] = useState("#3B82F6");
-  // Phase 3 compliance toggles (mockup cards: code of conduct,
-  // photo / media release). Stored on the answers map under reserved
-  // keys at submit time.
-  const [codeOfConductAccepted, setCodeOfConductAccepted] = useState(false);
+  // Photo / media release is optional and display-only. The required
+  // documents (liability waiver, code of conduct) are signed through the
+  // API, which holds their state (REG-5).
   const [photoReleaseAccepted, setPhotoReleaseAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,10 +124,12 @@ export function RegistrationFunnel({
   // Backend-determined post-submit state. Drives the Done screen UX.
   const [submissionStatus, setSubmissionStatus] = useState<string | null>(null);
   const [isMinor, setIsMinor] = useState(false);
-  // Phase 3 — waivers + parental consent + eligibility flags.
+  // Phase 3 — required documents as the API reports them for this
+  // registration (signed state included), parental consent, eligibility.
   const [waivers, setWaivers] = useState<WaiverDoc[] | null>(null);
-  const [requiredKinds, setRequiredKinds] = useState<string[]>([]);
-  const [signedVersionIds, setSignedVersionIds] = useState<Set<string>>(new Set());
+  const [waiversError, setWaiversError] = useState<string | null>(null);
+  /** The name the API expects typed on a signature (the account name). */
+  const [signerName, setSignerName] = useState("");
   const [parentEmail, setParentEmail] = useState("");
   const [consentSent, setConsentSent] = useState(false);
   const [consentMessage, setConsentMessage] = useState<{
@@ -158,53 +160,21 @@ export function RegistrationFunnel({
   const allowFreeAgent = seasonConfig.allowFreeAgent ?? false;
   const parentalConsentRequired = seasonConfig.parentalConsentRequired ?? true;
 
-  // Per repo owner directive (2026-05-09), season.config is the
-  // canonical source for waiver toggles + body text — admins manage
-  // them on the Divisions & eligibility step. The form's
-  // `formDefinition.waivers` is kept as a secondary fallback for
-  // older drafts that pre-date the season.config columns.
-  const formWaivers: FormWaiversConfig | null = useMemo(() => {
-    const requireLiability = seasonConfig.requireLiabilityWaiver ?? null;
-    const requireCoC = seasonConfig.requireCodeOfConduct ?? null;
-    const liabilityBody = seasonConfig.liabilityWaiverContent ?? "";
-    const cocBody = seasonConfig.codeOfConductContent ?? "";
-    const seasonHasWaiverConfig =
-      requireLiability !== null ||
-      requireCoC !== null ||
-      liabilityBody.length > 0 ||
-      cocBody.length > 0;
-    if (seasonHasWaiverConfig) {
-      return {
-        liabilityWaiver: {
-          enabled: requireLiability ?? true,
-          content: liabilityBody
-        },
-        codeOfConduct: {
-          enabled: requireCoC ?? true,
-          content: cocBody
-        },
-        // Photo release isn't in season.config yet — fall through to
-        // form.waivers if present, else default off.
-        photoRelease:
-          context.formDefinition?.waivers?.photoRelease ?? {
-            enabled: false,
-            content: ""
-          }
-      };
-    }
-    return context.formDefinition?.waivers ?? null;
-  }, [
-    seasonConfig.requireLiabilityWaiver,
-    seasonConfig.requireCodeOfConduct,
-    seasonConfig.liabilityWaiverContent,
-    seasonConfig.codeOfConductContent,
-    context.formDefinition?.waivers
-  ]);
-  const hasInlineWaivers =
-    !!formWaivers &&
-    (formWaivers.liabilityWaiver.enabled ||
-      formWaivers.codeOfConduct.enabled ||
-      formWaivers.photoRelease.enabled);
+  // Which documents this season asks for: the kernel rule the API also
+  // uses (season setup, then the form, then the SportsPulse default
+  // text). The API's per-registration list is authoritative once the
+  // account step has run; this preview only decides whether the
+  // Compliance step exists before then.
+  const waiverPreview = useMemo(
+    () =>
+      resolveRegistrationWaivers(
+        context.season.config ?? {},
+        context.formDefinition?.waivers ?? null
+      ),
+    [context.season.config, context.formDefinition?.waivers]
+  );
+  const photoRelease = waiverPreview.photoRelease;
+  const hasRequiredDocs = waiverPreview.required.length > 0;
 
   const divisions = context.divisions ?? [];
   // P2-2 — show the division step only when there are 2+ divisions
@@ -234,7 +204,9 @@ export function RegistrationFunnel({
     // this season, even if DOB indicates a minor — adult-only leagues
     // (or test seasons) often turn it off.
     if (isMinor && parentalConsentRequired) out.push("consent");
-    if (hasInlineWaivers || (waivers?.length ?? 0) > 0) out.push("waivers");
+    if (hasRequiredDocs || (waivers?.length ?? 0) > 0 || photoRelease.enabled) {
+      out.push("waivers");
+    }
     if (tiers.length > 0) out.push("tier");
     out.push("review", "payment", "done");
     return out;
@@ -243,7 +215,8 @@ export function RegistrationFunnel({
     parentalConsentRequired,
     waivers,
     tiers.length,
-    hasInlineWaivers,
+    hasRequiredDocs,
+    photoRelease.enabled,
     showDivisionStep
   ]);
 
@@ -326,6 +299,49 @@ export function RegistrationFunnel({
     if (i > 0) setStep(stepOrder[i - 1]!);
   }
 
+  /** Server list of required documents with this registrant's signed state. */
+  async function loadWaivers(id: string, mail: string): Promise<WaiverDoc[] | null> {
+    try {
+      const res = await api.listSubmissionWaivers(id, mail);
+      setWaivers(res.documents);
+      setSignerName(res.signerName ?? "");
+      setWaiversError(null);
+      return res.documents;
+    } catch (e) {
+      setWaiversError((e as Error).message);
+      return null;
+    }
+  }
+
+  /**
+   * Sign one required document. The API checks the typed name, stores
+   * the signature and returns what is still unsigned; that answer, not
+   * the click, decides the Signed state. Throws so the card shows the
+   * error inline.
+   */
+  async function signDocument(key: string, signatureName: string) {
+    const res = await api.signWaiver(submissionId!, {
+      email: email.trim(),
+      key,
+      signatureName
+    });
+    const outstanding = new Set(res.outstanding.map((o) => o.key));
+    setWaivers((prev) =>
+      prev
+        ? prev.map((d) =>
+            d.key
+              ? {
+                  ...d,
+                  signed: !outstanding.has(d.key),
+                  signedAt: d.key === key ? res.signedAt : d.signedAt ?? null
+                }
+              : d
+          )
+        : prev
+    );
+    setError(null);
+  }
+
   /**
    * Account-step submit: creates the auth user + submission row,
    * loads waivers for the org, kicks off the async eligibility check.
@@ -351,6 +367,7 @@ export function RegistrationFunnel({
           submissionType,
           divisionId: divisionId ?? undefined,
           answers,
+          formVersionId: context.formVersionId ?? undefined,
           teamName:
             submissionType === "team" && teamName.trim()
               ? teamName.trim()
@@ -364,20 +381,16 @@ export function RegistrationFunnel({
       setSubmissionStatus(result.status);
       setIsMinor(result.isMinor);
 
-      // Load Phase 3 waivers + run eligibility in parallel — neither
-      // blocks advancing to the consent / waivers step. Eligibility
-      // flags surface on the Review screen as warnings (spec §6.3).
-      const [waiverResp] = await Promise.all([
-        api.listWaivers(context.season.id).catch(() => null),
+      // Load the required documents + run eligibility in parallel —
+      // neither blocks advancing. Eligibility flags surface on the Review
+      // screen as warnings (spec §6.3).
+      await Promise.all([
+        loadWaivers(result.id, email.trim()),
         api
           .runEligibilityCheck(result.id, email.trim())
           .then((r) => setEligibilityFlags(r.flags))
           .catch(() => undefined)
       ]);
-      if (waiverResp) {
-        setWaivers(waiverResp.documents);
-        setRequiredKinds(waiverResp.requiredKinds);
-      }
 
       next();
     } catch (e) {
@@ -425,7 +438,8 @@ export function RegistrationFunnel({
       const result = await api.resumeSubmission(context.season.id, {
         email: useEmail,
         password,
-        submissionType
+        submissionType,
+        formVersionId: context.formVersionId ?? undefined
       });
       setSubmissionId(result.id);
       setResumed(result.resumed);
@@ -443,17 +457,15 @@ export function RegistrationFunnel({
       if (result.pricingTierId) setPricingTierId(result.pricingTierId);
       if (result.divisionId) setDivisionId(result.divisionId);
 
-      const [waiverResp] = await Promise.all([
-        api.listWaivers(context.season.id).catch(() => null),
+      // useEmail, not the `email` state: setEmail above has not landed
+      // in this closure yet (an empty email made these calls 404, REG-24).
+      await Promise.all([
+        loadWaivers(result.id, useEmail),
         api
-          .runEligibilityCheck(result.id, email.trim())
+          .runEligibilityCheck(result.id, useEmail)
           .then((r) => setEligibilityFlags(r.flags))
           .catch(() => undefined)
       ]);
-      if (waiverResp) {
-        setWaivers(waiverResp.documents);
-        setRequiredKinds(waiverResp.requiredKinds);
-      }
 
       next();
     } catch (e) {
@@ -486,7 +498,14 @@ export function RegistrationFunnel({
         setError(res.declineReason);
       }
     } catch (e) {
-      setError((e as Error).message);
+      const err = e as Error & { status?: number };
+      setError(err.message);
+      // 409: the API refused to submit. When it is an unsigned document,
+      // go back to the Compliance step, which names what is missing.
+      if (err.status === 409) {
+        const docs = await loadWaivers(submissionId, email.trim());
+        if (docs?.some((d) => !d.signed)) setStep("waivers");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -494,6 +513,29 @@ export function RegistrationFunnel({
 
   const activePhase = phaseFor(step);
   const phaseHeading = phaseHeadingFor(step);
+
+  // REG-16: outside the registration window (or with no published form)
+  // the form is not shown at all; the API would refuse it anyway.
+  const windowState = context.registrationWindow?.state ?? "open";
+  if (windowState !== "open" || !context.formVersionId) {
+    return (
+      <RegistrationClosed
+        seasonName={context.season.name}
+        title={
+          !context.formVersionId && windowState === "open"
+            ? "Registration is not set up yet"
+            : windowState === "not_yet_open"
+              ? "Registration is not open yet"
+              : "Registration is closed"
+        }
+        message={
+          windowState !== "open"
+            ? context.registrationWindow?.message ?? "Registration is not open."
+            : `The league has not published the registration form for ${context.season.name} yet.`
+        }
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -507,7 +549,7 @@ export function RegistrationFunnel({
           {phaseHeading.subtitle ??
             `${context.season.name}${
               context.season.registrationClosesAt
-                ? ` · Registration closes ${fmtDate(context.season.registrationClosesAt)}`
+                ? ` · Registration closes ${fmtDate(context.season.registrationClosesAt, context.season.timezone)}`
                 : ""
             }`}
         </p>
@@ -603,49 +645,24 @@ export function RegistrationFunnel({
 
         {step === "waivers" && (
           <WaiversStep
-            documents={waivers ?? []}
-            requiredKinds={requiredKinds}
-            signedVersionIds={signedVersionIds}
-            fullName={fullName}
+            documents={waivers}
+            loadError={waiversError}
+            onRetryLoad={() => {
+              if (submissionId) void loadWaivers(submissionId, email.trim());
+            }}
+            signerName={signerName || fullName}
             sportCode={context.season.sportCode}
             eligibilityFlags={eligibilityFlags}
-            formWaivers={formWaivers}
-            codeOfConductAccepted={codeOfConductAccepted}
+            photoRelease={photoRelease}
             photoReleaseAccepted={photoReleaseAccepted}
-            onCodeOfConductChange={setCodeOfConductAccepted}
             onPhotoReleaseChange={setPhotoReleaseAccepted}
             error={error}
-            onSign={async (versionId, signatureName) => {
-              // Inline (form-defined) waivers carry a synthetic `form:`
-              // versionId; the server resolves it to a real
-              // document_versions row (find-or-create by content hash)
-              // and writes the consent_signatures row. Previously this
-              // branch returned early and the "sign" was tracked
-              // client-side only — zero audit trail.
-              try {
-                const res = await api.signWaiver(submissionId!, {
-                  email,
-                  documentVersionId: versionId,
-                  signatureName
-                });
-                setSignedVersionIds(
-                  (prev) => new Set([...prev, versionId])
-                );
-                if (res.outstandingRequired === 0) {
-                  // Don't auto-advance — let the player click Continue
-                  // so they see the all-signed confirmation.
-                }
-              } catch (e) {
-                setError((e as Error).message);
-                // Re-throw so the WaiverCard's inner catch (added for
-                // BUG-WAIVER-SIGN-NOOP) can surface the failure inline
-                // instead of silently clearing the spinner while the
-                // status pill stays NOT SIGNED.
-                throw e;
-              }
-            }}
+            onSign={signDocument}
             onBack={back}
-            onNext={next}
+            onNext={() => {
+              setError(null);
+              next();
+            }}
           />
         )}
 
@@ -729,17 +746,20 @@ export function RegistrationFunnel({
   );
 }
 
-function fmtDate(s: string) {
-  // Pin to en-US so SSR (Node locale) and client (browser locale) agree;
-  // a mismatch here triggers a hydration warning on every funnel mount.
+function fmtDate(s: string, timeZone?: string) {
+  // Pin locale AND zone so SSR (server zone) and the browser agree. The
+  // season's zone also gives the date the league means: a window closing
+  // 23:59 ET on Nov 13 used to read "Nov 14" on a UTC server and caused
+  // a hydration mismatch on every funnel mount.
+  const opts: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
   try {
-    return new Date(s).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
+    return new Date(s).toLocaleDateString("en-US", { ...opts, timeZone: timeZone || "UTC" });
   } catch {
-    return s;
+    try {
+      return new Date(s).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
+    } catch {
+      return s;
+    }
   }
 }
 
@@ -1446,96 +1466,52 @@ function ConsentStep({
 }
 
 /**
- * Phase 3 (Compliance & waivers). Mockup-aligned 4-card layout:
- *   1. Automated eligibility checks — hardcoded 5-row panel where each
- *      row's status is derived from `eligibilityFlags` (failed flag →
- *      amber `!`, otherwise green ✓).
- *   2. Liability waiver — sign-in-name signature collected per-doc.
- *   3. Code of conduct — single required toggle.
- *   4. Photo / media release — optional toggle.
+ * Phase 3 (Compliance). Cards:
+ *   1. Automated eligibility checks (flags from the eligibility check).
+ *   2. Documents to sign: one scroll-and-type card per typed-signature
+ *      document (liability waiver), one confirmation per acknowledgment
+ *      (code of conduct). The list and the signed state come from the
+ *      API for this registration; signing goes through the API.
+ *   3. Photo / media release — optional toggle.
  *
- * Continue is gated on: all required waivers signed AND code of conduct
- * accepted. Photo release is optional.
+ * Continue is enabled only when the API reports every required document
+ * signed. The API refuses payment otherwise (REG-5), and the step names
+ * what is still missing.
  */
 function WaiversStep({
   documents,
-  requiredKinds,
-  signedVersionIds,
-  fullName,
+  loadError,
+  onRetryLoad,
+  signerName,
   sportCode,
   eligibilityFlags,
-  formWaivers,
-  codeOfConductAccepted,
+  photoRelease,
   photoReleaseAccepted,
-  onCodeOfConductChange,
   onPhotoReleaseChange,
   onSign,
   onBack,
   onNext,
   error
 }: {
-  documents: WaiverDoc[];
-  requiredKinds: string[];
-  signedVersionIds: Set<string>;
-  fullName: string;
+  /** null until the API list has loaded. */
+  documents: WaiverDoc[] | null;
+  loadError: string | null;
+  onRetryLoad: () => void;
+  signerName: string;
   sportCode: string;
   eligibilityFlags: string[] | null;
-  formWaivers: FormWaiversConfig | null;
-  codeOfConductAccepted: boolean;
+  photoRelease: { enabled: boolean; content: string };
   photoReleaseAccepted: boolean;
-  onCodeOfConductChange: (v: boolean) => void;
   onPhotoReleaseChange: (v: boolean) => void;
-  onSign: (versionId: string, signatureName: string) => Promise<void>;
+  onSign: (key: string, signatureName: string) => Promise<void>;
   onBack: () => void;
   onNext: () => void;
   error: string | null;
 }) {
-  // Synthesise a WaiverDoc for the form-configured liability waiver
-  // when enabled AND content is non-empty. The API's
-  // resolveInlineWaiverVersionId requires non-empty content.trim()
-  // and 404s otherwise — without this guard the funnel would render
-  // a signable card that's guaranteed to fail at submit time.
-  const inlineLiability: WaiverDoc | null =
-    formWaivers?.liabilityWaiver.enabled &&
-    formWaivers.liabilityWaiver.content?.trim()
-      ? {
-          documentId: "form:liability",
-          versionId: "form:liability:v1",
-          kind: "waiver",
-          name: "Liability waiver",
-          description: null,
-          contentHtml: formWaivers.liabilityWaiver.content,
-          languageCode: "en"
-        }
-      : null;
-
-  // When inline waivers are configured, ignore the org-documents list
-  // entirely — the form is the source of truth. requiredKinds gets
-  // recomputed from the toggles.
-  const usingInline = !!formWaivers;
-  const effectiveDocuments: WaiverDoc[] = usingInline
-    ? inlineLiability
-      ? [inlineLiability]
-      : []
-    : documents;
-  const effectiveRequiredKinds: string[] = usingInline
-    ? inlineLiability
-      ? ["waiver"]
-      : []
-    : requiredKinds;
-  const codeOfConductRequired = usingInline
-    ? !!formWaivers?.codeOfConduct.enabled
-    : true;
-  const showCodeOfConduct = codeOfConductRequired;
-  const showPhotoRelease = usingInline
-    ? !!formWaivers?.photoRelease.enabled
-    : true;
-
-  const requiredOutstanding = effectiveDocuments.filter(
-    (d) =>
-      effectiveRequiredKinds.includes(d.kind) &&
-      !signedVersionIds.has(d.versionId)
-  );
+  const docs = documents ?? [];
+  const typedDocs = docs.filter((d) => (d.signMode ?? "typed_name") === "typed_name");
+  const ackDocs = docs.filter((d) => d.signMode === "acknowledge");
+  const outstanding = docs.filter((d) => !d.signed);
   const flags = eligibilityFlags ?? [];
   const isHockey = sportCode === "HOCKEY_ICE";
   // Three-state model — the previous 2-state showed green ✓ for checks
@@ -1592,9 +1568,8 @@ function WaiversStep({
     });
   }
 
-  const continueDisabled =
-    requiredOutstanding.length > 0 ||
-    (codeOfConductRequired && !codeOfConductAccepted);
+  const continueDisabled = documents === null || outstanding.length > 0;
+  const verb = (d: WaiverDoc) => (d.signMode === "acknowledge" ? "Accept" : "Sign");
 
   return (
     <div className="space-y-5">
@@ -1635,69 +1610,56 @@ function WaiversStep({
         </ul>
       </section>
 
-      {/* Card 2 — Liability waiver(s) */}
-      {effectiveDocuments.length > 0 ? (
+      {documents === null ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-[14px] font-semibold tracking-tight text-fg">
-              {effectiveDocuments.length === 1
-                ? "Liability waiver"
-                : `Required documents (${effectiveDocuments.length})`}
+          {loadError ? (
+            <div className="space-y-3">
+              <p role="alert" className="text-[13px] text-rose-700 dark:text-rose-300">
+                Could not load the documents you need to sign: {loadError}
+              </p>
+              <Button type="button" variant="secondary" onClick={onRetryLoad}>
+                Try again
+              </Button>
+            </div>
+          ) : (
+            <p className="flex items-center gap-2 text-[13px] text-fg-muted">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading the documents to sign…
             </p>
-            {requiredOutstanding.length > 0 ? (
-              <span className="rounded-full bg-rose-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
-                Not signed
-              </span>
-            ) : (
-              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-                Signed
-              </span>
-            )}
-          </div>
+          )}
+        </section>
+      ) : null}
+
+      {typedDocs.length > 0 ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            {typedDocs.length === 1 ? "Sign to continue" : `Documents to sign (${typedDocs.length})`}
+          </p>
           <ul className="mt-4 space-y-3">
-            {effectiveDocuments.map((d) => (
+            {typedDocs.map((d) => (
               <WaiverCard
-                key={d.documentId}
+                key={d.key ?? d.documentId}
                 doc={d}
-                isRequired={effectiveRequiredKinds.includes(d.kind)}
-                isSigned={signedVersionIds.has(d.versionId)}
-                fullName={fullName}
-                onSign={(name) => onSign(d.versionId, name)}
+                isRequired
+                isSigned={!!d.signed}
+                signedAt={d.signedAt ?? null}
+                fullName={signerName}
+                onSign={(name) => onSign(d.key ?? d.versionId, name)}
               />
             ))}
           </ul>
         </section>
       ) : null}
 
-      {/* Card 3 — Code of conduct (rendered only when enabled in the form) */}
-      {showCodeOfConduct ? (
-        <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-[14px] font-semibold tracking-tight text-fg">
-              Code of conduct
-            </p>
-          </div>
-          <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium text-fg">
-                {formWaivers?.codeOfConduct.content?.trim() ||
-                  "I agree to abide by the league code of conduct"}
-              </p>
-              <p className="mt-0.5 text-[12px] text-fg-muted">
-                Required — acknowledgment must be confirmed before proceeding
-              </p>
-            </div>
-            <ToggleSwitch
-              checked={codeOfConductAccepted}
-              onChange={onCodeOfConductChange}
-              label="Code of conduct"
-            />
-          </label>
-        </section>
-      ) : null}
+      {ackDocs.map((d) => (
+        <AcknowledgeCard
+          key={d.key ?? d.documentId}
+          doc={d}
+          onAccept={() => onSign(d.key ?? d.versionId, signerName)}
+        />
+      ))}
 
-      {/* Card 4 — Photo / media release (rendered only when enabled) */}
-      {showPhotoRelease ? (
+      {/* Photo / media release (optional, never blocks) */}
+      {photoRelease.enabled ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-[14px] font-semibold tracking-tight text-fg">
@@ -1709,12 +1671,9 @@ function WaiversStep({
           </div>
           <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium text-fg">
-                {formWaivers?.photoRelease.content?.trim() ||
-                  "I consent to the league using my photo and likeness in league media"}
-              </p>
+              <p className="text-[13px] font-medium text-fg">{photoRelease.content}</p>
               <p className="mt-0.5 text-[12px] text-fg-muted">
-                Optional — you can decline without affecting your registration
+                Optional. You can decline without affecting your registration.
               </p>
             </div>
             <ToggleSwitch
@@ -1731,7 +1690,13 @@ function WaiversStep({
           role="alert"
           className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[13px] text-rose-700 dark:text-rose-300"
         >
-          Couldn't sign waiver: {error}
+          {error}
+        </p>
+      ) : null}
+
+      {outstanding.length > 0 ? (
+        <p className="text-[12px] text-fg-muted">
+          Still to do: {outstanding.map((d) => `${verb(d).toLowerCase()} the ${d.name}`).join(", ")}.
         </p>
       ) : null}
 
@@ -1740,13 +1705,104 @@ function WaiversStep({
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <Button onClick={onNext} disabled={continueDisabled}>
-          {requiredOutstanding.length > 0
-            ? `Sign ${requiredOutstanding.length} more required`
-            : codeOfConductRequired && !codeOfConductAccepted
-              ? "Accept code of conduct"
-              : "Next: Payment"}
+          {documents === null
+            ? "Loading…"
+            : outstanding.length === 1
+              ? `${verb(outstanding[0]!)} the ${outstanding[0]!.name}`
+              : outstanding.length > 1
+                ? `${outstanding.length} documents to sign`
+                : "Next: Payment"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One-confirmation document (code of conduct). Switching it on records
+ * the acknowledgment through the API; the switch shows the API's answer
+ * and cannot be switched off once recorded.
+ */
+function AcknowledgeCard({
+  doc,
+  onAccept
+}: {
+  doc: WaiverDoc;
+  onAccept: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-[14px] font-semibold tracking-tight text-fg">{doc.name}</p>
+        {doc.signed ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            <Check className="h-3 w-3" strokeWidth={2.25} />
+            Accepted
+          </span>
+        ) : null}
+      </div>
+      <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
+        <div className="min-w-0 flex-1">
+          <p className="whitespace-pre-line text-[13px] font-medium text-fg">
+            {doc.contentHtml}
+          </p>
+          <p className="mt-0.5 text-[12px] text-fg-muted">
+            {doc.signed
+              ? "Accepted. This is on record with the league."
+              : "Required. Switch on to accept before you continue."}
+          </p>
+        </div>
+        {busy ? (
+          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-fg-muted" />
+        ) : (
+          <ToggleSwitch
+            checked={!!doc.signed}
+            label={doc.name}
+            onChange={async (v) => {
+              if (doc.signed || !v) return;
+              setBusy(true);
+              setErr(null);
+              try {
+                await onAccept();
+              } catch (e) {
+                setErr((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        )}
+      </label>
+      {err ? (
+        <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+          Couldn't record your acceptance: {err}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+/** Shown instead of the funnel when the season is not taking registrations. */
+function RegistrationClosed({
+  seasonName,
+  title,
+  message
+}: {
+  seasonName: string;
+  title: string;
+  message: string;
+}) {
+  return (
+    <div className="mx-auto max-w-3xl px-6 py-10">
+      <header className="space-y-1">
+        <h1 className="text-[28px] font-semibold tracking-tight text-fg">{title}</h1>
+        <p className="text-[12px] text-fg-muted">{seasonName}</p>
+      </header>
+      <div className="mt-8 rounded-xl border border-border bg-surface-1 p-6">
+        <p className="text-[14px] text-fg">{message}</p>
       </div>
     </div>
   );
@@ -1782,115 +1838,6 @@ function ToggleSwitch({
         }
       />
     </button>
-  );
-}
-
-function WaiverCard({
-  doc,
-  isRequired,
-  isSigned,
-  fullName,
-  onSign
-}: {
-  doc: WaiverDoc;
-  isRequired: boolean;
-  isSigned: boolean;
-  fullName: string;
-  onSign: (signatureName: string) => Promise<void>;
-}) {
-  const [scrolled, setScrolled] = useState(false);
-  const [typed, setTyped] = useState("");
-  const [signing, setSigning] = useState(false);
-  const [signError, setSignError] = useState<string | null>(null);
-  const docRef = useRef<HTMLDivElement | null>(null);
-  const namesMatch =
-    typed.trim().toLowerCase() === fullName.trim().toLowerCase();
-  // Auto-mark "scrolled to end" when the document is short enough to
-  // fit without scrolling — otherwise the Sign button stays disabled
-  // forever with no way to satisfy the gate (the bug from the screenshot).
-  useEffect(() => {
-    const el = docRef.current;
-    if (!el) return;
-    if (el.scrollHeight <= el.clientHeight + 8) setScrolled(true);
-  }, [doc.contentHtml]);
-  function onScroll(e: React.UIEvent<HTMLDivElement>) {
-    const el = e.currentTarget;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) setScrolled(true);
-  }
-  return (
-    <li className="rounded-lg border border-border bg-surface-1 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[13px] font-semibold text-fg">{doc.name}</p>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            {doc.kind} {isRequired && "· required"}
-          </p>
-        </div>
-        {isSigned && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-            <Check className="h-3 w-3" strokeWidth={2.25} /> Signed
-          </span>
-        )}
-      </div>
-      {!isSigned && (
-        <>
-          <div
-            ref={docRef}
-            onScroll={onScroll}
-            className="mt-3 max-h-48 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-bg-subtle p-3 text-[12px] leading-relaxed text-fg"
-            dangerouslySetInnerHTML={{ __html: doc.contentHtml }}
-          />
-          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-            <Field
-              label="Type your full legal name to sign"
-              hint={
-                scrolled
-                  ? namesMatch
-                    ? "Looks good."
-                    : "Must match your account name exactly."
-                  : "Scroll to the end of the document first."
-              }
-            >
-              <Input
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                disabled={!scrolled}
-                placeholder={fullName}
-              />
-            </Field>
-            <Button
-              type="button"
-              disabled={!scrolled || !namesMatch || signing}
-              onClick={async () => {
-                setSigning(true);
-                setSignError(null);
-                try {
-                  await onSign(typed.trim());
-                } catch (e) {
-                  setSignError((e as Error).message);
-                } finally {
-                  setSigning(false);
-                }
-              }}
-            >
-              {signing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Sign"
-              )}
-            </Button>
-          </div>
-          {signError ? (
-            <p
-              role="alert"
-              className="mt-2 text-[12px] text-rose-700 dark:text-rose-300"
-            >
-              Couldn't sign: {signError}
-            </p>
-          ) : null}
-        </>
-      )}
-    </li>
   );
 }
 

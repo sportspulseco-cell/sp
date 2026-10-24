@@ -6,15 +6,18 @@ import {
   Get,
   HttpException,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Patch,
   Post,
   Query,
+  Req,
   UnauthorizedException,
+  UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
-import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
@@ -27,14 +30,17 @@ import {
   Matches,
   MinLength
 } from "class-validator";
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import {
   assertValidTransition,
+  isRegistrationDocumentKey,
   isRegistrationState,
+  REGISTRATION_ACCEPTING_SEASON_STATUSES,
+  type RegistrationDocumentKey,
   type RegistrationState
 } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
@@ -43,6 +49,31 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { RegistrationV2Service } from "../application/registration-v2.service";
+import {
+  RegistrationRequirementsService,
+  requestClientIp,
+  requestUserAgent,
+  seasonRegistrationFormMatch
+} from "../application/registration-requirements.service";
+
+/** Statuses in which a funnel registration has not been submitted yet. */
+const PRE_SUBMISSION_STATES = new Set<string>([
+  "draft",
+  "pending_verification",
+  "pending_consent",
+  "pending_payment"
+]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Funnel signing handle → requirement key. Accepts the key itself or the legacy `form:<kind>[:vN]` ids. */
+function documentKeyFrom(raw: string | undefined | null): RegistrationDocumentKey | null {
+  if (!raw) return null;
+  if (isRegistrationDocumentKey(raw)) return raw;
+  const kind = raw.startsWith("form:") ? raw.split(":")[1] : null;
+  if (kind === "liability") return "liability_waiver";
+  if (kind === "code_of_conduct") return "code_of_conduct";
+  return null;
+}
 
 class StartSubmissionBodyDto {
   @ApiProperty()
@@ -117,6 +148,16 @@ class StartSubmissionBodyDto {
   @IsOptional()
   @IsString()
   teamColor?: string;
+
+  /**
+   * The form version the funnel rendered (season context formVersionId).
+   * The server binds the registration to the season's active version and
+   * refuses a stale or foreign one (REG-8).
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  formVersionId?: string;
 }
 
 /**
@@ -133,8 +174,11 @@ class StartSubmissionBodyDto {
 @ApiTags("public/registration")
 @Controller("public/registration")
 export class PublicRegistrationController {
+  private readonly log = new Logger(PublicRegistrationController.name);
+
   constructor(
     private readonly v2: RegistrationV2Service,
+    private readonly requirements: RegistrationRequirementsService,
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly supabase: SupabaseAdminService,
     private readonly email: EmailDispatcherService,
@@ -184,17 +228,13 @@ export class PublicRegistrationController {
       .innerJoin(schema.orgs, eq(schema.orgs.id, schema.leagues.orgId))
       .innerJoin(
         schema.registrationForms,
-        and(
-          eq(
-            schema.registrationForms.purpose,
-            "season_registration"
-          ),
-          // Season-bound form, or a league-wide form of THIS league (the
-          // old check matched any league's form to every season).
-          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR (${schema.registrationForms.scope} = 'league' AND ${schema.registrationForms.seasonId} IS NULL AND ${schema.registrationForms.scopeId} = ${schema.leagues.id}))`,
-          isNotNull(schema.registrationForms.activeVersionId),
-          isNull(schema.registrationForms.deletedAt)
-        )
+        // Season-bound form, or a league-wide form of THIS league, same
+        // org, published. One rule with the funnel (REG-25).
+        seasonRegistrationFormMatch({
+          id: schema.seasons.id,
+          leagueId: schema.leagues.id,
+          orgId: schema.seasons.orgId
+        })
       )
       .where(
         and(
@@ -202,7 +242,7 @@ export class PublicRegistrationController {
           gte(schema.seasons.registrationClosesAt, now),
           // The registration window governs; an admin moving the season to
           // in_progress must not hide late registration (PPHL change #2).
-          sql`${schema.seasons.status} IN ('draft','registration_open','in_progress')`
+          inArray(schema.seasons.status, [...REGISTRATION_ACCEPTING_SEASON_STATUSES])
         )
       )
       .orderBy(schema.seasons.registrationClosesAt);
@@ -279,8 +319,8 @@ export class PublicRegistrationController {
       lte(schema.seasons.registrationOpensAt, now),
       gte(schema.seasons.registrationClosesAt, now),
       // The registration window governs; an admin moving the season to
-          // in_progress must not hide late registration (PPHL change #2).
-          sql`${schema.seasons.status} IN ('draft','registration_open','in_progress')`
+      // in_progress must not hide late registration (PPHL change #2).
+      inArray(schema.seasons.status, [...REGISTRATION_ACCEPTING_SEASON_STATUSES])
     );
     const whereClause =
       scope.orgIds === null
@@ -308,14 +348,11 @@ export class PublicRegistrationController {
       .innerJoin(schema.orgs, eq(schema.orgs.id, schema.leagues.orgId))
       .innerJoin(
         schema.registrationForms,
-        and(
-          eq(schema.registrationForms.purpose, "season_registration"),
-          // Season-bound form, or a league-wide form of THIS league (the
-          // old check matched any league's form to every season).
-          sql`(${schema.registrationForms.seasonId} = ${schema.seasons.id} OR (${schema.registrationForms.scope} = 'league' AND ${schema.registrationForms.seasonId} IS NULL AND ${schema.registrationForms.scopeId} = ${schema.leagues.id}))`,
-          isNotNull(schema.registrationForms.activeVersionId),
-          isNull(schema.registrationForms.deletedAt)
-        )
+        seasonRegistrationFormMatch({
+          id: schema.seasons.id,
+          leagueId: schema.leagues.id,
+          orgId: schema.seasons.orgId
+        })
       )
       .where(whereClause)
       .orderBy(schema.seasons.registrationClosesAt);
@@ -383,40 +420,11 @@ export class PublicRegistrationController {
       .where(eq(schema.divisions.seasonId, id))
       .orderBy(schema.divisions.tier);
 
-    const [formVersion] = await this.db
-      .select({
-        id: schema.registrationFormVersions.id,
-        schema: schema.registrationFormVersions.schema,
-        formId: schema.registrationFormVersions.formId,
-        publishedAt: schema.registrationFormVersions.publishedAt
-      })
-      .from(schema.registrationFormVersions)
-      .innerJoin(
-        schema.registrationForms,
-        eq(
-          schema.registrationForms.id,
-          schema.registrationFormVersions.formId
-        )
-      )
-      .where(
-        and(
-          eq(schema.registrationFormVersions.locked, true),
-          // Match a form bound to this season (preferred), or any
-          // legacy league-scoped season_registration form. Both
-          // patterns coexist — the /forms wizard now writes scope=
-          // 'season' + seasonId, while older rows are scope='league'.
-          // We OR them together rather than requiring league-only,
-          // so seeded data + new wizard output both render.
-          sql`(${schema.registrationForms.seasonId} = ${id} OR ${schema.registrationForms.scope} = 'league')`,
-          // Post-slice-4: form-builder unification. Forms are tagged
-          // with a `purpose` and the funnel pulls the
-          // season_registration one. Older rows without a purpose
-          // default to season_registration in the column default.
-          eq(schema.registrationForms.purpose, "season_registration")
-        )
-      )
-      .orderBy(desc(schema.registrationFormVersions.publishedAt))
-      .limit(1);
+    // The season's own published form, else its league's league-wide
+    // form; never another league's or org's (REG-25). Registrations bind
+    // to this same version (REG-8).
+    const formVersion = await this.requirements.resolveActiveFormVersion(season);
+    const window = this.requirements.windowOf(season);
 
     return {
       season: {
@@ -429,6 +437,7 @@ export class PublicRegistrationController {
         registrationClosesAt: season.registrationClosesAt,
         rosterLockAt: season.rosterLockAt,
         status: season.status,
+        timezone: season.timezone,
         // Per-season toggles from the wizard's Divisions & eligibility
         // step. Funnel reads these to skip the free-agent path when
         // disabled, skip parental consent when not required, etc.
@@ -437,7 +446,13 @@ export class PublicRegistrationController {
       },
       pricingTiers: tiers.filter((t) => t.isActive),
       divisions: divisionsList,
-      formVersionId: formVersion?.id ?? null,
+      // REG-16: the funnel shows `message` instead of the form whenever
+      // state is not "open"; the API refuses create and pay the same way.
+      registrationWindow: {
+        state: window.state,
+        message: window.message
+      },
+      formVersionId: formVersion?.versionId ?? null,
       formDefinition: formVersion?.schema ?? { schemaVersion: 1, questions: [] }
     };
   }
@@ -451,12 +466,15 @@ export class PublicRegistrationController {
     @Param("id") seasonId: string,
     @Body() body: StartSubmissionBodyDto
   ) {
-    const [season] = await this.db
-      .select({ id: schema.seasons.id, orgId: schema.seasons.orgId })
-      .from(schema.seasons)
-      .where(eq(schema.seasons.id, seasonId))
-      .limit(1);
+    const season = await this.requirements.loadSeason(seasonId);
     if (!season) throw new NotFoundException("Season not found");
+    // Both checks run before anything is written, including the auth
+    // user: REG-16 (window) and REG-8 (the season's published form).
+    this.requirements.assertRegistrationOpen(season);
+    const formVersion = await this.requirements.bindFormVersion(
+      season,
+      body.formVersionId ?? null
+    );
 
     const email = body.email.trim().toLowerCase();
     const submissionType = body.submissionType ?? "individual";
@@ -544,18 +562,6 @@ export class PublicRegistrationController {
       }
     }
 
-    // Need a form_version for the FK. Pick the first active one. Wave E
-    // pins this to a season.formVersionId column.
-    const [anyVersion] = await this.db
-      .select()
-      .from(schema.registrationFormVersions)
-      .limit(1);
-    if (!anyVersion) {
-      throw new NotFoundException(
-        "No registration form is configured. Admin must create a form before opening registration."
-      );
-    }
-
     // Resume support — if a draft already exists, return it instead
     // of creating a new one.
     const [existing] = await this.db
@@ -567,6 +573,7 @@ export class PublicRegistrationController {
       // Patch in any newly-supplied fields so the next page-load
       // reflects them. State only advances forward — drives by the
       // kernel state machine, not whatever the client claims.
+      const rebind = this.rebindFormVersion(existing, formVersion.versionId);
       const merged = mergeMetadata(existing.metadata, {
         submissionType,
         pricingTierId: body.pricingTierId ?? null,
@@ -589,6 +596,7 @@ export class PublicRegistrationController {
         .set({
           submittedByUserId: userId,
           metadata: merged,
+          ...rebind,
           updatedAt: new Date()
         })
         .where(eq(schema.registrations.id, existing.id));
@@ -627,7 +635,7 @@ export class PublicRegistrationController {
         .values({
           idempotencyKey,
           orgId: season.orgId,
-          formVersionId: anyVersion.id,
+          formVersionId: formVersion.versionId,
           submittedByUserId: userId,
           subjectPersonId: personId!,
           seasonId,
@@ -698,14 +706,20 @@ export class PublicRegistrationController {
         | "individual"
         | "free_agent"
         | "captain_invite";
+      /** Form version the funnel rendered; see StartSubmissionBodyDto. */
+      formVersionId?: string;
     }
   ) {
-    const [season] = await this.db
-      .select({ id: schema.seasons.id, orgId: schema.seasons.orgId })
-      .from(schema.seasons)
-      .where(eq(schema.seasons.id, seasonId))
-      .limit(1);
+    const season = await this.requirements.loadSeason(seasonId);
     if (!season) throw new NotFoundException("Season not found");
+    this.requirements.assertRegistrationOpen(season);
+    if (body.formVersionId && !UUID_RE.test(body.formVersionId)) {
+      throw new BadRequestException("formVersionId must be a UUID");
+    }
+    const formVersion = await this.requirements.bindFormVersion(
+      season,
+      body.formVersionId ?? null
+    );
 
     const email = (body.email ?? "").trim().toLowerCase();
     if (!email) throw new NotFoundException("email required");
@@ -771,22 +785,19 @@ export class PublicRegistrationController {
       }
     }
 
-    const [anyVersion] = await this.db
-      .select()
-      .from(schema.registrationFormVersions)
-      .limit(1);
-    if (!anyVersion) {
-      throw new NotFoundException(
-        "No registration form is configured. Admin must create a form before opening registration."
-      );
-    }
-
     const [existing] = await this.db
       .select()
       .from(schema.registrations)
       .where(eq(schema.registrations.idempotencyKey, idempotencyKey))
       .limit(1);
     if (existing) {
+      const rebind = this.rebindFormVersion(existing, formVersion.versionId);
+      if (rebind.formVersionId) {
+        await this.db
+          .update(schema.registrations)
+          .set({ ...rebind, updatedAt: new Date() })
+          .where(eq(schema.registrations.id, existing.id));
+      }
       // Return the full prior state so the funnel can hydrate the
       // Details step on resume. Previously this only returned
       // { id, status, userId, isMinor: false, fullName } — meaning the
@@ -836,7 +847,7 @@ export class PublicRegistrationController {
         .values({
           idempotencyKey,
           orgId: season.orgId,
-          formVersionId: anyVersion.id,
+          formVersionId: formVersion.versionId,
           submittedByUserId: userId,
           subjectPersonId: personId!,
           seasonId,
@@ -923,178 +934,110 @@ export class PublicRegistrationController {
   @Get("seasons/:id/waivers")
   @ApiOperation({
     summary:
-      "Phase 3.1 — return the org's active waivers/consents that the registrant must sign. Returns only the active document_version per document, in a fixed order (waiver → code_of_conduct → media_release → privacy → custom)."
+      "Phase 3.1 preview: the documents a registrant of this season must sign (liability waiver, code of conduct), resolved from the season setup, then the season's published form, then the SportsPulse default text. No signature state; see GET /submissions/:id/waivers."
   })
   async listWaivers(@Param("id") seasonId: string) {
-    const [season] = await this.db
-      .select({ orgId: schema.seasons.orgId })
-      .from(schema.seasons)
-      .where(eq(schema.seasons.id, seasonId))
-      .limit(1);
+    const season = await this.requirements.loadSeason(seasonId);
     if (!season) throw new NotFoundException("Season not found");
-
-    const rows = await this.db
-      .select({
-        documentId: schema.documents.id,
-        kind: schema.documents.kind,
-        name: schema.documents.name,
-        description: schema.documents.description,
-        versionId: schema.documentVersions.id,
-        contentHtml: schema.documentVersions.contentHtml,
-        languageCode: schema.documentVersions.languageCode
-      })
-      .from(schema.documents)
-      .innerJoin(
-        schema.documentVersions,
-        eq(schema.documentVersions.id, schema.documents.activeVersionId)
-      )
-      .where(eq(schema.documents.orgId, season.orgId));
-
-    const order: Record<string, number> = {
-      waiver: 0,
-      code_of_conduct: 1,
-      media_release: 2,
-      privacy: 3,
-      injury_policy: 4,
-      consent: 5,
-      parental: 6,
-      custom: 7
-    };
-    const sorted = rows.sort(
-      (a, b) => (order[a.kind] ?? 99) - (order[b.kind] ?? 99)
-    );
+    const required = await this.requirements.previewDocuments(season);
     return {
-      // The funnel hard-blocks until every "required" kind is signed.
-      // Spec §6.1: waiver + code_of_conduct required; media_release optional.
-      requiredKinds: ["waiver", "code_of_conduct"],
-      documents: sorted
+      requiredKinds: required.map((r) => r.documentKind),
+      documents: required.map((r) => ({
+        documentId: `form:${r.key}`,
+        key: r.key,
+        kind: r.documentKind,
+        name: r.title,
+        description: null,
+        versionId: `form:${r.key}`,
+        contentHtml: r.content,
+        languageCode: "en",
+        signMode: r.signMode
+      }))
+    };
+  }
+
+  @Get("submissions/:id/waivers")
+  @ApiOperation({
+    summary:
+      "Phase 3.1: the documents this registration must have signed before it can be submitted, each with signed/unsigned state for the registrant (REG-5). Same email check as GET /submissions/:id. The pay endpoint refuses while any is unsigned."
+  })
+  async listSubmissionWaivers(
+    @Param("id") submissionId: string,
+    @Query("email") email: string
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, email);
+    const { documents } = await this.requirements.listDocuments(row);
+    return {
+      signerName: await this.funnelSignerName(row),
+      requiredKinds: documents.map((d) => d.kind),
+      documents: documents.map((d) => ({
+        documentId: `form:${d.key}`,
+        key: d.key,
+        kind: d.kind,
+        name: d.title,
+        description: null,
+        versionId: d.documentVersionId ?? `form:${d.key}`,
+        contentHtml: d.contentHtml,
+        languageCode: "en",
+        signMode: d.signMode,
+        signed: d.signed,
+        signedAt: d.signedAt
+      }))
     };
   }
 
   @Post("submissions/:id/sign-waiver")
   @ApiOperation({
     summary:
-      "Phase 3.1 — record a signed waiver. Stores typed signature name + IP + user agent on consent_signatures (immutable). Returns how many of the required waivers are still unsigned."
+      "Phase 3.1: record a signature on a required document (key liability_waiver | code_of_conduct; legacy form:<kind> ids accepted). The typed name must match the registrant's name. Stores the signature with timestamp, IP and user agent on consent_signatures, idempotent per document text. Returns how many required documents are still unsigned."
   })
   async signWaiver(
     @Param("id") submissionId: string,
     @Body()
     body: {
       email: string;
-      documentVersionId: string;
+      key?: string;
+      documentVersionId?: string;
       signatureName: string;
-    }
+    },
+    @Req() req: { ip?: string; headers?: Record<string, string | string[] | undefined> }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
-    if (!body.signatureName?.trim() || !body.documentVersionId) {
-      throw new NotFoundException(
-        "documentVersionId + signatureName required"
+    const signatureName = (body.signatureName ?? "").trim();
+    if (!signatureName) {
+      throw new UnprocessableEntityException("Type your full legal name to sign.");
+    }
+    let key = documentKeyFrom(body.key ?? body.documentVersionId);
+    if (!key && body.documentVersionId && UUID_RE.test(body.documentVersionId)) {
+      // A stored version id: accept it only when it is one of this
+      // registration's required documents.
+      const { documents } = await this.requirements.listDocuments(row);
+      key = documents.find((d) => d.documentVersionId === body.documentVersionId)?.key ?? null;
+    }
+    if (!key) {
+      throw new UnprocessableEntityException(
+        "That document is not one this registration asks you to sign."
       );
     }
-
-    // Inline (form-defined) waivers arrive with a synthetic versionId
-    // like `form:liability` / `form:code_of_conduct` / `form:photo_release`.
-    // Resolve to a real document_versions row (find-or-create) so the
-    // audit trail in consent_signatures is honest — previously these
-    // were tracked client-side only, which meant a signed waiver left
-    // ZERO trace in the DB.
-    let resolvedVersionId = body.documentVersionId;
-    if (resolvedVersionId.startsWith("form:")) {
-      resolvedVersionId = await this.resolveInlineWaiverVersionId(
-        row.seasonId,
-        row.orgId,
-        resolvedVersionId
-      );
-    }
-
-    // Idempotent: if this person has already signed this version,
-    // return the existing signature.
-    const [existing] = await this.db
-      .select()
-      .from(schema.consentSignatures)
-      .where(
-        and(
-          eq(schema.consentSignatures.personId, row.subjectPersonId),
-          eq(
-            schema.consentSignatures.documentVersionId,
-            resolvedVersionId
-          )
-        )
-      )
-      .limit(1);
-
-    let signature = existing;
-    if (!signature) {
-      const [created] = await this.db
-        .insert(schema.consentSignatures)
-        .values({
-          personId: row.subjectPersonId,
-          documentVersionId: resolvedVersionId,
-          signedByUserId: row.submittedByUserId,
-          // Store the typed name in metadata-ish fashion via geolocation
-          // is gross — there's no signature_text column. Use the
-          // existing signatureBlobUrl text col to hold the name; spec
-          // §6.1 specifies typed name = data-URL of signed text. Wave E
-          // adds a proper signature_text column.
-          signatureBlobUrl: `data:text/plain,${encodeURIComponent(body.signatureName.trim())}`
-        })
-        .returning();
-      signature = created;
-    }
-
-    // Compute remaining required signatures so the funnel knows whether
-    // to advance to the next step.
-    const [season] = await this.db
-      .select({ orgId: schema.seasons.orgId })
-      .from(schema.seasons)
-      .innerJoin(
-        schema.registrations,
-        eq(schema.registrations.orgId, schema.seasons.orgId)
-      )
-      .where(eq(schema.registrations.id, submissionId))
-      .limit(1);
-
-    let outstandingRequired = 0;
-    if (season) {
-      const requiredDocs = await this.db
-        .select({ versionId: schema.documents.activeVersionId })
-        .from(schema.documents)
-        .where(
-          and(
-            eq(schema.documents.orgId, season.orgId),
-            // Required = waiver + code_of_conduct per spec §6.1
-            // Drizzle doesn't have a clean inArray import here so we
-            // do two checks in one OR — simpler to rely on a fold.
-          )
-        );
-      const requiredKinds = new Set(["waiver", "code_of_conduct"]);
-      const requiredVersionIds = (
-        await this.db
-          .select({
-            versionId: schema.documents.activeVersionId,
-            kind: schema.documents.kind
-          })
-          .from(schema.documents)
-          .where(eq(schema.documents.orgId, season.orgId))
-      )
-        .filter((d) => requiredKinds.has(d.kind) && d.versionId)
-        .map((d) => d.versionId as string);
-
-      if (requiredVersionIds.length > 0) {
-        const signed = await this.db
-          .select({ versionId: schema.consentSignatures.documentVersionId })
-          .from(schema.consentSignatures)
-          .where(eq(schema.consentSignatures.personId, row.subjectPersonId));
-        const signedSet = new Set(signed.map((s) => s.versionId));
-        outstandingRequired = requiredVersionIds.filter(
-          (v) => !signedSet.has(v)
-        ).length;
-      }
-    }
-
+    const result = await this.requirements.signRequirement({
+      registration: row,
+      key,
+      signatureName,
+      // The funnel's Sign button compares against the account name the
+      // registrant entered; the server holds the same rule.
+      expectedSignerName: await this.funnelSignerName(row),
+      signedByUserId: row.submittedByUserId,
+      ipAddr: requestClientIp(req),
+      userAgent: requestUserAgent(req)
+    });
+    const outstanding = result.documents.filter((d) => !d.signed);
     return {
-      signatureId: signature!.id,
-      outstandingRequired
+      signatureId: result.signatureId,
+      documentVersionId: result.documentVersionId,
+      signedAt: result.signedAt,
+      alreadySigned: !result.created,
+      outstandingRequired: outstanding.length,
+      outstanding: outstanding.map((d) => ({ key: d.key, name: d.title }))
     };
   }
 
@@ -1619,6 +1562,11 @@ export class PublicRegistrationController {
         `Cannot pay from state=${row.status}; expected pending_payment. Re-open the funnel from the start so the state advances.`
       );
     }
+    // Submission gate, before any invoice or state write: the window is
+    // open (REG-16) and every required document is signed by the
+    // registrant (REG-5). Both 409 with a sentence naming what is missing.
+    // Payment processing itself is unchanged (mock by founder decision).
+    await this.requirements.assertSubmittable(row);
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     const outcome = body.mockOutcome ?? "succeeded";
 
@@ -1835,142 +1783,41 @@ export class PublicRegistrationController {
     return { id, status: "cancelled" as const };
   }
 
+  // ---------- internals ----------
+
   /**
-   * Resolve a synthetic inline-waiver versionId (`form:liability`,
-   * `form:code_of_conduct`, `form:photo_release`, or any `form:<kind>:vN`
-   * variant) to a real `document_versions.id`.
-   *
-   * The form's inline waiver content is hashed; if a documents row for
-   * the org+kind already exists with a version matching that hash we
-   * reuse it, otherwise we provision both. Result: every inline-waiver
-   * signature lands in `consent_signatures` with a valid FK, and the
-   * audit trail is complete.
+   * REG-8: a not-yet-submitted registration bound to another form's
+   * version (rows created before the fix) is moved to the season's
+   * active version when the player comes back. Submitted rows keep their
+   * binding; that is the version the admin reviews.
    */
-  private async resolveInlineWaiverVersionId(
-    seasonId: string | null,
-    orgId: string,
-    syntheticId: string
-  ): Promise<string> {
-    if (!seasonId) {
-      throw new NotFoundException(
-        "Inline waiver sign requires a season-bound submission"
-      );
-    }
-    // syntheticId formats accepted: `form:<kind>` or `form:<kind>:<vN>`
-    const parts = syntheticId.split(":");
-    const kindToken = parts[1];
-    if (!kindToken) {
-      throw new NotFoundException(`Invalid inline waiver id ${syntheticId}`);
-    }
-    // Map funnel kind keys → canonical `documents.kind` codes.
-    const kindMap: Record<string, { docKind: string; configKey: keyof import("@sportspulse/kernel").FormWaiversConfig; label: string }> = {
-      liability: { docKind: "waiver", configKey: "liabilityWaiver", label: "Liability waiver" },
-      code_of_conduct: { docKind: "code_of_conduct", configKey: "codeOfConduct", label: "Code of conduct" },
-      photo_release: { docKind: "photo_release", configKey: "photoRelease", label: "Photo / media release" }
-    };
-    const mapped = kindMap[kindToken];
-    if (!mapped) {
-      throw new NotFoundException(`Unknown inline waiver kind ${kindToken}`);
-    }
-
-    // Pull the season's active form to grab the inline content.
-    const [formRow] = await this.db
-      .select({
-        formSchema: schema.registrationFormVersions.schema
-      })
-      .from(schema.registrationFormVersions)
-      .innerJoin(
-        schema.registrationForms,
-        eq(
-          schema.registrationForms.activeVersionId,
-          schema.registrationFormVersions.id
-        )
-      )
-      .where(eq(schema.registrationForms.seasonId, seasonId))
-      .limit(1);
-    const formDef = (formRow?.formSchema as { waivers?: Record<string, { enabled: boolean; content: string }> } | null) ?? null;
-    const waiverCfg = formDef?.waivers?.[mapped.configKey];
-    if (!waiverCfg?.enabled || !waiverCfg.content?.trim()) {
-      throw new NotFoundException(
-        `Inline ${mapped.configKey} is not enabled on this season's form`
-      );
-    }
-    const content = waiverCfg.content.trim();
-    const contentHash = createHash("sha256")
-      .update(`${mapped.docKind}\n${content}`)
-      .digest("hex");
-
-    // Find-or-create the documents row (one per org+kind+name).
-    const docName = `${mapped.label} (form)`;
-    const [existingDoc] = await this.db
-      .select()
-      .from(schema.documents)
-      .where(
-        and(
-          eq(schema.documents.orgId, orgId),
-          eq(schema.documents.kind, mapped.docKind),
-          eq(schema.documents.name, docName)
-        )
-      )
-      .limit(1);
-    let docId: string;
-    if (existingDoc) {
-      docId = existingDoc.id;
-    } else {
-      const [created] = await this.db
-        .insert(schema.documents)
-        .values({
-          orgId,
-          kind: mapped.docKind,
-          name: docName,
-          description: "Inline waiver authored on the registration form"
-        })
-        .returning();
-      docId = created!.id;
-    }
-
-    // Find-or-create the document_versions row keyed by content hash.
-    const [existingVer] = await this.db
-      .select()
-      .from(schema.documentVersions)
-      .where(
-        and(
-          eq(schema.documentVersions.documentId, docId),
-          eq(schema.documentVersions.contentHash, contentHash)
-        )
-      )
-      .limit(1);
-    if (existingVer) return existingVer.id;
-
-    const [maxVer] = await this.db
-      .select({ n: schema.documentVersions.versionNumber })
-      .from(schema.documentVersions)
-      .where(eq(schema.documentVersions.documentId, docId))
-      .orderBy(desc(schema.documentVersions.versionNumber))
-      .limit(1);
-    const nextVersionNumber = (maxVer?.n ?? 0) + 1;
-
-    const [newVer] = await this.db
-      .insert(schema.documentVersions)
-      .values({
-        documentId: docId,
-        versionNumber: nextVersionNumber,
-        contentHtml: content,
-        contentHash,
-        languageCode: "en",
-        effectiveFrom: new Date()
-      })
-      .returning();
-    // Keep documents.active_version_id pointed at the freshest version
-    // so the existing list-waivers endpoint surfaces this content too.
-    await this.db
-      .update(schema.documents)
-      .set({ activeVersionId: newVer!.id, updatedAt: new Date() })
-      .where(eq(schema.documents.id, docId));
-    return newVer!.id;
+  private rebindFormVersion(
+    existing: { id: string; status: string; formVersionId: string },
+    activeVersionId: string
+  ): { formVersionId?: string } {
+    if (existing.formVersionId === activeVersionId) return {};
+    if (!PRE_SUBMISSION_STATES.has(existing.status)) return {};
+    this.log.log(
+      `rebind registration=${existing.id} form_version ${existing.formVersionId} -> ${activeVersionId}`
+    );
+    return { formVersionId: activeVersionId };
   }
 
-  // ---------- internals ----------
+  /** The name a funnel registrant types to sign: the account name they entered. */
+  private async funnelSignerName(row: {
+    metadata: unknown;
+    subjectPersonId: string;
+  }): Promise<string> {
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const fromMeta = typeof meta.fullName === "string" ? meta.fullName.trim() : "";
+    if (fromMeta) return fromMeta;
+    const [p] = await this.db
+      .select({ first: schema.persons.legalFirstName, last: schema.persons.legalLastName })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, row.subjectPersonId))
+      .limit(1);
+    return p ? `${p.first} ${p.last}`.trim() : "";
+  }
 
   /**
    * Turn a Postgres unique-violation on `registrations_active_uniq`

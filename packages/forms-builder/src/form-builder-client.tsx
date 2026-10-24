@@ -239,9 +239,11 @@ export function FormBuilderClient({
             Waivers & documents
           </p>
           <p className="mt-1 text-[12px] text-fg-muted">
-            Compliance docs shown in Phase 3 of the registration funnel.
-            Toggle off to hide a card. Edit the body text directly — the
-            content saves with the rest of the form draft.
+            Documents the player signs in the Compliance step. The season's
+            Divisions &amp; eligibility settings come first: their on/off
+            switches win, and their text wins when it is filled in. Text
+            here is used when the season's text is empty. It saves with the
+            rest of the form draft.
           </p>
         </div>
 

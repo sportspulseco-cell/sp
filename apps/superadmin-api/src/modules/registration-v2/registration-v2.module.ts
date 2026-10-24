@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CommunicationsModule } from "../communications/communications.module";
 import { RegistrationV2Service } from "./application/registration-v2.service";
+import { RegistrationRequirementsService } from "./application/registration-requirements.service";
 import { PricingTiersController } from "./interface/pricing-tiers.controller";
 import { PricingTierDivisionsController } from "./interface/pricing-tier-divisions.controller";
 import { EmailTemplatesController } from "./interface/email-templates.controller";
@@ -26,7 +27,9 @@ import { AdminReviewController } from "./interface/admin-review.controller";
     SeasonRolloverController,
     AdminReviewController
   ],
-  providers: [RegistrationV2Service],
-  exports: [RegistrationV2Service]
+  // RegistrationRequirementsService: form binding, registration window and
+  // required-document signatures, shared with the player /compliance page.
+  providers: [RegistrationV2Service, RegistrationRequirementsService],
+  exports: [RegistrationV2Service, RegistrationRequirementsService]
 })
 export class RegistrationV2Module {}

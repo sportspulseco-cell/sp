@@ -8,6 +8,8 @@ export { RegistrationFunnel } from "./funnel";
 export { OnboardingFunnel, type OnboardingApi } from "./onboarding-funnel";
 export { SignUpFunnel, type SignUpFunnelApi } from "./sign-up-funnel";
 export { FormRenderer } from "./form-renderer";
+// Signature card shared by the funnel and player-web /compliance (COMP-4).
+export { WaiverCard } from "./waiver-card";
 export {
   RoleProfileEditor,
   RoleProfileFields,

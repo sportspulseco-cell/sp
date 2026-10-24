@@ -6,11 +6,12 @@ import {
   ShieldCheck,
   Upload
 } from "lucide-react";
-import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
-import type { EligibilityRecord } from "@sportspulse/api-client";
+import { Badge, EmptyState, Eyebrow, LoadError } from "@sportspulse/ui";
+import { load, type EligibilityRecord } from "@sportspulse/api-client";
 import { compliance, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { UsaHockeyIdForm } from "./usa-hockey-id-form";
+import { DocumentsToSign } from "./documents-to-sign";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -78,6 +79,17 @@ export default async function CompliancePage() {
 
   const items: EligibilityRecord[] = eligibilityPage.items;
 
+  // Required registration documents (liability waiver, code of conduct)
+  // with signed state, from the same rule the funnel and the pay gate
+  // use (COMP-4). A failed load is shown as an error, never as "nothing
+  // to sign".
+  const docsResult = await load(compliance.myDocuments());
+  const docItems = docsResult.ok ? docsResult.data.items : [];
+  const unsignedDocs = docItems.reduce(
+    (n, r) => n + r.documents.filter((d) => !d.signed).length,
+    0
+  );
+
   // Sort: blocking issues (ineligible / expired) first, then warning,
   // then green.
   const tier = (s: EligibilityRecord["status"]) =>
@@ -122,6 +134,18 @@ export default async function CompliancePage() {
             </p>
           </div>
         </div>
+      ) : unsignedDocs > 0 ? (
+        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-amber-bg)] px-4 py-3 text-[var(--tint-amber-fg)]">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
+          <div>
+            <p className="text-[13px] font-medium">
+              {unsignedDocs} document{unsignedDocs === 1 ? "" : "s"} to sign
+            </p>
+            <p className="mt-0.5 text-[12px] opacity-80">
+              Your registration cannot be submitted until they are signed.
+            </p>
+          </div>
+        </div>
       ) : pending.length > 0 ? (
         <div className="flex items-start gap-3 rounded-md bg-[var(--tint-amber-bg)] px-4 py-3 text-[var(--tint-amber-fg)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
@@ -135,7 +159,7 @@ export default async function CompliancePage() {
             </p>
           </div>
         </div>
-      ) : items.length > 0 ? (
+      ) : items.length > 0 || docItems.length > 0 ? (
         <div className="flex items-start gap-3 rounded-md bg-[var(--tint-emerald-bg)] px-4 py-3 text-[var(--tint-emerald-fg)]">
           <Check className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
           <div>
@@ -149,13 +173,34 @@ export default async function CompliancePage() {
         </div>
       ) : null}
 
-      {sorted.length === 0 ? (
+      {!docsResult.ok ? (
+        <LoadError
+          what="your waivers and documents"
+          status={docsResult.status}
+          message={docsResult.message}
+        />
+      ) : docItems.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-[14px] font-semibold tracking-tight text-fg">
+            Registration waivers
+          </h2>
+          <DocumentsToSign items={docItems} />
+        </section>
+      ) : null}
+
+      {sorted.length === 0 && docItems.length > 0 ? null : sorted.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}
           title="No requirements yet"
           description="Once you register for a season, eligibility checks for waivers, USA Hockey ID, parental consent, and birthdate verification will land here."
         />
       ) : (
+        <section className="space-y-3">
+        {docItems.length > 0 ? (
+          <h2 className="text-[14px] font-semibold tracking-tight text-fg">
+            Eligibility
+          </h2>
+        ) : null}
         <ul className="space-y-3">
           {sorted.map((rec: EligibilityRecord) => {
             const meta = STATUS_COPY[rec.status];
@@ -215,6 +260,7 @@ export default async function CompliancePage() {
             );
           })}
         </ul>
+        </section>
       )}
     </div>
   );

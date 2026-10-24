@@ -384,7 +384,8 @@ function ToggleRow({
  * Multi-line body editor for the liability-waiver and code-of-conduct
  * documents. Sits indented under the matching require-* toggle so the
  * relationship reads top-to-bottom: enable → author the body. Empty
- * value falls back to the canned text in the funnel.
+ * value falls back to the form's text, then the SportsPulse default
+ * (kernel resolveRegistrationWaivers; the API enforces the same rule).
  */
 function DocBodyField({
   label,
@@ -410,8 +411,9 @@ function DocBodyField({
         className="mt-1.5 w-full resize-y rounded-md border border-border bg-bg-subtle p-3 text-[13px] leading-relaxed text-fg placeholder:text-fg-muted focus:border-accent focus:outline-none"
       />
       <p className="mt-1 text-[11px] text-fg-muted">
-        Paste your existing legal text — file uploads land in a future
-        wave. Empty falls back to the SportsPulse default.
+        Paste your existing legal text. Leave it empty to use the text
+        from the registration form&apos;s Waivers &amp; documents tab, or
+        the SportsPulse default when that is empty too.
       </p>
     </div>
   );

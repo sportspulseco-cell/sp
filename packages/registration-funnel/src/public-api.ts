@@ -83,6 +83,8 @@ export interface PublicRegistrationApi {
       /** P2-2: division the player is registering into. */
       divisionId?: string;
       answers?: Record<string, unknown>;
+      /** Form version the funnel rendered; the API binds to it (REG-8). */
+      formVersionId?: string;
       /** Team registration only — captured on the Team information card. */
       teamName?: string;
       teamColor?: string;
@@ -103,7 +105,13 @@ export interface PublicRegistrationApi {
    */
   resumeSubmission(
     seasonId: string,
-    body: { email: string; password: string; submissionType?: SubmissionType }
+    body: {
+      email: string;
+      password: string;
+      submissionType?: SubmissionType;
+      /** Form version the funnel rendered; the API binds to it (REG-8). */
+      formVersionId?: string;
+    }
   ): Promise<{
     id: string;
     status: string;
@@ -164,14 +172,42 @@ export interface PublicRegistrationApi {
       dobDate?: string | null;
     }
   ): Promise<{ id: string; updated: boolean }>;
+  /** Season preview of the documents a registrant will sign (no signed state). */
   listWaivers(seasonId: string): Promise<{
+    requiredKinds: string[];
+    documents: WaiverDoc[];
+  }>;
+  /**
+   * The documents this registration must have signed before it can be
+   * submitted, with the registrant's signed state (REG-5). `signerName`
+   * is the name the registrant types to sign.
+   */
+  listSubmissionWaivers(
+    submissionId: string,
+    email: string
+  ): Promise<{
+    signerName: string;
     requiredKinds: string[];
     documents: WaiverDoc[];
   }>;
   signWaiver(
     submissionId: string,
-    body: { email: string; documentVersionId: string; signatureName: string }
-  ): Promise<{ signatureId: string; outstandingRequired: number }>;
+    body: {
+      email: string;
+      /** Requirement key (liability_waiver | code_of_conduct). */
+      key?: string;
+      /** Legacy handle (`form:<kind>` or a stored version id). */
+      documentVersionId?: string;
+      signatureName: string;
+    }
+  ): Promise<{
+    signatureId: string;
+    documentVersionId: string;
+    signedAt: string;
+    alreadySigned: boolean;
+    outstandingRequired: number;
+    outstanding: Array<{ key: string; name: string }>;
+  }>;
   startParentalConsent(
     submissionId: string,
     body: { email: string; parentEmail: string }
@@ -259,6 +295,8 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
       }),
     listWaivers: (id) =>
       f(`/public/registration/seasons/${id}/waivers`),
+    listSubmissionWaivers: (id, email) =>
+      f(`/public/registration/submissions/${id}/waivers${qs({ email })}`),
     signWaiver: (id, body) =>
       f(`/public/registration/submissions/${id}/sign-waiver`, {
         method: "POST",
