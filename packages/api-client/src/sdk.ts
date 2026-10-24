@@ -1,6 +1,7 @@
 import type {
   AuditEvent,
   AuditFacets,
+  CaptainDuesBreakdown,
   ConsentSignature,
   CrossOrgGrant,
   ImportEntityKind,
@@ -707,32 +708,27 @@ export function createApi(f: Fetcher) {
 
       // Captain dues (Phase 3)
       captainDuesBreakdown: (teamId: string) =>
-        f<{
-          teamId: string;
-          teamName: string;
-          masterInvoiceId: string | null;
-          masterInvoiceNumber: string | null;
-          totalCents: number;
-          collectedCents: number;
-          thresholdCents: number;
-          seasonName: string | null;
-          divisionName: string | null;
-          entryStatus: string | null;
-          subInvoices: Array<{
-            id: string;
-            invoiceNumber: string;
-            recipientPersonId: string | null;
-            recipientEmail: string | null;
-            totalCents: number;
-            paidCents: number;
-            status: string;
-            currency: string;
-            dueAt: string | null;
-            isOverdue: boolean;
-            isCaptain: boolean;
-            playerName: string | null;
-          }>;
-        }>(`/captain/dues/${teamId}`),
+        f<CaptainDuesBreakdown>(`/captain/dues/${teamId}`),
+      /**
+       * Persist how the team fee is shared out across the existing
+       * sub-invoices (MON-8). One command: the server recomputes even
+       * shares itself and refuses custom amounts that do not sum to the
+       * master invoice or drop below what a player already paid.
+       * Returns the fresh breakdown (readback).
+       */
+      captainDuesSetSplit: (
+        teamId: string,
+        body:
+          | { method: "even"; includeCaptain?: boolean }
+          | {
+              method: "custom";
+              amounts: Array<{ invoiceId: string; amountCents: number }>;
+            }
+      ) =>
+        f<CaptainDuesBreakdown>(`/captain/dues/${teamId}/split`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       captainDuesRemindAll: (teamId: string) =>
         f<{ teamId: string; queued: number }>(
           `/captain/dues/${teamId}/remind-all`,
@@ -2630,7 +2626,10 @@ export function createApi(f: Fetcher) {
             id: string;
             entryStatus: string;
             createdAt: string;
+            /** Admin decision lives here: rejectionReason, rejectedAt, rejectedByUserId. */
             metadata: Record<string, unknown>;
+            /** Master invoice id once the roster + dues wizard ran; null before. */
+            invoiceId: string | null;
             thresholdCents: number;
             collectedCents: number;
             divisionId: string;
@@ -2638,8 +2637,10 @@ export function createApi(f: Fetcher) {
             divisionMaxTeams: number | null;
             seasonId: string;
             seasonName: string;
+            seasonStatus: string;
             seasonStartDate: string | null;
             seasonEndDate: string | null;
+            registrationOpensAt: string | null;
             registrationClosesAt: string | null;
             leagueName: string;
             feeCents: number | null;
@@ -2668,7 +2669,13 @@ export function createApi(f: Fetcher) {
       // Workflow 7B · roster management
       // ---------------------------------------------------------------
       roster: {
-        list: (teamId: string, seasonId?: string) =>
+        /**
+         * `seasonId` pins the roster to one season. Without it, `asOf`
+         * (an ISO instant, e.g. the game's kickoff) picks the team's
+         * season whose dates contain or lie nearest that instant; with
+         * neither, the season with the latest start date (SCH-23).
+         */
+        list: (teamId: string, seasonId?: string, opts: { asOf?: string } = {}) =>
           f<{
             team: { id: string; name: string };
             season: {
@@ -2676,6 +2683,19 @@ export function createApi(f: Fetcher) {
               name: string;
               rosterLockAt: string | null;
             } | null;
+            /**
+             * Every season the team is live in, most current first
+             * (kernel `sortSeasonsByCurrency`: in progress today, else
+             * registration open now, else newest). Feeds the season
+             * switcher; `isCurrent` marks the default.
+             */
+            seasons: Array<{
+              id: string;
+              name: string;
+              startDate: string;
+              endDate: string;
+              isCurrent: boolean;
+            }>;
             division: {
               id: string;
               name: string;
@@ -2714,7 +2734,7 @@ export function createApi(f: Fetcher) {
             }>;
             rosterLockAt: string | null;
             isLocked: boolean;
-          }>(`/captain/roster/${teamId}${qs({ seasonId })}`),
+          }>(`/captain/roster/${teamId}${qs({ seasonId, asOf: opts.asOf })}`),
         add: (
           teamId: string,
           body: {

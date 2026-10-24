@@ -585,6 +585,12 @@ export type GameStatus =
 export interface Game {
   id: string;
   leagueId: string;
+  /**
+   * Season the game belongs to: games.season_id, or the division's
+   * season when the row has none. Null only for ad-hoc games with
+   * neither (the lineup editor then resolves the roster by game date).
+   */
+  seasonId: string | null;
   divisionId: string | null;
   homeTeamId: string;
   awayTeamId: string;
@@ -1014,6 +1020,42 @@ export interface InvoiceItem {
   unitAmountCents: number;
   amountCents: number;
   feeScheduleId: string | null;
+}
+
+/**
+ * Captain dues tracker read model (GET /captain/dues/:teamId). One
+ * sub-invoice per player; `splitMethod` is the persisted split mode
+ * on the master invoice (null until the captain saves one).
+ */
+export interface CaptainDuesBreakdown {
+  teamId: string;
+  teamName: string;
+  masterInvoiceId: string | null;
+  masterInvoiceNumber: string | null;
+  /** Master invoice total: the amount the sub-invoices must sum to. */
+  masterTotalCents: number;
+  /** Sum of the sub-invoice totals. */
+  totalCents: number;
+  collectedCents: number;
+  thresholdCents: number;
+  seasonName: string | null;
+  divisionName: string | null;
+  entryStatus: string | null;
+  splitMethod: "even" | "custom" | null;
+  subInvoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    recipientPersonId: string | null;
+    recipientEmail: string | null;
+    totalCents: number;
+    paidCents: number;
+    status: string;
+    currency: string;
+    dueAt: string | null;
+    isOverdue: boolean;
+    isCaptain: boolean;
+    playerName: string | null;
+  }>;
 }
 
 export interface Invoice {

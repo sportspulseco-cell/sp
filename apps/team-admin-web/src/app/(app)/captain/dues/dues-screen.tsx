@@ -33,7 +33,9 @@ export function DuesScreen({
   const [busy, setBusy] = useState<"remind" | "cover" | string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [splitMode, setSplitMode] = useState<SplitMode>("even");
+  // Reopens in the mode the captain last saved (MON-8: the split used to
+  // live only in this component, so a reload showed the even split).
+  const [splitMode, setSplitMode] = useState<SplitMode>(initial.splitMethod ?? "even");
   const [includeCaptain, setIncludeCaptain] = useState(true);
   // Per-row custom amount overrides (cents), keyed by sub-invoice id.
   // Seeded from backend totals so editing starts from the current value.
@@ -62,24 +64,30 @@ export function DuesScreen({
       : 0;
   const thresholdReached = data.collectedCents >= data.thresholdCents && data.thresholdCents > 0;
 
+  // The amount the shares must add up to: the team fee on the master
+  // invoice (the server checks the same number).
+  const targetCents = data.masterTotalCents || data.totalCents;
+
+  // "Include captain" only shapes the even split; a custom split lists
+  // every share because the server needs an amount for each one.
   const visibleRows = useMemo(() => {
-    if (includeCaptain) return data.subInvoices;
+    if (includeCaptain || splitMode === "custom") return data.subInvoices;
     return data.subInvoices.filter((r) => !r.isCaptain);
-  }, [data.subInvoices, includeCaptain]);
+  }, [data.subInvoices, includeCaptain, splitMode]);
 
   // Even-split share: total divided over visible rows. Remainder cents
   // go to the first row so the splits sum exactly to the master total.
   const evenShares = useMemo(() => {
     const n = visibleRows.length;
     if (n === 0) return {} as Record<string, number>;
-    const base = Math.floor(data.totalCents / n);
-    const remainder = data.totalCents - base * n;
+    const base = Math.floor(targetCents / n);
+    const remainder = targetCents - base * n;
     const out: Record<string, number> = {};
     visibleRows.forEach((r, i) => {
       out[r.id] = base + (i === 0 ? remainder : 0);
     });
     return out;
-  }, [visibleRows, data.totalCents]);
+  }, [visibleRows, targetCents]);
 
   function displayedSplit(id: string, fallbackCents: number): number {
     if (splitMode === "even") return evenShares[id] ?? 0;
@@ -88,6 +96,41 @@ export function DuesScreen({
 
   function setCustomSplitFor(id: string, cents: number) {
     setCustomSplits((prev) => ({ ...prev, [id]: Math.max(0, cents) }));
+  }
+
+  const customSum = data.subInvoices.reduce(
+    (sum, s) => sum + (customSplits[s.id] ?? s.totalCents),
+    0
+  );
+  const customBalanced = customSum === targetCents;
+
+  async function saveSplit() {
+    setBusy("split");
+    setError(null);
+    try {
+      const next =
+        splitMode === "even"
+          ? await finance.captainDuesSetSplit(teamId, { method: "even", includeCaptain })
+          : await finance.captainDuesSetSplit(teamId, {
+              method: "custom",
+              amounts: data.subInvoices.map((s) => ({
+                invoiceId: s.id,
+                amountCents: customSplits[s.id] ?? s.totalCents
+              }))
+            });
+      // Readback: the table now shows what the server stored.
+      setData(next);
+      setCustomSplits(Object.fromEntries(next.subInvoices.map((s) => [s.id, s.totalCents])));
+      setFlash(
+        splitMode === "even"
+          ? "Split saved: the team fee is shared evenly."
+          : "Custom split saved."
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function refresh() {
@@ -331,15 +374,38 @@ export function DuesScreen({
                 <option value="custom">Custom split</option>
               </select>
             </label>
-            <label className="inline-flex items-center gap-1.5 text-fg-muted">
-              <input
-                type="checkbox"
-                checked={includeCaptain}
-                onChange={(e) => setIncludeCaptain(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-border text-accent focus:ring-accent"
-              />
-              Include captain
-            </label>
+            {splitMode === "even" ? (
+              <label className="inline-flex items-center gap-1.5 text-fg-muted">
+                <input
+                  type="checkbox"
+                  checked={includeCaptain}
+                  onChange={(e) => setIncludeCaptain(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border text-accent focus:ring-accent"
+                />
+                Include captain
+              </label>
+            ) : (
+              <span
+                className={
+                  customBalanced ? "text-fg-muted" : "font-medium text-[var(--tint-rose-fg)]"
+                }
+              >
+                {fmt(customSum, currency)} of {fmt(targetCents, currency)}
+                {customBalanced
+                  ? ""
+                  : customSum > targetCents
+                    ? ` · ${fmt(customSum - targetCents, currency)} too much`
+                    : ` · ${fmt(targetCents - customSum, currency)} left to assign`}
+              </span>
+            )}
+            <Button
+              size="sm"
+              onClick={saveSplit}
+              disabled={busy !== null || (splitMode === "custom" && !customBalanced)}
+            >
+              {busy === "split" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save split
+            </Button>
           </div>
         </header>
 

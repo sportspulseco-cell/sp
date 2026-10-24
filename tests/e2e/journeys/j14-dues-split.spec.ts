@@ -151,19 +151,40 @@ test("3. split controls: even + custom split persist; per-player remind works", 
   const amounts = p.locator("main tbody input");
   const n = await amounts.count();
   log("split rows:", n);
-  const reqs: string[] = [];
-  p.on("request", (r) => {
-    if (/\/api\//.test(r.url()) && r.method() !== "GET") reqs.push(`${r.method()} ${r.url()}`);
-  });
-  if (n > 0) await amounts.first().fill("1.00");
+  test.skip(n < 2, "a custom split needs two shares to move money between");
+  // Move $1.00 from the second share to the first: the total is unchanged,
+  // so the server must accept it (MON-8).
+  const a0 = Number(await amounts.nth(0).inputValue());
+  const a1 = Number(await amounts.nth(1).inputValue());
+  const want0 = (a0 + 1).toFixed(2);
+  const want1 = (a1 - 1).toFixed(2);
+  await amounts.nth(0).fill(want0);
+  await amounts.nth(1).fill(want1);
   await p.keyboard.press("Tab");
-  await p.waitForTimeout(1500);
-  log("mutations fired by editing a custom split:", JSON.stringify(reqs));
-  expect.soft(reqs.length, "custom split is persisted to the server").toBeGreaterThan(0);
+  const save = p.getByRole("button", { name: "Save split" });
+  await expect(save, "Save split enabled when shares add up to the team fee").toBeEnabled();
+  const respP = p.waitForResponse((r) => /\/captain\/dues\/[^/]+\/split$/.test(r.url()) && r.request().method() === "POST");
+  await save.click();
+  const resp = await respP;
+  log("save split →", resp.status(), (await resp.text()).slice(0, 200));
+  expect(resp.status(), "custom split is persisted to the server").toBeLessThan(300);
+  await expect(p.getByText("Custom split saved.")).toBeVisible({ timeout: 20_000 });
+  // Same surface, no reload: the row shows the stored amount.
+  await expect(amounts.nth(0)).toHaveValue(want0);
+  // Durable record: the master invoice remembers the method.
+  const [m] = await stagingSql<{ method: string | null }>(
+    `select i.metadata->>'splitMethod' method from invoices i
+       join division_team_entries dte on dte.invoice_id = i.id
+       join teams t on t.id = dte.team_id
+      where t.name = $1 order by i.created_at desc limit 1`,
+    [TEAM_NAME]
+  );
+  expect(m?.method, "master invoice records the custom split").toBe("custom");
   await p.reload();
   await expect(p.getByText("Player splits")).toBeVisible({ timeout: 60_000 });
   const mode = await p.locator("main select").filter({ hasText: "Even split" }).first().inputValue();
-  expect.soft(mode, "split mode survives a reload").toBe("custom");
+  expect(mode, "split mode survives a reload").toBe("custom");
+  await expect(p.locator("main tbody input").nth(0)).toHaveValue(want0);
   const remind = p.getByRole("button", { name: /^Remind$/ }).first();
   if (await remind.isVisible().catch(() => false)) {
     const respP = p.waitForResponse((r) => /remind/.test(r.url()));

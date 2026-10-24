@@ -1,17 +1,30 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   ForbiddenException,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Post,
+  UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsIn, IsOptional } from "class-validator";
+import { Type } from "class-transformer";
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Min,
+  ValidateNested
+} from "class-validator";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -31,6 +44,53 @@ class CoverOutstandingBodyDto {
   mockOutcome?: "succeeded" | "failed";
 }
 
+class SplitShareDto {
+  /** Sub-invoice id (one player's share), as listed by GET /captain/dues/:teamId. */
+  @IsUUID() invoiceId!: string;
+  @IsInt() @Min(0) amountCents!: number;
+}
+
+class SetSplitBodyDto {
+  @IsIn(["even", "custom"]) method!: "even" | "custom";
+  /** even only: false gives the captain's own share 0 and splits across the rest. */
+  @IsOptional() @IsBoolean() includeCaptain?: boolean;
+  /** custom only: one entry per sub-invoice; must sum to the master total. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SplitShareDto)
+  amounts?: SplitShareDto[];
+}
+
+type SplitMethod = "even" | "custom";
+
+function readSplitMethod(metadata: unknown): SplitMethod | null {
+  const m = (metadata as { splitMethod?: unknown } | null)?.splitMethod;
+  return m === "even" || m === "custom" ? m : null;
+}
+
+function fmtMoney(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
+      cents / 100
+    );
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
+/**
+ * Status of a player's share after its total changes. Issued shares
+ * follow the money (paid / partial / back to sent); drafts and voids
+ * are not re-issued here.
+ */
+function nextShareStatus(prev: string, totalCents: number, paidCents: number): string {
+  if (prev === "draft" || prev === "void") return prev;
+  if (totalCents === 0 || paidCents >= totalCents) return "paid";
+  if (paidCents > 0) return "partial";
+  return prev === "paid" || prev === "partial" ? "sent" : prev;
+}
+
 /**
  * Spec 2 Phase 3 — captain dues management endpoints.
  *
@@ -46,6 +106,8 @@ class CoverOutstandingBodyDto {
 @Controller("captain/dues")
 @UseGuards(JwtAuthGuard)
 export class CaptainDuesController {
+  private readonly logger = new Logger(CaptainDuesController.name);
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
@@ -65,50 +127,31 @@ export class CaptainDuesController {
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
 
-    // Find current master invoice via the team's most recent DTE, plus
-    // the threshold + season + division context for the captain UI.
-    const dteRows = await this.db
-      .select({
-        masterInvoiceId: schema.divisionTeamEntries.invoiceId,
-        collectedCents: schema.divisionTeamEntries.collectedCents,
-        thresholdCents:
-          schema.divisionTeamEntries.confirmationThresholdCents,
-        entryStatus: schema.divisionTeamEntries.entryStatus,
-        seasonName: schema.seasons.name,
-        divisionName: schema.divisions.name
-      })
-      .from(schema.divisionTeamEntries)
-      .innerJoin(
-        schema.divisions,
-        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-      )
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.divisions.seasonId)
-      )
-      .where(eq(schema.divisionTeamEntries.teamId, teamId))
-      .orderBy(schema.divisionTeamEntries.createdAt);
-    const activeRow =
-      dteRows.find((r) => r.masterInvoiceId) ?? dteRows.at(-1) ?? null;
-    const masterInvoiceId = activeRow?.masterInvoiceId ?? null;
+    const { activeRow, masterInvoiceId } = await this.loadDuesContext(teamId);
     if (!masterInvoiceId) {
       return {
         teamId,
         teamName: team.name,
         masterInvoiceId: null,
         masterInvoiceNumber: null,
+        masterTotalCents: 0,
         totalCents: 0,
         collectedCents: 0,
         thresholdCents: activeRow?.thresholdCents ?? 0,
         seasonName: activeRow?.seasonName ?? null,
         divisionName: activeRow?.divisionName ?? null,
         entryStatus: activeRow?.entryStatus ?? null,
+        splitMethod: null as SplitMethod | null,
         subInvoices: []
       };
     }
 
     const [master] = await this.db
-      .select({ invoiceNumber: schema.invoices.invoiceNumber })
+      .select({
+        invoiceNumber: schema.invoices.invoiceNumber,
+        totalCents: schema.invoices.totalCents,
+        metadata: schema.invoices.metadata
+      })
       .from(schema.invoices)
       .where(eq(schema.invoices.id, masterInvoiceId))
       .limit(1);
@@ -155,12 +198,14 @@ export class CaptainDuesController {
       teamName: team.name,
       masterInvoiceId,
       masterInvoiceNumber: master?.invoiceNumber ?? null,
+      masterTotalCents: master?.totalCents ?? totalCents,
       totalCents,
       collectedCents,
       thresholdCents: activeRow?.thresholdCents ?? 0,
       seasonName: activeRow?.seasonName ?? null,
       divisionName: activeRow?.divisionName ?? null,
       entryStatus: activeRow?.entryStatus ?? null,
+      splitMethod: readSplitMethod(master?.metadata),
       subInvoices: subs.map((s) => {
         const isCaptain =
           !!s.personUserId && s.personUserId === team.captainUserId;
@@ -289,6 +334,291 @@ export class CaptainDuesController {
         status: "queued"
       })
       .onConflictDoNothing({ target: schema.notifications.idempotencyKey });
+  }
+
+  // -------------------------------------------------------------------
+  // POST /captain/dues/:teamId/split
+  // Persist how the team fee is shared across the EXISTING sub-invoices
+  // of the master the tracker shows (MON-8). The older
+  // /finance/team-invoices/:id/split inserts a fresh set of sub-invoices
+  // and is not what this screen reads. The server recomputes even
+  // shares itself and refuses custom amounts that do not sum to the
+  // master total or undercut what a player already paid.
+  // -------------------------------------------------------------------
+  @Post(":teamId/split")
+  @ApiOperation({
+    summary:
+      "Set the dues split (even or custom) across the team's existing sub-invoices. Captain-only. Sum must equal the master invoice total; no share below its paid amount. Returns the fresh breakdown."
+  })
+  async setSplit(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Body() body: SetSplitBodyDto
+  ) {
+    const team = await this.requireCaptainTeam(user.userId, teamId);
+    const { masterInvoiceId } = await this.loadDuesContext(teamId);
+    if (!masterInvoiceId) {
+      throw new NotFoundException("No master invoice for this team");
+    }
+
+    const result = await this.db.transaction(async (tx) => {
+      const [master] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, masterInvoiceId))
+        .for("update");
+      if (!master) throw new NotFoundException("Master invoice not found");
+      if (master.status === "void") {
+        throw new ConflictException({
+          error: "master_void",
+          message: "The team invoice was voided; there is nothing to split."
+        });
+      }
+
+      const subRows = await tx
+        .select({
+          sub: schema.invoices,
+          personUserId: schema.persons.userId,
+          firstName: schema.persons.legalFirstName,
+          lastName: schema.persons.legalLastName,
+          preferredName: schema.persons.preferredName
+        })
+        .from(schema.invoices)
+        .leftJoin(
+          schema.persons,
+          eq(schema.persons.id, schema.invoices.recipientPersonId)
+        )
+        .where(
+          and(
+            eq(schema.invoices.parentInvoiceId, master.id),
+            eq(schema.invoices.invoiceType, "sub_invoice")
+          )
+        )
+        .for("update", { of: schema.invoices });
+      const shares = subRows
+        .filter((r) => r.sub.status !== "void")
+        .map((r) => ({
+          ...r,
+          isCaptain:
+            !!r.personUserId && r.personUserId === team.captainUserId,
+          label:
+            r.preferredName ||
+            [r.firstName, r.lastName].filter(Boolean).join(" ") ||
+            r.sub.recipientEmail ||
+            r.sub.invoiceNumber
+        }));
+      if (shares.length === 0) {
+        throw new ConflictException({
+          error: "no_shares",
+          message: "No player shares exist on this team invoice yet."
+        });
+      }
+
+      const target = master.totalCents;
+      const currency = master.currency;
+      const desired = new Map<string, number>();
+      if (body.method === "even") {
+        const includeCaptain = body.includeCaptain ?? true;
+        const payers = includeCaptain
+          ? shares
+          : shares.filter((r) => !r.isCaptain);
+        if (payers.length === 0) {
+          throw new BadRequestException(
+            "Nobody is left to split the fee across. Include the captain or add players first."
+          );
+        }
+        const base = Math.floor(target / payers.length);
+        const remainder = target - base * payers.length;
+        for (const r of shares) desired.set(r.sub.id, 0);
+        payers.forEach((r, i) =>
+          desired.set(r.sub.id, base + (i === 0 ? remainder : 0))
+        );
+      } else {
+        const amounts = body.amounts ?? [];
+        if (amounts.length === 0) {
+          throw new BadRequestException(
+            "A custom split needs an amount for every player."
+          );
+        }
+        for (const a of amounts) {
+          if (desired.has(a.invoiceId)) {
+            throw new BadRequestException(
+              "Each player share may appear only once."
+            );
+          }
+          if (!shares.some((r) => r.sub.id === a.invoiceId)) {
+            throw new BadRequestException(
+              "One of the shares is not on this team's invoice."
+            );
+          }
+          desired.set(a.invoiceId, a.amountCents);
+        }
+        const missing = shares.filter((r) => !desired.has(r.sub.id));
+        if (missing.length > 0) {
+          throw new BadRequestException(
+            `Every player share needs an amount (${missing.length} missing).`
+          );
+        }
+        const sum = [...desired.values()].reduce((a, b) => a + b, 0);
+        if (sum !== target) {
+          throw new UnprocessableEntityException({
+            error: "split_sum_mismatch",
+            message: `Shares must add up to the team fee exactly: got ${fmtMoney(sum, currency)}, team fee is ${fmtMoney(target, currency)}.`,
+            sumCents: sum,
+            targetCents: target
+          });
+        }
+      }
+
+      for (const r of shares) {
+        const amount = desired.get(r.sub.id) ?? 0;
+        if (amount < r.sub.paidCents) {
+          throw new UnprocessableEntityException({
+            error: "below_paid",
+            message: `${r.label} has already paid ${fmtMoney(r.sub.paidCents, currency)}; their share cannot be less than that.`,
+            invoiceId: r.sub.id
+          });
+        }
+      }
+
+      const now = new Date();
+      let invoicesUpdated = 0;
+      let itemsUpdated = 0;
+      let installmentsUpdated = 0;
+      for (const r of shares) {
+        const amount = desired.get(r.sub.id) ?? 0;
+        if (amount === r.sub.totalCents) continue;
+        const status = nextShareStatus(r.sub.status, amount, r.sub.paidCents);
+        const updated = await tx
+          .update(schema.invoices)
+          .set({
+            subtotalCents: amount,
+            totalCents: amount,
+            status,
+            paidAt: status === "paid" ? r.sub.paidAt ?? now : null,
+            updatedAt: now
+          })
+          .where(eq(schema.invoices.id, r.sub.id))
+          .returning({ id: schema.invoices.id });
+        invoicesUpdated += updated.length;
+
+        // A share carries at most one "split share" line; keep it equal
+        // to the new total so the invoice detail does not contradict it.
+        const items = await tx
+          .select({ id: schema.invoiceItems.id })
+          .from(schema.invoiceItems)
+          .where(eq(schema.invoiceItems.invoiceId, r.sub.id));
+        if (items.length === 1) {
+          await tx
+            .update(schema.invoiceItems)
+            .set({ quantity: 1, unitAmountCents: amount, amountCents: amount })
+            .where(eq(schema.invoiceItems.id, items[0]!.id));
+          itemsUpdated++;
+        }
+
+        installmentsUpdated += await this.rescaleInstallments(
+          tx,
+          r.sub.id,
+          r.label,
+          amount,
+          currency,
+          now
+        );
+      }
+
+      const meta = (master.metadata as Record<string, unknown>) ?? {};
+      await tx
+        .update(schema.invoices)
+        .set({
+          metadata: {
+            ...meta,
+            splitConfigured: true,
+            splitMethod: body.method,
+            ...(body.method === "even"
+              ? { splitIncludeCaptain: body.includeCaptain ?? true }
+              : {}),
+            splitUpdatedAt: now.toISOString(),
+            splitUpdatedByUserId: user.userId
+          },
+          updatedAt: now
+        })
+        .where(eq(schema.invoices.id, master.id));
+
+      return {
+        shares: shares.length,
+        invoicesUpdated,
+        itemsUpdated,
+        installmentsUpdated
+      };
+    });
+
+    this.logger.log(
+      `captain.dues.split team=${teamId} master=${masterInvoiceId} method=${body.method} shares=${result.shares} invoicesUpdated=${result.invoicesUpdated} items=${result.itemsUpdated} installments=${result.installmentsUpdated} by=${user.userId}`
+    );
+    // Readback: the tracker re-renders from what is now stored.
+    return this.getBreakdown(user, teamId);
+  }
+
+  /**
+   * Keep a share's payment plan equal to its new total. Charged or
+   * charging instalments are fixed; open ones (scheduled, failed,
+   * cancelled) absorb the difference evenly, remainder on the last.
+   * Returns the number of instalment rows updated.
+   */
+  private async rescaleInstallments(
+    tx: Pick<Database, "select" | "update">,
+    invoiceId: string,
+    label: string,
+    newTotal: number,
+    currency: string,
+    now: Date
+  ): Promise<number> {
+    const rows = await tx
+      .select()
+      .from(schema.installmentSchedules)
+      .where(eq(schema.installmentSchedules.invoiceId, invoiceId))
+      .orderBy(schema.installmentSchedules.installmentNumber);
+    if (rows.length === 0) return 0;
+    const fixed = rows.filter(
+      (r) => r.status === "succeeded" || r.status === "charging"
+    );
+    const open = rows.filter(
+      (r) =>
+        r.status === "scheduled" ||
+        r.status === "failed" ||
+        r.status === "cancelled"
+    );
+    const fixedSum = fixed.reduce((a, r) => a + r.amountCents, 0);
+    const remaining = newTotal - fixedSum;
+    if (remaining < 0) {
+      throw new UnprocessableEntityException({
+        error: "below_charged",
+        message: `${label} already has ${fmtMoney(fixedSum, currency)} charged on a payment plan; their share cannot be less than that.`,
+        invoiceId
+      });
+    }
+    if (open.length === 0) {
+      if (remaining === 0) return 0;
+      throw new ConflictException({
+        error: "plan_closed",
+        message: `${label}'s payment plan has no open instalment left to carry the change. Ask the league admin to adjust it.`,
+        invoiceId
+      });
+    }
+    const per = Math.floor(remaining / open.length);
+    const rem = remaining - per * open.length;
+    let updated = 0;
+    for (const [i, r] of open.entries()) {
+      const amount = per + (i === open.length - 1 ? rem : 0);
+      const status =
+        amount === 0 ? "cancelled" : r.status === "cancelled" ? "scheduled" : r.status;
+      await tx
+        .update(schema.installmentSchedules)
+        .set({ amountCents: amount, status, updatedAt: now })
+        .where(eq(schema.installmentSchedules.id, r.id));
+      updated++;
+    }
+    return updated;
   }
 
   // -------------------------------------------------------------------
@@ -430,6 +760,40 @@ export class CaptainDuesController {
     );
     if (!ok) throw new ForbiddenException("Not the captain of this team");
     return team;
+  }
+
+  /**
+   * The master invoice the tracker shows: the team's earliest division
+   * entry that carries one (plus that entry's season / division /
+   * threshold context). Every captain dues command resolves the master
+   * through here so reads and writes never disagree on which invoice
+   * they mean.
+   */
+  private async loadDuesContext(teamId: string) {
+    const dteRows = await this.db
+      .select({
+        masterInvoiceId: schema.divisionTeamEntries.invoiceId,
+        collectedCents: schema.divisionTeamEntries.collectedCents,
+        thresholdCents:
+          schema.divisionTeamEntries.confirmationThresholdCents,
+        entryStatus: schema.divisionTeamEntries.entryStatus,
+        seasonName: schema.seasons.name,
+        divisionName: schema.divisions.name
+      })
+      .from(schema.divisionTeamEntries)
+      .innerJoin(
+        schema.divisions,
+        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
+      )
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.divisions.seasonId)
+      )
+      .where(eq(schema.divisionTeamEntries.teamId, teamId))
+      .orderBy(schema.divisionTeamEntries.createdAt);
+    const activeRow =
+      dteRows.find((r) => r.masterInvoiceId) ?? dteRows.at(-1) ?? null;
+    return { activeRow, masterInvoiceId: activeRow?.masterInvoiceId ?? null };
   }
 
   private async loadMasterInvoiceId(teamId: string): Promise<string | null> {
