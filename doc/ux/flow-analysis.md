@@ -33,15 +33,23 @@ and alternatives, with sources) and `../traceability/benchmark.md`
 | Navigation regrouped the way SportsEngine HQ groups the work: Home, Season, Teams, Registration, Games & results, Members, Financials, Messages, Reports, Settings (admin console); same groups filtered for the org console; player app My games / My team / My account / Register | `8ffa1bd` | A SportsEngine user finds things where they expect them; top-level count drops from 30 flat items to 1 + 9 groups. |
 | Code-style `//` prefix removed from every page eyebrow in the apps | `8ffa1bd` | Headers read as English, not as source code. |
 | Season page opens with the same lifecycle strip and next step | `9232baf` | The season is the working surface, as in HQ Season Management. |
+| Sign-in pages in each app say who they are for in plain words and link back to the chooser ("Not you? Pick another app") | `2c8ffc2` | A tester who opened the wrong app is one click from the right one. |
+| Captain menu: Home, Schedule, Game lineups, Stats & standings; **Your team** (Roster, Invite players, Join requests, Free agents, Team settings); **This season** (Register the team, Dues, Waivers & documents). One Roster entry instead of Roster + Manage roster | `d56bbdb` | Mirrors how a team manager thinks; no duplicate entries. |
+| Captain home, banner and menu show one registration call: set up roster and dues, application pending, denied with the admin's reason, or Register the team for <season> | `560c13d` | The captain always sees the next step for the season, including after a denial. |
+| Admins can **Add a team** to a division from the division page (type a name, pick, add) | `4700c18` | Teams without a captain, or registered on paper, can be placed; the schedule then has enough teams. |
+| Invoice composer: pick a **fee schedule** to fill the line and due date | `2e44db7` | Same habit as SportsEngine "Sale Items" with saved prices. |
+| Dues: **Save split** with a running total against the team fee | `fd34b62` | The custom split the captain enters is what players are billed. |
+| New rink form waits for the organisation list instead of a silently disabled Create | `0eda50e` | No dead button. |
+| Registrations and admin home heroes rewritten in plain words; org console invoices show the invoice number | `4a9649a`, `4dec821`, `40f94df` | No marketing copy or UUID fragments where an operator expects names. |
 | Test payments labelled "no real card is charged while the league is testing" | `f3d70d9` | Testers know the mock is intentional. |
 
 None of this is live for PPHL yet: production is on `a2cf243` until the Vercel plan is upgraded (Hobby cap of 100 deployments per day, hit 24 Oct 16:21 UTC).
 
 ## 3. Open UX work (ordered by how much it removes the learning curve)
 
-1. **Regroup the admin console menu the way SportsEngine HQ groups it** (People, Teams, Competition, Registration, Schedule, Results, Payments, Messages, Reports, Settings) and cut the top level to about ten items; apply the same groups to the org console. Waits on `competitor-ia.md` for the exact labels so the words match what PPHL already uses.
+1. ~~Regroup the admin console menu the way SportsEngine HQ groups it~~ Done (`8ffa1bd`); next: move day-to-day season work fully into the season page so the menu is rarely needed. (People, Teams, Competition, Registration, Schedule, Results, Payments, Messages, Reports, Settings) and cut the top level to about ten items; apply the same groups to the org console. Waits on `competitor-ia.md` for the exact labels so the words match what PPHL already uses.
 2. **Season hub page** (`/seasons/:id`) as the operator's working surface: the same seven steps as the home card, each expanding into the actions for that step, so an operator never needs the side menu for a normal season.
-3. **Captain app home = "your season"**: register the team (when open), roster status against the lock date, dues collected, next game; the captain findings CAP-1..24 are being fixed in parallel.
+3. ~~Captain app home~~ Registration call done (`560c13d`); still to add: roster status against the lock date and dues collected on the same card.: register the team (when open), roster status against the lock date, dues collected, next game; the captain findings CAP-1..24 are being fixed in parallel.
 4. **Player app home for a player with nothing yet**: one card, "Find a season to join", then registration status, then team/schedule. Verify with the unhappy personas (returning user, minor, free agent).
 5. **Public pages**: schedule, standings and team pages without sign-in, plus an iCal feed (benchmark B-5/B-6). This is what SportsEngine users open every day.
 6. **Vocabulary pass on the remaining surfaces**: dialogs, empty states, toasts and emails ("org_admin — Org Admin" style strings; SETUP-7 in progress), and the `//` eyebrows, which read as code to non-developers.
