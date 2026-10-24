@@ -29,7 +29,7 @@ export default async function StorePage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Team store"
+          eyebrow="Team store"
           title="Team store"
           description="Merch from your team's captain."
         />
@@ -50,7 +50,7 @@ export default async function StorePage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Team store"
+          eyebrow="Team store"
           title={`${data.team.name} store`}
           description="Merch from your captain."
         />
@@ -66,7 +66,7 @@ export default async function StorePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Team store"
+        eyebrow="Team store"
         title={`${data.team.name} store`}
         description="Merch curated by your captain. Checkout arrives once payments are wired up."
       />
@@ -102,7 +102,7 @@ export default async function StorePage() {
               ) : null}
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
-              <Eyebrow>// {p.variantLabel ?? "product"}</Eyebrow>
+              <Eyebrow>{p.variantLabel ?? "product"}</Eyebrow>
               <h3 className="text-sm font-medium text-fg">{p.name}</h3>
               {p.description ? (
                 <p className="line-clamp-3 text-xs text-fg-muted">

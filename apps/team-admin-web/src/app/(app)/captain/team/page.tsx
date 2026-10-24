@@ -16,7 +16,7 @@ export default async function CaptainTeamPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Captain console"
+          eyebrow="Captain console"
           title="Manage team"
         />
         <EmptyState
@@ -37,7 +37,7 @@ export default async function CaptainTeamPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Captain console"
+          eyebrow="Captain console"
           title="Manage team"
         />
         <EmptyState
@@ -52,12 +52,12 @@ export default async function CaptainTeamPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Manage team"
         description="Edit your team's display profile. Roster + invites + free-agents have their own pages."
       />
       <section className="rounded-xl border border-border bg-surface-1 p-6">
-        <Eyebrow>// {team.name}</Eyebrow>
+        <Eyebrow>{team.name}</Eyebrow>
         <p className="mt-1 font-mono text-[11px] uppercase tracking-wide text-fg-muted">
           {team.sportCode} · {team.ownerOrgName ?? "Unknown org"}
         </p>

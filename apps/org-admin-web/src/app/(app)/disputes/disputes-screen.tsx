@@ -169,7 +169,7 @@ function DisputeRow({
     <div className="space-y-3">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Eyebrow>// {item.sourceEvent.replace(/_/g, " ")}</Eyebrow>
+          <Eyebrow>{item.sourceEvent.replace(/_/g, " ")}</Eyebrow>
           <p className="mt-1 text-sm font-medium text-fg">{playerName}</p>
           <p className="text-[12px] text-fg-muted">
             {item.teamName} · {item.seasonName}
@@ -269,7 +269,7 @@ function ResolveForm({
   return (
     <div className="rounded-xl border border-border bg-bg-subtle p-4">
       <div className="mb-3 flex items-center justify-between">
-        <Eyebrow>// Adjudicate</Eyebrow>
+        <Eyebrow>Adjudicate</Eyebrow>
         <button
           type="button"
           onClick={onCancel}

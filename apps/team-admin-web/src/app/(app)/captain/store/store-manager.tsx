@@ -191,7 +191,7 @@ export function StoreManager({
       ) : null}
 
       <div className="flex items-center justify-between">
-        <Eyebrow>// Products ({items.length})</Eyebrow>
+        <Eyebrow>Products ({items.length})</Eyebrow>
         {!showCreate ? (
           <Button
             size="sm"
@@ -372,7 +372,7 @@ function FormCard({
   return (
     <div className="rounded-xl border border-border bg-surface-1 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <Eyebrow>// {title}</Eyebrow>
+        <Eyebrow>{title}</Eyebrow>
         <button
           type="button"
           onClick={onCancel}
