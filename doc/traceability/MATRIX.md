@@ -1,6 +1,6 @@
 # PPHL traceability matrix
 
-Generated 2026-10-24 by `doc/traceability/build.py`. Every status comes from a browser run (crawl as each role, or a journey); nothing here is typed by hand. Re-run the crawl and the journeys, then this script.
+Generated 2026-10-25 by `doc/traceability/build.py`. Every status comes from a browser run (crawl as each role, or a journey); nothing here is typed by hand. Re-run the crawl and the journeys, then this script.
 
 ## Evidence used
 
@@ -9,6 +9,11 @@ Generated 2026-10-24 by `doc/traceability/build.py`. Every status comes from a b
 - Crawl **prod** as **player**: 18 pages, 0 404/error, 0 with a failed API call.
 - Crawl **prod** as **superAdmin**: 127 pages, 3 404/error, 0 with a failed API call.
 - Crawl **prod** as **teamAdmin**: 15 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-v2** as **leagueAdmin**: 105 pages, 5 404/error, 21 with a failed API call.
+- Crawl **prod-v2** as **orgAdmin**: 68 pages, 1 404/error, 0 with a failed API call.
+- Crawl **prod-v2** as **player**: 18 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-v2** as **superAdmin**: 127 pages, 3 404/error, 0 with a failed API call.
+- Crawl **prod-v2** as **teamAdmin**: 15 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-before-fixes** as **leagueAdmin**: 78 pages, 5 404/error, 14 with a failed API call.
 - Crawl **staging-before-fixes** as **orgAdmin**: 68 pages, 1 404/error, 0 with a failed API call.
 - Crawl **staging-before-fixes** as **player**: 21 pages, 0 404/error, 0 with a failed API call.
@@ -197,6 +202,36 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **prod / superAdmin** `/roles/2dd26d9d-01fc-471e-93a5-85ef1fdd2a25` → 404 — reached from `/roles`
 - **prod / superAdmin** `/roles/e5411d9a-ba12-4afb-b905-aa594c9423ba` → 404 — reached from `/roles`
 - **prod / superAdmin** `/roles/261c5c9f-027c-442b-be7d-d8a6eb228c61` → 404 — reached from `/roles`
+- **prod-v2 / leagueAdmin** `/users` → error — reached from `/`
+- **prod-v2 / leagueAdmin** `/registrations` → API failure (403 GET /api/registration-v2/admin/submissions?statuses=pending_review%2Cpending_offline&limit=100) — reached from `/`
+- **prod-v2 / leagueAdmin** `/division-applications` → API failure (403 GET /api/league/division-team-entries?status=pending_approval%2Capplied) — reached from `/`
+- **prod-v2 / leagueAdmin** `/transfers` → API failure (403 GET /api/league/admin/transfers?status=pending_admin) — reached from `/`
+- **prod-v2 / leagueAdmin** `/forms` → error — reached from `/`
+- **prod-v2 / leagueAdmin** `/eligibility` → API failure (403 GET /api/compliance/eligibility/season/53330930-44e9-4c74-94dd-fe78ced54676/summary; 403 GET /api/compliance/eligibility/season/53330930-44e9-4c74-94dd-fe78ced54676/duplicates) — reached from `/`
+- **prod-v2 / leagueAdmin** `/organizations/ac684496-ef9d-4380-9167-527ebc631cb7` → API failure (403 GET /api/iam/users?roleCode=org_admin&limit=100) — reached from `/`
+- **prod-v2 / leagueAdmin** `/organizations/b0b863c4-552b-429f-977f-67a4f1a02f6f` → API failure (403 GET /api/iam/users?roleCode=org_admin&limit=100) — reached from `/`
+- **prod-v2 / leagueAdmin** `/seasons/53330930-44e9-4c74-94dd-fe78ced54676` → API failure (403 GET /api/iam/users?roleCode=season_admin&limit=100) — reached from `/seasons`
+- **prod-v2 / leagueAdmin** `/seasons/dc99e9c7-8428-4b9c-a11a-257a9ac2d335` → API failure (403 GET /api/iam/users?roleCode=season_admin&limit=100) — reached from `/seasons`
+- **prod-v2 / leagueAdmin** `/seasons/f6376869-5712-499a-8563-a07083ded7f5` → API failure (403 GET /api/iam/users?roleCode=season_admin&limit=100) — reached from `/seasons`
+- **prod-v2 / leagueAdmin** `/leagues/6be07d09-a8ba-48a5-9561-4f369a2cda98` → API failure (403 GET /api/iam/users?roleCode=league_admin&limit=100) — reached from `/leagues`
+- **prod-v2 / leagueAdmin** `/leagues/b90d38ef-1495-4b67-b270-050827476937` → API failure (403 GET /api/iam/users?roleCode=league_admin&limit=100) — reached from `/leagues`
+- **prod-v2 / leagueAdmin** `/divisions/07db021c-cca5-46c4-a963-1144fc4dd7a9` → API failure (403 GET /api/iam/users?roleCode=division_admin&limit=100) — reached from `/divisions`
+- **prod-v2 / leagueAdmin** `/divisions/1cf20fa8-e693-4f92-8d02-bbd9b768ea18` → API failure (403 GET /api/iam/users?roleCode=division_admin&limit=100) — reached from `/divisions`
+- **prod-v2 / leagueAdmin** `/divisions/a00275bb-656f-4467-b366-e7b78d9eae4d` → API failure (403 GET /api/iam/users?roleCode=division_admin&limit=100) — reached from `/divisions`
+- **prod-v2 / leagueAdmin** `/teams/377ad124-db19-4019-8675-b43c3ffbd4b1` → API failure (403 GET /api/iam/users?roleCode=coach&limit=100) — reached from `/teams`
+- **prod-v2 / leagueAdmin** `/teams/442d1554-188a-4be8-91d6-2205419e6d0e` → API failure (403 GET /api/iam/users?roleCode=coach&limit=100) — reached from `/teams`
+- **prod-v2 / leagueAdmin** `/teams/446af9f0-5ef5-4eb6-a601-4b5a578de324` → API failure (403 GET /api/iam/users?roleCode=coach&limit=100) — reached from `/teams`
+- **prod-v2 / leagueAdmin** `/forms?purpose=season_registration` → error — reached from `/forms`
+- **prod-v2 / leagueAdmin** `/forms?purpose=role_profile` → error — reached from `/forms`
+- **prod-v2 / leagueAdmin** `/eligibility?status=eligible` → API failure (403 GET /api/compliance/eligibility/season/53330930-44e9-4c74-94dd-fe78ced54676/summary; 403 GET /api/compliance/eligibility/season/53330930-44e9-4c74-94dd-fe78ced54676/duplicates) — reached from `/eligibility`
+- **prod-v2 / leagueAdmin** `/eligibility?status=pending` → API failure (403 GET /api/compliance/eligibility/season/53330930-44e9-4c74-94dd-fe78ced54676/summary; 403 GET /api/compliance/eligibility/season/53330930-44e9-4c74-94dd-fe78ced54676/duplicates) — reached from `/eligibility`
+- **prod-v2 / leagueAdmin** `/users/2225f538-6f94-482d-a9da-6c7dceb1c845` → 404 — reached from `/organizations/ac684496-ef9d-4380-9167-527ebc631cb7`
+- **prod-v2 / leagueAdmin** `/registrations?orgId=ac684496-ef9d-4380-9167-527ebc631cb7` → API failure (403 GET /api/registration-v2/admin/submissions?statuses=pending_review%2Cpending_offline&limit=100) — reached from `/organizations/ac684496-ef9d-4380-9167-527ebc631cb7`
+- **prod-v2 / leagueAdmin** `/registrations?orgId=b0b863c4-552b-429f-977f-67a4f1a02f6f` → API failure (403 GET /api/registration-v2/admin/submissions?statuses=pending_review%2Cpending_offline&limit=100) — reached from `/organizations/b0b863c4-552b-429f-977f-67a4f1a02f6f`
+- **prod-v2 / orgAdmin** `/organizations/ac684496-ef9d-4380-9167-527ebc631cb7` → 404 — reached from `/divisions/d14ff4f7-6fc0-4947-aafe-f7c11cb4e95b`
+- **prod-v2 / superAdmin** `/roles/2dd26d9d-01fc-471e-93a5-85ef1fdd2a25` → 404 — reached from `/roles`
+- **prod-v2 / superAdmin** `/roles/e5411d9a-ba12-4afb-b905-aa594c9423ba` → 404 — reached from `/roles`
+- **prod-v2 / superAdmin** `/roles/261c5c9f-027c-442b-be7d-d8a6eb228c61` → 404 — reached from `/roles`
 - **staging-before-fixes / leagueAdmin** `/users` → error — reached from `/`
 - **staging-before-fixes / leagueAdmin** `/registrations` → API failure (403 GET /api/registration-v2/admin/submissions?statuses=pending_review%2Cpending_offline&limit=100) — reached from `/`
 - **staging-before-fixes / leagueAdmin** `/division-applications` → API failure (403 GET /api/league/division-team-entries?status=pending_approval%2Capplied) — reached from `/`
@@ -224,18 +259,18 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 138 total, 96 still open
+## Logged findings: 138 total, 78 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
 | CAP-1 | blocker | Captain invite link has nowhere to land (UC-04 cannot complete) | J8 · UC-04 | fixed | journey matrix 3a |
 | CAP-2 | blocker | Set-up wizard registers the team into a DENIED division with no approval | J7 | fixed | journey matrix 3a |
 | CAP-3 | blocker | A player who signs up is refused by player-web; free-agent and join flows unreachable | J6 · UC-03 (also UC-04 "player creates account") | open |  |
-| CAP-4 | major | Team-registration and invite notifications never reach anyone | J7, J8 · UC-04 ("System sends invitation"), UC-03, UC-05 | open |  |
-| CAP-5 | major | Captain never sees a denial (or its reason) while the team has another active season | J7 | open |  |
-| CAP-6 | major | No way into "Register your team" from the captain console while the team is in season | J7 | open |  |
+| CAP-4 | major | Team-registration and invite notifications never reach anyone | J7, J8 · UC-04 ("System sends invitation"), UC-03, UC-05 | fixed in code, not deployed | commit 560c13d: invite emails built in one place with team, season, /invite link, expiry (delivery needs RESEND_API_KEY) |
+| CAP-5 | major | Captain never sees a denial (or its reason) while the team has another active season | J7 | fixed in code, not deployed | commit 560c13d: registration call shows denial + admin reason |
+| CAP-6 | major | No way into "Register your team" from the captain console while the team is in season | J7 | fixed in code, not deployed | commit 560c13d: Register the team always in captain menu + CTA |
 | CAP-7 | major | Captain's free-agent pool reads the newest division entry, so current-season free agents are invisible | J6 · UC-03 | fixed | pdf-items item 6 + blockers-oct24 item 4 (staging, 24 Oct) |
-| CAP-8 | major | Manage roster jumps to the newest registered season; the current roster is unreachable | J8 · UC-33 / UC-04 | open |  |
+| CAP-8 | major | Manage roster jumps to the newest registered season; the current roster is unreachable | J8 · UC-33 / UC-04 | fixed in code, not deployed | commit 560c13d: one kernel current-season rule + season switcher |
 | CAP-9 | major | Claiming a free agent skips the player's accept/decline and tells nobody | J6 · UC-03 | open |  |
 | CAP-10 | major | No admin view of the free-agent pool (cannot manually assign) | J6 · UC-03 alternative flow "Admin manually assigns player to a team" | open |  |
 | CAP-11 | major | Any signed-in user can search every person on the platform, with email and auth id | J8 | open |  |
@@ -251,14 +286,14 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CAP-21 | minor | Per-player cost differs between screens | J7 | open |  |
 | CAP-22 | minor | Set-up wizard page has two nested <main> landmarks | J7 | open |  |
 | CAP-23 | minor | "New registration form" dialog preselects another tenant's org | J7 setup (forms) | open |  |
-| CAP-24 | major | Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) | J8.4 → J8.5 · M10 | open |  |
+| CAP-24 | major | Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) | J8.4 → J8.5 · M10 | fixed in code, not deployed | commit 560c13d: refuses a second active membership in another open season |
 | COMP-5 | blocker | Player and captain compliance pages are always empty | J9 · UC-05, UC-29, UC-14 | fixed | journey matrix 3a |
 | COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | open |  |
 | COMP-2 | major | USA Hockey ID submit fails: "Unknown governing body code "USA_HOCKEY"" | J9 · UC-29 | fixed | migration 0049 on staging + prod; j09 step 2 passed (journey matrix 3a) |
 | COMP-3 | major | Player cannot upload an ID or eligibility document | J9 · UC-29 (precondition), UC-27 alt flow (scanned signed waiver) | open |  |
 | COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | open |  |
 | COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | open |  |
-| COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | open |  |
+| COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | fixed in code, not deployed | commit 3ad966b: league admin reads eligibility in scope |
 | COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | open |  |
 | COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | open |  |
 | COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | open |  |
@@ -267,7 +302,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | open |  |
 | COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | open |  |
 | COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | open |  |
-| COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | open |  |
+| COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | fixed in code, not deployed | commit 5d87870: same fix as SCH-23 |
 | CONSOLE-1 | blocker | Every API failure renders Next's "404 This page could not be found" | all · M1–M17 (every detail page) | fixed in code, not deployed | commit c66e81f: load() + LoadError in 60 pages; awaiting staging deploy + crawl |
 | CONSOLE-2 | major | Roles rows link to /roles/:id, which does not exist | J2 · M1 | fixed in code, not deployed | commit c66e81f: roles/[id] page; awaiting deploy |
 | CONSOLE-3 | blocker | League admin: Users and Forms say "Could not load"; Registrations, Division applications, Transfers, Eligibility say "Super admin access required"; Documents and Game events show an empty list as if true | J1/J2/J3/J4/J7/J9 · M1, M5, M6, M9, M10, M11, M13 | fixed in code, not deployed | commit 3ad966b: ScopedAdminGuard + visibility.ts; awaiting deploy + league-admin-console journey |
@@ -275,20 +310,20 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CONSOLE-5 | minor | League admin sees super-admin-only modules in the navigation | — · navigation | fixed in code, not deployed | commit c66e81f: superOnly nav items; awaiting deploy |
 | CONSOLE-6 | minor | Org admin: division page links the organisation to /organizations/:id, which the org console does not have | J1 · M2/M3 | fixed in code, not deployed | commit c66e81f: DivisionDetail orgHref; awaiting deploy |
 | CONSOLE-7 | minor | Placeholder pages in the navigation: captain "Communications" (Coming soon), player "Video" (coming soon), player and captain "Team store" (CHECKOUT SOON) | — · M15, M16, M19 | fixed in code, not deployed | commit c66e81f: nav entries removed; awaiting deploy; PPHL to confirm release-1 list |
-| CONSOLE-8 | major | Six sign-in subdomains, no single entry point | — · all | open |  |
-| CONSOLE-9 | blocker | Admin registrations page fails for every admin once a minor has registered: "Invalid status: pending_consent" | J4/J5 · M6 | open |  |
-| CONSOLE-10 | minor | Dialog close icon has no accessible name; the only control named "Close dialog" is the backdrop | J1 · M2 | open |  |
-| CONSOLE-11 | major | Organizations list does not show the new org when the org-admin step is dismissed | J1 step 1, J17 step 1 · M2 | open |  |
+| CONSOLE-8 | major | Six sign-in subdomains, no single entry point | — · all | fixed in code, not deployed | commits f0764ee + 2c8ffc2: one /sign-in chooser, league. link removed, sign-in pages link back |
+| CONSOLE-9 | blocker | Admin registrations page fails for every admin once a minor has registered: "Invalid status: pending_consent" | J4/J5 · M6 | fixed in code, not deployed | commit 121979a: registration domain accepts v2 states; staging-v3 crawl clean (super admin 129/0) |
+| CONSOLE-10 | minor | Dialog close icon has no accessible name; the only control named "Close dialog" is the backdrop | J1 · M2 | fixed in code, not deployed | commit 6130a2d: dialog X button named Close |
+| CONSOLE-11 | major | Organizations list does not show the new org when the org-admin step is dismissed | J1 step 1, J17 step 1 · M2 | fixed in code, not deployed | commit 501da9e: list refreshes when the org-admin step is dismissed |
 | MON-1 | blocker | Admin invoice creation always fails (500) | J13, J14 · UC-15, UC-16, UC-17 | fixed | journey matrix 3a |
 | MON-2 | blocker | No notification can be written or listed on staging (notifications.read_at missing) | J15, J14, J13 · UC-15, UC-16, UC-18, UC-19, UC-20, UC-21 | fixed | migration 0048 on prod; notifications list/mark-read (journey matrix 3a) |
 | MON-3 | blocker | Players can never see their notifications (list endpoint is super-admin only) | J15 · UC-19, UC-21 | fixed | journey matrix 3a |
 | MON-4 | major | "+ New invoice" dialog on /finance cannot create anything (empty organisation picker) | J13 · UC-15 | open |  |
 | MON-5 | major | Super-admin composer "Individual" scope has no people | J13 · UC-15 | open |  |
-| MON-6 | major | Shared invoice composer has no payment plan / installments or fee schedule | J13 · UC-15 | open |  |
+| MON-6 | major | Shared invoice composer has no payment plan / installments or fee schedule | J13 · UC-15 | fixed in code, not deployed | commit 2e44db7: fee schedule picker in the composer (installments existed) |
 | MON-7 | major | Per-player "Remind" on captain dues always fails "Split not found" | J14 · UC-16, UC-18 | fixed | journey matrix 3a |
-| MON-8 | major | Custom dues split is not saved; mode resets on reload | J14 · UC-16 | open |  |
+| MON-8 | major | Custom dues split is not saved; mode resets on reload | J14 · UC-16 | fixed in code, not deployed | commit fd34b62: POST /captain/dues/:teamId/split + Save split; j14 step 3 hardened |
 | MON-9 | major | Refund does not reduce the invoice's paid amount, so refunds can exceed what was paid | J13 · UC-17 | open |  |
-| MON-10 | blocker | Mock payment processor is wired unconditionally and the player pay dialog exposes "Mock card outcome" | J13 · UC-15 | open |  |
+| MON-10 | blocker | Mock payment processor is wired unconditionally and the player pay dialog exposes "Mock card outcome" | J13 · UC-15 | accepted (decision) | Founder decision 25 Oct 2026: keep the mock processor so PPHL can test without cards; the pay dialog says no card is charged |
 | MON-11 | major | Overdue reminders (UC-18) can never fire for admin-created invoices | J13 · UC-18 | open |  |
 | MON-12 | major | Captain team message (UC-20) not built | J15 · UC-20 | open |  |
 | MON-13 | major | League announcement compose is missing UC-19 fields | J15 · UC-19 | open |  |
@@ -302,7 +337,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | MON-21 | minor | Mojibake in team-admin header: "CAPTAIN Â· 1 TEAM" |  | fixed | mojibake removed (journey matrix 3a) |
 | REG-1 | blocker | Funnel "Sign in" never checks the password — anyone can open another player's registration | J4 · UC-01 | fixed | journey matrix 3a |
 | REG-2 | blocker | "Create account" with an existing email and any password registers as that user | J4 · UC-01 | fixed | journey matrix 3a |
-| REG-3 | blocker | Payment is a client-controlled mock: no card, "PAID" invoice, plan deposit records full price | J4 · UC-01, UC-15 | open |  |
+| REG-3 | blocker | Payment is a client-controlled mock: no card, "PAID" invoice, plan deposit records full price | J4 · UC-01, UC-15 | accepted (decision) | Founder decision 25 Oct 2026: mock payments while PPHL tests (see MON-10) |
 | REG-4 | blocker | Org admin registrations queue is always empty | J4, J5 · UC-01 | fixed | journey matrix 3a |
 | REG-5 | blocker | Required liability waiver silently skipped; registration completes unsigned | J4, J5 · UC-27 | open |  |
 | REG-6 | blocker | Parental consent link and token are handed to the minor; the token is forgeable | J5 · UC-02, UC-28 | fixed | journey matrix 3a |
@@ -341,10 +376,10 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SCH-4 | major | Admin cannot put a team into a division | J10 · UC-06 precondition | open |  |
 | SCH-5 | major | Manual "New game" form: no season/division, venue is free text | J10 · UC-07 | open |  |
 | SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | open |  |
-| SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | open |  |
+| SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | fixed in code, not deployed | commit 5d87870: lineup editor reads the game's season roster |
 | SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | open |  |
 | SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | open |  |
-| SCH-9 | minor | Add venue: Create stays disabled while an org is shown as selected | J10 · UC-06 | open |  |
+| SCH-9 | minor | Add venue: Create stays disabled while an org is shown as selected | J10 · UC-06 | fixed in code, not deployed | commit 0eda50e: rink form adopts late-arriving orgs |
 | SCH-10 | minor | New surface not shown in the open venue panel | J10 · UC-06 | open |  |
 | SCH-19 | minor | Duplicate-team guard loses its "Use existing team" link | J10 · SCH-18 follow-on | open |  |
 | SCH-11 | minor | Opponent shown as a UUID prefix on captain lineups | J11 | open |  |
@@ -361,7 +396,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SETUP-4 | minor | Season status menu offers transitions the server always rejects | J1 | fixed | journey matrix 3a |
 | SETUP-3 | minor | Sport defaults to "Australian Rules Football" on a hockey platform | J1 | fixed | journey matrix 3a |
 | SETUP-5 | minor | "Add another division" adds a collapsed card, Publish silently disabled | J1 | open |  |
-| SETUP-7 | minor | Invite dialog shows raw role and scope codes | J2 | open |  |
+| SETUP-7 | minor | Invite dialog shows raw role and scope codes | J2 | fixed in code, not deployed | commit 6520e3f: role and scope names, never codes |
 | SETUP-13 | minor | Mojibake ("â€”") in invite emails, /roles, page titles | J2 | fixed | mojibake removed (journey matrix 3a) |
 | SETUP-9 | minor | User detail shows role scope as a UUID prefix | J2 | fixed | pdf-items items 1/4: no id fragments on /users/[id] (staging, 24 Oct) |
 | SETUP-16 | minor | New venue defaults: arbitrary org, UTC timezone, free-text IANA field | J1 | open |  |

@@ -251,6 +251,28 @@ FIXED_IN_CODE = {
     "CONSOLE-5": "commit c66e81f: superOnly nav items; awaiting deploy",
     "CONSOLE-6": "commit c66e81f: DivisionDetail orgHref; awaiting deploy",
     "CONSOLE-7": "commit c66e81f: nav entries removed; awaiting deploy; PPHL to confirm release-1 list",
+    "CONSOLE-9": "commit 121979a: registration domain accepts v2 states; staging-v3 crawl clean (super admin 129/0)",
+    "CONSOLE-10": "commit 6130a2d: dialog X button named Close",
+    "CONSOLE-11": "commit 501da9e: list refreshes when the org-admin step is dismissed",
+    "CONSOLE-8": "commits f0764ee + 2c8ffc2: one /sign-in chooser, league. link removed, sign-in pages link back",
+    "CAP-4": "commit 560c13d: invite emails built in one place with team, season, /invite link, expiry (delivery needs RESEND_API_KEY)",
+    "CAP-5": "commit 560c13d: registration call shows denial + admin reason",
+    "CAP-6": "commit 560c13d: Register the team always in captain menu + CTA",
+    "CAP-8": "commit 560c13d: one kernel current-season rule + season switcher",
+    "CAP-24": "commit 560c13d: refuses a second active membership in another open season",
+    "MON-8": "commit fd34b62: POST /captain/dues/:teamId/split + Save split; j14 step 3 hardened",
+    "MON-6": "commit 2e44db7: fee schedule picker in the composer (installments existed)",
+    "SCH-23": "commit 5d87870: lineup editor reads the game's season roster",
+    "COMP-18": "commit 5d87870: same fix as SCH-23",
+    "SCH-9": "commit 0eda50e: rink form adopts late-arriving orgs",
+    "SETUP-7": "commit 6520e3f: role and scope names, never codes",
+    "COMP-8": "commit 3ad966b: league admin reads eligibility in scope",
+}
+
+# Not bugs to fix now: decisions the founder made, with the date.
+ACCEPTED = {
+    "MON-10": "Founder decision 25 Oct 2026: keep the mock processor so PPHL can test without cards; the pay dialog says no card is charged",
+    "REG-3": "Founder decision 25 Oct 2026: mock payments while PPHL tests (see MON-10)",
 }
 
 # --------------------------------------------------------------------------
@@ -260,12 +282,14 @@ UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 
 LATEST_STAGING = {"env": None}
+LATEST_PROD = {"env": None}
 
 
 def load_crawls():
     """{env: {role: [visit,...]}}; LATEST_STAGING["env"] is the newest non-production crawl."""
     out: dict[str, dict[str, list]] = defaultdict(dict)
     newest = (0.0, None)
+    newest_prod = (0.0, None)
     if not EVIDENCE.exists():
         return out
     for f in EVIDENCE.rglob("crawl-*.json"):
@@ -277,9 +301,12 @@ def load_crawls():
             out[env][role] = json.loads(f.read_text(encoding="utf8"))
         except Exception:
             continue
-        if env != "prod" and f.stat().st_mtime > newest[0]:
+        if not env.startswith("prod") and f.stat().st_mtime > newest[0]:
             newest = (f.stat().st_mtime, env)
+        if env.startswith("prod") and f.stat().st_mtime > newest_prod[0]:
+            newest_prod = (f.stat().st_mtime, env)
     LATEST_STAGING["env"] = newest[1]
+    LATEST_PROD["env"] = newest_prod[1]
     return out
 
 
@@ -454,7 +481,7 @@ def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
     def bad_in(cell, envs, kinds):
         return any(v in kinds for k, v in cell.items() if k.split(":")[0] in envs)
     broken = [(a, r) for a, r, cell in routes if bad_in(cell, {latest}, ("404", "error"))]
-    broken_prod = [(a, r) for a, r, cell in routes if bad_in(cell, {"prod"}, ("404", "error"))]
+    broken_prod = [(a, r) for a, r, cell in routes if bad_in(cell, {LATEST_PROD["env"]} if LATEST_PROD["env"] else set(), ("404", "error"))]
     loads = [(a, r) for a, r, cell in routes if bad_in(cell, {latest}, ("could-not-load", "api-fail"))]
     seen_routes = [(a, r) for a, r, cell in routes if cell]
     if tier == "later" and claimed in ("Not Started", "In Progress"):
@@ -634,6 +661,7 @@ def main():
     bugs = load_bugs()
     fixed = {k: ("fixed", v) for k, v in FIXED_BY_HAND.items()}
     fixed.update({k: ("fixed in code, not deployed", v) for k, v in FIXED_IN_CODE.items()})
+    fixed.update({k: ("accepted (decision)", v) for k, v in ACCEPTED.items()})
     # A journey re-run that no longer reports a finding counts as fixed for that id.
     for env, specs in logs.items():
         for spec, r in specs.items():
