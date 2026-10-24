@@ -101,8 +101,8 @@ export default async function CompliancePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
-          eyebrow="// Compliance"
-          title="Compliance"
+          eyebrow="My account"
+          title="Waivers & documents"
           description="Status of every eligibility requirement, waiver, and document on file."
         />
         <UsaHockeyIdForm />
@@ -169,7 +169,7 @@ export default async function CompliancePage() {
               >
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <Eyebrow>// {ruleName}</Eyebrow>
+                    <Eyebrow>{ruleName}</Eyebrow>
                     <Badge mono tone={meta.tone}>
                       {meta.label}
                     </Badge>

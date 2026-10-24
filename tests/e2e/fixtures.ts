@@ -101,7 +101,7 @@ export const ROUTES = {
     { path: "/team", anchor: /Roster|Team/i },
     { path: "/store", anchor: /Team store|Coming soon/i },
     { path: "/payments", anchor: /Payments/i },
-    { path: "/compliance", anchor: /Compliance/i },
+    { path: "/compliance", anchor: /Waivers & documents|Compliance/i },
     { path: "/notifications", anchor: /Notifications/i },
     { path: "/profile", anchor: /Profile|Coming soon/i }
   ] as RouteCheck[]

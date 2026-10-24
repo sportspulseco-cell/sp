@@ -84,9 +84,9 @@ test.afterAll(async () => {
 test("1 player finds /compliance from the sidebar", async () => {
   const { page, app } = player;
   await page.goto(app + "/");
-  await page.getByRole("link", { name: /^Compliance$/ }).first().click();
+  await page.getByRole("link", { name: /^Waivers & documents$/ }).first().click();
   await expect(page).toHaveURL(/\/compliance$/);
-  await expect(page.getByRole("heading", { name: "Compliance" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Waivers & documents" })).toBeVisible();
   const txt = await snap(page, "01-player-compliance-before");
 
   // UC-29 precondition: player uploads ID / eligibility proof.
