@@ -197,14 +197,14 @@ test.describe("J10 schedule generate and publish", () => {
     // forever (Create stays disabled while the select shows an org). Probe
     // that race first, then reopen after the page settles like a patient user.
     await page.getByRole("button", { name: /Add venue/i }).first().click();
-    await page.getByLabel("Venue name").fill(venueName);
+    await page.getByLabel("Rink name").fill(venueName);
     await page.waitForLoadState("networkidle").catch(() => {});
     const raceEnabled = await page.getByRole("button", { name: /^Create$/ }).isEnabled();
     console.log(`[J10] venue Create enabled after early open + name filled: ${raceEnabled}`);
     expect.soft(raceEnabled, "SCH-9 Create enabled once org list loaded").toBe(true);
     await page.getByRole("button", { name: /^Cancel$/ }).first().click();
     await page.getByRole("button", { name: /Add venue/i }).first().click();
-    await page.getByLabel("Venue name").fill(venueName);
+    await page.getByLabel("Rink name").fill(venueName);
     await page.getByLabel(/Timezone/i).fill("America/New_York");
     const org = page.getByLabel("Organization");
     if (await org.count()) {

@@ -225,10 +225,18 @@ function CreateVenueForm({
   const [orgId, setOrgId] = useState(defaultOrgId ?? ownableOrgs?.[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The org list often arrives after the form opens; pick the first org
+  // when it does instead of leaving Create disabled with no reason (SCH-9).
+  useEffect(() => {
+    if (!orgId && !defaultOrgId && ownableOrgs && ownableOrgs.length > 0) {
+      setOrgId(ownableOrgs[0]!.id);
+    }
+  }, [orgId, defaultOrgId, ownableOrgs]);
+  const orgsLoading = !defaultOrgId && (!ownableOrgs || ownableOrgs.length === 0);
 
   return (
     <div className="rounded-lg border border-border bg-bg p-4 space-y-3">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">New venue</div>
+      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">New rink</div>
       <div className="grid gap-3 sm:grid-cols-3">
         {!defaultOrgId && ownableOrgs && ownableOrgs.length > 0 ? (
           <Field label="Organization">
@@ -241,8 +249,15 @@ function CreateVenueForm({
               {ownableOrgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </Field>
+        ) : orgsLoading ? (
+          <Field label="Organization">
+            <p className="flex h-9 items-center gap-2 text-[12px] text-fg-muted">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+              Loading organisations…
+            </p>
+          </Field>
         ) : null}
-        <Field label="Venue name">
+        <Field label="Rink name">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="QA Test Arena" disabled={busy} />
         </Field>
         <Field label="Timezone (IANA)" hint="e.g. America/New_York">
@@ -255,7 +270,7 @@ function CreateVenueForm({
         <Button
           onClick={async () => {
             if (!orgId || !name.trim()) {
-              setError("Venue name and org are required.");
+              setError("Rink name and organisation are required.");
               return;
             }
             setBusy(true);
