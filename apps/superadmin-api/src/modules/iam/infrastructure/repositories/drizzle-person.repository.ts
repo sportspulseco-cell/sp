@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, eq, gt, ilike, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { visiblePersonIds } from "../../../../shared/auth/visibility";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -40,6 +41,10 @@ export class DrizzlePersonRepository implements PersonRepository {
       );
     }
     if (q.cursor) cs.push(gt(schema.persons.id, q.cursor));
+    if (q.visibleTo) {
+      const visible = visiblePersonIds(q.visibleTo);
+      if (visible) cs.push(sql`${schema.persons.id} in ${visible}`);
+    }
 
     const rows = await this.db
       .select()

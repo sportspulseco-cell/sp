@@ -147,3 +147,31 @@ export async function registrationVisible(db: Database, scope: UserScope, regist
   );
   return hasRows(rows);
 }
+
+/**
+ * Subquery of person ids the caller may see: people linked to a visible
+ * user, people on a team of the caller's organisations, and people who
+ * registered into the caller's scope (minors without a login included).
+ * Callers with no role see only themselves. CAP-11: the people search
+ * used to return every person on the platform to any signed-in user.
+ */
+export function visiblePersonIds(v: Visibility): SQL | null {
+  const { scope } = v;
+  if (unrestricted(scope)) return null;
+  const users = visibleUserIds(v)!;
+  const regs = visibleRegistrationsWhere(scope)!;
+  return sql`(
+    select p.id from persons p where p.user_id in ${users}
+    union select tm.person_id from team_memberships tm
+      join teams t on t.id = tm.team_id
+      where t.org_id in (${uuidList(scope.orgIds)})
+    union select registrations.subject_person_id from registrations where ${regs}
+  )`;
+}
+
+export async function personVisible(db: Database, v: Visibility, personId: string): Promise<boolean> {
+  const sub = visiblePersonIds(v);
+  if (!sub) return true;
+  const rows = await db.execute(sql`select 1 where ${personId}::uuid in ${sub}`);
+  return hasRows(rows);
+}

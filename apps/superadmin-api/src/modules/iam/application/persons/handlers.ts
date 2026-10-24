@@ -1,3 +1,4 @@
+import type { Visibility } from "../../../../shared/auth/visibility";
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
@@ -14,6 +15,7 @@ import { Person, PersonId } from "../../domain/entities/person.entity";
 import { PersonDto, PersonPageDto } from "../dtos/person.dto";
 
 export interface ListPersonsInput {
+  visibleTo?: Visibility;
   limit?: number;
   cursor?: string;
   countryCode?: string;

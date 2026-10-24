@@ -7,13 +7,16 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards
+  UseGuards,
+  NotFoundException
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
+import { loadUserScope } from "../../../shared/auth/scope";
+import { personVisible } from "../../../shared/auth/visibility";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import type { Database } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -56,7 +59,13 @@ export class PersonsController {
     @Query() q: ListPersonsQueryDto,
     @CurrentUser() user: AuthPrincipal
   ): Promise<PersonPageDto> {
-    const page = await this.listH.execute(q);
+    // Everyone but super admins searches only the people inside their
+    // scope; personal details stay admin-only on top of that (CAP-11).
+    const scope = await loadUserScope(this.db, user.userId);
+    const page = await this.listH.execute({
+      ...q,
+      visibleTo: scope.isSuperAdmin ? undefined : { scope, userId: user.userId }
+    });
     if (await userIsPeopleAdmin(this.db, user.userId)) return page;
     return { ...page, items: page.items.map(redactPerson) };
   }
@@ -65,6 +74,10 @@ export class PersonsController {
     @Param("id") id: string,
     @CurrentUser() user: AuthPrincipal
   ): Promise<PersonDto> {
+    const scope = await loadUserScope(this.db, user.userId);
+    if (!scope.isSuperAdmin && !(await personVisible(this.db, { scope, userId: user.userId }, id))) {
+      throw new NotFoundException("Person not found");
+    }
     const person = await this.getH.execute({ id });
     if (await userIsPeopleAdmin(this.db, user.userId)) return person;
     return redactPerson(person);
