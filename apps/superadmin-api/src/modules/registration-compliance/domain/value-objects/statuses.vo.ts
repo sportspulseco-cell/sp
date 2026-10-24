@@ -1,8 +1,15 @@
 import { DomainError } from "@sportspulse/kernel";
 
+// Must accept every state the v2 funnel writes (REGISTRATION_STATES in
+// @sportspulse/kernel: pending_verification, pending_consent, ...) as well
+// as the v1 names still present on older rows. A name missing here makes
+// GET /registration/registrations fail for the whole page ("Invalid
+// status: pending_consent", staging crawl 24 Oct 2026, CONSOLE-9).
 export const REGISTRATION_STATUSES = [
   "draft",
+  "pending_verification",
   "pending_email_verification",
+  "pending_consent",
   "pending_parental_consent",
   "pending_payment",
   "pending_offline",
@@ -22,8 +29,10 @@ export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 // drive the flow. Adding a row here doesn't whitelist it — it just stops
 // the read path from 422'ing existing DB rows (BUG-039).
 const REG_TRANSITIONS: Record<RegistrationStatus, RegistrationStatus[]> = {
-  draft: ["pending_email_verification", "pending_parental_consent", "pending_payment", "pending_offline", "pending_review", "submitted", "withdrawn", "cancelled"],
+  draft: ["pending_verification", "pending_consent", "pending_email_verification", "pending_parental_consent", "pending_payment", "pending_offline", "pending_review", "submitted", "withdrawn", "cancelled"],
+  pending_verification: ["pending_consent", "pending_parental_consent", "pending_payment", "pending_offline", "pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
   pending_email_verification: ["pending_parental_consent", "pending_payment", "pending_offline", "pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
+  pending_consent: ["pending_payment", "pending_offline", "pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
   pending_parental_consent: ["pending_payment", "pending_offline", "pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
   pending_payment: ["pending_review", "submitted", "incomplete", "withdrawn", "cancelled"],
   pending_offline: ["pending_review", "submitted", "approved", "incomplete", "withdrawn", "cancelled"],

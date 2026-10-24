@@ -93,3 +93,19 @@ Crawl totals (pages visited / pages with a problem):
   Actual: five app links; a league admin must know that "league." is a redirect to the admin console. PPHL: "so many modules and subdomains, which I don't understand".
   Evidence: `apps/landing-web/src/components/landing/nav.tsx:91-95`, `section-cta.tsx:15-19`.
   Root cause: per-app sessions by design (owner directive 2026-05-09). Not changed; proposed in the matrix as a release-1 decision (single sign-in page that forwards to the right app by role).
+
+[CONSOLE-9] Admin registrations page fails for every admin once a minor has registered: "Invalid status: pending_consent" · blocker
+
+  Journey: J4/J5 · M6
+
+  Surface: superadmin-web /registrations (super admin, staging-v2 crawl 24 Oct after the honest-banner fix; before it the KPI hero silently showed zeros)
+
+  Repro: 1. A minor registers (status pending_consent, written by the v2 funnel). 2. Open /registrations as any admin.
+
+  Expected: the queue and KPIs.
+
+  Actual: GET /registration/registrations 500s: the registration-compliance domain keeps its own status list (v1 names pending_parental_consent / pending_email_verification) and rejects the kernel v2 names pending_consent / pending_verification. Two sources of truth for one enum (CLAUDE.md anti-pattern).
+
+  Evidence: test-results-audit/staging-v2/crawl-superAdmin.json (/registrations errorBoundary, text Invalid status: pending_consent); staging has 2 rows in pending_consent.
+
+  Root cause / fix: statuses.vo.ts now accepts both name sets with transitions (commit below). Follow-up: derive the domain list from @sportspulse/kernel REGISTRATION_STATES and migrate the v1 names.
