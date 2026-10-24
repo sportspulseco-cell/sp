@@ -19,9 +19,9 @@ export default async function DivisionApplicationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// admin · division applications"
-        title="Division applications"
-        description="Teams that submitted a rollover wizard but have not yet reached the confirmation threshold. Rejecting voids the master + sub invoices and spawns refund assessments for any paid sub."
+        eyebrow="Teams"
+        title="Team applications"
+        description="Teams that applied to a division and are waiting for approval or for their deposit. Approve, or reject with a reason."
       />
       {!initialResult.ok ? (
         <LoadError

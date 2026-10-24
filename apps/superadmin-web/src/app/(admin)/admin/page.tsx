@@ -57,9 +57,9 @@ export default async function AdminPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="platform"
-        title="Admin Console"
-        description="System-wide settings, feature flags, sport configuration, and platform health. Restricted to super-admin."
+        eyebrow="Platform"
+        title="Platform settings"
+        description="Feature flags, sports and system health. Super admins only."
       />
 
       {/* Tabs */}

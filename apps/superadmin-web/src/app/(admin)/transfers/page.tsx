@@ -17,9 +17,9 @@ export default async function AdminTransfersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// admin · transfers"
+        eyebrow="Teams"
         title="Player transfers"
-        description="Captain-initiated transfers awaiting admin approval. Approving writes drop + add roster_moves and adjusts both teams' sub-invoices."
+        description="Players moving between teams mid-season, waiting for your approval. Approving updates both rosters and their dues."
       />
       {!initialResult.ok ? (
         <LoadError

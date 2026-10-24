@@ -76,8 +76,8 @@ export default async function RostersPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="roster"
-        title="Memberships"
+        eyebrow="Teams"
+        title="Rosters"
         description={
           activeOnly
             ? "Active roster memberships across every team. Add and drop players via roster moves — moves are append-only, memberships are the projection."
@@ -154,7 +154,7 @@ export default async function RostersPage({
       ) : memberships.items.length === 0 ? (
         <EmptyState
           icon={ListChecks}
-          title="No memberships"
+          title="Nobody rostered yet"
           description="Add a player to a team to populate the roster."
           action={
             <AddMembershipButton

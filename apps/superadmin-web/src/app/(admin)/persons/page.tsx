@@ -46,9 +46,9 @@ export default async function PersonsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="identity"
-        title="Persons"
-        description="Identity records for players, refs, coaches — including minors without auth accounts."
+        eyebrow="People"
+        title="People"
+        description="Everyone the league knows about: players, coaches, officials, and minors without their own login."
         action={<CreatePersonButton />}
       />
       <KineticStrip

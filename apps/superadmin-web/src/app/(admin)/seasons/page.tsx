@@ -101,7 +101,7 @@ export default async function SeasonsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="lifecycle"
+        eyebrow="Competition"
         title="Seasons"
         description={
           sp.leagueId

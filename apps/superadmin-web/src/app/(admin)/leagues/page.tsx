@@ -89,7 +89,7 @@ export default async function LeaguesPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="competition"
+        eyebrow="Competition"
         title="Leagues"
         description={
           sp.orgId

@@ -109,9 +109,9 @@ export default async function GameEventsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="play-by-play"
-        title="Game events"
-        description="Append-only event log across every game. Each row is immutable; corrections create new events with a back-pointer."
+        eyebrow="Games"
+        title="Game log"
+        description="Goals, assists and penalties recorded in every game. A correction adds a new entry; nothing is deleted."
       />
       <KineticStrip
         cards={[

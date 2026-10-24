@@ -47,7 +47,7 @@ export default async function AuditPage() {
       <PageHeader
         eyebrow="Audit"
         title="Audit log"
-        description="Every mutation recorded for this org — who, what, when. Read-only; corrections happen through the canonical write path that created the row."
+        description="Who changed what in your organisation, and when. Read-only."
       />
 
       <section className="space-y-6">

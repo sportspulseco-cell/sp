@@ -40,9 +40,9 @@ export default async function DocumentsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="compliance"
-        title="Documents"
-        description="Versioned waivers, consents, codes of conduct, parental forms. Each document has an active version that everyone signs against."
+        eyebrow="Registration"
+        title="Waivers & documents"
+        description="Waivers, consents and codes of conduct that players sign during registration. Publish a new version when the wording changes."
         action={<CreateDocumentButton orgs={orgList.items} />}
       />
       <KineticStrip

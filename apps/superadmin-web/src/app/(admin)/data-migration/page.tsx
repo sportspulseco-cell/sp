@@ -75,9 +75,9 @@ export default async function DataMigrationPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="ingest"
-        title="Data Migration"
-        description="Bulk-import CSV data — persons, teams, registrations. Each row maps to a domain write; failures are recorded per-row, never silently dropped."
+        eyebrow="Import"
+        title="Import data"
+        description="Bring people, teams and registrations in from a spreadsheet. Each row is checked and problems are listed per row."
       />
       <KineticStrip
         cards={[

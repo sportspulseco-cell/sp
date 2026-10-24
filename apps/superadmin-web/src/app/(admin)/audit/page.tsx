@@ -105,9 +105,9 @@ export default async function AuditPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="trail"
-        title="Audit"
-        description="Append-only ledger of every state change on the platform — actor, resource, before/after, IP, and request id."
+        eyebrow="History"
+        title="Activity log"
+        description="Who changed what, and when. Read-only."
       />
       <KineticStrip
         cards={[

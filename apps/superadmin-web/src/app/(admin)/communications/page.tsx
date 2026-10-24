@@ -104,9 +104,9 @@ export default async function CommunicationsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="outbound"
-        title="Communications"
-        description="Outbox of every notification queued by the platform — registration decisions, game finalizations, suspensions, and admin sends."
+        eyebrow="Messages"
+        title="Messages"
+        description="Everything the platform has sent or queued: registration decisions, game results, announcements. Send a message from here."
         action={
           <div className="flex items-center gap-2">
             <Link

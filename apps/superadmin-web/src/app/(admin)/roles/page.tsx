@@ -45,9 +45,9 @@ export default async function RolesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="iam"
-        title="Roles"
-        description="System roles cascade top-down — super_admin inherits everything below it. Custom roles attach to a single org and live alongside the system catalog."
+        eyebrow="People"
+        title="Roles & permissions"
+        description="What each role may do. League, season and division admins see only their part of the platform."
         action={<CreateRoleButton />}
       />
       <KineticStrip

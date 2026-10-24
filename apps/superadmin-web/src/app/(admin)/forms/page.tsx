@@ -101,9 +101,9 @@ export default async function FormsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="compliance"
-        title="Forms"
-        description="Source of truth for every form in the system — season registrations (used by /registration), role profiles (used by /users invite), team applications, and custom forms. Each form has zero-or-more versions; only the published one is active."
+        eyebrow="Registration"
+        title="Registration forms"
+        description="The forms players and teams fill in to register for a season: questions, waivers, prices. Publish a form to open registration."
         action={<CreateFormButton orgs={orgList.items} />}
       />
       <KineticStrip

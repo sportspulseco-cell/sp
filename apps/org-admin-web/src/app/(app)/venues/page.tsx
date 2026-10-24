@@ -38,7 +38,7 @@ export default function OrgAdminVenuesPage() {
       <PageHeader
         eyebrow="venues"
         title="Venues, surfaces, ice slots"
-        description="The inventory the scheduler reads. Add a venue, then a surface, then a single slot or a weekly recurrence."
+        description="The rinks and ice slots the schedule uses. Add a rink, then its surfaces, then single slots or a weekly pattern."
       />
       <VenuesPage api={api} loadSeasons={loadSeasons} orgId={activeOrgId} ownableOrgs={orgs} />
     </div>

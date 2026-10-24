@@ -26,9 +26,9 @@ export default function VenuesAdminPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="venues"
-        title="Venues, surfaces, ice slots"
-        description="The inventory the scheduler reads. Add a venue, then a surface (rink / sheet), then a single slot or a weekly recurrence. ON-CONFLICT silently skips slots that already exist on the same surface + start instant."
+        eyebrow="Schedule"
+        title="Rinks & ice time"
+        description="The rinks and ice slots the schedule uses. Add a rink, then its surfaces, then single slots or a weekly pattern."
       />
       <VenuesPage api={api} loadSeasons={loadSeasons} ownableOrgs={orgs} />
     </div>

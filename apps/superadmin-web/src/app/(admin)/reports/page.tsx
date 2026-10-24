@@ -18,9 +18,9 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="analytics"
+        eyebrow="Reports"
         title="Reports"
-        description="Generate CSV exports of standings, rosters, and registrations. Files stream directly from the API and are not stored."
+        description="Download standings, rosters and registrations as CSV."
       />
 
       <section className="grid gap-6 lg:grid-cols-3">

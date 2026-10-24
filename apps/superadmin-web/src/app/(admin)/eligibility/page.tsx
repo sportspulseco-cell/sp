@@ -89,9 +89,9 @@ export default async function EligibilityPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="compliance"
+        eyebrow="Registration"
         title="Eligibility"
-        description="Per-person, per-season eligibility decisions. Records snapshot rule evaluation at the time of registration; admins can re-evaluate or waive."
+        description="Who is cleared to play each season, based on age, documents and USA Hockey number. Re-check or waive a player here."
         action={
           <CreateEligibilityButton
             persons={persons.items}

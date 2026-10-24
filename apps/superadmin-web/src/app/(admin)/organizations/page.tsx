@@ -68,9 +68,9 @@ export default async function OrganizationsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="tenancy"
+        eyebrow="Organisations"
         title="Organizations"
-        description="Tenants on the platform — clubs, federations, leagues, schools."
+        description="Clubs, leagues and associations on the platform. Each one has its own leagues, seasons, teams and admins."
         action={<CreateOrgButton />}
       />
       <KineticStrip

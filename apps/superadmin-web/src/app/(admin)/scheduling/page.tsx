@@ -37,9 +37,9 @@ export default async function SchedulingIndexPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="schedule"
+        eyebrow="Schedule"
         title="Schedule"
-        description="Pick a season to generate, publish, verify, or resolve conflicts."
+        description="Pick a season to generate, publish and check its schedule, or fix conflicts."
       />
       {!seasonsResult.ok ? (
         <LoadError

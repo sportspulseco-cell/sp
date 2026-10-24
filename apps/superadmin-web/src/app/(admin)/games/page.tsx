@@ -153,9 +153,9 @@ export default async function GamesPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="operations"
+        eyebrow="Games"
         title="Games"
-        description="Live and scheduled fixtures across every league. Append events, apply scores, finalize."
+        description="Every scheduled, live and finished game. Open a game to enter the score and finalize it."
         action={
           <CreateGameButton
             leagues={leaguesPage.items}

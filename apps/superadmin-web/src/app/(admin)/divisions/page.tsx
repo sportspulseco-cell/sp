@@ -124,7 +124,7 @@ export default async function DivisionsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="brackets"
+        eyebrow="Competition"
         title="Divisions"
         description={filterLabel}
         action={orgSetupCta}

@@ -61,9 +61,9 @@ export default async function StatsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="analytics"
-        title="Stats"
-        description="Player lines, league standings, and leaderboards — projected from append-only event logs."
+        eyebrow="Results"
+        title="Stats & standings"
+        description="Player stats, standings and leaders, built from the game log."
       />
 
       {/* Tabs */}

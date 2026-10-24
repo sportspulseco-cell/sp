@@ -81,9 +81,9 @@ export default async function TeamsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="rosters"
+        eyebrow="Teams"
         title="Teams"
-        description="Owned by clubs/orgs. Enter divisions via DivisionTeamEntry."
+        description="Every team. A team belongs to an organisation and plays in a division each season."
         action={newTeamCta}
       />
       <KineticStrip

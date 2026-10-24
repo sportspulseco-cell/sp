@@ -108,9 +108,9 @@ export default async function UsersPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="directory"
+        eyebrow="People"
         title="Users"
-        description="Authenticated user accounts across all tenants."
+        description="Everyone with a login. Invite a user, set their role, or edit their profile."
         action={<InviteUserButton />}
       />
       <KineticStrip

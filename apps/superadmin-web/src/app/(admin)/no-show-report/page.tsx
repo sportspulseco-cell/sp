@@ -21,9 +21,9 @@ export default async function NoShowReportPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// admin · reports · no-show"
-        title="Teams that didn't return"
-        description="Diff between two seasons: which teams played the previous season but have no division entry in the new one. Use for outreach + roster forecasting."
+        eyebrow="Reports"
+        title="Teams that did not return"
+        description="Teams that played last season but have no place in the new one yet. Use it to reach out before registration closes."
       />
       {!seasonsResult.ok ? (
         <LoadError

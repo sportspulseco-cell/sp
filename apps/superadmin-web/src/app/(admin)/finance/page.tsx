@@ -54,9 +54,9 @@ export default async function FinancePage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="finance"
-        title="Invoices & AR"
-        description="Every invoice across the platform — issued, collected, outstanding, and overdue. Create new invoices, drill into any row, and resolve AR escalations."
+        eyebrow="Payments"
+        title="Invoices"
+        description="Every invoice: sent, paid, outstanding, overdue. Create an invoice, or open one to record a payment or refund."
         action={
           <Link
             href="/finance/create"
