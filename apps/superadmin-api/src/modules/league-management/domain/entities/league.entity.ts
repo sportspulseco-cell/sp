@@ -125,6 +125,9 @@ export class League extends AggregateRoot<LeagueId> {
   }
 
   changeFormat(format: LeagueFormat): void {
+    // Re-sending the current format is not a change; an edit form that
+    // saves every field must not fail on an active league for it.
+    if (format === this._format) return;
     if (this._status !== "draft") {
       throw new DomainError(
         "FORMAT_LOCKED",

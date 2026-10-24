@@ -223,7 +223,9 @@ export function EditLeagueButton({
               () =>
                 save({
                   name: f.name.trim(),
-                  format: f.format,
+                  // Format is locked once the league leaves draft; send it
+                  // only when it actually changed.
+                  ...(f.format !== league.format ? { format: f.format } : {}),
                   governingBodyId: f.governingBodyId || null,
                   // Keep keys the form does not edit (slug, etc.).
                   metadata: {
@@ -241,8 +243,15 @@ export function EditLeagueButton({
             <Input required maxLength={120} value={f.name} onChange={(e) => set("name", e.target.value)} />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Format">
-              <Select value={f.format} onChange={(e) => set("format", e.target.value as League["format"])}>
+            <Field
+              label="Format"
+              hint={league.status === "draft" ? undefined : "Fixed once the league is published."}
+            >
+              <Select
+                value={f.format}
+                disabled={league.status !== "draft"}
+                onChange={(e) => set("format", e.target.value as League["format"])}
+              >
                 {FORMATS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
