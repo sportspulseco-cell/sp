@@ -19,12 +19,8 @@ per repo policy.
 ### Local dev
 
 ```bash
-# From repo root
-pnpm --filter @sportspulse/db migrate
-
-# Or apply specific files
-psql "$DATABASE_URL" -f packages/db/migrations/0017_payment_invoicing_extensions.sql
-psql "$DATABASE_URL" -f packages/db/migrations/0018_registration_setup.sql
+# From repo root; see doc/architecture/database-migrations.md
+pnpm --filter @sportspulse/db migrate --target=staging
 ```
 
 ### Remote (Supabase)

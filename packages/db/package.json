@@ -26,15 +26,15 @@
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",
     "generate:custom": "drizzle-kit generate --custom",
-    "migrate": "tsx src/migrate.ts",
-    "push": "drizzle-kit push",
+    "migrate": "tsx src/migrate-manual.ts",
+    "migrate:status": "tsx src/migrate-manual.ts --status",
+    "drift": "tsx src/check-schema-drift.ts",
     "studio": "drizzle-kit studio",
     "introspect": "drizzle-kit introspect",
     "seed": "tsx src/seed/index.ts",
     "seed:payments-demo": "tsx src/seed/payments-demo.ts",
     "seed:registration-form-demo": "tsx src/seed/registration-form-demo.ts",
-    "check": "drizzle-kit check",
-    "drop": "drizzle-kit drop"
+    "check": "drizzle-kit check"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",

@@ -157,8 +157,10 @@ vars directly via the dashboard for changes a teammate also needs — adjust
 
 ## Database changes
 
-- Drizzle is the source of truth. Add or edit tables in `packages/db/src/schema/*.ts`, then `pnpm --filter @sportspulse/db generate` to produce a migration in `packages/db/migrations/`.
-- **Do not auto-apply migrations to production.** Either commit the SQL and let the user apply, or use `mcp__supabase__apply_migration` only after explicit confirmation.
+- Drizzle is the source of truth. Add or edit tables in `packages/db/src/schema/*.ts`, then `pnpm --filter @sportspulse/db generate --name=<what>` to draft the next `NNNN_<what>.sql` in `packages/db/migrations/`. Review it and make it idempotent; add a `NNNN_<what>.rollback.sql` beside it.
+- **One runner for both databases:** `pnpm --filter @sportspulse/db migrate --target=staging`, then `--target=production --confirm-production`. It records every file and its hash in `public.manual_migrations`. **Never** use `drizzle-kit migrate`, `drizzle-kit push`, or ad-hoc SQL for schema changes; they bypass that record. Runbook: `doc/architecture/database-migrations.md`.
+- After applying, run `pnpm --filter @sportspulse/db drift --target=<db>`: it fails if any Drizzle table or column is missing or differs in the live database.
+- **Do not apply to production without the owner's go-ahead** for that change. Apply to staging and test first; migrations go in **before** the code that reads them.
 - Migrations must be **additive and idempotent**: `CREATE TABLE IF NOT EXISTS`, `DO $$ BEGIN ... EXCEPTION WHEN duplicate_object THEN null; END $$;` for FKs, etc. Never `DROP` or `ALTER ... NOT NULL` on a column with existing data without an explicit migration plan.
 
 ## Auth + scope contract

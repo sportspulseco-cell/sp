@@ -99,6 +99,279 @@
       "when": 1778007870032,
       "tag": "0013_motionless_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1778007871032,
+      "tag": "0014_registration_state_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1778007872032,
+      "tag": "0015_league_season_hierarchy_flip",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1778007873032,
+      "tag": "0016_form_builder_unification",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1778007874032,
+      "tag": "0018_payment_invoicing_extensions",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778007875032,
+      "tag": "0019_registration_setup",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778007876032,
+      "tag": "0020_team_lifecycle_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778007877032,
+      "tag": "0021_invoices_parent_and_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778007878032,
+      "tag": "0022_roster_mgmt_sprint5",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1778007879032,
+      "tag": "0023_roster_mgmt_sprint6",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1778007880032,
+      "tag": "0024_compliance_sprint7",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1778007881032,
+      "tag": "0025_cron_sweeps",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1778007882032,
+      "tag": "0026_approval_gate",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1778007883032,
+      "tag": "0027_payments_cron",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1778007884032,
+      "tag": "0028_finance_wallet_invoicing",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1778007885032,
+      "tag": "0029_finance_cron_extras",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1778007886032,
+      "tag": "0029_team_join_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1778007887032,
+      "tag": "0030_team_join_requests_season_required",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1778007888032,
+      "tag": "0031_notification_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1778007889032,
+      "tag": "0032_registrations_season_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1778007890032,
+      "tag": "0033_v_active_season_membership",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1778007891032,
+      "tag": "0034_cron_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1778007892032,
+      "tag": "0035_seasons_last_lock_sweep_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1778007893032,
+      "tag": "0036_compliance_lock_sweep_cron",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1778007894032,
+      "tag": "0037_game_lineups",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1778007895032,
+      "tag": "0038_team_store_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1778007896032,
+      "tag": "0039_push_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1778007897032,
+      "tag": "0040_orgs_legal_name_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1778007898032,
+      "tag": "0041_handle_new_user_display_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1778007899032,
+      "tag": "0042_season_playoff_window_and_fa_levels",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1778007900032,
+      "tag": "0043_season_auto_transition_cron",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1778007901032,
+      "tag": "0044_scheduler_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1778007902032,
+      "tag": "0045_scheduler_pains_2346",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1778007903032,
+      "tag": "0046_games_season_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1778007904032,
+      "tag": "0047_merge_team_admin_into_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1778007905032,
+      "tag": "0048_notifications_read_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1778007906032,
+      "tag": "0049_seed_usa_hockey_governing_body",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1778007907032,
+      "tag": "0050_lock_down_data_api",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1778007908032,
+      "tag": "0051_regions",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1778007909032,
+      "tag": "0052_team_movement",
+      "breakpoints": true
     }
   ]
 }
