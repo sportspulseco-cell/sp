@@ -1,5 +1,6 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
 import { eq, sql } from "drizzle-orm";
+import { ROLE_PROFILE_SCHEMAS, validateRoleProfileAnswers } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
@@ -40,7 +41,19 @@ export class SetRoleProfileHandler {
 
   async execute(input: SetRoleProfileInput): Promise<void> {
     if (!/^[a-z][a-z0-9_]{2,40}$/.test(input.roleCode)) {
-      throw new Error(`Invalid roleCode: ${input.roleCode}`);
+      throw new BadRequestException(`Invalid roleCode: ${input.roleCode}`);
+    }
+    // Same format rules as every profile screen (kernel). Required
+    // fields are not enforced here: invites and onboarding may save a
+    // profile part-way.
+    const problems = Object.values(
+      validateRoleProfileAnswers(ROLE_PROFILE_SCHEMAS[input.roleCode] ?? null, input.data, {
+        checkRequired: false
+      })
+    );
+    if (problems.length > 0) {
+      this.log.warn(`roleProfile refused user=${input.userId} role=${input.roleCode}: ${problems.join("; ")}`);
+      throw new BadRequestException(problems.join(". "));
     }
     // Two-step jsonb_set: Postgres jsonb_set with create_if_missing only
     // creates the LEAF key. If the `roleProfile` parent doesn't exist yet

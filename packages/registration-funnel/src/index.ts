@@ -9,6 +9,15 @@ export { OnboardingFunnel, type OnboardingApi } from "./onboarding-funnel";
 export { SignUpFunnel, type SignUpFunnelApi } from "./sign-up-funnel";
 export { FormRenderer } from "./form-renderer";
 export {
+  RoleProfileEditor,
+  RoleProfileFields,
+  loadRoleProfile,
+  useRoleProfile,
+  type LoadedRoleProfile,
+  type RoleProfileState,
+  type RoleProfileTransport
+} from "./role-profile-editor";
+export {
   createPublicRegistration,
   type PublicRegistrationApi
 } from "./public-api";
