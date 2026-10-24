@@ -53,7 +53,7 @@ export default function SignInPage() {
           </div>
           <div>
             <p className="text-sm font-semibold tracking-tight">SportsPulse</p>
-            <p className="text-xs text-white/50">Super Admin Console</p>
+            <p className="text-xs text-white/50">League admin console</p>
           </div>
         </div>
 
@@ -61,15 +61,15 @@ export default function SignInPage() {
           <div className="space-y-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium tracking-tight text-white/70">
               <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Restricted access
+              Admins only
             </span>
             <h1 className="max-w-md text-4xl font-semibold leading-[1.05] tracking-tighter">
-              Run leagues at federation scale.
+              Run your league.
             </h1>
             <p className="max-w-md text-sm leading-relaxed text-white/60">
-              The platform layer for orgs, leagues, rosters, registration,
-              compliance, scoring, scheduling and stats — modular,
-              multi-tenant, and built for any sport.
+              Seasons, registration, teams, rosters, schedule, standings,
+              payments and messages, in the order a season runs. For league
+              administrators and platform admins.
             </p>
           </div>
 
@@ -120,7 +120,7 @@ export default function SignInPage() {
               <p className="text-sm font-semibold tracking-tight text-fg">
                 SportsPulse
               </p>
-              <p className="text-xs text-fg-muted">Super Admin Console</p>
+              <p className="text-xs text-fg-muted">League admin console</p>
             </div>
           </div>
 

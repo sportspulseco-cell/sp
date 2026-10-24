@@ -64,12 +64,15 @@ function SignInForm() {
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
       <form onSubmit={onSubmit} className="space-y-5 rounded-xl border border-border bg-surface-1 p-8">
         <div className="space-y-1">
-          <Eyebrow>sp-player</Eyebrow>
+          <Eyebrow>SportsPulse</Eyebrow>
           <h1 className="text-[28px] font-semibold tracking-tight text-fg">
-            Sign in · Player
+            Sign in to play
           </h1>
           <p className="text-[12px] text-fg-muted">
-            For player accounts only. Different role? Use the matching app.
+            For players and parents: register for a season, sign waivers, pay, see your schedule.{" "}
+            <a href={(process.env.NEXT_PUBLIC_LANDING_URL ?? "https://sportspulse.us") + "/sign-in"} className="underline underline-offset-2 hover:text-fg">
+              Not you? Pick another app
+            </a>
           </p>
         </div>
         <Field label="Email">
