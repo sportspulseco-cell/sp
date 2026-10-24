@@ -21,6 +21,7 @@ import type { League } from "@sportspulse/api-client";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
+import { LeagueActions } from "@/components/edit/detail-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leagues - Org Admin" };
@@ -44,6 +45,8 @@ export default async function LeaguesPage({
         return { items: [] as League[], nextCursor: null };
       })
     : { items: [] as League[], nextCursor: null };
+
+  const governingBodies = await leagueMgmt.listGoverningBodies({}).catch(() => []);
 
   const q = sp.q?.trim().toLowerCase() ?? "";
   const shown = page.items.filter((l) => {
@@ -137,6 +140,7 @@ export default async function LeaguesPage({
                   <TH>Sport</TH>
                   <TH>Format</TH>
                   <TH>Status</TH>
+                  <TH>Actions</TH>
                 </TR>
               </THead>
               <TBody>
@@ -156,6 +160,9 @@ export default async function LeaguesPage({
                       <Badge mono tone={(l.status as string) === "active" ? "success" : "neutral"}>
                         {l.status.replace(/_/g, " ")}
                       </Badge>
+                    </TD>
+                    <TD>
+                      <LeagueActions league={l} governingBodies={governingBodies} />
                     </TD>
                   </TR>
                 ))}

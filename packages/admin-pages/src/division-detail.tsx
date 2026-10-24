@@ -63,6 +63,7 @@ export function DivisionDetail({
   editHref,
   applicationsQueueHref,
   pendingApplications,
+  actions,
   extras
 }: {
   division: Division;
@@ -94,6 +95,8 @@ export function DivisionDetail({
   applicationsQueueHref?: string;
   /** Optional pending-applications card (sa-web today). */
   pendingApplications?: ReactNode;
+  /** Header actions (edit, add a child record), injected per app. */
+  actions?: ReactNode;
   /** Optional bottom slot (e.g. sa-web's role-assignments). */
   extras?: ReactNode;
 }) {
@@ -159,6 +162,7 @@ export function DivisionDetail({
             ) : null}
           </div>
         </div>
+        {actions ? <div className="ml-auto">{actions}</div> : null}
         {editHref ? (
           <Link
             href={editHref}

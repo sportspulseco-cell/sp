@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { DivisionDetail } from "@sportspulse/admin-pages";
+import { DivisionActions } from "@/components/edit/detail-actions";
 import { adminTransfers, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { DivisionRegionControl } from "@/components/divisions/division-region-control";
@@ -56,6 +57,12 @@ export default async function OrgAdminDivisionDetailPage({
       parentSeason={parentSeason}
       parentOrg={parentOrg}
       divisionTeams={divisionTeams.items}
+      actions={
+        <DivisionActions
+          division={division}
+          regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
+        />
+      }
       extras={
         <DivisionRegionControl
           divisionId={division.id}

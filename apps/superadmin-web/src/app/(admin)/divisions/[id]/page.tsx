@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { DivisionDetail } from "@sportspulse/admin-pages";
+import { DivisionActions } from "@/components/edit/detail-actions";
 import { adminTransfers, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 import { DivisionPendingApplications } from "@/components/divisions/division-pending-applications";
@@ -53,7 +54,12 @@ export default async function DivisionDetailPage({
       parentSeason={parentSeason}
       parentOrg={parentOrg}
       divisionTeams={divisionTeams.items}
-      editHref="/org-setup"
+      actions={
+        <DivisionActions
+          division={division}
+          regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
+        />
+      }
       applicationsQueueHref={`/seasons/${division.seasonId}/applications`}
       pendingApplications={
         <DivisionPendingApplications

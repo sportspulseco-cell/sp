@@ -17,6 +17,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
+import { LeagueActions } from "@/components/edit/detail-actions";
 import type { League } from "@/lib/api/types";
 
 export const metadata = { title: "Leagues — SportsPulse" };
@@ -34,14 +35,15 @@ export default async function LeaguesPage({
 }) {
   const sp = (await searchParams) ?? {};
   let loadFailed = false;
-  const [leaguesPage, orgList] = await Promise.all([
+  const [leaguesPage, orgList, governingBodies] = await Promise.all([
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch((e) => {
       // Show the failure; an empty list here read as "No leagues yet".
       console.error("[leagues] listLeagues failed", e);
       loadFailed = true;
       return { items: [] as League[] };
     }),
-    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] }))
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    leagueMgmt.listGoverningBodies({}).catch(() => [])
   ]);
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
@@ -175,6 +177,7 @@ export default async function LeaguesPage({
               <TH>Format</TH>
               <TH>Status</TH>
               <TH>Admins</TH>
+              <TH>Actions</TH>
             </TR>
           </THead>
           <TBody>
@@ -210,6 +213,9 @@ export default async function LeaguesPage({
                       "scorekeeper"
                     ]}
                   />
+                </TD>
+                <TD>
+                  <LeagueActions league={l} governingBodies={governingBodies} />
                 </TD>
               </TR>
             ))}

@@ -29,6 +29,7 @@ import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 import { RegionsSection } from "@/components/regions/regions-section";
+import { OrgActions } from "@/components/edit/detail-actions";
 
 export const metadata = { title: "Organization — SportsPulse" };
 
@@ -136,10 +137,13 @@ export default async function OrgDetailPage({
             </span>
           </div>
         </div>
-        <div className="ml-auto grid grid-cols-3 gap-3 text-right">
+        <div className="ml-auto flex flex-col items-end gap-3">
+          <OrgActions org={org} />
+        <div className="grid grid-cols-3 gap-3 text-right">
           <Stat label="Seasons" value={seasonsPage.items.length} />
           <Stat label="Leagues" value={orgLeagues.length} />
           <Stat label="Teams" value={teamsPage.items.length} />
+        </div>
         </div>
       </header>
 

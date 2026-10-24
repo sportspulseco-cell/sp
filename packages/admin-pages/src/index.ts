@@ -22,6 +22,23 @@ export { OrgSetupWizard } from "./org-setup/org-setup-wizard";
 export { RegionsPanel } from "./regions/regions-panel";
 export type { RegionsApi, RegionRow } from "./regions/regions-panel";
 export { DivisionRegionControl } from "./regions/division-region-control";
+export {
+  ActionRow,
+  EditDivisionButton,
+  EditLeagueButton,
+  EditOrgButton,
+  EditSeasonButton,
+  NewDivisionButton,
+  NewSeasonButton
+} from "./edit/edit-dialogs";
+export type {
+  DivisionCreateBody,
+  DivisionUpdateBody,
+  LeagueUpdateBody,
+  OrgUpdateBody,
+  SeasonCreateBody,
+  SeasonUpdateBody
+} from "./edit/edit-dialogs";
 export { sportByOrg } from "./org-setup/org-sport";
 export { CreateFormButton } from "./forms/create-form-button";
 export type {

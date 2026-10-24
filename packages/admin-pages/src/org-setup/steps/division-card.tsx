@@ -19,7 +19,7 @@ import {
 } from "../types";
 import { Field, FieldStyle } from "./league-step";
 
-const TIERS: { value: NonNullable<Tier>; label: string }[] = [
+export const TIERS: { value: NonNullable<Tier>; label: string }[] = [
   { value: "A", label: "A — Competitive" },
   { value: "B", label: "B — Recreational+" },
   { value: "C", label: "C — Recreational" },
@@ -27,7 +27,7 @@ const TIERS: { value: NonNullable<Tier>; label: string }[] = [
   { value: "Premier", label: "Premier" }
 ];
 
-const GENDERS: { value: Gender; label: string }[] = [
+export const GENDERS: { value: Gender; label: string }[] = [
   { value: "open", label: "Open (any)" },
   { value: "male", label: "Men" },
   { value: "female", label: "Women" },

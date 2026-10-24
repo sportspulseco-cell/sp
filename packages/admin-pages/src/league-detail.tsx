@@ -32,6 +32,7 @@ export function LeagueDetail({
   editHref,
   seasonsListHref,
   seasonHrefBase,
+  actions,
   extras
 }: {
   league: League;
@@ -50,6 +51,8 @@ export function LeagueDetail({
   seasonsListHref?: string;
   /** Per-season row link prefix. Default `/seasons`. */
   seasonHrefBase?: string;
+  /** Header actions (edit, add a child record), injected per app. */
+  actions?: ReactNode;
   /** App-specific bottom slot (e.g. sa-web's role-assignments panel). */
   extras?: ReactNode;
 }) {
@@ -89,6 +92,7 @@ export function LeagueDetail({
             {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
           </div>
         </div>
+        {actions ? <div className="ml-auto">{actions}</div> : null}
         {editHref ? (
           <Link
             href={editHref}

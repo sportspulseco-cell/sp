@@ -1,6 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LeagueDetail } from "@sportspulse/admin-pages";
+import { LeagueActions } from "@/components/edit/detail-actions";
 import { iam, leagueMgmt, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -47,6 +48,7 @@ export default async function OrgAdminLeagueDetailPage({
       org={org}
       governingBodyName={govBody?.name ?? null}
       seasons={seasonsPage.items}
+      actions={<LeagueActions league={league} governingBodies={governingBodies} />}
     />
   );
 }

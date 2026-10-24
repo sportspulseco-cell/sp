@@ -1,6 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { SeasonDetail } from "@sportspulse/admin-pages";
+import { SeasonActions } from "@/components/edit/detail-actions";
 import { iam, leagueMgmt, registration } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
@@ -34,12 +35,13 @@ export default async function OrgAdminSeasonDetailPage({
   const activeOrgId = await getActiveOrgId(scope);
   if (activeOrgId && season.orgId !== activeOrgId) notFound();
 
-  const [parentLeague, divisionsPage, formsPage] = await Promise.all([
+  const [parentLeague, divisionsPage, formsPage, regions] = await Promise.all([
     leagueMgmt.getLeague(season.leagueId).catch(() => null),
     fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId: season.id, limit: 100, cursor })).catch(() => ({ items: [] })),
     registration
       .listForms({ orgId: season.orgId })
-      .catch(() => ({ items: [], nextCursor: null }))
+      .catch(() => ({ items: [], nextCursor: null })),
+    leagueMgmt.listRegions({ orgId: season.orgId }).catch(() => ({ items: [] }))
   ]);
 
   const seasonForms = formsPage.items.filter((f) => f.seasonId === season.id);
@@ -54,6 +56,12 @@ export default async function OrgAdminSeasonDetailPage({
       setupHref={setupHref}
       schedulingHref={`/scheduling/${season.id}/generate`}
       statusControl={<ChangeSeasonStatusButton season={season} />}
+      actions={
+        <SeasonActions
+          season={season}
+          regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
+        />
+      }
     />
   );
 }

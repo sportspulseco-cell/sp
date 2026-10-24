@@ -1,6 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LeagueDetail } from "@sportspulse/admin-pages";
+import { LeagueActions } from "@/components/edit/detail-actions";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 
@@ -40,7 +41,7 @@ export default async function LeagueDetailPage({
       org={org}
       governingBodyName={govBody?.name ?? null}
       seasons={seasonsPage.items}
-      editHref="/org-setup"
+      actions={<LeagueActions league={league} governingBodies={governingBodies} />}
       extras={
         <ResourceAdminsSection
           scopeType="league"

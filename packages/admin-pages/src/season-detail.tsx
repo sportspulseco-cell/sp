@@ -30,6 +30,7 @@ export function SeasonDetail({
   setupHref,
   schedulingHref,
   statusControl,
+  actions,
   extras
 }: {
   season: Season;
@@ -50,6 +51,8 @@ export function SeasonDetail({
   /** Status dropdown — pass a <SeasonStatusControl/> bound to the
    *  app's changeStatus callback. Omit to render no control. */
   statusControl?: ReactNode;
+  /** Header actions (edit, add a child record), injected per app. */
+  actions?: ReactNode;
   /** App-specific bottom slot (e.g. sa-web's role-assignments). */
   extras?: ReactNode;
 }) {
@@ -98,6 +101,7 @@ export function SeasonDetail({
         </div>
         <div className="ml-auto flex flex-col items-end gap-2">
           {statusControl}
+          {actions}
           {setupHref ? (
             <Link
               href={setupHref}

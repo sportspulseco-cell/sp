@@ -11,14 +11,14 @@ import {
 } from "../types";
 import { SectionHeader } from "./org-step";
 
-const FORMATS: { value: LeagueFormat; label: string }[] = [
+export const FORMATS: { value: LeagueFormat; label: string }[] = [
   { value: "regular", label: "Regular season" },
   { value: "tournament", label: "Tournament" },
   { value: "pickup", label: "Pickup" },
   { value: "friendly", label: "Friendly" }
 ];
 
-const TIMEZONES = [
+export const TIMEZONES = [
   "America/Los_Angeles",
   "America/Denver",
   "America/Chicago",
@@ -42,7 +42,7 @@ const COLORS = [
   "#14B8A6"  // teal
 ];
 
-const PRIVACY_OPTIONS: {
+export const PRIVACY_OPTIONS: {
   value: Privacy;
   label: string;
   description: string;
