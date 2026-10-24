@@ -640,9 +640,12 @@ def main():
             jid = next((j for j, s in JOURNEYS.items() if s == spec), None)
             if not jid:
                 continue
+            # Only a clean run (every step passed, no finding-check failure)
+            # can say a logged bug did not reproduce; otherwise it stays open.
+            clean = r["failed"] == 0 and not any(st == "finding-check" for _, st in r.get("tests", [])) and not r["findings"]
             for b in bugs:
-                if jid in b["journey"] and b["id"] not in r["findings"] and b["id"] not in fixed:
-                    fixed[b["id"]] = ("not reproduced", f"{spec} run on {env} did not report it")
+                if clean and jid in b["journey"] and b["id"] not in fixed:
+                    fixed[b["id"]] = ("not reproduced", f"{spec} ran clean on {env}")
             for fid in r["findings"]:
                 fixed[fid] = ("open", f"still reported by {spec} on {env}")
     write_xlsx(req_rows, crawls, logs, bugs, fixed)

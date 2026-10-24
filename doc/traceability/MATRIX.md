@@ -224,50 +224,50 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 138 total, 2 still open
+## Logged findings: 138 total, 96 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
 | CAP-1 | blocker | Captain invite link has nowhere to land (UC-04 cannot complete) | J8 · UC-04 | fixed | journey matrix 3a |
 | CAP-2 | blocker | Set-up wizard registers the team into a DENIED division with no approval | J7 | fixed | journey matrix 3a |
-| CAP-3 | blocker | A player who signs up is refused by player-web; free-agent and join flows unreachable | J6 · UC-03 (also UC-04 "player creates account") | not reproduced | j06-free-agent run on staging did not report it |
-| CAP-4 | major | Team-registration and invite notifications never reach anyone | J7, J8 · UC-04 ("System sends invitation"), UC-03, UC-05 | not reproduced | j07-team-application run on staging did not report it |
-| CAP-5 | major | Captain never sees a denial (or its reason) while the team has another active season | J7 | not reproduced | j07-team-application run on staging did not report it |
-| CAP-6 | major | No way into "Register your team" from the captain console while the team is in season | J7 | not reproduced | j07-team-application run on staging did not report it |
+| CAP-3 | blocker | A player who signs up is refused by player-web; free-agent and join flows unreachable | J6 · UC-03 (also UC-04 "player creates account") | open |  |
+| CAP-4 | major | Team-registration and invite notifications never reach anyone | J7, J8 · UC-04 ("System sends invitation"), UC-03, UC-05 | open |  |
+| CAP-5 | major | Captain never sees a denial (or its reason) while the team has another active season | J7 | open |  |
+| CAP-6 | major | No way into "Register your team" from the captain console while the team is in season | J7 | open |  |
 | CAP-7 | major | Captain's free-agent pool reads the newest division entry, so current-season free agents are invisible | J6 · UC-03 | fixed | pdf-items item 6 + blockers-oct24 item 4 (staging, 24 Oct) |
-| CAP-8 | major | Manage roster jumps to the newest registered season; the current roster is unreachable | J8 · UC-33 / UC-04 | not reproduced | j08-captain-invite run on staging did not report it |
-| CAP-9 | major | Claiming a free agent skips the player's accept/decline and tells nobody | J6 · UC-03 | not reproduced | j06-free-agent run on staging did not report it |
-| CAP-10 | major | No admin view of the free-agent pool (cannot manually assign) | J6 · UC-03 alternative flow "Admin manually assigns player to a team" | not reproduced | j06-free-agent run on staging did not report it |
-| CAP-11 | major | Any signed-in user can search every person on the platform, with email and auth id | J8 | not reproduced | j08-captain-invite run on staging did not report it |
+| CAP-8 | major | Manage roster jumps to the newest registered season; the current roster is unreachable | J8 · UC-33 / UC-04 | open |  |
+| CAP-9 | major | Claiming a free agent skips the player's accept/decline and tells nobody | J6 · UC-03 | open |  |
+| CAP-10 | major | No admin view of the free-agent pool (cannot manually assign) | J6 · UC-03 alternative flow "Admin manually assigns player to a team" | open |  |
+| CAP-11 | major | Any signed-in user can search every person on the platform, with email and auth id | J8 | open |  |
 | CAP-12 | major | Org setup refuses "registration opens today" east of UTC and after 8 pm US Eastern; failed publish leaves an orphan league | J7 setup (also J1) | fixed | blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct) |
-| CAP-13 | major | Season status and captain visibility disagree; the window cannot be edited after creation | J7 prerequisite | not reproduced | j07-team-application run on staging did not report it |
-| CAP-14 | minor | Revoked invite token still resolves publicly, with the full invite row | J8 · UC-04 | not reproduced | j08-captain-invite run on staging did not report it |
-| CAP-15 | minor | Invite season picker defaults to an arbitrary season and lists every season in the org | J8 | not reproduced | j08-captain-invite run on staging did not report it |
-| CAP-16 | minor | Roster "Invite by email" opens the Add-player tab, and the dues share is silently dropped | J8 | not reproduced | j08-captain-invite run on staging did not report it |
-| CAP-17 | minor | Free-agent form never shows the player's existing or placed entries | J6 | not reproduced | j06-free-agent run on staging did not report it |
-| CAP-18 | minor | Player home says "haven't registered yet" while showing the team and its games | J8 | not reproduced | j08-captain-invite run on staging did not report it |
-| CAP-19 | minor | Player /team and team-admin /roster mix every season, so people appear several times | J8 · UC-33 | not reproduced | j08-captain-invite run on staging did not report it |
+| CAP-13 | major | Season status and captain visibility disagree; the window cannot be edited after creation | J7 prerequisite | open |  |
+| CAP-14 | minor | Revoked invite token still resolves publicly, with the full invite row | J8 · UC-04 | open |  |
+| CAP-15 | minor | Invite season picker defaults to an arbitrary season and lists every season in the org | J8 | open |  |
+| CAP-16 | minor | Roster "Invite by email" opens the Add-player tab, and the dues share is silently dropped | J8 | open |  |
+| CAP-17 | minor | Free-agent form never shows the player's existing or placed entries | J6 | open |  |
+| CAP-18 | minor | Player home says "haven't registered yet" while showing the team and its games | J8 | open |  |
+| CAP-19 | minor | Player /team and team-admin /roster mix every season, so people appear several times | J8 · UC-33 | open |  |
 | CAP-20 | minor | Org setup Sport defaults to AFL (alphabetically first) | J7 setup | fixed | journey matrix 3a |
-| CAP-21 | minor | Per-player cost differs between screens | J7 | not reproduced | j07-team-application run on staging did not report it |
-| CAP-22 | minor | Set-up wizard page has two nested <main> landmarks | J7 | not reproduced | j07-team-application run on staging did not report it |
-| CAP-23 | minor | "New registration form" dialog preselects another tenant's org | J7 setup (forms) | not reproduced | j07-team-application run on staging did not report it |
-| CAP-24 | major | Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) | J8.4 → J8.5 · M10 | not reproduced | j08-captain-invite run on staging did not report it |
+| CAP-21 | minor | Per-player cost differs between screens | J7 | open |  |
+| CAP-22 | minor | Set-up wizard page has two nested <main> landmarks | J7 | open |  |
+| CAP-23 | minor | "New registration form" dialog preselects another tenant's org | J7 setup (forms) | open |  |
+| CAP-24 | major | Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) | J8.4 → J8.5 · M10 | open |  |
 | COMP-5 | blocker | Player and captain compliance pages are always empty | J9 · UC-05, UC-29, UC-14 | fixed | journey matrix 3a |
-| COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | not reproduced | j09-eligibility run on staging did not report it |
+| COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | open |  |
 | COMP-2 | major | USA Hockey ID submit fails: "Unknown governing body code "USA_HOCKEY"" | J9 · UC-29 | fixed | migration 0049 on staging + prod; j09 step 2 passed (journey matrix 3a) |
-| COMP-3 | major | Player cannot upload an ID or eligibility document | J9 · UC-29 (precondition), UC-27 alt flow (scanned signed waiver) | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | not reproduced | j09-eligibility run on staging did not report it |
-| COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | not reproduced | j01-setup run on staging did not report it |
-| COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | not reproduced | j01-setup run on staging did not report it |
-| COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | not reproduced | j01-setup run on staging did not report it |
-| COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | not reproduced | j01-setup run on staging did not report it |
-| COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | not reproduced | j01-setup run on staging did not report it |
-| COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | not reproduced | j01-setup run on staging did not report it |
+| COMP-3 | major | Player cannot upload an ID or eligibility document | J9 · UC-29 (precondition), UC-27 alt flow (scanned signed waiver) | open |  |
+| COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | open |  |
+| COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | open |  |
+| COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | open |  |
+| COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | open |  |
+| COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | open |  |
+| COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | open |  |
+| COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | open |  |
+| COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | open |  |
+| COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | open |  |
+| COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | open |  |
+| COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | open |  |
+| COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | open |  |
 | CONSOLE-1 | blocker | Every API failure renders Next's "404 This page could not be found" | all · M1–M17 (every detail page) | fixed in code, not deployed | commit c66e81f: load() + LoadError in 60 pages; awaiting staging deploy + crawl |
 | CONSOLE-2 | major | Roles rows link to /roles/:id, which does not exist | J2 · M1 | fixed in code, not deployed | commit c66e81f: roles/[id] page; awaiting deploy |
 | CONSOLE-3 | blocker | League admin: Users and Forms say "Could not load"; Registrations, Division applications, Transfers, Eligibility say "Super admin access required"; Documents and Game events show an empty list as if true | J1/J2/J3/J4/J7/J9 · M1, M5, M6, M9, M10, M11, M13 | fixed in code, not deployed | commit 3ad966b: ScopedAdminGuard + visibility.ts; awaiting deploy + league-admin-console journey |
@@ -276,93 +276,93 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CONSOLE-6 | minor | Org admin: division page links the organisation to /organizations/:id, which the org console does not have | J1 · M2/M3 | fixed in code, not deployed | commit c66e81f: DivisionDetail orgHref; awaiting deploy |
 | CONSOLE-7 | minor | Placeholder pages in the navigation: captain "Communications" (Coming soon), player "Video" (coming soon), player and captain "Team store" (CHECKOUT SOON) | — · M15, M16, M19 | fixed in code, not deployed | commit c66e81f: nav entries removed; awaiting deploy; PPHL to confirm release-1 list |
 | CONSOLE-8 | major | Six sign-in subdomains, no single entry point | — · all | open |  |
-| CONSOLE-9 | blocker | Admin registrations page fails for every admin once a minor has registered: "Invalid status: pending_consent" | J4/J5 · M6 | not reproduced | j04-player-registration run on staging did not report it |
-| CONSOLE-10 | minor | Dialog close icon has no accessible name; the only control named "Close dialog" is the backdrop | J1 · M2 | not reproduced | j01-setup run on staging did not report it |
-| CONSOLE-11 | major | Organizations list does not show the new org when the org-admin step is dismissed | J1 step 1, J17 step 1 · M2 | not reproduced | j01-setup run on staging did not report it |
+| CONSOLE-9 | blocker | Admin registrations page fails for every admin once a minor has registered: "Invalid status: pending_consent" | J4/J5 · M6 | open |  |
+| CONSOLE-10 | minor | Dialog close icon has no accessible name; the only control named "Close dialog" is the backdrop | J1 · M2 | open |  |
+| CONSOLE-11 | major | Organizations list does not show the new org when the org-admin step is dismissed | J1 step 1, J17 step 1 · M2 | open |  |
 | MON-1 | blocker | Admin invoice creation always fails (500) | J13, J14 · UC-15, UC-16, UC-17 | fixed | journey matrix 3a |
 | MON-2 | blocker | No notification can be written or listed on staging (notifications.read_at missing) | J15, J14, J13 · UC-15, UC-16, UC-18, UC-19, UC-20, UC-21 | fixed | migration 0048 on prod; notifications list/mark-read (journey matrix 3a) |
 | MON-3 | blocker | Players can never see their notifications (list endpoint is super-admin only) | J15 · UC-19, UC-21 | fixed | journey matrix 3a |
-| MON-4 | major | "+ New invoice" dialog on /finance cannot create anything (empty organisation picker) | J13 · UC-15 | not reproduced | j01-setup run on staging did not report it |
-| MON-5 | major | Super-admin composer "Individual" scope has no people | J13 · UC-15 | not reproduced | j01-setup run on staging did not report it |
-| MON-6 | major | Shared invoice composer has no payment plan / installments or fee schedule | J13 · UC-15 | not reproduced | j01-setup run on staging did not report it |
+| MON-4 | major | "+ New invoice" dialog on /finance cannot create anything (empty organisation picker) | J13 · UC-15 | open |  |
+| MON-5 | major | Super-admin composer "Individual" scope has no people | J13 · UC-15 | open |  |
+| MON-6 | major | Shared invoice composer has no payment plan / installments or fee schedule | J13 · UC-15 | open |  |
 | MON-7 | major | Per-player "Remind" on captain dues always fails "Split not found" | J14 · UC-16, UC-18 | fixed | journey matrix 3a |
-| MON-8 | major | Custom dues split is not saved; mode resets on reload | J14 · UC-16 | not reproduced | j01-setup run on staging did not report it |
-| MON-9 | major | Refund does not reduce the invoice's paid amount, so refunds can exceed what was paid | J13 · UC-17 | not reproduced | j01-setup run on staging did not report it |
-| MON-10 | blocker | Mock payment processor is wired unconditionally and the player pay dialog exposes "Mock card outcome" | J13 · UC-15 | not reproduced | j01-setup run on staging did not report it |
-| MON-11 | major | Overdue reminders (UC-18) can never fire for admin-created invoices | J13 · UC-18 | not reproduced | j01-setup run on staging did not report it |
-| MON-12 | major | Captain team message (UC-20) not built | J15 · UC-20 | not reproduced | j01-setup run on staging did not report it |
-| MON-13 | major | League announcement compose is missing UC-19 fields | J15 · UC-19 | not reproduced | j01-setup run on staging did not report it |
-| MON-14 | major | Game-change notifications to players (UC-21) not built | J15 · UC-21 | not reproduced | j01-setup run on staging did not report it |
-| MON-15 | major | Team store: players cannot order; no roster-generated store | J16 · UC-25, UC-26 | not reproduced | j01-setup run on staging did not report it |
-| MON-16 | minor | Captain register page claims dues are set up when they are not; dues page points back to it | J14 · UC-16 | not reproduced | j01-setup run on staging did not report it |
+| MON-8 | major | Custom dues split is not saved; mode resets on reload | J14 · UC-16 | open |  |
+| MON-9 | major | Refund does not reduce the invoice's paid amount, so refunds can exceed what was paid | J13 · UC-17 | open |  |
+| MON-10 | blocker | Mock payment processor is wired unconditionally and the player pay dialog exposes "Mock card outcome" | J13 · UC-15 | open |  |
+| MON-11 | major | Overdue reminders (UC-18) can never fire for admin-created invoices | J13 · UC-18 | open |  |
+| MON-12 | major | Captain team message (UC-20) not built | J15 · UC-20 | open |  |
+| MON-13 | major | League announcement compose is missing UC-19 fields | J15 · UC-19 | open |  |
+| MON-14 | major | Game-change notifications to players (UC-21) not built | J15 · UC-21 | open |  |
+| MON-15 | major | Team store: players cannot order; no roster-generated store | J16 · UC-25, UC-26 | open |  |
+| MON-16 | minor | Captain register page claims dues are set up when they are not; dues page points back to it | J14 · UC-16 | open |  |
 | MON-17 | minor | Finance ops page shows fabricated QuickBooks activity and another org's name | J13 · UC-18 | fixed | journey matrix 3a |
-| MON-18 | minor | Internal notes, receipt and update card are stubs | J13 · UC-15, UC-17 | not reproduced | j01-setup run on staging did not report it |
-| MON-19 | minor | Org-admin finance has no invoice detail, refund or wallet actions | J13 · UC-17 | not reproduced | j01-setup run on staging did not report it |
+| MON-18 | minor | Internal notes, receipt and update card are stubs | J13 · UC-15, UC-17 | open |  |
+| MON-19 | minor | Org-admin finance has no invoice detail, refund or wallet actions | J13 · UC-17 | open |  |
 | MON-20 | minor | Bulk invoice "individual" target is not checked against the org |  | open |  |
 | MON-21 | minor | Mojibake in team-admin header: "CAPTAIN Â· 1 TEAM" |  | fixed | mojibake removed (journey matrix 3a) |
 | REG-1 | blocker | Funnel "Sign in" never checks the password — anyone can open another player's registration | J4 · UC-01 | fixed | journey matrix 3a |
 | REG-2 | blocker | "Create account" with an existing email and any password registers as that user | J4 · UC-01 | fixed | journey matrix 3a |
-| REG-3 | blocker | Payment is a client-controlled mock: no card, "PAID" invoice, plan deposit records full price | J4 · UC-01, UC-15 | not reproduced | j04-player-registration run on staging did not report it |
+| REG-3 | blocker | Payment is a client-controlled mock: no card, "PAID" invoice, plan deposit records full price | J4 · UC-01, UC-15 | open |  |
 | REG-4 | blocker | Org admin registrations queue is always empty | J4, J5 · UC-01 | fixed | journey matrix 3a |
-| REG-5 | blocker | Required liability waiver silently skipped; registration completes unsigned | J4, J5 · UC-27 | not reproduced | j04-player-registration run on staging did not report it |
+| REG-5 | blocker | Required liability waiver silently skipped; registration completes unsigned | J4, J5 · UC-27 | open |  |
 | REG-6 | blocker | Parental consent link and token are handed to the minor; the token is forgeable | J5 · UC-02, UC-28 | fixed | journey matrix 3a |
 | REG-7 | blocker | Minor is stuck forever after the guardian consents | J5 · UC-02, UC-28 | fixed | journey matrix 3a |
-| REG-8 | major | Every registration is attached to an arbitrary form version (wrong form, possibly another org's) | J4, J5 · UC-01 | not reproduced | j04-player-registration run on staging did not report it |
+| REG-8 | major | Every registration is attached to an arbitrary form version (wrong form, possibly another org's) | J4, J5 · UC-01 | open |  |
 | REG-9 | major | Players cannot discover open registrations | J4 · UC-01 | fixed | pdf-items item 2: player sees open season (staging, 24 Oct) |
 | REG-10 | major | Admin cannot open registration "today" in the US evening; failed setup leaves an orphan league | J3 · UC-01 precondition | fixed | same run as CAP-12 |
-| REG-11 | minor | Registration window shown one day late | J3 | not reproduced | j03-form run on staging did not report it |
-| REG-12 | major | Org admin "Live wizard" opens the PRODUCTION player app | J3 | not reproduced | j03-form run on staging did not report it |
-| REG-13 | major | Review "Registration links" point at a hard-coded marketing domain | J3 | not reproduced | j03-form run on staging did not report it |
-| REG-14 | major | "Registration type" setting does nothing | J3 / J4 · spec registration-module-v2 §1.2 | not reproduced | j03-form run on staging did not report it |
-| REG-15 | major | Guardian consent page has no signature and stores no consent record | J5 · UC-28 | not reproduced | j05-minor-consent run on staging did not report it |
-| REG-16 | major | Funnel accepts registrations before the window opens | J4 | not reproduced | j04-player-registration run on staging did not report it |
+| REG-11 | minor | Registration window shown one day late | J3 | open |  |
+| REG-12 | major | Org admin "Live wizard" opens the PRODUCTION player app | J3 | open |  |
+| REG-13 | major | Review "Registration links" point at a hard-coded marketing domain | J3 | open |  |
+| REG-14 | major | "Registration type" setting does nothing | J3 / J4 · spec registration-module-v2 §1.2 | open |  |
+| REG-15 | major | Guardian consent page has no signature and stores no consent record | J5 · UC-28 | open |  |
+| REG-16 | major | Funnel accepts registrations before the window opens | J4 | open |  |
 | REG-17 | major | Review queues: org admin rows unreadable, Approve offered on unreviewable rows; SA counters wrong | J4, J5 | fixed | journey matrix 3a |
-| REG-18 | minor | Duplicate config sources in the form builder | J3 | not reproduced | j03-form run on staging did not report it |
-| REG-19 | minor | Pricing tier editor is raw cents and missing plan controls | J3 · UC-01 "installment" | not reproduced | j03-form run on staging did not report it |
-| REG-20 | minor | New form dialog: no season picker; org_admin offered "Super Admin" audience | J3 | not reproduced | j03-form run on staging did not report it |
-| REG-21 | minor | Skill level enum differs between division setup and funnel | J4 | not reproduced | j04-player-registration run on staging did not report it |
-| REG-22 | minor | "Preview" opens the Review tab, not the player form | J3 · spec v2 "Form preview" | not reproduced | j03-form run on staging did not report it |
-| REG-23 | minor | Funnel copy promises things that do not happen | J4, J5 | not reproduced | j04-player-registration run on staging did not report it |
-| REG-24 | minor | Sign-in resume fires eligibility check with an empty email (404) | J5 | not reproduced | j05-minor-consent run on staging did not report it |
-| REG-25 | major | League-scoped forms attach to every season of every org (code) | J4 (not reproduced — no league-scoped form was published on staging during the run; 4 unpublished ones from other testers exist) | not reproduced | j04-player-registration run on staging did not report it |
+| REG-18 | minor | Duplicate config sources in the form builder | J3 | open |  |
+| REG-19 | minor | Pricing tier editor is raw cents and missing plan controls | J3 · UC-01 "installment" | open |  |
+| REG-20 | minor | New form dialog: no season picker; org_admin offered "Super Admin" audience | J3 | open |  |
+| REG-21 | minor | Skill level enum differs between division setup and funnel | J4 | open |  |
+| REG-22 | minor | "Preview" opens the Review tab, not the player form | J3 · spec v2 "Form preview" | open |  |
+| REG-23 | minor | Funnel copy promises things that do not happen | J4, J5 | open |  |
+| REG-24 | minor | Sign-in resume fires eligibility check with an empty email (404) | J5 | open |  |
+| REG-25 | major | League-scoped forms attach to every season of every org (code) | J4 (not reproduced — no league-scoped form was published on staging during the run; 4 unpublished ones from other testers exist) | open |  |
 | REG-26 | minor | Sport defaults to "Australian Rules Football" in Org setup (J1 owns org-setup) |  | fixed | journey matrix 3a |
 | SCH-1 | blocker | Scheduler (generate, publish, conflicts, runs, fairness, verify, playoffs, tournament, parity, notifications) | J10 · UC-06, UC-07, UC-08, UC-09 | fixed | journey matrix 3a |
 | SCH-2 | blocker | Ice slots created on /venues are invisible to the scheduler | J10 · UC-06 | fixed | journey matrix 3a |
-| SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | not reproduced | j01-setup run on staging did not report it |
-| SCH-20 | major | New game team pickers show only 25 random teams | J10, J11 · UC-07 fallback (manual fixture) | not reproduced | j01-setup run on staging did not report it |
+| SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | open |  |
+| SCH-20 | major | New game team pickers show only 25 random teams | J10, J11 · UC-07 fallback (manual fixture) | open |  |
 | SCH-22 | blocker | Log event: Player picker is empty, goals cannot be attributed | J11 · UC-11, UC-13 | fixed | journey matrix 3a |
-| SCH-12 | major | Only super_admin can run a game; league admin / scorekeeper / referee get 403 | J11 · UC-11, UC-12 | not reproduced | j01-setup run on staging did not report it |
-| SCH-13 | major | Assists are never counted | J11 · UC-11, UC-13 | not reproduced | j01-setup run on staging did not report it |
-| SCH-14 | major | Penalties record 0 PIM; no infraction or minutes | J11 · UC-11, UC-13, feeds UC-14 suspensions | not reproduced | j01-setup run on staging did not report it |
-| SCH-17 | major | Finalize does not update stats, standings, or notify anyone | J11 · UC-12, UC-13 | not reproduced | j01-setup run on staging did not report it |
-| SCH-7 | major | Manually created games never reach captain or player schedules | J10 · UC-07, UC-08 | not reproduced | j01-setup run on staging did not report it |
-| SCH-6 | major | No way to move a game's time or rink (UC-07 manual override) | J10 · UC-07, UC-21 | not reproduced | j01-setup run on staging did not report it |
-| SCH-8 | major | Publishing a schedule notifies nobody | J10 · UC-08, UC-21 | not reproduced | j01-setup run on staging did not report it |
-| SCH-4 | major | Admin cannot put a team into a division | J10 · UC-06 precondition | not reproduced | j01-setup run on staging did not report it |
-| SCH-5 | major | Manual "New game" form: no season/division, venue is free text | J10 · UC-07 | not reproduced | j01-setup run on staging did not report it |
-| SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | not reproduced | j01-setup run on staging did not report it |
-| SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | not reproduced | j01-setup run on staging did not report it |
-| SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | not reproduced | j01-setup run on staging did not report it |
-| SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | not reproduced | j01-setup run on staging did not report it |
-| SCH-9 | minor | Add venue: Create stays disabled while an org is shown as selected | J10 · UC-06 | not reproduced | j01-setup run on staging did not report it |
-| SCH-10 | minor | New surface not shown in the open venue panel | J10 · UC-06 | not reproduced | j01-setup run on staging did not report it |
-| SCH-19 | minor | Duplicate-team guard loses its "Use existing team" link | J10 · SCH-18 follow-on | not reproduced | j01-setup run on staging did not report it |
-| SCH-11 | minor | Opponent shown as a UUID prefix on captain lineups | J11 | not reproduced | j01-setup run on staging did not report it |
-| SCH-15 | minor | Event log shows a UUID prefix instead of the player name | J11 · UC-11 | not reproduced | j01-setup run on staging did not report it |
-| SCH-16 | minor | Logging a goal does not change the score | J11 · UC-11 | not reproduced | j01-setup run on staging did not report it |
+| SCH-12 | major | Only super_admin can run a game; league admin / scorekeeper / referee get 403 | J11 · UC-11, UC-12 | open |  |
+| SCH-13 | major | Assists are never counted | J11 · UC-11, UC-13 | open |  |
+| SCH-14 | major | Penalties record 0 PIM; no infraction or minutes | J11 · UC-11, UC-13, feeds UC-14 suspensions | open |  |
+| SCH-17 | major | Finalize does not update stats, standings, or notify anyone | J11 · UC-12, UC-13 | open |  |
+| SCH-7 | major | Manually created games never reach captain or player schedules | J10 · UC-07, UC-08 | open |  |
+| SCH-6 | major | No way to move a game's time or rink (UC-07 manual override) | J10 · UC-07, UC-21 | open |  |
+| SCH-8 | major | Publishing a schedule notifies nobody | J10 · UC-08, UC-21 | open |  |
+| SCH-4 | major | Admin cannot put a team into a division | J10 · UC-06 precondition | open |  |
+| SCH-5 | major | Manual "New game" form: no season/division, venue is free text | J10 · UC-07 | open |  |
+| SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | open |  |
+| SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | open |  |
+| SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | open |  |
+| SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | open |  |
+| SCH-9 | minor | Add venue: Create stays disabled while an org is shown as selected | J10 · UC-06 | open |  |
+| SCH-10 | minor | New surface not shown in the open venue panel | J10 · UC-06 | open |  |
+| SCH-19 | minor | Duplicate-team guard loses its "Use existing team" link | J10 · SCH-18 follow-on | open |  |
+| SCH-11 | minor | Opponent shown as a UUID prefix on captain lineups | J11 | open |  |
+| SCH-15 | minor | Event log shows a UUID prefix instead of the player name | J11 · UC-11 | open |  |
+| SCH-16 | minor | Logging a goal does not change the score | J11 · UC-11 | open |  |
 | SCH-21 | minor | Header text shows "CAPTAIN Â· 1 TEAM" | J10, J11 | fixed | mojibake removed (journey matrix 3a) |
 | SETUP-6 | blocker | Create team fails with 500 when "Home rink" is left blank, but the team row is still written | J1 · UC-33 (team setup), M4 | fixed | journey matrix 3a: team create with blank rink |
 | SETUP-15 | major | league_admin sees, and can open, seasons of OTHER leagues in the same org | J17 | fixed | journey matrix 3a (code fix; league_admin browser check pending) |
 | SETUP-10 | major | No way to add a season to an existing league, or a division to an existing season | J1 | fixed | blockers-oct24-b item 2: New season under league, New division under season, wizard 'existing league' (staging, 24 Oct) |
 | SETUP-2 | major | Org, league, season, division and team cannot be edited after creation | J1 | fixed | blockers-oct24-b item 2: edit league/season/division + org (staging, 24 Oct) |
 | SETUP-14 | major | Admin lists and scope pickers silently stop at 25 rows | J1 (also affects J2 pickers) | fixed | users 83 of 83 shown; fetchAll everywhere (staging, 24 Oct) |
-| SETUP-8 | major | Invite email is never sent on staging; magic-link invite flashes "Invite sent" and can 500 | J2 | not reproduced | j02-invite run on staging did not report it |
-| SETUP-17 | minor | Role editing on the super_admin row shows "no role" until per-row fetches finish | J2 | not reproduced | j02-invite run on staging did not report it |
+| SETUP-8 | major | Invite email is never sent on staging; magic-link invite flashes "Invite sent" and can 500 | J2 | open |  |
+| SETUP-17 | minor | Role editing on the super_admin row shows "no role" until per-row fetches finish | J2 | open |  |
 | SETUP-4 | minor | Season status menu offers transitions the server always rejects | J1 | fixed | journey matrix 3a |
 | SETUP-3 | minor | Sport defaults to "Australian Rules Football" on a hockey platform | J1 | fixed | journey matrix 3a |
-| SETUP-5 | minor | "Add another division" adds a collapsed card, Publish silently disabled | J1 | not reproduced | j01-setup run on staging did not report it |
-| SETUP-7 | minor | Invite dialog shows raw role and scope codes | J2 | not reproduced | j02-invite run on staging did not report it |
+| SETUP-5 | minor | "Add another division" adds a collapsed card, Publish silently disabled | J1 | open |  |
+| SETUP-7 | minor | Invite dialog shows raw role and scope codes | J2 | open |  |
 | SETUP-13 | minor | Mojibake ("â€”") in invite emails, /roles, page titles | J2 | fixed | mojibake removed (journey matrix 3a) |
 | SETUP-9 | minor | User detail shows role scope as a UUID prefix | J2 | fixed | pdf-items items 1/4: no id fragments on /users/[id] (staging, 24 Oct) |
-| SETUP-16 | minor | New venue defaults: arbitrary org, UTC timezone, free-text IANA field | J1 | not reproduced | j01-setup run on staging did not report it |
-| SETUP-11 | minor | Create organization: slug not derived from display name | J1 | not reproduced | j01-setup run on staging did not report it |
+| SETUP-16 | minor | New venue defaults: arbitrary org, UTC timezone, free-text IANA field | J1 | open |  |
+| SETUP-11 | minor | Create organization: slug not derived from display name | J1 | open |  |
