@@ -123,3 +123,17 @@ Crawl totals (pages visited / pages with a problem):
   Actual: X is an unnamed button with an icon; aria-label Close dialog sits on the backdrop div (snapshot test-results-journeys-setup-v2/journeys-j01-setup-*/error-context.md).
 
   Root cause: components/ui/dialog.tsx labels the backdrop, not the icon button. Fix pending.
+
+[CONSOLE-11] Organizations list does not show the new org when the org-admin step is dismissed · major
+
+  Journey: J1 step 1, J17 step 1 · M2
+
+  Surface: superadmin-web /organizations → New organization → Create → close Choose the org admin
+
+  Repro: 1. Create an organization. 2. Close the Choose the org admin step without picking anyone.
+
+  Expected: the new row appears in the list (same-surface refresh).
+
+  Actual: list still says Showing 31 of 31; the org exists in the database (setup-v3 run, orgs PPHL E2EMVMLO6VD and Org B E2EMVMLR7L4 created 16:15/16:17 UTC).
+
+  Root cause: CreateOrgDialog.close() only reset state; router.refresh() ran on Done only. Fixed: refresh on close when an org was created.

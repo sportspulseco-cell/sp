@@ -260,6 +260,10 @@ function CreateOrgDialog({
   const router = useRouter();
   const [created, setCreated] = useState<Org | null>(null);
   function close() {
+    // Dismissing the org-admin step after a create still leaves a new
+    // row behind; refresh so the list shows it without a manual reload
+    // (J1 step 1, 24 Oct: "Showing 31 of 31" while the org existed).
+    if (created) router.refresh();
     setCreated(null);
     onClose();
   }
