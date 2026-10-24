@@ -30,6 +30,9 @@ and alternatives, with sources) and `../traceability/benchmark.md`
 | Placeholders (Video, Team store, captain Communications) out of the menus; super-admin-only modules hidden from scoped admins | `c66e81f` | Fewer items, none dead. |
 | API failures show who is responsible ("Your role does not have access" / "server problem on our side") instead of a 404; empty lists only when the list is really empty | `c66e81f` | "Nothing here" means nothing here. |
 | League admins can read users, forms, registrations, team applications, transfers, eligibility and documents inside their scope | `3ad966b`, `4dbbb4b`, `121979a` | PPHL's own role works in the console. |
+| Navigation regrouped the way SportsEngine HQ groups the work: Home, Season, Teams, Registration, Games & results, Members, Financials, Messages, Reports, Settings (admin console); same groups filtered for the org console; player app My games / My team / My account / Register | `8ffa1bd` | A SportsEngine user finds things where they expect them; top-level count drops from 30 flat items to 1 + 9 groups. |
+| Code-style `//` prefix removed from every page eyebrow in the apps | `8ffa1bd` | Headers read as English, not as source code. |
+| Season page opens with the same lifecycle strip and next step | `9232baf` | The season is the working surface, as in HQ Season Management. |
 | Test payments labelled "no real card is charged while the league is testing" | `f3d70d9` | Testers know the mock is intentional. |
 
 None of this is live for PPHL yet: production is on `a2cf243` until the Vercel plan is upgraded (Hobby cap of 100 deployments per day, hit 24 Oct 16:21 UTC).
