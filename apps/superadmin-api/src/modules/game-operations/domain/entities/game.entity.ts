@@ -9,6 +9,8 @@ import {
 export interface GameSnapshot {
   id: string;
   leagueId: string;
+  /** games.season_id; null for ad-hoc games created without a season. */
+  seasonId: string | null;
   divisionId: string | null;
   homeTeamId: string;
   awayTeamId: string;
@@ -33,6 +35,7 @@ export class Game extends AggregateRoot<GameId> {
   private constructor(
     id: GameId,
     private readonly _leagueId: string,
+    private readonly _seasonId: string | null,
     private _divisionId: string | null,
     private readonly _homeTeamId: string,
     private readonly _awayTeamId: string,
@@ -58,6 +61,7 @@ export class Game extends AggregateRoot<GameId> {
   static create(input: {
     id: GameId;
     leagueId: string;
+    seasonId?: string | null;
     divisionId?: string | null;
     homeTeamId: string;
     awayTeamId: string;
@@ -78,6 +82,7 @@ export class Game extends AggregateRoot<GameId> {
     return new Game(
       input.id,
       input.leagueId,
+      input.seasonId ?? null,
       input.divisionId ?? null,
       input.homeTeamId,
       input.awayTeamId,
@@ -103,6 +108,7 @@ export class Game extends AggregateRoot<GameId> {
     return new Game(
       GameId.of(s.id),
       s.leagueId,
+      s.seasonId,
       s.divisionId,
       s.homeTeamId,
       s.awayTeamId,
@@ -241,6 +247,7 @@ export class Game extends AggregateRoot<GameId> {
   // ---------- accessors ----------
 
   get leagueId(): string { return this._leagueId; }
+  get seasonId(): string | null { return this._seasonId; }
   get divisionId(): string | null { return this._divisionId; }
   get homeTeamId(): string { return this._homeTeamId; }
   get awayTeamId(): string { return this._awayTeamId; }
@@ -264,6 +271,7 @@ export class Game extends AggregateRoot<GameId> {
     return {
       id: this.id.value,
       leagueId: this._leagueId,
+      seasonId: this._seasonId,
       divisionId: this._divisionId,
       homeTeamId: this._homeTeamId,
       awayTeamId: this._awayTeamId,

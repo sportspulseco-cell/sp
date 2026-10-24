@@ -73,8 +73,13 @@ export default async function LineupEditorPage({
     notFound();
   }
 
+  // The roster of the game's season, not "today's" season: a team live in
+  // two seasons showed the other season's players here (SCH-23). Games
+  // without a season fall back to the season current at kickoff.
   const [rosterResp, lineup] = await Promise.all([
-    captain.roster.list(myTeamId).catch(() => null),
+    captain.roster
+      .list(myTeamId, game.seasonId ?? undefined, { asOf: game.scheduledStartTsUtc })
+      .catch(() => null),
     gameOps.getLineup(gameId, myTeamId).catch(() => null)
   ]);
 

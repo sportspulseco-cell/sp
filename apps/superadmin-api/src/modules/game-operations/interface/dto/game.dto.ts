@@ -22,6 +22,7 @@ import {
 // Games
 export class CreateGameBodyDto {
   @ApiProperty() @IsUUID() leagueId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsUUID() divisionId?: string | null;
   @ApiProperty() @IsUUID() homeTeamId!: string;
   @ApiProperty() @IsUUID() awayTeamId!: string;

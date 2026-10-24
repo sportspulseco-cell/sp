@@ -72,6 +72,7 @@ export class GetGameHandler
 
 export interface CreateGameInput {
   leagueId: string;
+  seasonId?: string | null;
   divisionId?: string | null;
   homeTeamId: string;
   awayTeamId: string;
@@ -92,6 +93,7 @@ export class CreateGameHandler
     const g = Game.create({
       id: GameId.of(randomUUID()),
       leagueId: input.leagueId,
+      seasonId: input.seasonId,
       divisionId: input.divisionId,
       homeTeamId: input.homeTeamId,
       awayTeamId: input.awayTeamId,

@@ -11,6 +11,12 @@ import {
 export class GameDto {
   @ApiProperty() id!: string;
   @ApiProperty() leagueId!: string;
+  /**
+   * games.season_id, or the division's season when the row has none
+   * (filled in by GamesController). Null only for ad-hoc games with
+   * neither; the lineup editor then resolves the roster by game date.
+   */
+  @ApiPropertyOptional({ nullable: true }) seasonId!: string | null;
   @ApiPropertyOptional({ nullable: true }) divisionId!: string | null;
   @ApiProperty() homeTeamId!: string;
   @ApiProperty() awayTeamId!: string;
@@ -36,6 +42,7 @@ export class GameDto {
     return {
       id: x.id,
       leagueId: x.leagueId,
+      seasonId: x.seasonId,
       divisionId: x.divisionId,
       homeTeamId: x.homeTeamId,
       awayTeamId: x.awayTeamId,

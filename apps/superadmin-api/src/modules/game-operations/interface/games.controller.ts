@@ -19,6 +19,8 @@ import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
+import { inArray } from "drizzle-orm";
 import { GameDto, GamePageDto } from "../application/dtos/game.dto";
 import {
   ApplyScoreHandler,
@@ -56,17 +58,45 @@ export class GamesController {
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  /** Add homeTeamName + awayTeamName so screens never print raw ids. */
+  /**
+   * Add homeTeamName + awayTeamName so screens never print raw ids, and
+   * fill `seasonId` from the division when the row has none (games
+   * created before migration 0046 or from the New game dialog, which
+   * sends no season). Readers such as the captain lineup editor need
+   * the game's season to show the right roster (SCH-23).
+   */
   private async withNames(games: GameDto[]): Promise<GameDto[]> {
-    const names = await resolveEntityNames(this.db, [
-      ...games.map((g) => ({ type: "team", id: g.homeTeamId })),
-      ...games.map((g) => ({ type: "team", id: g.awayTeamId }))
+    const [names, seasonByDivision] = await Promise.all([
+      resolveEntityNames(this.db, [
+        ...games.map((g) => ({ type: "team", id: g.homeTeamId })),
+        ...games.map((g) => ({ type: "team", id: g.awayTeamId }))
+      ]),
+      this.seasonIdsByDivision(
+        games
+          .filter((g) => !g.seasonId && g.divisionId)
+          .map((g) => g.divisionId as string)
+      )
     ]);
     return games.map((g) => ({
       ...g,
+      seasonId:
+        g.seasonId ??
+        (g.divisionId ? seasonByDivision.get(g.divisionId) ?? null : null),
       homeTeamName: names.get(`team:${g.homeTeamId}`) ?? null,
       awayTeamName: names.get(`team:${g.awayTeamId}`) ?? null
     }));
+  }
+
+  private async seasonIdsByDivision(
+    divisionIds: string[]
+  ): Promise<Map<string, string>> {
+    const ids = [...new Set(divisionIds)];
+    if (ids.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: schema.divisions.id, seasonId: schema.divisions.seasonId })
+      .from(schema.divisions)
+      .where(inArray(schema.divisions.id, ids));
+    return new Map(rows.map((r) => [r.id, r.seasonId]));
   }
 
   @Get() async list(

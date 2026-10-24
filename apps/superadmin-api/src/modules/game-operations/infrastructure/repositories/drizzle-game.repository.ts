@@ -64,6 +64,7 @@ export class DrizzleGameRepository implements GameRepository {
     await this.db.insert(schema.games).values({
       id: x.id,
       leagueId: x.leagueId,
+      seasonId: x.seasonId,
       divisionId: x.divisionId,
       homeTeamId: x.homeTeamId,
       awayTeamId: x.awayTeamId,
@@ -107,6 +108,7 @@ export class DrizzleGameRepository implements GameRepository {
     return Game.rehydrate({
       id: r.id,
       leagueId: r.leagueId,
+      seasonId: r.seasonId,
       divisionId: r.divisionId,
       homeTeamId: r.homeTeamId,
       awayTeamId: r.awayTeamId,
