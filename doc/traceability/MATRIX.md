@@ -259,7 +259,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 138 total, 78 still open
+## Logged findings: 138 total, 58 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -273,9 +273,9 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CAP-8 | major | Manage roster jumps to the newest registered season; the current roster is unreachable | J8 · UC-33 / UC-04 | fixed in code, not deployed | commit 560c13d: one kernel current-season rule + season switcher |
 | CAP-9 | major | Claiming a free agent skips the player's accept/decline and tells nobody | J6 · UC-03 | open |  |
 | CAP-10 | major | No admin view of the free-agent pool (cannot manually assign) | J6 · UC-03 alternative flow "Admin manually assigns player to a team" | open |  |
-| CAP-11 | major | Any signed-in user can search every person on the platform, with email and auth id | J8 | open |  |
+| CAP-11 | major | Any signed-in user can search every person on the platform, with email and auth id | J8 | fixed in code, not deployed | commit 8333b60: people search and person reads limited to the caller's scope |
 | CAP-12 | major | Org setup refuses "registration opens today" east of UTC and after 8 pm US Eastern; failed publish leaves an orphan league | J7 setup (also J1) | fixed | blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct) |
-| CAP-13 | major | Season status and captain visibility disagree; the window cannot be edited after creation | J7 prerequisite | open |  |
+| CAP-13 | major | Season status and captain visibility disagree; the window cannot be edited after creation | J7 prerequisite | fixed in code, not deployed | blockers-oct24-b (edit season incl. registration window) + status hints state the real rule |
 | CAP-14 | minor | Revoked invite token still resolves publicly, with the full invite row | J8 · UC-04 | open |  |
 | CAP-15 | minor | Invite season picker defaults to an arbitrary season and lists every season in the org | J8 | open |  |
 | CAP-16 | minor | Roster "Invite by email" opens the Add-player tab, and the dues share is silently dropped | J8 | open |  |
@@ -291,7 +291,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | open |  |
 | COMP-2 | major | USA Hockey ID submit fails: "Unknown governing body code "USA_HOCKEY"" | J9 · UC-29 | fixed | migration 0049 on staging + prod; j09 step 2 passed (journey matrix 3a) |
 | COMP-3 | major | Player cannot upload an ID or eligibility document | J9 · UC-29 (precondition), UC-27 alt flow (scanned signed waiver) | open |  |
-| COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | open |  |
+| COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | fixed in code, not deployed | commit b3c8998: /compliance lists and signs required documents |
 | COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | open |  |
 | COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | fixed in code, not deployed | commit 3ad966b: league admin reads eligibility in scope |
 | COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | open |  |
@@ -317,16 +317,16 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | MON-1 | blocker | Admin invoice creation always fails (500) | J13, J14 · UC-15, UC-16, UC-17 | fixed | journey matrix 3a |
 | MON-2 | blocker | No notification can be written or listed on staging (notifications.read_at missing) | J15, J14, J13 · UC-15, UC-16, UC-18, UC-19, UC-20, UC-21 | fixed | migration 0048 on prod; notifications list/mark-read (journey matrix 3a) |
 | MON-3 | blocker | Players can never see their notifications (list endpoint is super-admin only) | J15 · UC-19, UC-21 | fixed | journey matrix 3a |
-| MON-4 | major | "+ New invoice" dialog on /finance cannot create anything (empty organisation picker) | J13 · UC-15 | open |  |
-| MON-5 | major | Super-admin composer "Individual" scope has no people | J13 · UC-15 | open |  |
+| MON-4 | major | "+ New invoice" dialog on /finance cannot create anything (empty organisation picker) | J13 · UC-15 | fixed in code, not deployed | not reproduced on branch (MON fix round 25 Oct) |
+| MON-5 | major | Super-admin composer "Individual" scope has no people | J13 · UC-15 | fixed in code, not deployed | not reproduced on branch (MON fix round 25 Oct) |
 | MON-6 | major | Shared invoice composer has no payment plan / installments or fee schedule | J13 · UC-15 | fixed in code, not deployed | commit 2e44db7: fee schedule picker in the composer (installments existed) |
 | MON-7 | major | Per-player "Remind" on captain dues always fails "Split not found" | J14 · UC-16, UC-18 | fixed | journey matrix 3a |
 | MON-8 | major | Custom dues split is not saved; mode resets on reload | J14 · UC-16 | fixed in code, not deployed | commit fd34b62: POST /captain/dues/:teamId/split + Save split; j14 step 3 hardened |
-| MON-9 | major | Refund does not reduce the invoice's paid amount, so refunds can exceed what was paid | J13 · UC-17 | open |  |
+| MON-9 | major | Refund does not reduce the invoice's paid amount, so refunds can exceed what was paid | J13 · UC-17 | fixed in code, not deployed | commit 370cb34: RefundService caps refunds, lowers total+paid, idempotent |
 | MON-10 | blocker | Mock payment processor is wired unconditionally and the player pay dialog exposes "Mock card outcome" | J13 · UC-15 | accepted (decision) | Founder decision 25 Oct 2026: keep the mock processor so PPHL can test without cards; the pay dialog says no card is charged |
-| MON-11 | major | Overdue reminders (UC-18) can never fire for admin-created invoices | J13 · UC-18 | open |  |
+| MON-11 | major | Overdue reminders (UC-18) can never fire for admin-created invoices | J13 · UC-18 | fixed in code, not deployed | commit 370cb34 + migration 0053 (staging applied; production pending) |
 | MON-12 | major | Captain team message (UC-20) not built | J15 · UC-20 | open |  |
-| MON-13 | major | League announcement compose is missing UC-19 fields | J15 · UC-19 | open |  |
+| MON-13 | major | League announcement compose is missing UC-19 fields | J15 · UC-19 | fixed in code, not deployed | commit 370cb34: compose targets org/league/season/division/team (schedule-later not built) |
 | MON-14 | major | Game-change notifications to players (UC-21) not built | J15 · UC-21 | open |  |
 | MON-15 | major | Team store: players cannot order; no roster-generated store | J16 · UC-25, UC-26 | open |  |
 | MON-16 | minor | Captain register page claims dues are set up when they are not; dues page points back to it | J14 · UC-16 | open |  |
@@ -339,10 +339,10 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-2 | blocker | "Create account" with an existing email and any password registers as that user | J4 · UC-01 | fixed | journey matrix 3a |
 | REG-3 | blocker | Payment is a client-controlled mock: no card, "PAID" invoice, plan deposit records full price | J4 · UC-01, UC-15 | accepted (decision) | Founder decision 25 Oct 2026: mock payments while PPHL tests (see MON-10) |
 | REG-4 | blocker | Org admin registrations queue is always empty | J4, J5 · UC-01 | fixed | journey matrix 3a |
-| REG-5 | blocker | Required liability waiver silently skipped; registration completes unsigned | J4, J5 · UC-27 | open |  |
+| REG-5 | blocker | Required liability waiver silently skipped; registration completes unsigned | J4, J5 · UC-27 | fixed in code, not deployed | commit b3c8998: pay/submit refused until required waivers signed |
 | REG-6 | blocker | Parental consent link and token are handed to the minor; the token is forgeable | J5 · UC-02, UC-28 | fixed | journey matrix 3a |
 | REG-7 | blocker | Minor is stuck forever after the guardian consents | J5 · UC-02, UC-28 | fixed | journey matrix 3a |
-| REG-8 | major | Every registration is attached to an arbitrary form version (wrong form, possibly another org's) | J4, J5 · UC-01 | open |  |
+| REG-8 | major | Every registration is attached to an arbitrary form version (wrong form, possibly another org's) | J4, J5 · UC-01 | fixed in code, not deployed | commit b3c8998: active published form version bound and verified |
 | REG-9 | major | Players cannot discover open registrations | J4 · UC-01 | fixed | pdf-items item 2: player sees open season (staging, 24 Oct) |
 | REG-10 | major | Admin cannot open registration "today" in the US evening; failed setup leaves an orphan league | J3 · UC-01 precondition | fixed | same run as CAP-12 |
 | REG-11 | minor | Registration window shown one day late | J3 | open |  |
@@ -350,7 +350,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-13 | major | Review "Registration links" point at a hard-coded marketing domain | J3 | open |  |
 | REG-14 | major | "Registration type" setting does nothing | J3 / J4 · spec registration-module-v2 §1.2 | open |  |
 | REG-15 | major | Guardian consent page has no signature and stores no consent record | J5 · UC-28 | open |  |
-| REG-16 | major | Funnel accepts registrations before the window opens | J4 | open |  |
+| REG-16 | major | Funnel accepts registrations before the window opens | J4 | fixed in code, not deployed | commit b3c8998: window enforced before any write |
 | REG-17 | major | Review queues: org admin rows unreadable, Approve offered on unreviewable rows; SA counters wrong | J4, J5 | fixed | journey matrix 3a |
 | REG-18 | minor | Duplicate config sources in the form builder | J3 | open |  |
 | REG-19 | minor | Pricing tier editor is raw cents and missing plan controls | J3 · UC-01 "installment" | open |  |
@@ -359,25 +359,25 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-22 | minor | "Preview" opens the Review tab, not the player form | J3 · spec v2 "Form preview" | open |  |
 | REG-23 | minor | Funnel copy promises things that do not happen | J4, J5 | open |  |
 | REG-24 | minor | Sign-in resume fires eligibility check with an empty email (404) | J5 | open |  |
-| REG-25 | major | League-scoped forms attach to every season of every org (code) | J4 (not reproduced — no league-scoped form was published on staging during the run; 4 unpublished ones from other testers exist) | open |  |
+| REG-25 | major | League-scoped forms attach to every season of every org (code) | J4 (not reproduced — no league-scoped form was published on staging during the run; 4 unpublished ones from other testers exist) | fixed in code, not deployed | commit b3c8998: league forms only for that league's seasons |
 | REG-26 | minor | Sport defaults to "Australian Rules Football" in Org setup (J1 owns org-setup) |  | fixed | journey matrix 3a |
 | SCH-1 | blocker | Scheduler (generate, publish, conflicts, runs, fairness, verify, playoffs, tournament, parity, notifications) | J10 · UC-06, UC-07, UC-08, UC-09 | fixed | journey matrix 3a |
 | SCH-2 | blocker | Ice slots created on /venues are invisible to the scheduler | J10 · UC-06 | fixed | journey matrix 3a |
 | SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | open |  |
 | SCH-20 | major | New game team pickers show only 25 random teams | J10, J11 · UC-07 fallback (manual fixture) | open |  |
 | SCH-22 | blocker | Log event: Player picker is empty, goals cannot be attributed | J11 · UC-11, UC-13 | fixed | journey matrix 3a |
-| SCH-12 | major | Only super_admin can run a game; league admin / scorekeeper / referee get 403 | J11 · UC-11, UC-12 | open |  |
-| SCH-13 | major | Assists are never counted | J11 · UC-11, UC-13 | open |  |
-| SCH-14 | major | Penalties record 0 PIM; no infraction or minutes | J11 · UC-11, UC-13, feeds UC-14 suspensions | open |  |
-| SCH-17 | major | Finalize does not update stats, standings, or notify anyone | J11 · UC-12, UC-13 | open |  |
-| SCH-7 | major | Manually created games never reach captain or player schedules | J10 · UC-07, UC-08 | open |  |
-| SCH-6 | major | No way to move a game's time or rink (UC-07 manual override) | J10 · UC-07, UC-21 | open |  |
+| SCH-12 | major | Only super_admin can run a game; league admin / scorekeeper / referee get 403 | J11 · UC-11, UC-12 | fixed in code, not deployed | commit a6bf6b5: scoped game access for league admins, scorekeepers, referees |
+| SCH-13 | major | Assists are never counted | J11 · UC-11, UC-13 | fixed in code, not deployed | commit a6bf6b5: assists from the scoring team's roster |
+| SCH-14 | major | Penalties record 0 PIM; no infraction or minutes | J11 · UC-11, UC-13, feeds UC-14 suspensions | fixed in code, not deployed | commit a6bf6b5: infraction + minutes, PIM in stat lines |
+| SCH-17 | major | Finalize does not update stats, standings, or notify anyone | J11 · UC-12, UC-13 | fixed in code, not deployed | commit a6bf6b5: finalize transaction projects stats + standings, notifies teams |
+| SCH-7 | major | Manually created games never reach captain or player schedules | J10 · UC-07, UC-08 | fixed in code, not deployed | commit a6bf6b5: publish to team schedules |
+| SCH-6 | major | No way to move a game's time or rink (UC-07 manual override) | J10 · UC-07, UC-21 | fixed in code, not deployed | commit a6bf6b5: reschedule with clash checks |
 | SCH-8 | major | Publishing a schedule notifies nobody | J10 · UC-08, UC-21 | open |  |
-| SCH-4 | major | Admin cannot put a team into a division | J10 · UC-06 precondition | open |  |
+| SCH-4 | major | Admin cannot put a team into a division | J10 · UC-06 precondition | fixed in code, not deployed | commit 4700c18: Add a team on the division page; j10 step 2 drives it |
 | SCH-5 | major | Manual "New game" form: no season/division, venue is free text | J10 · UC-07 | open |  |
 | SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | open |  |
 | SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | fixed in code, not deployed | commit 5d87870: lineup editor reads the game's season roster |
-| SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | open |  |
+| SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | fixed in code, not deployed | commit a6bf6b5: captain /stats division table + player lines |
 | SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | open |  |
 | SCH-9 | minor | Add venue: Create stays disabled while an org is shown as selected | J10 · UC-06 | fixed in code, not deployed | commit 0eda50e: rink form adopts late-arriving orgs |
 | SCH-10 | minor | New surface not shown in the open venue panel | J10 · UC-06 | open |  |
