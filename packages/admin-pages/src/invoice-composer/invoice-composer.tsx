@@ -50,6 +50,19 @@ export interface InvoiceComposerDivision {
   name: string;
   orgId: string;
 }
+/** An org's saved price (fee_schedules): picking one fills a line and the due date. */
+export interface InvoiceComposerFeeSchedule {
+  id: string;
+  orgId: string;
+  name: string;
+  description: string | null;
+  kind: string;
+  currency: string;
+  baseAmountCents: number;
+  dueOffsetDays: number;
+  lateFeeCents: number;
+  isActive: boolean;
+}
 export interface InvoiceComposerTeam {
   id: string;
   name: string;
@@ -101,6 +114,11 @@ export interface InvoiceComposerProps {
   seasons?: InvoiceComposerSeason[];
   /** Initial org selection (defaults to orgs[0]?.id). */
   defaultOrgId?: string;
+  /**
+   * Saved prices for the picker. Omit to hide the picker (e.g. a console
+   * that cannot read fee schedules); pass [] to show "none set up yet".
+   */
+  feeSchedules?: InvoiceComposerFeeSchedule[];
   createBulkInvoice: (
     body: InvoiceComposerBody,
     idempotencyKey: string
@@ -127,6 +145,29 @@ const SCOPE_OPTIONS: Array<{ value: BillingScope; label: string; hint: string }>
   { value: "season", label: "Season", hint: "Every active member of every confirmed team across the season." },
   { value: "org", label: "Org-wide", hint: "Every active member of every team in the org." }
 ];
+
+function itemKindFor(scheduleKind: string): InvoiceItemKind {
+  if (scheduleKind === "registration" || scheduleKind === "registration_fee") return "registration_fee";
+  if (scheduleKind === "jersey" || scheduleKind === "equipment" || scheduleKind === "late_fee") return scheduleKind;
+  return "other";
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function money(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
 
 function todayIso(): string {
   const d = new Date();
@@ -176,6 +217,31 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
   const [firstInstallmentAt, setFirstInstallmentAt] = useState<string>(today);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feeScheduleId, setFeeScheduleId] = useState<string>("");
+
+  const orgSchedules = useMemo(
+    () => (props.feeSchedules ?? []).filter((f) => f.orgId === orgId && f.isActive),
+    [props.feeSchedules, orgId]
+  );
+  const pickedSchedule = orgSchedules.find((f) => f.id === feeScheduleId) ?? null;
+
+  // Picking a saved price fills the first line and the due date; the
+  // admin can still edit or add lines afterwards.
+  function applySchedule(id: string) {
+    setFeeScheduleId(id);
+    const f = orgSchedules.find((x) => x.id === id);
+    if (!f) return;
+    setItems((xs) => [
+      {
+        kind: itemKindFor(f.kind),
+        description: f.name,
+        quantity: 1,
+        unitDollars: (f.baseAmountCents / 100).toFixed(2)
+      },
+      ...xs.slice(1).filter((x) => x.description.trim() || x.unitDollars)
+    ]);
+    setDueAt(addDaysIso(today, Math.max(0, f.dueOffsetDays)));
+  }
 
   // Filter target picker by the selected org (so an admin with multi-org
   // access can't accidentally bill an entity from a different org). For
@@ -385,7 +451,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              // line items
+              Line items
             </p>
             <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-fg">
               What are they being billed for?
@@ -410,6 +476,44 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             Add line
           </button>
         </div>
+        {props.feeSchedules ? (
+          <div className="space-y-1">
+            <label htmlFor="ic-fee-schedule" className="text-[12px] font-medium text-fg">
+              Fee schedule
+            </label>
+            {orgSchedules.length === 0 ? (
+              <p className="text-[12px] text-fg-muted">
+                No fee schedules for this organisation yet. Enter the lines below.
+              </p>
+            ) : (
+              <>
+                <select
+                  id="ic-fee-schedule"
+                  value={feeScheduleId}
+                  onChange={(e) => (e.target.value ? applySchedule(e.target.value) : setFeeScheduleId(""))}
+                  className="h-9 w-full rounded-md border border-border bg-bg px-2 text-[13px] text-fg sm:max-w-md"
+                >
+                  <option value="">None, I will enter the lines</option>
+                  {orgSchedules.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} · {money(f.baseAmountCents, f.currency)}
+                    </option>
+                  ))}
+                </select>
+                {pickedSchedule ? (
+                  <p className="text-[12px] text-fg-muted">
+                    Due {pickedSchedule.dueOffsetDays} day{pickedSchedule.dueOffsetDays === 1 ? "" : "s"} after
+                    today
+                    {pickedSchedule.lateFeeCents > 0
+                      ? `; late fee ${money(pickedSchedule.lateFeeCents, pickedSchedule.currency)} after that`
+                      : ""}
+                    . You can still change the lines and the date.
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
         <div className="space-y-3">
           {items.map((it, i) => (
             <div

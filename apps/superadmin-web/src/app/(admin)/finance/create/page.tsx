@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { leagueMgmt, orgAdminPersons, orgs } from "@/lib/api/server-api";
+import { finance, leagueMgmt, orgAdminPersons, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
 
@@ -14,7 +14,7 @@ export const metadata = { title: "New invoice — SportsPulse" };
  * creation across the platform.
  */
 export default async function NewInvoicePage() {
-  const [orgsPage, leaguesPage, seasonsPage, teamsPage] = await Promise.all([
+  const [orgsPage, leaguesPage, seasonsPage, teamsPage, feeSchedulesPage] = await Promise.all([
     // orgs.list caps at @Max(100); 500 throws ValidationError and the
     // catch swallows it to {} — leaving the org picker empty (bug).
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
@@ -23,6 +23,8 @@ export default async function NewInvoicePage() {
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
+      .catch(() => ({ items: [], nextCursor: null })),
+    fetchAll((cursor) => finance.listFeeSchedules({ isActive: true, limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 
@@ -64,6 +66,7 @@ export default async function NewInvoicePage() {
         description="Pick the org, then the billing scope (individual / team / division / league / season / org-wide). Fanout creates one invoice per recipient inside a single transaction."
       />
       <InvoiceComposerShell
+        feeSchedules={feeSchedulesPage.items}
         orgs={orgsPage.items.map((o) => ({
           id: o.id,
           displayName: o.displayName

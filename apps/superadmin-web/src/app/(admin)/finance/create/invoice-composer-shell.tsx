@@ -9,6 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import {
+  type InvoiceComposerFeeSchedule,
   InvoiceComposer,
   type InvoiceComposerLeague,
   type InvoiceComposerSeason,
@@ -25,7 +26,8 @@ export function InvoiceComposerShell({
   seasons,
   divisions,
   teams,
-  persons
+  persons,
+  feeSchedules
 }: {
   orgs: InvoiceComposerOrg[];
   leagues: InvoiceComposerLeague[];
@@ -33,6 +35,7 @@ export function InvoiceComposerShell({
   divisions: InvoiceComposerDivision[];
   teams: InvoiceComposerTeam[];
   persons: InvoiceComposerPerson[];
+  feeSchedules?: InvoiceComposerFeeSchedule[];
 }) {
   const router = useRouter();
   return (
@@ -43,6 +46,7 @@ export function InvoiceComposerShell({
       divisions={divisions}
       teams={teams}
       persons={persons}
+      feeSchedules={feeSchedules}
       createBulkInvoice={(body, key) => finance.createBulkInvoice(body, key)}
       onSuccess={() => {
         router.push("/finance");
