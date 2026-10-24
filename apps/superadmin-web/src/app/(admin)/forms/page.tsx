@@ -168,6 +168,13 @@ export default async function FormsPage({
         <Alert tone="error">
           Could not load forms. This is a server problem on our side, not your data. Reload to try again.
         </Alert>
+      ) : filtered.length === 0 && (q || sp?.org || sp?.scope || sp?.division) ? (
+        // Forms exist but none match: say so, instead of "No forms yet".
+        <EmptyState
+          icon={FileSignature}
+          title="No forms match these filters"
+          description="Clear the search or pick a different organisation, division or scope."
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={FileSignature}
