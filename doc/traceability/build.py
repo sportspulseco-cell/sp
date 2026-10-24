@@ -259,9 +259,13 @@ FIXED_IN_CODE = {
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 
 
+LATEST_STAGING = {"env": None}
+
+
 def load_crawls():
-    """{env: {role: [visit,...]}}"""
+    """{env: {role: [visit,...]}}; LATEST_STAGING["env"] is the newest non-production crawl."""
     out: dict[str, dict[str, list]] = defaultdict(dict)
+    newest = (0.0, None)
     if not EVIDENCE.exists():
         return out
     for f in EVIDENCE.rglob("crawl-*.json"):
@@ -272,7 +276,10 @@ def load_crawls():
         try:
             out[env][role] = json.loads(f.read_text(encoding="utf8"))
         except Exception:
-            pass
+            continue
+        if env != "prod" and f.stat().st_mtime > newest[0]:
+            newest = (f.stat().st_mtime, env)
+    LATEST_STAGING["env"] = newest[1]
     return out
 
 
@@ -307,6 +314,14 @@ def load_journey_logs():
                 outcome = "passed" if status in ("passed", "expected") else "skipped" if status == "skipped" else "failed"
                 if spec.get("ok") and outcome == "failed":
                     outcome = "passed"  # retried and passed
+                if outcome == "failed" and results:
+                    msg = re.sub(r"\x1b\[[0-9;]*m", "", (results[-1].get("error") or {}).get("message", ""))
+                    first = msg.strip().split("\n")[0]
+                    if re.match(r"(Error: )?((SETUP|REG|CAP|COMP|SCH|MON|CONSOLE)-\d+\b|CAP:|soft findings)", first):
+                        # The walk ran; what failed is the "no open findings" assertion.
+                        rec["findings"].update(id_re.findall(msg))
+                        outcome = "finding-check"
+                rec.setdefault(outcome, 0)
                 rec[outcome] += 1
                 rec["tests"].append((spec.get("title", ""), outcome))
                 for r in results:
@@ -354,11 +369,16 @@ def route_pattern(path: str) -> str:
 def route_evidence(crawls, module):
     """For each app route of the module: {env: {role: verdict}}; verdict ok|404|error|api-fail|unseen."""
     rows = []
+    # A crawl as a role only counts for that role's app (the same path
+    # exists in several apps, e.g. /registrations).
+    roles_for_app = {"SA": {"superAdmin", "leagueAdmin"}, "OA": {"orgAdmin"}, "TA": {"teamAdmin"}, "PL": {"player"}}
     for app in ("SA", "OA", "TA", "PL"):
         for route in module.get(app, []):
             cell = {}
             for env, roles in crawls.items():
                 for role, visits in roles.items():
+                    if role not in roles_for_app[app]:
+                        continue
                     hits = [v for v in visits if route_pattern(v["url"].split("?")[0]) == route]
                     if not hits:
                         continue
@@ -384,7 +404,7 @@ STEP_SKIP = re.compile(r"finding|defects recorded|no bug", re.I)
 
 
 def journey_steps(r):
-    return [(t, st) for t, st in r.get("tests", []) if not STEP_SKIP.search(t)]
+    return [(t, st) for t, st in r.get("tests", []) if not STEP_SKIP.search(t) and st != "finding-check"]
 
 
 def journey_status(logs, journey_ids):
@@ -400,6 +420,11 @@ def journey_status(logs, journey_ids):
             r = specs[spec]
             steps = journey_steps(r)
             if not steps:
+                if r.get("findings") or any(st == "finding-check" for _, st in r.get("tests", [])):
+                    # Single-test walk that reached the end and reported findings.
+                    v = "partial"
+                    seen.append(f"{j}: walk ran to the end; open findings {', '.join(sorted(r['findings'])) or 'see log'} ({env})")
+                    worst = v if worst is None or order[v] > order[worst] else worst
                 continue
             passed = sum(1 for _, st in steps if st == "passed")
             failed = [t for t, st in steps if st == "failed"]
@@ -425,13 +450,19 @@ def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
     journeys = FR[fr_id][2]
     jv, jdetail = journey_status(logs, journeys)
     routes = route_evidence(crawls, module)
-    broken = [(a, r, c) for a, r, cell in routes for c in [cell] if any(v in ("404", "error") for v in c.values())]
-    loads = [(a, r) for a, r, cell in routes if any(v in ("could-not-load", "api-fail") for v in cell.values())]
+    latest = LATEST_STAGING["env"]
+    def bad_in(cell, envs, kinds):
+        return any(v in kinds for k, v in cell.items() if k.split(":")[0] in envs)
+    broken = [(a, r) for a, r, cell in routes if bad_in(cell, {latest}, ("404", "error"))]
+    broken_prod = [(a, r) for a, r, cell in routes if bad_in(cell, {"prod"}, ("404", "error"))]
+    loads = [(a, r) for a, r, cell in routes if bad_in(cell, {latest}, ("could-not-load", "api-fail"))]
     seen_routes = [(a, r) for a, r, cell in routes if cell]
     if tier == "later" and claimed in ("Not Started", "In Progress"):
         return "Not built", "Deferred to a later release; no screen claimed."
     if broken:
-        return "Broken", "Route 404/error in crawl: " + ", ".join(f"{a}{r}" for a, r, _ in broken[:4])
+        return "Broken", f"Route 404/error in the latest staging crawl ({latest}): " + ", ".join(f"{a}{r}" for a, r in broken[:4])
+    if broken_prod and jv != "fail":
+        return "Fixed on staging, pending production", "Production crawl still shows 404/error on: " + ", ".join(f"{a}{r}" for a, r in broken_prod[:4]) + (f"; {jdetail}" if jdetail else "")
     if jv == "fail":
         return "Broken", jdetail
     if jv == "partial":
@@ -448,7 +479,7 @@ def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
 
 
 STATUS_FILL = {
-    "Working": "D1FAE5", "Partly working": "FEF3C7", "Degraded": "FEF3C7", "Renders, flow untested": "E0E7FF",
+    "Working": "D1FAE5", "Partly working": "FEF3C7", "Fixed on staging, pending production": "DBEAFE", "Degraded": "FEF3C7", "Renders, flow untested": "E0E7FF",
     "Broken": "FEE2E2", "Not built": "F3F4F6", "No evidence": "FDE68A",
 }
 
@@ -557,7 +588,7 @@ def write_md(req_rows, crawls, logs, bugs, fixed):
         tier_counts[tier][status] += 1
         rows_md.append((fr_id, module_id, tier, status, fr_text, uc_refs, ", ".join(journeys) or "—", detail))
     lines += ["", "## Totals", "", "| Status | All 78 FRs | Release 1 core | Release 1 if works | Later |", "|---|---|---|---|---|"]
-    for st in ["Working", "Partly working", "Degraded", "Renders, flow untested", "Broken", "No evidence", "Not built"]:
+    for st in ["Working", "Partly working", "Fixed on staging, pending production", "Degraded", "Renders, flow untested", "Broken", "No evidence", "Not built"]:
         lines.append(f"| {st} | {counts[st]} | {tier_counts['core'][st]} | {tier_counts['r1'][st]} | {tier_counts['later'][st]} |")
     # Release 1 scope
     lines += ["", "## Release 1 scope (proposal for PPHL to confirm)", "",
