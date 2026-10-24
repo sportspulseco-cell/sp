@@ -558,15 +558,15 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
       {active.length === 0 ? (
         <div className="space-y-3 px-5 py-6">
           <p className="text-[13px] text-fg-muted">
-            You haven't registered for a season yet. Use the public funnel link
-            from your team admin or browse open seasons.
+            You are not registered for a season yet. Pick an open season below,
+            or use the link your captain sent you.
           </p>
           <Link
             href="/register"
             className="inline-flex h-8 items-center gap-1.5 rounded-full bg-fg px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-bg"
           >
             <Compass className="h-3.5 w-3.5" strokeWidth={2} />
-            Free-agent register
+            Find a season to join
           </Link>
         </div>
       ) : (
