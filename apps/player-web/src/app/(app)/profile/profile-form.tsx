@@ -214,8 +214,8 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           />
         ) : null}
         <p className="border-t border-border pt-3 text-[11px] text-fg-muted">
-          Identity fields on your person record (DOB, USA Hockey ID, emergency
-          contact) are managed via the registration funnel + Compliance page.
+          Date of birth, USA Hockey ID, emergency contact and your other
+          player details are in the player profile below.
         </p>
       </aside>
 

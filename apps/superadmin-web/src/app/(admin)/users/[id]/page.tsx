@@ -79,7 +79,10 @@ export default async function UserDetailPage({
             </span>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <EditUserButton user={user} />
+            <EditUserButton
+              user={user}
+              profileRole={resolvePrimaryRole(user.isSuperAdmin ?? false, assignments)}
+            />
             <SetPasswordButton userId={user.id} email={user.email} />
             <SendRecoveryEmailButton userId={user.id} email={user.email} />
             <SuspendUserButton
