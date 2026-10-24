@@ -66,7 +66,7 @@ export function NewTeamForm({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
-      <Eyebrow>// Details</Eyebrow>
+      <Eyebrow>Details</Eyebrow>
       <Field label="Team name">
         <Input
           value={name}

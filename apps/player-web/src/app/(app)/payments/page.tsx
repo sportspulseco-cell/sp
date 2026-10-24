@@ -18,7 +18,7 @@ export default async function PaymentsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Payments"
+          eyebrow="Payments"
           title="Payments"
           description="Invoice timeline, wallet balance, and payment history."
         />
@@ -34,7 +34,7 @@ export default async function PaymentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Payments"
+        eyebrow="Payments"
         title="Payments"
         description="Pay outstanding invoices with your wallet, your card, or both. Update your card and retry failed installments inline."
       />

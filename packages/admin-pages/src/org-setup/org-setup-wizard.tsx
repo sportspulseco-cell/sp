@@ -544,7 +544,7 @@ export function OrgSetupWizard({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
           </span>
-          <span className="text-fg/80">// org · setup</span>
+          <span className="text-fg/80">org · setup</span>
           <span className="text-fg-subtle">·</span>
           <span>chapter {String(state.step).padStart(2, "0")} / 04</span>
         </motion.div>

@@ -29,7 +29,7 @@ export default async function Page() {
   if (!profile) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// PROFILE" title="Profile" />
+        <PageHeader eyebrow="PROFILE" title="Profile" />
         <EmptyState
           icon={ShieldAlert}
           title="Sign in expired"
@@ -42,7 +42,7 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// PROFILE"
+        eyebrow="PROFILE"
         title="Profile"
         description="Your name, locale and the player details your league uses for eligibility, emergencies and rosters."
       />

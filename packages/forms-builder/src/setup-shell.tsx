@@ -161,7 +161,7 @@ export function RegistrationSetupShell({
               className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted"
             >
               <LiveDot tone={draft ? "accent" : "success"} />
-              <span className="text-fg/80">// registration</span>
+              <span className="text-fg/80">registration</span>
               <span className="text-fg-subtle">·</span>
               <span>{seasonName ?? "season pending"}</span>
               <span className="text-fg-subtle">·</span>

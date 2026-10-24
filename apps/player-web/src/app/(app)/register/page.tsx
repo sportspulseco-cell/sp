@@ -54,7 +54,7 @@ export default async function FindATeamPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="// find a team"
+        eyebrow="find a team"
         title="Find a team"
         description="Two ways in: pick an open league registration below, or list yourself in the free-agent pool and let captains find you."
       />

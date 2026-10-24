@@ -62,7 +62,7 @@ export default async function CaptainFreeAgentsPage() {
   if (!isCaptain) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Free agents" />
+        <PageHeader eyebrow="Captain console" title="Free agents" />
         <EmptyState
           icon={Star}
           title="Captain role required"
@@ -76,7 +76,7 @@ export default async function CaptainFreeAgentsPage() {
   if (!myTeamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Free agents" />
+        <PageHeader eyebrow="Captain console" title="Free agents" />
         <EmptyState
           icon={Star}
           title="No team in scope"
@@ -104,7 +104,7 @@ export default async function CaptainFreeAgentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Free agents"
         description={`Players who registered as free agents and are looking for a team. Claim one to add them to ${team?.name ?? "your roster"}.`}
       />

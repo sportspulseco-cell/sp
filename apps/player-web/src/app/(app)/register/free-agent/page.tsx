@@ -27,7 +27,7 @@ export default async function FreeAgentPoolPage() {
   if (!personId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Find a team" title="Join the free-agent pool" />
+        <PageHeader eyebrow="Find a team" title="Join the free-agent pool" />
         <EmptyState
           icon={ShieldAlert}
           title="Finish onboarding first"
@@ -66,7 +66,7 @@ export default async function FreeAgentPoolPage() {
   if (eligibleSeasons.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Find a team" title="Join the free-agent pool" />
+        <PageHeader eyebrow="Find a team" title="Join the free-agent pool" />
         <EmptyState
           icon={UserPlus}
           title="No open seasons right now"
@@ -89,7 +89,7 @@ export default async function FreeAgentPoolPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Find a team"
+        eyebrow="Find a team"
         title="Join the free-agent pool"
         description="Advertise yourself to captains in the seasons you'd play. Captains browse the pool by position + level."
       />

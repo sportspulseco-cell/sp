@@ -343,7 +343,7 @@ export function DivisionDetail({
       {pendingApplications}
 
       <Reveal as="section" delay={0.25} className="rounded-xl border border-border bg-surface-1 p-6">
-        <Eyebrow>// teams registered in this division</Eyebrow>
+        <Eyebrow>teams registered in this division</Eyebrow>
         <p className="mt-1 text-[13px] text-fg-muted">
           Captains apply via{" "}
           <code className="font-mono">/captain/register</code>; once a

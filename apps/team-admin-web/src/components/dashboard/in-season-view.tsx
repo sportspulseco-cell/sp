@@ -55,7 +55,7 @@ export async function InSeasonView({
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-border bg-surface-1 p-6">
-        <Eyebrow>// in-season · {state.seasonName ?? ""}</Eyebrow>
+        <Eyebrow>in-season · {state.seasonName ?? ""}</Eyebrow>
         <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
@@ -122,7 +122,7 @@ export async function InSeasonView({
 
       <section className="rounded-xl border border-border bg-surface-1">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <Eyebrow>// recent games</Eyebrow>
+          <Eyebrow>recent games</Eyebrow>
           <Link
             href="/schedule"
             className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"

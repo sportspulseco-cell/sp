@@ -204,7 +204,7 @@ export default async function RegistrationDetailPage({
 
         {/* What's next */}
         <div className="mt-6 space-y-2 text-left">
-          <Eyebrow>// what's next</Eyebrow>
+          <Eyebrow>what's next</Eyebrow>
           {isApproved ? (
             <ol className="space-y-2 text-[13px]">
               <StepDone>Registration submitted</StepDone>
@@ -285,7 +285,7 @@ export default async function RegistrationDetailPage({
         r.teamName ||
         r.orgName) && (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <Eyebrow>// context</Eyebrow>
+          <Eyebrow>context</Eyebrow>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-fg-muted">
             {r.leagueName && (
               <span className="inline-flex items-center gap-1.5">

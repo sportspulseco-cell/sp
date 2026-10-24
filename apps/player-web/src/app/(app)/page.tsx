@@ -246,7 +246,7 @@ export default async function PlayerHome() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
         <div className="space-y-1">
-          <Eyebrow>// Home</Eyebrow>
+          <Eyebrow>Home</Eyebrow>
           <h1 className="text-[28px] font-semibold leading-tight tracking-tighter text-fg">
             Hey {firstName}.
           </h1>
@@ -379,7 +379,7 @@ function NextGameHero({
   if (!nextGame) {
     return (
       <section className="rounded-xl bg-accent p-6 text-accent-fg">
-        <Eyebrow className="!text-accent-fg/70">// Next game</Eyebrow>
+        <Eyebrow className="!text-accent-fg/70">Next game</Eyebrow>
         <p className="mt-3 text-[20px] font-semibold tracking-tight">
           Nothing scheduled
         </p>
@@ -398,7 +398,7 @@ function NextGameHero({
     <section className="rounded-xl bg-accent p-6 text-accent-fg">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2 min-w-0">
-          <Eyebrow className="!text-accent-fg/70">// Next game</Eyebrow>
+          <Eyebrow className="!text-accent-fg/70">Next game</Eyebrow>
           <p className="text-[22px] font-semibold tracking-tight">
             {teamName} <span className="text-accent-fg/80">vs.</span>{" "}
             <span>{opponentNames.get(opponent) ?? "Unnamed team"}</span>
@@ -459,7 +459,7 @@ function RecentGamesCard({
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// Recent games</Eyebrow>
+        <Eyebrow>Recent games</Eyebrow>
         <Link
           href="/schedule"
           className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
@@ -547,7 +547,7 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// My registrations</Eyebrow>
+        <Eyebrow>My registrations</Eyebrow>
         <Link
           href="/register"
           className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
@@ -643,7 +643,7 @@ function PaymentsSummary({
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// Payments</Eyebrow>
+        <Eyebrow>Payments</Eyebrow>
         <Link
           href="/payments"
           className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
@@ -739,7 +739,7 @@ function NotificationsPreview({
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// Notifications</Eyebrow>
+        <Eyebrow>Notifications</Eyebrow>
         <Link
           href="/notifications"
           className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
@@ -877,7 +877,7 @@ function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
             </span>
-            <span>// open · for signup</span>
+            <span>open · for signup</span>
           </p>
           <h2 className="mt-1.5 text-[18px] font-semibold tracking-tight text-fg">
             {headline}

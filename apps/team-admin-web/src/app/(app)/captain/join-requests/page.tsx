@@ -16,7 +16,7 @@ export default async function CaptainJoinRequestsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// captain console"
+          eyebrow="captain console"
           title="Join requests"
         />
         <EmptyState
@@ -35,7 +35,7 @@ export default async function CaptainJoinRequestsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// captain console"
+        eyebrow="captain console"
         title="Join requests"
         description="Players who've completed registration and applied to join your team. Approve to add them to the active roster; deny to send them back to the team-search flow."
       />

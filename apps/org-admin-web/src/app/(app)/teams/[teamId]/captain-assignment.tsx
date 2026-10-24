@@ -173,7 +173,7 @@ export function CaptainAssignment({
     <section className="space-y-4">
       <header className="flex items-center justify-between">
         <div>
-          <Eyebrow>// Captains</Eyebrow>
+          <Eyebrow>Captains</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
             Captains manage the team roster, dues, lineups, and store.
             Org-admins can grant or revoke this role here without escalating
@@ -201,7 +201,7 @@ export function CaptainAssignment({
       {showAssign ? (
         <div className="rounded-xl border border-border bg-surface-1 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <Eyebrow>// Assign captain</Eyebrow>
+            <Eyebrow>Assign captain</Eyebrow>
             <button
               type="button"
               onClick={resetDialog}

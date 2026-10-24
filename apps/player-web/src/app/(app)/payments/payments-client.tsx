@@ -121,7 +121,7 @@ export function PaymentsClient({
       {/* Closed / paid history */}
       {closed.length > 0 && (
         <section className="space-y-3">
-          <Eyebrow>// history</Eyebrow>
+          <Eyebrow>history</Eyebrow>
           <div className="rounded-xl border border-border bg-surface-1">
             <ul className="divide-y divide-border">
               {closed.map((inv) => (

@@ -32,7 +32,7 @@ export default async function LineupsIndexPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// LINEUPS"
+          eyebrow="LINEUPS"
           title="Lineups"
           description="Pick starters, bench, and scratches per game. Locked the moment the game starts."
         />
@@ -60,7 +60,7 @@ export default async function LineupsIndexPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// LINEUPS"
+        eyebrow="LINEUPS"
         title="Lineups"
         description="Pick starters, bench, and scratches per game. Locked the moment the game starts."
       />

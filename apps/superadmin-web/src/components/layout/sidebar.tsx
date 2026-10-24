@@ -55,45 +55,59 @@ function navFor(items: NavItem[], isSuperAdmin: boolean): NavItem[] {
 }
 
 const PLATFORM_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/organizations", label: "Organizations", icon: Building2 },
-  { href: "/users", label: "Users", icon: Users },
-  { href: "/persons", label: "People", icon: UserCircle2 },
-  { href: "/roles", label: "Roles & permissions", icon: ShieldCheck },
-  { href: "/audit", label: "Activity log", icon: ScrollText },
-  { href: "/admin", label: "Platform settings", icon: Settings2, superOnly: true }
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard }
 ];
 
+// Grouped the way a league operator works, and the way SportsEngine HQ
+// groups it (Season Management, Registration, Members, Financials,
+// Messages, Reports, Settings): doc/ux/competitor-ia.md, section F.
+// Labels are the page titles, word for word.
 const PROJECT_NAV: NavItem[] = [
-  { section: "Setup" },
-  { href: "/org-setup", label: "Org setup", icon: Wand2 },
-
-  { section: "League" },
+  { section: "Season" },
+  { href: "/org-setup", label: "Set up a season", icon: Wand2 },
   { href: "/seasons", label: "Seasons", icon: CalendarRange },
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/divisions", label: "Divisions", icon: Layers },
-  { href: "/teams", label: "Teams", icon: Network },
-  { href: "/rosters", label: "Rosters", icon: ListChecks },
-
-  { section: "Registration" },
-  { href: "/registrations", label: "Registrations", icon: ClipboardList },
-  { href: "/division-applications", label: "Team applications", icon: ClipboardList },
-  { href: "/transfers", label: "Transfers", icon: ShieldCheck },
-  { href: "/no-show-report", label: "No-show report", icon: ClipboardList },
-  { href: "/forms", label: "Registration forms", icon: FileSignature },
-  { href: "/documents", label: "Waivers & documents", icon: FileSignature },
-  { href: "/eligibility", label: "Eligibility", icon: ShieldCheck },
-
-  { section: "Operations" },
   { href: "/scheduling", label: "Schedule", icon: CalendarClock },
   { href: "/venues", label: "Rinks & ice time", icon: Building2 },
+
+  { section: "Teams" },
+  { href: "/teams", label: "Teams", icon: Network },
+  { href: "/division-applications", label: "Team applications", icon: ClipboardList },
+  { href: "/rosters", label: "Rosters", icon: ListChecks },
+  { href: "/transfers", label: "Transfers", icon: ShieldCheck },
+
+  { section: "Registration" },
+  { href: "/forms", label: "Registration forms", icon: FileSignature },
+  { href: "/registrations", label: "Registrations", icon: ClipboardList },
+  { href: "/eligibility", label: "Eligibility", icon: ShieldCheck },
+  { href: "/documents", label: "Waivers & documents", icon: FileSignature },
+
+  { section: "Games & results" },
   { href: "/games", label: "Games", icon: CircleDot },
   { href: "/game-events", label: "Game log", icon: Activity },
   { href: "/stats", label: "Stats & standings", icon: BarChart3 },
+
+  { section: "Members" },
+  { href: "/users", label: "Users", icon: Users },
+  { href: "/persons", label: "People", icon: UserCircle2 },
+  { href: "/organizations", label: "Organizations", icon: Building2 },
+  { href: "/roles", label: "Roles & permissions", icon: ShieldCheck },
+
+  { section: "Financials" },
   { href: "/finance", label: "Invoices", icon: Wallet },
   { href: "/payments", label: "Payments & refunds", icon: Wallet },
+
+  { section: "Messages" },
   { href: "/communications", label: "Messages", icon: MessageSquare },
+
+  { section: "Reports" },
   { href: "/reports", label: "Reports", icon: FileBarChart },
+  { href: "/no-show-report", label: "Teams that did not return", icon: ClipboardList },
+  { href: "/audit", label: "Activity log", icon: ScrollText },
+
+  { section: "Settings" },
+  { href: "/admin", label: "Platform settings", icon: Settings2, superOnly: true },
   { href: "/data-migration", label: "Import data", icon: Database, superOnly: true }
 ];
 
@@ -180,7 +194,7 @@ function ProjectNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         const active = group.items.some((item) => "href" in item &&
           (pathname === item.href || pathname.startsWith(`${item.href}/`)));
         return (
-          <details key={`${group.label}-${active}`} open={active || group.label === "Setup"} className="group/nav">
+          <details key={`${group.label}-${active}`} open={active || group.label === "Season"} className="group/nav">
             <summary className="cursor-pointer rounded-md px-3 py-2 text-xs font-semibold text-fg-muted hover:bg-surface-2 hover:text-fg marker:hidden list-none flex items-center justify-between">
               {group.label}
               <span aria-hidden className="text-fg-subtle group-open/nav:rotate-180 transition-transform">⌄</span>

@@ -49,7 +49,7 @@ export default async function CaptainRegisterPage({
   if (!isCaptain || !teamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// captain console" title="Register your team" />
+        <PageHeader eyebrow="captain console" title="Register your team" />
         <EmptyState
           icon={ShieldAlert}
           title="Captain role required"
@@ -75,7 +75,7 @@ export default async function CaptainRegisterPage({
       return (
         <div className="space-y-6">
           <PageHeader
-            eyebrow="// captain console"
+            eyebrow="captain console"
             title="Register your team"
           />
           <SubmittedSuccessCard teamName={teamName} app={justSubmitted} />
@@ -98,7 +98,7 @@ export default async function CaptainRegisterPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// captain console"
+        eyebrow="captain console"
         title="Register your team"
         description="Open seasons your team can register for. Select a season to view available divisions."
       />
@@ -128,7 +128,7 @@ export default async function CaptainRegisterPage({
         )
       ) : (
         <section className="space-y-3">
-          <Eyebrow>// other open seasons</Eyebrow>
+          <Eyebrow>other open seasons</Eyebrow>
           <ul className="space-y-3">
             {openSeasons.items.map((s) => (
               <li key={s.seasonId}>
@@ -178,7 +178,7 @@ function SubmittedSuccessCard({
         </dl>
 
         <div className="mt-6 w-full space-y-2 text-left">
-          <Eyebrow>// what happens next</Eyebrow>
+          <Eyebrow>what happens next</Eyebrow>
           <StepList
             steps={[
               { status: "done", title: "Application submitted", note: "league admin notified" },
@@ -299,7 +299,7 @@ function ApprovedDetailCard({
       </dl>
 
       <div className="mt-5 space-y-2">
-        <Eyebrow>// what to do now</Eyebrow>
+        <Eyebrow>what to do now</Eyebrow>
         <StepList
           steps={[
             { status: "done", title: "Application submitted" },

@@ -301,7 +301,7 @@ function statusToneFor(
 function ShellWithoutOrg({ message }: { message: string }) {
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-16">
-      <Eyebrow>// sp-org-admin</Eyebrow>
+      <Eyebrow>sp-org-admin</Eyebrow>
       <h1 className="text-[36px] font-semibold tracking-tighter text-fg">
         Org Admin
       </h1>

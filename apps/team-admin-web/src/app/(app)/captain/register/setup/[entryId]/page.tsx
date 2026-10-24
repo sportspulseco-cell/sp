@@ -70,7 +70,7 @@ export default async function CaptainRegisterSetupPage({
           <ArrowLeft className="h-3 w-3" /> Back
         </Link>
         <PageHeader
-          eyebrow="// captain console"
+          eyebrow="captain console"
           title="Awaiting admin approval"
           description="The rollover wizard unlocks the moment your league admin approves the application."
         />

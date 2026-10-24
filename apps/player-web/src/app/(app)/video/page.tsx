@@ -8,7 +8,7 @@ export default function VideoPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Video"
+        eyebrow="Video"
         title="Video"
         description="Auto-clipped highlights, full game replays, and live streams."
       />

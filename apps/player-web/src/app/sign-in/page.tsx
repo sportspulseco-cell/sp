@@ -64,7 +64,7 @@ function SignInForm() {
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
       <form onSubmit={onSubmit} className="space-y-5 rounded-xl border border-border bg-surface-1 p-8">
         <div className="space-y-1">
-          <Eyebrow>// sp-player</Eyebrow>
+          <Eyebrow>sp-player</Eyebrow>
           <h1 className="text-[28px] font-semibold tracking-tight text-fg">
             Sign in · Player
           </h1>

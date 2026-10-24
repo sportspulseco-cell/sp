@@ -228,7 +228,7 @@ function CreateVenueForm({
 
   return (
     <div className="rounded-lg border border-border bg-bg p-4 space-y-3">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">// New venue</div>
+      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">New venue</div>
       <div className="grid gap-3 sm:grid-cols-3">
         {!defaultOrgId && ownableOrgs && ownableOrgs.length > 0 ? (
           <Field label="Organization">
@@ -620,7 +620,7 @@ function BulkSlotForm({
 
   return (
     <div className="rounded-md border border-border bg-bg p-3 space-y-3">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">// Weekly recurrence</p>
+      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Weekly recurrence</p>
       <SeasonField seasons={seasons} value={seasonId} onChange={setSeasonId} disabled={busy} />
       <div className="grid gap-3 sm:grid-cols-4">
         <Field label="Start date">

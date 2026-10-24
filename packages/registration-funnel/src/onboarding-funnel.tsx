@@ -172,7 +172,7 @@ export function OnboardingFunnel({
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <header className="mb-8 space-y-2">
-        <Eyebrow>// Onboarding · {userType}</Eyebrow>
+        <Eyebrow>Onboarding · {userType}</Eyebrow>
         <h1 className="text-[34px] font-semibold tracking-tighter text-fg">
           Welcome to SportsPulse
         </h1>

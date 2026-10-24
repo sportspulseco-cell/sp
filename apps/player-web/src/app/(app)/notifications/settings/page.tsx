@@ -14,7 +14,7 @@ export default async function NotificationSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Notifications · Settings"
+        eyebrow="Notifications · Settings"
         title="Email preferences"
         description="Turn off the emails and in-app cards you don't want. Anything you don't explicitly toggle off stays on by default. SMS lands in a future release."
       />

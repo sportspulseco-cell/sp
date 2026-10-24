@@ -95,7 +95,7 @@ export function ComposeForm({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
-      <Eyebrow>// Audience</Eyebrow>
+      <Eyebrow>Audience</Eyebrow>
       <p className="text-[12px] text-fg-muted">
         Multiple audiences union; the same person shown in two groups still
         gets a single notification.
@@ -129,7 +129,7 @@ export function ComposeForm({ orgId }: { orgId: string }) {
         })}
       </div>
 
-      <Eyebrow>// Message</Eyebrow>
+      <Eyebrow>Message</Eyebrow>
       <Field label="Subject">
         <Input
           value={subject}

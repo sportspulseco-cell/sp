@@ -34,11 +34,7 @@ export function PageHeader({
         <div className="min-w-0 flex-1 space-y-4">
           {eyebrow ? (
             <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
-              {eyebrowDot ? (
-                <LiveDot tone="accent" />
-              ) : (
-                <span className="text-fg-subtle/70">//</span>
-              )}
+              {eyebrowDot ? <LiveDot tone="accent" /> : null}
               <span>{eyebrow}</span>
             </div>
           ) : null}

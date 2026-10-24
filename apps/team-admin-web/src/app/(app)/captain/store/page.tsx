@@ -24,7 +24,7 @@ export default async function CaptainStorePage() {
   if (!isCaptain || !myTeamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Team store" />
+        <PageHeader eyebrow="Captain console" title="Team store" />
         <EmptyState
           icon={Star}
           title="Captain role required"
@@ -41,7 +41,7 @@ export default async function CaptainStorePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Team store"
         description="Add merch your team can browse from their player app. Checkout will arrive once Stripe is wired in P4."
       />

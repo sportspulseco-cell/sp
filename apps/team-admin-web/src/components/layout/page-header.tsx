@@ -35,9 +35,7 @@ export function PageHeader({
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
                 </span>
-              ) : (
-                <span className="text-fg-subtle/70">//</span>
-              )}
+              ) : null}
               <span>{eyebrow}</span>
             </div>
           ) : null}

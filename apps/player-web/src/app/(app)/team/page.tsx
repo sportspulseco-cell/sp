@@ -86,14 +86,14 @@ export default async function TeamPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Team"
+          eyebrow="Team"
           title="Team"
           description="Roster + division standings."
         />
 
         {pending.length > 0 ? (
           <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--warning)]/[0.06] p-5">
-            <Eyebrow>// awaiting captain approval</Eyebrow>
+            <Eyebrow>awaiting captain approval</Eyebrow>
             <p className="mt-1 text-[13px] text-fg-muted">
               {pending.length} application{pending.length === 1 ? "" : "s"} sitting in a captain&apos;s inbox.
             </p>
@@ -128,7 +128,7 @@ export default async function TeamPage() {
               className="rounded-xl border border-border bg-surface-1"
             >
               <header className="border-b border-border px-5 py-3">
-                <Eyebrow>// teams accepting players</Eyebrow>
+                <Eyebrow>teams accepting players</Eyebrow>
                 <p className="mt-1 text-[14px] font-medium text-fg">
                   {group.divisionName}
                   {group.divisionTier ? (
@@ -246,7 +246,7 @@ export default async function TeamPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Team"
+        eyebrow="Team"
         title={team?.name ?? "Your team"}
         description={
           team?.sportCode
@@ -259,7 +259,7 @@ export default async function TeamPage() {
         {/* Roster */}
         <div className="rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
-            <Eyebrow>// Roster</Eyebrow>
+            <Eyebrow>Roster</Eyebrow>
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               {memberships.length} active
             </span>
@@ -319,7 +319,7 @@ export default async function TeamPage() {
         {/* Standings */}
         <div className="rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
-            <Eyebrow>// Standings</Eyebrow>
+            <Eyebrow>Standings</Eyebrow>
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               {standings.length} teams
             </span>

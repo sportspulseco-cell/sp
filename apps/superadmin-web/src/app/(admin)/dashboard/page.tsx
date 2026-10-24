@@ -116,7 +116,7 @@ export default async function DashboardPage() {
           {/* Mono eyebrow with live dot */}
           <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
             <LiveDot tone="accent" />
-            <span className="text-fg/80">// platform</span>
+            <span className="text-fg/80">platform</span>
             <span className="text-fg-subtle">·</span>
             <span>v2.0</span>
           </div>

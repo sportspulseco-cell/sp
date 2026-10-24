@@ -98,7 +98,7 @@ export default async function MyRegistrationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// MY REGISTRATIONS"
+        eyebrow="MY REGISTRATIONS"
         title="My registrations"
         description="Every registration you've submitted across leagues. Drafts can be resumed; approved ones unlock the rest of the dashboard."
       />

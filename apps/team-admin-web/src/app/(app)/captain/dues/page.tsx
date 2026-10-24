@@ -25,7 +25,7 @@ export default async function CaptainDuesPage() {
   if (!isCaptain || !myTeamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Team dues" />
+        <PageHeader eyebrow="Captain console" title="Team dues" />
         <EmptyState
           icon={Star}
           title="Captain role required"
@@ -43,7 +43,7 @@ export default async function CaptainDuesPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Captain console"
+          eyebrow="Captain console"
           title="Team dues"
           description="No master invoice on file yet — once you complete the rollover wizard, dues collection appears here."
         />
@@ -59,7 +59,7 @@ export default async function CaptainDuesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Team dues"
         description="Track collection against the team's master invoice. Remind unpaid players or cover their outstanding balance in one charge."
       />

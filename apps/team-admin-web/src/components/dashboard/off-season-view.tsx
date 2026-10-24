@@ -45,7 +45,7 @@ export async function OffSeasonView({
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0C447C] to-[#185FA5] px-8 py-10 text-white">
-        <Eyebrow className="text-white/70">// off-season</Eyebrow>
+        <Eyebrow className="text-white/70">off-season</Eyebrow>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
           {team.name}
         </h1>
@@ -66,7 +66,7 @@ export async function OffSeasonView({
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-border bg-surface-1 p-5">
-          <Eyebrow>// last season</Eyebrow>
+          <Eyebrow>last season</Eyebrow>
           <p className="mt-1 text-[15px] font-medium text-fg">Top scorer</p>
           <p className="mt-1 text-[12px] text-fg-muted">
             Per-player stats render here once the stats module exposes a
@@ -74,7 +74,7 @@ export async function OffSeasonView({
           </p>
         </div>
         <div className="rounded-xl border border-border bg-surface-1 p-5">
-          <Eyebrow>// last season</Eyebrow>
+          <Eyebrow>last season</Eyebrow>
           <p className="mt-1 text-[15px] font-medium text-fg">Most games</p>
           <p className="mt-1 text-[12px] text-fg-muted">
             Top of the games-played leaderboard from your last completed
@@ -85,7 +85,7 @@ export async function OffSeasonView({
 
       <section className="rounded-xl border border-border bg-surface-1">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <Eyebrow>// team profile</Eyebrow>
+          <Eyebrow>team profile</Eyebrow>
           <Link
             href="/captain/team"
             className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"

@@ -283,7 +283,7 @@ export async function SeasonFlow({
     <section aria-labelledby="season-flow-title" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">// Home</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Home</p>
           <h2 id="season-flow-title" className="mt-1 text-[22px] font-semibold tracking-tight text-fg">
             Where each season stands
           </h2>

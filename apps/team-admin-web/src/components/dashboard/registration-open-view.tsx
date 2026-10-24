@@ -79,7 +79,7 @@ export function RegistrationOpenView({
 
       {isApplied && state.thresholdCents > 0 ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <Eyebrow>// confirmation progress</Eyebrow>
+          <Eyebrow>confirmation progress</Eyebrow>
           <ProgressBar
             collected={state.collectedCents}
             threshold={state.thresholdCents}
@@ -93,7 +93,7 @@ export function RegistrationOpenView({
 
       {notRegistered ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <Eyebrow>// last season</Eyebrow>
+          <Eyebrow>last season</Eyebrow>
           <p className="mt-1 text-[14px] text-fg">
             Last season stats & player highlights will surface here once the
             stats aggregate endpoint lands. For now,{" "}

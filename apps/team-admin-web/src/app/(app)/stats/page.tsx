@@ -24,7 +24,7 @@ export default async function TeamAdminStatsPage() {
   if (!teamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Stats" title="Stats" />
+        <PageHeader eyebrow="Stats" title="Stats" />
         <EmptyState icon={ChartBar} title="No team in scope" description="You need a captain or coach role on a team to see its stats." />
       </div>
     );
@@ -54,7 +54,7 @@ export default async function TeamAdminStatsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Stats"
+        eyebrow="Stats"
         title="Stats"
         description="Division standings + team-wide stats. Per-player breakdowns live on each player's dashboard."
       />

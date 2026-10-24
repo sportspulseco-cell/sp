@@ -31,27 +31,31 @@ interface NavItem {
 }
 
 const PRIMARY_NAV: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/organization", label: "Organisation", icon: Building },
-  { href: "/org-setup", label: "Org setup", icon: Wand2 },
-  { href: "/leagues", label: "Leagues", icon: Trophy },
-  { href: "/seasons", label: "Seasons", icon: CalendarRange },
-  { href: "/divisions", label: "Divisions", icon: Layers },
-  { href: "/teams", label: "Teams", icon: Network },
-  { href: "/scheduling", label: "Schedule", icon: CalendarClock }
+  { href: "/", label: "Home", icon: LayoutDashboard }
 ];
 
-const OPERATIONS_NAV: NavItem[] = [
-  { href: "/venues", label: "Rinks & ice time", icon: Building2 },
-  { href: "/registrations", label: "Registrations", icon: ScrollText },
+// Same groups as the admin console (doc/ux/competitor-ia.md, section F),
+// filtered to what an organisation admin does.
+const SEASON_NAV: NavItem[] = [
+  { href: "/org-setup", label: "Set up a season", icon: Wand2 },
+  { href: "/seasons", label: "Seasons", icon: CalendarRange },
+  { href: "/leagues", label: "Leagues", icon: Trophy },
+  { href: "/divisions", label: "Divisions", icon: Layers },
+  { href: "/scheduling", label: "Schedule", icon: CalendarClock },
+  { href: "/venues", label: "Rinks & ice time", icon: Building2 }
+];
+const TEAMS_NAV: NavItem[] = [{ href: "/teams", label: "Teams", icon: Network }];
+const REGISTRATION_NAV: NavItem[] = [
   { href: "/forms", label: "Registration forms", icon: FileSignature },
-  { href: "/finance", label: "Finance", icon: Wallet },
-  { href: "/disputes", label: "Refund disputes", icon: Gavel },
-  { href: "/communications", label: "Messages", icon: Mail }
+  { href: "/registrations", label: "Registrations", icon: ScrollText }
 ];
-const RECORDS_NAV: NavItem[] = [
-  { href: "/audit", label: "Activity log", icon: FileBarChart }
+const FINANCIALS_NAV: NavItem[] = [
+  { href: "/finance", label: "Invoices", icon: Wallet },
+  { href: "/disputes", label: "Refund disputes", icon: Gavel }
 ];
+const MESSAGES_NAV: NavItem[] = [{ href: "/communications", label: "Messages", icon: Mail }];
+const REPORTS_NAV: NavItem[] = [{ href: "/audit", label: "Activity log", icon: FileBarChart }];
+const SETTINGS_NAV: NavItem[] = [{ href: "/organization", label: "Organisation", icon: Building }];
 
 export function Sidebar() {
   const { open, setOpen } = useNav();
@@ -132,7 +136,15 @@ function SidebarNav() {
   return (
     <div className="space-y-2">
       <NavGroup items={PRIMARY_NAV} />
-      {[["Operations", OPERATIONS_NAV], ["Records", RECORDS_NAV]].map(([label, items]) => {
+      {[
+        ["Season", SEASON_NAV],
+        ["Teams", TEAMS_NAV],
+        ["Registration", REGISTRATION_NAV],
+        ["Financials", FINANCIALS_NAV],
+        ["Messages", MESSAGES_NAV],
+        ["Reports", REPORTS_NAV],
+        ["Settings", SETTINGS_NAV]
+      ].map(([label, items]) => {
         const links = items as NavItem[];
         const active = links.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
         return (

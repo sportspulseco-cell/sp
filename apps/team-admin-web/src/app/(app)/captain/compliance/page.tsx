@@ -45,7 +45,7 @@ export default async function CaptainCompliancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Roster compliance"
         description="Per-player USA Hockey + playoff eligibility. Read-only — admins issue waivers."
       />
@@ -86,7 +86,7 @@ export default async function CaptainCompliancePage() {
       ) : (
         <div className="rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
-            <Eyebrow>// roster compliance</Eyebrow>
+            <Eyebrow>roster compliance</Eyebrow>
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               {records.items.length} records
             </span>

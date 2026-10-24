@@ -437,7 +437,7 @@ function DoneStep({
         </div>
       </div>
       <div className="space-y-2 text-center">
-        <Eyebrow>// Step 4 of {STEP_ORDER.length}</Eyebrow>
+        <Eyebrow>Step 4 of {STEP_ORDER.length}</Eyebrow>
         <h1 className="text-[24px] font-semibold tracking-tight text-fg">
           You're in{firstName ? `, ${firstName}` : ""}.
         </h1>

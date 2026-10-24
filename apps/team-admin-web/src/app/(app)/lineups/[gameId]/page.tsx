@@ -94,7 +94,7 @@ export default async function LineupEditorPage({
           All games
         </Link>
         <PageHeader
-          eyebrow="// LINEUP"
+          eyebrow="LINEUP"
           title={`${isHome ? "vs" : "@"} ${opponentName}`}
           description={fmtDateTime(game.scheduledStartTsUtc)}
         />
@@ -130,7 +130,7 @@ export default async function LineupEditorPage({
         All games
       </Link>
       <PageHeader
-        eyebrow="// LINEUP"
+        eyebrow="LINEUP"
         title={`${isHome ? "vs" : "@"} ${opponentName}`}
         description={fmtDateTime(game.scheduledStartTsUtc)}
         action={

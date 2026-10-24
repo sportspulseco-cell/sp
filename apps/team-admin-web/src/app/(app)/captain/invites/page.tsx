@@ -47,7 +47,7 @@ export default async function CaptainInvitesPage() {
   if (!isCaptain) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Invites" />
+        <PageHeader eyebrow="Captain console" title="Invites" />
         <EmptyState
           icon={Star}
           title="Captain role required"
@@ -61,7 +61,7 @@ export default async function CaptainInvitesPage() {
   if (!myTeamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Invites" />
+        <PageHeader eyebrow="Captain console" title="Invites" />
         <EmptyState
           icon={Mail}
           title="No team in scope"
@@ -89,13 +89,13 @@ export default async function CaptainInvitesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Invites"
         description={`Issue + revoke invites for ${team?.name ?? "your team"}. Personal invites expire in 7 days; generic team URLs last until roster lock.`}
       />
 
       <section className="rounded-xl border border-border bg-surface-1 p-6">
-        <Eyebrow>// New invite</Eyebrow>
+        <Eyebrow>New invite</Eyebrow>
         <p className="mt-1 text-[12px] text-fg-muted">
           Email a personal invite or generate a shareable team URL.
         </p>
@@ -106,7 +106,7 @@ export default async function CaptainInvitesPage() {
 
       <section className="rounded-xl border border-border bg-surface-1">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <Eyebrow>// Pending invites</Eyebrow>
+          <Eyebrow>Pending invites</Eyebrow>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             {pending.length} active
           </span>
@@ -160,7 +160,7 @@ export default async function CaptainInvitesPage() {
       {past.length > 0 ? (
         <section className="rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
-            <Eyebrow>// Closed invites</Eyebrow>
+            <Eyebrow>Closed invites</Eyebrow>
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               {past.length}
             </span>

@@ -49,7 +49,7 @@ const BASE_NAV: NavSection[] = [
     ]
   },
   {
-    label: "// My game",
+    label: "My games",
     items: [
       { href: "/schedule", label: "Schedule", icon: CalendarRange },
       { href: "/stats", label: "Stats", icon: ChartBar }
@@ -58,7 +58,7 @@ const BASE_NAV: NavSection[] = [
     ]
   },
   {
-    label: "// My team",
+    label: "My team",
     items: [
       { href: "/team", label: "Team", icon: UsersRound }
       // Release 1: Team store (/store) has no checkout yet; the route
@@ -66,19 +66,19 @@ const BASE_NAV: NavSection[] = [
     ]
   },
   {
-    label: "// My account",
+    label: "My account",
     items: [
       { href: "/payments", label: "Payments", icon: CreditCard },
-      { href: "/compliance", label: "Compliance", icon: ShieldCheck },
+      { href: "/compliance", label: "Waivers & documents", icon: ShieldCheck },
       { href: "/notifications", label: "Notifications", icon: Bell }
     ]
   }
 ];
 
 const DISCOVER_NAV: NavSection = {
-  label: "// Discover",
+  label: "Register",
   items: [
-    { href: "/register", label: "Open registrations", icon: Compass },
+    { href: "/register", label: "Find a season", icon: Compass },
     { href: "/profile", label: "Profile", icon: User }
   ]
 };

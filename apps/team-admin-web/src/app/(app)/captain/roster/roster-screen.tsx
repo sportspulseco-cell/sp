@@ -101,7 +101,7 @@ export function RosterScreen({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Captain console"
+        eyebrow="Captain console"
         title="Manage roster"
         description={headerSub}
       />
@@ -291,7 +291,7 @@ function ActiveRosterTable({
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// Active roster</Eyebrow>
+        <Eyebrow>Active roster</Eyebrow>
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           {memberships.length} active
         </span>
@@ -417,7 +417,7 @@ function PendingInvitesTable({
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// Pending invites</Eyebrow>
+        <Eyebrow>Pending invites</Eyebrow>
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           {invites.length} outstanding
         </span>

@@ -25,7 +25,7 @@ export function PostSeasonView({
   return (
     <div className="space-y-6">
       <section className="rounded-2xl bg-gradient-to-br from-[#0C447C] to-[#185FA5] px-8 py-10 text-white">
-        <Eyebrow className="text-white/70">// post-season</Eyebrow>
+        <Eyebrow className="text-white/70">post-season</Eyebrow>
         <div className="mt-1 flex items-center gap-3">
           <Trophy className="h-7 w-7 text-[var(--tint-amber-fg)]" strokeWidth={1.75} />
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
@@ -56,7 +56,7 @@ export function PostSeasonView({
       </section>
 
       <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <Eyebrow>// playoff eligibility</Eyebrow>
+        <Eyebrow>playoff eligibility</Eyebrow>
         <p className="mt-1 text-[13px] text-fg-muted">
           The eligible / ineligible split renders here once the admin runs
           the playoff sweep for this season.

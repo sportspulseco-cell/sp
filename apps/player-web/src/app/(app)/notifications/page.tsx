@@ -31,7 +31,7 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Notifications"
+        eyebrow="Notifications"
         title="Notifications"
         description="Schedule changes, payment reminders, compliance updates, and admin notes. Click a notification to mark it read."
         action={

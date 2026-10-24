@@ -46,7 +46,7 @@ export default async function StatsPage({
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="// Stats"
+          eyebrow="Stats"
           title="Stats"
           description="Season totals + game-by-game log."
         />
@@ -121,7 +121,7 @@ export default async function StatsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Stats"
+        eyebrow="Stats"
         title="Stats"
         description="Season totals and game-by-game log. Switch seasons via the selector below — totals + log re-aggregate on the fly."
       />
@@ -214,14 +214,14 @@ export default async function StatsPage({
           {/* Shooting + discipline */}
           <section className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-border bg-surface-1 p-5">
-              <Eyebrow>// Shooting</Eyebrow>
+              <Eyebrow>Shooting</Eyebrow>
               <dl className="mt-4 space-y-3 text-[12px]">
                 <Row label="Shots on goal" value={String(totals.shots)} />
                 <Row label="Shot %" value={`${shotPct}%`} />
               </dl>
             </div>
             <div className="rounded-xl border border-border bg-surface-1 p-5">
-              <Eyebrow>// Discipline</Eyebrow>
+              <Eyebrow>Discipline</Eyebrow>
               <dl className="mt-4 space-y-3 text-[12px]">
                 <Row label="Penalty minutes" value={String(totals.pim)} />
               </dl>
@@ -231,7 +231,7 @@ export default async function StatsPage({
           {/* Game log */}
           <section className="rounded-xl border border-border bg-surface-1">
             <header className="flex items-center justify-between border-b border-border px-5 py-3">
-              <Eyebrow>// Game log</Eyebrow>
+              <Eyebrow>Game log</Eyebrow>
               <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                 {log.length} games
               </span>

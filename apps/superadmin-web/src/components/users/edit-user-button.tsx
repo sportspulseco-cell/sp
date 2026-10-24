@@ -136,7 +136,7 @@ export function EditUserButton({
 
           {profileRoles.length === 0 ? (
             <div className="space-y-3 border-t border-border pt-4">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">// Role profile</p>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Role profile</p>
               <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-4 text-center text-[13px] text-fg-muted">
                 This user has no role yet. Assign one below to edit its profile fields.
               </p>

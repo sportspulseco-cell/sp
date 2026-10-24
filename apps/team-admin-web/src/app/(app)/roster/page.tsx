@@ -34,7 +34,7 @@ export default async function TeamAdminRosterPage() {
   if (!teamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Roster" title="Roster" />
+        <PageHeader eyebrow="Roster" title="Roster" />
         <EmptyState icon={Users} title="No team in scope" description="You need a captain or coach role on a team to see its roster." />
       </div>
     );
@@ -70,7 +70,7 @@ export default async function TeamAdminRosterPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Roster"
+        eyebrow="Roster"
         title={team ? `${team.name} - Roster` : "Roster"}
         description={`${page.items.length} active membership${page.items.length === 1 ? "" : "s"}.`}
       />

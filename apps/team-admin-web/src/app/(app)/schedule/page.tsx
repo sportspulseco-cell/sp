@@ -50,7 +50,7 @@ export default async function TeamAdminSchedulePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="// Schedule"
+        eyebrow="Schedule"
         title="Schedule"
         description="Every scheduled and completed game for your team."
       />

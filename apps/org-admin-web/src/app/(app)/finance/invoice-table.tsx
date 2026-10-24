@@ -54,7 +54,7 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
   return (
     <div className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>// Invoices</Eyebrow>
+        <Eyebrow>Invoices</Eyebrow>
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           {invoices.length} loaded
         </span>

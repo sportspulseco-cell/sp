@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <>
       <PageHeader
-        eyebrow="// COMMUNICATIONS"
+        eyebrow="COMMUNICATIONS"
         title="Communications"
         description="Part of the Team admin console — full functionality lands in a follow-up slice."
       />

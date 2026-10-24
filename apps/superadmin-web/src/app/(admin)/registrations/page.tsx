@@ -147,7 +147,7 @@ export default async function RegistrationsPage() {
         <div className="relative px-7 pb-10 pt-12 lg:px-10 lg:pb-14 lg:pt-16">
           <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
             <LiveDot tone={pending > 0 ? "accent" : "success"} />
-            <span className="text-fg/80">// review</span>
+            <span className="text-fg/80">review</span>
             <span className="text-fg-subtle">·</span>
             <span>queue</span>
           </div>

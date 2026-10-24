@@ -15,7 +15,7 @@ export default async function CaptainRosterPage() {
   if (!isCaptain) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Manage roster" />
+        <PageHeader eyebrow="Captain console" title="Manage roster" />
         <EmptyState
           icon={Star}
           title="Captain role required"
@@ -29,7 +29,7 @@ export default async function CaptainRosterPage() {
   if (!myTeamId) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="// Captain console" title="Manage roster" />
+        <PageHeader eyebrow="Captain console" title="Manage roster" />
         <EmptyState
           icon={Users}
           title="No team in scope"
