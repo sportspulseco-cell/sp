@@ -209,7 +209,8 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     // Since 24 Oct the create flow continues into "Choose the org admin"
     // (SP-Changes blocker 1). J1 assigns admins later; close it here.
     await expect(page.getByRole("heading", { name: "Choose the org admin" })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: "Close dialog" }).click();
+    // The named close control is the full-screen backdrop; click a corner outside the panel.
+    await page.getByRole("button", { name: "Close dialog" }).click({ position: { x: 4, y: 4 } });
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 15_000 });
     // Same-surface refresh: row appears without manual reload.
     await expect(page.getByRole("link", { name: ORG_NAME })).toBeVisible({ timeout: 15_000 });

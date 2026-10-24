@@ -109,3 +109,17 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: test-results-audit/staging-v2/crawl-superAdmin.json (/registrations errorBoundary, text Invalid status: pending_consent); staging has 2 rows in pending_consent.
 
   Root cause / fix: statuses.vo.ts now accepts both name sets with transitions (commit below). Follow-up: derive the domain list from @sportspulse/kernel REGISTRATION_STATES and migrate the v1 names.
+
+[CONSOLE-10] Dialog close icon has no accessible name; the only control named "Close dialog" is the backdrop · minor
+
+  Journey: J1 · M2
+
+  Surface: superadmin-web Choose the org admin dialog (and the shared Dialog primitive)
+
+  Repro: open any dialog; inspect the X button.
+
+  Expected: the X button is named Close (screen readers, tests).
+
+  Actual: X is an unnamed button with an icon; aria-label Close dialog sits on the backdrop div (snapshot test-results-journeys-setup-v2/journeys-j01-setup-*/error-context.md).
+
+  Root cause: components/ui/dialog.tsx labels the backdrop, not the icon button. Fix pending.

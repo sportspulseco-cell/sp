@@ -151,8 +151,11 @@ export async function supabaseFetch(
           host: u.hostname,
           ...(init.body ? { "content-length": String(Buffer.byteLength(init.body)) } : {})
         },
-        lookup: ((_h: string, _o: unknown, cb: (err: Error | null, address: string, family: number) => void) =>
-          cb(null, ip, 4)) as unknown as import("node:net").LookupFunction
+        // Node >= 20 calls lookup with { all: true } and expects an address list.
+        lookup: ((_h: string, opts: { all?: boolean } | number | undefined, cb: (...args: unknown[]) => void) =>
+          typeof opts === "object" && opts?.all
+            ? cb(null, [{ address: ip, family: 4 }])
+            : cb(null, ip, 4)) as unknown as import("node:net").LookupFunction
       },
       (res) => {
         const chunks: Buffer[] = [];
