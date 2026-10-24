@@ -204,7 +204,8 @@ test("items 5 and 6: player edits their profile fields; admin's Edit profile sho
   const pl = await signedInAs(browser, "player");
   logApi(pl.page, "item5");
   await pl.page.goto(`${E2E_URLS.player}/profile`);
-  await expect(pl.page.getByText("Player profile").first()).toBeVisible({ timeout: 30_000 });
+  // The section loads its form after the page; wait for one of its own fields.
+  await expect(pl.page.getByText("Emergency contact name").first()).toBeVisible({ timeout: 30_000 });
 
   const labels = [
     "Date of birth", "Gender", "Phone", "Photo / avatar", "Street address", "City", "State / region",
@@ -216,6 +217,15 @@ test("items 5 and 6: player edits their profile fields; admin's Edit profile sho
   for (const l of labels) if ((await pl.page.getByText(l, { exact: false }).count()) === 0) missing.push(l);
   expect(missing, `fields missing on player Profile: ${missing.join(", ")}`).toEqual([]);
 
+  // Required fields first (Save rightly refuses without them).
+  await pl.page.getByLabel(/^Date of birth/).fill("1994-05-17");
+  await pl.page.getByLabel(/^Gender/).selectOption({ label: "Male" });
+  await pl.page.getByLabel(/^Phone/).fill("+1 617 555 0101");
+  await pl.page.getByLabel(/^Emergency contact name/).fill("Pat Mover");
+  await pl.page.getByLabel(/^Emergency contact phone/).fill("+1 617 555 0102");
+  const forward = pl.page.getByRole("button", { name: "Forward", exact: true });
+  if ((await forward.getAttribute("aria-pressed")) !== "true") await forward.click();
+  await pl.page.getByLabel(/^Level/).selectOption({ label: "B — Competitive" });
   await pl.page.getByLabel(/^City/).fill(city);
   await pl.page.getByLabel(/^Height/).fill("180");
   await pl.page.getByRole("button", { name: "Save profile" }).click();
@@ -225,11 +235,14 @@ test("items 5 and 6: player edits their profile fields; admin's Edit profile sho
   await expect(pl.page.getByLabel(/^City/)).toHaveValue(city);
   await pl.page.reload();
   await expect(pl.page.getByLabel(/^City/)).toHaveValue(city, { timeout: 20_000 });
-  const [prof] = await stagingSql<{ city: string; height: string }>(
-    `select metadata->'roleProfile'->'player'->>'addressCity' city, metadata->'roleProfile'->'player'->>'heightCm' height
+  const [prof] = await stagingSql<{ city: string; dob: string; person_dob: string | null }>(
+    `select metadata->'roleProfile'->'player'->>'addressCity' city, metadata->'roleProfile'->'player'->>'dob' dob,
+       (select dob_date::text from persons where user_id = profiles.id limit 1) person_dob
      from profiles where email = 'staging-player@sportspulse.us'`
   );
   expect(prof?.city).toBe(city);
+  // Eligibility reads the person record: it must follow the profile.
+  expect(prof?.person_dob ?? "1994-05-17").toBe("1994-05-17");
   console.log(`[item5] saved ${JSON.stringify(prof)}`);
   await pl.context.close();
 
