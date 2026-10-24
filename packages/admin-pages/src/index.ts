@@ -13,6 +13,8 @@
  */
 export { LeagueDetail } from "./league-detail";
 export { SeasonDetail } from "./season-detail";
+export { SeasonFlow } from "./season-flow";
+export type { SeasonFlowApi, SeasonFlowLinks } from "./season-flow";
 export { SeasonStatusControl } from "./season-status-control";
 export { DivisionDetail } from "./division-detail";
 export type { DivisionTeamRow } from "./division-detail";

@@ -26,9 +26,10 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import { iam, leagueMgmt, orgs, registrationV2Admin, orgAdminFinance } from "@/lib/api/server-api";
+import { iam, leagueMgmt, orgs, registrationV2Admin, orgAdminFinance, adminTransfers, gameOps, registration, roster } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
+import { SeasonFlow } from "@sportspulse/admin-pages";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,15 @@ export default async function OrgAdminHome() {
             </Link>
           </div>
         }
+      />
+
+      {/* Season lifecycle with one next step each (shared with the admin console). */}
+      <SeasonFlow
+        api={{ leagueMgmt, adminTransfers, gameOps, registration, roster }}
+        seasons={seasonsPage.items}
+        leagues={leaguesPage.items}
+        orgId={myOrgId}
+        links={{ rosters: "/teams", results: "/scheduling" }}
       />
 
       {/* 01 · Pulse — KPI grid */}

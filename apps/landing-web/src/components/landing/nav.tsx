@@ -89,18 +89,17 @@ const PRIMARY = [
 ];
 
 const SUPERADMIN = process.env.NEXT_PUBLIC_SUPERADMIN_URL ?? "https://superadmin.sportspulse.us";
-const LEAGUE_ADMIN = process.env.NEXT_PUBLIC_LEAGUE_ADMIN_URL ?? "https://league.sportspulse.us";
 const ORG_ADMIN = process.env.NEXT_PUBLIC_ORG_ADMIN_URL ?? "https://org.sportspulse.us";
 const TEAM_ADMIN = process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://team.sportspulse.us";
 const PLAYER = process.env.NEXT_PUBLIC_PLAYER_URL ?? "https://player.sportspulse.us";
 
-// League admins use the league hostname on the shared superadmin app.
+// One question, four answers (PPHL, 24 Oct 2026: too many subdomains).
+// League admins and platform admins share the admin console.
 const ACCESS = [
-  { title: "Super Admin", sub: "Federation, orgs, persons, audit", base: SUPERADMIN },
-  { title: "League Admin", sub: "League operations, seasons, schedules", base: LEAGUE_ADMIN },
-  { title: "Org Admin", sub: "One organization: leagues, seasons, billing", base: ORG_ADMIN },
-  { title: "Team Admin / Coach", sub: "Roster, lineups, team comms", base: TEAM_ADMIN },
-  { title: "Player / Free Agent", sub: "Register, sign waivers, find a team", base: PLAYER }
+  { title: "I run the league", sub: "Seasons, registration, teams, schedule, standings, payments", base: SUPERADMIN },
+  { title: "I run a club or organisation", sub: "Your organisation: leagues, seasons, teams, invoices", base: ORG_ADMIN },
+  { title: "I captain or coach a team", sub: "Register the team, roster, invites, dues, lineups", base: TEAM_ADMIN },
+  { title: "I play, or I am a parent", sub: "Register, sign waivers, pay, schedule, stats", base: PLAYER }
 ];
 
 type MenuKey = "products" | "information" | "signin" | null;
@@ -402,7 +401,7 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
     >
       <div className="border-b border-border px-4 py-2.5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Choose your console
+          // What do you do in your league?
         </p>
       </div>
       <ul className="divide-y divide-border">

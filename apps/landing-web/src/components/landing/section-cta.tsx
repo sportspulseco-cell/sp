@@ -13,11 +13,9 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Reveal } from "@sportspulse/ui";
 
 const SUPERADMIN = process.env.NEXT_PUBLIC_SUPERADMIN_URL ?? "https://superadmin.sportspulse.us";
-const LEAGUE_ADMIN = process.env.NEXT_PUBLIC_LEAGUE_ADMIN_URL ?? "https://league.sportspulse.us";
 const ORG_ADMIN = process.env.NEXT_PUBLIC_ORG_ADMIN_URL ?? "https://org.sportspulse.us";
 const TEAM_ADMIN = process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://team.sportspulse.us";
 const PLAYER = process.env.NEXT_PUBLIC_PLAYER_URL ?? "https://player.sportspulse.us";
-// League admins use the league hostname on the shared superadmin app.
 
 export function SectionCta() {
   const [email, setEmail] = useState("");
@@ -81,43 +79,36 @@ export function SectionCta() {
           </form>
         </Reveal>
 
-        {/* Already running a league? — direct console access. Five
-            role-targeted apps each have their own sign-in landing per
-            repo owner directive 2026-05-09. */}
+        {/* Already running a league? One question, four apps (each keeps
+            its own sign-in per repo owner directive 2026-05-09); the
+            same four live on /sign-in. */}
         <Reveal delay={0.22}>
           <div className="mt-14 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ConsoleCard
               icon={<ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="Super Admin"
-              sub="Federation, orgs, persons, audit"
+              title="I run the league"
+              sub="Seasons, registration, teams, schedule, standings, payments"
               signIn={`${SUPERADMIN}/sign-in`}
               signUp={`${SUPERADMIN}/sign-up`}
             />
             <ConsoleCard
-              icon={<ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="League Admin"
-              sub="League operations, seasons, schedules"
-              signIn={`${LEAGUE_ADMIN}/sign-in`}
-              signUp={`${LEAGUE_ADMIN}/sign-up`}
-            />
-            <ConsoleCard
               icon={<Building2 className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="Org Admin"
-              sub="One organization: leagues, seasons, billing"
+              title="I run a club or organisation"
+              sub="Your organisation: leagues, seasons, teams, invoices"
               signIn={`${ORG_ADMIN}/sign-in`}
               signUp={`${ORG_ADMIN}/sign-up`}
             />
             <ConsoleCard
               icon={<UsersRound className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="Team Admin / Coach"
-              sub="Roster, lineups, team comms"
+              title="I captain or coach a team"
+              sub="Register the team, roster, invites, dues, lineups"
               signIn={`${TEAM_ADMIN}/sign-in`}
               signUp={`${TEAM_ADMIN}/sign-up`}
             />
             <ConsoleCard
               icon={<User className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="Player / Free Agent"
-              sub="Register, sign waivers, find a team"
+              title="I play, or I am a parent"
+              sub="Register, sign waivers, pay, schedule, stats"
               signIn={`${PLAYER}/sign-in`}
               signUp={`${PLAYER}/sign-up`}
             />
