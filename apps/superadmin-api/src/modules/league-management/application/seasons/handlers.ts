@@ -188,6 +188,9 @@ export interface UpdateSeasonInput {
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
   rosterLockAt?: string | null;
+  /** Both or neither; validated against the (possibly new) season dates. */
+  playoffStartDate?: string | null;
+  playoffEndDate?: string | null;
 }
 
 @Injectable()
@@ -226,6 +229,13 @@ export class UpdateSeasonHandler
     if (input.rosterLockAt !== undefined) {
       season.setRosterLock(
         input.rosterLockAt ? new Date(input.rosterLockAt) : null
+      );
+    }
+    // After reschedule, so the window is checked against the new dates.
+    if (input.playoffStartDate !== undefined || input.playoffEndDate !== undefined) {
+      season.setPlayoffWindow(
+        input.playoffStartDate !== undefined ? input.playoffStartDate || null : season.playoffStartDate,
+        input.playoffEndDate !== undefined ? input.playoffEndDate || null : season.playoffEndDate
       );
     }
     await this.seasons.save(season);

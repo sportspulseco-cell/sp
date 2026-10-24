@@ -145,11 +145,25 @@ export class SeasonsController {
     });
   }
 
-  @Patch(":id") @ApiOperation({ summary: "Update a season" })
-  update(
+  @Patch(":id")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Update a season (super admin, or org admin of the season's org)" })
+  async update(
     @Param("id") id: string,
-    @Body() body: UpdateSeasonBodyDto
+    @Body() body: UpdateSeasonBodyDto,
+    @UserScope() scope: UserScopeType
   ): Promise<SeasonDto> {
+    // Org admins edit seasons of their own orgs only; 404 outside scope.
+    if (!scope.isSuperAdmin && scope.orgIds !== null) {
+      const [row] = await this.db
+        .select({ orgId: schema.seasons.orgId })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, id))
+        .limit(1);
+      if (!row || !scope.orgIds.includes(row.orgId)) {
+        throw new NotFoundException("Season not found");
+      }
+    }
     return this.updateH.execute({ id, ...body });
   }
 

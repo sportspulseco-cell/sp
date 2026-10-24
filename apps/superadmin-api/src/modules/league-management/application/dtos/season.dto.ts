@@ -13,6 +13,9 @@ export class SeasonDto {
   @ApiPropertyOptional({ nullable: true }) registrationOpensAt!: string | null;
   @ApiPropertyOptional({ nullable: true }) registrationClosesAt!: string | null;
   @ApiPropertyOptional({ nullable: true }) rosterLockAt!: string | null;
+  /** Playoff window (YYYY-MM-DD) so edit forms can prefill it. */
+  @ApiPropertyOptional({ nullable: true }) playoffStartDate!: string | null;
+  @ApiPropertyOptional({ nullable: true }) playoffEndDate!: string | null;
   @ApiProperty() timezone!: string;
   @ApiProperty({ enum: SEASON_STATUSES }) status!: (typeof SEASON_STATUSES)[number];
   @ApiProperty() createdAt!: string;
@@ -31,6 +34,8 @@ export class SeasonDto {
       registrationOpensAt: x.registrationOpensAt?.toISOString() ?? null,
       registrationClosesAt: x.registrationClosesAt?.toISOString() ?? null,
       rosterLockAt: x.rosterLockAt?.toISOString() ?? null,
+      playoffStartDate: x.playoffStartDate ?? null,
+      playoffEndDate: x.playoffEndDate ?? null,
       timezone: x.timezone,
       status: x.status,
       createdAt: x.createdAt.toISOString(),

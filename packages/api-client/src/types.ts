@@ -179,6 +179,9 @@ export interface Season {
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
   rosterLockAt: string | null;
+  /** Playoff window, YYYY-MM-DD; both null when no playoffs. */
+  playoffStartDate?: string | null;
+  playoffEndDate?: string | null;
   timezone: string;
   status: SeasonStatus;
   createdAt: string;

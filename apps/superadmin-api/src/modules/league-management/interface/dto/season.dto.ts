@@ -87,6 +87,11 @@ export class UpdateSeasonBodyDto {
   @ApiPropertyOptional() @IsOptional() registrationOpensAt?: string | null;
   @ApiPropertyOptional() @IsOptional() registrationClosesAt?: string | null;
   @ApiPropertyOptional() @IsOptional() rosterLockAt?: string | null;
+  /** Playoff window; both or neither. Must sit inside the season dates. */
+  @ApiPropertyOptional({ description: "ISO date YYYY-MM-DD or null" })
+  @IsOptional() playoffStartDate?: string | null;
+  @ApiPropertyOptional({ description: "ISO date YYYY-MM-DD or null" })
+  @IsOptional() playoffEndDate?: string | null;
 }
 
 export class ChangeSeasonStatusBodyDto {

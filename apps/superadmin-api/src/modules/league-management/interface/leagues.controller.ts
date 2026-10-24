@@ -82,11 +82,26 @@ export class LeaguesController {
     return this.createH.execute(body);
   }
 
-  @Patch(":id") @ApiOperation({ summary: "Update a league" })
-  update(
+  @Patch(":id")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Update a league (super admin, or org admin of the league's org)" })
+  async update(
     @Param("id") id: string,
-    @Body() body: UpdateLeagueBodyDto
+    @Body() body: UpdateLeagueBodyDto,
+    @UserScope() scope: UserScopeType
   ): Promise<LeagueDto> {
+    // Org admins edit leagues of their own orgs only; 404 (not 403)
+    // outside scope so existence never leaks.
+    if (!scope.isSuperAdmin && scope.orgIds !== null) {
+      const [row] = await this.db
+        .select({ orgId: schema.leagues.orgId })
+        .from(schema.leagues)
+        .where(eq(schema.leagues.id, id))
+        .limit(1);
+      if (!row || !scope.orgIds.includes(row.orgId)) {
+        throw new NotFoundException("League not found");
+      }
+    }
     return this.updateH.execute({ id, ...body });
   }
 

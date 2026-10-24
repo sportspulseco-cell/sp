@@ -1263,6 +1263,18 @@ export function createApi(f: Fetcher) {
         defaultCurrency: string;
         defaultTimezone?: string;
       }) => f<Org>("/orgs", { method: "POST", body: JSON.stringify(body) }),
+      /** Edit an org. Super admin, or org admin of that org. */
+      update: (
+        id: string,
+        body: {
+          legalName?: string;
+          displayName?: string;
+          countryCode?: string;
+          defaultLocale?: string;
+          defaultCurrency?: string;
+          defaultTimezone?: string;
+        }
+      ) => f<Org>(`/orgs/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
       suspend: (id: string) => f<Org>(`/orgs/${id}/suspend`, { method: "POST" }),
       reactivate: (id: string) => f<Org>(`/orgs/${id}/reactivate`, { method: "POST" }),
 
@@ -1345,6 +1357,8 @@ export function createApi(f: Fetcher) {
           registrationOpensAt?: string | null;
           registrationClosesAt?: string | null;
           rosterLockAt?: string | null;
+          playoffStartDate?: string | null;
+          playoffEndDate?: string | null;
         }
       ) =>
         f<Season>(`/league/seasons/${id}`, {
@@ -1429,7 +1443,15 @@ export function createApi(f: Fetcher) {
         f<Division>(`/league/divisions/${id}`),
       updateDivision: (
         id: string,
-        body: { name?: string; tier?: string | null; regionId?: string | null; maxTeams?: number | null }
+        body: {
+          name?: string;
+          tier?: string | null;
+          regionId?: string | null;
+          maxTeams?: number | null;
+          genderEligibility?: "male" | "female" | "mixed" | "open";
+          ruleSetOverrides?: Record<string, unknown>;
+          playoffConfig?: Record<string, unknown>;
+        }
       ) =>
         f<Division>(`/league/divisions/${id}`, {
           method: "PATCH",

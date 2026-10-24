@@ -105,10 +105,25 @@ export class DivisionsController {
     }
     return (await this.withRegionNames([await this.createH.execute(body)]))[0]!;
   }
-  @Patch(":id") async update(
+  @Patch(":id")
+  @AllowScopedWrite()
+  async update(
     @Param("id") id: string,
-    @Body() body: UpdateDivisionBodyDto
+    @Body() body: UpdateDivisionBodyDto,
+    @UserScope() scope: UserScopeType
   ): Promise<DivisionDto> {
+    // Org admins edit divisions of their own orgs only; 404 outside scope.
+    if (!scope.isSuperAdmin && scope.orgIds !== null) {
+      const [row] = await this.db
+        .select({ orgId: schema.seasons.orgId })
+        .from(schema.divisions)
+        .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
+        .where(eq(schema.divisions.id, id))
+        .limit(1);
+      if (!row || !scope.orgIds.includes(row.orgId)) {
+        throw new NotFoundException("Division not found");
+      }
+    }
     return (await this.withRegionNames([await this.updateH.execute({ id, ...body })]))[0]!;
   }
   @Delete(":id") archive(@Param("id") id: string): Promise<DivisionDto> {
