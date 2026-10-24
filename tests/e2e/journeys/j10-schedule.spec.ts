@@ -267,11 +267,24 @@ test.describe("J10 schedule generate and publish", () => {
     await expect(page.getByText(teamName).first()).toBeVisible();
     await shot(page, "02-team-created");
 
-    // Can the admin put the team in the season's division from here?
-    const addToDivision = page.getByRole("button", { name: /division|enter|register/i });
-    expect.soft(await addToDivision.count(), "SCH-4 admin can enter the team into a division").toBeGreaterThan(0);
-    const dte = await stagingSql(`select count(*)::int n from division_team_entries where division_id = $1 and left_at is null and entry_status in ('applied','accepted','confirmed')`, [divisionId]);
-    console.log(`[J10] teams entered in staging division: ${dte[0]?.n}`);
+    // SCH-4: the admin puts the new team into the season's division from
+    // the division page (Add a team), and the entry is written.
+    const before = await stagingSql<{ n: number }>(`select count(*)::int n from division_team_entries where division_id = $1 and left_at is null and entry_status in ('applied','accepted','confirmed')`, [divisionId]);
+    await page.goto(`${app}/divisions/${divisionId}`);
+    await page.getByRole("button", { name: "Add a team" }).click();
+    await page.getByLabel("Search teams").fill(teamName.slice(0, 6));
+    await page.getByRole("option", { name: teamName }).click();
+    await page.getByRole("button", { name: "Add to division" }).click();
+    await expect(page.getByText(`${teamName} is now in`)).toBeVisible({ timeout: 20_000 });
+    // Same surface, no reload: the team is listed in the division.
+    await expect(page.getByRole("link", { name: teamName }).first()).toBeVisible({ timeout: 20_000 });
+    const [entry] = await stagingSql<{ entry_status: string }>(
+      `select entry_status from division_team_entries where division_id = $1 and team_id = $2 and left_at is null`,
+      [divisionId, newTeamId]
+    );
+    expect(entry?.entry_status, "SCH-4 admin placed the team: entry accepted").toBe("accepted");
+    const after = await stagingSql<{ n: number }>(`select count(*)::int n from division_team_entries where division_id = $1 and left_at is null and entry_status in ('applied','accepted','confirmed')`, [divisionId]);
+    console.log(`[J10] teams entered in staging division: ${before[0]?.n} -> ${after[0]?.n}`);
   });
 
   await test.step("3 · generate schedule for the season (UC-06)", async () => {
