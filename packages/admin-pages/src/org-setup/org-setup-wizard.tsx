@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Alert, Button } from "@sportspulse/ui";
@@ -161,6 +161,17 @@ export function OrgSetupWizard({
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // What the current submit run has saved so far (see submit()).
+  const progress = useRef<{
+    leagueId?: string;
+    leagueName?: string;
+    seasonId?: string;
+    divisionUids: Set<string>;
+  }>({ divisionUids: new Set() });
+  // A league saved for one organisation must not be reused for another.
+  useEffect(() => {
+    progress.current = { divisionUids: new Set() };
+  }, [state.orgId]);
   // Regions belong to the org picked in step 1; reload when it changes.
   const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
   useEffect(() => {
@@ -296,22 +307,36 @@ export function OrgSetupWizard({
     if (!state.orgId) return;
     setBusy(true);
     setError(null);
+    // The steps run one request at a time. A failure part-way used to
+    // leave the league behind and the next click created a second empty
+    // one (PPHL, 24 Oct 2026). Remember what this run already saved, say
+    // which step failed, and resume from there on the next click.
+    const saved = progress.current;
+    let stepLabel = "league";
     try {
-      const league = await createLeague({
-        orgId: state.orgId,
-        sportCode: state.league.sportCode,
-        name: state.league.name,
-        format: state.league.format,
-        governingBodyId: state.league.governingBodyId,
-        metadata: {
-          slug: state.league.slug,
-          branding: state.league.branding,
-          privacy: state.league.privacy,
-          timezone: state.league.timezone
-        }
-      });
+      if (!saved.leagueId) {
+        const league = await createLeague({
+          orgId: state.orgId,
+          sportCode: state.league.sportCode,
+          name: state.league.name,
+          format: state.league.format,
+          governingBodyId: state.league.governingBodyId,
+          metadata: {
+            slug: state.league.slug,
+            branding: state.league.branding,
+            privacy: state.league.privacy,
+            timezone: state.league.timezone
+          }
+        });
+        saved.leagueId = league.id;
+        saved.leagueName = state.league.name;
+      }
+      const league = { id: saved.leagueId };
 
-      const season = await createSeason({
+      stepLabel = "season";
+      const season = saved.seasonId
+        ? { id: saved.seasonId }
+        : await createSeason({
         leagueId: league.id,
         name: state.season.name,
         sportCode: state.league.sportCode,
@@ -330,7 +355,9 @@ export function OrgSetupWizard({
           ? new Date(state.season.rosterLockAt + "T23:59:59").toISOString()
           : null
       });
+      saved.seasonId = season.id;
 
+      stepLabel = "regions";
       // Regions typed inline: create each distinct new name once (case-
       // insensitive), reusing an existing region when the name matches.
       const regionIdByName = new Map(regions.map((r) => [r.name.toLowerCase(), r.id]));
@@ -352,6 +379,8 @@ export function OrgSetupWizard({
       }
 
       for (const d of state.divisions) {
+        if (saved.divisionUids.has(d.uid)) continue;
+        stepLabel = `division "${d.name}"`;
         await createDivision({
           seasonId: season.id,
           name: d.name,
@@ -374,15 +403,28 @@ export function OrgSetupWizard({
           },
           playoffConfig: d.playoffConfig as unknown as Record<string, unknown>
         });
+        saved.divisionUids.add(d.uid);
       }
 
       if (publish) {
+        stepLabel = "publish";
         await changeLeagueStatus(league.id, "active");
       }
 
+      progress.current = { divisionUids: new Set() };
       onComplete({ leagueId: league.id });
     } catch (err) {
-      setError((err as Error).message);
+      const done = [
+        saved.leagueId ? `league "${saved.leagueName}"` : null,
+        saved.seasonId ? "season" : null,
+        saved.divisionUids.size ? `${saved.divisionUids.size} division(s)` : null
+      ].filter(Boolean);
+      setError(
+        `Could not save the ${stepLabel}: ${(err as Error).message}` +
+          (done.length
+            ? ` Already saved: ${done.join(", ")}. Fix the problem and click again; saving continues from the ${stepLabel} and nothing is created twice.`
+            : "")
+      );
     } finally {
       setBusy(false);
     }

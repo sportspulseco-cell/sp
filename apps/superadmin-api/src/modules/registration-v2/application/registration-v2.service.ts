@@ -258,11 +258,30 @@ export class RegistrationV2Service {
         .where(
           and(
             eq(schema.divisionTeamEntries.teamId, opts.forTeamId),
-            sql`${schema.divisionTeamEntries.entryStatus} NOT IN ('rejected','withdrawn','disqualified')`
+            sql`${schema.divisionTeamEntries.entryStatus} NOT IN ('rejected','withdrawn','disqualified','moved')`
           )
         );
-      if (entries.length === 0) return [];
       seasonIds = entries.map((e) => e.seasonId);
+      // A team not yet entered in any season (new team, or set up before
+      // its division application) still recruits: show free agents from
+      // its organisation's active seasons. Returning nothing here hid every
+      // free agent from such captains (PPHL, 24 Oct 2026: "October Test
+      // Team" had no entry, its player's pool row sat in "October 2026").
+      if (seasonIds.length === 0) {
+        const orgSeasons = await this.db
+          .select({ id: schema.seasons.id })
+          .from(schema.seasons)
+          .innerJoin(schema.teams, eq(schema.teams.orgId, schema.seasons.orgId))
+          .where(
+            and(
+              eq(schema.teams.id, opts.forTeamId),
+              sql`${schema.seasons.status} NOT IN ('completed','archived')`,
+              sql`${schema.seasons.deletedAt} IS NULL`
+            )
+          );
+        seasonIds = orgSeasons.map((s) => s.id);
+      }
+      if (seasonIds.length === 0) return [];
     }
 
     const where = seasonIds

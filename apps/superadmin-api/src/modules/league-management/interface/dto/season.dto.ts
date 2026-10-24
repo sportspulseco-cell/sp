@@ -14,10 +14,17 @@ import {
   ValidationOptions
 } from "class-validator";
 
-// Reject any ISO date/timestamp earlier than start-of-today (local server time).
+// Reject any ISO date/timestamp earlier than the admin's "today".
 // Seasons must always be created with a forward-looking window — past windows
 // are a UX trap (registration "open" but already closed, games scheduled in
 // the past). Lives next to the DTO to keep the contract obvious.
+//
+// The server cannot know the admin's timezone, and the wizard sends
+// "registration opens today" as local midnight in UTC. For an admin east
+// of UTC (India, +5:30) that timestamp is yesterday's date in UTC, so a
+// strict UTC comparison rejected today (PPHL, 24 Oct 2026: three leagues
+// created with no season). Accept one day of slack; anything earlier is
+// still refused.
 export function IsFutureOrToday(options?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
@@ -31,12 +38,13 @@ export function IsFutureOrToday(options?: ValidationOptions) {
           if (typeof value !== "string") return false;
           // Compare on the date portion only; the input emits YYYY-MM-DD.
           const dateOnly = value.slice(0, 10);
-          const now = new Date();
-          const y = now.getFullYear();
-          const m = String(now.getMonth() + 1).padStart(2, "0");
-          const d = String(now.getDate()).padStart(2, "0");
-          const today = `${y}-${m}-${d}`;
-          return dateOnly >= today;
+          // Earliest "today" anywhere on earth = UTC today minus one day
+          // (covers every offset up to +14h).
+          const earliest = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          const y = earliest.getUTCFullYear();
+          const m = String(earliest.getUTCMonth() + 1).padStart(2, "0");
+          const d = String(earliest.getUTCDate()).padStart(2, "0");
+          return dateOnly >= `${y}-${m}-${d}`;
         },
         defaultMessage() {
           return `${propertyName} must be today or a future date`;
