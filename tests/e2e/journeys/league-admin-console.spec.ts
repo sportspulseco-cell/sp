@@ -64,8 +64,8 @@ test("league admin: every console page loads with data, none says 404 or access 
   await expect(page.getByText(/Who holds this role/i)).toBeVisible();
 
   // Super-admin-only modules are not offered to a scoped admin.
-  await expect(page.getByRole("link", { name: "Admin Console" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Data Migration" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Platform settings" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Import data" })).toHaveCount(0);
   await context.close();
 });
 

@@ -357,7 +357,7 @@ test.describe.serial("J2 · invite admin and sign in", () => {
   test("7. /roles page", async () => {
     const page = sa.page;
     await page.goto(`${SA}/dashboard`);
-    await page.getByRole("link", { name: "Roles", exact: true }).click();
+    await page.getByRole("link", { name: "Roles & permissions", exact: true }).click();
     await expect(page.getByRole("heading", { name: /Roles/, level: 1 })).toBeVisible();
     const text = await page.locator("main").innerText();
     const title = await page.title();

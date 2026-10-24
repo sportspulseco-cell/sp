@@ -18,14 +18,14 @@ const ITEMS: CommandItem[] = [
   { group: "Go to", label: "Dashboard", href: "/dashboard" },
   { group: "Go to", label: "Organizations", href: "/organizations" },
   { group: "Go to", label: "Users", href: "/users" },
-  { group: "Go to", label: "Persons", href: "/persons" },
+  { group: "Go to", label: "People", href: "/persons" },
   { group: "Go to", label: "Roles", href: "/roles" },
   { group: "Go to", label: "Audit", href: "/audit" },
   { group: "League", label: "Seasons", href: "/seasons" },
   { group: "League", label: "Leagues", href: "/leagues" },
   { group: "League", label: "Divisions", href: "/divisions" },
   { group: "League", label: "Teams", href: "/teams" },
-  { group: "Roster", label: "Memberships", href: "/rosters" },
+  { group: "Roster", label: "Rosters", href: "/rosters" },
   { group: "Compliance", label: "Registrations", href: "/registrations" },
   { group: "Compliance", label: "Forms", href: "/forms" },
   { group: "Compliance", label: "Documents", href: "/documents" },
@@ -33,7 +33,7 @@ const ITEMS: CommandItem[] = [
   { group: "Operations", label: "Games", href: "/games" },
   { group: "Operations", label: "Live games", href: "/games?status=in_play" },
   { group: "Operations", label: "Final scores", href: "/games?status=completed" },
-  { group: "Operations", label: "Game events", href: "/game-events" },
+  { group: "Operations", label: "Game log", href: "/game-events" },
   { group: "Analytics", label: "Player lines", href: "/stats?tab=lines" },
   { group: "Analytics", label: "Standings", href: "/stats?tab=standings" },
   { group: "Analytics", label: "Leaderboards", href: "/stats?tab=leaderboards" },
@@ -51,7 +51,7 @@ const ITEMS: CommandItem[] = [
   { group: "Admin", label: "Settings", href: "/admin?tab=settings" },
   { group: "Admin", label: "Feature flags", href: "/admin?tab=flags" },
   { group: "Admin", label: "Sports", href: "/admin?tab=sports" },
-  { group: "Admin", label: "Data Migration", href: "/data-migration" }
+  { group: "Admin", label: "Import data", href: "/data-migration" }
 ];
 
 export function CommandPaletteTrigger() {

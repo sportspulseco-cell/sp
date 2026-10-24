@@ -191,7 +191,7 @@ test.describe("J10 schedule generate and publish", () => {
     console.log(`[J10] sidebar Venues link visible without expanding a group: ${navVisible}`);
     if (navVisible) await navLink.click();
     else await page.goto(`${app}/venues`);
-    await expect(page.getByRole("heading", { name: /Venues, surfaces, ice slots/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Rinks & ice time/i })).toBeVisible();
 
     // SCH-9: opening the form before the org list loads leaves orgId = ""
     // forever (Create stays disabled while the select shows an org). Probe

@@ -58,10 +58,10 @@ const PLATFORM_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/organizations", label: "Organizations", icon: Building2 },
   { href: "/users", label: "Users", icon: Users },
-  { href: "/persons", label: "Persons", icon: UserCircle2 },
-  { href: "/roles", label: "Roles", icon: ShieldCheck },
-  { href: "/audit", label: "Audit", icon: ScrollText },
-  { href: "/admin", label: "Admin Console", icon: Settings2, superOnly: true }
+  { href: "/persons", label: "People", icon: UserCircle2 },
+  { href: "/roles", label: "Roles & permissions", icon: ShieldCheck },
+  { href: "/audit", label: "Activity log", icon: ScrollText },
+  { href: "/admin", label: "Platform settings", icon: Settings2, superOnly: true }
 ];
 
 const PROJECT_NAV: NavItem[] = [
@@ -73,28 +73,28 @@ const PROJECT_NAV: NavItem[] = [
   { href: "/leagues", label: "Leagues", icon: Trophy },
   { href: "/divisions", label: "Divisions", icon: Layers },
   { href: "/teams", label: "Teams", icon: Network },
-  { href: "/rosters", label: "Memberships", icon: ListChecks },
+  { href: "/rosters", label: "Rosters", icon: ListChecks },
 
-  { section: "Compliance" },
+  { section: "Registration" },
   { href: "/registrations", label: "Registrations", icon: ClipboardList },
-  { href: "/division-applications", label: "Division apps", icon: ClipboardList },
+  { href: "/division-applications", label: "Team applications", icon: ClipboardList },
   { href: "/transfers", label: "Transfers", icon: ShieldCheck },
   { href: "/no-show-report", label: "No-show report", icon: ClipboardList },
-  { href: "/forms", label: "Forms", icon: FileSignature },
-  { href: "/documents", label: "Documents", icon: FileSignature },
+  { href: "/forms", label: "Registration forms", icon: FileSignature },
+  { href: "/documents", label: "Waivers & documents", icon: FileSignature },
   { href: "/eligibility", label: "Eligibility", icon: ShieldCheck },
 
   { section: "Operations" },
   { href: "/scheduling", label: "Schedule", icon: CalendarClock },
-  { href: "/venues", label: "Venues", icon: Building2 },
+  { href: "/venues", label: "Rinks & ice time", icon: Building2 },
   { href: "/games", label: "Games", icon: CircleDot },
-  { href: "/game-events", label: "Game events", icon: Activity },
-  { href: "/stats", label: "Stats", icon: BarChart3 },
+  { href: "/game-events", label: "Game log", icon: Activity },
+  { href: "/stats", label: "Stats & standings", icon: BarChart3 },
   { href: "/finance", label: "Invoices", icon: Wallet },
-  { href: "/payments", label: "Finance ops", icon: Wallet },
-  { href: "/communications", label: "Communications", icon: MessageSquare },
+  { href: "/payments", label: "Payments & refunds", icon: Wallet },
+  { href: "/communications", label: "Messages", icon: MessageSquare },
   { href: "/reports", label: "Reports", icon: FileBarChart },
-  { href: "/data-migration", label: "Data Migration", icon: Database, superOnly: true }
+  { href: "/data-migration", label: "Import data", icon: Database, superOnly: true }
 ];
 
 export function Sidebar({ isSuperAdmin = true }: { isSuperAdmin?: boolean }) {
