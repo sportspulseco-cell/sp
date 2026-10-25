@@ -293,7 +293,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 152 total, 5 still open
+## Logged findings: 153 total, 4 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -332,7 +332,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | fixed in code, not deployed | commit 7235744: eligibility table refreshes after a sweep |
 | COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | fixed in code, not deployed | commit 356aeaf: waiver notifies player and captains; local API on staging |
 | COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | fixed in code, not deployed | commit 200733b: issue / lift suspensions; served games counted at finalize |
-| COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | open |  |
+| COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | fixed in code, not deployed | commit e49ba5c: league discipline rules (off until set), ejection on penalties, finalize issues + notifies, Change games override; kernel 105/105, local API 14/14; staging browser walk pending |
 | COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | fixed in code, not deployed | commit 200733b: captain compliance lists suspended players |
 | COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | fixed in code, not deployed | commit 200733b: lineup save refuses suspended starters/bench |
 | COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | fixed in code, not deployed | commit 200733b: sweep: missing data pending, suspension ineligible |
@@ -441,6 +441,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SETUP-14 | major | Admin lists and scope pickers silently stop at 25 rows | J1 (also affects J2 pickers) | fixed | users 83 of 83 shown; fetchAll everywhere (staging, 24 Oct) |
 | SETUP-8 | major | Invite email is never sent on staging; magic-link invite flashes "Invite sent" and can 500 | J2 | fixed in code, not deployed | commit 7235744: invite dialog says when the email was not sent |
 | SETUP-17 | minor | Role editing on the super_admin row shows "no role" until per-row fetches finish | J2 | fixed in code, not deployed | commits 834156f + 200733b: user type resolved on the server, super admin first |
+| SETUP-18 | major | Edit league opens with default privacy, time zone and colour, and saving resets them | found during the COMP-11 browser walk (26 Oct) | fixed in code, not deployed | commit e49ba5c: league API returns metadata so Edit league opens with saved values; API PATCH readback |
 | SETUP-4 | minor | Season status menu offers transitions the server always rejects | J1 | fixed | journey matrix 3a |
 | SETUP-3 | minor | Sport defaults to "Australian Rules Football" on a hockey platform | J1 | fixed | journey matrix 3a |
 | SETUP-5 | minor | "Add another division" adds a collapsed card, Publish silently disabled | J1 | fixed in code, not deployed | commit f412c60: a division added with Add another division opens expanded |

@@ -350,6 +350,8 @@ FIXED_IN_CODE = {
     "CONSOLE-17": "commit ba6ad79: keyset paging matches sort order (games, invoices, assignments, notifications, events, imports, roles); walked staging 8/8 exact",
     "REG-27": "commit 52d6726: /org-admin/forms accepts limit + cursor; org season overview loads forms; API 200 (40 = db), browser 2/2",
     "SCH-28": "commit a79aa34: kernel formatInZone; game times in the rink zone on server pages; kernel 91/91, browsers in 2 zones 21/21",
+    "COMP-11": "commit e49ba5c: league discipline rules (off until set), ejection on penalties, finalize issues + notifies, Change games override; kernel 105/105, local API 14/14; staging browser walk pending",
+    "SETUP-18": "commit e49ba5c: league API returns metadata so Edit league opens with saved values; API PATCH readback",
     "SCH-27": "commit fdae576: bracket refusal says team count, size needed and next step; browser 3/3",
     "CONSOLE-16": "commit 5ed4be7: 28 locale-less format calls pin en-US; no #418 in en-US or en-IN across 4 apps (browser 32/32)",
     "CONSOLE-15": "commit 6e57b35: retry job sends queued rows from the last 24h; flush skips stale; local API on staging 14/14",
