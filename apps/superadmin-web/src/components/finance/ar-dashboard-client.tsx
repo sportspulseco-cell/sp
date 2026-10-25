@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   TBody,
@@ -114,14 +114,6 @@ export function ArDashboardClient({
             onChange={(orgId) => navigate({ orgId, page: 1 })}
           />
         </div>
-        {/* Shared composer (same one org-admin-web uses). */}
-        <Link
-          href="/finance/create"
-          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02]"
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-          New invoice
-        </Link>
       </div>
 
       {/* KPI tiles — mock 1 */}
