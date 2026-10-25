@@ -31,7 +31,20 @@ export class DomainExceptionFilter implements ExceptionFilter {
       this.logger.error(message, (exception as Error)?.stack);
     }
 
-    res.status(status).send({ error: { code, message } });
+    // Field-level details a handler attached on purpose (e.g. the
+    // duplicate-team guard's `existingTeamId`) travel with the error;
+    // they used to be dropped, so the form lost its "Use existing team"
+    // link (SCH-19). Only 4xx, only an explicit `errors` array.
+    const errors = status < 500 ? this.fieldErrors(exception) : undefined;
+    res.status(status).send({ error: { code, message, ...(errors ? { errors } : {}) } });
+  }
+
+  private fieldErrors(exception: unknown): unknown[] | undefined {
+    if (!(exception instanceof HttpException)) return undefined;
+    const response = exception.getResponse();
+    if (typeof response !== "object" || response === null) return undefined;
+    const errors = (response as { errors?: unknown }).errors;
+    return Array.isArray(errors) ? errors : undefined;
   }
 
   private mapException(exception: unknown): {

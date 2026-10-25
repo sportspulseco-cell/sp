@@ -173,7 +173,7 @@ export function NewTeamForm({
       if (e.status === 409 && typeof e.body === "string") {
         try {
           const parsed = JSON.parse(e.body);
-          const dup = (parsed?.errors as Array<{ existingTeamId?: string }>)?.[0];
+          const dup = ((parsed?.error?.errors ?? parsed?.errors) as Array<{ existingTeamId?: string }> | undefined)?.[0];
           if (dup?.existingTeamId) {
             setExistingTeamId(dup.existingTeamId);
             setError(
