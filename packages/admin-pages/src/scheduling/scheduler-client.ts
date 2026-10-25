@@ -542,6 +542,12 @@ async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
         ) {
           // The bracket generator's refusal, in words with the next step.
           extracted = `This division has ${parsed.have} team${parsed.have === 1 ? "" : "s"}. A Top ${parsed.required} bracket needs ${parsed.required}. Pick a smaller bracket or add teams.`;
+        } else if (
+          parsed?.error === "insufficient_playoff_slots" &&
+          typeof parsed.required === "number" &&
+          typeof parsed.have === "number"
+        ) {
+          extracted = `This bracket needs ${parsed.required} playoff ice slots in the season; ${parsed.have} ${parsed.have === 1 ? "is" : "are"} marked. In Rinks & ice time, tick Playoff ice on the slots to use.`;
         } else if (parsed && typeof parsed.error === "string") {
           extracted = parsed.error;
         }

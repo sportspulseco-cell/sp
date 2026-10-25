@@ -484,6 +484,9 @@ staging is no longer near-empty, which is also what PPHL production looks like.
     Pick a smaller bracket or add teams." J10 now treats this refusal as correct and checks it is explained.
   Evidence: browser on the local app against staging, scratchpad regfa/walk-bracket-refusal.mjs 3/3 (422 written nothing).
   Not done: the size picker still defaults to Top 8 whatever the division's team count (the screen does not load counts).
+  Second refusal (deployed staging J10, 25 Oct): "insufficient_playoff_slots" (a Top 8 bracket needs 7 playoff ice slots,
+    0 marked) also showed the raw code. Now: "This bracket needs 7 playoff ice slots in the season; 0 are marked. In Rinks &
+    ice time, tick Playoff ice on the slots to use." (the checkbox there is labelled "Playoff ice"). Browser 6/6, Top 8 and Top 4.
 
 [SCH-28] Game times on server-rendered pages show the server's clock (UTC on Vercel), not the rink's · major
   Journey: J10 SCH-6 follow-up (25 Oct); confirmed on deployed staging (Vercel) with the same code production runs.
