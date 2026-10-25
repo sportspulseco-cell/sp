@@ -25,6 +25,7 @@ Generated 2026-10-26 by `doc/traceability/build.py`. Every status comes from a b
 - Crawl **staging-24355fb** as **superAdmin**: 129 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-24355fb** as **teamAdmin**: 16 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-5986398** as **leagueAdmin**: 87 pages, 0 404/error, 0 with a failed API call.
+- Crawl **staging-5986398** as **orgAdmin**: 70 pages, 21 404/error, 0 with a failed API call.
 - Crawl **staging-5986398** as **player**: 21 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-5986398** as **superAdmin**: 128 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-5986398** as **teamAdmin**: 21 pages, 0 404/error, 0 with a failed API call.
@@ -56,25 +57,25 @@ Generated 2026-10-26 by `doc/traceability/build.py`. Every status comes from a b
 - Journey **blockers-oct24** on **staging**: 6 of 6 steps pass
 - Journey **blockers-oct24-b** on **staging**: 6 of 12 steps pass; failing: item 2: edit league, add a season, edit season, add a division, edit d; item 2: edit league, add a season, edit season, add a division, edit d
 - Journey **blockers-oct24-c** on **staging**: 6 of 6 steps pass
-- Journey **j01-setup** on **staging**: 8 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations; 8. venues: super_admin adds a venue for the new org; open findings: SETUP
+- Journey **j01-setup** on **staging**: 9 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations; open findings: SETUP
 - Journey **j02-invite** on **staging**: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope + profile in; open findings: SETUP
 - Journey **j03-form** on **staging**: 11 of 11 steps pass
 - Journey **j04-player-registration** on **staging**: 10 of 13 steps pass; failing: 10 · unhappy: 'Sign in' tab resumes another user's registration withou
 - Journey **j05-minor-consent** on **staging**: 6 of 6 steps pass
 - Journey **j06-free-agent** on **staging**: 20 of 30 steps pass; failing: J6.1 free agent lists themself for the team's current season; J6.1 free agent lists themself for the team's current season
-- Journey **j07-team-application** on **staging**: 45 of 55 steps pass; failing: J7.10 player-web captain entry deep-links to team-admin (no duplicate ; J7.4 captain finds the open season and applies to division A
+- Journey **j07-team-application** on **staging**: 53 of 55 steps pass; failing: J7.10 player-web captain entry deep-links to team-admin (no duplicate 
 - Journey **j08-captain-invite** on **staging**: 19 of 35 steps pass; failing: J8.0 fixture: plain player gets the player role from super_admin and o; J8.0 fixture: plain player gets the player role from super_admin and o; J8.5 captain adds the plain player by name; player sees the team; capt
 - Journey **j09-eligibility** on **staging**: 8 of 8 steps pass; open findings: COMP
 - Journey **j10-schedule** on **staging**: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player; open findings: SCH
 - Journey **j11-game-stats** on **staging**: 1 of 2 steps pass; failing: J11 journey: lineup → events → finalize → stats; open findings: SCH
 - Journey **j12-suspension** on **staging**: 5 of 5 steps pass; open findings: COMP
-- Journey **j13-finance** on **staging**: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-scope invoic; 12. org-admin @ org-admin-web /finance parity and isolation; 3. /finance/create composer: individual picker, then team-scope invoic; 12. org-admin @ org-admin-web /finance parity and isolation
+- Journey **j13-finance** on **staging**: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-scope invoic; 12. org-admin @ org-admin-web /finance parity and isolation; 3. /finance/create composer: individual picker, then team-scope invoic; 12. org-admin @ org-admin-web /finance parity and isolation; 3. /finance/create composer: individual picker, then team-scope invoic; 12. org-admin @ org-admin-web /finance parity and isolation
 - Journey **j14-dues-split** on **staging**: 4 of 20 steps pass; failing: 2. a team-scope invoice from the admin composer reaches the captain du; 3. split controls: even + custom split persist; per-player remind work; 5. captain 'Remind all unpaid' writes reminders that admins can see in; 2. a team-scope invoice from the admin composer reaches the captain du; 3. split controls: even + custom split persist; per-player remind work; 5. captain 'Remind all unpaid' writes reminders that admins can see in; 2. a team-scope invoice from the admin composer reaches the captain du; 2. a team-scope invoice from the admin composer reaches the captain du
 - Journey **j15-comms** on **staging**: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-19 fields; 3. player @ player-web /notifications receives the announcement and ma; 4. player notification settings toggle persists; 5. super_admin @ /communications outbox shows the broadcast; templates; 6. captain @ team-admin /comms can message the team (UC-20); 1. org_admin finds Communications → Compose and sees the UC-19 fields; 4. player notification settings toggle persists; 5. super_admin @ /communications outbox shows the broadcast; templates; 6. captain @ team-admin /comms can message the team (UC-20)
 - Journey **j16-store** on **staging**: 1 of 3 steps pass; failing: 1. captain adds a product at team-admin /captain/store; 2. player @ player-web /store sees the product and tries to order it (
 - Journey **j17-isolation** on **staging**: 9 of 45 steps pass; failing: 1. super_admin builds org B (league/season/division/team) and a siblin; 1. super_admin builds org B (league/season/division/team) and a siblin; 1. super_admin builds org B (league/season/division/team) and a siblin; 1. super_admin builds org B (league/season/division/team) and a siblin
 - Journey **league-admin-console** on **staging**: 5 of 6 steps pass; failing: league admin: every console page loads with data, none says 404 or acc
-- Journey **list-filters** on **staging**: 4 of 6 steps pass; failing: superadmin list pages: search + filters; org-admin list pages: search + filters
+- Journey **list-filters** on **staging**: 3 of 6 steps pass; failing: superadmin list pages: search + filters; org-admin list pages: search + filters; org-admin list pages: search + filters
 - Journey **pdf-items** on **staging**: 15 of 18 steps pass; failing: item 3: forms page has search, org and scope filters; no version ids
 - Journey **static-routes** on **staging**: 4 of 4 steps pass
 - Journey **team-movement** on **staging**: 3 of 3 steps pass
@@ -84,11 +85,11 @@ Generated 2026-10-26 by `doc/traceability/build.py`. Every status comes from a b
 | Status | All 78 FRs | Release 1 core | Release 1 if works | Later |
 |---|---|---|---|---|
 | Working | 3 | 2 | 1 | 0 |
-| Partly working | 36 | 15 | 19 | 2 |
+| Partly working | 30 | 13 | 15 | 2 |
 | Fixed on staging, pending production | 0 | 0 | 0 | 0 |
 | Degraded | 0 | 0 | 0 | 0 |
-| Renders, flow untested | 12 | 0 | 4 | 8 |
-| Broken | 0 | 0 | 0 | 0 |
+| Renders, flow untested | 10 | 0 | 4 | 6 |
+| Broken | 8 | 2 | 4 | 2 |
 | No evidence | 0 | 0 | 0 | 0 |
 | Not built | 31 | 0 | 0 | 31 |
 
@@ -125,12 +126,12 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 
 | FR | Module | Tier | Status | Requirement | Use cases | Journeys | Evidence |
 |---|---|---|---|---|---|---|---|
-| FR-3.1.1 | M8 | core | **Partly working** | Display real-time AR dashboard with team and player balances. | UC-15, UC-17 | J13 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
-| FR-3.1.2 | M8 | core | **Partly working** | Track unpaid balances, payment plans, and overdue amounts. | UC-15, UC-18 | J13, J14 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging); J14: 4 of 20 steps pass; failing: 2. a team-scope invoice from the admin composer reaches the ; 3. split controls: even + custom split persist; per-player r (staging) |
-| FR-3.1.3 | M8 | r1 | **Partly working** | Send automated reminders for overdue payments (email/SMS). | UC-18 | J13 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
+| FR-3.1.1 | M8 | core | **Partly working** | Display real-time AR dashboard with team and player balances. | UC-15, UC-17 | J13 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
+| FR-3.1.2 | M8 | core | **Partly working** | Track unpaid balances, payment plans, and overdue amounts. | UC-15, UC-18 | J13, J14 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging); J14: 4 of 20 steps pass; failing: 2. a team-scope invoice from the admin composer reaches the ; 3. split controls: even + custom split persist; per-player r (staging) |
+| FR-3.1.3 | M8 | r1 | **Partly working** | Send automated reminders for overdue payments (email/SMS). | UC-18 | J13 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
 | FR-3.1.4 | M17 | r1 | **Renders, flow untested** | Export financial reports in CSV/PDF for accounting. | UC-17, UC-18 | — | 6 route(s) load in the crawl; no journey run yet |
-| FR-3.1.5 | M8 | r1 | **Partly working** | Support discount codes, family caps, and installment plans. | UC-15 | J13 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
-| FR-3.1.6 | M8 | r1 | **Partly working** | Apply late fees and charges for failed payments automatically. | UC-18 | J13 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
+| FR-3.1.5 | M8 | r1 | **Partly working** | Support discount codes, family caps, and installment plans. | UC-15 | J13 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
+| FR-3.1.6 | M8 | r1 | **Partly working** | Apply late fees and charges for failed payments automatically. | UC-18 | J13 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
 | FR-3.1.7 | M6 | core | **Partly working** | Support offline payment logging. | UC-15 | J4 | J4: 10 of 13 steps pass; failing: 10 · unhappy: 'Sign in' tab resumes another user's registrat (staging) |
 | FR-3.1.8 | M8 | core | **Partly working** | Allow partial captain overrides with system safety checks. | UC-16 | J14 | J14: 4 of 20 steps pass; failing: 2. a team-scope invoice from the admin composer reaches the ; 3. split controls: even + custom split persist; per-player r (staging) |
 | FR-3.1.9 | M8 | later | **Not built** | Integrate with QuickBooks for financial syncing. | UC-17 | — | Deferred to a later release; no screen claimed. |
@@ -157,16 +158,16 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | FR-3.5.3 | M14 | core | **Partly working** | Display leaderboards by team, player, division. | UC-13 | J11 | J11: 1 of 2 steps pass; failing: J11 journey: lineup → events → finalize → stats (staging); open findings SCH |
 | FR-3.5.4 | M13 | r1 | **Partly working** | Support attendance tracking and misconduct reports. | UC-14 | J11 | J11: 1 of 2 steps pass; failing: J11 journey: lineup → events → finalize → stats (staging); open findings SCH |
 | FR-3.5.5 | M11 | r1 | **Working** | Allow sub-rosters and suspension tracking with auto-expiration. | UC-14 | J12 | J12: all 5 steps pass (staging); open findings COMP |
-| FR-3.6.1 | M8 | r1 | **Partly working** | Player wallet for credits/gift cards. | UC-15, UC-17 | J13 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
-| FR-3.6.2 | M8 | r1 | **Partly working** | Credits usable for fees, tournaments, or apparel. | UC-15, UC-17 | J13 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
+| FR-3.6.1 | M8 | r1 | **Partly working** | Player wallet for credits/gift cards. | UC-15, UC-17 | J13 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
+| FR-3.6.2 | M8 | r1 | **Partly working** | Credits usable for fees, tournaments, or apparel. | UC-15, UC-17 | J13 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging) |
 | FR-3.6.3 | M8 | later | **Not built** | Transferable balances between users. | UC-17 | — | Deferred to a later release; no screen claimed. |
 | FR-3.7.1 | M16 | later | **Not built** | Auto-generate team store based on roster. | UC-25 | J16 | Deferred to a later release; no screen claimed. |
 | FR-3.7.2 | M16 | later | **Not built** | Integrate with Shopify for fulfillment. | UC-25, UC-26 | J16 | Deferred to a later release; no screen claimed. |
 | FR-3.7.3 | M16 | later | **Not built** | Support seasonal ordering windows and jersey color selection. | UC-26 | J16 | Deferred to a later release; no screen claimed. |
-| FR-3.8.1 | M12 | core | **Partly working** | Input available rink times and restrictions. | UC-06 | J10 | J10: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player (staging); open findings SCH |
-| FR-3.8.2 | M12 | core | **Partly working** | Auto-generate balanced schedules. | UC-06 | J10 | J10: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player (staging); open findings SCH |
+| FR-3.8.1 | M12 | core | **Broken** | Input available rink times and restrictions. | UC-06 | J10 | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
+| FR-3.8.2 | M12 | core | **Broken** | Auto-generate balanced schedules. | UC-06 | J10 | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
 | FR-3.8.3 | M12 | later | **Not built** | Track ice usage and utilization. | UC-06 | — | Deferred to a later release; no screen claimed. |
-| FR-3.8.4 | M12 | r1 | **Partly working** | Support blackout times, league vs. tournament modes. | UC-06, UC-07 | J10 | J10: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player (staging); open findings SCH |
+| FR-3.8.4 | M12 | r1 | **Broken** | Support blackout times, league vs. tournament modes. | UC-06, UC-07 | J10 | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
 | FR-3.9.1 | M20 | later | **Renders, flow untested** | Auto-assign refs based on availability and skill. | UC-30 | — | 1 route(s) load in the crawl; no journey run yet |
 | FR-3.9.2 | M20 | later | **Renders, flow untested** | Notify refs of changes via SMS/app. | UC-30, UC-21 | — | 1 route(s) load in the crawl; no journey run yet |
 | FR-3.9.3 | M20 | later | **Renders, flow untested** | Dashboard for assigners with override rights. | UC-30 | — | 1 route(s) load in the crawl; no journey run yet |
@@ -176,28 +177,28 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | FR-3.11.2 | M10 | core | **Partly working** | Edit jersey numbers, contact info. | UC-04 | J8 | J8: 19 of 35 steps pass; failing: J8.0 fixture: plain player gets the player role from super_a; J8.0 fixture: plain player gets the player role from super_a (staging) |
 | FR-3.11.3 | M11 | later | **Renders, flow untested** | Auto-track playoff eligibility. | UC-09 | — | 5 route(s) load in the crawl; no journey run yet |
 | FR-3.11.4 | M17 | later | **Renders, flow untested** | Import/export roster tools. | UC-04 | — | 6 route(s) load in the crawl; no journey run yet |
-| FR-3.12.1 | M3 | core | **Partly working** | Multi-level navigation (Org > League > Division > Team). | — | J1 | J1: 8 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations (staging); open findings SETUP |
+| FR-3.12.1 | M3 | core | **Partly working** | Multi-level navigation (Org > League > Division > Team). | — | J1 | J1: 9 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations (staging); open findings SETUP |
 | FR-3.12.2 | M3 | r1 | **Renders, flow untested** | Breadcrumbs and site map for easy navigation. | — | — | 12 route(s) load in the crawl; no journey run yet |
-| FR-3.13.1 | M12 | r1 | **Partly working** | Define points per win/tie/OT. | UC-09 | J10 | J10: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player (staging); open findings SCH |
-| FR-3.13.2 | M12 | r1 | **Partly working** | Auto-generate playoff brackets. | UC-09 | J10 | J10: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player (staging); open findings SCH |
-| FR-3.13.3 | M12 | r1 | **Partly working** | Publish games to schedules. | UC-09 | J10 | J10: 1 of 2 steps pass; failing: J10 journey: venues → generate → publish → captain/player (staging); open findings SCH |
+| FR-3.13.1 | M12 | r1 | **Broken** | Define points per win/tie/OT. | UC-09 | J10 | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
+| FR-3.13.2 | M12 | r1 | **Broken** | Auto-generate playoff brackets. | UC-09 | J10 | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
+| FR-3.13.3 | M12 | r1 | **Broken** | Publish games to schedules. | UC-09 | J10 | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
 | FR-3.14.1 | M12 | later | **Not built** | Online registration with payment for pickup games. | UC-10 | — | Deferred to a later release; no screen claimed. |
 | FR-3.14.2 | M12 | later | **Not built** | Cap number of skaters/goalies. | UC-10 | — | Deferred to a later release; no screen claimed. |
 | FR-3.14.3 | M12 | later | **Not built** | Auto-balance teams by skill rating. | UC-10 | — | Deferred to a later release; no screen claimed. |
 | FR-3.14.4 | M12 | later | **Not built** | Waitlist functionality. | UC-10 | — | Deferred to a later release; no screen claimed. |
 | FR-3.15.1 | M12 | later | **Not built** | Tournament landing pages. | UC-09 | — | Deferred to a later release; no screen claimed. |
-| FR-3.15.2 | M12 | later | **Renders, flow untested** | Automated roster validation. | UC-05 | — | 24 route(s) load in the crawl; no journey run yet |
+| FR-3.15.2 | M12 | later | **Broken** | Automated roster validation. | UC-05 | — | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
 | FR-3.15.3 | M12 | later | **Not built** | Scheduling software with fair matchups. | UC-06 | — | Deferred to a later release; no screen claimed. |
 | FR-3.15.4 | M12 | later | **Not built** | Mobile-first score updates. | UC-11 | — | Deferred to a later release; no screen claimed. |
-| FR-3.15.5 | M12 | later | **Renders, flow untested** | License scan for ID checks. | UC-29 | — | 24 route(s) load in the crawl; no journey run yet |
+| FR-3.15.5 | M12 | later | **Broken** | License scan for ID checks. | UC-29 | — | Route 404/error in the latest staging crawl (staging-5986398): OA/scheduling/:id/conflicts, OA/scheduling/:id/runs, OA/scheduling/:id/rinks, OA/scheduling/:id/verify |
 | FR-3.16.1 | M21 | later | **Not built** | Parents can manage multiple children/teams. | UC-32, UC-33 | — | Deferred to a later release; no screen claimed. |
 | FR-3.16.2 | M21 | later | **Not built** | Sync calendar, payments, messages across linked accounts. | UC-32 | — | Deferred to a later release; no screen claimed. |
 | FR-3.17.1 | M15 | later | **Partly working** | Built-in chat, SMS, email. | UC-20 | J15 | J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
 | FR-3.17.2 | M15 | r1 | **Partly working** | Announcements from captains/coaches. | UC-19, UC-20 | J15 | J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
-| FR-3.17.3 | M15 | r1 | **Partly working** | Auto-reminders for payments and games. | UC-18, UC-21 | J13, J15 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging); J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
+| FR-3.17.3 | M15 | r1 | **Partly working** | Auto-reminders for payments and games. | UC-18, UC-21 | J13, J15 | J13: 21 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging); J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
 | FR-3.18.1 | M5 | core | **Working** | Custom forms for waivers, evaluations, feedback. | UC-27 | J3 | J3: all 11 steps pass (staging) |
 | FR-3.18.2 | M17 | r1 | **Renders, flow untested** | Export form data to CSV. | — | — | 6 route(s) load in the crawl; no journey run yet |
-| FR-3.19.1 | M2 | core | **Partly working** | Full CMS-style admin dashboard. | — | J1, J2 | J1: 8 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations (staging); open findings SETUP; J2: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope +  (staging); open findings SETUP |
+| FR-3.19.1 | M2 | core | **Partly working** | Full CMS-style admin dashboard. | — | J1, J2 | J1: 9 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations (staging); open findings SETUP; J2: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope +  (staging); open findings SETUP |
 | FR-3.19.2 | M1 | core | **Partly working** | Role-based permissions (RBAC). | — | J2, J17 | J2: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope +  (staging); open findings SETUP; J17: 9 of 45 steps pass; failing: 1. super_admin builds org B (league/season/division/team) an; 1. super_admin builds org B (league/season/division/team) an (staging) |
 | FR-3.19.3 | M17 | r1 | **Renders, flow untested** | Audit logs and activity tracking. | UC-29, UC-17 | — | 6 route(s) load in the crawl; no journey run yet |
 | FR-3.19.4 | M15 | later | **Not built** | Email marketing (built-in or Mailchimp API). | UC-19 | — | Deferred to a later release; no screen claimed. |
@@ -266,6 +267,27 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-24355fb / orgAdmin** `/seasons/922061b1-3ad4-47d9-9223-88d8271b0251` → could not load — reached from `/`
 - **staging-24355fb / orgAdmin** `/seasons/0011ad49-bcdc-4214-ac95-6a77c53d3f46` → could not load — reached from `/`
 - **staging-24355fb / orgAdmin** `/seasons/2d8f4c99-711d-42c1-9e9f-89659f54e62c` → could not load — reached from `/`
+- **staging-5986398 / orgAdmin** `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/tournament` → error — reached from `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/runs` → error — reached from `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/verify` → error — reached from `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/conflicts` → error — reached from `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/fairness` → error — reached from `/scheduling/0011ad49-bcdc-4214-ac95-6a77c53d3f46/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/rinks` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/parity` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/playoffs` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/tournament` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/runs` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/verify` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/conflicts` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/fairness` → error — reached from `/scheduling/00e880b1-fb0b-4b99-a30d-c77d9f8fd010/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/rinks` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/parity` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/playoffs` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/tournament` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/runs` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/verify` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/conflicts` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
+- **staging-5986398 / orgAdmin** `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/fairness` → error — reached from `/scheduling/04d0854b-215d-4404-b179-bab54f91db42/generate`
 - **staging-before-fixes / leagueAdmin** `/users` → error — reached from `/`
 - **staging-before-fixes / leagueAdmin** `/registrations` → API failure (403 GET /api/registration-v2/admin/submissions?statuses=pending_review%2Cpending_offline&limit=100) — reached from `/`
 - **staging-before-fixes / leagueAdmin** `/division-applications` → API failure (403 GET /api/league/division-team-entries?status=pending_approval%2Capplied) — reached from `/`
@@ -297,7 +319,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 154 total, 3 still open
+## Logged findings: 155 total, 1 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -374,7 +396,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | MON-12 | major | Captain team message (UC-20) not built | J15 · UC-20 | fixed in code, not deployed | commit 356aeaf: captain team message; local API on staging 14 recipients, replay idempotent, non-captain 404 |
 | MON-13 | major | League announcement compose is missing UC-19 fields | J15 · UC-19 | fixed in code, not deployed | commit 370cb34: compose targets org/league/season/division/team (schedule-later not built) |
 | MON-14 | major | Game-change notifications to players (UC-21) not built | J15 · UC-21 | fixed in code, not deployed | commit 974a8d5: postpone/cancel notify both teams of a published game; confirm dialog; browser walk on local superadmin-web |
-| MON-15 | major | Team store: players cannot order; no roster-generated store | J16 · UC-25, UC-26 | open |  |
+| MON-15 | major | Team store: players cannot order; no roster-generated store | J16 · UC-25, UC-26 | fixed in code, not deployed | commit 8663a4a + migration 0056: generate store from roster, cart, order with name/number, invoice paid on Payments (mock), captain fulfilment; local API 21/21, browser 13/13 |
 | MON-16 | minor | Captain register page claims dues are set up when they are not; dues page points back to it | J14 · UC-16 | fixed in code, not deployed | commit 328888e: confirmed-without-invoice says dues were not set up here |
 | MON-17 | minor | Finance ops page shows fabricated QuickBooks activity and another org's name | J13 · UC-18 | fixed | journey matrix 3a |
 | MON-18 | minor | Internal notes, receipt and update card are stubs | J13 · UC-15, UC-17 | fixed in code, not deployed | commits c9b4561 + a8812b2: note endpoint (local API 4/4, browser saves), printable receipt, no fake card update |
@@ -384,6 +406,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | MON-22 | major | Players are never told an invoice was issued | J13 step 3 (local build against staging, 25 Oct) · UC-15 | fixed in code, not deployed | commit 3642294: invoice issued notice; local API on staging 4/4 |
 | MON-23 | major | An admin "team" invoice never reaches the captain's Dues screen | J14 step 2 (local build against staging, 25 Oct) · UC-16 | fixed in code, not deployed | commit 398a1c1: Team invoice to the captain, split on Dues into player shares; no double counting; end to end 17/17, J14 5/5 |
 | MON-24 | major | Super admin Finance: search, filters and paging do nothing | J13 step 5 (local build against staging, 25 Oct) | fixed in code, not deployed | commit 3f057e0: Finance filters push /finance, old address keeps its query, pager total only when unfiltered; browser 6/6 |
+| MON-25 | major | Bulk invoices fail for good once any invoice of the year is deleted |  | fixed in code, not deployed | commit a9c2fd2: invoice numbers from one helper under a per-org lock (bulk composer failed once any invoice was deleted); 3/3 with the gap, MON-23 walk 17/17 |
 | REG-1 | blocker | Funnel "Sign in" never checks the password — anyone can open another player's registration | J4 · UC-01 | fixed | journey matrix 3a |
 | REG-2 | blocker | "Create account" with an existing email and any password registers as that user | J4 · UC-01 | fixed | journey matrix 3a |
 | REG-3 | blocker | Payment is a client-controlled mock: no card, "PAID" invoice, plan deposit records full price | J4 · UC-01, UC-15 | accepted (decision) | Founder decision 25 Oct 2026: mock payments while PPHL tests (see MON-10) |
@@ -401,7 +424,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-15 | major | Guardian consent page has no signature and stores no consent record | J5 · UC-28 | fixed in code, not deployed | commit 200733b: guardian consent records typed name, text, IP, browser |
 | REG-16 | major | Funnel accepts registrations before the window opens | J4 | fixed in code, not deployed | commit b3c8998: window enforced before any write |
 | REG-17 | major | Review queues: org admin rows unreadable, Approve offered on unreviewable rows; SA counters wrong | J4, J5 | fixed | journey matrix 3a |
-| REG-18 | minor | Duplicate config sources in the form builder | J3 | open |  |
+| REG-18 | major | Duplicate config sources in the form builder | J3 | fixed in code, not deployed | commits 25e4898 + c86c90b (+ bda4634, 88f4fa7): prices offered only to their divisions, checked at the price step and at payment; one waiver editor; local API 10/10, browser 6/6 + 5/5 |
 | REG-19 | minor | Pricing tier editor is raw cents and missing plan controls | J3 · UC-01 "installment" | fixed in code, not deployed | commits 408fec2 + 3ee7809: prices in dollars; new tier live in an open season (local API on staging: open=active, draft=off) |
 | REG-20 | minor | New form dialog: no season picker; org_admin offered "Super Admin" audience | J3 | fixed in code, not deployed | commit 5532b52: season picked in the New form dialog; Super Admin not offered as audience |
 | REG-21 | minor | Skill level enum differs between division setup and funnel | J4 | fixed in code, not deployed | commit 8716aa9: one A-D skill level list in the kernel; C1/C2/C3 mapped on read and write |
