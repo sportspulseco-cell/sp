@@ -12,7 +12,7 @@ production had no single record of what was applied.
 | Schema (source of truth) | `packages/db/src/schema/*.ts` | Drizzle tables; the API's queries are typed from it |
 | Migration files | `packages/db/migrations/NNNN_name.sql` (+ `NNNN_name.rollback.sql`) | Idempotent SQL; the rollback is never applied automatically |
 | Drizzle baseline | `migrations/meta/_journal.json` + latest `NNNN_snapshot.json` | Lets `drizzle-kit generate` draft only real new changes |
-| Runner | `packages/db/src/migrate-manual.ts` | Applies pending files 0014+ and records each in `public.manual_migrations` (filename, sha256) |
+| Runner | `packages/db/src/migrate-manual.ts` | Applies pending files 0014+ and records each in `public.manual_migrations` (filename, sha256). A recorded file whose content changes stops the run; a change of line endings only (git core.autocrlf) does not |
 | Drift check | `packages/db/src/check-schema-drift.ts` | Fails if a Drizzle table/column is missing or differs (type, nullability) in the live DB |
 | Connections | `packages/db/src/db-target.ts` | Staging: `DATABASE_URL` (direct host or IPv4 session pooler, must name `STAGING_SUPABASE_REF`). Production: Supabase Management API with `SUPABASE_ACCESS_TOKEN`, `PROD_SUPABASE_REF`, and `--confirm-production` |
 

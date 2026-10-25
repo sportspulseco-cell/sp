@@ -43,6 +43,14 @@ const option = (name: string) =>
 const target = readTarget();
 const quote = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+
+/** The recorded hash matches this body with LF or with CRLF line endings. */
+function sameMigration(recorded: string, body: string): boolean {
+  const lf = body.replace(/\r\n/g, "\n");
+  return recorded === sha256(body) || recorded === sha256(lf) || recorded === sha256(lf.replace(/\n/g, "\r\n"));
+}
+
 function files(): Array<{ filename: string; body: string; sha256: string; number: number }> {
   return readdirSync("./migrations")
     .filter((n) => /^\d{4}_.+\.sql$/.test(n) && !n.endsWith(".rollback.sql"))
@@ -52,7 +60,7 @@ function files(): Array<{ filename: string; body: string; sha256: string; number
         filename,
         body,
         number: Number(filename.slice(0, 4)),
-        sha256: createHash("sha256").update(body).digest("hex")
+        sha256: sha256(body)
       };
     })
     .filter((f) => f.number >= FIRST_MANUAL)
@@ -94,7 +102,9 @@ async function main() {
     const all = files();
     for (const f of all) {
       const prev = recorded.get(f.filename);
-      if (prev && prev !== f.sha256) {
+      // Git on Windows (core.autocrlf) can rewrite a file's line endings
+      // after it was applied; that is not a change to the migration.
+      if (prev && !sameMigration(prev, f.body)) {
         throw new Error(`${f.filename} changed after it was applied (${target}). Add a new migration instead.`);
       }
     }
