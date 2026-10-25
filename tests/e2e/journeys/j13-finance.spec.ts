@@ -195,7 +195,7 @@ test("3. /finance/create composer: individual picker, then team-scope invoices A
     await p.getByPlaceholder("0.00").first().fill(amt);
     await p.locator("input[type='date']").fill(inTwoDaysIso());
     const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
-    await p.getByRole("button", { name: "Create invoice" }).click();
+    await p.getByRole("button", { name: /^(Create and send|Create invoice)$/ }).click();
     const resp = await respP;
     const json = await resp.json().catch(() => ({}));
     log(`composer create ${desc} →`, resp.status(), JSON.stringify(json).slice(0, 200));
@@ -494,7 +494,7 @@ test("12. org-admin @ org-admin-web /finance parity and isolation", async ({ bro
     await p.getByPlaceholder("0.00").first().fill("12.34");
     await p.locator("input[type='date']").fill(inTwoDaysIso());
     const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
-    await p.getByRole("button", { name: "Create invoice" }).click();
+    await p.getByRole("button", { name: /^(Create and send|Create invoice)$/ }).click();
     const resp = await respP;
     const t = await resp.text();
     log("org-admin composer create →", resp.status(), t.slice(0, 200));
