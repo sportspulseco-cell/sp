@@ -28,6 +28,20 @@ interface Props {
   divisions: Division[];
   /** Team id to name, so violations show names instead of ids. */
   teamNames?: Record<string, string>;
+  /**
+   * Publish through the API (SCH-8): the games go on every team's schedule
+   * and each team's people get one notice. Each app binds its SDK here.
+   */
+  publishSchedule?: (req: {
+    seasonId: string;
+    divisionId?: string;
+    scheduleRunId?: string;
+  }) => Promise<{
+    gamesPublished: number;
+    publishedAt: string;
+    teamsNotified: number;
+    notificationsQueued: number;
+  }>;
 }
 
 type RunStatus = GenerateResponse["status"];
@@ -50,7 +64,7 @@ function StatusIcon({ status }: { status: RunStatus }) {
   return <XCircle className={cls} strokeWidth={1.75} />;
 }
 
-export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {} }: Props) {
+export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, publishSchedule }: Props) {
   const [divisionId, setDivisionId] = useState(divisions[0]?.id ?? "");
   const [gamesPerPair, setGamesPerPair] = useState("1");
   const [timeLimit, setTimeLimit] = useState("60");
@@ -64,6 +78,8 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {} }: 
   const [publishResult, setPublishResult] = useState<{
     gamesPublished: number;
     publishedAt: string;
+    teamsNotified?: number;
+    notificationsQueued?: number;
   } | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
 
@@ -122,10 +138,15 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {} }: 
     setPublishError(null); setPublishResult(null);
     setPublishing(true);
     try {
-      const res = await scheduler.publish({
-        seasonId, divisionId, scheduleRunId: result.runId
-      });
-      setPublishResult({ gamesPublished: res.gamesPublished, publishedAt: res.publishedAt });
+      if (publishSchedule) {
+        const res = await publishSchedule({ seasonId, divisionId, scheduleRunId: result.runId });
+        setPublishResult(res);
+      } else {
+        const res = await scheduler.publish({
+          seasonId, divisionId, scheduleRunId: result.runId
+        });
+        setPublishResult({ gamesPublished: res.gamesPublished, publishedAt: res.publishedAt });
+      }
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : String(err));
     } finally { setPublishing(false); }
@@ -215,7 +236,8 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {} }: 
                   <div>
                     <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Next step</div>
                     <div className="mt-0.5 text-sm text-fg">
-                      Publish flips published_at and broadcasts to subscribers.
+                      Publishing puts these games on every team&apos;s schedule and sends each
+                      team&apos;s players, captains and coaches one notice.
                     </div>
                   </div>
                   <Button onClick={onPublish} disabled={publishing || !!publishResult}>
@@ -234,8 +256,13 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {} }: 
                   </p>
                 )}
                 {publishResult && (
-                  <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    {publishResult.gamesPublished} games published @ {publishResult.publishedAt}
+                  <p className="text-sm text-fg">
+                    {publishResult.gamesPublished === 0
+                      ? "Nothing left to publish. These games were already on team schedules."
+                      : `${publishResult.gamesPublished} ${publishResult.gamesPublished === 1 ? "game" : "games"} published.`}
+                    {publishResult.gamesPublished > 0 && publishResult.notificationsQueued !== undefined
+                      ? ` ${publishResult.notificationsQueued} notices queued for ${publishResult.teamsNotified ?? 0} ${publishResult.teamsNotified === 1 ? "team" : "teams"}.`
+                      : null}
                   </p>
                 )}
               </div>

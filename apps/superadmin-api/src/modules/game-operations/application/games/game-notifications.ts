@@ -39,7 +39,19 @@ async function recipientsFor(
   db: Database,
   game: GameNoticeTarget
 ): Promise<Array<{ personId: string; email: string | null }>> {
-  const teamIds = [game.homeTeamId, game.awayTeamId];
+  return teamRecipients(db, [game.homeTeamId, game.awayTeamId], game.seasonId);
+}
+
+/**
+ * The people a team notice goes to: active rostered players of the teams
+ * (for the season when given) plus the teams' captains and coaches, each
+ * once, with their account email when they have one.
+ */
+export async function teamRecipients(
+  db: Database,
+  teamIds: string[],
+  seasonId: string | null
+): Promise<Array<{ personId: string; email: string | null }>> {
   const personIds = new Set<string>();
 
   const memberships = await db
@@ -49,7 +61,7 @@ async function recipientsFor(
       and(
         inArray(schema.teamMemberships.teamId, teamIds),
         eq(schema.teamMemberships.currentStatus, "active"),
-        ...(game.seasonId ? [eq(schema.teamMemberships.seasonId, game.seasonId)] : [])
+        ...(seasonId ? [eq(schema.teamMemberships.seasonId, seasonId)] : [])
       )
     );
   for (const m of memberships) personIds.add(m.personId);
@@ -143,6 +155,74 @@ export async function queueGameNotice(
     log.warn(`${args.templateCode} game=${args.game.id}: no rostered players or team staff to notify`);
   }
   return { recipients: recipients.length, queued };
+}
+
+export interface ScheduleNoticeTeam {
+  teamId: string;
+  teamName: string;
+  gameCount: number;
+  firstGameLabel: string;
+  firstOpponent: string;
+  firstVenueClause: string;
+}
+
+/**
+ * One "your schedule is out" notice per person per team when a schedule
+ * run is published (SCH-8, UC-08). A digest, not one notice per game: a
+ * season of games would otherwise mean dozens of messages per player and
+ * run past the API's time limit. Idempotent per (publish, team, person).
+ */
+export async function queueScheduleNotices(
+  db: Database,
+  notify: NotificationService,
+  args: {
+    seasonId: string;
+    seasonName: string;
+    orgId: string | null;
+    /** Stable per publish, e.g. `schedule.published:<seasonId>:<publishedAt>`. */
+    eventKey: string;
+    teams: ScheduleNoticeTeam[];
+  }
+): Promise<{ teams: number; recipients: number; queued: number }> {
+  const jobs: Array<() => Promise<unknown>> = [];
+  let recipients = 0;
+  for (const team of args.teams) {
+    const people = await teamRecipients(db, [team.teamId], args.seasonId);
+    recipients += people.length;
+    if (people.length === 0) log.warn(`schedule.published team=${team.teamId}: nobody rostered to notify`);
+    for (const r of people) {
+      jobs.push(() =>
+        notify.queue({
+          orgId: args.orgId,
+          templateCode: "schedule.published",
+          channel: r.email ? "email" : "in_app",
+          idempotencyKey: `${args.eventKey}:${team.teamId}:${r.personId}`,
+          recipientPersonId: r.personId,
+          recipientEmail: r.email,
+          payload: {
+            teamName: team.teamName,
+            seasonName: args.seasonName,
+            gameCount: String(team.gameCount),
+            gamesWord: team.gameCount === 1 ? "game" : "games",
+            firstGameLabel: team.firstGameLabel,
+            firstOpponent: team.firstOpponent,
+            firstVenueClause: team.firstVenueClause,
+            seasonId: args.seasonId,
+            teamId: team.teamId
+          },
+          sourceEvent: "schedule.published"
+        })
+      );
+    }
+  }
+  let queued = 0;
+  const BATCH = 8;
+  for (let i = 0; i < jobs.length; i += BATCH) {
+    const rows = await Promise.all(jobs.slice(i, i + BATCH).map((j) => j()));
+    queued += rows.filter(Boolean).length;
+  }
+  log.log(`schedule.published season=${args.seasonId} teams=${args.teams.length} recipients=${recipients} queued=${queued}`);
+  return { teams: args.teams.length, recipients, queued };
 }
 
 /** "Sat, Nov 7, 8:00 PM" in the game's zone. */

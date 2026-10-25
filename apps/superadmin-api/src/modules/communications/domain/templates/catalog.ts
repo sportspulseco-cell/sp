@@ -15,6 +15,8 @@ export const TEMPLATE_CODES = [
   "game.finalized",
   // UC-07 / UC-21 manual move of a game's time or rink (SCH-6).
   "game.rescheduled",
+  // UC-08 a schedule run is published: one digest per person per team (SCH-8).
+  "schedule.published",
   "suspension.issued",
   "suspension.lifted",
   "roster.added",
@@ -174,6 +176,56 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     channel: "in_app",
     subject: "New game: {{awayTeam}} at {{homeTeam}}",
     body: "{{awayTeam}} play at {{homeTeam}} on {{whenLabel}}{{venueClause}}.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "schedule.published",
+    channel: "email",
+    subject: "{{teamName}} schedule is out: {{gameCount}} {{gamesWord}}",
+    body:
+      "The {{seasonName}} schedule for {{teamName}} is published: {{gameCount}} {{gamesWord}}.\n\n" +
+      "First game: {{firstGameLabel}} against {{firstOpponent}}{{firstVenueClause}}.\n\n" +
+      "Every game is on your team schedule in SportsPulse.",
+    variables: ["teamName", "seasonName", "gameCount", "gamesWord", "firstGameLabel", "firstOpponent", "firstVenueClause"]
+  },
+  {
+    code: "schedule.published",
+    channel: "in_app",
+    subject: "{{teamName}} schedule is out: {{gameCount}} {{gamesWord}}",
+    body:
+      "{{seasonName}}: {{gameCount}} {{gamesWord}} for {{teamName}}. First game {{firstGameLabel}} against {{firstOpponent}}{{firstVenueClause}}.",
+    variables: ["teamName", "seasonName", "gameCount", "gamesWord", "firstGameLabel", "firstOpponent", "firstVenueClause"]
+  },
+  {
+    code: "game.postponed",
+    channel: "email",
+    subject: "Game postponed: {{awayTeam}} at {{homeTeam}}",
+    body:
+      "Your game {{awayTeam}} at {{homeTeam}} on {{whenLabel}}{{venueClause}} is postponed.\n\n" +
+      "The league will send the new date when it is set.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.postponed",
+    channel: "in_app",
+    subject: "Game postponed: {{awayTeam}} at {{homeTeam}}",
+    body:
+      "{{awayTeam}} at {{homeTeam}} on {{whenLabel}}{{venueClause}} is postponed. A new date will follow.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.cancelled",
+    channel: "email",
+    subject: "Game cancelled: {{awayTeam}} at {{homeTeam}}",
+    body:
+      "Your game {{awayTeam}} at {{homeTeam}} on {{whenLabel}}{{venueClause}} is cancelled.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.cancelled",
+    channel: "in_app",
+    subject: "Game cancelled: {{awayTeam}} at {{homeTeam}}",
+    body: "{{awayTeam}} at {{homeTeam}} on {{whenLabel}}{{venueClause}} is cancelled.",
     variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
   },
   {

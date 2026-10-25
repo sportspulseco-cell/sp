@@ -832,31 +832,84 @@ export class ApplyScoreHandler
   }
 }
 
+/**
+ * Postpone or cancel a game, then tell both teams (UC-21, MON-14). One
+ * locked write (a second click finds the new status and is refused, so
+ * nobody hears twice); a notice only for a published game, because
+ * teams only hear about games they can already see.
+ */
+async function stopGame(
+  db: Database,
+  games: GameRepository,
+  notify: NotificationService,
+  id: string,
+  to: "postponed" | "cancelled"
+): Promise<GameDto & { notificationsQueued: number }> {
+  await db.transaction(async (tx) => {
+    const g = await lockGame(tx, id);
+    const status = g.status;
+    if (to === "postponed") g.postpone();
+    else g.cancel();
+    await saveIfStatus(tx, g, status);
+  });
+  const fresh = await games.findById(GameId.of(id));
+  if (!fresh || fresh.status !== to) {
+    throw new Error(`game ${id}: readback after ${to} shows ${fresh?.status ?? "no row"}`);
+  }
+  let notices: GameNoticeResult = { recipients: 0, queued: 0 };
+  if (fresh.publishedAt) {
+    const target = {
+      id: fresh.id.value,
+      leagueId: fresh.leagueId,
+      seasonId: fresh.seasonId,
+      homeTeamId: fresh.homeTeamId,
+      awayTeamId: fresh.awayTeamId
+    };
+    const ctx = await gameNoticeContext(db, target);
+    notices = await queueGameNotice(db, notify, {
+      game: target,
+      templateCode: to === "postponed" ? "game.postponed" : "game.cancelled",
+      eventKey: `game.${to}:${id}:${fresh.updatedAt.toISOString()}`,
+      orgId: ctx.orgId,
+      payload: {
+        homeTeam: ctx.homeTeam,
+        awayTeam: ctx.awayTeam,
+        whenLabel: gameTimeLabel(fresh.scheduledStartTsUtc, fresh.tz),
+        venueClause: fresh.venueName
+          ? ` at ${fresh.venueName}${fresh.surfaceLabel ? `, ${fresh.surfaceLabel}` : ""}`
+          : ""
+      }
+    });
+  }
+  log.log(`${to} game=${id} published=${!!fresh.publishedAt} recipients=${notices.recipients} queued=${notices.queued}`);
+  return { ...GameDto.fromDomain(fresh), notificationsQueued: notices.queued };
+}
+
 @Injectable()
 export class PostponeGameHandler
-  implements CommandHandler<{ id: string }, GameDto>
+  implements CommandHandler<{ id: string }, GameDto & { notificationsQueued: number }>
 {
-  constructor(@Inject(GAME_REPOSITORY) private readonly games: GameRepository) {}
-  async execute(input: { id: string }): Promise<GameDto> {
-    const g = await this.games.findById(GameId.of(input.id));
-    if (!g) throw new NotFoundError("Game", input.id);
-    g.postpone();
-    await this.games.save(g);
-    return GameDto.fromDomain(g);
+  constructor(
+    @Inject(GAME_REPOSITORY) private readonly games: GameRepository,
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly notify: NotificationService
+  ) {}
+  execute(input: { id: string }): Promise<GameDto & { notificationsQueued: number }> {
+    return stopGame(this.db, this.games, this.notify, input.id, "postponed");
   }
 }
 
 @Injectable()
 export class CancelGameHandler
-  implements CommandHandler<{ id: string }, GameDto>
+  implements CommandHandler<{ id: string }, GameDto & { notificationsQueued: number }>
 {
-  constructor(@Inject(GAME_REPOSITORY) private readonly games: GameRepository) {}
-  async execute(input: { id: string }): Promise<GameDto> {
-    const g = await this.games.findById(GameId.of(input.id));
-    if (!g) throw new NotFoundError("Game", input.id);
-    g.cancel();
-    await this.games.save(g);
-    return GameDto.fromDomain(g);
+  constructor(
+    @Inject(GAME_REPOSITORY) private readonly games: GameRepository,
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly notify: NotificationService
+  ) {}
+  execute(input: { id: string }): Promise<GameDto & { notificationsQueued: number }> {
+    return stopGame(this.db, this.games, this.notify, input.id, "cancelled");
   }
 }
 

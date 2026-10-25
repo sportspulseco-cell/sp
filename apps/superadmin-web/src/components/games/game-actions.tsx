@@ -53,6 +53,7 @@ export function GameActions({
   const [scoreOpen, setScoreOpen] = useState(false);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [stopping, setStopping] = useState<"postponed" | "cancelled" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -167,7 +168,7 @@ export function GameActions({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => withRefresh(() => gameOps.postponeGame(game.id))}
+                onClick={() => setStopping("postponed")}
                 disabled={pending}
               >
                 <Pause className="mr-2 h-3.5 w-3.5" />
@@ -178,7 +179,7 @@ export function GameActions({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => withRefresh(() => gameOps.cancelGame(game.id))}
+                onClick={() => setStopping("cancelled")}
                 disabled={pending}
               >
                 <X className="mr-2 h-3.5 w-3.5" />
@@ -265,6 +266,20 @@ export function GameActions({
           }}
         />
       ) : null}
+      {stopping ? (
+        <StopGameDialog
+          game={game}
+          to={stopping}
+          homeName={homeName}
+          awayName={awayName}
+          onClose={() => setStopping(null)}
+          onDone={(msg) => {
+            setStopping(null);
+            setNotice(msg);
+            router.refresh();
+          }}
+        />
+      ) : null}
       {moveOpen ? (
         <RescheduleDialog
           game={game}
@@ -278,6 +293,84 @@ export function GameActions({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Postpone or cancel, after a check (MON-14): both teams of a published
+ * game get a notice, so one stray click must not message two rosters.
+ */
+function StopGameDialog({
+  game,
+  to,
+  homeName,
+  awayName,
+  onClose,
+  onDone
+}: {
+  game: Game;
+  to: "postponed" | "cancelled";
+  homeName: string;
+  awayName: string;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const verb = to === "postponed" ? "Postpone" : "Cancel";
+  const published = !!game.publishedAt;
+
+  async function confirm() {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = to === "postponed" ? await gameOps.postponeGame(game.id) : await gameOps.cancelGame(game.id);
+      const done = to === "postponed" ? "Postponed." : "Cancelled.";
+      onDone(
+        published
+          ? `${done} ${r.notificationsQueued} notices queued for both teams.`
+          : `${done} The game was a draft, so nobody was notified.`
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`${verb} ${awayName} at ${homeName}?`}
+      description={
+        to === "postponed"
+          ? "The game comes off the schedule until you reschedule it."
+          : "The game is cancelled for good. It cannot be restarted."
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-fg">
+          {published
+            ? "Players, captains and coaches of both teams get a notice."
+            : "This game is a draft. Nobody has been told about it, so nobody is notified."}
+        </p>
+        {error ? (
+          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            {error}
+          </p>
+        ) : null}
+        <DialogActions>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            Keep the game
+          </Button>
+          <Button type="button" variant="primary" onClick={confirm} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {verb} game
+          </Button>
+        </DialogActions>
+      </div>
+    </Dialog>
   );
 }
 

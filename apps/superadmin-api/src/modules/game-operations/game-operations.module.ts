@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { PublishScheduleHandler } from "./application/games/publish-schedule";
 import { CommunicationsModule } from "../communications/communications.module";
 
 import { GamesController } from "./interface/games.controller";
@@ -71,6 +72,7 @@ import { DrizzleGameOfficialRepository } from "./infrastructure/repositories/dri
     ForfeitGameHandler,
     FinalizeGameHandler,
     PublishGameHandler,
+    PublishScheduleHandler,
     PreviewRescheduleHandler,
     RescheduleGameHandler,
     // Events

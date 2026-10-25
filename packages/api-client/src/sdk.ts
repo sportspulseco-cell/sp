@@ -1994,10 +1994,26 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body)
         }),
+      /**
+       * Publish a generated schedule (SCH-8): flips the scope's games to
+       * published and sends each team's people one "schedule is out" notice.
+       */
+      publishSchedule: (body: { seasonId: string; divisionId?: string; scheduleRunId?: string }) =>
+        f<{
+          seasonId: string;
+          divisionId: string | null;
+          scheduleRunId: string | null;
+          publishedAt: string;
+          gamesPublished: number;
+          teamsNotified: number;
+          recipients: number;
+          notificationsQueued: number;
+        }>("/games/publish-schedule", { method: "POST", body: JSON.stringify(body) }),
+      /** Both teams get a notice when the game was published (MON-14). */
       postponeGame: (id: string) =>
-        f<Game>(`/games/${id}/postpone`, { method: "POST" }),
+        f<Game & { notificationsQueued: number }>(`/games/${id}/postpone`, { method: "POST" }),
       cancelGame: (id: string) =>
-        f<Game>(`/games/${id}/cancel`, { method: "POST" }),
+        f<Game & { notificationsQueued: number }>(`/games/${id}/cancel`, { method: "POST" }),
       forfeitGame: (id: string, winningTeamId: string) =>
         f<Game>(`/games/${id}/forfeit`, {
           method: "POST",

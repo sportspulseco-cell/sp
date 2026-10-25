@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
-import { SchedulingGenerateForm } from "@sportspulse/admin-pages";
+import { GenerateForm } from "@/components/scheduling/generate-form";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { PageHeader } from "@/components/layout/page-header";
@@ -71,7 +71,7 @@ export default async function OrgAdminSchedulingGeneratePage({
           </Link>
         }
       />
-      <SchedulingGenerateForm
+      <GenerateForm
         seasonId={season.id}
         seasonName={season.name}
         divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}

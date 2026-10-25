@@ -66,6 +66,13 @@ export class FinalizeGameBodyDto {
   endedIn?: (typeof GAME_ENDINGS)[number];
 }
 
+/** Publish a generated schedule: the season, optionally narrowed (SCH-8). */
+export class PublishScheduleBodyDto {
+  @ApiProperty() @IsUUID() seasonId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() divisionId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() scheduleRunId?: string;
+}
+
 export class RescheduleGameBodyDto {
   /** New start as rink-local wall time "YYYY-MM-DDTHH:MM". Omit to keep the time. */
   @ApiPropertyOptional({ example: "2026-11-07T20:00" })

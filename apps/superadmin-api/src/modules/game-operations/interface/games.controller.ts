@@ -3,6 +3,7 @@
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   Inject,
   NotFoundException,
   Param,
@@ -53,9 +54,14 @@ import {
   FinalizeGameBodyDto,
   ForfeitGameBodyDto,
   ListGamesQueryDto,
+  PublishScheduleBodyDto,
   RescheduleGameBodyDto,
   ReschedulePreviewQueryDto
 } from "./dto/game.dto";
+import {
+  PublishScheduleHandler,
+  type PublishScheduleResult
+} from "../application/games/publish-schedule";
 
 /**
  * Games. Reads: any active role assignment (AuthorizedAccessGuard), rows
@@ -82,6 +88,7 @@ export class GamesController {
     private readonly publishH: PublishGameHandler,
     private readonly previewMoveH: PreviewRescheduleHandler,
     private readonly moveH: RescheduleGameHandler,
+    private readonly publishScheduleH: PublishScheduleHandler,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
@@ -190,6 +197,57 @@ export class GamesController {
       startLocal: q.startLocal,
       surfaceId: q.surfaceId,
       userId: user.userId
+    });
+  }
+
+  @Post("publish-schedule")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Publish a generated schedule (season, optionally one division or run). Each team's players, captains and coaches get one notice; rinks are told. Needs scheduler.publish on the season or division."
+  })
+  async publishSchedule(
+    @Body() body: PublishScheduleBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @Headers("authorization") authorization?: string
+  ): Promise<PublishScheduleResult> {
+    const [season] = await this.db
+      .select({ orgId: schema.seasons.orgId, leagueId: schema.seasons.leagueId })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, body.seasonId))
+      .limit(1);
+    if (!season) throw new NotFoundException(`Season not found: ${body.seasonId}`);
+    if (body.divisionId) {
+      const [division] = await this.db
+        .select({ seasonId: schema.divisions.seasonId })
+        .from(schema.divisions)
+        .where(eq(schema.divisions.id, body.divisionId))
+        .limit(1);
+      if (!division || division.seasonId !== body.seasonId) {
+        throw new NotFoundException(`Division not found: ${body.divisionId}`);
+      }
+    }
+    const access = await accessForScope(this.db, user.userId, {
+      id: "",
+      orgId: season.orgId,
+      leagueId: season.leagueId,
+      seasonId: body.seasonId,
+      divisionId: body.divisionId ?? null,
+      homeTeamId: "",
+      awayTeamId: ""
+    });
+    if (!access.superAdmin && !access.covered) {
+      throw new NotFoundException(`Season not found: ${body.seasonId}`);
+    }
+    if (!accessCan(access, "scheduler.publish")) {
+      throw new ForbiddenException("Your role cannot publish schedules. Ask your league admin.");
+    }
+    return this.publishScheduleH.execute({
+      seasonId: body.seasonId,
+      divisionId: body.divisionId,
+      scheduleRunId: body.scheduleRunId,
+      userId: user.userId,
+      authorization
     });
   }
 
