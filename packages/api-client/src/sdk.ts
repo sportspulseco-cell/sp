@@ -254,6 +254,10 @@ export function createApi(f: Fetcher) {
             body: string;
             recipient: string;
           };
+          /** True when the email provider accepted the message. */
+          emailDelivered?: boolean;
+          /** Why it was not sent (e.g. no email provider configured). */
+          emailDeliveryReason?: string | null;
         }>("/iam/users/invite", {
           method: "POST",
           body: JSON.stringify(body)

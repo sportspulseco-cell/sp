@@ -167,7 +167,10 @@ export function InviteUserButton() {
         result.created
           ? setPwd
             ? `Account created for ${result.email}. Invite message ${clipboardCopied ? "copied to clipboard" : "ready below"} — share the credentials directly.`
-            : `Invite sent to ${result.email}. Message ${clipboardCopied ? "copied to clipboard" : "ready below"} for manual delivery too.`
+            : result.emailDelivered === false
+              ? // SETUP-8: never say "sent" when the email was not sent.
+                `Account created for ${result.email}, but the invite email was not sent. ${clipboardCopied ? "The message is copied to your clipboard" : "Copy the message below"} and send it yourself.`
+              : `Invite sent to ${result.email}. Message ${clipboardCopied ? "copied to clipboard" : "ready below"} for manual delivery too.`
           : `${result.email} already had an account; ${grantRole ? "role granted." : "no changes."} Message ${clipboardCopied ? "copied to clipboard" : "ready below"}.`
       );
       setEmail("");

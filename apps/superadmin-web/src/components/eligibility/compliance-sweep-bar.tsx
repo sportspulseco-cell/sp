@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertOctagon,
   Clock,
@@ -41,6 +42,7 @@ export function ComplianceSweepBar({
   const [busy, setBusy] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   async function refresh() {
     if (!seasonId) return;
@@ -82,6 +84,8 @@ export function ComplianceSweepBar({
         `Eligibility sweep complete — ${res.evaluated} evaluated, ${res.flagged} need attention${byStatus ? ` (${byStatus})` : ""}.${kept}`
       );
       await refresh();
+      // The records table is server-rendered; refresh it too (COMP-6).
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -99,6 +103,8 @@ export function ComplianceSweepBar({
         `Lock sweep complete — ${res.expiring} expiring, ${res.expired} expired.`
       );
       await refresh();
+      // The records table is server-rendered; refresh it too (COMP-6).
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -116,6 +122,8 @@ export function ComplianceSweepBar({
         `Playoff sweep complete — ${res.eligible}/${res.totalPlayers} eligible, ${res.ineligible} ineligible.`
       );
       await refresh();
+      // The records table is server-rendered; refresh it too (COMP-6).
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {

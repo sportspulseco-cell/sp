@@ -14,21 +14,31 @@ import {
 import { SectionHeader } from "./section-header";
 import { ReviewActions } from "./review-actions";
 
+// Season start/end are calendar dates (YYYY-MM-DD): format them in UTC so
+// no viewer sees the day before. Registration open/close are instants:
+// format them in the season's time zone. REG-11: a close at 23:59 Eastern
+// (04:59Z next day) was shown one day late.
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "UTC"
   });
 }
 
-function fmtDateShort(iso: string | null): string {
+function fmtDateShort(iso: string | null, timeZone?: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
+  try {
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: timeZone || "America/New_York"
+    });
+  } catch {
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 }
 
 function fmtMoney(cents: number, currency = "USD"): string {
@@ -135,7 +145,7 @@ export function ReviewSection({
           <Tile label="Registration window">
             <p className="text-[14px] font-medium text-fg">
               {season?.registrationOpensAt
-                ? `${fmtDateShort(season.registrationOpensAt)} – ${fmtDateShort(season.registrationClosesAt)}`
+                ? `${fmtDateShort(season.registrationOpensAt, season.timezone)} – ${fmtDateShort(season.registrationClosesAt, season.timezone)}`
                 : "—"}
             </p>
             <p className="font-mono text-[11px] text-fg-muted">
