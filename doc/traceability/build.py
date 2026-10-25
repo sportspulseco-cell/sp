@@ -239,6 +239,11 @@ FIXED_BY_HAND = {
     "COMP-5": "journey matrix 3a", "SCH-1": "journey matrix 3a", "SCH-2": "journey matrix 3a", "SCH-22": "journey matrix 3a",
     "MON-1": "journey matrix 3a", "MON-17": "journey matrix 3a", "MON-7": "journey matrix 3a", "MON-3": "journey matrix 3a",
     "SETUP-15": "journey matrix 3a (code fix; league_admin browser check pending)",
+    "CAP-3": "captain-v3 run 25 Oct: J6.0 visitor signs up on player-web and reaches the free-agent form (pass)",
+    "SCH-18": "same bug as SETUP-6 (team create with blank rink), fixed and journey-verified",
+    "SCH-11": "lineups show opponent team names (verified in code; journey check pending)",
+    "SCH-15": "game event log shows player names via personMap",
+    "COMP-9": "eligibility page pages through all people (fetchAll) and shows names",
 }
 
 
@@ -303,6 +308,11 @@ FIXED_IN_CODE = {
     "SCH-3": "commit 200733b: rinks/surfaces editable, delete refused while in use, slots editable",
     "SCH-5": "commit 200733b: New game picks season, division, entered teams, rink",
     "SCH-20": "commit 200733b: searchable, complete team pickers",
+    "CAP-18": "player home banner treats a rostered player as active",
+    "SCH-25": "stats division filter lists the selected league's divisions only",
+    "SETUP-11": "slug derived from the display name; country, language, currency, time zone dropdowns",
+    "REG-24": "commit b3c8998: sign-in resume sends the right email",
+    "CAP-15": "commit 560c13d: invites use the team's current season (kernel rule)",
 }
 
 # Not bugs to fix now: decisions the founder made, with the date.

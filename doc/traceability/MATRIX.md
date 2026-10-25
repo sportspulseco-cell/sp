@@ -14,6 +14,7 @@ Generated 2026-10-25 by `doc/traceability/build.py`. Every status comes from a b
 - Crawl **prod-v2** as **player**: 18 pages, 0 404/error, 0 with a failed API call.
 - Crawl **prod-v2** as **superAdmin**: 127 pages, 3 404/error, 0 with a failed API call.
 - Crawl **prod-v2** as **teamAdmin**: 15 pages, 0 404/error, 0 with a failed API call.
+- Crawl **staging-24355fb** as **leagueAdmin**: 87 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-before-fixes** as **leagueAdmin**: 78 pages, 5 404/error, 14 with a failed API call.
 - Crawl **staging-before-fixes** as **orgAdmin**: 68 pages, 1 404/error, 0 with a failed API call.
 - Crawl **staging-before-fixes** as **player**: 21 pages, 0 404/error, 0 with a failed API call.
@@ -259,13 +260,13 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 138 total, 42 still open
+## Logged findings: 138 total, 32 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
 | CAP-1 | blocker | Captain invite link has nowhere to land (UC-04 cannot complete) | J8 · UC-04 | fixed | journey matrix 3a |
 | CAP-2 | blocker | Set-up wizard registers the team into a DENIED division with no approval | J7 | fixed | journey matrix 3a |
-| CAP-3 | blocker | A player who signs up is refused by player-web; free-agent and join flows unreachable | J6 · UC-03 (also UC-04 "player creates account") | open |  |
+| CAP-3 | blocker | A player who signs up is refused by player-web; free-agent and join flows unreachable | J6 · UC-03 (also UC-04 "player creates account") | fixed | captain-v3 run 25 Oct: J6.0 visitor signs up on player-web and reaches the free-agent form (pass) |
 | CAP-4 | major | Team-registration and invite notifications never reach anyone | J7, J8 · UC-04 ("System sends invitation"), UC-03, UC-05 | fixed in code, not deployed | commit 560c13d: invite emails built in one place with team, season, /invite link, expiry (delivery needs RESEND_API_KEY) |
 | CAP-5 | major | Captain never sees a denial (or its reason) while the team has another active season | J7 | fixed in code, not deployed | commit 560c13d: registration call shows denial + admin reason |
 | CAP-6 | major | No way into "Register your team" from the captain console while the team is in season | J7 | fixed in code, not deployed | commit 560c13d: Register the team always in captain menu + CTA |
@@ -277,10 +278,10 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CAP-12 | major | Org setup refuses "registration opens today" east of UTC and after 8 pm US Eastern; failed publish leaves an orphan league | J7 setup (also J1) | fixed | blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct) |
 | CAP-13 | major | Season status and captain visibility disagree; the window cannot be edited after creation | J7 prerequisite | fixed in code, not deployed | blockers-oct24-b (edit season incl. registration window) + status hints state the real rule |
 | CAP-14 | minor | Revoked invite token still resolves publicly, with the full invite row | J8 · UC-04 | open |  |
-| CAP-15 | minor | Invite season picker defaults to an arbitrary season and lists every season in the org | J8 | open |  |
+| CAP-15 | minor | Invite season picker defaults to an arbitrary season and lists every season in the org | J8 | fixed in code, not deployed | commit 560c13d: invites use the team's current season (kernel rule) |
 | CAP-16 | minor | Roster "Invite by email" opens the Add-player tab, and the dues share is silently dropped | J8 | open |  |
 | CAP-17 | minor | Free-agent form never shows the player's existing or placed entries | J6 | open |  |
-| CAP-18 | minor | Player home says "haven't registered yet" while showing the team and its games | J8 | open |  |
+| CAP-18 | minor | Player home says "haven't registered yet" while showing the team and its games | J8 | fixed in code, not deployed | player home banner treats a rostered player as active |
 | CAP-19 | minor | Player /team and team-admin /roster mix every season, so people appear several times | J8 · UC-33 | open |  |
 | CAP-20 | minor | Org setup Sport defaults to AFL (alphabetically first) | J7 setup | fixed | journey matrix 3a |
 | CAP-21 | minor | Per-player cost differs between screens | J7 | open |  |
@@ -294,7 +295,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | fixed in code, not deployed | commit b3c8998: /compliance lists and signs required documents |
 | COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | fixed in code, not deployed | commit 200733b: sweeps never overwrite an admin waiver |
 | COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | fixed in code, not deployed | commit 3ad966b: league admin reads eligibility in scope |
-| COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | open |  |
+| COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | fixed | eligibility page pages through all people (fetchAll) and shows names |
 | COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | open |  |
 | COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | open |  |
 | COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | fixed in code, not deployed | commit 200733b: issue / lift suspensions; served games counted at finalize |
@@ -358,12 +359,12 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-21 | minor | Skill level enum differs between division setup and funnel | J4 | open |  |
 | REG-22 | minor | "Preview" opens the Review tab, not the player form | J3 · spec v2 "Form preview" | open |  |
 | REG-23 | minor | Funnel copy promises things that do not happen | J4, J5 | open |  |
-| REG-24 | minor | Sign-in resume fires eligibility check with an empty email (404) | J5 | open |  |
+| REG-24 | minor | Sign-in resume fires eligibility check with an empty email (404) | J5 | fixed in code, not deployed | commit b3c8998: sign-in resume sends the right email |
 | REG-25 | major | League-scoped forms attach to every season of every org (code) | J4 (not reproduced — no league-scoped form was published on staging during the run; 4 unpublished ones from other testers exist) | fixed in code, not deployed | commit b3c8998: league forms only for that league's seasons |
 | REG-26 | minor | Sport defaults to "Australian Rules Football" in Org setup (J1 owns org-setup) |  | fixed | journey matrix 3a |
 | SCH-1 | blocker | Scheduler (generate, publish, conflicts, runs, fairness, verify, playoffs, tournament, parity, notifications) | J10 · UC-06, UC-07, UC-08, UC-09 | fixed | journey matrix 3a |
 | SCH-2 | blocker | Ice slots created on /venues are invisible to the scheduler | J10 · UC-06 | fixed | journey matrix 3a |
-| SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | open |  |
+| SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | fixed | same bug as SETUP-6 (team create with blank rink), fixed and journey-verified |
 | SCH-20 | major | New game team pickers show only 25 random teams | J10, J11 · UC-07 fallback (manual fixture) | fixed in code, not deployed | commit 200733b: searchable, complete team pickers |
 | SCH-22 | blocker | Log event: Player picker is empty, goals cannot be attributed | J11 · UC-11, UC-13 | fixed | journey matrix 3a |
 | SCH-12 | major | Only super_admin can run a game; league admin / scorekeeper / referee get 403 | J11 · UC-11, UC-12 | fixed in code, not deployed | commit a6bf6b5: scoped game access for league admins, scorekeepers, referees |
@@ -378,12 +379,12 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | fixed in code, not deployed | commit 200733b: rinks/surfaces editable, delete refused while in use, slots editable |
 | SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | fixed in code, not deployed | commit 5d87870: lineup editor reads the game's season roster |
 | SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | fixed in code, not deployed | commit a6bf6b5: captain /stats division table + player lines |
-| SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | open |  |
+| SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | fixed in code, not deployed | stats division filter lists the selected league's divisions only |
 | SCH-9 | minor | Add venue: Create stays disabled while an org is shown as selected | J10 · UC-06 | fixed in code, not deployed | commit 0eda50e: rink form adopts late-arriving orgs |
 | SCH-10 | minor | New surface not shown in the open venue panel | J10 · UC-06 | open |  |
 | SCH-19 | minor | Duplicate-team guard loses its "Use existing team" link | J10 · SCH-18 follow-on | open |  |
-| SCH-11 | minor | Opponent shown as a UUID prefix on captain lineups | J11 | open |  |
-| SCH-15 | minor | Event log shows a UUID prefix instead of the player name | J11 · UC-11 | open |  |
+| SCH-11 | minor | Opponent shown as a UUID prefix on captain lineups | J11 | fixed | lineups show opponent team names (verified in code; journey check pending) |
+| SCH-15 | minor | Event log shows a UUID prefix instead of the player name | J11 · UC-11 | fixed | game event log shows player names via personMap |
 | SCH-16 | minor | Logging a goal does not change the score | J11 · UC-11 | open |  |
 | SCH-21 | minor | Header text shows "CAPTAIN Â· 1 TEAM" | J10, J11 | fixed | mojibake removed (journey matrix 3a) |
 | SETUP-6 | blocker | Create team fails with 500 when "Home rink" is left blank, but the team row is still written | J1 · UC-33 (team setup), M4 | fixed | journey matrix 3a: team create with blank rink |
@@ -400,4 +401,4 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SETUP-13 | minor | Mojibake ("â€”") in invite emails, /roles, page titles | J2 | fixed | mojibake removed (journey matrix 3a) |
 | SETUP-9 | minor | User detail shows role scope as a UUID prefix | J2 | fixed | pdf-items items 1/4: no id fragments on /users/[id] (staging, 24 Oct) |
 | SETUP-16 | minor | New venue defaults: arbitrary org, UTC timezone, free-text IANA field | J1 | open |  |
-| SETUP-11 | minor | Create organization: slug not derived from display name | J1 | open |  |
+| SETUP-11 | minor | Create organization: slug not derived from display name | J1 | fixed in code, not deployed | slug derived from the display name; country, language, currency, time zone dropdowns |
