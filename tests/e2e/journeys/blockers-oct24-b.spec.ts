@@ -8,6 +8,10 @@ import { IS_STAGING, RUN_TAG, signedInAs, stagingSql } from "./_helpers";
  */
 test.skip(!IS_STAGING, "staging only");
 test.describe.configure({ mode: "serial" });
+// ymd() picks UTC dates and the season dialogs validate "not in the past"
+// against the browser's date: run the browser in UTC too, or the check
+// fails between 18:30 and 24:00 UTC from an India-time machine.
+test.use({ timezoneId: "UTC" });
 
 const TAG = `${RUN_TAG}B2`;
 const ORG_ID = "f7e62723-7685-4ba0-80e5-310c266c7b81"; // PPHL Staging

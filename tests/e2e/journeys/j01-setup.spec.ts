@@ -486,16 +486,17 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     // Discoverability: the sidebar carries a Venues link (in a collapsible group).
     expect(await page.locator('aside a[href="/venues"]').count(), "sidebar has a Venues link").toBeGreaterThan(0);
     await page.goto(`${SA}/venues`);
-    await expect(page.getByRole("heading", { name: /Venues/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Rinks & ice time/ })).toBeVisible();
     await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Add venue" }).first().click();
     const orgSelect = page.getByRole("combobox", { name: "Organization" });
     const defaultOrg = await orgSelect.locator("option:checked").textContent();
     console.log(`[J1] venue form default org: ${defaultOrg}`);
     await orgSelect.selectOption({ label: orgName });
-    const name = page.getByRole("textbox", { name: "Venue name" });
+    // The form says "Rink name" and picks the zone from a list (SETUP-16).
+    const name = page.getByRole("textbox", { name: "Rink name" });
     await name.fill(`Rink ${RUN_TAG}`);
-    const tz = page.getByRole("textbox", { name: "Timezone (IANA)" });
+    const tz = page.getByLabel("Timezone", { exact: true });
     console.log(`[J1] venue form default timezone: ${await tz.inputValue()}`);
     await softly(async () =>
       expect(await tz.inputValue(), "SETUP-16: venue timezone defaults to UTC, not the org's timezone; free-text IANA field").toBe("America/New_York")

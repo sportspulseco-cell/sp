@@ -77,10 +77,11 @@ async function settle(page: Page) {
 }
 
 function isoDate(offsetDays: number): string {
-  // Browser-local calendar date: the org-setup wizard validates
-  // "today or later" against the browser clock.
+  // The browser's calendar date, and the browser runs in UTC (timezoneId
+  // above): the wizard validates "today or later" against its clock. The
+  // test machine's own zone made "today" tomorrow after 18:30 UTC (J7.4).
   const d = new Date(Date.now() + offsetDays * 86400000);
-  return d.toLocaleDateString("en-CA");
+  return d.toISOString().slice(0, 10);
 }
 
 test.beforeAll(async ({ browser }) => {
