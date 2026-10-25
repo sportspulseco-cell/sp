@@ -284,6 +284,10 @@ test("5. admin sees invoice A paid on /finance list and /finance/[id]", async ({
   // After "Create and send" the admin lands on the invoice page; the
   // check is on the list.
   await p.goto(`${new URL(p.url()).origin}/finance`);
+  // 25 rows a page and each run adds 34 invoices: find it the way an admin would.
+  await p.getByPlaceholder("Search name, email, invoice #").fill(a!.invoice_number);
+  await p.getByPlaceholder("Search name, email, invoice #").press("Enter");
+  await p.waitForURL(/[?&]q=/);
   const row = p.locator("tr").filter({ hasText: a!.invoice_number }).first();
   await expect.soft(row, "invoice A row on /finance").toBeVisible();
   await expect.soft(row, "row shows Paid").toContainText(/paid/i);
@@ -306,9 +310,12 @@ test("6. internal notes save survives a reload", async ({ browser }) => {
   const note = `${TAG} internal note`;
   const ta = p.locator("textarea").first();
   await ta.fill(note);
+  const saveP = p.waitForResponse((r) => /\/note$/.test(r.url()) && r.request().method() === "PUT");
   await p.getByRole("button", { name: "Save note" }).click();
-  const flash = await p.locator("main p").filter({ hasText: /note/i }).first().innerText().catch(() => "");
-  log("save note flash:", flash);
+  const save = await saveP;
+  const flash = `${save.status()}`;
+  log("save note →", save.status());
+  expect(save.status(), "note saved").toBeLessThan(300);
   await p.reload();
   await expect(p.getByText("Admin actions")).toBeVisible();
   const persisted = (await p.locator("textarea").first().inputValue()) === note || (await mainText(p)).includes(note);
@@ -329,8 +336,15 @@ test("7. refund dialog (UC-17): wallet-credit refund updates the invoice and can
     await dlg.getByRole("button", { name: /Wallet credit/ }).click();
     await dlg.locator("input").first().fill(amount);
     await dlg.locator("textarea, input[placeholder*='pro-rated']").first().fill(`${TAG} QA refund test reason`);
+    const issue = dlg.getByRole("button", { name: /Issue refund of/ });
+    if (await issue.isDisabled()) {
+      // The dialog refuses before any request: record what it tells the admin.
+      log(`refund ${amount} refused in the dialog:`, (await dlg.innerText()).replace(/\s+/g, " ").slice(0, 300));
+      await dlg.getByRole("button", { name: "Cancel" }).click().catch(() => {});
+      return "refused-in-dialog" as const;
+    }
     const respP = p.waitForResponse((r) => /refund-split/.test(r.url()));
-    await dlg.getByRole("button", { name: /Issue refund of/ }).click();
+    await issue.click();
     const resp = await respP;
     const t = await resp.text();
     log(`refund ${amount} →`, resp.status(), t.slice(0, 200));
@@ -341,6 +355,7 @@ test("7. refund dialog (UC-17): wallet-credit refund updates the invoice and can
     return resp.status();
   }
   const s1 = await refund("50.00");
+  expect(s1, "first refund is accepted").not.toBe("refused-in-dialog");
   expect(s1).toBeLessThan(300);
   await p.waitForTimeout(1500);
   const afterFirst = await mainText(p);
@@ -354,7 +369,10 @@ test("7. refund dialog (UC-17): wallet-credit refund updates the invoice and can
   // Second refund of the full original amount: 50 + 123.45 > 123.45 paid.
   const s2 = await refund("123.45");
   await shot(p, "07b-after-second-refund");
-  expect(s2, "second refund that pushes total refunds above the paid amount is refused").toBeGreaterThanOrEqual(400);
+  expect(
+    s2 === "refused-in-dialog" || s2 >= 400,
+    `second refund that pushes total refunds above the paid amount is refused (got ${s2})`
+  ).toBe(true);
   const totals = await stagingSql<{ refunded: number }>(`select coalesce(sum(amount_cents),0)::int as refunded from refunds where invoice_id=$1`, [invoiceAId]);
   log("total refunded on invoice A (cents):", totals[0]?.refunded);
   expect(totals[0]?.refunded ?? 0, "refunds never exceed the 12345 cents paid").toBeLessThanOrEqual(12345);
@@ -389,6 +407,8 @@ test("9. player sees wallet credit and applies it to invoice B", async ({ browse
   const { b } = await runInvoices();
   test.skip(!b, "no invoice B for this run");
   const p = (await as(browser, "player")).page;
+  // A worker restart after a failure reopens the session on Home: go to Payments.
+  if (!/\/payments/.test(p.url())) await p.goto(`${new URL(p.url()).origin}/payments`);
   const before = await mainText(p);
   log("player page before reload, wallet text:", before.match(/Wallet balance \S+/)?.[0]);
   await p.reload();
@@ -430,6 +450,8 @@ test("10. receipt and update-card affordances", async ({ browser }) => {
   const invoiceAId = a!.id;
   void b;
   const p = (await as(browser, "player")).page;
+  if (!/\/payments/.test(p.url())) await p.goto(`${new URL(p.url()).origin}/payments`);
+  await expect(p.getByRole("heading").first()).toBeVisible();
   // MON-18: open invoices with a payment show "Download receipt"; paid ones
   // in history show "Receipt".
   const receiptBtns = await p.getByRole("button", { name: /^(Download receipt|Receipt)$/ }).count();

@@ -239,6 +239,13 @@ test("5. captain 'Remind all unpaid' writes reminders that admins can see in the
   await openDues(p);
   const btn = p.getByRole("button", { name: /Remind all unpaid/ });
   test.skip(!(await btn.count()), "no dues tracker for the staging team");
+  // Disabled is right when nobody owes anything; the flow is then not exercised.
+  if (await btn.isDisabled()) {
+    const t = await mainText(p);
+    log("Remind all unpaid disabled; screen:", t.match(/\d+ players? outstanding/)?.[0]);
+    expect(t, "disabled only because no player is outstanding").toMatch(/0 players outstanding/);
+    test.skip(true, "every share on the staging team is paid: nothing to remind");
+  }
   const before = await stagingSql<{ n: number }>(`select count(*)::int n from notifications`);
   const respP = p.waitForResponse((r) => /remind-all/.test(r.url()));
   await btn.click();
