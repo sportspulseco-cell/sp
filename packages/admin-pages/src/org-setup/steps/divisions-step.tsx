@@ -28,12 +28,13 @@ export function DivisionsStep({
   onAdd: () => void;
   onRemove: (uid: string) => void;
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set(divisions.map((d) => d.uid))
-  );
+  // Cards are open unless the admin collapsed them, so a division added
+  // with "Add another division" opens ready to fill in (SETUP-5: it used
+  // to arrive collapsed and Publish stayed disabled with no hint why).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
   function toggle(uid: string) {
-    setExpanded((prev) => {
+    setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(uid)) next.delete(uid);
       else next.add(uid);
@@ -51,7 +52,7 @@ export function DivisionsStep({
             total={divisions.length}
             division={d}
             regions={regions}
-            expanded={expanded.has(d.uid)}
+            expanded={!collapsed.has(d.uid)}
             onToggle={() => toggle(d.uid)}
             onPatch={(patch) => onPatch(d.uid, patch)}
             onRemove={() => onRemove(d.uid)}
