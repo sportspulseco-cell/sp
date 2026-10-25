@@ -210,7 +210,8 @@ export function RegistrationSetupShell({
               {draft ? "draft" : "live"}
             </span>
             <Link
-              href={`/forms/${formId}?section=review`}
+              // The player's view of the questions, in the form builder (REG-22).
+              href={`/forms/${formId}?section=form_builder&preview=1`}
               className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
             >
               <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Plus, Send } from "lucide-react";
 import { Button } from "@sportspulse/ui";
 import {
@@ -41,6 +41,8 @@ export function FormBuilderClient({
   isLocked: boolean;
   hasActiveVersion: boolean;
 }) {
+  // The header's Preview pill lands here with ?preview=1 (REG-22).
+  const previewRequested = useSearchParams().get("preview") === "1";
   const { registration } = useFormsBuilderApi();
   const router = useRouter();
   const [schema, setSchema] = useState<FormDefinition>(() => {
@@ -222,7 +224,7 @@ export function FormBuilderClient({
         ) : null}
 
         <div className={editing ? "" : "opacity-60 pointer-events-none"}>
-          <FormBuilder value={schema} onChange={setSchema} />
+          <FormBuilder value={schema} onChange={setSchema} initialPreview={previewRequested} />
         </div>
         {issues.length > 0 ? (
           <ul className="space-y-1 rounded-md bg-rose-500/10 px-4 py-3 text-[12px] text-rose-700 dark:text-rose-300">

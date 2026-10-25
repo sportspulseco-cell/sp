@@ -765,8 +765,8 @@ export function RegistrationFunnel({
       </div>
 
       <p className="mt-6 text-center text-[11px] text-fg-muted">
-        Your data is held against this season only. The Account step in a
-        follow-up email will link this submission to your sign-in.
+        Your answers are saved with this season&apos;s registration. Sign in with
+        the same email to come back to it.
       </p>
     </div>
   );
@@ -1316,8 +1316,8 @@ function AccountStep({
             </Field>
           </div>
           <p className="mt-4 text-[12px] text-fg-muted">
-            A verification email will be sent. Your registration session is
-            preserved — you can verify in another tab and return here.
+            Your account is ready as soon as you continue. Sign in later with
+            this email and password to see your registration.
           </p>
           <div className="mt-4 flex items-center justify-between">
             <button
@@ -1327,18 +1327,6 @@ function AccountStep({
             >
               ← Already have an account? Sign in
             </button>
-            <Button onClick={onSubmit} disabled={!valid || submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating
-                  account…
-                </>
-              ) : (
-                <>
-                  Next: Details <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
           </div>
         </section>
       )}
@@ -2648,8 +2636,8 @@ function PaymentStep({
             </div>
           </div>
           <p className="mt-3 text-[11px] text-fg-muted">
-            Card data will be tokenised by Stripe in your browser — SportsPulse
-            never sees your card number.
+            Test mode: no card is charged and card details are not stored.
+            Payments are simulated so the whole registration can be tried.
           </p>
         </section>
       ) : null}

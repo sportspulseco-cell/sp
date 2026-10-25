@@ -43,14 +43,17 @@ import { FormRenderer } from "@sportspulse/registration-funnel";
 export function FormBuilder({
   value,
   onChange,
-  className
+  className,
+  initialPreview = false
 }: {
   value: FormDefinition;
   onChange: (next: FormDefinition) => void;
   className?: string;
+  /** Open with the player's view of the form showing (header Preview, REG-22). */
+  initialPreview?: boolean;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(initialPreview);
 
   const errors = useMemo(() => validateFormDefinition(value), [value]);
   const takenKeys = useMemo(
