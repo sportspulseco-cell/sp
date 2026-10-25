@@ -457,6 +457,20 @@ staging is no longer near-empty, which is also what PPHL production looks like.
 
 ---
 
+```
+[SCH-26] Player inbox shows email delivery status and raw template codes · minor
+  Journey: SCH-8 / MON-14 verification (25 Oct)
+  Surface: player-web /notifications
+  Repro: queue a game notice for a player whose email does not send; open Notifications as the player.
+  Expected: the notice title, body and time.
+  Actual: each card carried a FAILED / QUEUED / SENT pill (email plumbing), the time column read "queued",
+    and rows written without a subject showed the code "payment.confirmed" as the title.
+  Evidence: screenshot scratchpad regfa/evidence/sch8-player-inbox.png (deployed staging player app).
+  Root cause: apps/player-web/src/app/(app)/notifications/notification-row.tsx rendered notif.status,
+    fmt(sentAt) with "queued" fallback, and subject ?? templateCode.
+  Fix: no status pill for players; time = sentAt or createdAt; title from the code in words.
+```
+
 ## Gaps
 
 Backend exists, no UI:

@@ -10,7 +10,7 @@ import {
   ShieldAlert,
   type LucideIcon
 } from "lucide-react";
-import { Badge, IconTile } from "@sportspulse/ui";
+import { IconTile } from "@sportspulse/ui";
 import type { Notification } from "@sportspulse/api-client";
 import { communications } from "@/lib/api/browser-api";
 
@@ -32,8 +32,16 @@ function tintFor(
   return "neutral";
 }
 
+// A row with no subject (older rows written outside the templates) shows
+// its event in words, never the raw code ("payment.confirmed").
+function titleOf(n: Notification): string {
+  if (n.subject) return n.subject;
+  const words = n.templateCode.replace(/[._]+/g, " ").trim().toLowerCase();
+  return words ? words[0]!.toUpperCase() + words.slice(1) : "Notification";
+}
+
 function fmt(iso: string | null): string {
-  if (!iso) return "queued";
+  if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const minute = 60_000;
   const hour = 60 * minute;
@@ -46,9 +54,12 @@ function fmt(iso: string | null): string {
 }
 
 /**
- * Single notification row. Click anywhere on the row to mark-as-read
- * (idempotent — server stamps read_at the first time only). Unread
- * rows get a subtle blue tint + the dot indicator.
+ * Single notification row. Click anywhere on the row to mark it read
+ * (idempotent: the server stamps read_at the first time only). Unread
+ * rows get a blue tint and a dot. No email delivery status here: the
+ * player reads the message in the app either way, and failed emails are
+ * the admin's to retry from Communications. The time is when the notice
+ * was sent, or written when it has not been emailed.
  */
 export function NotificationRow({ notif }: { notif: Notification }) {
   const router = useRouter();
@@ -90,26 +101,12 @@ export function NotificationRow({ notif }: { notif: Notification }) {
             <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--tint-blue-fg)]" />
           ) : null}
           <p className={isRead ? "text-[13px] text-fg-muted" : "text-[13px] font-medium text-fg"}>
-            {notif.subject ?? notif.templateCode}
+            {titleOf(notif)}
           </p>
-          <Badge
-            mono
-            tone={
-              notif.status === "sent"
-                ? "success"
-                : notif.status === "failed"
-                  ? "danger"
-                  : notif.status === "queued"
-                    ? "warning"
-                    : "neutral"
-            }
-          >
-            {notif.status}
-          </Badge>
         </div>
         <p className="mt-0.5 line-clamp-3 text-[12px] text-fg-muted">{notif.body}</p>
       </div>
-      <p className="shrink-0 font-mono text-[10px] text-fg-muted">{fmt(notif.sentAt)}</p>
+      <p className="shrink-0 font-mono text-[10px] text-fg-muted">{fmt(notif.sentAt ?? notif.createdAt)}</p>
     </li>
   );
 }
