@@ -76,11 +76,18 @@ export class InvoicingService {
       .limit(1);
     if (!org) throw new NotFoundException("Org not found");
 
-    const personIds = await this.resolveScopeTargets(
-      body.billingScope,
-      body.targetId,
-      body.orgId
-    );
+    // MON-23 / UC-16: a Team invoice is the team's full fee, sent to the
+    // captain, who splits it among the players on Dues. Every other
+    // scope bills each member directly.
+    const teamInvoice = body.billingScope === "team";
+    if (teamInvoice && body.paymentPlanEnabled) {
+      throw new BadRequestException(
+        "Payment plans go on the players' shares. Create the team invoice without one; the captain splits it on Dues."
+      );
+    }
+    const personIds = teamInvoice
+      ? [await this.teamCaptainPersonId(body.targetId, body.orgId)]
+      : await this.resolveScopeTargets(body.billingScope, body.targetId, body.orgId);
     if (personIds.length === 0) {
       throw new BadRequestException(
         "No active members found for the selected target."
@@ -137,7 +144,7 @@ export class InvoicingService {
           .values({
             orgId: body.orgId,
             invoiceNumber,
-            invoiceType: body.invoiceType ?? "standard",
+            invoiceType: teamInvoice ? "team_dues" : body.invoiceType ?? "standard",
             billingScope: body.billingScope,
             recipientPersonId: personId,
             recipientEmail: person?.email ?? null,
@@ -226,6 +233,32 @@ export class InvoicingService {
       bulkJobId,
       count: created.length
     };
+  }
+
+  /** The captain's person for a team of this org; refuses a team with no captain. */
+  private async teamCaptainPersonId(teamId: string, orgId: string): Promise<string> {
+    const [team] = await this.db
+      .select({ name: schema.teams.name, orgId: schema.teams.orgId, captainUserId: schema.teams.captainUserId })
+      .from(schema.teams)
+      .where(eq(schema.teams.id, teamId))
+      .limit(1);
+    if (!team || team.orgId !== orgId) throw new NotFoundException("Team not found in this org");
+    if (!team.captainUserId) {
+      throw new BadRequestException(
+        `${team.name} has no captain yet. Assign one on the team page so they can split the invoice, or bill each player with the Division scope.`
+      );
+    }
+    const [captain] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, team.captainUserId))
+      .limit(1);
+    if (!captain) {
+      throw new BadRequestException(
+        `${team.name}'s captain has no player profile yet, so they cannot receive the team invoice.`
+      );
+    }
+    return captain.id;
   }
 
   /**

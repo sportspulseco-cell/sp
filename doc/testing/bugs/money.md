@@ -295,7 +295,7 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Fix (commit 3642294): InvoiceNoticesService on create-as-sent and on send; idempotent per invoice; drafts and void notify nobody.
   Evidence: local API against staging 4/4 (sent notifies once with "$42.00 due Nov 3, 2026"; draft none; send twice = one notice).
 
-[MON-23] An admin "team" invoice never reaches the captain's Dues screen · major (open, needs a decision)
+[MON-23] An admin "team" invoice never reaches the captain's Dues screen · major
   Journey: J14 step 2 (local build against staging, 25 Oct) · UC-16
   Surface: superadmin-web /finance/create (scope Team) → team-admin-web /captain/dues
   Repro:
@@ -306,6 +306,26 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
     invoice (`division_team_entries.invoice_id` and its sub-invoices), so the captain still sees the old $1,400 master and nothing at $600.
   Decision needed: should "Team" in the composer (a) bill each player directly, as today, and be labelled that way, or (b) create one
     master invoice for the team that the captain splits on Dues? Not changed before release.
+  Decision (26 Oct, from UC-16 "Team invoice created (full season dues)" then the captain splits it): (b).
+  Fix: composer scope Team writes ONE team_dues invoice to the team's captain (team linked; no payment plan; a team with no
+    captain is refused with the next step). The captain gets "team_dues.created" with a link to Dues?invoiceId=. Dues lists
+    every team invoice of the team (division-entry masters and admin-sent ones) with a picker; an invoice with no shares
+    shows "Split the team fee" (even, include captain, or custom) and "Split and send invoices" creates one invoice per
+    player for their share and notifies each player. The team invoice then becomes the shares' container (status draft,
+    like a division-entry master), so it is not billed, chased by the overdue sweep, or counted twice. Every Dues command
+    (breakdown, remind all, remind one, split, cover outstanding) resolves the invoice through one resolver; before, remind
+    all and cover outstanding picked the master by a different rule than the breakdown. Totals: the receivables summary no
+    longer counts a team invoice that has shares; org Finance "Outstanding" counts only issued invoices (it counted drafts,
+    including division-entry masters on top of their shares). Shares are written in two statements and notices go out in
+    batches of 8 (one insert per player took over 30 s for a 26-player team; now 14.6 s locally against staging).
+  Evidence: local apps against staging, regfa/walk-team-invoice.mjs 17/17 (composer copy + no plan; one team_dues invoice to
+    the captain; team_dues.created notice with the Dues link; Dues opens it with the split panel and a picker of 20
+    invoices; even split = 26 shares summing to $600.00; container draft; 26 player notices; player sees their share in
+    Payments; total invoiced +$600 once; plan refused 400; no-captain team refused 400). Unknown invoice id 404 on read and
+    split; another team's Dues 403. J14 local 5/5 (steps 3-5 now exercise the split, custom split persistence, per-player
+    remind and remind-all on this run's team invoice instead of skipping).
+  Leftover: POST /finance/team-invoices/:id/split (invoicing.controller) still exists with no caller; it makes draft shares
+    with no notices. Remove it in a cleanup.
 
 [MON-24] Super admin Finance: search, filters and paging do nothing · major
   Journey: J13 step 5 (local build against staging, 25 Oct)

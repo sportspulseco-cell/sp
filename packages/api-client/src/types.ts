@@ -1269,6 +1269,20 @@ export interface CaptainDuesBreakdown {
   divisionName: string | null;
   entryStatus: string | null;
   splitMethod: "even" | "custom" | null;
+  /** Which team invoice this is (MON-23): from the division entry, or sent by an admin. */
+  masterKind: "division_entry" | "team_invoice" | null;
+  masterLabel: string | null;
+  /** Every team invoice the captain can open; pass one's id to work on it. */
+  masters: Array<{
+    id: string;
+    invoiceNumber: string;
+    totalCents: number;
+    kind: "division_entry" | "team_invoice";
+    label: string;
+    status: string;
+  }>;
+  /** When the open invoice has no shares yet: who a first split covers. */
+  candidates: Array<{ personId: string; email: string | null; name: string; isCaptain: boolean }>;
   subInvoices: Array<{
     id: string;
     invoiceNumber: string;

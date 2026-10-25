@@ -146,7 +146,11 @@ const ITEM_KINDS: Array<{ value: InvoiceItemKind; label: string }> = [
 
 const SCOPE_OPTIONS: Array<{ value: BillingScope; label: string; hint: string }> = [
   { value: "individual", label: "Individual", hint: "Bill one person." },
-  { value: "team", label: "Team", hint: "Fan out to every active member of a team." },
+  {
+    value: "team",
+    label: "Team",
+    hint: "One invoice for the whole team, sent to its captain. The captain splits it among the players on Dues, and each player then gets an invoice for their share."
+  },
   { value: "division", label: "Division", hint: "Every active member of every confirmed team in the division." },
   { value: "league", label: "League", hint: "Every active member of every confirmed team across the league." },
   { value: "season", label: "Season", hint: "Every active member of every confirmed team across the season." },
@@ -298,7 +302,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
   const totalDisplay = (totalCents / 100).toFixed(2);
   const depositCents = Math.round(Number(depositDollars) * 100) || 0;
   const planInvalid =
-    paymentPlan && (depositCents < 0 || depositCents >= totalCents);
+    paymentPlan && billingScope !== "team" && (depositCents < 0 || depositCents >= totalCents);
 
   const valid =
     !!orgId &&
@@ -334,7 +338,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         dueAt,
         notes: notes.trim() ? notes.trim() : null,
         asDraft,
-        ...(paymentPlan
+        ...(paymentPlan && billingScope !== "team"
           ? {
               paymentPlanEnabled: true,
               depositCents,
@@ -660,15 +664,18 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             />
           </Field>
         </div>
-        <label className="flex items-center gap-2 text-[13px] text-fg">
-          <input
-            type="checkbox"
-            checked={paymentPlan}
-            onChange={(e) => setPaymentPlan(e.target.checked)}
-          />
-          Pay in installments
-        </label>
-        {paymentPlan ? (
+        {/* A team invoice is split into shares by the captain; plans go on the shares. */}
+        {billingScope === "team" ? null : (
+          <label className="flex items-center gap-2 text-[13px] text-fg">
+            <input
+              type="checkbox"
+              checked={paymentPlan}
+              onChange={(e) => setPaymentPlan(e.target.checked)}
+            />
+            Pay in installments
+          </label>
+        )}
+        {paymentPlan && billingScope !== "team" ? (
           <div className="grid gap-4 sm:grid-cols-3">
             <Field
               label="Deposit (USD)"

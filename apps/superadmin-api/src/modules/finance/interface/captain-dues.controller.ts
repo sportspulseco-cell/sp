@@ -10,6 +10,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
@@ -25,7 +26,7 @@ import {
   Min,
   ValidateNested
 } from "class-validator";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -37,11 +38,20 @@ import {
   PAYMENT_PROCESSOR,
   type PaymentProcessor
 } from "../../../shared/payments/payment-processor";
+import { activeMemberPersonIds } from "../../../shared/audience/org-targets";
+import { InvoiceNoticesService } from "../application/services/invoice-notices";
 
 class CoverOutstandingBodyDto {
   @IsOptional()
   @IsIn(["succeeded", "failed"])
   mockOutcome?: "succeeded" | "failed";
+  /** Which team invoice (default: the one the tracker opens on). */
+  @IsOptional() @IsUUID() invoiceId?: string;
+}
+
+class PersonShareDto {
+  @IsUUID() personId!: string;
+  @IsInt() @Min(0) amountCents!: number;
 }
 
 class SplitShareDto {
@@ -60,7 +70,31 @@ class SetSplitBodyDto {
   @ValidateNested({ each: true })
   @Type(() => SplitShareDto)
   amounts?: SplitShareDto[];
+  /** Which team invoice (default: the one the tracker opens on). */
+  @IsOptional() @IsUUID() invoiceId?: string;
+  /** custom, first split of an invoice with no shares yet: one entry per player. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PersonShareDto)
+  personAmounts?: PersonShareDto[];
 }
+
+/** A team invoice the captain works on (MON-23). */
+type DuesMaster = {
+  id: string;
+  invoiceNumber: string;
+  totalCents: number;
+  status: string;
+  currency: string;
+  /** division_entry: created when the team applied; team_invoice: sent by an admin. */
+  kind: "division_entry" | "team_invoice";
+  label: string;
+  seasonName: string | null;
+  divisionName: string | null;
+  thresholdCents: number;
+  entryStatus: string | null;
+};
 
 type SplitMethod = "even" | "custom";
 
@@ -110,7 +144,8 @@ export class CaptainDuesController {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
+    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor,
+    private readonly notices: InvoiceNoticesService
   ) {}
 
   // -------------------------------------------------------------------
@@ -123,28 +158,42 @@ export class CaptainDuesController {
   })
   async getBreakdown(
     @CurrentUser() user: AuthPrincipal,
-    @Param("teamId") teamId: string
+    @Param("teamId") teamId: string,
+    @Query("invoiceId") invoiceId?: string
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
 
-    const { activeRow, masterInvoiceId } = await this.loadDuesContext(teamId);
-    if (!masterInvoiceId) {
+    const { masters, master: picked, lastEntry } = await this.resolveMaster(teamId, invoiceId);
+    const mastersOut = masters.map((m) => ({
+      id: m.id,
+      invoiceNumber: m.invoiceNumber,
+      totalCents: m.totalCents,
+      kind: m.kind,
+      label: m.label,
+      status: m.status
+    }));
+    if (!picked) {
       return {
         teamId,
         teamName: team.name,
         masterInvoiceId: null,
         masterInvoiceNumber: null,
         masterTotalCents: 0,
+        masterKind: null,
+        masterLabel: null,
         totalCents: 0,
         collectedCents: 0,
-        thresholdCents: activeRow?.thresholdCents ?? 0,
-        seasonName: activeRow?.seasonName ?? null,
-        divisionName: activeRow?.divisionName ?? null,
-        entryStatus: activeRow?.entryStatus ?? null,
+        thresholdCents: lastEntry?.thresholdCents ?? 0,
+        seasonName: lastEntry?.seasonName ?? null,
+        divisionName: lastEntry?.divisionName ?? null,
+        entryStatus: lastEntry?.entryStatus ?? null,
         splitMethod: null as SplitMethod | null,
+        masters: mastersOut,
+        candidates: [] as Array<{ personId: string; email: string | null; name: string; isCaptain: boolean }>,
         subInvoices: []
       };
     }
+    const masterInvoiceId = picked.id;
 
     const [master] = await this.db
       .select({
@@ -192,6 +241,8 @@ export class CaptainDuesController {
     const totalCents = subs.reduce((a, s) => a + s.totalCents, 0);
     const collectedCents = subs.reduce((a, s) => a + s.paidCents, 0);
     const now = new Date();
+    // No shares yet (a team invoice an admin sent): who the split can cover.
+    const candidates = subs.length === 0 ? await this.splitCandidates(team) : [];
 
     return {
       teamId,
@@ -199,13 +250,17 @@ export class CaptainDuesController {
       masterInvoiceId,
       masterInvoiceNumber: master?.invoiceNumber ?? null,
       masterTotalCents: master?.totalCents ?? totalCents,
+      masterKind: picked.kind,
+      masterLabel: picked.label,
       totalCents,
       collectedCents,
-      thresholdCents: activeRow?.thresholdCents ?? 0,
-      seasonName: activeRow?.seasonName ?? null,
-      divisionName: activeRow?.divisionName ?? null,
-      entryStatus: activeRow?.entryStatus ?? null,
+      thresholdCents: picked.thresholdCents,
+      seasonName: picked.seasonName,
+      divisionName: picked.divisionName,
+      entryStatus: picked.entryStatus,
       splitMethod: readSplitMethod(master?.metadata),
+      masters: mastersOut,
+      candidates,
       subInvoices: subs.map((s) => {
         const isCaptain =
           !!s.personUserId && s.personUserId === team.captainUserId;
@@ -245,10 +300,11 @@ export class CaptainDuesController {
   })
   async remindAll(
     @CurrentUser() user: AuthPrincipal,
-    @Param("teamId") teamId: string
+    @Param("teamId") teamId: string,
+    @Query("invoiceId") invoiceId?: string
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
-    const masterId = await this.loadMasterInvoiceId(teamId);
+    const masterId = (await this.resolveMaster(teamId, invoiceId)).master?.id ?? null;
     if (!masterId) {
       throw new NotFoundException("No master invoice for this team");
     }
@@ -287,10 +343,11 @@ export class CaptainDuesController {
   async remindOne(
     @CurrentUser() user: AuthPrincipal,
     @Param("teamId") teamId: string,
-    @Param("invoiceId") invoiceId: string
+    @Param("invoiceId") invoiceId: string,
+    @Query("masterId") masterInvoiceId?: string
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
-    const masterId = await this.loadMasterInvoiceId(teamId);
+    const masterId = (await this.resolveMaster(teamId, masterInvoiceId)).master?.id ?? null;
     if (!masterId) {
       throw new NotFoundException("No master invoice for this team");
     }
@@ -356,10 +413,12 @@ export class CaptainDuesController {
     @Body() body: SetSplitBodyDto
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
-    const { masterInvoiceId } = await this.loadDuesContext(teamId);
+    const masterInvoiceId = (await this.resolveMaster(teamId, body.invoiceId)).master?.id ?? null;
     if (!masterInvoiceId) {
       throw new NotFoundException("No master invoice for this team");
     }
+    // Read outside the transaction: who a first split can cover.
+    const candidates = await this.splitCandidates(team);
 
     const result = await this.db.transaction(async (tx) => {
       const [master] = await tx
@@ -408,10 +467,10 @@ export class CaptainDuesController {
             r.sub.invoiceNumber
         }));
       if (shares.length === 0) {
-        throw new ConflictException({
-          error: "no_shares",
-          message: "No player shares exist on this team invoice yet."
-        });
+        // First split of a team invoice an admin sent (UC-16, MON-23):
+        // create each player's invoice for their share.
+        const created = await this.createShares(tx, master, body, candidates, user.userId);
+        return { shares: created.length, invoicesUpdated: 0, itemsUpdated: 0, installmentsUpdated: 0, created };
       }
 
       const target = master.totalCents;
@@ -548,15 +607,18 @@ export class CaptainDuesController {
         shares: shares.length,
         invoicesUpdated,
         itemsUpdated,
-        installmentsUpdated
+        installmentsUpdated,
+        created: [] as string[]
       };
     });
 
     this.logger.log(
-      `captain.dues.split team=${teamId} master=${masterInvoiceId} method=${body.method} shares=${result.shares} invoicesUpdated=${result.invoicesUpdated} items=${result.itemsUpdated} installments=${result.installmentsUpdated} by=${user.userId}`
+      `captain.dues.split team=${teamId} master=${masterInvoiceId} method=${body.method} shares=${result.shares} created=${result.created.length} invoicesUpdated=${result.invoicesUpdated} items=${result.itemsUpdated} installments=${result.installmentsUpdated} by=${user.userId}`
     );
+    // Each player hears about their new share (after commit).
+    if (result.created.length > 0) await this.notices.issued(result.created);
     // Readback: the tracker re-renders from what is now stored.
-    return this.getBreakdown(user, teamId);
+    return this.getBreakdown(user, teamId, masterInvoiceId);
   }
 
   /**
@@ -636,7 +698,7 @@ export class CaptainDuesController {
     @Body() body: CoverOutstandingBodyDto
   ) {
     const team = await this.requireCaptainTeam(user.userId, teamId);
-    const masterId = await this.loadMasterInvoiceId(teamId);
+    const masterId = (await this.resolveMaster(teamId, body.invoiceId)).master?.id ?? null;
     if (!masterId) {
       throw new NotFoundException("No master invoice for this team");
     }
@@ -763,53 +825,252 @@ export class CaptainDuesController {
   }
 
   /**
-   * The master invoice the tracker shows: the team's earliest division
-   * entry that carries one (plus that entry's season / division /
-   * threshold context). Every captain dues command resolves the master
-   * through here so reads and writes never disagree on which invoice
-   * they mean.
+   * Every team invoice the captain works on (MON-23): the master of each
+   * division entry (made when the team applied) and each team invoice an
+   * admin sent from the composer. Every dues command resolves its invoice
+   * here, so reads and writes never disagree on which one they mean.
    */
-  private async loadDuesContext(teamId: string) {
-    const dteRows = await this.db
+  private async loadMasters(teamId: string) {
+    const entries = await this.db
       .select({
-        masterInvoiceId: schema.divisionTeamEntries.invoiceId,
-        collectedCents: schema.divisionTeamEntries.collectedCents,
-        thresholdCents:
-          schema.divisionTeamEntries.confirmationThresholdCents,
+        invoiceId: schema.divisionTeamEntries.invoiceId,
+        thresholdCents: schema.divisionTeamEntries.confirmationThresholdCents,
         entryStatus: schema.divisionTeamEntries.entryStatus,
         seasonName: schema.seasons.name,
         divisionName: schema.divisions.name
       })
       .from(schema.divisionTeamEntries)
-      .innerJoin(
-        schema.divisions,
-        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-      )
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.divisions.seasonId)
-      )
+      .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
+      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
       .where(eq(schema.divisionTeamEntries.teamId, teamId))
       .orderBy(schema.divisionTeamEntries.createdAt);
-    const activeRow =
-      dteRows.find((r) => r.masterInvoiceId) ?? dteRows.at(-1) ?? null;
-    return { activeRow, masterInvoiceId: activeRow?.masterInvoiceId ?? null };
-  }
-
-  private async loadMasterInvoiceId(teamId: string): Promise<string | null> {
-    const rows = await this.db
-      .select({ id: schema.divisionTeamEntries.invoiceId })
-      .from(schema.divisionTeamEntries)
+    const entryIds = entries.map((e) => e.invoiceId).filter((x): x is string => !!x);
+    const invoiceCols = {
+      id: schema.invoices.id,
+      invoiceNumber: schema.invoices.invoiceNumber,
+      totalCents: schema.invoices.totalCents,
+      status: schema.invoices.status,
+      currency: schema.invoices.currency
+    };
+    const entryInvoices = entryIds.length
+      ? await this.db.select(invoiceCols).from(schema.invoices).where(inArray(schema.invoices.id, entryIds))
+      : [];
+    const teamInvoices = await this.db
+      .select(invoiceCols)
+      .from(schema.invoices)
       .where(
         and(
-          eq(schema.divisionTeamEntries.teamId, teamId),
-          inArray(schema.divisionTeamEntries.entryStatus, [
-            "applied",
-            "accepted",
-            "confirmed"
-          ])
+          eq(schema.invoices.teamId, teamId),
+          eq(schema.invoices.invoiceType, "team_dues"),
+          ne(schema.invoices.status, "void")
         )
-      );
-    return rows.find((r) => r.id)?.id ?? null;
+      )
+      .orderBy(desc(schema.invoices.createdAt));
+    const sent = teamInvoices.filter((t) => !entryIds.includes(t.id));
+    const items = sent.length
+      ? await this.db
+          .select({ invoiceId: schema.invoiceItems.invoiceId, description: schema.invoiceItems.description })
+          .from(schema.invoiceItems)
+          .where(inArray(schema.invoiceItems.invoiceId, sent.map((t) => t.id)))
+      : [];
+
+    const masters: DuesMaster[] = [];
+    for (const e of entries) {
+      const inv = entryInvoices.find((i) => i.id === e.invoiceId);
+      if (!inv) continue;
+      masters.push({
+        ...inv,
+        kind: "division_entry",
+        label: [e.seasonName, e.divisionName].filter(Boolean).join(" · ") || inv.invoiceNumber,
+        seasonName: e.seasonName,
+        divisionName: e.divisionName,
+        thresholdCents: e.thresholdCents ?? 0,
+        entryStatus: e.entryStatus
+      });
+    }
+    for (const t of sent) {
+      masters.push({
+        ...t,
+        kind: "team_invoice",
+        label: items.find((i) => i.invoiceId === t.id)?.description ?? t.invoiceNumber,
+        seasonName: null,
+        divisionName: null,
+        thresholdCents: 0,
+        entryStatus: null
+      });
+    }
+    return { masters, lastEntry: entries.at(-1) ?? null };
   }
+
+  /** The invoice asked for (404 when it is not this team's), else the first one. */
+  private async resolveMaster(teamId: string, invoiceId?: string) {
+    const { masters, lastEntry } = await this.loadMasters(teamId);
+    if (invoiceId) {
+      const picked = masters.find((m) => m.id === invoiceId);
+      if (!picked) throw new NotFoundException("That team invoice is not on this team");
+      return { masters, master: picked, lastEntry };
+    }
+    return { masters, master: masters[0] ?? null, lastEntry };
+  }
+
+  /**
+   * Who a first split covers: the team's active roster plus the captain
+   * (captains are not always rostered, and pay their share by default).
+   */
+  private async splitCandidates(team: { id: string; captainUserId: string | null }) {
+    const ids = new Set(await activeMemberPersonIds(this.db, [team.id]));
+    let captainPersonId: string | null = null;
+    if (team.captainUserId) {
+      const [c] = await this.db
+        .select({ id: schema.persons.id })
+        .from(schema.persons)
+        .where(eq(schema.persons.userId, team.captainUserId))
+        .limit(1);
+      captainPersonId = c?.id ?? null;
+      if (captainPersonId) ids.add(captainPersonId);
+    }
+    if (ids.size === 0) return [];
+    const people = await this.db
+      .select({
+        personId: schema.persons.id,
+        firstName: schema.persons.legalFirstName,
+        lastName: schema.persons.legalLastName,
+        preferredName: schema.persons.preferredName,
+        email: schema.profiles.email
+      })
+      .from(schema.persons)
+      .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
+      .where(inArray(schema.persons.id, [...ids]));
+    return people
+      .map((p) => ({
+        personId: p.personId,
+        email: p.email ?? null,
+        name: p.preferredName || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.email || "Player",
+        isCaptain: p.personId === captainPersonId
+      }))
+      .sort((a, b) => Number(b.isCaptain) - Number(a.isCaptain) || a.name.localeCompare(b.name));
+  }
+
+  /**
+   * First split of a team invoice with no shares (UC-16): one invoice per
+   * player for their share, issued now. The team invoice becomes the
+   * container its shares roll up to (status draft, like a division-entry
+   * master), so it is not billed, chased or counted twice.
+   */
+  private async createShares(
+    tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+    master: typeof schema.invoices.$inferSelect,
+    body: SetSplitBodyDto,
+    candidates: Array<{ personId: string; email: string | null; name: string; isCaptain: boolean }>,
+    userId: string
+  ): Promise<string[]> {
+    if (master.paidCents > 0) {
+      throw new ConflictException({
+        error: "master_paid",
+        message: `${fmtMoney(master.paidCents, master.currency)} is already paid on this team invoice. Ask your league admin before splitting it.`
+      });
+    }
+    const target = master.totalCents;
+    const amounts = new Map<string, number>();
+    if (body.method === "even") {
+      const includeCaptain = body.includeCaptain ?? true;
+      const payers = includeCaptain ? candidates : candidates.filter((c) => !c.isCaptain);
+      if (payers.length === 0) {
+        throw new BadRequestException(
+          "Nobody is on the roster to split the fee across. Invite players first, or include yourself."
+        );
+      }
+      const base = Math.floor(target / payers.length);
+      const remainder = target - base * payers.length;
+      payers.forEach((c, i) => amounts.set(c.personId, base + (i === 0 ? remainder : 0)));
+    } else {
+      for (const a of body.personAmounts ?? []) {
+        if (amounts.has(a.personId)) throw new BadRequestException("Each player may appear only once.");
+        if (!candidates.some((c) => c.personId === a.personId)) {
+          throw new BadRequestException("One of the players is not on this team.");
+        }
+        amounts.set(a.personId, a.amountCents);
+      }
+      if (amounts.size === 0) throw new BadRequestException("A custom split needs an amount for at least one player.");
+      const sum = [...amounts.values()].reduce((a, b) => a + b, 0);
+      if (sum !== target) {
+        throw new UnprocessableEntityException({
+          error: "split_sum_mismatch",
+          message: `Shares must add up to the team fee exactly: got ${fmtMoney(sum, master.currency)}, team fee is ${fmtMoney(target, master.currency)}.`,
+          sumCents: sum,
+          targetCents: target
+        });
+      }
+    }
+
+    const [firstItem] = await tx
+      .select({ kind: schema.invoiceItems.kind })
+      .from(schema.invoiceItems)
+      .where(eq(schema.invoiceItems.invoiceId, master.id))
+      .limit(1);
+    const now = new Date();
+    // Two statements for the whole roster (shares, then their line items):
+    // one insert per player took over 30 s for a 26-player team.
+    const payers = candidates
+      .map((c) => ({ c, amount: amounts.get(c.personId) ?? 0 }))
+      .filter((x) => x.amount > 0);
+    if (payers.length === 0) throw new BadRequestException("Nothing to split: the team fee is $0.");
+    const subs = await tx
+      .insert(schema.invoices)
+      .values(
+        payers.map(({ c, amount }, i) => ({
+          orgId: master.orgId,
+          invoiceNumber: `${master.invoiceNumber}-${String(i + 1).padStart(2, "0")}`,
+          invoiceType: "sub_invoice" as const,
+          parentInvoiceId: master.id,
+          billingScope: "individual",
+          teamId: master.teamId,
+          recipientPersonId: c.personId,
+          recipientEmail: c.email,
+          subtotalCents: amount,
+          totalCents: amount,
+          paidCents: 0,
+          currency: master.currency,
+          status: "sent",
+          issuedAt: now,
+          dueAt: master.dueAt,
+          idempotencyKey: `share-${master.id}-${c.personId}`,
+          metadata: { splitMethod: body.method }
+        }))
+      )
+      .returning({ id: schema.invoices.id, totalCents: schema.invoices.totalCents });
+    if (subs.length !== payers.length) {
+      throw new Error(`share insert wrote ${subs.length} of ${payers.length} rows`);
+    }
+    await tx.insert(schema.invoiceItems).values(
+      subs.map((sub) => ({
+        invoiceId: sub.id,
+        kind: firstItem?.kind ?? "registration_fee",
+        description: `${master.invoiceNumber}: your share`,
+        quantity: 1,
+        unitAmountCents: sub.totalCents,
+        amountCents: sub.totalCents
+      }))
+    );
+    const created = subs.map((s) => s.id);
+    const meta = (master.metadata as Record<string, unknown>) ?? {};
+    await tx
+      .update(schema.invoices)
+      .set({
+        status: "draft",
+        metadata: {
+          ...meta,
+          splitConfigured: true,
+          splitMethod: body.method,
+          ...(body.method === "even" ? { splitIncludeCaptain: body.includeCaptain ?? true } : {}),
+          sharesCreatedAt: now.toISOString(),
+          splitUpdatedAt: now.toISOString(),
+          splitUpdatedByUserId: userId
+        },
+        updatedAt: now
+      })
+      .where(eq(schema.invoices.id, master.id));
+    return created;
+  }
+
 }

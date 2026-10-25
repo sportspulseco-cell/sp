@@ -34,8 +34,13 @@ export default async function FinancePage() {
         .catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 
+  // Owed = issued and not fully paid. Drafts (unsent, or the team invoice a
+  // captain's shares roll up to) are not owed, so they are not counted on
+  // top of their shares.
   const open = invoicesPage.items.filter(
-    (i) => i.status !== "void" && i.totalCents > i.paidCents
+    (i) =>
+      (i.status === "sent" || i.status === "partial" || i.status === "overdue") &&
+      i.totalCents > i.paidCents
   );
   const balanceCents = open.reduce(
     (a, i) => a + (i.totalCents - i.paidCents),

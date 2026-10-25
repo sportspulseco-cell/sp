@@ -106,41 +106,29 @@ export class FinanceInvoicingController {
       overdue_cents: number | null;
       invoice_count: number;
       overdue_count: number;
-    }>(
-      orgId
-        ? sql`
-            SELECT
-              COALESCE(SUM(total_cents) FILTER (WHERE status != 'void'), 0)::int
-                AS total_invoiced_cents,
-              COALESCE(SUM(paid_cents) FILTER (WHERE status != 'void'), 0)::int
-                AS collected_cents,
-              COALESCE(SUM(total_cents - paid_cents)
-                FILTER (WHERE status IN ('sent','partial','overdue')), 0)::int
-                AS outstanding_cents,
-              COALESCE(SUM(total_cents - paid_cents)
-                FILTER (WHERE status = 'overdue'), 0)::int
-                AS overdue_cents,
-              COUNT(*) FILTER (WHERE status != 'void')::int AS invoice_count,
-              COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
-            FROM invoices
-            WHERE org_id = ${orgId}
-          `
-        : sql`
-            SELECT
-              COALESCE(SUM(total_cents) FILTER (WHERE status != 'void'), 0)::int
-                AS total_invoiced_cents,
-              COALESCE(SUM(paid_cents) FILTER (WHERE status != 'void'), 0)::int
-                AS collected_cents,
-              COALESCE(SUM(total_cents - paid_cents)
-                FILTER (WHERE status IN ('sent','partial','overdue')), 0)::int
-                AS outstanding_cents,
-              COALESCE(SUM(total_cents - paid_cents)
-                FILTER (WHERE status = 'overdue'), 0)::int
-                AS overdue_cents,
-              COUNT(*) FILTER (WHERE status != 'void')::int AS invoice_count,
-              COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
-            FROM invoices
-          `
+    }>(sql`
+      SELECT
+        COALESCE(SUM(total_cents) FILTER (WHERE status != 'void'), 0)::int
+          AS total_invoiced_cents,
+        COALESCE(SUM(paid_cents) FILTER (WHERE status != 'void'), 0)::int
+          AS collected_cents,
+        COALESCE(SUM(total_cents - paid_cents)
+          FILTER (WHERE status IN ('sent','partial','overdue')), 0)::int
+          AS outstanding_cents,
+        COALESCE(SUM(total_cents - paid_cents)
+          FILTER (WHERE status = 'overdue'), 0)::int
+          AS overdue_cents,
+        COUNT(*) FILTER (WHERE status != 'void')::int AS invoice_count,
+        COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
+      FROM invoices i
+      WHERE ${orgId ? sql`i.org_id = ${orgId}` : sql`true`}
+        -- A team invoice with player shares is their container: count the
+        -- shares, not the container as well (MON-23).
+        AND NOT (
+          i.invoice_type = 'team_dues'
+          AND EXISTS (SELECT 1 FROM invoices c WHERE c.parent_invoice_id = i.id)
+        )
+    `
     );
     return {
       totalInvoicedCents: row?.total_invoiced_cents ?? 0,

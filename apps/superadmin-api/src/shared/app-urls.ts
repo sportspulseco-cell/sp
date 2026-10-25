@@ -14,3 +14,12 @@ export function playerWebUrl(config: ConfigService): string {
     : "https://player.sportspulse.us"
   ).replace(/\/+$/, "");
 }
+
+/** Public origin of the captain console (TEAM_ADMIN_WEB_URL), for links in notices. */
+export function teamAdminWebUrl(config: ConfigService): string {
+  const configured = config.get<string>("TEAM_ADMIN_WEB_URL");
+  return (configured && configured.trim()
+    ? configured.trim()
+    : "https://team.sportspulse.us"
+  ).replace(/\/+$/, "");
+}

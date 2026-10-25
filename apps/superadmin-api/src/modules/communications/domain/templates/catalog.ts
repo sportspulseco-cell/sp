@@ -78,6 +78,8 @@ export const TEMPLATE_CODES = [
   "DUES_COVERED_BY_CAPTAIN",
   // Payments & Invoicing — Phase 16 (dotted codes used by cron + admin)
   "invoice.created",
+  // UC-16: a team invoice for the captain to split on Dues (MON-23).
+  "team_dues.created",
   "payment.confirmed",
   "installment.failed",
   "invoice.late_fee_applied",
@@ -720,6 +722,22 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "New invoice {{invoiceNumber}}: {{amountLabel}}",
     body: "Due {{dueLabel}}. Open Payments to see it and pay.",
     variables: ["invoiceNumber", "amountLabel", "dueLabel"]
+  },
+  {
+    code: "team_dues.created",
+    channel: "email",
+    subject: "Team invoice {{invoiceNumber}} for {{teamName}}: {{amountLabel}} due {{dueLabel}}",
+    body:
+      "Your league sent {{teamName}} a team invoice: {{invoiceNumber}} for {{amountLabel}}, due {{dueLabel}}.\n\n" +
+      "Split it among your players on Dues: {{duesUrl}}. Each player then gets their own invoice for their share.",
+    variables: ["invoiceNumber", "teamName", "amountLabel", "dueLabel", "duesUrl"]
+  },
+  {
+    code: "team_dues.created",
+    channel: "in_app",
+    subject: "Team invoice {{invoiceNumber}} for {{teamName}}: {{amountLabel}}",
+    body: "Due {{dueLabel}}. Split it among your players on Dues in the team console.",
+    variables: ["invoiceNumber", "teamName", "amountLabel", "dueLabel"]
   },
   {
     code: "payment.confirmed",

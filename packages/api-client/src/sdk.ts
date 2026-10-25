@@ -838,8 +838,10 @@ export function createApi(f: Fetcher) {
         ),
 
       // Captain dues (Phase 3)
-      captainDuesBreakdown: (teamId: string) =>
-        f<CaptainDuesBreakdown>(`/captain/dues/${teamId}`),
+      captainDuesBreakdown: (teamId: string, invoiceId?: string) =>
+        f<CaptainDuesBreakdown>(
+          `/captain/dues/${teamId}${invoiceId ? `?invoiceId=${encodeURIComponent(invoiceId)}` : ""}`
+        ),
       /**
        * Persist how the team fee is shared out across the existing
        * sub-invoices (MON-8). One command: the server recomputes even
@@ -849,31 +851,35 @@ export function createApi(f: Fetcher) {
        */
       captainDuesSetSplit: (
         teamId: string,
-        body:
+        body: { invoiceId?: string } & (
           | { method: "even"; includeCaptain?: boolean }
           | {
               method: "custom";
-              amounts: Array<{ invoiceId: string; amountCents: number }>;
+              /** Existing shares (sub-invoice ids). */
+              amounts?: Array<{ invoiceId: string; amountCents: number }>;
+              /** First split of a team invoice with no shares yet. */
+              personAmounts?: Array<{ personId: string; amountCents: number }>;
             }
+        )
       ) =>
         f<CaptainDuesBreakdown>(`/captain/dues/${teamId}/split`, {
           method: "POST",
           body: JSON.stringify(body)
         }),
-      captainDuesRemindAll: (teamId: string) =>
+      captainDuesRemindAll: (teamId: string, masterInvoiceId?: string) =>
         f<{ teamId: string; queued: number }>(
-          `/captain/dues/${teamId}/remind-all`,
+          `/captain/dues/${teamId}/remind-all${masterInvoiceId ? `?invoiceId=${encodeURIComponent(masterInvoiceId)}` : ""}`,
           { method: "POST" }
         ),
       /** One player's share (sub-invoice id), not a split row. */
-      captainDuesRemindOne: (teamId: string, invoiceId: string) =>
+      captainDuesRemindOne: (teamId: string, invoiceId: string, masterInvoiceId?: string) =>
         f<{ teamId: string; invoiceId: string; queued: number }>(
-          `/captain/dues/${teamId}/remind/${invoiceId}`,
+          `/captain/dues/${teamId}/remind/${invoiceId}${masterInvoiceId ? `?masterId=${encodeURIComponent(masterInvoiceId)}` : ""}`,
           { method: "POST" }
         ),
       captainDuesCoverOutstanding: (
         teamId: string,
-        body: { mockOutcome?: "succeeded" | "failed" } = {}
+        body: { mockOutcome?: "succeeded" | "failed"; invoiceId?: string } = {}
       ) =>
         f<{
           teamId: string;

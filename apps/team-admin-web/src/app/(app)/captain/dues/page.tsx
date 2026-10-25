@@ -19,7 +19,12 @@ export const metadata = { title: "Dues — SportsPulse" };
  *     full unpaid balance; on success advances paid_cents on every
  *     sub-invoice + notifies each covered player
  */
-export default async function CaptainDuesPage() {
+export default async function CaptainDuesPage({
+  searchParams
+}: {
+  searchParams: Promise<{ invoiceId?: string }>;
+}) {
+  const { invoiceId } = await searchParams;
   const scope = await iam.meScope().catch(() => null);
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const myTeamId = scope?.teamIds[0] ?? null;
@@ -36,9 +41,11 @@ export default async function CaptainDuesPage() {
     );
   }
 
+  // The team invoice email links here with ?invoiceId=; an unknown id
+  // falls back to the team's first invoice.
   const breakdown = await finance
-    .captainDuesBreakdown(myTeamId)
-    .catch(() => null);
+    .captainDuesBreakdown(myTeamId, invoiceId)
+    .catch(() => (invoiceId ? finance.captainDuesBreakdown(myTeamId).catch(() => null) : null));
 
   if (!breakdown || !breakdown.masterInvoiceId) {
     return (
@@ -67,7 +74,7 @@ export default async function CaptainDuesPage() {
       <PageHeader
         eyebrow="Captain console"
         title="Team dues"
-        description="Track collection against the team's master invoice. Remind unpaid players or cover their outstanding balance in one charge."
+        description="Split the team invoice among your players, then track what each has paid. Remind unpaid players or cover their balance in one charge."
       />
       <DuesScreen teamId={myTeamId} initial={breakdown} />
     </div>

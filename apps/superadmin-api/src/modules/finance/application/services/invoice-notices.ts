@@ -4,7 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
-import { playerWebUrl } from "../../../../shared/app-urls";
+import { playerWebUrl, teamAdminWebUrl } from "../../../../shared/app-urls";
 import { NotificationService } from "../../../communications/application/notification.service";
 
 /**
@@ -38,19 +38,22 @@ export class InvoiceNoticesService {
         dueAt: schema.invoices.dueAt,
         personId: schema.invoices.recipientPersonId,
         invoiceEmail: schema.invoices.recipientEmail,
-        accountEmail: schema.profiles.email
+        accountEmail: schema.profiles.email,
+        invoiceType: schema.invoices.invoiceType,
+        teamName: schema.teams.name
       })
       .from(schema.invoices)
+      .leftJoin(schema.teams, eq(schema.teams.id, schema.invoices.teamId))
       .leftJoin(schema.persons, eq(schema.persons.id, schema.invoices.recipientPersonId))
       .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
       .where(inArray(schema.invoices.id, invoiceIds));
 
     const url = `${playerWebUrl(this.config)}/payments`;
     let queued = 0;
-    for (const inv of rows) {
-      if (inv.status === "draft" || inv.status === "void") continue;
+    const one = async (inv: (typeof rows)[number]) => {
+      if (inv.status === "draft" || inv.status === "void") return;
       const email = inv.accountEmail ?? inv.invoiceEmail ?? null;
-      if (!inv.personId && !email) continue;
+      if (!inv.personId && !email) return;
       const amountLabel = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: inv.currency || "USD"
@@ -58,9 +61,11 @@ export class InvoiceNoticesService {
       const dueLabel = inv.dueAt
         ? new Date(inv.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
         : "on receipt";
+      // A team invoice goes to the captain, who splits it on Dues (UC-16).
+      const teamDues = inv.invoiceType === "team_dues";
       const row = await this.notify.queue({
         orgId: inv.orgId,
-        templateCode: "invoice.created",
+        templateCode: teamDues ? "team_dues.created" : "invoice.created",
         channel: email ? "email" : "in_app",
         idempotencyKey: `invoice.created:${inv.id}`,
         recipientPersonId: inv.personId,
@@ -70,11 +75,22 @@ export class InvoiceNoticesService {
           amountLabel,
           dueLabel,
           invoiceUrl: url,
-          invoiceId: inv.id
+          invoiceId: inv.id,
+          ...(teamDues
+            ? {
+                teamName: inv.teamName ?? "your team",
+                duesUrl: `${teamAdminWebUrl(this.config)}/captain/dues?invoiceId=${inv.id}`
+              }
+            : {})
         },
         sourceEvent: "invoice.created"
       });
       if (row) queued += 1;
+    };
+    // Batches of 8, like game notices: a whole roster at once (team split,
+    // division invoice) was one round trip per player.
+    for (let i = 0; i < rows.length; i += 8) {
+      await Promise.all(rows.slice(i, i + 8).map(one));
     }
     this.log.log(`invoice.created invoices=${invoiceIds.length} queued=${queued}`);
     return queued;

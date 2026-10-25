@@ -110,8 +110,9 @@ export function DuesScreen({
     try {
       const next =
         splitMode === "even"
-          ? await finance.captainDuesSetSplit(teamId, { method: "even", includeCaptain })
+          ? await finance.captainDuesSetSplit(teamId, { invoiceId: data.masterInvoiceId ?? undefined, method: "even", includeCaptain })
           : await finance.captainDuesSetSplit(teamId, {
+              invoiceId: data.masterInvoiceId ?? undefined,
               method: "custom",
               amounts: data.subInvoices.map((s) => ({
                 invoiceId: s.id,
@@ -135,10 +136,72 @@ export function DuesScreen({
 
   async function refresh() {
     try {
-      const next = await finance.captainDuesBreakdown(teamId);
+      const next = await finance.captainDuesBreakdown(teamId, data.masterInvoiceId ?? undefined);
       setData(next);
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  // Another team invoice (MON-23): division-entry fee or one an admin sent.
+  async function openInvoice(id: string) {
+    setBusy("open");
+    setError(null);
+    setFlash(null);
+    try {
+      const next = await finance.captainDuesBreakdown(teamId, id);
+      setData(next);
+      setSplitMode(next.splitMethod ?? "even");
+      setCustomSplits(Object.fromEntries(next.subInvoices.map((s) => [s.id, s.totalCents])));
+      setFirstCustom({});
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // First split of a team invoice with no shares yet: one invoice per player.
+  const [firstCustom, setFirstCustom] = useState<Record<string, number>>({});
+  const firstPayers = data.candidates.filter((c) => includeCaptain || !c.isCaptain);
+  const firstEven = useMemo(() => {
+    const n = firstPayers.length;
+    const out: Record<string, number> = {};
+    if (n === 0) return out;
+    const base = Math.floor(targetCents / n);
+    const remainder = targetCents - base * n;
+    firstPayers.forEach((c, i) => (out[c.personId] = base + (i === 0 ? remainder : 0)));
+    return out;
+  }, [firstPayers, targetCents]);
+  const firstCustomSum = data.candidates.reduce((a, c) => a + (firstCustom[c.personId] ?? 0), 0);
+
+  async function createSplit() {
+    setBusy("split");
+    setError(null);
+    try {
+      const next =
+        splitMode === "even"
+          ? await finance.captainDuesSetSplit(teamId, {
+              invoiceId: data.masterInvoiceId ?? undefined,
+              method: "even",
+              includeCaptain
+            })
+          : await finance.captainDuesSetSplit(teamId, {
+              invoiceId: data.masterInvoiceId ?? undefined,
+              method: "custom",
+              personAmounts: data.candidates
+                .map((c) => ({ personId: c.personId, amountCents: firstCustom[c.personId] ?? 0 }))
+                .filter((x) => x.amountCents > 0)
+            });
+      setData(next);
+      setCustomSplits(Object.fromEntries(next.subInvoices.map((s) => [s.id, s.totalCents])));
+      setFlash(
+        `Split sent: ${next.subInvoices.length} player${next.subInvoices.length === 1 ? "" : "s"} got an invoice for their share.`
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -146,7 +209,7 @@ export function DuesScreen({
     setBusy("remind");
     setError(null);
     try {
-      const res = await finance.captainDuesRemindAll(teamId);
+      const res = await finance.captainDuesRemindAll(teamId, data.masterInvoiceId ?? undefined);
       setFlash(
         res.queued > 0
           ? `Queued ${res.queued} payment reminder${res.queued === 1 ? "" : "s"}.`
@@ -170,7 +233,8 @@ export function DuesScreen({
     setError(null);
     try {
       const res = await finance.captainDuesCoverOutstanding(teamId, {
-        mockOutcome: "succeeded"
+        mockOutcome: "succeeded",
+        invoiceId: data.masterInvoiceId ?? undefined
       });
       setFlash(
         res.charged > 0
@@ -189,7 +253,7 @@ export function DuesScreen({
     setBusy(sub.id);
     setError(null);
     try {
-      await finance.captainDuesRemindOne(teamId, sub.id);
+      await finance.captainDuesRemindOne(teamId, sub.id, data.masterInvoiceId ?? undefined);
       setFlash(`Reminded ${sub.playerName ?? "player"}.`);
     } catch (e) {
       setError((e as Error).message);
@@ -241,12 +305,31 @@ export function DuesScreen({
               </p>
             )}
           </div>
-          {data.masterInvoiceNumber && (
-            <p className="font-mono text-[11px] text-fg-muted">
-              Master invoice:{" "}
-              <span className="text-fg">{data.masterInvoiceNumber}</span>
-            </p>
-          )}
+          <div className="flex flex-col items-end gap-1.5">
+            {data.masters.length > 1 ? (
+              <label className="flex items-center gap-1.5 text-[12px] text-fg-muted">
+                Team invoice
+                <select
+                  value={data.masterInvoiceId ?? ""}
+                  onChange={(e) => void openInvoice(e.target.value)}
+                  disabled={busy !== null}
+                  className="h-8 max-w-[22rem] rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                >
+                  {data.masters.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label} · {m.invoiceNumber} · {fmt(m.totalCents, currency)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {data.masterInvoiceNumber && (
+              <p className="font-mono text-[11px] text-fg-muted">
+                Team invoice: <span className="text-fg">{data.masterInvoiceNumber}</span>
+                {data.masterKind === "team_invoice" && data.masterLabel ? ` · ${data.masterLabel}` : ""}
+              </p>
+            )}
+          </div>
         </header>
 
         {/* Collected gauge — mock 4 */}
@@ -358,8 +441,115 @@ export function DuesScreen({
         </p>
       )}
 
+      {data.subInvoices.length === 0 ? (
+        <section className="rounded-2xl border border-border bg-surface-1">
+          <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
+            <Eyebrow>Split the team fee</Eyebrow>
+            <div className="flex flex-wrap items-center gap-3 text-[12px]">
+              <label className="flex items-center gap-1.5 text-fg-muted">
+                Split:
+                <select
+                  value={splitMode}
+                  onChange={(e) => setSplitMode(e.target.value as SplitMode)}
+                  className="h-8 rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                >
+                  <option value="even">Even split</option>
+                  <option value="custom">Custom split</option>
+                </select>
+              </label>
+              {splitMode === "even" ? (
+                <label className="inline-flex items-center gap-1.5 text-fg-muted">
+                  <input
+                    type="checkbox"
+                    checked={includeCaptain}
+                    onChange={(e) => setIncludeCaptain(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border text-accent focus:ring-accent"
+                  />
+                  Include captain
+                </label>
+              ) : (
+                <span className={firstCustomSum === targetCents ? "text-fg-muted" : "font-medium text-[var(--tint-rose-fg)]"}>
+                  {fmt(firstCustomSum, currency)} of {fmt(targetCents, currency)}
+                </span>
+              )}
+              <Button
+                size="sm"
+                onClick={createSplit}
+                disabled={
+                  busy !== null ||
+                  data.candidates.length === 0 ||
+                  (splitMode === "even" ? firstPayers.length === 0 : firstCustomSum !== targetCents)
+                }
+              >
+                {busy === "split" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Split and send invoices
+              </Button>
+            </div>
+          </header>
+          {data.candidates.length === 0 ? (
+            <p className="px-5 py-6 text-center text-[13px] text-fg-muted">
+              Nobody is on the roster yet. Invite your players, then split the team fee.
+            </p>
+          ) : (
+            <>
+              <p className="px-5 pt-4 text-[12px] text-fg-muted">
+                Your league sent the team one invoice for {fmt(targetCents, currency)}. Split it and each
+                player gets their own invoice for their share; they pay it in the player app.
+              </p>
+              <table className="mt-2 w-full text-[13px]">
+                <thead className="bg-bg-subtle/40 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                  <tr>
+                    <th className="px-5 py-2 text-left">Player</th>
+                    <th className="px-5 py-2 text-right">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {data.candidates.map((c) => {
+                    const cents =
+                      splitMode === "even" ? firstEven[c.personId] ?? 0 : firstCustom[c.personId] ?? 0;
+                    return (
+                      <tr key={c.personId}>
+                        <td className="px-5 py-3">
+                          <p className="font-medium text-fg">{c.name}</p>
+                          {c.isCaptain ? (
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Captain</p>
+                          ) : null}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            aria-label={`Share for ${c.name}`}
+                            readOnly={splitMode === "even"}
+                            value={(cents / 100).toFixed(2)}
+                            onChange={(e) => {
+                              const dollars = parseFloat(e.target.value);
+                              setFirstCustom((prev) => ({
+                                ...prev,
+                                [c.personId]: Number.isFinite(dollars) ? Math.max(0, Math.round(dollars * 100)) : 0
+                              }));
+                            }}
+                            className={[
+                              "h-8 w-24 rounded-md border border-border bg-bg px-2 text-right font-mono tabular-nums text-fg focus:border-accent focus:outline-none",
+                              splitMode === "even" && "cursor-not-allowed opacity-70"
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
+          )}
+        </section>
+      ) : null}
+
       {/* Per-player breakdown — mock 4 */}
-      <section className="rounded-2xl border border-border bg-surface-1">
+      <section className={data.subInvoices.length === 0 ? "hidden" : "rounded-2xl border border-border bg-surface-1"}>
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
           <Eyebrow>Player splits</Eyebrow>
           <div className="flex flex-wrap items-center gap-3 text-[12px]">

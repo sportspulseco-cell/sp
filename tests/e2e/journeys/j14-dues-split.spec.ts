@@ -83,6 +83,29 @@ async function openDues(p: Page) {
   await p.waitForLoadState("networkidle").catch(() => {});
 }
 
+/** This run's team invoice (step 2), from the database: survives worker restarts. */
+async function runTeamInvoiceId(): Promise<string | null> {
+  const rows = await stagingSql<{ id: string }>(
+    `select i.id from invoices i join invoice_items ii on ii.invoice_id = i.id
+      where ii.description = $1 and i.invoice_type = 'team_dues' order by i.created_at desc limit 1`,
+    [`${TAG} J14 team dues`]
+  );
+  return rows[0]?.id ?? null;
+}
+
+/** Open Dues on this run's team invoice (as the email link does), else the default one. */
+async function openRunInvoice(p: Page): Promise<string | null> {
+  const id = await runTeamInvoiceId();
+  if (!id) {
+    await openDues(p);
+    return null;
+  }
+  await p.goto(`${new URL(p.url()).origin}/captain/dues?invoiceId=${id}`);
+  await expect(p.getByText("Loading team workspace")).toHaveCount(0, { timeout: 60_000 });
+  await p.waitForLoadState("networkidle").catch(() => {});
+  return id;
+}
+
 test("1. captain finds Dues; screen shows the team invoice or a clear next step", async ({ browser }) => {
   const p = (await as(browser, "teamAdmin")).page;
   await openDues(p);
@@ -129,19 +152,39 @@ test("2. a team-scope invoice from the admin composer reaches the captain dues s
   log("admin team invoice →", resp.status(), body.slice(0, 200));
   await shot(p, "02-admin-team-invoice");
   expect.soft(resp.status(), `admin can create a team invoice (${body.slice(0, 120)})`).toBeLessThan(300);
-  // Even when it succeeds, the bulk path writes one 'manual' invoice per member
-  // with no parent, while /captain/dues reads division_team_entries.invoice_id
-  // + sub_invoice children. Check what the captain sees.
+  // MON-23: a Team invoice is one team_dues invoice to the captain, who opens
+  // it on Dues (from the picker, or the email link) and splits it.
+  const inv = JSON.parse(body || "{}")?.invoices?.[0];
+  const rows = await stagingSql<{ invoice_type: string; team_id: string }>(
+    `select invoice_type, team_id from invoices where id = $1`,
+    [inv?.id ?? "00000000-0000-4000-8000-000000000000"]
+  );
+  expect.soft(rows[0]?.invoice_type, "composer Team scope writes one team invoice").toBe("team_dues");
   const c = (await as(browser, "teamAdmin")).page;
   await openDues(c);
+  const picker = c.locator("select").filter({ has: c.locator("option", { hasText: inv?.invoiceNumber ?? "none" }) });
+  await expect.soft(picker, "the captain can pick the new team invoice on Dues").toHaveCount(1);
+  if (await picker.count()) {
+    await picker.selectOption({ label: (await picker.locator("option", { hasText: inv.invoiceNumber }).innerText()).trim() });
+    await expect(c.getByText("Split the team fee")).toBeVisible({ timeout: 30_000 });
+  }
   const t = await mainText(c);
   log("captain dues after admin team invoice:", t.slice(0, 300));
-  expect.soft(t, "captain sees the team invoice on /captain/dues").toContain("600");
+  expect.soft(t, "captain sees the team invoice on /captain/dues").toContain("$600.00");
 });
 
 test("3. split controls: even + custom split persist; per-player remind works", async ({ browser }) => {
   const p = (await as(browser, "teamAdmin")).page;
-  await openDues(p);
+  const invId = await openRunInvoice(p);
+  // UC-16: the team invoice from step 2 has no shares yet; split it evenly.
+  if (await p.getByText("Split the team fee").count()) {
+    const splitP = p.waitForResponse((r) => /\/captain\/dues\/[^/]+\/split$/.test(r.url()) && r.request().method() === "POST", { timeout: 90_000 });
+    await p.getByRole("button", { name: "Split and send invoices" }).click();
+    const sr = await splitP;
+    log("first split →", sr.status());
+    expect(sr.status(), "captain splits the team invoice").toBeLessThan(300);
+    await expect(p.getByText(/Split sent: \d+ players?/)).toBeVisible({ timeout: 30_000 });
+  }
   const hasTracker = await p.getByText("Player splits").count();
   test.skip(!hasTracker, "no master team invoice on staging: /captain/dues shows the empty state, split UI unreachable (see test 1/2)");
   log("dues tracker:", (await mainText(p)).slice(0, 900));
@@ -191,13 +234,18 @@ test("3. split controls: even + custom split persist; per-player remind works", 
   // Same surface, no reload: the row shows the stored amount.
   await expect(amounts.nth(to)).toHaveValue(want0);
   // Durable record: the master invoice remembers the method.
-  const [m] = await stagingSql<{ method: string | null }>(
-    `select i.metadata->>'splitMethod' method from invoices i
-       join division_team_entries dte on dte.invoice_id = i.id
-       join teams t on t.id = dte.team_id
-      where t.name = $1 order by i.created_at desc limit 1`,
-    [TEAM_NAME]
-  );
+  const [m] = invId
+    ? await stagingSql<{ method: string | null }>(
+        `select metadata->>'splitMethod' method from invoices where id = $1`,
+        [invId]
+      )
+    : await stagingSql<{ method: string | null }>(
+        `select i.metadata->>'splitMethod' method from invoices i
+           join division_team_entries dte on dte.invoice_id = i.id
+           join teams t on t.id = dte.team_id
+          where t.name = $1 order by i.created_at desc limit 1`,
+        [TEAM_NAME]
+      );
   expect(m?.method, "master invoice records the custom split").toBe("custom");
   await p.reload();
   await expect(p.getByText("Player splits")).toBeVisible({ timeout: 60_000 });
@@ -218,13 +266,22 @@ test("3. split controls: even + custom split persist; per-player remind works", 
 });
 
 test("4. each player sees their share on player-web /payments", async ({ browser }) => {
-  const subs = await stagingSql<{ invoice_number: string; total_cents: number; email: string }>(
-    `select i.invoice_number, i.total_cents, i.recipient_email email, i.recipient_person_id from invoices i
-       join division_team_entries dte on dte.invoice_id = i.parent_invoice_id
-       join teams t on t.id = dte.team_id
-      where t.name=$1 and i.invoice_type='sub_invoice'`,
-    [TEAM_NAME]
-  );
+  const invId = await runTeamInvoiceId();
+  const subs = invId
+    ? await stagingSql<{ invoice_number: string; total_cents: number; email: string }>(
+        `select i.invoice_number, i.total_cents, coalesce(pr.email, i.recipient_email) email from invoices i
+           left join persons pe on pe.id = i.recipient_person_id
+           left join profiles pr on pr.id = pe.user_id
+          where i.parent_invoice_id = $1 and i.invoice_type = 'sub_invoice'`,
+        [invId]
+      )
+    : await stagingSql<{ invoice_number: string; total_cents: number; email: string }>(
+        `select i.invoice_number, i.total_cents, i.recipient_email email, i.recipient_person_id from invoices i
+           join division_team_entries dte on dte.invoice_id = i.parent_invoice_id
+           join teams t on t.id = dte.team_id
+          where t.name=$1 and i.invoice_type='sub_invoice'`,
+        [TEAM_NAME]
+      );
   log("sub-invoices for the team:", JSON.stringify(subs));
   test.skip(subs.length === 0, "no team dues split exists for the staging team; nothing for players to see (blocked by tests 1-2)");
   const mine = subs.find((s) => s.email === PLAYER_EMAIL);
@@ -236,7 +293,7 @@ test("4. each player sees their share on player-web /payments", async ({ browser
 
 test("5. captain 'Remind all unpaid' writes reminders that admins can see in the outbox", async ({ browser }) => {
   const p = (await as(browser, "teamAdmin")).page;
-  await openDues(p);
+  await openRunInvoice(p);
   const btn = p.getByRole("button", { name: /Remind all unpaid/ });
   test.skip(!(await btn.count()), "no dues tracker for the staging team");
   // Disabled is right when nobody owes anything; the flow is then not exercised.
