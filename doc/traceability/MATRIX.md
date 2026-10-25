@@ -269,7 +269,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 144 total, 5 still open
+## Logged findings: 145 total, 5 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -327,6 +327,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CONSOLE-12 | major | League admin's audit log shows sibling leagues' history | J17 step 3 (staging ship run of 24355fb, 25 Oct) | fixed in code, not deployed | commit 5fbe9dc: audit scoped by visibleAuditWhere + ScopedAdminGuard; local API on staging 7/7 |
 | CONSOLE-13 | minor | Wrong-role sign-in shows no reason on org, team and player apps | J17 step 5 (staging ship run of 24355fb, 25 Oct) | fixed in code, not deployed | commit 65f1579: wrong-role message from the URL, above the form |
 | CONSOLE-14 | local | List pages without a query string ignore router.refresh() | J1 step 1 (also CONSOLE-11's symptom); reproduced 25 Oct on a local production build (next build + next start) against staging data. | open |  |
+| CONSOLE-15 | major | Notices written by database jobs never send; "Flush queued" would send months-old ones | production email go-live check, 25 Oct (production read-only queries; fix verified on staging). | fixed in code, not deployed | commit 6e57b35: retry job sends queued rows from the last 24h; flush skips stale; local API on staging 14/14 |
 | MON-1 | blocker | Admin invoice creation always fails (500) | J13, J14 · UC-15, UC-16, UC-17 | fixed | journey matrix 3a |
 | MON-2 | blocker | No notification can be written or listed on staging (notifications.read_at missing) | J15, J14, J13 · UC-15, UC-16, UC-18, UC-19, UC-20, UC-21 | fixed | migration 0048 on prod; notifications list/mark-read (journey matrix 3a) |
 | MON-3 | blocker | Players can never see their notifications (list endpoint is super-admin only) | J15 · UC-19, UC-21 | fixed | journey matrix 3a |
