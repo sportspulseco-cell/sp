@@ -319,7 +319,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 155 total, 1 still open
+## Logged findings: 155 total, 0 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -378,7 +378,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CONSOLE-11 | major | Organizations list does not show the new org when the org-admin step is dismissed | J1 step 1, J17 step 1 · M2 | fixed in code, not deployed | commit 501da9e: list refreshes when the org-admin step is dismissed |
 | CONSOLE-12 | major | League admin's audit log shows sibling leagues' history | J17 step 3 (staging ship run of 24355fb, 25 Oct) | fixed in code, not deployed | commit 5fbe9dc: audit scoped by visibleAuditWhere + ScopedAdminGuard; local API on staging 7/7 |
 | CONSOLE-13 | minor | Wrong-role sign-in shows no reason on org, team and player apps | J17 step 5 (staging ship run of 24355fb, 25 Oct) | fixed in code, not deployed | commit 65f1579: wrong-role message from the URL, above the form |
-| CONSOLE-14 | local | List pages without a query string ignore router.refresh() | J1 step 1 (also CONSOLE-11's symptom); reproduced 25 Oct on a local production build (next build + next start) against staging data. | open |  |
+| CONSOLE-14 | local | List pages without a query string ignore router.refresh() | J1 step 1 (also CONSOLE-11's symptom); reproduced 25 Oct on a local production build (next build + next start) against staging data. | closed: not a product defect | Local next start build only: deployed staging applies the same refresh (debug-samepage-staging 2/2; COMP-11 staging walk updated the event log and Change games without a reload) |
 | CONSOLE-15 | major | Notices written by database jobs never send; "Flush queued" would send months-old ones | production email go-live check, 25 Oct (production read-only queries; fix verified on staging). | fixed in code, not deployed | commit 6e57b35: retry job sends queued rows from the last 24h; flush skips stale; local API on staging 14/14 |
 | CONSOLE-16 | major | Money and dates follow the viewer's locale: React hydration errors and "$1,18,572.18" | J13 step 5 (local build against staging, 25 Oct); org Finance showed "$1,18,572.18" earlier the same day. | fixed in code, not deployed | commit 5ed4be7: 28 locale-less format calls pin en-US; no #418 in en-US or en-IN across 4 apps (browser 32/32) |
 | CONSOLE-17 | major | Lists past one page skipped and repeated rows (cursor did not match the sort order) | J2 on deployed staging (25 Oct): /users showed Type "—" for the staging org admin, whose org_admin role is one of the oldest of 144 active assignments. | fixed in code, not deployed | commit ba6ad79: keyset paging matches sort order (games, invoices, assignments, notifications, events, imports, roles); walked staging 8/8 exact |

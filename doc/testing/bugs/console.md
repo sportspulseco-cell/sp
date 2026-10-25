@@ -170,7 +170,7 @@ Crawl totals (pages visited / pages with a problem):
 
   Fix: derive the message from the URL on every render and show it above the form, in all three apps (superadmin already had a recovery panel).
 
-[CONSOLE-14] List pages without a query string ignore router.refresh() · local build only (not reproduced on deployed staging)
+[CONSOLE-14] List pages without a query string ignore router.refresh() · local build only (not reproduced on deployed staging) · closed: local harness
 
   Journey: J1 step 1 (also CONSOLE-11's symptom); reproduced 25 Oct on a local production build (next build + next start) against staging data.
 
@@ -187,6 +187,13 @@ Crawl totals (pages visited / pages with a problem):
   Not the cause (checked): API or fetch caching (no-store, payload is fresh), connection limits, UrlFilters (no replace on mount), console errors (none).
 
   Deployed staging (24355fb) does not show it: list-filters and pdf-items 3/7 change the URL with router.replace on the same pages and pass there, while they fail on the local next start build. Treated as a local-stack artifact; local runs are not evidence for refresh/replace on query-less list URLs. CONSOLE-11's dismiss-after-create path now navigates to ?created=<id> (row marked New) instead of refreshing.
+
+  Update 26 Oct: wider than list pages on the local build. /games/[id] (after logging an event), /persons/[id] and
+  /leagues/[id] also keep their old content after router.refresh() locally, although the refresh payload carries the new
+  data (regfa/debug-refresh.mjs: payload "1 entry", page "0 entries"). The same probe on deployed staging updates both
+  /leagues/[id] and /leagues (regfa/debug-samepage-staging.mjs 2/2), and the COMP-11 walk on staging passed both
+  same-page updates (event log 0.9 s, Change games). Status: closed as a local harness artifact, not a product defect;
+  same-page refresh is verified on staging only.
 
   25 Oct, ruled out: a hydration mismatch (CONSOLE-16). After the locale fix there is no React #418 on /organizations, /users, /games/<id>, /leagues/<id>, /forms, /teams, /teams/new, /leagues or /seasons (regfa/walk-hydration.mjs 18/18), yet J1, J2, J17, list-filters, pdf-items 3 and blockers-oct24-b item 2 still fail the same way locally. Cause still unknown; deployed staging stays the judge.
 

@@ -369,6 +369,12 @@ ACCEPTED = {
     "REG-3": "Founder decision 25 Oct 2026: mock payments while PPHL tests (see MON-10)",
 }
 
+# Logged, then shown to be an artifact of the local test stack rather than
+# the product (evidence in the bug log).
+NOT_A_DEFECT = {
+    "CONSOLE-14": "Local next start build only: deployed staging applies the same refresh (debug-samepage-staging 2/2; COMP-11 staging walk updated the event log and Change games without a reload)",
+}
+
 # --------------------------------------------------------------------------
 # Evidence loaders
 # --------------------------------------------------------------------------
@@ -756,6 +762,7 @@ def main():
     fixed = {k: ("fixed", v) for k, v in FIXED_BY_HAND.items()}
     fixed.update({k: ("fixed in code, not deployed", v) for k, v in FIXED_IN_CODE.items()})
     fixed.update({k: ("accepted (decision)", v) for k, v in ACCEPTED.items()})
+    fixed.update({k: ("closed: not a product defect", v) for k, v in NOT_A_DEFECT.items()})
     # A journey re-run that no longer reports a finding counts as fixed for that id.
     for env, specs in logs.items():
         for spec, r in specs.items():
