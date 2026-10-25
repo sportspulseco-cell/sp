@@ -269,7 +269,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 148 total, 5 still open
+## Logged findings: 149 total, 5 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -406,6 +406,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SCH-21 | minor | Header text shows "CAPTAIN Â· 1 TEAM" | J10, J11 | fixed | mojibake removed (journey matrix 3a) |
 | SCH-26 | minor | Player inbox shows email delivery status and raw template codes | SCH-8 / MON-14 verification (25 Oct) | fixed in code, not deployed | commit bd3c666: player inbox without delivery pills, real times, words not codes |
 | SCH-27 | minor | Playoff bracket refusal shows the raw code "insufficient_teams" | J10 step 4 (local build against staging, 25 Oct) · UC-09 | fixed in code, not deployed | commit fdae576: bracket refusal says team count, size needed and next step; browser 3/3 |
+| SCH-28 | major | Game times on server-rendered pages show the server's clock (UTC on Vercel), not the rink's | J10 SCH-6 follow-up (25 Oct); confirmed on deployed staging (Vercel) with the same code production runs. | fixed in code, not deployed | commit a79aa34: kernel formatInZone; game times in the rink zone on server pages; kernel 91/91, browsers in 2 zones 21/21 |
 | SETUP-6 | blocker | Create team fails with 500 when "Home rink" is left blank, but the team row is still written | J1 · UC-33 (team setup), M4 | fixed | journey matrix 3a: team create with blank rink |
 | SETUP-15 | major | league_admin sees, and can open, seasons of OTHER leagues in the same org | J17 | fixed | journey matrix 3a (code fix; league_admin browser check pending) |
 | SETUP-10 | major | No way to add a season to an existing league, or a division to an existing season | J1 | fixed | blockers-oct24-b item 2: New season under league, New division under season, wizard 'existing league' (staging, 24 Oct) |
