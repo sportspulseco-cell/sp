@@ -8,7 +8,8 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsOptional, IsUUID } from "class-validator";
+import { Type } from "class-transformer";
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -21,6 +22,11 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 class ListFormsQueryDto {
   @IsUUID() orgId!: string;
   @IsOptional() @IsUUID() seasonId?: string;
+  // Shared list readers (season overview) page with limit + cursor. One
+  // page of up to `limit` rows comes back with no next cursor, so they stop.
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200)
+  limit?: number;
+  @IsOptional() @IsString() cursor?: string;
 }
 
 /**
@@ -104,7 +110,7 @@ export class OrgAdminFormsController {
       )
       .where(where)
       .orderBy(desc(schema.registrationForms.createdAt))
-      .limit(100);
+      .limit(q.limit ?? 100);
 
     return { items };
   }

@@ -319,3 +319,16 @@ Runs: J3 full runs E2EMVK85UUY and E2EMVK8ZS8T (11/12 passed each; test 12 lists
 | J5.5 Minor continues to waivers/payment | http 500 on confirm, dom dead end | Fail (REG-7) |
 | J5.6 Admin approves consented minor | — | Blocked by REG-7 (never reaches pending_review) |
 | Isolation (org B seasons) | — | Not testable: staging has one org; covered by code reading only (REG-25) |
+
+[REG-27] Org console season overview always says "Could not load forms for this season" · major
+  Journey: staging crawl as org admin (25 Oct, build c226f96; also on 24355fb): org Home and every season page flagged.
+  Surface: org-admin-web Home ("Where each season stands") and /seasons/<id>, step 2 Registration.
+  Repro: sign in as an org admin; open Home.
+  Expected: step 2 says whether the season has a published registration form.
+  Actual: "Could not load forms for this season" on every season. The shared season overview asks for forms with limit and
+    cursor; the org console sends that to /org-admin/forms, whose query only allowed orgId and seasonId, and the API rejects
+    unknown query fields (400).
+  Fix: /org-admin/forms accepts limit (1 to 200) and cursor; one page comes back with no next cursor.
+  Evidence: local API against staging as the org admin: 200 with 40 forms for orgId + limit + cursor (database: 40); another
+    org 404; limit 0 rejected (400). Browser on the local org app: Home and the season page show no "Could not load", and step
+    2 reads "No form published", which the database confirms for that season (0 forms).
