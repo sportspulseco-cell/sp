@@ -630,7 +630,7 @@ function formatDateTime(iso: string) {
 }
 
 function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
     minimumFractionDigits: 0,

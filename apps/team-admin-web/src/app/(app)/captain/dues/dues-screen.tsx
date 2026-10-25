@@ -16,7 +16,7 @@ type SubInvoice = Breakdown["subInvoices"][number];
 type SplitMode = "even" | "custom";
 
 function fmt(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency
   }).format(cents / 100);

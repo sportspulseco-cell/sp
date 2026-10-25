@@ -34,7 +34,7 @@ import { SeasonFlow } from "@sportspulse/admin-pages";
 export const dynamic = "force-dynamic";
 
 function formatMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency
   }).format(cents / 100);

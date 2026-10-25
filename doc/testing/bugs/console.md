@@ -205,3 +205,21 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: local API (no email key) against staging, scratchpad regfa/verify-queued.mjs 14/14: recent in-app row sent by the sweep; recent email enters the send path (failed "RESEND_API_KEY not configured", attempt 1, then the normal retry backoff); 3-day-old email untouched by sweep and flush; 30-second-old row left to the inline send; SMS left alone; wrong cron secret 403; flush sends a fresh row (sent 1) and reports skippedStale 27; a player cannot flush (403). Seeds deleted.
 
   Production before email goes live: the retry job runs every 5 minutes and answers 201; all 30 failed email rows are at 3 attempts, so none is retried.
+
+[CONSOLE-16] Money and dates follow the viewer's locale: React hydration errors and "$1,18,572.18" · major
+
+  Journey: J13 step 5 (local build against staging, 25 Oct); org Finance showed "$1,18,572.18" earlier the same day.
+
+  Surface: every app (super admin, org, team, player, landing) and the shared admin pages: money, counts, dates and times.
+
+  Repro: open super admin /finance in a browser whose locale differs from the server's (local: server en-IN, browser en-US; Vercel: server en-US, a viewer in India on en-IN).
+
+  Expected: one format for a US league billing in USD ("$118,572.18"), and server and browser render the same text.
+
+  Actual: 28 format calls passed no locale (Intl.NumberFormat(undefined, ...), toLocaleString(), toLocaleDateString(undefined, ...)), so the server and the browser produced different text. React threw error #418 (hydration text mismatch) on every load of /finance (6 of 6) and re-rendered the page on the client, which also wiped text typed in the search box during that moment. Viewers outside en-US saw Indian digit grouping on dollar amounts.
+
+  Fix: every one of the 28 calls pins "en-US" (the kernel already did for its dates). Time zones are not changed here: times still render in the server's zone first and the browser's after.
+
+  Evidence: local stack against staging, browser en-US and en-IN, scratchpad regfa/walk-hydration.mjs 32/32 (no #418 on super admin /finance, /dashboard, /games; org /finance, /; player /, /payments; team /captain/dues; US grouping everywhere). Before: #418 on 6 of 6 loads (regfa/walk-finance-race.mjs).
+
+  Follow-up: twelve apps/packages each carry their own money formatter; move one into packages/kernel and import it everywhere.

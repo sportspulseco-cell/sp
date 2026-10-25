@@ -217,7 +217,7 @@ function RevenueCounterCard() {
         </span>
       </div>
       <p className="mt-5 font-mono text-3xl font-semibold tabular-nums tracking-tighter text-fg">
-        ${v.toLocaleString()}
+        ${v.toLocaleString("en-US")}
       </p>
       <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
         <motion.div

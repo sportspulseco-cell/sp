@@ -327,7 +327,7 @@ export function LineupEditor({
             <>
               Last saved{" "}
               <span className="font-mono text-fg">
-                {new Date(submittedAt).toLocaleString()}
+                {new Date(submittedAt).toLocaleString("en-US")}
               </span>
             </>
           ) : locked ? (

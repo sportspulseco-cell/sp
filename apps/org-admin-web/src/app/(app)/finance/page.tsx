@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Finance - Org Admin" };
 
 function fmtMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency
   }).format(cents / 100);

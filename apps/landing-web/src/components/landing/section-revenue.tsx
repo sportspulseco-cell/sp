@@ -103,7 +103,7 @@ function CollectionMeter() {
         </span>
       </div>
       <p className="mt-5 font-mono text-[44px] font-semibold leading-none tabular-nums tracking-tighter text-fg">
-        ${v.toLocaleString()}
+        ${v.toLocaleString("en-US")}
       </p>
       <div className="mt-4 flex items-center justify-between text-[11px] text-fg-muted">
         <span>{pct}% of projected target</span>

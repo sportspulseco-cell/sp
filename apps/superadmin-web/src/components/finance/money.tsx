@@ -5,7 +5,7 @@ export function formatMoney(
   opts: { sign?: boolean } = {}
 ): string {
   const amount = cents / 100;
-  const formatter = new Intl.NumberFormat(undefined, {
+  const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
     signDisplay: opts.sign ? "exceptZero" : "auto"

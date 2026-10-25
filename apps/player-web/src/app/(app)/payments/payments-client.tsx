@@ -25,7 +25,7 @@ type Invoice = Invoices["items"][number];
 type Installment = Invoice["installments"][number];
 
 function fmt(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency
   }).format(cents / 100);

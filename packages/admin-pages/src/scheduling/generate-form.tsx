@@ -299,7 +299,7 @@ function LiveChannelBar({
       </div>
       {lastBroadcast && (
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg">
-          last: {lastBroadcast.gamesPublished} games @ {new Date(lastBroadcast.publishedAt).toLocaleTimeString()}
+          last: {lastBroadcast.gamesPublished} games @ {new Date(lastBroadcast.publishedAt).toLocaleTimeString("en-US")}
         </span>
       )}
     </div>

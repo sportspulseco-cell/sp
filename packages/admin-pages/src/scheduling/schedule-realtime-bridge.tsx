@@ -83,7 +83,7 @@ export function ScheduleRealtimeBridge({
       </Badge>
       {lastEventAt !== null && (
         <span className="font-mono text-[10px] uppercase tracking-widest">
-          updated {new Date(lastEventAt).toLocaleTimeString()}
+          updated {new Date(lastEventAt).toLocaleTimeString("en-US")}
         </span>
       )}
     </div>

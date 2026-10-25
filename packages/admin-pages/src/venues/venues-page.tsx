@@ -148,7 +148,7 @@ const ADDRESS_FIELDS: Array<{ key: keyof RinkAddress; label: string }> = [
 
 function fmtSlotTime(iso: string, tz: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString("en-US", {
       timeZone: tz,
       month: "short",
       day: "numeric",

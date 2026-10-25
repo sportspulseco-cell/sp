@@ -32,7 +32,7 @@ export function Counter({
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const mv = useMotionValue(reduce ? value : 0);
   const display = useTransform(mv, (latest) =>
-    Math.round(latest).toLocaleString()
+    Math.round(latest).toLocaleString("en-US")
   );
 
   useEffect(() => {

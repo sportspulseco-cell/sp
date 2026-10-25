@@ -26,7 +26,7 @@ const METHOD_OPTIONS: Array<{ value: Method; label: string }> = [
 ];
 
 function fmt(cents: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency
   }).format(cents / 100);

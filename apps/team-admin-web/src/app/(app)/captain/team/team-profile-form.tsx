@@ -95,7 +95,7 @@ export function TeamProfileForm({
         </Button>
         {savedAt ? (
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
-            Saved {savedAt.toLocaleTimeString()}
+            Saved {savedAt.toLocaleTimeString("en-US")}
           </span>
         ) : null}
       </div>

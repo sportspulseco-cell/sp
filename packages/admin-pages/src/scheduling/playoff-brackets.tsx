@@ -20,7 +20,7 @@ interface Props { seasonId: string; divisions: Division[] }
 function fmtTs(iso: string | null): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString("en-US", {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
     });
   } catch { return iso ?? "—"; }

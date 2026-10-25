@@ -36,7 +36,7 @@ function formatKickoff(iso: string, tz: string) {
     month: "short",
     day: "numeric"
   });
-  const time = d.toLocaleTimeString(undefined, {
+  const time = d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit"
   });
