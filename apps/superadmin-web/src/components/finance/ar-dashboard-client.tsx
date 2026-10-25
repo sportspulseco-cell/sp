@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
@@ -84,7 +83,6 @@ export function ArDashboardClient({
   };
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState(filters.search ?? "");
 
   const currency = invoices.items[0]?.currency ?? "USD";
 
@@ -147,12 +145,14 @@ export function ArDashboardClient({
 
       {/* Filters row — mock 1 */}
       <section className="flex flex-wrap items-center gap-3">
-        {/* action + name="q": Enter before the page is interactive still searches. */}
+        {/* Uncontrolled, read on submit, action + name="q": text typed while the
+            page loads survives hydration, and a plain submit still searches. */}
         <form
           action="/finance"
           onSubmit={(e) => {
             e.preventDefault();
-            navigate({ search: search.trim() || undefined, page: 1 });
+            const q = String(new FormData(e.currentTarget).get("q") ?? "").trim();
+            navigate({ search: q || undefined, page: 1 });
           }}
           className="flex flex-1 min-w-[260px] items-center gap-2 rounded-md border border-border bg-bg px-3 py-2"
         >
@@ -160,8 +160,8 @@ export function ArDashboardClient({
           <input
             type="text"
             name="q"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            key={filters.search ?? ""}
+            defaultValue={filters.search ?? ""}
             placeholder="Search name, email, invoice #"
             className="flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-fg-muted"
           />

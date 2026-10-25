@@ -322,6 +322,9 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Follow-up: Enter typed before the page was interactive did a plain form submit with no named field and reloaded
     /finance unfiltered (seen in J13 step 5). The form now has action="/finance" and the input name="q", so a plain
     submit also searches. Evidence: browser 6/6 (filters) + server-rendered form 3/3 (scratchpad regfa/walk-finance-*.mjs).
+  Second follow-up: text typed while the page hydrated was wiped (the box was controlled by state that never saw it;
+    J13 failure snapshot shows the box empty after Enter). The box is now uncontrolled (starts from ?q=, read on submit).
+    Evidence: typed the moment the box is visible, 3/3 kept the text and found the invoice; filters 6/6 still pass.
 
 
 ---
