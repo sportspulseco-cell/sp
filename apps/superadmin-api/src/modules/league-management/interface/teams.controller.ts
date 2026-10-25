@@ -24,6 +24,9 @@ import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-ac
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import type { AuthPrincipal } from "@sportspulse/auth";
+import { accessCan, accessForScope } from "../../../shared/auth/game-access";
 import { TeamDto, TeamPageDto } from "../application/dtos/team.dto";
 import {
   CreateTeamHandler,
@@ -229,13 +232,34 @@ export class TeamsController {
   async update(
     @Param("id") id: string,
     @Body() body: UpdateTeamBodyDto,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<TeamDto> {
+    const [team] = await this.db
+      .select({ orgId: schema.teams.orgId })
+      .from(schema.teams)
+      .where(eq(schema.teams.id, id))
+      .limit(1);
+    if (!team) throw new NotFoundException("Team not found");
+    // Who may edit (SETUP-2): an org-level grant with team.* on the team's
+    // org (org admin) edits every field; a team-level grant (captain) edits
+    // branding only. A league grant does not cover org-owned teams.
+    const shape = (teamId: string) => ({
+      id,
+      orgId: team.orgId,
+      leagueId: "",
+      seasonId: null,
+      divisionId: null,
+      homeTeamId: teamId,
+      awayTeamId: teamId
+    });
+    const orgAccess = await accessForScope(this.db, user.userId, shape(""));
+    const orgAdmin = scope.isSuperAdmin || scope.leagueIds === null || accessCan(orgAccess, "team.update");
     const allowed =
-      scope.isSuperAdmin ||
-      scope.leagueIds === null ||
+      orgAdmin ||
+      accessCan(await accessForScope(this.db, user.userId, shape(id)), "team.update") ||
       (scope.teamIds?.includes(id) ?? false);
-    if (!allowed) throw new ForbiddenException("Cannot edit this team");
+    if (!allowed) throw new NotFoundException("Team not found");
 
     // Core fields go through the domain handler. Captain-scoped users
     // (captain / captain) get their team-profile edits via this
@@ -254,8 +278,7 @@ export class TeamsController {
       body.homeRink !== undefined ||
       body.confirmationThresholdCents !== undefined
     ) {
-      const canEditAdminFields =
-        scope.isSuperAdmin || scope.leagueIds === null;
+      const canEditAdminFields = orgAdmin;
       if (!canEditAdminFields && body.confirmationThresholdCents !== undefined) {
         throw new ForbiddenException(
           "Only org/league admins can change the confirmation threshold."

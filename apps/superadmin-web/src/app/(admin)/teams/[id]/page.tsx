@@ -6,6 +6,7 @@ import { leagueMgmt, orgAdminTeams } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 import { TeamMovementSection } from "@/components/teams/team-movement-section";
 import { CaptainAssignment } from "./captain-assignment";
+import { TeamActions } from "@/components/edit/detail-actions";
 
 export const metadata = { title: "Team — SportsPulse" };
 
@@ -34,6 +35,7 @@ export default async function TeamDetailPage({
   return (
     <TeamDetail
       team={team}
+      actions={<TeamActions team={team} />}
       extras={
         <div className="space-y-8">
           <TeamMovementSection teamId={team.id} teamName={team.name} orgId={team.orgId} />

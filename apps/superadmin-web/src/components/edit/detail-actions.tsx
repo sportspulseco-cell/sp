@@ -6,10 +6,11 @@ import {
   EditLeagueButton,
   EditOrgButton,
   EditSeasonButton,
+  EditTeamButton,
   NewDivisionButton,
   NewSeasonButton
 } from "@sportspulse/admin-pages";
-import type { Division, GoverningBody, League, Org, Season } from "@sportspulse/api-client";
+import type { Division, GoverningBody, League, Org, Season, Team } from "@sportspulse/api-client";
 import { leagueMgmt, orgs } from "@/lib/api/browser-api";
 
 /**
@@ -70,4 +71,8 @@ export function DivisionActions({
       save={(body) => leagueMgmt.updateDivision(division.id, body)}
     />
   );
+}
+
+export function TeamActions({ team }: { team: Team }) {
+  return <EditTeamButton team={team} save={(body) => leagueMgmt.updateTeam(team.id, body)} />;
 }

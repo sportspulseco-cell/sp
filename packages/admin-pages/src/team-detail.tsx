@@ -22,9 +22,12 @@ function fmtCents(cents: number): string {
 export function TeamDetail({
   team,
   backHref,
-  extras
+  extras,
+  actions
 }: {
   team: Team;
+  /** Header actions (Edit team), injected per app. */
+  actions?: ReactNode;
   /** Default `/teams`. */
   backHref?: string;
   /** App-specific bottom slot (role panel, captain widget, etc.). */
@@ -47,7 +50,7 @@ export function TeamDetail({
 
       <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
         <IconTile icon={Network} tint="rose" size="lg" />
-        <div className="space-y-2">
+        <div className="flex-1 space-y-2">
           <Eyebrow dot>TEAM · {team.ownerOrgName ?? "Unknown org"}</Eyebrow>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
             {team.name}
@@ -60,6 +63,7 @@ export function TeamDetail({
             </Badge>
           </div>
         </div>
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </Reveal>
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">

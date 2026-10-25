@@ -2,6 +2,7 @@ import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import { TeamDetail } from "@sportspulse/admin-pages";
+import { TeamActions } from "@/components/edit/detail-actions";
 import { leagueMgmt, orgAdminTeams } from "@/lib/api/server-api";
 import { CaptainAssignment } from "./captain-assignment";
 
@@ -57,6 +58,7 @@ export default async function OrgAdminTeamDetailPage({
   return (
     <TeamDetail
       team={team}
+      actions={<TeamActions team={team} />}
       extras={
         <CaptainAssignment
           teamId={team.id}

@@ -31,6 +31,7 @@ export {
   EditLeagueButton,
   EditOrgButton,
   EditSeasonButton,
+  EditTeamButton,
   NewDivisionButton,
   NewSeasonButton
 } from "./edit/edit-dialogs";
@@ -40,7 +41,8 @@ export type {
   LeagueUpdateBody,
   OrgUpdateBody,
   SeasonCreateBody,
-  SeasonUpdateBody
+  SeasonUpdateBody,
+  TeamUpdateBody
 } from "./edit/edit-dialogs";
 export { sportByOrg } from "./org-setup/org-sport";
 export { CreateFormButton } from "./forms/create-form-button";

@@ -62,7 +62,14 @@ scratchpad `setup/` folder; screenshots under `test-results-setup/`.
   Status 25 Oct: partly fixed. League, season, division and organisation edit in place (blockers-oct24-b item 2, staging).
     Team: still no edit control on the admin team page (superadmin and org consoles share TeamDetail,
     packages/admin-pages/src/team-detail.tsx); the API has updateTeam and captains edit their own team in the captain console.
-    Found by J1 step 5 on deployed staging c280304 (first run that reached it). Open.
+    Found by J1 step 5 on deployed staging c280304 (first run that reached it).
+  Fix (26 Oct): Edit team on the team page in the admin and org consoles (shared EditTeamButton: team name, short name,
+    home rink, logo URL, colours, confirmation threshold; sport, org and captain stay as they are). The API let only
+    super admins and the team's captain edit, so org admins got 403 on their own org's teams; it now allows an org-level
+    team.* grant on the team's org (all fields), keeps captains to branding, and answers 404 out of scope.
+    "Threshold (USD)" is now "Confirmation threshold (USD)", the term the team page uses.
+  Evidence: local apps against staging, regfa/walk-team-edit.mjs 11/11 (super admin edit + page shows values; org admin
+    edits own org's team; other org's team 404 and unchanged; captain branding 200, threshold 403, other team 404).
   Journey: J1
   Surface: superadmin-web /organizations/[id], /leagues/[id], /seasons/[id], /divisions/[id], /teams/[id] (org-admin-web mounts the same shared detail components)
   Repro:

@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus } from "lucide-react";
 import { Alert, Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
-import type { Division, GoverningBody, League, Org, Season } from "@sportspulse/api-client";
+import type { Division, GoverningBody, League, Org, Season, Team } from "@sportspulse/api-client";
 import { FORMATS, PRIVACY_OPTIONS, TIMEZONES } from "../org-setup/steps/league-step";
 import { GENDERS, TIERS } from "../org-setup/steps/division-card";
 import { DEFAULT_TIEBREAKERS, emptyDivision } from "../org-setup/types";
@@ -748,6 +748,101 @@ export function EditDivisionButton({
           <p className="text-[12px] text-fg-muted">Tiebreakers and playoff settings are kept as they are.</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Save division" onCancel={() => setOpen(false)} />
+        </form>
+      </Dialog>
+    </>
+  );
+}
+
+// ---------- team ----------
+
+export interface TeamUpdateBody {
+  name?: string;
+  shortName?: string | null;
+  logoUrl?: string | null;
+  colors?: Record<string, unknown>;
+  homeRink?: string | null;
+  confirmationThresholdCents?: number;
+}
+
+/**
+ * Edit a team's identity, branding and confirmation threshold (SETUP-2).
+ * Same fields and labels as New team. Sport, organisation and captain are
+ * not edited here (captain has its own panel on the team page).
+ */
+export function EditTeamButton({
+  team,
+  save
+}: {
+  team: Team;
+  save: (body: TeamUpdateBody) => Promise<unknown>;
+}) {
+  const colors = (team.colors ?? {}) as { primary?: string; secondary?: string };
+  const [open, setOpen] = useState(false);
+  const { busy, error, setError, run } = useSave();
+  const [f, setF] = useState({
+    name: team.name,
+    shortName: team.shortName ?? "",
+    homeRink: team.homeRink ?? "",
+    logoUrl: team.logoUrl ?? "",
+    primary: colors.primary ?? "#3B82F6",
+    secondary: colors.secondary ?? "#FFFFFF",
+    threshold: String(Math.round((team.confirmationThresholdCents ?? 0) / 100))
+  });
+  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
+  return (
+    <>
+      <Trigger label="Edit team" icon="edit" onClick={() => setOpen(true)} />
+      <Dialog open={open} onClose={() => setOpen(false)} title="Edit team" size="lg">
+        <form
+          className="space-y-4"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            const dollars = Number(f.threshold || "0");
+            if (!Number.isInteger(dollars) || dollars < 0) return setError("Threshold is whole dollars, 0 or more.");
+            void run(
+              () =>
+                save({
+                  name: f.name.trim(),
+                  shortName: f.shortName.trim() || null,
+                  homeRink: f.homeRink.trim() || null,
+                  logoUrl: f.logoUrl.trim() || null,
+                  // Keep colour keys the form does not edit.
+                  colors: { ...colors, primary: f.primary, secondary: f.secondary },
+                  confirmationThresholdCents: dollars * 100
+                }),
+              () => setOpen(false)
+            );
+          }}
+        >
+          <Field label="Team name">
+            <Input required maxLength={120} value={f.name} onChange={(e) => set("name", e.target.value)} />
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Short name" hint="Max 6 chars.">
+              <Input maxLength={6} value={f.shortName} onChange={(e) => set("shortName", e.target.value.toUpperCase())} />
+            </Field>
+            <Field label="Home rink" hint="Optional. Used by the scheduler.">
+              <Input value={f.homeRink} onChange={(e) => set("homeRink", e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Logo URL" hint="Optional">
+            <Input type="url" value={f.logoUrl} onChange={(e) => set("logoUrl", e.target.value)} placeholder="https://" />
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Primary colour">
+              <Input type="color" value={f.primary} onChange={(e) => set("primary", e.target.value)} />
+            </Field>
+            <Field label="Secondary colour">
+              <Input type="color" value={f.secondary} onChange={(e) => set("secondary", e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Confirmation threshold (USD)" hint="Whole dollars. Deposits needed before a division entry confirms. 0 confirms on approval.">
+            <Input type="number" min={0} step={1} value={f.threshold} onChange={(e) => set("threshold", e.target.value)} />
+          </Field>
+          <p className="text-[12px] text-fg-muted">Sport and organisation are fixed once the team exists. Change the captain below.</p>
+          {error ? <Alert tone="error">{error}</Alert> : null}
+          <Actions busy={busy} label="Save team" onCancel={() => setOpen(false)} />
         </form>
       </Dialog>
     </>

@@ -382,7 +382,7 @@ export function NewTeamForm({
           subtitle="Minimum deposit total before a division entry flips from `applied` to `confirmed`. Set to $0 to auto-confirm on entry."
         >
           <Field
-            label="Threshold (USD)"
+            label="Confirmation threshold (USD)"
             hint="Whole dollars. Stored as cents server-side. Must be ≤ the team registration fee."
           >
             <div className="relative">
