@@ -1,6 +1,6 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { ShieldAlert, UserPlus } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
 import { iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -76,15 +76,15 @@ export default async function FreeAgentPoolPage() {
     );
   }
 
-  // Pull existing entries — we use the first eligible season as the
-  // default and pre-populate from any matching entry the player has.
-  const raw = await registrationV2
-    .listFreeAgentPool({})
-    .catch(() => [] as FreeAgentPoolEntry[]);
-  const entries: FreeAgentPoolEntry[] = Array.isArray(raw)
-    ? raw
-    : ((raw as unknown as { items?: FreeAgentPoolEntry[] }).items ?? []);
-  const myEntries = entries.filter((e) => e.playerPersonId === personId);
+  // The player's own entries (any season, any status) pre-fill the form
+  // and mark placed seasons. The pool list itself is for captains and
+  // admins; asking it without a season was refused and swallowed, so the
+  // form always looked new (CAP-17).
+  const mine = await load(registrationV2.listMyFreeAgentEntries());
+  if (!mine.ok) {
+    return <LoadError what="your free-agent entries" status={mine.status} message={mine.message} />;
+  }
+  const myEntries: FreeAgentPoolEntry[] = mine.data.filter((e) => e.playerPersonId === personId);
 
   return (
     <div className="space-y-6">

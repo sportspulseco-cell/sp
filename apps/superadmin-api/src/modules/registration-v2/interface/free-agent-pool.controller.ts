@@ -22,7 +22,7 @@ import {
   IsString,
   IsUUID
 } from "class-validator";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -197,6 +197,19 @@ export class FreeAgentPoolController {
       actorUserId: user.userId,
       offeredBy: "captain"
     });
+  }
+
+  @Get("mine")
+  @ApiOperation({
+    summary:
+      "The caller's own pool entries in every season and status (active, placed, withdrawn), for the player's free-agent form (CAP-17)."
+  })
+  async mine(@CurrentUser() user: AuthPrincipal) {
+    const people = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(and(eq(schema.persons.userId, user.userId), isNull(schema.persons.deletedAt)));
+    return this.svc.listFreeAgentPool({ playerPersonIds: people.map((p) => p.id), status: "all" });
   }
 
   @Get("offers")

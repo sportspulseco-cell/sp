@@ -298,7 +298,10 @@ export class RegistrationV2Service {
     visibleSeasons?: SQL | null;
     /** Pool status to list; default active. */
     status?: "active" | "placed" | "withdrawn" | "all";
+    /** Only these players' entries (a player's own entries, CAP-17). */
+    playerPersonIds?: string[];
   }) {
+    if (opts.playerPersonIds && opts.playerPersonIds.length === 0) return [];
     // Captain view: every season the team is live in. The old lookup took
     // the team's newest division entry of any status, so a rejected or
     // withdrawn application elsewhere hid the current season's free agents
@@ -347,6 +350,9 @@ export class RegistrationV2Service {
       status === "all" ? undefined : eq(schema.freeAgentPoolEntries.status, status),
       opts.visibleSeasons
         ? sql`${schema.freeAgentPoolEntries.seasonId} in ${opts.visibleSeasons}`
+        : undefined,
+      opts.playerPersonIds
+        ? inArray(schema.freeAgentPoolEntries.playerPersonId, opts.playerPersonIds)
         : undefined
     );
 

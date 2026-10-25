@@ -2501,6 +2501,9 @@ export function createApi(f: Fetcher) {
         f<FreeAgentPoolEntry[]>(
           `/registration-v2/free-agent-pool${qs(q)}`
         ),
+      /** The signed-in player's own entries, every season and status (CAP-17). */
+      listMyFreeAgentEntries: () =>
+        f<FreeAgentPoolEntry[]>("/registration-v2/free-agent-pool/mine"),
       upsertFreeAgentEntry: (body: {
         playerPersonId: string;
         seasonId: string;
