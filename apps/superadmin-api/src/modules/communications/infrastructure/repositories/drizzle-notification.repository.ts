@@ -12,6 +12,7 @@ import type {
   NotificationStatus,
   QueueNotificationInput
 } from "../../domain/repositories/notification.repository";
+import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 
 @Injectable()
 export class DrizzleNotificationRepository
@@ -52,20 +53,22 @@ export class DrizzleNotificationRepository
     if (q.templateCode)
       cs.push(eq(schema.notifications.templateCode, q.templateCode));
     if (q.channel) cs.push(eq(schema.notifications.channel, q.channel));
-    if (q.cursor) cs.push(gt(schema.notifications.id, q.cursor));
+    if (q.cursor)
+      cs.push(afterCursor(schema.notifications.createdAt, schema.notifications.id, q.cursor, "desc"));
 
     const rows = await this.db
       .select()
       .from(schema.notifications)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(desc(schema.notifications.createdAt))
+      .orderBy(...keysetOrder(schema.notifications.createdAt, schema.notifications.id, "desc"))
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
       this.toRow(r)
     );
-    const nextCursor = hasMore ? rows[q.limit - 1]!.id : null;
+    const last = rows[q.limit - 1];
+    const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
     return { items, nextCursor };
   }
 

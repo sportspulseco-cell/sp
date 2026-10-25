@@ -15,6 +15,7 @@ import type {
   ListJobsQuery,
   UpdateJobProgressInput
 } from "../../domain/repositories/import.repository";
+import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 
 @Injectable()
 export class DrizzleImportRepository implements ImportRepository {
@@ -25,19 +26,21 @@ export class DrizzleImportRepository implements ImportRepository {
     if (q.orgId) cs.push(eq(schema.importJobs.orgId, q.orgId));
     if (q.entityKind) cs.push(eq(schema.importJobs.entityKind, q.entityKind));
     if (q.status) cs.push(eq(schema.importJobs.status, q.status));
-    if (q.cursor) cs.push(gt(schema.importJobs.id, q.cursor));
+    if (q.cursor)
+      cs.push(afterCursor(schema.importJobs.createdAt, schema.importJobs.id, q.cursor, "desc"));
 
     const rows = await this.db
       .select()
       .from(schema.importJobs)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(desc(schema.importJobs.createdAt))
+      .orderBy(...keysetOrder(schema.importJobs.createdAt, schema.importJobs.id, "desc"))
       .limit(q.limit + 1);
     const hasMore = rows.length > q.limit;
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
       this.toJob(r)
     );
-    return { items, nextCursor: hasMore ? rows[q.limit - 1]!.id : null };
+    const last = rows[q.limit - 1];
+    return { items, nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null };
   }
 
   async findJob(id: string): Promise<ImportJobRow | null> {

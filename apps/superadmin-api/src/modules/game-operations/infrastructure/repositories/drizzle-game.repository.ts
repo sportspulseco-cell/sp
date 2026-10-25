@@ -10,6 +10,7 @@ import type {
   GameRepository,
   ListGamesQuery
 } from "../../domain/repositories/game.repository";
+import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 
 type GameRow = typeof schema.games.$inferSelect;
 
@@ -157,7 +158,8 @@ export class DrizzleGameRepository implements GameRepository {
     }
     if (q.fromTs) cs.push(gte(schema.games.scheduledStartTsUtc, q.fromTs));
     if (q.toTs) cs.push(lte(schema.games.scheduledStartTsUtc, q.toTs));
-    if (q.cursor) cs.push(gt(schema.games.id, q.cursor));
+    if (q.cursor)
+      cs.push(afterCursor(schema.games.scheduledStartTsUtc, schema.games.id, q.cursor, "asc"));
     if (q.leagueIdsFilter)
       cs.push(inArray(schema.games.leagueId, q.leagueIdsFilter));
     if (q.publishedOnly) cs.push(isNotNull(schema.games.publishedAt));
@@ -166,12 +168,13 @@ export class DrizzleGameRepository implements GameRepository {
       .select()
       .from(schema.games)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(asc(schema.games.scheduledStartTsUtc), asc(schema.games.id))
+      .orderBy(...keysetOrder(schema.games.scheduledStartTsUtc, schema.games.id, "asc"))
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map(rowToGame);
-    const nextCursor = hasMore ? rows[q.limit - 1]!.id : null;
+    const last = rows[q.limit - 1];
+    const nextCursor = hasMore && last ? encodeCursor(last.scheduledStartTsUtc, last.id) : null;
     return { items, nextCursor };
   }
 

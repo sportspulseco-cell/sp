@@ -225,3 +225,19 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: local stack against staging, browser en-US and en-IN, scratchpad regfa/walk-hydration.mjs 32/32 (no #418 on super admin /finance, /dashboard, /games; org /finance, /; player /, /payments; team /captain/dues; US grouping everywhere). Before: #418 on 6 of 6 loads (regfa/walk-finance-race.mjs).
 
   Follow-up: twelve apps/packages each carry their own money formatter; move one into packages/kernel and import it everywhere.
+
+[CONSOLE-17] Lists past one page skipped and repeated rows (cursor did not match the sort order) · major
+
+  Journey: J2 on deployed staging (25 Oct): /users showed Type "—" for the staging org admin, whose org_admin role is one of the oldest of 144 active assignments.
+
+  Surface: every "load all pages" reader of games, game events, invoices, role assignments, notifications, import jobs and roles (schedules, rosters, season overview, users Type, Communications, Finance readers).
+
+  Expected: walking the pages returns every row once.
+
+  Actual: these lists sorted by one column (created_at, scheduled start, event time, role code) but paged by `id > cursor` (random UUID order). Before the fix, walking staging with small pages returned 38 of 144 active role assignments, 212 invoice rows for 893 (97 repeats, 778 missing), and notifications with 31 repeats and 53 missing. Production today is small (31 games, 69 assignments, 21 invoices) except notifications (565); a PPHL season passes 100 games quickly.
+
+  Fix: shared keyset paging (apps/superadmin-api/src/shared/pagination/keyset.ts): the cursor carries "<sort value>|<id>", the next page starts after that pair, ORDER BY adds id as the tie-break. Timestamps compare at millisecond precision, because the cursor goes through a JS Date and bulk inserts share a created_at (the first version still lost 73 bulk team invoices). An old plain-id cursor falls back to the previous rule, so a request in flight during a deploy cannot loop.
+
+  Evidence: local API against staging, scratchpad regfa/verify-keyset.mjs, walking with small pages and comparing with the database: 8/8 lists exact (role assignments 144/144, roles 13/13, games 25/25, invoices 893/893 in pages of 97 and of 23, in-app notifications 173/173, all notifications 1495/1495, game events 37/37 in pages of 6); 3 runs in a row 8/8. One earlier run had one failing case that was not captured (likely rows written to staging during the walk; not verified). Unit tests 3/3.
+
+  Not changed: notification templates sort by code, channel and locale and still page by id; production has 0 template rows (the catalogue is in code).

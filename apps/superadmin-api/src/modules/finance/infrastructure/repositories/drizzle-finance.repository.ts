@@ -19,6 +19,7 @@ import type {
   RecordPaymentInput,
   UpsertFeeScheduleInput
 } from "../../domain/repositories/finance.repository";
+import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 
 @Injectable()
 export class DrizzleFinanceRepository implements FinanceRepository {
@@ -117,13 +118,14 @@ export class DrizzleFinanceRepository implements FinanceRepository {
       cs.push(eq(schema.invoices.recipientPersonId, q.recipientPersonId));
     if (q.registrationId)
       cs.push(eq(schema.invoices.registrationId, q.registrationId));
-    if (q.cursor) cs.push(gt(schema.invoices.id, q.cursor));
+    if (q.cursor)
+      cs.push(afterCursor(schema.invoices.createdAt, schema.invoices.id, q.cursor, "desc"));
 
     const rows = await this.db
       .select()
       .from(schema.invoices)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(desc(schema.invoices.createdAt))
+      .orderBy(...keysetOrder(schema.invoices.createdAt, schema.invoices.id, "desc"))
       .limit(q.limit + 1);
     const hasMore = rows.length > q.limit;
     const slice = hasMore ? rows.slice(0, q.limit) : rows;
@@ -150,7 +152,8 @@ export class DrizzleFinanceRepository implements FinanceRepository {
     const out = slice.map((r) =>
       this.toInvoice(r, itemsByInvoice.get(r.id) ?? [])
     );
-    return { items: out, nextCursor: hasMore ? slice[slice.length - 1]!.id : null };
+    const last = slice[slice.length - 1];
+    return { items: out, nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null };
   }
 
   async findInvoice(id: string): Promise<InvoiceRow | null> {

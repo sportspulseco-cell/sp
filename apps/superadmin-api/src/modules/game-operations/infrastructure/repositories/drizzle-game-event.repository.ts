@@ -10,6 +10,7 @@ import type {
   GameEventRepository,
   ListGameEventsQuery
 } from "../../domain/repositories/game-event.repository";
+import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 
 @Injectable()
 export class DrizzleGameEventRepository implements GameEventRepository {
@@ -48,7 +49,7 @@ export class DrizzleGameEventRepository implements GameEventRepository {
     if (q.eventType) cs.push(eq(schema.gameEvents.eventType, q.eventType));
     if (q.primaryPersonId)
       cs.push(eq(schema.gameEvents.primaryPersonId, q.primaryPersonId));
-    if (q.cursor) cs.push(gt(schema.gameEvents.id, q.cursor));
+    if (q.cursor) cs.push(afterCursor(schema.gameEvents.tsUtc, schema.gameEvents.id, q.cursor, "asc"));
     if (q.leagueIdsFilter) {
       if (q.leagueIdsFilter.length === 0) return { items: [], nextCursor: null };
       cs.push(
@@ -66,14 +67,15 @@ export class DrizzleGameEventRepository implements GameEventRepository {
       .select()
       .from(schema.gameEvents)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(asc(schema.gameEvents.tsUtc), asc(schema.gameEvents.id))
+      .orderBy(...keysetOrder(schema.gameEvents.tsUtc, schema.gameEvents.id, "asc"))
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
       this.toDomain(r)
     );
-    const nextCursor = hasMore ? rows[q.limit - 1]!.id : null;
+    const last = rows[q.limit - 1];
+    const nextCursor = hasMore && last ? encodeCursor(last.tsUtc, last.id) : null;
     return { items, nextCursor };
   }
 

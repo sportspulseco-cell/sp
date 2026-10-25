@@ -16,6 +16,7 @@ import type {
   RoleScopeType,
   UpdateRoleInput
 } from "../../domain/repositories/role.repository";
+import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 
 @Injectable()
 export class DrizzleRoleRepository implements RoleRepository {
@@ -36,20 +37,21 @@ export class DrizzleRoleRepository implements RoleRepository {
         )!
       );
     }
-    if (q.cursor) cs.push(gt(schema.roles.id, q.cursor));
+    if (q.cursor) cs.push(afterCursor(schema.roles.code, schema.roles.id, q.cursor, "asc", "text"));
 
     const rows = await this.db
       .select()
       .from(schema.roles)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(asc(schema.roles.code))
+      .orderBy(...keysetOrder(schema.roles.code, schema.roles.id, "asc", "text"))
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
       this.toRole(r)
     );
-    return { items, nextCursor: hasMore ? rows[q.limit - 1]!.id : null };
+    const last = rows[q.limit - 1];
+    return { items, nextCursor: hasMore && last ? encodeCursor(last.code, last.id) : null };
   }
 
   async findRole(id: string): Promise<RoleRow | null> {
@@ -128,7 +130,8 @@ export class DrizzleRoleRepository implements RoleRepository {
     if (q.scopeId)
       cs.push(eq(schema.userRoleAssignments.scopeId, q.scopeId));
     if (q.activeOnly) cs.push(isNull(schema.userRoleAssignments.revokedAt));
-    if (q.cursor) cs.push(gt(schema.userRoleAssignments.id, q.cursor));
+    if (q.cursor)
+      cs.push(afterCursor(schema.userRoleAssignments.createdAt, schema.userRoleAssignments.id, q.cursor, "desc"));
     if (q.visibleTo) {
       const visible = visibleUserIds(q.visibleTo);
       if (visible) cs.push(sql`${schema.userRoleAssignments.userId} in ${visible}`);
@@ -145,7 +148,7 @@ export class DrizzleRoleRepository implements RoleRepository {
         eq(schema.userRoleAssignments.roleId, schema.roles.id)
       )
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(desc(schema.userRoleAssignments.createdAt))
+      .orderBy(...keysetOrder(schema.userRoleAssignments.createdAt, schema.userRoleAssignments.id, "desc"))
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
@@ -154,7 +157,7 @@ export class DrizzleRoleRepository implements RoleRepository {
     );
     return {
       items,
-      nextCursor: hasMore ? rows[q.limit - 1]!.a.id : null
+      nextCursor: hasMore ? encodeCursor(rows[q.limit - 1]!.a.createdAt, rows[q.limit - 1]!.a.id) : null
     };
   }
 
