@@ -28,8 +28,8 @@ export function PricingTab({
         seasonId,
         name: "New tier",
         currency: "USD",
-        fullPriceCents: 10000,
-        isActive: false
+        fullPriceCents: 10000
+        // isActive left to the server: on when the season is already open (REG-19).
       });
       onTiersChange([...tiers, created]);
     } catch (e) {
@@ -162,17 +162,15 @@ function TierCard({
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <NumberField
-          label="Full price (cents)"
-          defaultValue={tier.fullPriceCents}
+        <MoneyField
+          label={`Full price (${tier.currency})`}
+          cents={tier.fullPriceCents}
           onCommit={(v) => onPatch({ fullPriceCents: v })}
-          min={0}
         />
-        <NumberField
-          label="Deposit (cents)"
-          defaultValue={tier.depositCents}
+        <MoneyField
+          label={`Deposit (${tier.currency})`}
+          cents={tier.depositCents}
           onCommit={(v) => onPatch({ depositCents: v })}
-          min={0}
         />
         <NumberField
           label="Installments"
@@ -253,6 +251,42 @@ function FragmentRow({ day, amountCents }: { day: number; amountCents: number })
         ${(amountCents / 100).toFixed(2)}
       </span>
     </>
+  );
+}
+
+/**
+ * Money typed in dollars and cents ("150" or "150.00" is $150), stored in
+ * cents. The editor used to ask for cents, so "150" meant $1.50 (REG-19).
+ */
+function MoneyField({
+  label,
+  cents,
+  onCommit
+}: {
+  label: string;
+  cents: number;
+  onCommit: (cents: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        {label}
+      </span>
+      <input
+        type="number"
+        inputMode="decimal"
+        step="0.01"
+        min={0}
+        defaultValue={(cents / 100).toFixed(2)}
+        onBlur={(e) => {
+          const dollars = Number(e.target.value);
+          if (!Number.isFinite(dollars) || dollars < 0) return;
+          const next = Math.round(dollars * 100);
+          if (next !== cents) onCommit(next);
+        }}
+        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-fg focus:border-fg-muted focus:outline-none"
+      />
+    </label>
   );
 }
 

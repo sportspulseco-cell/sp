@@ -283,13 +283,13 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     const nameInput = card.locator("input").first();
     await nameInput.fill(`${RUN_TAG} Adult`);
     await nameInput.blur();
-    // Money is entered in cents — an admin typing "150" gets $1.50.
+    // REG-19: money is typed in dollars ("150" is $150), stored in cents.
     const priceLabel = await card.locator("label", { hasText: /Full price/i }).innerText();
     softExpect(priceLabel, "price field label asks admin for cents").not.toMatch(/cents/i);
     const num = (re: RegExp) => card.locator("label", { hasText: re }).locator("input");
-    await num(/Full price/i).fill("15000");
+    await num(/Full price/i).fill("150");
     await num(/Full price/i).blur();
-    await num(/Deposit/i).fill("5000");
+    await num(/Deposit/i).fill("50");
     await num(/Deposit/i).blur();
     await num(/Installments/i).fill("2");
     await num(/Installments/i).blur();

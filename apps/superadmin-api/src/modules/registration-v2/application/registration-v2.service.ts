@@ -51,10 +51,24 @@ export class RegistrationV2Service {
   }
 
   async createPricingTier(input: typeof schema.pricingTiers.$inferInsert) {
+    // A tier added while registration is already open must be live at
+    // once: tiers were created inactive and only switched on when the
+    // season opened, so a later tier stayed hidden (REG-19). Draft and
+    // finished seasons keep new tiers off; the admin's toggle still wins.
+    let isActive = input.isActive;
+    if (isActive === undefined && input.seasonId) {
+      const [season] = await this.db
+        .select({ status: schema.seasons.status })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, input.seasonId))
+        .limit(1);
+      isActive = !!season && !["draft", "completed", "archived", "cancelled"].includes(season.status);
+    }
     const [row] = await this.db
       .insert(schema.pricingTiers)
-      .values(input)
+      .values({ ...input, isActive: isActive ?? false })
       .returning();
+    this.log.log(`pricing tier created id=${row?.id} season=${input.seasonId} active=${row?.isActive}`);
     return row;
   }
 
