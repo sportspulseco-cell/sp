@@ -222,6 +222,7 @@ JOURNEYS = {
 # Bugs verified fixed in a browser this session, with where the proof is.
 # Everything else stays "open" until a journey re-run stops reporting it.
 FIXED_BY_HAND = {
+    "CAP-14": "public invite lookup on staging: revoked token -> 200 {teamName, seasonName, kind, status:'revoked'} with no email, issuer or token; unknown token -> 404 (staging, 25 Oct)",
     "CAP-7": "pdf-items item 6 + blockers-oct24 item 4 (staging, 24 Oct)",
     "CAP-12": "blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct)",
     "REG-10": "same run as CAP-12",
@@ -313,6 +314,14 @@ FIXED_IN_CODE = {
     "SETUP-11": "slug derived from the display name; country, language, currency, time zone dropdowns",
     "REG-24": "commit b3c8998: sign-in resume sends the right email",
     "CAP-15": "commit 560c13d: invites use the team's current season (kernel rule)",
+    "SETUP-5": "commit f412c60: a division added with Add another division opens expanded",
+    "COMP-6": "commit 7235744: eligibility table refreshes after a sweep",
+    "SETUP-8": "commit 7235744: invite dialog says when the email was not sent",
+    "REG-11": "commit 7235744: review dates use the season's time zone",
+    "CAP-21": "commit cdebe92: one roster cap per division for per-player cost and the register wizard",
+    "SCH-16": "commit b8e8b16: logging a goal raises the score to the goal tally while the game is in play",
+    "CAP-23": "commit 5532b52: New form dialog preselects only the single org or the page's org filter",
+    "REG-20": "commit 5532b52: season picked in the New form dialog; Super Admin not offered as audience",
 }
 
 # Not bugs to fix now: decisions the founder made, with the date.
