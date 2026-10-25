@@ -180,10 +180,14 @@ export async function supabaseFetch(
 export async function openNav(page: Page, name: RegExp) {
   const link = page.locator("nav").getByRole("link", { name }).first();
   if (!(await link.isVisible().catch(() => false))) {
-    const groups = page.locator("nav summary, nav button[aria-expanded=false]");
-    for (let i = 0; i < (await groups.count()); i++) {
-      const g = groups.nth(i);
-      if (!(await g.isVisible().catch(() => false))) continue;
+    // Only closed groups: clicking an open group's summary would close it.
+    const groups = page.locator("nav details:not([open]) > summary, nav button[aria-expanded=false]");
+    // Opening a group removes it from the closed list, so walk by position
+    // over a snapshot of the count and skip ones that are not visible.
+    const n = await groups.count();
+    for (let i = 0, k = 0; i < n && k < (await groups.count()); i++) {
+      const g = groups.nth(k);
+      if (!(await g.isVisible().catch(() => false))) { k++; continue; }
       await g.click();
       if (await link.isVisible().catch(() => false)) break;
     }

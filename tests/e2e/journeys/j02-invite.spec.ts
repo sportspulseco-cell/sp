@@ -199,7 +199,8 @@ test.describe.serial("J2 · invite admin and sign in", () => {
       const errCount = await err.count();
       const errText = errCount ? await err.first().textContent() : "";
       await softly(async () => expect(errCount, `invite ${inv.role}: error text ${errText}`).toBe(0));
-      await dialog.getByRole("button", { name: "Close", exact: true }).click({ timeout: 10_000 });
+      // The footer Close (the X in the corner is also named Close, CONSOLE-10).
+      await dialog.getByRole("button", { name: "Close", exact: true }).last().click({ timeout: 10_000 });
       await expect(dialog).toBeHidden();
       // Same-surface refresh: new row in the list without reload.
       await expect(page.getByRole("link", { name: inv.name })).toBeVisible({ timeout: 15_000 });

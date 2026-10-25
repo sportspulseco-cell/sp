@@ -100,9 +100,10 @@ test("1. super_admin finds Invoices in the sidebar and the AR dashboard renders"
   await p.goto(`${new URL(p.url()).origin}/dashboard`);
   // Finance sits in a collapsible sidebar group ("Financials" since the
   // 25 Oct regrouping); open whichever group holds it, like a user would.
-  const groups = p.locator("nav summary:visible");
-  for (let i = 0; i < (await groups.count()) && !(await p.locator("a[href='/finance']:visible").count()); i++) {
-    await groups.nth(i).click();
+  const groups = p.locator("nav details:not([open]) > summary");
+  // Each click opens a group, so the closed list shrinks: always take the first.
+  for (let i = 0; i < 12 && (await groups.count()) && !(await p.locator("a[href='/finance']:visible").count()); i++) {
+    await groups.first().click();
   }
   const link = p.locator("a[href='/finance']:visible").first();
   await expect(link, "sidebar has an Invoices link").toBeVisible();

@@ -224,7 +224,7 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
 
   test("2. super_admin runs the 4-step Org setup wizard (league, season, 2 divisions)", async () => {
     const page = sa.page;
-    await page.getByRole("link", { name: "Set up a season" }).click();
+    await openNav(page, /^Set up a season$/);
     await walkWizard(page, { orgName: ORG_NAME, league: LEAGUE_NAME, season: SEASON_NAME, divisions: [DIV_A, DIV_B] });
     await page.getByRole("button", { name: "Publish league" }).click();
     await page.waitForURL(/\/leagues\/[0-9a-f-]{36}/, { timeout: 30_000 });
