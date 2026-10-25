@@ -307,6 +307,19 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Decision needed: should "Team" in the composer (a) bill each player directly, as today, and be labelled that way, or (b) create one
     master invoice for the team that the captain splits on Dues? Not changed before release.
 
+[MON-24] Super admin Finance: search, filters and paging do nothing · major
+  Journey: J13 step 5 (local build against staging, 25 Oct)
+  Surface: superadmin-web /finance (search box, Status, Scope, organisation picker, Prev / Next)
+  Repro: Finance → type an invoice number in "Search name, email, invoice #" → Enter. Or pick Status = Overdue, or click Next.
+  Expected: the list narrows (or moves to page 2) and the URL keeps the filter.
+  Actual: the URL flips to /finance/ar?q=… and back to /finance; the list stays on page 1, unfiltered. Loading /finance?q=… directly works.
+  Root cause: `apps/superadmin-web/src/components/finance/ar-dashboard-client.tsx` navigate() pushed `/finance/ar?…`, and
+    `/finance/ar` is a bare redirect to `/finance` that drops the query string. Every filter goes through navigate().
+    Also: the pager's "of N invoices" is the org-wide count, so a filtered list claimed the unfiltered total.
+  Fix: navigate() pushes `/finance?…`; `/finance/ar` keeps its query when it redirects (old links, bookmarks); the invoice
+    page's back link and the command palette point at `/finance` ("AR Dashboard" palette entry removed: same page as "Invoices");
+    the pager shows "of N" only when the list is not narrowed by status, scope or search.
+
 
 ---
 

@@ -25,11 +25,11 @@ export default async function InvoiceDetailPage({
         message={bundleResult.message}
         action={
           <Link
-            href="/finance/ar"
+            href="/finance"
             className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
           >
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Back to Invoices & AR
+            Back to Invoices
           </Link>
         }
       />
@@ -40,11 +40,11 @@ export default async function InvoiceDetailPage({
   return (
     <div className="space-y-6">
       <Link
-        href="/finance/ar"
+        href="/finance"
         className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        Back to Invoices & AR
+        Back to Invoices
       </Link>
 
       <InvoiceDetailClient bundle={bundle} />

@@ -96,13 +96,17 @@ export function ArDashboardClient({
     if (merged.scope) params.set("scope", merged.scope);
     if (merged.search) params.set("q", merged.search);
     if (merged.page && merged.page > 1) params.set("page", String(merged.page));
-    router.push(`/finance/ar?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `/finance?${qs}` : "/finance");
   }
 
   const hasNext = invoices.items.length === invoices.limit;
   const hasPrev = invoices.page > 1;
   const rangeStart = (invoices.page - 1) * invoices.limit + 1;
   const rangeEnd = rangeStart + invoices.items.length - 1;
+  // The total comes from the org summary, which ignores status, scope and
+  // search: only claim it when the list is not narrowed by those.
+  const narrowed = Boolean(filters.status || filters.scope || filters.search);
 
   return (
     <div className="space-y-6">
@@ -243,7 +247,7 @@ export function ArDashboardClient({
             {invoices.items.length === 0
               ? "0 of 0"
               : `Showing ${rangeStart}–${rangeEnd}`}
-            {summary.invoiceCount > 0 && (
+            {summary.invoiceCount > 0 && !narrowed && (
               <span> of {summary.invoiceCount} invoices</span>
             )}
           </span>
