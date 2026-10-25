@@ -17,7 +17,8 @@ import {
   Users,
   UsersRound,
   X,
-  type LucideIcon
+  type LucideIcon,
+  Send
 } from "lucide-react";
 import { cn } from "@sportspulse/ui";
 import {
@@ -72,6 +73,7 @@ const CAPTAIN_SECTIONS: NavSection[] = [
       { href: "/captain/invites", label: "Invite players", icon: Mail },
       { href: "/captain/join-requests", label: "Join requests", icon: Inbox },
       { href: "/captain/free-agents", label: "Free agents", icon: Star },
+      { href: "/comms", label: "Message the team", icon: Send },
       { href: "/captain/team", label: "Team settings", icon: Settings }
     ]
   },

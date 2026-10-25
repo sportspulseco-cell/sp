@@ -29,6 +29,7 @@ import type { UserScope } from "../../../../shared/auth/scope";
 import { visibleComplianceSubmissionsWhere } from "../../../../shared/auth/visibility";
 import { AuditWriterService } from "../../../audit/application/audit-writer.service";
 import { NotificationService } from "../../../communications/application/notification.service";
+import { complianceRecipients } from "../compliance-recipients";
 
 /**
  * COMP-3 + COMP-1 (UC-29): player / guardian uploads of ID and
@@ -864,53 +865,14 @@ export class ComplianceDocumentSubmissionsService {
           ? "Upload a new file on Waivers & documents in the player app."
           : "If you think this is wrong, contact your league admin. You can upload a different file on Waivers & documents.";
 
-    // Person + the uploader (a guardian, for a minor).
-    const p = schema.persons;
-    const direct = await this.db
-      .select({ personId: p.id, email: schema.profiles.email })
-      .from(p)
-      .leftJoin(schema.profiles, eq(schema.profiles.id, p.userId))
-      .where(
-        and(
-          isNull(p.deletedAt),
-          s.submittedByUserId
-            ? or(eq(p.id, s.personId), eq(p.userId, s.submittedByUserId))!
-            : eq(p.id, s.personId)
-        )
-      );
+    // Person + the uploader (a guardian, for a minor), and the captains of
+    // the teams the person plays on (shared with eligibility waivers).
+    const { direct, captains } = await complianceRecipients(this.db, {
+      personId: s.personId,
+      actingUserId: s.submittedByUserId,
+      seasonId: s.seasonId
+    });
 
-    // Captains of the teams the person is actively rostered on (that season when known).
-    const captainRows = await this.db
-      .selectDistinct({
-        personId: p.id,
-        email: schema.profiles.email,
-        teamName: schema.teams.name
-      })
-      .from(schema.teamMemberships)
-      .innerJoin(schema.teams, eq(schema.teams.id, schema.teamMemberships.teamId))
-      .innerJoin(
-        schema.userRoleAssignments,
-        and(
-          eq(schema.userRoleAssignments.scopeType, "team"),
-          eq(schema.userRoleAssignments.scopeId, schema.teamMemberships.teamId),
-          isNull(schema.userRoleAssignments.revokedAt)
-        )
-      )
-      .innerJoin(schema.roles, eq(schema.roles.id, schema.userRoleAssignments.roleId))
-      .innerJoin(p, eq(p.userId, schema.userRoleAssignments.userId))
-      .leftJoin(schema.profiles, eq(schema.profiles.id, p.userId))
-      .where(
-        and(
-          eq(schema.teamMemberships.personId, s.personId),
-          eq(schema.teamMemberships.currentStatus, "active"),
-          eq(schema.roles.code, "captain"),
-          isNull(p.deletedAt),
-          ne(p.id, s.personId),
-          ...(s.seasonId ? [eq(schema.teamMemberships.seasonId, s.seasonId)] : [])
-        )
-      );
-
-    const directIds = new Set(direct.map((d) => d.personId));
     const jobs: Array<Promise<unknown>> = [];
     for (const d of direct) {
       jobs.push(
@@ -935,10 +897,7 @@ export class ComplianceDocumentSubmissionsService {
         })
       );
     }
-    const seenCaptains = new Set<string>();
-    for (const c of captainRows) {
-      if (directIds.has(c.personId) || seenCaptains.has(c.personId)) continue;
-      seenCaptains.add(c.personId);
+    for (const c of captains) {
       jobs.push(
         this.notify.queue({
           orgId: s.orgId,

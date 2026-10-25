@@ -1,3 +1,4 @@
+import { CaptainMessageController } from "./interface/captain-message.controller";
 import { Module } from "@nestjs/common";
 import { CommunicationsModule } from "../communications/communications.module";
 import { RegistrationV2Module } from "../registration-v2/registration-v2.module";
@@ -24,7 +25,8 @@ import { TeamJoinRequestsController } from "./interface/team-join-requests.contr
     CaptainController,
     CaptainRosterController,
     ComplianceController,
-    TeamJoinRequestsController
+    TeamJoinRequestsController,
+    CaptainMessageController
   ]
 })
 export class CaptainModule {}

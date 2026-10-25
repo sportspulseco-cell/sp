@@ -2726,6 +2726,25 @@ export function createApi(f: Fetcher) {
 
     // Workflow 7A · captain console (team-admin-web rollover wizard).
     captain: {
+      /** Captain writes to the team: players, captains, coaches (UC-20, MON-12). */
+      messageTeam: (
+        teamId: string,
+        body: {
+          audiences: Array<"players" | "captains" | "coaches">;
+          channels: Array<"email" | "in_app">;
+          subject: string;
+          body: string;
+          idempotencyKey?: string;
+        }
+      ) =>
+        f<{
+          broadcastId: string;
+          idempotent: boolean;
+          recipients: number;
+          queued: number;
+          failed: number;
+          noEmail: number;
+        }>(`/captain/teams/${teamId}/message`, { method: "POST", body: JSON.stringify(body) }),
       /** Invited player joins the team from /invite/[token] (UC-04). */
       acceptInvite: (token: string) =>
         f<{ teamId: string; seasonId: string; membershipId: string }>(
@@ -3005,7 +3024,7 @@ export function createApi(f: Fetcher) {
           }),
         invite: (
           teamId: string,
-          body: { seasonId: string; email: string; splitAmountCents?: number }
+          body: { seasonId: string; email: string }
         ) =>
           f<{
             invite: {

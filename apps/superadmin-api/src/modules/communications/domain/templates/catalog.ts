@@ -40,6 +40,9 @@ export const TEMPLATE_CODES = [
   "DIVISION_APPLICATION_REJECTED",
   // Workflow 7C · compliance + eligibility
   "ELIGIBILITY_WAIVED",
+  // COMP-7: an admin waived a player's eligibility check (player, captains).
+  "eligibility.waived",
+  "eligibility.waived.captain",
   "USA_HOCKEY_EXPIRING_SOON",
   "USA_HOCKEY_EXPIRED",
   "USA_HOCKEY_EXPIRED_CAPTAIN",
@@ -457,6 +460,37 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "Reason: {{reason}}\n\n" +
       "You're cleared to proceed to payment.",
     variables: ["reason"]
+  },
+  {
+    code: "eligibility.waived",
+    channel: "email",
+    subject: "Eligibility waived for {{personName}}",
+    body:
+      "A league admin waived the {{checkLabel}} check for {{personName}} ({{forLabel}}).\n\n" +
+      "Reason: {{reason}}\n\nNothing else to do for this check.",
+    variables: ["personName", "checkLabel", "forLabel", "reason"]
+  },
+  {
+    code: "eligibility.waived",
+    channel: "in_app",
+    subject: "Eligibility waived for {{personName}}",
+    body: "The {{checkLabel}} check was waived ({{forLabel}}). Reason: {{reason}}",
+    variables: ["personName", "checkLabel", "forLabel", "reason"]
+  },
+  {
+    code: "eligibility.waived.captain",
+    channel: "email",
+    subject: "{{personName}} is cleared to play for {{teamName}}",
+    body:
+      "A league admin waived the {{checkLabel}} check for {{personName}} on {{teamName}} ({{forLabel}}). The player has the details.",
+    variables: ["personName", "checkLabel", "teamName", "forLabel"]
+  },
+  {
+    code: "eligibility.waived.captain",
+    channel: "in_app",
+    subject: "{{personName}} is cleared to play for {{teamName}}",
+    body: "The {{checkLabel}} check was waived ({{forLabel}}). The player has the details.",
+    variables: ["personName", "checkLabel", "teamName", "forLabel"]
   },
   {
     code: "USA_HOCKEY_EXPIRING_SOON",
