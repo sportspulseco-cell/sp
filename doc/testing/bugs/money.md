@@ -319,6 +319,9 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Fix: navigate() pushes `/finance?…`; `/finance/ar` keeps its query when it redirects (old links, bookmarks); the invoice
     page's back link and the command palette point at `/finance` ("AR Dashboard" palette entry removed: same page as "Invoices");
     the pager shows "of N" only when the list is not narrowed by status, scope or search.
+  Follow-up: Enter typed before the page was interactive did a plain form submit with no named field and reloaded
+    /finance unfiltered (seen in J13 step 5). The form now has action="/finance" and the input name="q", so a plain
+    submit also searches. Evidence: browser 6/6 (filters) + server-rendered form 3/3 (scratchpad regfa/walk-finance-*.mjs).
 
 
 ---

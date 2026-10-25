@@ -147,7 +147,9 @@ export function ArDashboardClient({
 
       {/* Filters row — mock 1 */}
       <section className="flex flex-wrap items-center gap-3">
+        {/* action + name="q": Enter before the page is interactive still searches. */}
         <form
+          action="/finance"
           onSubmit={(e) => {
             e.preventDefault();
             navigate({ search: search.trim() || undefined, page: 1 });
@@ -157,6 +159,7 @@ export function ArDashboardClient({
           <Search className="h-3.5 w-3.5 text-fg-muted" strokeWidth={1.75} />
           <input
             type="text"
+            name="q"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email, invoice #"
