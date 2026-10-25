@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -12,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { eq } from "drizzle-orm";
+import { validateDisciplineRules } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -101,6 +103,16 @@ export class LeaguesController {
       if (!row || !scope.orgIds.includes(row.orgId)) {
         throw new NotFoundException("League not found");
       }
+    }
+    // Discipline rules drive automatic suspensions at finalize (COMP-11):
+    // refuse values the kernel would not accept.
+    const discipline = (body.metadata as { discipline?: Record<string, unknown> } | undefined)?.discipline;
+    if (discipline !== undefined) {
+      const problem =
+        discipline && typeof discipline === "object"
+          ? validateDisciplineRules(discipline)
+          : "Discipline rules must be an object.";
+      if (problem) throw new BadRequestException(problem);
     }
     return this.updateH.execute({ id, ...body });
   }

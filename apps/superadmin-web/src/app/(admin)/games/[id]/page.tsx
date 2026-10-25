@@ -4,8 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import {
+  EJECTION_LABELS,
   formatInZone,
   GAME_ENDING_LABELS,
+  isEjectionType,
   HOCKEY_INFRACTION_LABELS
 } from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
@@ -276,6 +278,7 @@ export default async function GameDetailPage({
                         <p className="mt-0.5 text-[12px] text-fg-muted">
                           {HOCKEY_INFRACTION_LABELS[String(e.attributes.infraction)] ?? "Penalty"},{" "}
                           {e.attributes.minutes} min
+                          {isEjectionType(e.attributes.ejection) ? `, ${EJECTION_LABELS[e.attributes.ejection].toLowerCase()}` : ""}
                         </p>
                       ) : null}
                       {e.eventType === "penalty" && e.primaryPersonId ? (

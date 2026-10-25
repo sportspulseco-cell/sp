@@ -779,6 +779,8 @@ export interface GameFinalizeSummary {
   suspensionsServed?: number;
   /** Of those, how many are now fully served. */
   suspensionsCompleted?: number;
+  /** Suspensions the league's discipline rules issued from this game (COMP-11). */
+  suspensionsIssued?: number;
 }
 
 /** Postal address stored on a venue (all optional; blanks are dropped). */

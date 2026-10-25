@@ -14,6 +14,11 @@ export class LeagueDto {
   @ApiProperty() name!: string;
   @ApiProperty({ enum: LEAGUE_FORMATS }) format!: (typeof LEAGUE_FORMATS)[number];
   @ApiProperty({ enum: LEAGUE_STATUSES }) status!: (typeof LEAGUE_STATUSES)[number];
+  /**
+   * slug, branding, privacy, timezone and discipline rules. The edit
+   * dialogs start from these; without them a save reset them to defaults.
+   */
+  @ApiProperty({ type: Object }) metadata!: Record<string, unknown>;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 
@@ -28,6 +33,7 @@ export class LeagueDto {
       name: x.name,
       format: x.format,
       status: x.status,
+      metadata: x.metadata ?? {},
       createdAt: x.createdAt.toISOString(),
       updatedAt: x.updatedAt.toISOString()
     };

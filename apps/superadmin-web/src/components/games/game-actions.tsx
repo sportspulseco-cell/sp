@@ -417,8 +417,12 @@ function FinalizeDialog({
             s.suspensionsCompleted ? `, ${s.suspensionsCompleted} now fully served` : ""
           }.`
         : "";
+      // Players the league's discipline rules suspended from this game (COMP-11).
+      const issued = s.suspensionsIssued
+        ? ` ${s.suspensionsIssued} player${s.suspensionsIssued === 1 ? "" : "s"} suspended by the league's discipline rules.`
+        : "";
       onDone(
-        `Final. ${s.statLinesWritten} player stat ${s.statLinesWritten === 1 ? "line" : "lines"} saved, standings updated, ${s.notificationsQueued} notices queued for both teams.${served}`
+        `Final. ${s.statLinesWritten} player stat ${s.statLinesWritten === 1 ? "line" : "lines"} saved, standings updated, ${s.notificationsQueued} notices queued for both teams.${served}${issued}`
       );
     } catch (err) {
       setError((err as Error).message);

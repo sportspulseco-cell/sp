@@ -176,6 +176,20 @@ export class IssueSuspensionBodyDto {
   reason!: string;
 }
 
+export class ChangeSuspensionGamesBodyDto {
+  @ApiProperty({ minimum: 1, maximum: 99 })
+  @Type(() => Number)
+  @IsInt({ message: "Games must be a whole number." })
+  @Min(1, { message: "Games must be at least 1." })
+  @Max(99, { message: "Games can be at most 99." })
+  nGames!: number;
+
+  @ApiProperty()
+  // Length (3-500) is checked by the kernel rule, in plain words.
+  @IsString({ message: "Say why the suspension changes." })
+  reason!: string;
+}
+
 export class LiftSuspensionBodyDto {
   @ApiProperty()
   // Length (3-500) is checked by the kernel rule, in plain words.

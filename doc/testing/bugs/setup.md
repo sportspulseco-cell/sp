@@ -118,6 +118,23 @@ scratchpad `setup/` folder; screenshots under `test-results-setup/`.
   Root cause: apps/superadmin-web/src/components/users/user-type-cell.tsx and user-actions-menu.tsx:36-48 derive the role from a per-row async iam.activeRolesForUser call (2 calls per row on /users) and start as null. AssignRolePanel (components/roles/assign-role-panel.tsx:100) captures defaultRoleCode in useState once, so a late value never applies. super_admin is a synchronous profile flag (`user.isSuperAdmin`) that both components already have.
   Proposed fix: resolve primary role on the server for the /users page (one query, pass it per row), and fall back synchronously to super_admin when `isSuperAdmin`; key AssignRolePanel on defaultRoleCode.
 
+[SETUP-18] Edit league opens with default privacy, time zone and colour, and saving resets them · major
+  Journey: found during the COMP-11 browser walk (26 Oct)
+  Surface: superadmin-web /leagues/[id] and /leagues, Edit league (shared EditLeagueButton, also org-admin-web)
+  Repro:
+    1. Save a league with privacy Private and a brand colour.
+    2. Open Edit league again.
+  Expected: the dialog shows the saved values.
+  Actual: it shows the defaults. The API's league response (LeagueDto) never included metadata, so every reader of
+    league.metadata got nothing: Edit league, the league detail summary, New season's time zone, and the org-setup
+    wizard's resume. Saving Edit league for any reason (a rename) wrote the defaults back over privacy, time zone and
+    branding (slug survived; the update merges top-level keys).
+  Root cause: apps/superadmin-api/src/modules/league-management/application/dtos/league.dto.ts dropped metadata.
+  Fix: LeagueDto returns metadata. Edit league now opens with the saved values (local browser: saved discipline value shows
+    after a reload; API: the PATCH response carries metadata).
+  Production impact: 3 league edits ever (audit_events leagues.update: 16 May x2, 24 Oct). Their current settings equal the
+    defaults, so there is no sign of loss, but the audit row does not keep the old metadata, so a reset cannot be ruled out.
+
 [SETUP-4] Season status menu offers transitions the server always rejects · minor
   Journey: J1
   Surface: superadmin-web /seasons/[id] status dropdown (shared SeasonStatusControl, also org-admin-web)

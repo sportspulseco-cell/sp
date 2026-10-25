@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import {
+  EJECTION_LABELS,
+  EJECTION_TYPES,
   HOCKEY_INFRACTIONS,
   HOCKEY_PENALTY_MINUTES,
   HOCKEY_PENALTY_MINUTE_LABELS,
@@ -101,6 +103,7 @@ function AppendDialog({
     assist2: "",
     infraction: "",
     minutes: "",
+    ejection: "",
     period: 1,
     clockRemainingSec: ""
   });
@@ -154,7 +157,12 @@ function AppendDialog({
       ? [form.assist1, form.assist2].filter((id) => id !== "")
       : [];
     const attributes = showPenalty
-      ? { infraction: form.infraction, minutes: Number(form.minutes) }
+      ? {
+          infraction: form.infraction,
+          minutes: Number(form.minutes),
+          // Ejections drive the automatic suspension rules (COMP-11).
+          ...(form.ejection ? { ejection: form.ejection } : {})
+        }
       : undefined;
     if (isHockey) {
       const problem = validateHockeyEvent({
@@ -332,6 +340,24 @@ function AppendDialog({
                 {HOCKEY_PENALTY_MINUTES.map((m) => (
                   <option key={m} value={String(m)}>
                     {HOCKEY_PENALTY_MINUTE_LABELS[m]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field
+              label="Ejection"
+              htmlFor="ejection"
+              hint="A game misconduct or match penalty can suspend the player when the game is finalized."
+            >
+              <Select
+                id="ejection"
+                value={form.ejection}
+                onChange={(e) => setForm({ ...form, ejection: e.target.value })}
+              >
+                <option value="">None</option>
+                {EJECTION_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {EJECTION_LABELS[t]}
                   </option>
                 ))}
               </Select>

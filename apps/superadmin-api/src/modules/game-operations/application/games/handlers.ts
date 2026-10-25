@@ -45,7 +45,8 @@ import {
   queueGameNotice,
   type GameNoticeResult
 } from "./game-notifications";
-import { serveSuspensionsForFinalizedGame } from "../suspensions/suspension-rules";
+import { issueAutomaticSuspensions, serveSuspensionsForFinalizedGame } from "../suspensions/suspension-rules";
+import { notifyAutomaticSuspensions } from "../suspensions/auto-notices";
 
 const log = new Logger("GameCommands");
 
@@ -943,6 +944,8 @@ export interface FinalizeSummary {
   suspensionsServed: number;
   /** Of those, how many are now fully served. */
   suspensionsCompleted: number;
+  /** Suspensions the league's discipline rules issued from this game (COMP-11). */
+  suspensionsIssued: number;
 }
 
 /**
@@ -1018,7 +1021,13 @@ export class FinalizeGameHandler
         homeTeamId: g.homeTeamId,
         awayTeamId: g.awayTeamId
       });
-      return { endedIn: verdict.endedIn, projection, standings, suspensions };
+      // After the served count, so this game never counts toward what it caused.
+      const autoIssued = await issueAutomaticSuspensions(tx, {
+        id: input.id,
+        leagueId: g.leagueId,
+        seasonId: g.seasonId
+      });
+      return { endedIn: verdict.endedIn, projection, standings, suspensions, autoIssued };
     });
 
     const fresh = await this.games.findById(GameId.of(input.id));
@@ -1051,6 +1060,14 @@ export class FinalizeGameHandler
       }
     });
 
+    if (done.autoIssued.length > 0) {
+      await notifyAutomaticSuspensions(this.db, this.notify, done.autoIssued, {
+        orgId: ctx.orgId,
+        leagueId: target.leagueId,
+        seasonId: target.seasonId
+      });
+    }
+
     const finalizeSummary: FinalizeSummary = {
       endedIn: done.endedIn,
       statLinesWritten: done.projection.linesWritten,
@@ -1060,7 +1077,8 @@ export class FinalizeGameHandler
       notificationRecipients: notices.recipients,
       notificationsQueued: notices.queued,
       suspensionsServed: done.suspensions.served.length,
-      suspensionsCompleted: done.suspensions.served.filter((x) => x.status === "served").length
+      suspensionsCompleted: done.suspensions.served.filter((x) => x.status === "served").length,
+      suspensionsIssued: done.autoIssued.length
     };
     log.log(`finalize game=${input.id} by=${input.userId} ${JSON.stringify(finalizeSummary)}`);
     return { ...GameDto.fromDomain(fresh), finalizeSummary };

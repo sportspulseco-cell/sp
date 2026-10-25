@@ -2171,6 +2171,12 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify({ reason })
         }),
+      /** Reduce or extend to a number of games (UC-14 admin override). */
+      changeSuspensionGames: (id: string, nGames: number, reason: string) =>
+        f<Suspension>(`/suspensions/${id}/games`, {
+          method: "POST",
+          body: JSON.stringify({ nGames, reason })
+        }),
       serveSuspension: (id: string) =>
         f<Suspension>(`/suspensions/${id}/serve`, { method: "POST" }),
 

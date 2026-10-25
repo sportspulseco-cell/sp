@@ -16,6 +16,7 @@ import { EditPersonButton } from "@/components/persons/edit-person-button";
 import { LinkPersonButton } from "@/components/persons/link-person-button";
 import {
   IssueSuspensionButton,
+  ChangeSuspensionGamesButton,
   LiftSuspensionButton
 } from "@/components/discipline/suspension-buttons";
 import Link from "next/link";
@@ -407,7 +408,18 @@ export default async function PersonDetailPage({
                   </TD>
                   <TD className="text-right">
                     {canLift && s.inForce ? (
-                      <LiftSuspensionButton suspensionId={s.id} personName={display} label={s.label} />
+                      <span className="inline-flex gap-1.5">
+                        {s.kind === "n_games" || s.kind === "indefinite" ? (
+                          <ChangeSuspensionGamesButton
+                            suspensionId={s.id}
+                            personName={display}
+                            label={s.label}
+                            currentGames={s.nGames}
+                            servedCount={s.servedCount}
+                          />
+                        ) : null}
+                        <LiftSuspensionButton suspensionId={s.id} personName={display} label={s.label} />
+                      </span>
                     ) : null}
                   </TD>
                 </TR>

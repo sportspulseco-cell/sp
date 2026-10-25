@@ -2,6 +2,7 @@ import {
   AggregateRoot,
   DomainError,
   SUSPENSION_IN_FORCE_STATUSES,
+  SUSPENSION_MAX_GAMES,
   validateLiftReason,
   validateSuspensionIssue
 } from "@sportspulse/kernel";
@@ -35,8 +36,8 @@ export class Suspension extends AggregateRoot<SuspensionId> {
     id: SuspensionId,
     private readonly _personId: string,
     private readonly _sourceEventId: string | null,
-    private readonly _kind: SuspensionKind,
-    private readonly _nGames: number | null,
+    private _kind: SuspensionKind,
+    private _nGames: number | null,
     private readonly _nDays: number | null,
     private _servedCount: number,
     private _status: SuspensionStatus,
@@ -155,6 +156,42 @@ export class Suspension extends AggregateRoot<SuspensionId> {
     this._status = "lifted";
     this._endAt = at;
     const why = `Lifted: ${reason.trim()}`;
+    this._reason = this._reason ? `${this._reason} | ${why}` : why;
+    this._touch();
+  }
+
+  /**
+   * Admin override (UC-14 "reduce / extend"): set the number of games, or
+   * turn an open-ended suspension (a match penalty after its hearing)
+   * into a number of games. Games already served stay counted; reaching
+   * them ends the suspension now.
+   */
+  changeGames(nGames: number, reason: string, at: Date = new Date()): void {
+    if (!SUSPENSION_IN_FORCE_STATUSES.includes(this._status)) {
+      throw new DomainError(
+        "SUSPENSION_NOT_ACTIVE",
+        `This suspension is already ${this._status}. Only a standing suspension can change.`
+      );
+    }
+    if (this._kind !== "n_games" && this._kind !== "indefinite") {
+      throw new DomainError(
+        "SUSPENSION_NOT_GAME_COUNT",
+        "Only a suspension for a number of games, or one until lifted, can be set to a number of games."
+      );
+    }
+    if (!Number.isInteger(nGames) || nGames < 1 || nGames > SUSPENSION_MAX_GAMES) {
+      throw new DomainError("SUSPENSION_GAMES_INVALID", `Games must be a whole number from 1 to ${SUSPENSION_MAX_GAMES}.`);
+    }
+    const problem = validateLiftReason(reason);
+    if (problem) throw new DomainError("CHANGE_REASON_REQUIRED", problem);
+    const before = this._kind === "n_games" ? `${this._nGames} game${this._nGames === 1 ? "" : "s"}` : "until lifted";
+    this._kind = "n_games";
+    this._nGames = nGames;
+    if (this._servedCount >= nGames) {
+      this._status = "served";
+      this._endAt = at;
+    }
+    const why = `Changed from ${before} to ${nGames} game${nGames === 1 ? "" : "s"}: ${reason.trim()}`;
     this._reason = this._reason ? `${this._reason} | ${why}` : why;
     this._touch();
   }

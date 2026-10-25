@@ -8,6 +8,7 @@ import type { Division, GoverningBody, League, Org, Season, Team } from "@sports
 import { FORMATS, PRIVACY_OPTIONS, TIMEZONES } from "../org-setup/steps/league-step";
 import { GENDERS, TIERS } from "../org-setup/steps/division-card";
 import { DEFAULT_TIEBREAKERS, emptyDivision } from "../org-setup/types";
+import { readDisciplineRules, validateDisciplineRules, type DisciplineRules } from "@sportspulse/kernel";
 
 /**
  * Edit / add-child dialogs for the admin detail pages (SP-Changes item 2):
@@ -197,9 +198,14 @@ export function EditLeagueButton({
     privacy?: string;
     timezone?: string;
     branding?: { logoUrl?: string | null; primaryColor?: string };
+    discipline?: unknown;
   };
   const [open, setOpen] = useState(false);
-  const { busy, error, run } = useSave();
+  const { busy, error, setError, run } = useSave();
+  // Automatic suspensions (COMP-11): the league's saved rules, or the defaults.
+  const [disc, setDisc] = useState<DisciplineRules>(() => readDisciplineRules(md.discipline));
+  const setD = <K extends keyof DisciplineRules>(k: K, v: DisciplineRules[K]) => setDisc((p) => ({ ...p, [k]: v }));
+  const num = (v: string) => (v.trim() === "" ? 0 : Number(v));
   const [f, setF] = useState({
     name: league.name,
     format: league.format,
@@ -219,6 +225,8 @@ export function EditLeagueButton({
           className="space-y-4"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
+            const problem = validateDisciplineRules(disc);
+            if (problem) return setError(problem);
             void run(
               () =>
                 save({
@@ -232,7 +240,8 @@ export function EditLeagueButton({
                     ...md,
                     privacy: f.privacy,
                     timezone: f.timezone,
-                    branding: { ...(md.branding ?? {}), primaryColor: f.primaryColor, logoUrl: f.logoUrl || null }
+                    branding: { ...(md.branding ?? {}), primaryColor: f.primaryColor, logoUrl: f.logoUrl || null },
+                    discipline: disc
                   }
                 }),
               () => setOpen(false)
@@ -298,6 +307,50 @@ export function EditLeagueButton({
               <Input type="url" value={f.logoUrl} onChange={(e) => set("logoUrl", e.target.value)} placeholder="https://" />
             </Field>
           </div>
+          <fieldset className="space-y-3 rounded-lg border border-border p-4">
+            <legend className="px-1 text-[12px] font-medium text-fg">Discipline</legend>
+            <label className="flex items-center gap-2 text-[13px] text-fg">
+              <input type="checkbox" checked={disc.enabled} onChange={(e) => setD("enabled", e.target.checked)} />
+              Suspend players automatically when a game is finalized
+            </label>
+            {disc.enabled ? (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Games for a game misconduct" hint="0 = none. USA Hockey: the next game.">
+                    <Input type="number" min={0} max={99} value={String(disc.gameMisconductGames)} onChange={(e) => setD("gameMisconductGames", num(e.target.value))} />
+                  </Field>
+                  <Field label="Games for a second major in one game" hint="0 = none.">
+                    <Input type="number" min={0} max={99} value={String(disc.secondMajorGames)} onChange={(e) => setD("secondMajorGames", num(e.target.value))} />
+                  </Field>
+                  <Field label="Misconducts per suspension" hint="Counted per season. 0 = off.">
+                    <Input type="number" min={0} max={99} value={String(disc.misconductsPerSuspension)} onChange={(e) => setD("misconductsPerSuspension", num(e.target.value))} />
+                  </Field>
+                  <Field label="Games per misconduct suspension">
+                    <Input type="number" min={1} max={99} value={String(disc.misconductSuspensionGames)} onChange={(e) => setD("misconductSuspensionGames", num(e.target.value))} />
+                  </Field>
+                  <Field label="Penalty minutes per suspension" hint="Counted per season. 0 = off.">
+                    <Input type="number" min={0} max={999} value={String(disc.pimPerSuspension)} onChange={(e) => setD("pimPerSuspension", num(e.target.value))} />
+                  </Field>
+                  <Field label="Games per penalty-minute suspension">
+                    <Input type="number" min={1} max={99} value={String(disc.pimSuspensionGames)} onChange={(e) => setD("pimSuspensionGames", num(e.target.value))} />
+                  </Field>
+                </div>
+                <label className="flex items-center gap-2 text-[13px] text-fg">
+                  <input
+                    type="checkbox"
+                    checked={disc.matchPenaltyUntilLifted}
+                    onChange={(e) => setD("matchPenaltyUntilLifted", e.target.checked)}
+                  />
+                  A match penalty suspends the player until a league admin lifts it
+                </label>
+                <p className="text-[12px] text-fg-muted">
+                  Rules that apply in the same game add up. Players, their captains and the league admins are told.
+                </p>
+              </>
+            ) : (
+              <p className="text-[12px] text-fg-muted">Admins can still suspend a player from a penalty on the game page.</p>
+            )}
+          </fieldset>
           <p className="text-[12px] text-fg-muted">Sport and organisation are fixed once the league exists.</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Save league" onCancel={() => setOpen(false)} />

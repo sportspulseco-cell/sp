@@ -3,6 +3,12 @@ import { and, eq, gte, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
+  evaluateGameDiscipline,
+  isEjectionType,
+  isMisconduct,
+  readDisciplineRules,
+  type DisciplineHistory,
+  type DisciplinePenalty,
   SUSPENSION_IN_FORCE_STATUSES,
   describeSuspension,
   servesWithFinalizedGame,
@@ -292,3 +298,130 @@ export async function serveSuspensionsForFinalizedGame(
   );
   return { considered: candidates.length, served };
 }
+
+/** A suspension finalize issued by rule (COMP-11), for the notices after commit. */
+export interface IssuedAutomatically {
+  id: string;
+  personId: string;
+  teamId: string | null;
+  kind: "n_games" | "indefinite";
+  nGames: number | null;
+  reason: string;
+}
+
+/**
+ * Inside the finalize transaction, after the served-game count (so the
+ * game that caused a suspension never counts toward it): read the
+ * league's discipline rules, judge this game's penalties against each
+ * player's season so far, and issue what the rules say (UC-14).
+ * One suspension per player per game; idempotent per trigger penalty
+ * (source_event_id). A penalty a later correction replaced is ignored.
+ */
+export async function issueAutomaticSuspensions(
+  tx: Tx,
+  game: { id: string; leagueId: string; seasonId: string | null }
+): Promise<IssuedAutomatically[]> {
+  const [league] = await tx
+    .select({ metadata: schema.leagues.metadata })
+    .from(schema.leagues)
+    .where(eq(schema.leagues.id, game.leagueId))
+    .limit(1);
+  const rules = readDisciplineRules((league?.metadata as { discipline?: unknown } | null)?.discipline);
+  if (!rules.enabled) {
+    log.log(`finalize game=${game.id}: automatic suspensions off for league ${game.leagueId}`);
+    return [];
+  }
+  const notReplaced = sql`${schema.gameEvents.id} not in (select c.correction_of_event_id from game_events c where c.correction_of_event_id is not null)`;
+  const rows = await tx
+    .select({
+      id: schema.gameEvents.id,
+      personId: schema.gameEvents.primaryPersonId,
+      teamId: schema.gameEvents.teamId,
+      attributes: schema.gameEvents.attributes
+    })
+    .from(schema.gameEvents)
+    .where(
+      and(
+        eq(schema.gameEvents.gameId, game.id),
+        eq(schema.gameEvents.eventType, "penalty"),
+        isNotNull(schema.gameEvents.primaryPersonId),
+        notReplaced
+      )
+    )
+    .orderBy(schema.gameEvents.tsUtc, schema.gameEvents.id);
+  const toPenalty = (r: { id: string; personId: string | null; teamId: string | null; attributes: unknown }): DisciplinePenalty => {
+    const a = (r.attributes ?? {}) as { minutes?: unknown; ejection?: unknown };
+    return {
+      eventId: r.id,
+      personId: r.personId!,
+      teamId: r.teamId,
+      minutes: Number(a.minutes) || 0,
+      ejection: isEjectionType(a.ejection) ? a.ejection : null
+    };
+  };
+  const penalties = rows.map(toPenalty);
+  if (penalties.length === 0) return [];
+
+  // Each player's season (or league, when the game has no season) before this game.
+  const people = [...new Set(penalties.map((p) => p.personId))];
+  const past = await tx
+    .select({ personId: schema.gameEvents.primaryPersonId, attributes: schema.gameEvents.attributes })
+    .from(schema.gameEvents)
+    .innerJoin(schema.games, eq(schema.games.id, schema.gameEvents.gameId))
+    .where(
+      and(
+        eq(schema.gameEvents.eventType, "penalty"),
+        inArray(schema.gameEvents.primaryPersonId, people),
+        ne(schema.games.id, game.id),
+        inArray(schema.games.status, ["completed", "forfeited"]),
+        game.seasonId ? eq(schema.games.seasonId, game.seasonId) : eq(schema.games.leagueId, game.leagueId),
+        notReplaced
+      )
+    );
+  const history = new Map<string, DisciplineHistory>();
+  for (const r of past) {
+    const p = toPenalty({ id: "", personId: r.personId, teamId: null, attributes: r.attributes });
+    const h = history.get(p.personId) ?? { misconducts: 0, pim: 0 };
+    h.misconducts += isMisconduct(p) ? 1 : 0;
+    h.pim += p.minutes;
+    history.set(p.personId, h);
+  }
+
+  const issued: IssuedAutomatically[] = [];
+  for (const a of evaluateGameDiscipline(rules, penalties, history)) {
+    // Same per-person lock as a manual issue, so the two cannot race.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`suspension:person:${a.personId}`}))`);
+    const [dup] = await tx
+      .select({ id: schema.suspensions.id })
+      .from(schema.suspensions)
+      .where(eq(schema.suspensions.sourceEventId, a.triggerEventId))
+      .limit(1);
+    if (dup) {
+      log.log(`finalize game=${game.id}: suspension for event ${a.triggerEventId} already exists (${dup.id})`);
+      continue;
+    }
+    const [row] = await tx
+      .insert(schema.suspensions)
+      .values({
+        personId: a.personId,
+        sourceEventId: a.triggerEventId,
+        kind: a.kind,
+        nGames: a.nGames,
+        nDays: null,
+        servedCount: 0,
+        status: "active",
+        reason: a.reason,
+        startAt: new Date(),
+        issuedByUserId: null
+      })
+      .returning({ id: schema.suspensions.id });
+    if (!row) {
+      log.warn(`finalize game=${game.id}: automatic suspension insert for ${a.personId} returned no row`);
+      continue;
+    }
+    issued.push({ id: row.id, personId: a.personId, teamId: a.teamId, kind: a.kind, nGames: a.nGames, reason: a.reason });
+  }
+  log.log(`finalize game=${game.id} penalties=${penalties.length} automatic suspensions issued=${issued.length}`);
+  return issued;
+}
+

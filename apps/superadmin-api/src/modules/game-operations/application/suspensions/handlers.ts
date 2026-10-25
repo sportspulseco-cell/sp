@@ -113,7 +113,7 @@ async function lockPerson(tx: Tx, personId: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`suspension:person:${personId}`}))`);
 }
 
-async function personContact(
+export async function personContact(
   db: Database,
   personId: string
 ): Promise<{ name: string; email: string | null }> {
@@ -301,7 +301,15 @@ async function saveIf(tx: Tx, s: Suspension, expected: { status: string; servedC
   const x = s.toSnapshot();
   const rows = await tx
     .update(schema.suspensions)
-    .set({ status: x.status, servedCount: x.servedCount, reason: x.reason, endAt: x.endAt, updatedAt: sql`now()` })
+    .set({
+      status: x.status,
+      servedCount: x.servedCount,
+      kind: x.kind,
+      nGames: x.nGames,
+      reason: x.reason,
+      endAt: x.endAt,
+      updatedAt: sql`now()`
+    })
     .where(
       and(
         eq(schema.suspensions.id, x.id),
@@ -350,6 +358,54 @@ export class LiftSuspensionHandler
       recipientEmail: who.email,
       payload: { personName: who.name, reason: input.reason.trim() },
       sourceEvent: "suspension.lifted"
+    });
+
+    const names = await resolveEntityNames(this.db, [{ type: "person", id: saved.personId }]);
+    return SuspensionDto.fromDomain(saved, { personName: names.get(`person:${saved.personId}`) ?? null });
+  }
+}
+
+/** Admin override: reduce or extend to a number of games (UC-14, COMP-11). */
+@Injectable()
+export class ChangeSuspensionGamesHandler
+  implements CommandHandler<{ id: string; nGames: number; reason: string; byUserId: string }, SuspensionDto>
+{
+  constructor(
+    @Inject(SUSPENSION_REPOSITORY)
+    private readonly suspensions: SuspensionRepository,
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly notify: NotificationService
+  ) {}
+
+  async execute(input: { id: string; nGames: number; reason: string; byUserId: string }): Promise<SuspensionDto> {
+    await this.db.transaction(async (tx) => {
+      const s = await lockSuspension(tx, input.id);
+      const expected = { status: s.status, servedCount: s.servedCount };
+      s.changeGames(input.nGames, input.reason);
+      await saveIf(tx, s, expected);
+    });
+    const saved = await this.suspensions.findById(SuspensionId.of(input.id));
+    if (!saved || saved.kind !== "n_games" || saved.nGames !== input.nGames) {
+      throw new Error(`suspension ${input.id}: readback after change does not show ${input.nGames} games`);
+    }
+    log.log(`change suspension=${input.id} person=${saved.personId} nGames=${input.nGames} status=${saved.status} by=${input.byUserId}`);
+
+    const who = await personContact(this.db, saved.personId);
+    const left = Math.max(0, input.nGames - saved.servedCount);
+    await this.notify.queue({
+      templateCode: "suspension.changed",
+      channel: who.email ? "email" : "in_app",
+      idempotencyKey: `suspension.changed:${input.id}:${saved.updatedAt.toISOString()}`,
+      recipientPersonId: saved.personId,
+      recipientEmail: who.email,
+      payload: {
+        suspensionId: input.id,
+        personName: who.name,
+        nGamesLabel: `${input.nGames} game${input.nGames === 1 ? "" : "s"}`,
+        leftClause: saved.status === "served" ? "It is now fully served." : `${left} game${left === 1 ? "" : "s"} left to sit out.`,
+        reason: input.reason.trim()
+      },
+      sourceEvent: "suspension.changed"
     });
 
     const names = await resolveEntityNames(this.db, [{ type: "person", id: saved.personId }]);

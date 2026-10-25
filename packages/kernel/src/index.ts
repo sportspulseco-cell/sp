@@ -32,4 +32,5 @@ export * from "./hockey-scoring";
 export * from "./time-zones";
 export * from "./division-entries";
 export * from "./suspensions";
+export * from "./discipline";
 export * from "./eligibility-evaluation";

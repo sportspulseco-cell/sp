@@ -36,12 +36,14 @@ import {
 } from "../application/dtos/game.dto";
 import {
   IssueSuspensionHandler,
+  ChangeSuspensionGamesHandler,
   LiftSuspensionHandler,
   ListSuspensionsHandler,
   ServeSuspensionHandler
 } from "../application/suspensions/handlers";
 import {
   IssueSuspensionBodyDto,
+  ChangeSuspensionGamesBodyDto,
   LiftSuspensionBodyDto,
   ListSuspensionsQueryDto
 } from "./dto/game.dto";
@@ -69,6 +71,7 @@ export class SuspensionsController {
     private readonly listH: ListSuspensionsHandler,
     private readonly issueH: IssueSuspensionHandler,
     private readonly liftH: LiftSuspensionHandler,
+    private readonly changeH: ChangeSuspensionGamesHandler,
     private readonly serveH: ServeSuspensionHandler
   ) {}
 
@@ -128,6 +131,19 @@ export class SuspensionsController {
   ): Promise<SuspensionDto> {
     await this.requireOnSuspension(id, user.userId, scope, "suspension.lift", "lift a suspension");
     return this.liftH.execute({ id, reason: body.reason, byUserId: user.userId });
+  }
+
+  @Post(":id/games")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Reduce or extend a standing suspension to a number of games (UC-14). Reason required." })
+  async changeGames(
+    @Param("id") id: string,
+    @Body() body: ChangeSuspensionGamesBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ): Promise<SuspensionDto> {
+    await this.requireOnSuspension(id, user.userId, scope, "suspension.lift", "change a suspension");
+    return this.changeH.execute({ id, nGames: body.nGames, reason: body.reason, byUserId: user.userId });
   }
 
   @Post(":id/serve")

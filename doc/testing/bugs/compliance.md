@@ -203,6 +203,30 @@ Rows created on staging: one waiver document per run (`<RUN_TAG> Liability waive
   Root cause: not built.
   Proposed fix: add a kernel rule (packages/kernel) for suspension thresholds and division ruleSetOverrides keys. Add a finalize hook in games handlers
     (game-operations/application/games/handlers.ts) that counts PIM/misconduct events, issues through IssueSuspensionHandler (already notifies), and auto-serves active suspensions for both teams.
+  Fix (26 Oct): rules live on the league (leagues.metadata.discipline), set in Edit league > Discipline. Off until a league admin
+    turns them on (UC-14 precondition: the league defines its rules); the dialog then shows recommended values: game misconduct
+    1 game, second major in one game 2 games, every 3 misconducts in a season 1 game (the UC-14 example), penalty-minute
+    threshold off, match penalty until lifted. The server refuses bad values (400) with the field's label.
+    A penalty now records its ejection (None, Game misconduct, Match penalty) and the game log shows it.
+    packages/kernel/src/discipline.ts evaluates one finalized game: one suspension per player per game, rules that fire
+    together add up, a match penalty is open-ended. Finalize runs it inside the same transaction after counting served games
+    (so a game never serves what it caused), skips corrected events, takes a per-player lock and is idempotent by source event.
+    Suspensions are issued with no issuing user and the reason "Automatic: ...". After commit the player, the team's captains
+    and the league's admins are told (one notice each, idempotent). The finalize message names how many players were suspended.
+    UC-14 override: "Change games" next to Lift on the person page (POST /suspensions/:id/games, permission suspension.lift)
+    reduces or extends, or gives a match penalty a length; games served stay counted; reaching them ends it; the reason is kept
+    and the player is told.
+  Evidence: kernel 105/105 (14 discipline tests). Local API against staging, regfa/verify-auto-suspension.mjs 14/14: bad rule 400;
+    no saved rules issues 0; on: a game misconduct gives 1 game, a second major 2 games sourced from that major; notices player 2,
+    captain 29, admin 34 (staging has many test captains and admins); the next finalized game serves (1 of 1 done, 1 of 2);
+    extend to 3, reduce to 1 ends it, a served one 422; 2 change notices; rules off issue 0. Cleanup restored the league.
+    Local browser walk (regfa/browser-comp11.mjs, superadmin :3141, run before the switch to off-by-default): dialog
+    values, a 0 is refused and nothing saves, save writes metadata.discipline (db), Ejection dropdown, penalty stored with
+    ejection (db), finalize message "1 player suspended by the league's discipline rules.", automatic 1-game suspension
+    row (db). The off-by-default dialog state is checked in the staging walk.
+  Not verified: same-page refresh after Log event and after Change games. The local Next build never applies router.refresh()
+    payloads (the refresh response carries the new data; deployed staging applies the same refresh correctly), so these two
+    steps must be walked on staging after the push. Captain console wording for automatic suspensions not re-checked (COMP-12).
 ```
 
 ```

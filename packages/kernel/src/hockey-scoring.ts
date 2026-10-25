@@ -1,3 +1,4 @@
+import { isEjectionType } from "./discipline";
 /**
  * Ice-hockey scoresheet rules (UC-11, UC-13). Shared by the API, which
  * validates every appended game event, and the admin "Log event" dialog,
@@ -125,6 +126,12 @@ export function validateHockeyEvent(e: HockeyEventDraft): string | null {
       !Object.prototype.hasOwnProperty.call(HOCKEY_INFRACTION_LABELS, infraction)
     ) {
       return "Pick the infraction.";
+    }
+    // Optional: the player was ejected (game misconduct, match penalty),
+    // which the automatic suspension rules read (COMP-11).
+    const ejection = e.attributes?.ejection;
+    if (ejection !== undefined && ejection !== null && !isEjectionType(ejection)) {
+      return "Pick the ejection: none, game misconduct or match penalty.";
     }
   }
   return null;

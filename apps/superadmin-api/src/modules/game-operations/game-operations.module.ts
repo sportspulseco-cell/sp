@@ -30,6 +30,7 @@ import {
 import {
   ListSuspensionsHandler,
   IssueSuspensionHandler,
+  ChangeSuspensionGamesHandler,
   LiftSuspensionHandler,
   ServeSuspensionHandler
 } from "./application/suspensions/handlers";
@@ -82,6 +83,7 @@ import { DrizzleGameOfficialRepository } from "./infrastructure/repositories/dri
     // Suspensions
     ListSuspensionsHandler,
     IssueSuspensionHandler,
+    ChangeSuspensionGamesHandler,
     LiftSuspensionHandler,
     ServeSuspensionHandler,
     // Officials

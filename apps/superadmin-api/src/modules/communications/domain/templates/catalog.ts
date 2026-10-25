@@ -18,6 +18,10 @@ export const TEMPLATE_CODES = [
   // UC-08 a schedule run is published: one digest per person per team (SCH-8).
   "schedule.published",
   "suspension.issued",
+  // UC-14 automatic suspensions: the team's captains and the league's admins (COMP-11).
+  "suspension.issued.captain",
+  "suspension.issued.admin",
+  "suspension.changed",
   "suspension.lifted",
   "roster.added",
   "roster.dropped",
@@ -275,6 +279,59 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "Hi {{personName}},\n\nA {{kind}} suspension has been recorded against " +
       "you{{nGamesClause}}. Reason: {{reason}}",
     variables: ["personName", "kind", "reason", "nGamesClause"]
+  },
+  {
+    code: "suspension.issued",
+    channel: "in_app",
+    subject: "Suspension issued",
+    body: "A {{kind}} suspension has been recorded against you{{nGamesClause}}. Reason: {{reason}}",
+    variables: ["kind", "reason", "nGamesClause"]
+  },
+  {
+    code: "suspension.issued.captain",
+    channel: "email",
+    subject: "{{personName}} is suspended ({{teamName}})",
+    body:
+      "{{personName}} on {{teamName}} is suspended{{nGamesClause}}. Reason: {{reason}}\n\n" +
+      "They cannot be in a lineup until the suspension is served or lifted.",
+    variables: ["personName", "teamName", "reason", "nGamesClause"]
+  },
+  {
+    code: "suspension.issued.captain",
+    channel: "in_app",
+    subject: "{{personName}} is suspended ({{teamName}})",
+    body: "Suspended{{nGamesClause}}. They cannot be in a lineup until it is served or lifted.",
+    variables: ["personName", "teamName", "nGamesClause"]
+  },
+  {
+    code: "suspension.issued.admin",
+    channel: "email",
+    subject: "Automatic suspension: {{personName}} ({{teamName}})",
+    body:
+      "{{personName}} on {{teamName}} was suspended{{nGamesClause}} by the league's discipline rules. Reason: {{reason}}\n\n" +
+      "Open the player in the admin console to reduce, extend or lift it.",
+    variables: ["personName", "teamName", "reason", "nGamesClause"]
+  },
+  {
+    code: "suspension.issued.admin",
+    channel: "in_app",
+    subject: "Automatic suspension: {{personName}} ({{teamName}})",
+    body: "Suspended{{nGamesClause}} by the discipline rules. Open the player to reduce, extend or lift it.",
+    variables: ["personName", "teamName", "nGamesClause"]
+  },
+  {
+    code: "suspension.changed",
+    channel: "email",
+    subject: "Your suspension changed",
+    body: "Hi {{personName}},\n\nYour suspension now runs for {{nGamesLabel}}. {{leftClause}} Reason: {{reason}}",
+    variables: ["personName", "nGamesLabel", "leftClause", "reason"]
+  },
+  {
+    code: "suspension.changed",
+    channel: "in_app",
+    subject: "Your suspension changed",
+    body: "It now runs for {{nGamesLabel}}. {{leftClause}}",
+    variables: ["nGamesLabel", "leftClause"]
   },
   {
     code: "suspension.lifted",
