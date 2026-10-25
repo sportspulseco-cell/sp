@@ -259,7 +259,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 138 total, 58 still open
+## Logged findings: 138 total, 42 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -271,8 +271,8 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CAP-6 | major | No way into "Register your team" from the captain console while the team is in season | J7 | fixed in code, not deployed | commit 560c13d: Register the team always in captain menu + CTA |
 | CAP-7 | major | Captain's free-agent pool reads the newest division entry, so current-season free agents are invisible | J6 · UC-03 | fixed | pdf-items item 6 + blockers-oct24 item 4 (staging, 24 Oct) |
 | CAP-8 | major | Manage roster jumps to the newest registered season; the current roster is unreachable | J8 · UC-33 / UC-04 | fixed in code, not deployed | commit 560c13d: one kernel current-season rule + season switcher |
-| CAP-9 | major | Claiming a free agent skips the player's accept/decline and tells nobody | J6 · UC-03 | open |  |
-| CAP-10 | major | No admin view of the free-agent pool (cannot manually assign) | J6 · UC-03 alternative flow "Admin manually assigns player to a team" | open |  |
+| CAP-9 | major | Claiming a free agent skips the player's accept/decline and tells nobody | J6 · UC-03 | fixed in code, not deployed | commit 200733b: claim is an offer the player accepts or declines |
+| CAP-10 | major | No admin view of the free-agent pool (cannot manually assign) | J6 · UC-03 alternative flow "Admin manually assigns player to a team" | fixed in code, not deployed | commit 200733b: admin free-agent pool panel with Assign to team |
 | CAP-11 | major | Any signed-in user can search every person on the platform, with email and auth id | J8 | fixed in code, not deployed | commit 8333b60: people search and person reads limited to the caller's scope |
 | CAP-12 | major | Org setup refuses "registration opens today" east of UTC and after 8 pm US Eastern; failed publish leaves an orphan league | J7 setup (also J1) | fixed | blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct) |
 | CAP-13 | major | Season status and captain visibility disagree; the window cannot be edited after creation | J7 prerequisite | fixed in code, not deployed | blockers-oct24-b (edit season incl. registration window) + status hints state the real rule |
@@ -288,20 +288,20 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CAP-23 | minor | "New registration form" dialog preselects another tenant's org | J7 setup (forms) | open |  |
 | CAP-24 | major | Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) | J8.4 → J8.5 · M10 | fixed in code, not deployed | commit 560c13d: refuses a second active membership in another open season |
 | COMP-5 | blocker | Player and captain compliance pages are always empty | J9 · UC-05, UC-29, UC-14 | fixed | journey matrix 3a |
-| COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | open |  |
+| COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | fixed in code, not deployed | commit 200733b: Documents to review queue with approve / reject / request new upload |
 | COMP-2 | major | USA Hockey ID submit fails: "Unknown governing body code "USA_HOCKEY"" | J9 · UC-29 | fixed | migration 0049 on staging + prod; j09 step 2 passed (journey matrix 3a) |
-| COMP-3 | major | Player cannot upload an ID or eligibility document | J9 · UC-29 (precondition), UC-27 alt flow (scanned signed waiver) | open |  |
+| COMP-3 | major | Player cannot upload an ID or eligibility document | J9 · UC-29 (precondition), UC-27 alt flow (scanned signed waiver) | fixed in code, not deployed | commit 200733b + migration 0054 (staging applied): player/guardian document upload |
 | COMP-4 | major | /compliance does not list waivers or offer a way to sign one | J9 · UC-27 | fixed in code, not deployed | commit b3c8998: /compliance lists and signs required documents |
-| COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | open |  |
+| COMP-17 | major | Season sweep silently overwrites an admin's waiver decision | J9 · UC-05 (admin decision log), UC-29 | fixed in code, not deployed | commit 200733b: sweeps never overwrite an admin waiver |
 | COMP-8 | major | League admin is blocked from /eligibility | J9 · UC-05, UC-29 (actor = League Admin) | fixed in code, not deployed | commit 3ad966b: league admin reads eligibility in scope |
 | COMP-9 | major | /eligibility shows UUID fragments for people, and "New record" is disabled | J9 · UC-05 | open |  |
 | COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | open |  |
 | COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | open |  |
-| COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | open |  |
+| COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | fixed in code, not deployed | commit 200733b: issue / lift suspensions; served games counted at finalize |
 | COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | open |  |
-| COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | open |  |
-| COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | open |  |
-| COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | open |  |
+| COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | fixed in code, not deployed | commit 200733b: captain compliance lists suspended players |
+| COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | fixed in code, not deployed | commit 200733b: lineup save refuses suspended starters/bench |
+| COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | fixed in code, not deployed | commit 200733b: sweep: missing data pending, suspension ineligible |
 | COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | fixed in code, not deployed | commit 5d87870: same fix as SCH-23 |
 | CONSOLE-1 | blocker | Every API failure renders Next's "404 This page could not be found" | all · M1–M17 (every detail page) | fixed in code, not deployed | commit c66e81f: load() + LoadError in 60 pages; awaiting staging deploy + crawl |
 | CONSOLE-2 | major | Roles rows link to /roles/:id, which does not exist | J2 · M1 | fixed in code, not deployed | commit c66e81f: roles/[id] page; awaiting deploy |
@@ -346,10 +346,10 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-9 | major | Players cannot discover open registrations | J4 · UC-01 | fixed | pdf-items item 2: player sees open season (staging, 24 Oct) |
 | REG-10 | major | Admin cannot open registration "today" in the US evening; failed setup leaves an orphan league | J3 · UC-01 precondition | fixed | same run as CAP-12 |
 | REG-11 | minor | Registration window shown one day late | J3 | open |  |
-| REG-12 | major | Org admin "Live wizard" opens the PRODUCTION player app | J3 | open |  |
-| REG-13 | major | Review "Registration links" point at a hard-coded marketing domain | J3 | open |  |
-| REG-14 | major | "Registration type" setting does nothing | J3 / J4 · spec registration-module-v2 §1.2 | open |  |
-| REG-15 | major | Guardian consent page has no signature and stores no consent record | J5 · UC-28 | open |  |
+| REG-12 | major | Org admin "Live wizard" opens the PRODUCTION player app | J3 | fixed in code, not deployed | commit 200733b: player-app links from the API's PLAYER_WEB_URL |
+| REG-13 | major | Review "Registration links" point at a hard-coded marketing domain | J3 | fixed in code, not deployed | commit 200733b: same as REG-12 |
+| REG-14 | major | "Registration type" setting does nothing | J3 / J4 · spec registration-module-v2 §1.2 | fixed in code, not deployed | commit 200733b: registration type (team / individual / both) enforced |
+| REG-15 | major | Guardian consent page has no signature and stores no consent record | J5 · UC-28 | fixed in code, not deployed | commit 200733b: guardian consent records typed name, text, IP, browser |
 | REG-16 | major | Funnel accepts registrations before the window opens | J4 | fixed in code, not deployed | commit b3c8998: window enforced before any write |
 | REG-17 | major | Review queues: org admin rows unreadable, Approve offered on unreviewable rows; SA counters wrong | J4, J5 | fixed | journey matrix 3a |
 | REG-18 | minor | Duplicate config sources in the form builder | J3 | open |  |
@@ -364,7 +364,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SCH-1 | blocker | Scheduler (generate, publish, conflicts, runs, fairness, verify, playoffs, tournament, parity, notifications) | J10 · UC-06, UC-07, UC-08, UC-09 | fixed | journey matrix 3a |
 | SCH-2 | blocker | Ice slots created on /venues are invisible to the scheduler | J10 · UC-06 | fixed | journey matrix 3a |
 | SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | open |  |
-| SCH-20 | major | New game team pickers show only 25 random teams | J10, J11 · UC-07 fallback (manual fixture) | open |  |
+| SCH-20 | major | New game team pickers show only 25 random teams | J10, J11 · UC-07 fallback (manual fixture) | fixed in code, not deployed | commit 200733b: searchable, complete team pickers |
 | SCH-22 | blocker | Log event: Player picker is empty, goals cannot be attributed | J11 · UC-11, UC-13 | fixed | journey matrix 3a |
 | SCH-12 | major | Only super_admin can run a game; league admin / scorekeeper / referee get 403 | J11 · UC-11, UC-12 | fixed in code, not deployed | commit a6bf6b5: scoped game access for league admins, scorekeepers, referees |
 | SCH-13 | major | Assists are never counted | J11 · UC-11, UC-13 | fixed in code, not deployed | commit a6bf6b5: assists from the scoring team's roster |
@@ -374,8 +374,8 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SCH-6 | major | No way to move a game's time or rink (UC-07 manual override) | J10 · UC-07, UC-21 | fixed in code, not deployed | commit a6bf6b5: reschedule with clash checks |
 | SCH-8 | major | Publishing a schedule notifies nobody | J10 · UC-08, UC-21 | open |  |
 | SCH-4 | major | Admin cannot put a team into a division | J10 · UC-06 precondition | fixed in code, not deployed | commit 4700c18: Add a team on the division page; j10 step 2 drives it |
-| SCH-5 | major | Manual "New game" form: no season/division, venue is free text | J10 · UC-07 | open |  |
-| SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | open |  |
+| SCH-5 | major | Manual "New game" form: no season/division, venue is free text | J10 · UC-07 | fixed in code, not deployed | commit 200733b: New game picks season, division, entered teams, rink |
+| SCH-3 | major | Venues, surfaces and ice slots cannot be edited; venues cannot be deleted | J10 · UC-06 | fixed in code, not deployed | commit 200733b: rinks/surfaces editable, delete refused while in use, slots editable |
 | SCH-23 | major | Captain lineup editor shows the roster of another season | J11 · UC-11 precondition | fixed in code, not deployed | commit 5d87870: lineup editor reads the game's season roster |
 | SCH-24 | major | Captain /stats shows nothing after finalized games | J11 · UC-13 | fixed in code, not deployed | commit a6bf6b5: captain /stats division table + player lines |
 | SCH-25 | minor | Standings division filter lists divisions of every league | J11 · UC-13 | open |  |

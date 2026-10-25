@@ -287,6 +287,22 @@ FIXED_IN_CODE = {
     "MON-13": "commit 370cb34: compose targets org/league/season/division/team (schedule-later not built)",
     "MON-4": "not reproduced on branch (MON fix round 25 Oct)",
     "MON-5": "not reproduced on branch (MON fix round 25 Oct)",
+    "COMP-3": "commit 200733b + migration 0054 (staging applied): player/guardian document upload",
+    "COMP-1": "commit 200733b: Documents to review queue with approve / reject / request new upload",
+    "COMP-10": "commit 200733b: issue / lift suspensions; served games counted at finalize",
+    "COMP-12": "commit 200733b: captain compliance lists suspended players",
+    "COMP-13": "commit 200733b: lineup save refuses suspended starters/bench",
+    "COMP-14": "commit 200733b: sweep: missing data pending, suspension ineligible",
+    "COMP-17": "commit 200733b: sweeps never overwrite an admin waiver",
+    "CAP-9": "commit 200733b: claim is an offer the player accepts or declines",
+    "CAP-10": "commit 200733b: admin free-agent pool panel with Assign to team",
+    "REG-12": "commit 200733b: player-app links from the API's PLAYER_WEB_URL",
+    "REG-13": "commit 200733b: same as REG-12",
+    "REG-14": "commit 200733b: registration type (team / individual / both) enforced",
+    "REG-15": "commit 200733b: guardian consent records typed name, text, IP, browser",
+    "SCH-3": "commit 200733b: rinks/surfaces editable, delete refused while in use, slots editable",
+    "SCH-5": "commit 200733b: New game picks season, division, entered teams, rink",
+    "SCH-20": "commit 200733b: searchable, complete team pickers",
 }
 
 # Not bugs to fix now: decisions the founder made, with the date.
