@@ -2,7 +2,7 @@
 
 For whoever ships `main` to production (sp-api, sp-superadmin, sp-org-admin,
 sp-team-admin, sp-player, sp-landing). Production runs build `a2cf243`; local
-`HEAD` is 87 commits ahead and staging (`codex/staging`) is 40 behind `HEAD`.
+`HEAD` is over 100 commits ahead of production and over 50 ahead of staging (`codex/staging`).
 
 ## Order matters
 
@@ -36,13 +36,14 @@ sp-team-admin, sp-player, sp-landing). Production runs build `a2cf243`; local
 
 Notifications: schedule published (SCH-8), postponed / cancelled games
 (MON-14), eligibility waivers (COMP-7), captain team message (MON-12),
-player inbox without delivery pills (SCH-26).
+invoice issued (MON-22), player inbox without delivery pills (SCH-26).
 
 Access: audit log scoped to the admin's league (CONSOLE-12), bulk invoice
 target checked against the org (MON-20), wrong-role sign-in message
 (CONSOLE-13).
 
-Captain and player: rosters show one season (CAP-19), invite opens the email
+Captain and player: rosters show one season and every player, not the first
+page (CAP-19; dashboard totals too), invite opens the email
 form (CAP-16), dues pages honest when no invoice exists (MON-16), free-agent
 form loads saved entries (CAP-17), one A–D skill level list (REG-21),
 printable receipts and no fake card update (MON-18).
