@@ -380,7 +380,9 @@ test("J8.5 captain adds the plain player by name; player sees the team; captain 
   await search.fill("");
   // The full first name: every earlier run's fixture shares the first 8 letters,
   // and the picker shows 8 matches.
-  await search.pressSequentially(PLAIN_FIRST, { delay: 40 });
+  // One input event: per-key typing of 15 letters ran past the 20 s action
+  // timeout on a slow staging run.
+  await search.fill(PLAIN_FIRST);
   await p.waitForTimeout(1500);
   await p.getByText(/searching/i).waitFor({ state: "hidden", timeout: 20_000 }).catch(() => {});
   await snap(p, "51-picker-search-name");
