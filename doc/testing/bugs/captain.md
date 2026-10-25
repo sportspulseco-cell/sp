@@ -425,4 +425,16 @@ Counts (journey steps above): 19 pass (some with defects), 7 fail, 4 blocked/par
 
   Actual: no page in any console lists pending_destination transfers or calls /league/teams/transfer/:id/accept. TRANSFER_TRANSITIONS only lets pending_destination go to pending_admin (accept), rejected or cancelled, and the admin's Approve needs pending_admin, so every captain-started transfer stalls.
 
-  Fix: pending.
+  Fix (26 Oct): Roster has a Transfers tab (badge = transfers waiting on this captain). Incoming: player by name, the team
+    they come from, when and why; Accept (the league's admins get "Transfer to approve", which the accept endpoint
+    promised but never sent) or Decline with a reason of at least 20 characters (player and both captains told).
+    "Started by your team": every transfer the team began, its state in words, Cancel while the other captain has not
+    answered. The captain lists now carry names (one helper shared with the admin queue); state labels come from the
+    kernel (TRANSFER_STATE_LABELS) in both consoles, so the admin queue no longer prints "pending admin".
+  Evidence: local apps against staging, regfa/walk-cap25.mjs 12/12 (captain on team-admin-web, then super admin on
+    superadmin-web, fresh contexts): tab badge 2; both incoming players by name and team, no ids; Accept shows the
+    message and removes the row without a reload, db pending_admin, 17 admin notices each addressed; Decline disabled
+    under 20 characters, then db rejected with the reason and 16 notices; badge clears; outgoing row in words, Cancel
+    shows Cancelled without a reload, db cancelled; admin queue lists the accepted transfer as "Awaiting admin approval".
+    Setup gave the Bears a temporary captain and two players; all removed after.
+  Not verified: the admin's Approve on a captain-accepted transfer (roster moves and invoices) in this run.

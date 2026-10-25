@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
+import { TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,13 +19,9 @@ import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { adminTransfers } from "@/lib/api/browser-api";
 
-const STATUS_OPTIONS = [
-  { value: "pending_admin", label: "Awaiting admin approval" },
-  { value: "pending_destination", label: "Awaiting destination captain" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-  { value: "cancelled", label: "Cancelled" }
-];
+const STATUS_OPTIONS = (
+  ["pending_admin", "pending_destination", "approved", "rejected", "cancelled"] as const
+).map((value) => ({ value, label: TRANSFER_STATE_LABELS[value] }));
 
 export function TransfersQueue({
   initial
@@ -162,7 +159,7 @@ export function TransfersQueue({
                 </TD>
                 <TD>
                   <Badge tone={statusTone(t.status)}>
-                    {t.status.replace(/_/g, " ")}
+                    {TRANSFER_STATE_LABELS[t.status]}
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">

@@ -41,6 +41,7 @@ export const TEMPLATE_CODES = [
   "TRANSFER_REQUEST",
   "TRANSFER_REJECTED",
   "TRANSFER_APPROVED",
+  "TRANSFER_ACCEPTED",
   "CAPTAIN_REVOKED",
   "DIVISION_APPLICATION_REJECTED",
   // Workflow 7C · compliance + eligibility
@@ -477,7 +478,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Trade request — {{playerName}}",
     body:
       "{{sourceTeam}} has asked to move {{playerName}} to your team. " +
-      "Accept or decline it on Roster in the captain console.",
+      "Accept or decline it on the Roster page, Transfers tab, in the captain console.",
     variables: ["sourceTeam", "playerName", "transferId"]
   },
   {
@@ -488,6 +489,15 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "The proposed trade of {{playerName}} has been rejected.\n\n" +
       "Reason: {{reason}}",
     variables: ["playerName", "reason"]
+  },
+  {
+    code: "TRANSFER_ACCEPTED",
+    channel: "email",
+    subject: "Transfer to approve: {{playerName}}",
+    body:
+      "{{toTeam}} accepted {{playerName}} from {{fromTeam}}. " +
+      "Approve or reject it under Transfers in the admin console.",
+    variables: ["playerName", "fromTeam", "toTeam"]
   },
   {
     code: "TRANSFER_APPROVED",

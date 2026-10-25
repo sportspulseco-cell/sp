@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
+import { schema } from "@sportspulse/db";
 import type { NotificationService } from "../../communications/application/notification.service";
 import type { TemplateCode } from "../../communications/domain/templates/catalog";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
@@ -13,11 +15,13 @@ export async function notifyTransfer(
   db: Database,
   notify: NotificationService,
   args: {
-    transfer: { id: string; orgId: string; personId: string; fromTeamId: string; toTeamId: string };
+    transfer: { id: string; orgId: string; seasonId: string; personId: string; fromTeamId: string; toTeamId: string };
     templateCode: TemplateCode;
     key: string;
     toPlayer: boolean;
     captainsOf: ReadonlyArray<"from" | "to">;
+    /** The admins of the transfer's league and season (they approve it). */
+    toAdmins?: boolean;
     extra?: Record<string, unknown>;
     /** The person who acted; they already know. */
     excludePersonIds?: readonly string[];
@@ -58,6 +62,22 @@ export async function notifyTransfer(
       key: args.key,
       payload,
       excludePersonIds: [...skip, ...(args.toPlayer ? [t.personId] : [])]
+    });
+  }
+  if (args.toAdmins) {
+    const [season] = await db
+      .select({ leagueId: schema.seasons.leagueId })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, t.seasonId))
+      .limit(1);
+    await notifyAudience(db, notify, {
+      orgId: t.orgId,
+      target: { leagueIds: season ? [season.leagueId] : [], seasonIds: [t.seasonId] },
+      audiences: ["all_admins"],
+      templateCode: args.templateCode,
+      key: args.key,
+      payload,
+      excludePersonIds: [...skip]
     });
   }
 }

@@ -22,7 +22,6 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
-import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
@@ -31,6 +30,7 @@ import { orgVisible, unrestricted } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { NotificationService } from "../../communications/application/notification.service";
 import { notifyTransfer } from "../application/transfer-notices";
+import { withTransferNames } from "../application/transfer-names";
 
 class RejectBodyDto {
   @IsString() @MinLength(ROSTER_DROP_REASON_MIN_CHARS) reason!: string;
@@ -94,20 +94,8 @@ export class AdminTransfersController {
       .where(and(...conds))
       .orderBy(desc(schema.transferRequests.createdAt))
       .limit(100);
-    // Add person + team names so the queue never prints raw ids.
-    const names = await resolveEntityNames(this.db, [
-      ...items.map((t) => ({ type: "person", id: t.personId })),
-      ...items.map((t) => ({ type: "team", id: t.fromTeamId })),
-      ...items.map((t) => ({ type: "team", id: t.toTeamId }))
-    ]);
-    return {
-      items: items.map((t) => ({
-        ...t,
-        personName: names.get(`person:${t.personId}`) ?? null,
-        fromTeamName: names.get(`team:${t.fromTeamId}`) ?? null,
-        toTeamName: names.get(`team:${t.toTeamId}`) ?? null
-      }))
-    };
+    // Person + team names so the queue never prints raw ids.
+    return { items: await withTransferNames(this.db, items) };
   }
 
   @Post("teams/transfer/:id/approve")

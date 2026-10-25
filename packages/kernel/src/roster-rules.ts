@@ -121,6 +121,15 @@ export const TRANSFER_STATES = [
 ] as const;
 export type TransferState = (typeof TRANSFER_STATES)[number];
 
+/** Plain words for each state, shared by the admin queue and the captain console. */
+export const TRANSFER_STATE_LABELS: Record<TransferState, string> = {
+  pending_destination: "Awaiting destination captain",
+  pending_admin: "Awaiting admin approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  cancelled: "Cancelled"
+};
+
 export const TRANSFER_TRANSITIONS: Record<
   TransferState,
   ReadonlyArray<TransferState>

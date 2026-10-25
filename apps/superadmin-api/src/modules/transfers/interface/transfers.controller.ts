@@ -27,6 +27,7 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 import { notifyTransfer } from "../application/transfer-notices";
+import { withTransferNames } from "../application/transfer-names";
 
 class InitiateTransferBodyDto {
   @IsUUID() personId!: string;
@@ -177,6 +178,17 @@ export class TransfersController {
       .where(eq(schema.transferRequests.id, transferId))
       .returning();
 
+    // The league admins approve next (CAP-25: the summary promised this
+    // notice but nothing sent it).
+    await notifyTransfer(this.db, this.notify, {
+      transfer: tr,
+      templateCode: "TRANSFER_ACCEPTED",
+      key: `transfer-accepted-${tr.id}`,
+      toPlayer: false,
+      captainsOf: [],
+      toAdmins: true
+    });
+
     return { transfer: updated[0]! };
   }
 
@@ -230,7 +242,7 @@ export class TransfersController {
         )
       )
       .orderBy(desc(schema.transferRequests.createdAt));
-    return { items };
+    return { items: await withTransferNames(this.db, items) };
   }
 
   @Get("captain/transfers/outgoing/:teamId")
@@ -249,7 +261,7 @@ export class TransfersController {
       .where(eq(schema.transferRequests.fromTeamId, teamId))
       .orderBy(desc(schema.transferRequests.createdAt))
       .limit(50);
-    return { items };
+    return { items: await withTransferNames(this.db, items) };
   }
 
   // ---- Source captain may also reject a pending request ----------

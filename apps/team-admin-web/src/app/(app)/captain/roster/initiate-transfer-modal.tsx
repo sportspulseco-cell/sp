@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { Button, Dialog, DialogActions } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
+import { ROSTER_DROP_REASON_MIN_CHARS } from "@sportspulse/kernel";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
 
 type Target = {
@@ -14,7 +15,7 @@ type Target = {
   personLastName: string | null;
 } | null;
 
-const MIN_CHARS = 20;
+const MIN_CHARS = ROSTER_DROP_REASON_MIN_CHARS;
 
 /**
  * Workflow 7B · Case 6 step 1 — source captain initiates a transfer.
@@ -76,7 +77,7 @@ export function InitiateTransferModal({
         toTeamId,
         reason: reason.trim()
       });
-      onInitiated(`Transfer request sent. ${name} stays on your roster until approved.`);
+      onInitiated(`Transfer request sent. ${name} stays on your roster until approved. Track it on the Transfers tab.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {

@@ -32,15 +32,18 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AddPlayerModal } from "./add-player-modal";
 import { DropPlayerModal } from "./drop-player-modal";
 import { InitiateTransferModal } from "./initiate-transfer-modal";
+import { TransfersPanel } from "./transfers-panel";
+import type { TransferRequest } from "@sportspulse/api-client";
 
 type RosterPayload = Awaited<ReturnType<typeof captain.roster.list>>;
 type MembershipRow = RosterPayload["memberships"][number];
 type InviteRow = RosterPayload["invites"][number];
-type TabKey = "active" | "pending" | "compliance" | "guests";
+type TabKey = "active" | "pending" | "transfers" | "compliance" | "guests";
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "active", label: "Active" },
   { key: "pending", label: "Pending invite" },
+  { key: "transfers", label: "Transfers" },
   { key: "compliance", label: "Compliance issues" },
   { key: "guests", label: "Guests" }
 ];
@@ -69,6 +72,28 @@ export function RosterScreen({
     null
   );
   const [flash, setFlash] = useState<string | null>(null);
+  // Transfers to this team waiting on the captain, and the ones it
+  // started (CAP-25). Loaded apart from the roster: they are per team,
+  // not per season.
+  const [incoming, setIncoming] = useState<TransferRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<TransferRequest[]>([]);
+  const [transfersLoading, setTransfersLoading] = useState(true);
+
+  async function loadTransfers() {
+    setTransfersLoading(true);
+    try {
+      const [inc, out] = await Promise.all([
+        captain.roster.transfers.listIncoming(teamId),
+        captain.roster.transfers.listOutgoing(teamId)
+      ]);
+      setIncoming(inc.items);
+      setOutgoing(out.items);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTransfersLoading(false);
+    }
+  }
 
   async function load(nextSeasonId: string | null) {
     try {
@@ -96,6 +121,7 @@ export function RosterScreen({
 
   useEffect(() => {
     if (!initial) refresh();
+    void loadTransfers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -113,10 +139,11 @@ export function RosterScreen({
       pending: invites.filter(
         (i) => i.status === "pending" || i.status === "extended"
       ).length,
+      transfers: incoming.length,
       compliance: 0,
       guests: 0
     };
-  }, [memberships, invites]);
+  }, [memberships, invites, incoming]);
 
   const seasons = data?.seasons ?? [];
   const headerSub =
@@ -237,6 +264,17 @@ export function RosterScreen({
           onFlash={setFlash}
         />
       )}
+      {tab === "transfers" && (
+        <TransfersPanel
+          incoming={incoming}
+          outgoing={outgoing}
+          loading={transfersLoading}
+          onFlash={setFlash}
+          onChanged={async () => {
+            await Promise.all([loadTransfers(), refresh()]);
+          }}
+        />
+      )}
       {tab === "compliance" && (
         <EmptyState
           icon={ShieldCheck}
@@ -310,7 +348,7 @@ export function RosterScreen({
         onInitiated={async (msg) => {
           setTransferTarget(null);
           setFlash(msg);
-          await refresh();
+          await Promise.all([refresh(), loadTransfers()]);
         }}
       />
     </div>
