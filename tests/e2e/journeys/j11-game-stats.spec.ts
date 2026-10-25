@@ -440,6 +440,8 @@ test.describe("J11 game day to stats", () => {
         const rc = page.getByRole("button", { name: /Recompute/i }).first();
         if (await rc.isVisible().catch(() => false)) { await rc.click(); await page.waitForTimeout(4000); }
         await page.reload();
+        // Read the table, not the page mid-reload (an empty read failed J11 once).
+        await page.getByText(/Sorted by points/).first().waitFor({ timeout: 30_000 }).catch(() => {});
         const st = await page.locator("main").innerText();
         await shot(page, "06-sa-standings");
         console.log(`[J11] superadmin standings: ${st.replace(/\s+/g, " ").slice(0, 600)}`);
