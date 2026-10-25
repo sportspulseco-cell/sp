@@ -20,6 +20,7 @@ import type {
   UpsertFeeScheduleInput
 } from "../../domain/repositories/finance.repository";
 import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
+import { reserveInvoiceNumbers } from "../../application/services/invoice-number";
 
 @Injectable()
 export class DrizzleFinanceRepository implements FinanceRepository {
@@ -187,10 +188,9 @@ export class DrizzleFinanceRepository implements FinanceRepository {
     const discount = input.discountCents ?? 0;
     const total = Math.max(0, subtotal + tax - discount);
 
-    const invoiceNumber =
-      input.invoiceNumber ?? (await this.nextInvoiceNumber(input.orgId));
-
     return await this.db.transaction(async (tx) => {
+      const invoiceNumber =
+        input.invoiceNumber ?? (await reserveInvoiceNumbers(tx, input.orgId))[0]!;
       const [inv] = await tx
         .insert(schema.invoices)
         .values({
@@ -354,20 +354,8 @@ export class DrizzleFinanceRepository implements FinanceRepository {
   }
 
   async nextInvoiceNumber(orgId: string): Promise<string> {
-    const year = new Date().getUTCFullYear();
-    const prefix = `INV-${year}-`;
-    const rows = await this.db.execute<{ max: string | null }>(
-      sql`SELECT MAX(invoice_number) as max FROM invoices
-          WHERE org_id = ${orgId} AND invoice_number LIKE ${prefix + "%"}`
-    );
-    const max = rows[0]?.max ?? null;
-    let next = 1;
-    if (max) {
-      const tail = max.replace(prefix, "");
-      const n = parseInt(tail, 10);
-      if (!isNaN(n)) next = n + 1;
-    }
-    return `${prefix}${String(next).padStart(4, "0")}`;
+    // A preview only: the number is taken when the invoice is written.
+    return this.db.transaction(async (tx) => (await reserveInvoiceNumbers(tx, orgId))[0]!);
   }
 
   // ---------- Mappers ----------

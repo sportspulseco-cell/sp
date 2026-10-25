@@ -349,6 +349,24 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
 
 ---
 
+[MON-25] Bulk invoices fail for good once any invoice of the year is deleted · major
+  Found: staging journeys on 5986398 (26 Oct): J13 tests 3 and 12 and J14 test 2 got 500 from POST /finance/invoices/bulk
+    (super admin composer and org admin composer).
+  Root cause: the bulk composer (invoicing.service) and the team-invoice split numbered invoices by counting the org's
+    invoices this year plus one. Staging had 1,090 invoices and numbers up to 01091 (one deleted by a test cleanup), so
+    the next number, 01091, already existed and invoice_number_uniq refused every bulk invoice for that org. The same
+    count also let two admins sending at once take the same number. Four places numbered invoices three ways.
+  Production exposure: invoices are not deleted there in normal use, so the count had not drifted, but two composers at
+    once could collide.
+  Fix: one helper (finance/application/services/invoice-number.ts) takes one past the highest number used this year,
+    under a per-org lock held to commit. The composer, the finance repository and the team store use it. The unused
+    POST /finance/team-invoices/:id/split (no caller since MON-23; it had the same counting) is removed.
+  Evidence: local API against staging with the gap still there, regfa/verify-invoice-numbers.mjs 3/3: three invoices
+    sent at once all 201, numbers 01092-01094, distinct and above the highest. MON-23 walk 17/17 again (composer team
+    invoice, split into 27 shares). Store orders 21/21.
+  Not changed: registration and transfer invoices still number themselves from the clock (INV-<digits>, INV-T-<digits>),
+    a separate format.
+
 ## Gaps
 
 Backend without UI

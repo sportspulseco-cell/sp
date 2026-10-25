@@ -18,6 +18,7 @@ import {
   teamIdsInTarget
 } from "../../../../shared/audience/org-targets";
 import type { BulkCreateInvoiceBodyDto } from "../../interface/dto/bulk-invoice.dto";
+import { reserveInvoiceNumbers } from "./invoice-number";
 
 /**
  * Bulk invoice creation extracted from FinanceInvoicingController so the
@@ -114,13 +115,9 @@ export class InvoicingService {
     const currency = "USD";
 
     const created = await this.db.transaction(async (tx) => {
-      const year = new Date().getFullYear();
-      const [yc] = await tx.execute<{ count: number }>(sql`
-        SELECT COUNT(*)::int AS count FROM invoices
-        WHERE org_id = ${body.orgId}
-          AND EXTRACT(YEAR FROM created_at) = ${year}
-      `);
-      let nextSeq = (yc?.count ?? 0) + 1;
+      // One number per invoice, held under the org's lock until commit.
+      const numbers = await reserveInvoiceNumbers(tx, body.orgId, personIds.length);
+      let nextNumber = 0;
       const rows: (typeof schema.invoices.$inferSelect)[] = [];
 
       for (const personId of personIds) {
@@ -134,10 +131,7 @@ export class InvoicingService {
           .where(eq(schema.persons.id, personId))
           .limit(1);
 
-        const invoiceNumber = `INV-${year}-${String(nextSeq++).padStart(
-          5,
-          "0"
-        )}`;
+        const invoiceNumber = numbers[nextNumber++]!;
 
         const [inv] = await tx
           .insert(schema.invoices)
