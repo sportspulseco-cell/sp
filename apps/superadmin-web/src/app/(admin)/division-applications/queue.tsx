@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
+import { LocalDate } from "@sportspulse/ui";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -196,7 +197,7 @@ export function DivisionApplicationsQueue({
                     </Badge>
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
-                    {new Date(t.createdAt).toLocaleDateString("en-CA")}
+                    <LocalDate iso={t.createdAt} />
                   </TD>
                   <TD className="text-right">
                     {t.entryStatus === "pending_approval" ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCalendarDate } from "@sportspulse/kernel";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock,
@@ -18,13 +19,9 @@ import {
 
 interface Props { seasonId: string }
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-US", {
-      year: "numeric", month: "short", day: "numeric"
-    });
-  } catch { return iso; }
+/** Window dates are calendar dates: shown as written, never a day early. */
+function fmtDate(value: string | null): string {
+  return formatCalendarDate(value) || "—";
 }
 
 function windowStateTone(

@@ -1,5 +1,6 @@
 "use client";
 import { fetchAll } from "@sportspulse/api-client";
+import { LocalDate } from "@sportspulse/ui";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -233,7 +234,7 @@ export function RoleAssignmentPanel({
                   {a.role?.name ??
                     SYSTEM_ROLE_BY_CODE[a.role?.code ?? ""]?.name ??
                     "Custom role"}{" "}
-                  · since {new Date(a.effectiveFrom).toLocaleDateString("en-CA")}
+                  · since <LocalDate iso={a.effectiveFrom} />
                 </p>
               </div>
               <button

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import { Alert } from "@sportspulse/ui";
+import { Alert, LocalDate } from "@sportspulse/ui";
 import { leagueMgmt, teamMovement } from "@/lib/api/browser-api";
 import type { TeamEntry, TeamMovement, TeamMovementResult } from "@/lib/api/types";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -43,9 +43,6 @@ interface NamedOpt {
   name: string;
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-CA");
-}
 
 /**
  * Lists a team's season instances and movement history, and runs the four
@@ -141,8 +138,13 @@ export function TeamMovementPanel({
                   </Badge>
                 </TD>
                 <TD className="text-fg-muted">
-                  {fmtDate(e.joinedAt)}
-                  {e.leftAt ? ` → ${fmtDate(e.leftAt)}` : ""}
+                  <LocalDate iso={e.joinedAt} />
+                  {e.leftAt ? (
+                    <>
+                      {" → "}
+                      <LocalDate iso={e.leftAt} />
+                    </>
+                  ) : null}
                 </TD>
                 <TD className="text-[12px] text-fg-muted">{entryNote(e)}</TD>
               </TR>
@@ -162,7 +164,7 @@ export function TeamMovementPanel({
                 <span className="font-medium text-fg">{MOVEMENT_LABELS[m.kind]}</span>
                 <span className="text-fg-muted">
                   {" "}
-                  {describeMovement(m)} · {fmtDate(m.createdAt)}
+                  {describeMovement(m)} · <LocalDate iso={m.createdAt} />
                   {m.movedByName ? ` · by ${m.movedByName}` : ""}
                   {m.reason ? ` · "${m.reason}"` : ""}
                 </span>

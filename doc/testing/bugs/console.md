@@ -248,3 +248,20 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: local API against staging, scratchpad regfa/verify-keyset.mjs, walking with small pages and comparing with the database: 8/8 lists exact (role assignments 144/144, roles 13/13, games 25/25, invoices 893/893 in pages of 97 and of 23, in-app notifications 173/173, all notifications 1495/1495, game events 37/37 in pages of 6); 3 runs in a row 8/8. One earlier run had one failing case that was not captured (likely rows written to staging during the walk; not verified). Unit tests 3/3.
 
   Not changed: notification templates sort by code, channel and locale and still page by id; production has 0 template rows (the catalogue is in code).
+
+[CONSOLE-18] Dates follow the viewer's time zone: hydration errors, and a season date shown a day early · major
+  Found: 26 Oct, React #418 on /leagues/<id> during the CONSOLE-14 probes; the dev server named the text.
+  Actual: client components formatted dates with no time zone. The server renders in UTC and the browser in the
+    viewer's zone, so the text differed and React re-rendered the page: /leagues/<id> and /organizations/<id> (role
+    "since" date), /teams/<id> (team movement dates), /division-applications (applied date), /forms/<id> (season
+    dates). Date-only values were also wrong, not just different: a season starting Nov 22 read "Nov 21" for anyone
+    west of UTC (season setup panel; scheduling parity windows the same way).
+  Fix: kernel formatCalendarDate prints a calendar date as written for every reader; @sportspulse/ui LocalDate prints
+    a moment in the reader's zone after first rendering the same text as the server. Season moments (registration
+    opens, roster lock) print in the season's zone with formatInZone.
+  Evidence: dev server, browser in America/New_York, server in UTC, regfa/hydration-probe.mjs: before, one mismatch
+    each on the five pages above (2026-10-25 vs 2026-10-26; Nov 21 vs Nov 22); after, 0 on those five and on 14 more
+    (/dashboard, /seasons, a season, a division, /games, a game, /scheduling, /registrations, /payments,
+    /communications, /users, /teams, /eligibility, /audit).
+  Not swept: about 35 other client components format moments without a zone (lists filled after the page loads, so
+    no mismatch, but the zone is the browser's). Org, captain and player apps not probed in dev mode this round.

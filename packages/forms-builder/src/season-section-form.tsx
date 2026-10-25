@@ -11,20 +11,24 @@ import {
   SEASON_REGISTRATION_TYPE_LABELS,
   SYSTEM_ROLE_BY_CODE,
   seasonRegistrationType,
-  type SeasonRegistrationType
+  type SeasonRegistrationType,
+  formatCalendarDate,
+  formatInZone
 } from "@sportspulse/kernel";
 import { Badge } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 import { SectionHeader } from "./section-header";
 
 
-function fmtDate(iso: string | null | undefined): string {
+/** A season date as written (no zone shift: Nov 22 never reads Nov 21). */
+function fmtDate(value: string | null | undefined): string {
+  return formatCalendarDate(value) || "—";
+}
+
+/** A season moment (registration opens, roster lock) in the season's zone. */
+function fmtMoment(iso: string | null | undefined, timeZone: string): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return formatInZone(iso, timeZone, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 /**
@@ -289,13 +293,13 @@ export function SeasonSectionForm({
               {selectedSeason.status.replace(/_/g, " ")}
             </ReadOnly>
             <ReadOnly label="Registration opens" mono>
-              {fmtDate(selectedSeason.registrationOpensAt)}
+              {fmtMoment(selectedSeason.registrationOpensAt, selectedSeason.timezone)}
             </ReadOnly>
             <ReadOnly label="Registration closes" mono>
-              {fmtDate(selectedSeason.registrationClosesAt)}
+              {fmtMoment(selectedSeason.registrationClosesAt, selectedSeason.timezone)}
             </ReadOnly>
             <ReadOnly label="Roster lock" mono>
-              {fmtDate(selectedSeason.rosterLockAt)}
+              {fmtMoment(selectedSeason.rosterLockAt, selectedSeason.timezone)}
             </ReadOnly>
           </dl>
         ) : null}

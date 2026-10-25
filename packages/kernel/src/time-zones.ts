@@ -107,3 +107,22 @@ export function formatInZone(
   }
   return `${new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(d)} UTC`;
 }
+
+const CALENDAR_DATE: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+
+/**
+ * A calendar date ("2026-11-22", or that day at midnight UTC) as written:
+ * "Nov 22, 2026" for every reader. Parsing a date-only value and printing
+ * it in the browser's zone showed the day before for anyone west of UTC
+ * (a season starting Nov 22 read "Nov 21"), and differed between server
+ * and browser.
+ */
+export function formatCalendarDate(
+  value: string | null | undefined,
+  opts: Intl.DateTimeFormatOptions = CALENDAR_DATE
+): string {
+  if (!value) return "";
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(d);
+}
