@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatInZone } from "@sportspulse/kernel";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock, Users } from "lucide-react";
@@ -10,8 +11,9 @@ import { LineupEditor } from "./lineup-editor";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+// In the game's own zone.
+function fmtDateTime(iso: string, tz: string): string {
+  return formatInZone(iso, tz, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -107,7 +109,7 @@ export default async function LineupEditorPage({
         <PageHeader
           eyebrow="LINEUP"
           title={`${isHome ? "vs" : "@"} ${opponentName}`}
-          description={fmtDateTime(game.scheduledStartTsUtc)}
+          description={fmtDateTime(game.scheduledStartTsUtc, game.tz)}
         />
         <EmptyState
           icon={Users}
@@ -143,7 +145,7 @@ export default async function LineupEditorPage({
       <PageHeader
         eyebrow="LINEUP"
         title={`${isHome ? "vs" : "@"} ${opponentName}`}
-        description={fmtDateTime(game.scheduledStartTsUtc)}
+        description={fmtDateTime(game.scheduledStartTsUtc, game.tz)}
         action={
           isLocked ? (
             <Badge tone="danger" mono>

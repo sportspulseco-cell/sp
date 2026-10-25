@@ -81,3 +81,29 @@ export function zonedWallTimeToUtc(local: string, timeZone: string): Date {
   const candidates = [first, second].filter(matches).sort((a, b) => a - b);
   return new Date(candidates[0] ?? first);
 }
+
+const GAME_TIME: Intl.DateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit"
+};
+
+/**
+ * `instant` as the clocks read in `timeZone` ("Nov 4, 9:00 PM"). Game and
+ * slot times are shown in the rink's zone, so the text is the same on the
+ * server and in every browser. An unknown or missing zone shows UTC and
+ * says so, rather than guessing.
+ */
+export function formatInZone(
+  instant: Date | string,
+  timeZone: string | null | undefined,
+  opts: Intl.DateTimeFormatOptions = GAME_TIME
+): string {
+  const d = typeof instant === "string" ? new Date(instant) : instant;
+  if (Number.isNaN(d.getTime())) return "";
+  if (timeZone && isValidTimeZone(timeZone)) {
+    return new Intl.DateTimeFormat("en-US", { ...opts, timeZone }).format(d);
+  }
+  return `${new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(d)} UTC`;
+}

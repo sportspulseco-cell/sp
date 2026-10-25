@@ -1,3 +1,4 @@
+import { formatInZone } from "@sportspulse/kernel";
 import { ChartBar } from "lucide-react";
 import {
   Badge,
@@ -283,7 +284,7 @@ export default async function StatsPage({
                     <TR key={s.id}>
                       <TD className="text-[12px] text-fg-muted">
                         {g
-                          ? fmtDate(g.scheduledStartTsUtc)
+                          ? formatInZone(g.scheduledStartTsUtc, g.tz, { month: "short", day: "numeric" })
                           : fmtDate(s.derivedAt)}
                       </TD>
                       <TD className="text-[12px] text-fg">

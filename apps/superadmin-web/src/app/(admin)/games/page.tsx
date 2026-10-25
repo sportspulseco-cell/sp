@@ -1,4 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { formatInZone } from "@sportspulse/kernel";
 import { Alert } from "@sportspulse/ui";
 import { CalendarRange, CircleDot, Flag, Clock } from "lucide-react";
 import Link from "next/link";
@@ -30,16 +31,10 @@ const STATUS_OPTIONS: Array<{ value: GameStatus; label: string }> = [
   { value: "forfeited", label: "Forfeit" }
 ];
 
+// In the game's own zone, so the time matches the zone shown beside it.
 function formatKickoff(iso: string, tz: string) {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
-  const time = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  const date = formatInZone(iso, tz, { month: "short", day: "numeric" });
+  const time = formatInZone(iso, tz, { hour: "numeric", minute: "2-digit" });
   return { date, time, tz };
 }
 

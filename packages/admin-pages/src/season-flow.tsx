@@ -1,3 +1,4 @@
+import { formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
 import type {
   Division,
@@ -209,7 +210,7 @@ async function readSeason(
       label: "Schedule",
       done: seasonGames.length > 0,
       note: seasonGames.length
-        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${fmtDate(nextGame.scheduledStartTsUtc)}` : ""}`
+        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${formatInZone(nextGame.scheduledStartTsUtc, nextGame.tz, { month: "short", day: "numeric" })}` : ""}`
         : "No games yet",
       action: { label: "Generate the schedule", href: links.generate(season.id) }
     },

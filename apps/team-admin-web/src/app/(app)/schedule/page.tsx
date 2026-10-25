@@ -1,3 +1,4 @@
+import { formatInZone } from "@sportspulse/kernel";
 import {
   CalendarRange,
   Clock,
@@ -21,8 +22,9 @@ import { PageHeader } from "@/components/layout/page-header";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Schedule - Team Admin" };
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+// In the game's own zone, so server and browser show the same rink time.
+function fmtDateTime(iso: string, tz: string): string {
+  return formatInZone(iso, tz, {
     weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
   });
 }
@@ -82,7 +84,7 @@ export default async function TeamAdminSchedulePage() {
               const tone = result === "W" ? "success" : result === "L" ? "danger" : result === "T" ? "neutral" : "info";
               return (
                 <TR key={g.id}>
-                  <TD className="text-[12px] text-fg flex items-center gap-1.5"><Clock className="h-3 w-3" strokeWidth={1.75} />{fmtDateTime(g.scheduledStartTsUtc)}</TD>
+                  <TD className="text-[12px] text-fg flex items-center gap-1.5"><Clock className="h-3 w-3" strokeWidth={1.75} />{fmtDateTime(g.scheduledStartTsUtc, g.tz)}</TD>
                   <TD className="text-[12px] text-fg">{oppName}</TD>
                   <TD className="text-[12px] text-fg-muted flex items-center gap-1.5">
                     {g.venueName ? (<><MapPin className="h-3 w-3" strokeWidth={1.75} />{g.venueName}</>) : "-"}

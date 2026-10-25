@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import {
+  formatInZone,
   GAME_ENDING_LABELS,
   HOCKEY_INFRACTION_LABELS
 } from "@sportspulse/kernel";
@@ -25,14 +26,9 @@ import { IssueSuspensionButton } from "@/components/discipline/suspension-button
 
 export const metadata = { title: "Game — SportsPulse" };
 
-function fmtTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+// In the game's own zone (shown beside it), never the server's.
+function fmtTime(iso: string, tz: string) {
+  return formatInZone(iso, tz);
 }
 
 function fmtClock(sec: number | null) {
@@ -139,14 +135,14 @@ export default async function GameDetailPage({
           <div className="space-y-1">
             <Eyebrow>{leagueMap.get(game.leagueId) ?? game.sportCode}</Eyebrow>
             <p className="text-[13px] text-fg-muted">
-              {fmtTime(game.scheduledStartTsUtc)} ·{" "}
+              {fmtTime(game.scheduledStartTsUtc, game.tz)} ·{" "}
               <span className="font-mono text-[11px]">{game.tz}</span>
               {game.venueName ? ` · ${game.venueName}` : ""}
               {game.surfaceLabel ? ` · ${game.surfaceLabel}` : ""}
             </p>
             {lastMove ? (
               <p className="text-[12px] text-fg-muted">
-                Moved from {fmtTime(lastMove.from.startTsUtc)}
+                Moved from {fmtTime(lastMove.from.startTsUtc, game.tz)}
                 {lastMove.from.venueName ? ` at ${lastMove.from.venueName}` : ""}
                 {lastMove.reason ? `. Reason: ${lastMove.reason}` : ""}
                 {lastMove.overriddenConflicts.length ? ". Clash overridden." : ""}
@@ -292,12 +288,12 @@ export default async function GameDetailPage({
                           penaltyLabel={`${HOCKEY_INFRACTION_LABELS[String(e.attributes?.infraction)] ?? "Penalty"}${
                             typeof e.attributes?.minutes === "number" ? `, ${e.attributes.minutes} min` : ""
                           }`}
-                          gameLabel={`${awayShort} at ${homeShort}, ${fmtTime(game.scheduledStartTsUtc)}`}
+                          gameLabel={`${awayShort} at ${homeShort}, ${fmtTime(game.scheduledStartTsUtc, game.tz)}`}
                         />
                       ) : null}
                     </div>
                     <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                      {fmtTime(e.tsUtc)}
+                      {fmtTime(e.tsUtc, game.tz)}
                     </span>
                   </li>
                 );

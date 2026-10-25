@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatInZone } from "@sportspulse/kernel";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
 import { Badge, EmptyState } from "@sportspulse/ui";
 import { gameOps, iam } from "@/lib/api/server-api";
@@ -8,8 +9,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Lineups — SportsPulse" };
 
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+// In the game's own zone.
+function fmt(iso: string, tz: string): string {
+  return formatInZone(iso, tz, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -86,7 +88,7 @@ export default async function LineupsIndexPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                      {fmt(g.scheduledStartTsUtc)}
+                      {fmt(g.scheduledStartTsUtc, g.tz)}
                     </p>
                     <p className="mt-0.5 text-[15px] font-semibold tracking-tight text-fg">
                       {isHome ? "vs" : "@"} {opponentName}

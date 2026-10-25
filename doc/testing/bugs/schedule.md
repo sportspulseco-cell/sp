@@ -484,6 +484,24 @@ staging is no longer near-empty, which is also what PPHL production looks like.
     Pick a smaller bracket or add teams." J10 now treats this refusal as correct and checks it is explained.
   Evidence: browser on the local app against staging, scratchpad regfa/walk-bracket-refusal.mjs 3/3 (422 written nothing).
   Not done: the size picker still defaults to Top 8 whatever the division's team count (the screen does not load counts).
+
+[SCH-28] Game times on server-rendered pages show the server's clock (UTC on Vercel), not the rink's · major
+  Journey: J10 SCH-6 follow-up (25 Oct); confirmed on deployed staging (Vercel) with the same code production runs.
+  Surface: superadmin /games and /games/<id>; team console /schedule, /lineups, /lineups/<game>, in-season Home;
+    player /schedule, Home (next game, recent games), /stats; season overview "next game".
+  Repro: open a game at 9:00 PM Eastern (02:00 UTC next day) on a deployed app.
+  Expected: "Nov 4, 9:00 PM · America/New_York" (the rink's clock, as admins typed it).
+  Actual on deployed staging: "Moved from Nov 5, 1:00 AM": the server formatted the stored UTC time in its own
+    zone and printed the game's zone beside it. Date-only cells could show the next day.
+  Fix: kernel formatInZone(instant, tz, opts) (unknown zone shows UTC and says so); every server-rendered game
+    time passes the game's tz. API notices already used the game's zone (gameTimeLabel).
+  Evidence: kernel tests 91/91 (5 new). Local stack with the server in India time, browsers in India and US
+    Pacific zones, regfa/walk-game-times.mjs: game page "Nov 4, 9:00 PM · America/New_York" and "Moved from
+    Nov 4, 8:00 PM" in both; captain schedule, player schedule and player Home show only rink times of the
+    team's games (Home's extra "Nov 4, 8:00 PM" strings are the game.scheduled / game.rescheduled notices,
+    "8:00 PM EST"); identical text in both browser zones; no hydration errors.
+  Not changed: the scheduling views that load in the browser (conflicts, brackets, tournament rounds) show the
+    viewer's local time; audit and communications stamps still use the server's clock.
 ```
 
 ## Gaps

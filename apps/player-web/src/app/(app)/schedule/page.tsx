@@ -1,3 +1,4 @@
+import { formatInZone } from "@sportspulse/kernel";
 import {
   CalendarRange,
   Clock,
@@ -23,8 +24,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Schedule — SportsPulse" };
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+// In the game's own zone.
+function fmtDateTime(iso: string, tz: string): string {
+  return formatInZone(iso, tz, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -33,11 +35,10 @@ function fmtDateTime(iso: string): string {
   });
 }
 
-function fmtDay(iso: string): { day: string; mon: string } {
-  const d = new Date(iso);
+function fmtDay(iso: string, tz: string): { day: string; mon: string } {
   return {
-    day: String(d.getDate()),
-    mon: d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
+    day: formatInZone(iso, tz || "UTC", { day: "numeric" }),
+    mon: formatInZone(iso, tz || "UTC", { month: "short" }).toUpperCase()
   };
 }
 
@@ -209,7 +210,7 @@ export default async function SchedulePage({
             {list.map((g: Game) => {
               const isHome = g.homeTeamId === myTeamId;
               const oppId = isHome ? g.awayTeamId : g.homeTeamId;
-              const { day, mon } = fmtDay(g.scheduledStartTsUtc);
+              const { day, mon } = fmtDay(g.scheduledStartTsUtc, g.tz);
               return (
                 <TR key={g.id}>
                   <TD>
@@ -229,7 +230,7 @@ export default async function SchedulePage({
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
                       <Clock className="h-3 w-3" strokeWidth={1.75} />
-                      {fmtDateTime(g.scheduledStartTsUtc)}
+                      {fmtDateTime(g.scheduledStartTsUtc, g.tz)}
                     </p>
                   </TD>
                   <TD className="text-[12px] text-fg-muted">

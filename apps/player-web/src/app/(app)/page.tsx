@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatInZone } from "@sportspulse/kernel";
 import {
   AlertCircle,
   ArrowRight,
@@ -49,8 +50,9 @@ function fmtMoney(cents: number, currency = "USD"): string {
   }).format(cents / 100);
 }
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+// In the game's own zone.
+function fmtDateTime(iso: string, tz: string): string {
+  return formatInZone(iso, tz, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -322,7 +324,7 @@ export default async function PlayerHome() {
           value={String(upcoming.length)}
           hint={
             nextGame
-              ? `Next: ${fmtDateTime(nextGame.scheduledStartTsUtc)}`
+              ? `Next: ${fmtDateTime(nextGame.scheduledStartTsUtc, nextGame.tz)}`
               : "Nothing scheduled"
           }
           tint="blue"
@@ -411,7 +413,7 @@ function NextGameHero({
           </p>
           <p className="flex items-center gap-2 text-[13px] text-accent-fg/80">
             <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
-            {fmtDateTime(nextGame.scheduledStartTsUtc)}
+            {fmtDateTime(nextGame.scheduledStartTsUtc, nextGame.tz)}
             {nextGame.venueName ? (
               <>
                 <MapPin className="ml-2 h-3.5 w-3.5" strokeWidth={1.75} />
@@ -519,7 +521,7 @@ function RecentGamesCard({
                       {opponentNames.get(opponentId) ?? "Unnamed team"}
                     </p>
                     <p className="text-[11px] text-fg-muted">
-                      {fmtDate(g.scheduledStartTsUtc)}
+                      {formatInZone(g.scheduledStartTsUtc, g.tz, { month: "short", day: "numeric" })}
                     </p>
                   </div>
                 </div>

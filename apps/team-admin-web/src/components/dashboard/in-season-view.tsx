@@ -1,4 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -76,7 +77,7 @@ export async function InSeasonView({
             {nextGame ? (
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-fg-muted">
                 <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />
-                {formatDate(nextGame.scheduledStartTsUtc)}
+                {formatDate(nextGame.scheduledStartTsUtc, nextGame.tz)}
                 {nextGame.venueName ? (
                   <>
                     <span className="text-fg-subtle">·</span>
@@ -232,8 +233,9 @@ function formatGameTitle(
   return isHome ? "vs opponent" : "@ opponent";
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+// In the game's own zone.
+function formatDate(iso: string, tz: string): string {
+  return formatInZone(iso, tz, {
     weekday: "short",
     month: "short",
     day: "numeric",
