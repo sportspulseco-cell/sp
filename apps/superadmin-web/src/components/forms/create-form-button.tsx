@@ -12,11 +12,12 @@ import { CreateFormButton as SharedCreateFormButton } from "@sportspulse/admin-p
 import { leagueMgmt, registration } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
 
-export function CreateFormButton({ orgs }: { orgs: Org[] }) {
+export function CreateFormButton({ orgs, defaultOrgId }: { orgs: Org[]; defaultOrgId?: string }) {
   const router = useRouter();
   return (
     <SharedCreateFormButton
       orgs={orgs.map((o) => ({ id: o.id, displayName: o.displayName }))}
+      defaultOrgId={defaultOrgId}
       listLeagues={async (orgId) => {
         const page = await fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor }));
         return page.items.map((l) => ({ id: l.id, name: l.name }));

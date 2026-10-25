@@ -197,15 +197,19 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await expect(dlg).toBeVisible();
 
     // Purpose is an enum → dropdown; default must be season registration on this page.
-    const purpose = dlg.locator("select").nth(1);
+    const purpose = dlg.getByLabel("Purpose", { exact: true });
     expect(await purpose.inputValue()).toBe("season_registration");
     // An org_admin should not be offered "Super Admin" as an audience role.
     softExpect(await dlg.getByText(/^Super Admin$/).count(), "org_admin offered Super Admin as applies-to role")
       .toBe(0);
-    // A season-registration form should be bound to a season at creation
-    // (picker), not left unbound until a later tab.
+    // A season-registration form is bound to a season at creation
+    // (REG-20): league, then season, picked from dropdowns in the dialog.
+    await dlg.getByLabel("League", { exact: true }).selectOption(state.leagueId!);
+    const seasonPick = dlg.getByLabel("Season", { exact: true });
+    await expect(seasonPick.locator("option", { hasText: seasonName })).toHaveCount(1, { timeout: 20_000 });
     softExpect(await dlg.locator("select option", { hasText: seasonName }).count(), "season picker in New form dialog")
       .toBeGreaterThan(0);
+    await seasonPick.selectOption(state.seasonId!);
 
     await dlg.locator("input:not([type=checkbox])").first().fill(formName);
     await shot(oa, "02-new-form-dialog");
@@ -225,8 +229,14 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await expect(seasonSelect.locator("option", { hasText: seasonName })).toHaveCount(1, { timeout: 20_000 });
     const label = (await seasonSelect.locator("option").allInnerTexts()).find((o) => o.includes(seasonName));
     expect(label, "new season listed in the season dropdown").toBeTruthy();
-    await seasonSelect.selectOption({ label: label! });
-    await expect(oa.getByText("Saved.")).toBeVisible({ timeout: 20_000 });
+    // The New form dialog already bound the season (REG-20). Bind it here
+    // only when it is not shown as the form's season.
+    const boundAtCreate = (await seasonSelect.inputValue()) === state.seasonId;
+    state.seasonBoundAtCreate = String(boundAtCreate);
+    if (!boundAtCreate) {
+      await seasonSelect.selectOption({ label: label! });
+      await expect(oa.getByText("Saved.")).toBeVisible({ timeout: 20_000 });
+    }
 
     // Registration type (REG-14): individual, so the funnel offers the player
     // paths J4/J5 walk and not "Register a team". Saved on the season

@@ -104,7 +104,7 @@ export default async function FormsPage({
         eyebrow="Registration"
         title="Registration forms"
         description="The forms players and teams fill in to register for a season: questions, waivers, prices. Publish a form to open registration."
-        action={<CreateFormButton orgs={orgList.items} />}
+        action={<CreateFormButton orgs={orgList.items} defaultOrgId={sp?.org} />}
       />
       <KineticStrip
         cards={[
@@ -190,7 +190,7 @@ export default async function FormsPage({
                 ? "Season-registration forms drive the /registration multistep wizard. Pick or create one to begin."
                 : "Create the first form for any organization."
           }
-          action={<CreateFormButton orgs={orgList.items} />}
+          action={<CreateFormButton orgs={orgList.items} defaultOrgId={sp?.org} />}
         />
       ) : (
         <Table>

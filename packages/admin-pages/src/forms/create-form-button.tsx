@@ -55,6 +55,8 @@ export interface CreateFormInput {
   description: string | null;
   purpose: FormPurpose;
   appliesToRoles: string[];
+  /** Season this registration form is for (season_registration forms). */
+  seasonId?: string | null;
 }
 
 export interface CreateFormButtonProps {
@@ -71,6 +73,12 @@ export interface CreateFormButtonProps {
   onCreated: (formId: string) => void;
   /** Hide the org picker (true when there's only one option). */
   lockOrg?: boolean;
+  /**
+   * The organisation in view (e.g. the page's org filter). With several
+   * orgs and no default, the admin must choose (CAP-23: the dialog used
+   * to preselect the alphabetically first tenant).
+   */
+  defaultOrgId?: string;
 }
 
 export function CreateFormButton(props: CreateFormButtonProps) {
@@ -102,13 +110,14 @@ function CreateFormDialog({
   listDivisions,
   createForm,
   onCreated,
-  lockOrg
+  lockOrg,
+  defaultOrgId
 }: CreateFormButtonProps & {
   open: boolean;
   onClose: () => void;
 }) {
   const [form, setForm] = useState({
-    orgId: orgs[0]?.id ?? "",
+    orgId: orgs.length === 1 ? orgs[0]!.id : defaultOrgId && orgs.some((o) => o.id === defaultOrgId) ? defaultOrgId : "",
     scope: "org" as "org" | "league" | "division",
     leagueId: "" as string,
     seasonId: "" as string,
@@ -125,8 +134,12 @@ function CreateFormDialog({
   const [seasons, setSeasons] = useState<CreateFormSeason[]>([]);
   const [divisions, setDivisions] = useState<CreateFormDivision[]>([]);
 
+  // A season-registration form belongs to one season: ask for it here,
+  // not on a later tab (REG-20).
+  const needsSeason = form.purpose === "season_registration";
+
   useEffect(() => {
-    if (!form.orgId || form.scope === "org") return;
+    if (!form.orgId || (form.scope === "org" && !needsSeason)) return;
     let cancelled = false;
     listLeagues(form.orgId)
       .then((items) => {
@@ -136,10 +149,10 @@ function CreateFormDialog({
     return () => {
       cancelled = true;
     };
-  }, [form.orgId, form.scope, listLeagues]);
+  }, [form.orgId, form.scope, needsSeason, listLeagues]);
 
   useEffect(() => {
-    if (!form.leagueId || form.scope !== "division") return;
+    if (!form.leagueId || (form.scope !== "division" && !needsSeason)) return;
     let cancelled = false;
     listSeasons(form.leagueId)
       .then((items) => {
@@ -149,7 +162,7 @@ function CreateFormDialog({
     return () => {
       cancelled = true;
     };
-  }, [form.leagueId, form.scope, listSeasons]);
+  }, [form.leagueId, form.scope, needsSeason, listSeasons]);
 
   useEffect(() => {
     if (!form.seasonId || form.scope !== "division") return;
@@ -167,6 +180,8 @@ function CreateFormDialog({
   const roleOptions = useMemo(
     () =>
       [...SYSTEM_ROLES]
+        // No form targets platform super admins (REG-20).
+        .filter((r) => r.code !== "super_admin")
         .sort((a, b) => a.rank - b.rank)
         .map((r) => ({ code: r.code, name: r.name })),
     []
@@ -192,9 +207,13 @@ function CreateFormDialog({
       let scopeId: string | null = null;
       if (form.scope === "league") scopeId = form.leagueId || null;
       if (form.scope === "division") scopeId = form.divisionId || null;
+      if (!form.orgId) throw new Error("Pick the organization this form belongs to.");
       if (form.scope !== "org" && !scopeId) {
         const what = form.scope === "league" ? "league" : "division";
         throw new Error(`Pick a ${what} for the form's scope before saving.`);
+      }
+      if (needsSeason && !form.seasonId) {
+        throw new Error("Pick the season this registration form is for.");
       }
       const created = await createForm({
         orgId: form.orgId,
@@ -203,7 +222,8 @@ function CreateFormDialog({
         name: form.name,
         description: form.description || null,
         purpose: form.purpose,
-        appliesToRoles: form.appliesToRoles
+        appliesToRoles: form.appliesToRoles,
+        seasonId: needsSeason ? form.seasonId || null : null
       });
       onClose();
       onCreated(created.id);
@@ -228,8 +248,11 @@ function CreateFormDialog({
               id="orgId"
               required
               value={form.orgId}
-              onChange={(e) => setForm({ ...form, orgId: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, orgId: e.target.value, leagueId: "", seasonId: "", divisionId: "" })
+              }
             >
+              <option value="">Select an organization…</option>
               {orgs.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.displayName}
@@ -238,6 +261,25 @@ function CreateFormDialog({
             </Select>
           </Field>
         ) : null}
+        <Field
+          label="Purpose"
+          htmlFor="purpose"
+          hint="Where this form is used. Season-registration forms power the public funnel; role-profile forms back the per-role onboarding wizard; team-application is the free-agent flow."
+        >
+          <Select
+            id="purpose"
+            value={form.purpose}
+            onChange={(e) =>
+              setForm({ ...form, purpose: e.target.value as FormPurpose })
+            }
+          >
+            {FORM_PURPOSES.map((p: FormPurpose) => (
+              <option key={p} value={p}>
+                {FORM_PURPOSE_LABELS[p]}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Scope" htmlFor="scope">
           <Select
             id="scope"
@@ -246,8 +288,9 @@ function CreateFormDialog({
               setForm({
                 ...form,
                 scope: e.target.value as typeof form.scope,
-                leagueId: "",
-                seasonId: "",
+                // A season-registration form keeps its league and season.
+                leagueId: needsSeason ? form.leagueId : "",
+                seasonId: needsSeason ? form.seasonId : "",
                 divisionId: ""
               })
             }
@@ -258,7 +301,7 @@ function CreateFormDialog({
           </Select>
         </Field>
 
-        {(form.scope === "league" || form.scope === "division") && (
+        {form.orgId && (form.scope === "league" || form.scope === "division" || needsSeason) && (
           <Field label="League" htmlFor="leagueId">
             <Select
               id="leagueId"
@@ -283,7 +326,7 @@ function CreateFormDialog({
           </Field>
         )}
 
-        {form.scope === "division" && form.leagueId && (
+        {(form.scope === "division" || needsSeason) && form.leagueId && (
           <Field label="Season" htmlFor="seasonId">
             <Select
               id="seasonId"
@@ -326,25 +369,6 @@ function CreateFormDialog({
             </Select>
           </Field>
         )}
-        <Field
-          label="Purpose"
-          htmlFor="purpose"
-          hint="Where this form is used. Season-registration forms power the public funnel; role-profile forms back the per-role onboarding wizard; team-application is the free-agent flow."
-        >
-          <Select
-            id="purpose"
-            value={form.purpose}
-            onChange={(e) =>
-              setForm({ ...form, purpose: e.target.value as FormPurpose })
-            }
-          >
-            {FORM_PURPOSES.map((p: FormPurpose) => (
-              <option key={p} value={p}>
-                {FORM_PURPOSE_LABELS[p]}
-              </option>
-            ))}
-          </Select>
-        </Field>
         <Field
           label="Applies to roles"
           hint="Empty = applies to every role in scope. Pick one or more codes when the form should only render for specific roles (e.g. role-profile forms targeting `coach`)."

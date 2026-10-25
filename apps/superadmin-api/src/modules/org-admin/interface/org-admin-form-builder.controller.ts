@@ -136,6 +136,14 @@ export class OrgAdminFormBuilderController {
         throw new NotFoundException("Season not found");
       }
     }
+    // A registration form bound to a season must use one of this org's
+    // seasons (REG-20 sends the season from the create dialog).
+    if (body.seasonId) {
+      const season = await this.loadSeason(body.seasonId);
+      if (season.orgId !== body.orgId) {
+        throw new NotFoundException("Season not found");
+      }
+    }
     return this.createFormH.execute({
       orgId: body.orgId,
       scope: body.scope,
