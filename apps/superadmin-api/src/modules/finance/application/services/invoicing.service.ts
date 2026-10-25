@@ -9,6 +9,7 @@ import { eq, ilike, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
+import { personInOrg } from "../../../../shared/auth/visibility";
 import {
   activeMemberPersonIds,
   ORG_TARGET_TYPES,
@@ -237,7 +238,11 @@ export class InvoicingService {
         .from(schema.persons)
         .where(eq(schema.persons.id, targetId))
         .limit(1);
-      if (!p) throw new NotFoundException("Person not found in this org");
+      // MON-20: the person must belong to the billing org (404, never
+      // reveal that a person exists elsewhere).
+      if (!p || !(await personInOrg(this.db, orgId, p.id))) {
+        throw new NotFoundException("Person not found in this org");
+      }
       return [p.id];
     }
     if (ORG_TARGET_TYPES.includes(scope as OrgTargetType)) {

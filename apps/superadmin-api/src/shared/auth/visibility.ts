@@ -189,6 +189,24 @@ export function visibleComplianceSubmissionsWhere(scope: UserScope, alias = "cds
   )`;
 }
 
+/**
+ * Whether a person belongs to one organisation by the same rule an org
+ * admin's people list uses (visiblePersonIds): a role or roster spot in
+ * the org, or a registration into it. MON-20: a bulk invoice addressed to
+ * one person must not reach someone outside the billing org.
+ */
+export async function personInOrg(db: Database, orgId: string, personId: string): Promise<boolean> {
+  const orgScope: UserScope = {
+    isSuperAdmin: false,
+    orgIds: [orgId],
+    orgWideOrgIds: [orgId],
+    leagueIds: [],
+    teamIds: []
+  };
+  // Nil caller: nobody is "visible to themselves" here.
+  return personVisible(db, { scope: orgScope, userId: "00000000-0000-0000-0000-000000000000" }, personId);
+}
+
 export async function personVisible(db: Database, v: Visibility, personId: string): Promise<boolean> {
   const sub = visiblePersonIds(v);
   if (!sub) return true;
