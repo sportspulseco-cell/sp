@@ -346,6 +346,7 @@ FIXED_IN_CODE = {
     "CAP-19": "commits 5da2fee + 338aa22 + 3ee7809 + 6b50648: one season per roster, same rule as the captain roster (GET teams/:id/seasons), every page of memberships; browser on local apps",
     "MON-22": "commit 3642294: invoice issued notice; local API on staging 4/4",
     "MON-24": "commit 3f057e0: Finance filters push /finance, old address keeps its query, pager total only when unfiltered; browser 6/6",
+    "SCH-27": "commit fdae576: bracket refusal says team count, size needed and next step; browser 3/3",
     "CONSOLE-16": "commit 5ed4be7: 28 locale-less format calls pin en-US; no #418 in en-US or en-IN across 4 apps (browser 32/32)",
     "CONSOLE-15": "commit 6e57b35: retry job sends queued rows from the last 24h; flush skips stale; local API on staging 14/14",
     "MON-19": "commit af83078: org admins open an invoice (read-only; refunds wait for the refund decision); API 404 for other orgs; browser 2/2",
