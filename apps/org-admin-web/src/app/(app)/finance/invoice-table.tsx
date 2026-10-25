@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
 import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
@@ -94,7 +95,9 @@ function InvoiceRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-fg">
-            {invoice.invoiceNumber || "Invoice"}
+            <Link href={`/finance/${invoice.id}`} className="hover:underline">
+              {invoice.invoiceNumber || "Invoice"}
+            </Link>
             {invoice.recipientEmail ? (
               <span className="ml-2 text-[12px] font-normal text-fg-muted">{invoice.recipientEmail}</span>
             ) : null}

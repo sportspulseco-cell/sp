@@ -1,3 +1,4 @@
+import { loadInvoiceDetail } from "../../finance/application/services/invoice-detail";
 import {
   Body,
   Controller,
@@ -6,6 +7,7 @@ import {
   Headers,
   Inject,
   NotFoundException,
+  ParseUUIDPipe,
   Param,
   Post,
   Query,
@@ -144,6 +146,28 @@ export class OrgAdminFinanceController {
     // Individual targets are people, checked by the service (MON-20).
     if (scope === "individual") return;
     await assertTargetInOrg(this.db, scope, targetId, orgId);
+  }
+
+  @Get("invoices/:invoiceId/detail")
+  @ApiOperation({
+    summary:
+      "One invoice with lines, payments, installments and refunds, for an admin of the invoice's org (MON-19). Another org's invoice is a 404."
+  })
+  async invoiceDetail(
+    @Param("invoiceId", ParseUUIDPipe) invoiceId: string,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    const detail = await loadInvoiceDetail(this.db, invoiceId);
+    if (!detail) throw new NotFoundException("Invoice not found");
+    if (!scope.isSuperAdmin) {
+      const orgId = detail.invoice.orgId;
+      const inScope = scope.orgIds === null || scope.orgIds.includes(orgId);
+      if (!inScope || !(await this.userHasOrgAdminOnOrg(user.userId, orgId))) {
+        throw new NotFoundException("Invoice not found");
+      }
+    }
+    return detail;
   }
 
   @Post("invoices/:invoiceId/payments")

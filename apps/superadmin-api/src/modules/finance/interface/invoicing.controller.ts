@@ -1,3 +1,4 @@
+import { loadInvoiceDetail } from "../application/services/invoice-detail";
 import { randomUUID } from "node:crypto";
 import {
   BadRequestException,
@@ -241,34 +242,11 @@ export class FinanceInvoicingController {
       "Invoice detail bundle: invoice + items + payments + installments + refunds + server-computed refundable amounts."
   })
   async invoiceDetail(@Param("id") id: string) {
-    const [inv] = await this.db
-      .select()
-      .from(schema.invoices)
-      .where(eq(schema.invoices.id, id))
-      .limit(1);
-    if (!inv) throw new NotFoundException("Invoice not found");
-    const items = await this.db
-      .select()
-      .from(schema.invoiceItems)
-      .where(eq(schema.invoiceItems.invoiceId, id));
-    const payments = await this.db
-      .select()
-      .from(schema.payments)
-      .where(eq(schema.payments.invoiceId, id))
-      .orderBy(desc(schema.payments.receivedAt));
-    const installments = await this.db
-      .select()
-      .from(schema.installmentSchedules)
-      .where(eq(schema.installmentSchedules.invoiceId, id))
-      .orderBy(schema.installmentSchedules.installmentNumber);
-    const refunds = await this.db
-      .select()
-      .from(schema.refunds)
-      .where(eq(schema.refunds.invoiceId, id))
-      .orderBy(desc(schema.refunds.createdAt));
+    const detail = await loadInvoiceDetail(this.db, id);
+    if (!detail) throw new NotFoundException("Invoice not found");
     // Server-computed limits so no screen derives them from paid_cents.
     const refundable = await this.refunds.refundable(id);
-    return { invoice: inv, items, payments, installments, refunds, refundable };
+    return { ...detail, refundable };
   }
 
   // -------------------------------------------------------------------
