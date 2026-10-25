@@ -259,7 +259,7 @@ export function RegisterWizard({
       <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <StepRail step={step} onJump={(s) => setStep(s)} />
 
-        <main className="min-w-0 space-y-6">
+        <section className="min-w-0 space-y-6">
           {step === 1 ? (
             <StepCard
               title="Confirm your team"
@@ -653,7 +653,7 @@ export function RegisterWizard({
               }}
             />
           ) : null}
-        </main>
+        </section>
       </div>
     </div>
   );

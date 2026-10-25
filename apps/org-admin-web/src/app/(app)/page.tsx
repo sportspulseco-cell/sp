@@ -300,8 +300,8 @@ function statusToneFor(
 
 function ShellWithoutOrg({ message }: { message: string }) {
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-6 py-16">
-      <Eyebrow>sp-org-admin</Eyebrow>
+    <section className="mx-auto max-w-3xl space-y-6 px-6 py-16">
+      <Eyebrow>Organization</Eyebrow>
       <h1 className="text-[36px] font-semibold tracking-tighter text-fg">
         Org Admin
       </h1>
@@ -310,9 +310,9 @@ function ShellWithoutOrg({ message }: { message: string }) {
         title="No organization yet"
         description={message}
       />
-      <p className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-        // contact your platform admin
+      <p className="text-[13px] text-fg-muted">
+        Ask your platform admin to make you an admin of your organization.
       </p>
-    </main>
+    </section>
   );
 }
