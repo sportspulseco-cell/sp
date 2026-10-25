@@ -83,8 +83,8 @@ test.afterAll(async () => {
 
 /** Invoice ids for this run, read back from the DB (survives worker restarts). */
 async function runInvoices() {
-  const rows = await stagingSql<{ id: string; description: string; status: string; paid_cents: number }>(
-    `select i.id, ii.description, i.status, i.paid_cents from invoices i
+  const rows = await stagingSql<{ id: string; invoice_number: string; description: string; status: string; paid_cents: number }>(
+    `select i.id, i.invoice_number, ii.description, i.status, i.paid_cents from invoices i
        join invoice_items ii on ii.invoice_id = i.id
       where ii.description in ($1, $2) and i.recipient_email = $3`,
     [DESC_A, DESC_B, PLAYER_EMAIL]
@@ -238,7 +238,8 @@ test("4. player @ player-web /payments sees invoice A with the right total and p
   await p.waitForURL(/\/payments/);
   await expect(p.getByText("$123.45").first(), "invoice A total visible").toBeVisible();
   await shot(p, "04-player-payments-before");
-  const card = p.locator("main div.rounded-xl").filter({ hasText: "$123.45" }).filter({ has: p.getByRole("button", { name: /^Pay / }) }).last();
+  // Older runs leave unpaid $123.45 invoices too: pick this run's by number.
+  const card = p.locator("main div.rounded-xl").filter({ hasText: a!.invoice_number }).filter({ has: p.getByRole("button", { name: /^Pay / }) }).last();
   const mockSel = p.getByText(/Mock card outcome/i);
   await card.getByRole("button", { name: /^Pay \$123\.45/ }).click();
   const dlg = p.getByRole("dialog");
@@ -283,7 +284,7 @@ test("5. admin sees invoice A paid on /finance list and /finance/[id]", async ({
   // After "Create and send" the admin lands on the invoice page; the
   // check is on the list.
   await p.goto(`${new URL(p.url()).origin}/finance`);
-  const row = p.locator("tr").filter({ hasText: "$123.45" }).filter({ hasText: /staging-player|Staging Player/i }).first();
+  const row = p.locator("tr").filter({ hasText: a!.invoice_number }).first();
   await expect.soft(row, "invoice A row on /finance").toBeVisible();
   await expect.soft(row, "row shows Paid").toContainText(/paid/i);
   await shot(p, "05-admin-finance-after-pay");
@@ -299,6 +300,9 @@ test("6. internal notes save survives a reload", async ({ browser }) => {
   const invoiceAId = a!.id;
   void b;
   const p = (await as(browser, "superAdmin")).page;
+  // Each step opens invoice A itself: a failed earlier step must not cascade.
+  await p.goto(`${new URL(p.url()).origin}/finance/${invoiceAId}`);
+  await expect(p.getByText("Admin actions")).toBeVisible();
   const note = `${TAG} internal note`;
   const ta = p.locator("textarea").first();
   await ta.fill(note);
@@ -317,6 +321,8 @@ test("7. refund dialog (UC-17): wallet-credit refund updates the invoice and can
   const invoiceAId = a!.id;
   void b;
   const p = (await as(browser, "superAdmin")).page;
+  await p.goto(`${new URL(p.url()).origin}/finance/${invoiceAId}`);
+  await expect(p.getByText("Admin actions")).toBeVisible();
   async function refund(amount: string) {
     await p.getByRole("button", { name: "Issue refund" }).click();
     const dlg = p.getByRole("dialog");
@@ -363,6 +369,8 @@ test("8. admin issues a standalone wallet credit from the invoice detail", async
   const invoiceAId = a!.id;
   void b;
   const p = (await as(browser, "superAdmin")).page;
+  await p.goto(`${new URL(p.url()).origin}/finance/${invoiceAId}`);
+  await expect(p.getByText("Admin actions")).toBeVisible();
   await p.getByRole("button", { name: "Issue wallet credit" }).click();
   const dlg = p.getByRole("dialog");
   await expect(dlg).toBeVisible();

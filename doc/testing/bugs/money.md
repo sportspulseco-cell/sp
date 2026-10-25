@@ -295,6 +295,18 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Fix (commit 3642294): InvoiceNoticesService on create-as-sent and on send; idempotent per invoice; drafts and void notify nobody.
   Evidence: local API against staging 4/4 (sent notifies once with "$42.00 due Nov 3, 2026"; draft none; send twice = one notice).
 
+[MON-23] An admin "team" invoice never reaches the captain's Dues screen · major (open, needs a decision)
+  Journey: J14 step 2 (local build against staging, 25 Oct) · UC-16
+  Surface: superadmin-web /finance/create (scope Team) → team-admin-web /captain/dues
+  Repro:
+    1. Super admin → Finance → New invoice → scope Team → Staging Skaters → $600.00 → Create and send (201).
+    2. Captain → Dues.
+  Expected (UC-16 precondition "Team invoice created (full season dues)"): the captain sees the $600 team invoice and can split it.
+  Actual: the composer writes one separate invoice per rostered player (17 rows, no parent). Dues reads only the division-entry master
+    invoice (`division_team_entries.invoice_id` and its sub-invoices), so the captain still sees the old $1,400 master and nothing at $600.
+  Decision needed: should "Team" in the composer (a) bill each player directly, as today, and be labelled that way, or (b) create one
+    master invoice for the team that the captain splits on Dues? Not changed before release.
+
 
 ---
 
@@ -342,7 +354,7 @@ PPHL use case not built
 | J13.11 overdue view + trigger | runtime: Finance ops → Overdue renders "0 invoices"; db cron.job `sp-daily-overdue-sweep` active; code-read draft exclusion (MON-11); fake QB rows (MON-17) | an actual overdue run (needs a past-due sent invoice; composer forbids past dates; cron runs 06:00) |
 | J13.12 org-admin finance parity / isolation | runtime: page renders, composer lists 3 org people, create 500 (MON-1), no detail links (MON-19); no foreign-org invoice numbers visible (0 invoices exist, so weak) | isolation with real rows (no invoices could be created) |
 | J14.1 captain finds Dues | runtime: fixture team → empty state + register dead end (MON-16); later run shows J7's master invoice $1,400, 2 shares | — |
-| J14.2 admin team invoice reaches dues | runtime: 500 (MON-1); code: bulk invoices never feed /captain/dues (different model) | — |
+| J14.2 admin team invoice reaches dues | runtime: 500 (MON-1); code: bulk invoices never feed /captain/dues (different model) | MON-23 |
 | J14.3 even/custom split persist, per-row remind | runtime: 0 mutations, mode resets (MON-8); remind 404 (MON-7) | — |
 | J14.4 each player sees share on /payments | db: shares are for J7's invited emails, `recipient_person_id` null | Blocked: no share for staging-player; no creds for the invitees |
 | J14.5 remind-all → admin outbox | runtime: 500, db 0 rows, outbox empty (MON-2) | — |
