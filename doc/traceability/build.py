@@ -226,7 +226,7 @@ FIXED_BY_HAND = {
     "CAP-7": "pdf-items item 6 + blockers-oct24 item 4 (staging, 24 Oct)",
     "CAP-12": "blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct)",
     "REG-10": "same run as CAP-12",
-    "SETUP-2": "blockers-oct24-b item 2: edit league/season/division + org (staging, 24 Oct)",
+    # SETUP-2 open again 25 Oct: league/season/division/org edit in place, but no team edit on the admin team page.
     "SETUP-10": "blockers-oct24-b item 2: New season under league, New division under season, wizard 'existing league' (staging, 24 Oct)",
     "SETUP-9": "pdf-items items 1/4: no id fragments on /users/[id] (staging, 24 Oct)",
     "SETUP-14": "users 83 of 83 shown; fetchAll everywhere (staging, 24 Oct)",

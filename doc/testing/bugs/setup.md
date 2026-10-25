@@ -59,6 +59,10 @@ scratchpad `setup/` folder; screenshots under `test-results-setup/`.
   Proposed fix: give the shared OrgSetupWizard an "existing league" mode (step 2 = league picker, prefilled from ?leagueId) and an "add division" mode (step 4 only, for ?seasonId). Point the Seasons/Divisions CTAs and the league/season detail pages at those modes.
 
 [SETUP-2] Org, league, season, division and team cannot be edited after creation · major
+  Status 25 Oct: partly fixed. League, season, division and organisation edit in place (blockers-oct24-b item 2, staging).
+    Team: still no edit control on the admin team page (superadmin and org consoles share TeamDetail,
+    packages/admin-pages/src/team-detail.tsx); the API has updateTeam and captains edit their own team in the captain console.
+    Found by J1 step 5 on deployed staging c280304 (first run that reached it). Open.
   Journey: J1
   Surface: superadmin-web /organizations/[id], /leagues/[id], /seasons/[id], /divisions/[id], /teams/[id] (org-admin-web mounts the same shared detail components)
   Repro:

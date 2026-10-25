@@ -374,15 +374,16 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     await page.waitForURL(/\/org-setup/);
     await page.getByRole("button", { name: new RegExp(ORG_NAME) }).click();
     await page.getByRole("button", { name: "Next: League" }).click();
-    // A "New season" entry point must let the admin pick the existing league.
-    const leaguePicker = page.locator("main select").filter({ has: page.locator("option", { hasText: LEAGUE_NAME }) });
-    const nameIsFreeText = await wizardField(page, "League name").evaluate((el) => el.tagName === "INPUT");
-    const pickerCount = await leaguePicker.count();
+    // A "New season" entry point must let the admin pick the existing league:
+    // step 2 offers "Add to an existing league", then a League list.
+    await page.getByRole("button", { name: "Add to an existing league" }).click();
+    const leaguePicker = page.getByLabel("League", { exact: true });
+    const offered = await leaguePicker.locator("option").allTextContents().catch(() => [] as string[]);
     await softly(async () =>
       expect(
-        { existingLeaguePicker: pickerCount, leagueNameIsFreeText: nameIsFreeText },
+        offered.includes(LEAGUE_NAME),
         "SETUP-10: 'New season -> Org setup' can only create a NEW league; no way to add a season (or division) to an existing league"
-      ).toEqual({ existingLeaguePicker: 1, leagueNameIsFreeText: false })
+      ).toBe(true)
     );
   });
 
@@ -466,12 +467,15 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     // Destination: super_admin sees the org-admin-created rows.
     const page = sa.page;
     await page.goto(`${SA}/leagues`);
+    // Wait for the table (rows stream in after load) before counting.
+    await page.getByText(/Showing \d+ of \d+ leagues/).first().waitFor({ timeout: 20_000 }).catch(() => {});
     const leagueShown = await page.getByRole("link", { name: OA_LEAGUE, exact: true }).count();
     await softly(async () => expect(leagueShown, `SETUP-14: super_admin /leagues does not list '${OA_LEAGUE}' (25-row cap)`).toBe(1));
     await page.goto(`${SA}/leagues/${ids.oaLeague}`);
     await expect(page.getByText(OA_LEAGUE).first()).toBeVisible();
     await expect(page.getByText("PPHL Staging").first()).toBeVisible();
     await page.goto(`${SA}/divisions`);
+    await page.getByText(/Showing \d+ of \d+ divisions/).first().waitFor({ timeout: 20_000 }).catch(() => {});
     const shown = await page.getByRole("link", { name: OA_DIV, exact: true }).count();
     await softly(async () => expect(shown, `SETUP-14: super_admin /divisions does not list '${OA_DIV}' (25-row cap)`).toBe(1));
     const [{ season_id }] = await stagingSql("select season_id from divisions where name=$1", [OA_DIV]);
