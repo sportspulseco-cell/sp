@@ -224,6 +224,12 @@ Rows created on staging: one waiver document per run (`<RUN_TAG> Liability waive
     values, a 0 is refused and nothing saves, save writes metadata.discipline (db), Ejection dropdown, penalty stored with
     ejection (db), finalize message "1 player suspended by the league's discipline rules.", automatic 1-game suspension
     row (db). The off-by-default dialog state is checked in the staging walk.
+  Staging (deployed 5986398, super admin on staging-superadmin, regfa/browser-comp11.mjs) 13/13: no saved rules shows
+    the switch off; turning it on shows the recommended values; a 0 is refused and nothing saves; Save writes
+    metadata.discipline and the value survives a reload (SETUP-18 too); Ejection dropdown None | Game misconduct |
+    Match penalty; the penalty is stored with the ejection; the log line shows it without a reload (0.9 s); finalize
+    says "1 player suspended by the league's discipline rules."; 1-game automatic suspension row; Change games 1 -> 2
+    updates the row without a reload; reason kept; the player is told.
   Not verified: same-page refresh after Log event and after Change games. The local Next build never applies router.refresh()
     payloads (the refresh response carries the new data; deployed staging applies the same refresh correctly), so these two
     steps must be walked on staging after the push. Captain console wording for automatic suspensions not re-checked (COMP-12).
@@ -349,9 +355,43 @@ Built and working (observed in the browser)
 | J12.5 /no-show-report | UI run, table row observed | none (same-season pick allowed, noted) |
 | J12.5 /eligibility sweep and suspensions | db-row rule_evaluation has no suspension key -> COMP-14 | none |
 
-[COMP-19] Compliance sweep writes "sweep complete" emails with no recipient · minor (open)
+[COMP-19] Compliance sweep writes "sweep complete" emails with no recipient · minor
   Found: production notifications, 25 Oct (read-only). 453 COMPLIANCE_SWEEP_COMPLETE email rows since 26 May, all with no
     recipient_email; they stayed queued because nothing sent database-written rows (CONSOLE-15).
   Now: the 5-minute job takes the last 24 hours, finds no recipient and marks them failed ("no recipientEmail on row"); the
     first run after the 25 Oct release did this to 3 rows. Nobody receives them, nobody can.
   Decision needed: who should get the sweep summary (the org's admins?), or stop writing an email row for it.
+  Decision (26 Oct): the people responsible for the season get it (org, league and season admins), the rule UC-14 uses
+    for discipline notices. Once per season, from the API sweep at roster lock; the daily database sweep writes none
+    (it re-checks every locked season each day, so it would email the admins daily).
+  Sweep: the same defect in other writers. Production (read-only, 26 Oct), rows with no person and no email:
+    COMPLIANCE_SWEEP_COMPLETE 455, TEAM_REGISTRATION_APPLIED 15 (+5 confirmation), INVITE_EXPIRED_CAPTAIN 6,
+    TEAM_REGISTRATION_APPROVED 4, game.finalized 4, overdue reminders 7, TRANSFER_REQUEST 1; and email rows naming a
+    person without an email: 10. In the API, 14 queue calls named nobody: team application (confirmation, admin
+    notice, withdrawal), USA Hockey expired (captain), sweep summary, refund assessment, team confirmed (also an empty
+    team name), join request (to the captain; also no template at all), join decision (to the player; no template),
+    transfer request and rejection (printed the player's id as the name), transfer approval (reused the request
+    template), division application rejected. Comments said a "dispatcher routes by targetRole"; none exists.
+  Fix:
+    * The notification service refuses a notice that names no one, and one addressed to a person with no sign-in
+      email (no account, so no inbox either); it fills in the person's email when the caller passed only the person.
+    * One helper (shared/audience/notify-audience.ts) sends a notice to the people holding a role around a team,
+      league, season or division, one row per person, idempotent per person. Every writer above uses it: team
+      captains for join requests, expired IDs, team confirmed, rejected division applications and transfers; the
+      admins of the league/season/division for applications, withdrawals, sweep summaries and refund assessments;
+      the player for join decisions and transfer outcomes. COMP-11's suspension notices use it too.
+    * Templates: PLAYER_JOIN_REQUEST / _APPROVED / _REJECTED and TRANSFER_APPROVED added; links that pointed at pages
+      that do not exist replaced with where to act (Division applications, Join requests, Disputes, Roster); the
+      sweep summary names the season instead of its id.
+    * Migration 0055: the daily lock sweep's player notices carry the player's email and a subject and it writes no
+      summary; the hourly invite expiry writes one notice per captain of the team, with the invitee and team name.
+      Production ran an older variant of both functions than staging; 0055 defines both in full.
+  Evidence: local API (this tree) against staging, regfa/verify-comp19.mjs 12/12: join request 14 rows = 14 captains
+    with an email, names player and team; decline reaches the player at their email with the reason; lock sweep summary
+    to 17 season admins by season name; expired ID to 14 captains; the player's own notice has their email; rejected
+    application 15 rows = 15 captains; transfer request to the destination captain by name (no id in the body); admin
+    rejection to 16 = player + both teams' captains; 0 rows written in the run without a recipient or without an email.
+    Migration 0055: dry run inside a rolled-back transaction on staging 7/7, then applied with the runner (recorded in
+    manual_migrations), functions read back, drift check clean. Cleanup verified (no test rows, temporary captain role
+    removed, ID expiry restored).
+  Not done: 0055 on production needs the owner's go-ahead. Old undeliverable rows (above) are left as they are.

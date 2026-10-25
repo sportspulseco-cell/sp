@@ -22,6 +22,7 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 
 class ApplyBodyDto {
   @IsUUID() teamId!: string;
@@ -413,35 +414,40 @@ export class CaptainApplicationsController {
       .returning();
     const entry = rows[0]!;
 
-    // Fire-and-forget notifications.
-    void this.notify.queue({
-      orgId: team.orgId,
-      templateCode: "TEAM_REGISTRATION_APPLIED_CONFIRMATION",
-      idempotencyKey: `app-confirm-${entry.id}`,
-      payload: {
-        teamName: team.name,
-        divisionName: division.name,
-        seasonName: season.name
-      }
-    });
-    // Fan out one notification per admin role so the dispatcher can
-    // route to platform / org / league admin recipients distinctly
-    // (per spec: "send to super_admin + org_admin + league_admin").
-    for (const role of ["super_admin", "org_admin", "league_admin"] as const) {
+    // The applying captain gets a confirmation; the admins responsible for
+    // this division (org, league, season, division) get the review notice
+    // (COMP-19: these rows used to name no recipient and were never sent).
+    const [me] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, user.userId))
+      .limit(1);
+    if (me) {
       void this.notify.queue({
         orgId: team.orgId,
-        templateCode: "TEAM_REGISTRATION_APPLIED",
-        idempotencyKey: `app-admin-${role}-${entry.id}`,
+        templateCode: "TEAM_REGISTRATION_APPLIED_CONFIRMATION",
+        idempotencyKey: `app-confirm-${entry.id}`,
+        recipientPersonId: me.id,
         payload: {
           teamName: team.name,
           divisionName: division.name,
-          seasonName: season.name,
-          entryId: entry.id,
-          targetRole: role,
-          leagueId: season.leagueId
+          seasonName: season.name
         }
       });
     }
+    await notifyAudience(this.db, this.notify, {
+      orgId: team.orgId,
+      target: { leagueIds: [season.leagueId], seasonIds: [season.id], divisionIds: [division.id] },
+      audiences: ["all_admins"],
+      templateCode: "TEAM_REGISTRATION_APPLIED",
+      key: `app-admin-${entry.id}`,
+      payload: {
+        teamName: team.name,
+        divisionName: division.name,
+        seasonName: season.name,
+        entryId: entry.id
+      }
+    });
 
     return { entry };
   }
@@ -496,24 +502,20 @@ export class CaptainApplicationsController {
       .set({ entryStatus: "withdrawn" })
       .where(eq(schema.divisionTeamEntries.id, entry.id));
 
-    // Mirror the apply() fan-out so each admin tier (super / org / league)
-    // gets its own notification row with metadata.targetRole + leagueId,
-    // letting the dispatcher route to the right recipients distinctly.
-    for (const role of ["super_admin", "org_admin", "league_admin"] as const) {
-      void this.notify.queue({
-        orgId: team.orgId,
-        templateCode: "TEAM_REGISTRATION_WITHDRAWN",
-        idempotencyKey: `app-withdrawn-${role}-${entry.id}`,
-        payload: {
-          teamName: team.name,
-          divisionName: entry.divisionName,
-          seasonName: entry.seasonName,
-          entryId: entry.id,
-          targetRole: role,
-          leagueId: entry.leagueId
-        }
-      });
-    }
+    // The same admins apply() told (COMP-19).
+    await notifyAudience(this.db, this.notify, {
+      orgId: team.orgId,
+      target: { leagueIds: [entry.leagueId], seasonIds: [entry.seasonId], divisionIds: [entry.divisionId] },
+      audiences: ["all_admins"],
+      templateCode: "TEAM_REGISTRATION_WITHDRAWN",
+      key: `app-withdrawn-${entry.id}`,
+      payload: {
+        teamName: team.name,
+        divisionName: entry.divisionName,
+        seasonName: entry.seasonName,
+        entryId: entry.id
+      }
+    });
 
     return { entryId: entry.id, status: "withdrawn" as const };
   }

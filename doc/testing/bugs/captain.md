@@ -412,3 +412,17 @@ Counts (journey steps above): 19 pass (some with defects), 7 fail, 4 blocked/par
   Actual: two active rows for one person on one team (captain-v3 run, memberships 097fd6bf… in Staging 2026-27 at 16:24:27 and b79561d3… in E2EMVMIKJKG Season at 16:25:01). The per-season guard in captain-roster.controller.ts (already on the active roster) cannot see it because the seasons differ.
 
   Root cause: season selection is implicit and differs per page. Fix: one season picker shared by the captain roster/invites pages (default = the season with the team's live division entry), and the add guard should warn when the person is active in another open season of the same team.
+
+[CAP-25] A transfer can never reach the league admin: the destination captain has nowhere to accept it · major
+
+  Found: COMP-19 sweep (26 Oct, code read).
+
+  Surface: team-admin-web /captain/roster (Initiate transfer exists; nothing lists incoming transfers)
+
+  Repro: 1. Captain A starts a transfer of a player to team B (POST /league/teams/:id/transfer, status pending_destination). 2. Sign in as team B's captain.
+
+  Expected: B's captain sees the incoming transfer and accepts or declines it; on accept the league admin reviews it (pending_admin) and approves.
+
+  Actual: no page in any console lists pending_destination transfers or calls /league/teams/transfer/:id/accept. TRANSFER_TRANSITIONS only lets pending_destination go to pending_admin (accept), rejected or cancelled, and the admin's Approve needs pending_admin, so every captain-started transfer stalls.
+
+  Fix: pending.

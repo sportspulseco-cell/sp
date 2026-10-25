@@ -85,6 +85,27 @@ export class NotificationService {
   async queue(args: QueueArgs): Promise<NotificationRow | null> {
     try {
       const channel = args.channel ?? "email";
+      // A notice must name who gets it (COMP-19). A row with no person and
+      // no email can never be delivered or read, so none is written.
+      if (!args.recipientPersonId && !args.recipientEmail) {
+        this.log.warn(
+          `refused code=${args.templateCode} key=${args.idempotencyKey}: no recipient`
+        );
+        return null;
+      }
+      // An email to a person: use their sign-in email when the caller
+      // did not pass one, instead of writing a row that fails at send.
+      let recipientEmail = args.recipientEmail ?? null;
+      if (channel === "email" && !recipientEmail && args.recipientPersonId) {
+        recipientEmail = await this.emailForPerson(args.recipientPersonId);
+        if (!recipientEmail) {
+          // No account, so no inbox either: nothing could reach them.
+          this.log.warn(
+            `refused code=${args.templateCode} key=${args.idempotencyKey}: person ${args.recipientPersonId} has no email`
+          );
+          return null;
+        }
+      }
       const tplChannel: "email" | "in_app" =
         channel === "in_app" ? "in_app" : "email";
       const tpl = findDefaultTemplate(args.templateCode, tplChannel);
@@ -123,7 +144,7 @@ export class NotificationService {
         subject,
         body,
         recipientPersonId: args.recipientPersonId ?? null,
-        recipientEmail: args.recipientEmail ?? null,
+        recipientEmail,
         payload: args.payload,
         sourceEvent: args.sourceEvent ?? args.templateCode
       });
@@ -148,6 +169,17 @@ export class NotificationService {
       );
       return null;
     }
+  }
+
+  /** The person's sign-in email, or null when they have no account. */
+  private async emailForPerson(personId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ email: schema.profiles.email })
+      .from(schema.persons)
+      .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
+      .where(eq(schema.persons.id, personId))
+      .limit(1);
+    return row?.email ?? null;
   }
 
   /**

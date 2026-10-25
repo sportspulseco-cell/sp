@@ -29,6 +29,7 @@ import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator"
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { seasonVisible } from "../../../shared/auth/visibility";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 
 const log = new Logger("ComplianceSweeps");
 
@@ -201,15 +202,19 @@ export class ComplianceSweepsController {
           recipientPersonId: m.personId,
           payload: { expiresAt: exp.toISOString() }
         });
-        void this.notify.queue({
+        // The team's captains (COMP-19: this named no recipient before).
+        await notifyAudience(this.db, this.notify, {
           orgId: m.orgId,
+          target: { teamIds: [m.teamId] },
+          audiences: ["captains"],
           templateCode: "USA_HOCKEY_EXPIRED_CAPTAIN",
-          idempotencyKey: `usah-expired-cap-${m.personId}-${seasonId}`,
+          key: `usah-expired-cap-${m.personId}-${seasonId}`,
           payload: {
             playerName: names.get(`person:${m.personId}`) ?? "A player",
             teamName: names.get(`team:${m.teamId}`) ?? "your team",
             expiresAt: exp.toISOString()
-          }
+          },
+          excludePersonIds: [m.personId]
         });
       } else if (!seasonEnd || exp <= seasonEnd) {
         expiring++;
@@ -239,20 +244,26 @@ export class ComplianceSweepsController {
       }
     }
 
-    // Idempotency key intentionally omits Date.now() — re-running
-    // the sweep should NOT spam admins with another "complete"
-    // notification per cron pass. One row per season.
-    void this.notify.queue({
-      orgId: members[0]?.orgId ?? null,
-      templateCode: "COMPLIANCE_SWEEP_COMPLETE",
-      idempotencyKey: `lock-sweep-${seasonId}`,
-      payload: {
-        seasonId,
-        expiring,
-        expired,
-        sweepRunAt: now.toISOString()
-      }
-    });
+    // The season's admins (org, league, season), once per season each:
+    // the key omits the time so a re-run does not send it again
+    // (COMP-19: this named no recipient before and was never sent).
+    const orgId = members[0]?.orgId;
+    if (orgId) {
+      await notifyAudience(this.db, this.notify, {
+        orgId,
+        target: { leagueIds: [season.leagueId], seasonIds: [seasonId] },
+        audiences: ["all_admins"],
+        templateCode: "COMPLIANCE_SWEEP_COMPLETE",
+        key: `lock-sweep-${seasonId}`,
+        payload: {
+          seasonId,
+          seasonName: season.name,
+          expiring,
+          expired,
+          sweepRunAt: now.toISOString()
+        }
+      });
+    }
 
     await this.db
       .update(schema.seasons)

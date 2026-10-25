@@ -30,6 +30,7 @@ import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { orgVisible, unrestricted } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyTransfer } from "../application/transfer-notices";
 
 class RejectBodyDto {
   @IsString() @MinLength(ROSTER_DROP_REASON_MIN_CHARS) reason!: string;
@@ -322,15 +323,14 @@ export class AdminTransfersController {
       return { transfer: updated[0]!, destinationInvoiceId };
     });
 
-    void this.notify.queue({
-      orgId: tr.orgId,
-      templateCode: "TRANSFER_REQUEST",
-      idempotencyKey: `transfer-approved-${tr.id}`,
-      payload: {
-        sourceTeam: tr.fromTeamId,
-        playerName: tr.personId,
-        transferId: tr.id
-      }
+    // The player and both captains (COMP-19: this reused the request
+    // template, named no recipient and printed ids).
+    await notifyTransfer(this.db, this.notify, {
+      transfer: tr,
+      templateCode: "TRANSFER_APPROVED",
+      key: `transfer-approved-${tr.id}`,
+      toPlayer: true,
+      captainsOf: ["from", "to"]
     });
 
     return result;
@@ -369,11 +369,13 @@ export class AdminTransfersController {
       .where(eq(schema.transferRequests.id, transferId))
       .returning();
 
-    void this.notify.queue({
-      orgId: tr.orgId,
+    await notifyTransfer(this.db, this.notify, {
+      transfer: tr,
       templateCode: "TRANSFER_REJECTED",
-      idempotencyKey: `transfer-rejected-${tr.id}`,
-      payload: { playerName: tr.personId, reason: body.reason.trim() }
+      key: `transfer-rejected-${tr.id}`,
+      toPlayer: true,
+      captainsOf: ["from", "to"],
+      extra: { reason: body.reason.trim() }
     });
 
     return { transfer: updated[0]! };

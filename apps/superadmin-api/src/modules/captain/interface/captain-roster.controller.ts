@@ -48,6 +48,7 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 import { FreeAgentOffersService } from "../../registration-v2/application/free-agent-offers.service";
 
@@ -795,10 +796,13 @@ export class CaptainRosterController {
       }
     });
     if (dropResult.refundAssessment) {
-      void this.notify.queue({
+      // The admins who decide refunds for this season (COMP-19).
+      await notifyAudience(this.db, this.notify, {
         orgId: team.orgId,
+        target: { leagueIds: [season.leagueId], seasonIds: [season.id] },
+        audiences: ["all_admins"],
         templateCode: "REFUND_ASSESSMENT_REQUIRED",
-        idempotencyKey: `refund-assess-${dropResult.refundAssessment.id}`,
+        key: `refund-assess-${dropResult.refundAssessment.id}`,
         payload: {
           teamName: team.name,
           refundAssessmentId: dropResult.refundAssessment.id

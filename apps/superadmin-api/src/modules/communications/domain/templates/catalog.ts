@@ -40,6 +40,7 @@ export const TEMPLATE_CODES = [
   "REFUND_ASSESSMENT_REQUIRED",
   "TRANSFER_REQUEST",
   "TRANSFER_REJECTED",
+  "TRANSFER_APPROVED",
   "CAPTAIN_REVOKED",
   "DIVISION_APPLICATION_REJECTED",
   // Workflow 7C · compliance + eligibility
@@ -467,7 +468,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Refund assessment required",
     body:
       "A player drop on {{teamName}} requires a refund assessment. " +
-      "Review and decide here: /admin/refunds/{{refundAssessmentId}}",
+      "Decide it under Disputes in the organisation console.",
     variables: ["teamName", "refundAssessmentId"]
   },
   {
@@ -475,8 +476,8 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     channel: "email",
     subject: "Trade request — {{playerName}}",
     body:
-      "{{sourceTeam}} has offered {{playerName}} to your team. " +
-      "Accept or decline here: /captain/transfers/{{transferId}}",
+      "{{sourceTeam}} has asked to move {{playerName}} to your team. " +
+      "Accept or decline it on Roster in the captain console.",
     variables: ["sourceTeam", "playerName", "transferId"]
   },
   {
@@ -487,6 +488,36 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "The proposed trade of {{playerName}} has been rejected.\n\n" +
       "Reason: {{reason}}",
     variables: ["playerName", "reason"]
+  },
+  {
+    code: "TRANSFER_APPROVED",
+    channel: "email",
+    subject: "Transfer approved: {{playerName}}",
+    body: "{{playerName}} moves from {{fromTeam}} to {{toTeam}}. The league admin approved the transfer.",
+    variables: ["playerName", "fromTeam", "toTeam"]
+  },
+  {
+    code: "PLAYER_JOIN_REQUEST",
+    channel: "email",
+    subject: "{{playerFullName}} wants to join {{teamName}}",
+    body:
+      "{{playerFullName}} asked to join {{teamName}}.\n\nMessage: {{message}}\n\n" +
+      "Accept or decline it under Join requests in the captain console.",
+    variables: ["playerFullName", "teamName", "message"]
+  },
+  {
+    code: "PLAYER_JOIN_APPROVED",
+    channel: "email",
+    subject: "You're on {{teamName}}",
+    body: "{{teamName}} accepted your request to join. You are on the roster.",
+    variables: ["teamName"]
+  },
+  {
+    code: "PLAYER_JOIN_REJECTED",
+    channel: "email",
+    subject: "{{teamName}} declined your request",
+    body: "{{teamName}} declined your request to join.\n\nReason: {{reason}}",
+    variables: ["teamName", "reason"]
   },
   {
     code: "CAPTAIN_REVOKED",
@@ -583,11 +614,11 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     channel: "email",
     subject: "Compliance sweep complete",
     body:
-      "The compliance sweep for season {{seasonId}} is complete.\n\n" +
+      "The compliance sweep for {{seasonName}} is complete.\n\n" +
       "Expiring USA Hockey: {{expiring}}\n" +
       "Already expired: {{expired}}\n" +
       "Sweep run at: {{sweepRunAt}}",
-    variables: ["seasonId", "expiring", "expired", "sweepRunAt"]
+    variables: ["seasonName", "expiring", "expired", "sweepRunAt"]
   },
   {
     code: "PLAYOFF_INELIGIBLE",
@@ -663,7 +694,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "{{teamName}} applied — {{divisionName}}",
     body:
       "{{teamName}} has applied to register for {{divisionName}} in {{seasonName}}.\n\n" +
-      "Review and approve or deny this application: /seasons/{{entryId}}/applications",
+      "Approve or deny it under Division applications in the admin console.",
     variables: ["teamName", "divisionName", "seasonName", "entryId"]
   },
   {

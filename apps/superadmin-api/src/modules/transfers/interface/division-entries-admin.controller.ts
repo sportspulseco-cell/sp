@@ -25,6 +25,7 @@ import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { orgVisible, visibleSeasonIds } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 
 class RejectBodyDto {
   @IsString() @MinLength(ROSTER_DROP_REASON_MIN_CHARS) reason!: string;
@@ -214,10 +215,13 @@ export class DivisionEntriesAdminController {
       }
     });
 
-    void this.notify.queue({
+    // The team's captains (COMP-19: no recipient before).
+    await notifyAudience(this.db, this.notify, {
       orgId: team.orgId,
+      target: { teamIds: [team.id] },
+      audiences: ["captains"],
       templateCode: "DIVISION_APPLICATION_REJECTED",
-      idempotencyKey: `division-rejected-${entryId}`,
+      key: `division-rejected-${entryId}`,
       payload: {
         teamName: team.name,
         divisionName: division.name,

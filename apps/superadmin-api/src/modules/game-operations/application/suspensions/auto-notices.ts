@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { NotificationService } from "../../../communications/application/notification.service";
-import { resolveAnnouncementRecipients } from "../../../../shared/audience/announcements";
+import { notifyAudience } from "../../../../shared/audience/notify-audience";
 import { personContact } from "./handlers";
 import type { IssuedAutomatically } from "./suspension-rules";
 
@@ -30,56 +30,44 @@ export async function notifyAutomaticSuspensions(
     const nGamesClause =
       s.kind === "n_games" ? ` for ${s.nGames} game${s.nGames === 1 ? "" : "s"}` : " until a league admin lifts it";
     const base = { personName: who.name, teamName, reason: s.reason, nGamesClause, suspensionId: s.id };
-    const sends: Array<Promise<unknown>> = [
-      notify.queue({
-        orgId: scope.orgId,
-        templateCode: "suspension.issued",
-        channel: who.email ? "email" : "in_app",
-        idempotencyKey: `suspension.issued:${s.id}`,
-        recipientPersonId: s.personId,
-        recipientEmail: who.email,
-        payload: { ...base, kind: "league" },
-        sourceEvent: "suspension.automatic"
-      })
-    ];
+    const row = await notify.queue({
+      orgId: scope.orgId,
+      templateCode: "suspension.issued",
+      channel: who.email ? "email" : "in_app",
+      idempotencyKey: `suspension.issued:${s.id}`,
+      recipientPersonId: s.personId,
+      recipientEmail: who.email,
+      payload: { ...base, kind: "league" },
+      sourceEvent: "suspension.automatic"
+    });
+    if (row) queued++;
     if (scope.orgId) {
-      const captains = s.teamId
-        ? await resolveAnnouncementRecipients(
-            db,
-            { teamIds: [s.teamId], leagueIds: [], seasonIds: [], divisionIds: [] },
-            scope.orgId,
-            ["captains"]
-          )
-        : [];
-      const admins = await resolveAnnouncementRecipients(
-        db,
-        { teamIds: [], leagueIds: [scope.leagueId], seasonIds: scope.seasonId ? [scope.seasonId] : [], divisionIds: [] },
-        scope.orgId,
-        ["all_admins"]
-      );
-      for (const [list, code] of [
-        [captains, "suspension.issued.captain"],
-        [admins, "suspension.issued.admin"]
-      ] as const) {
-        for (const r of list) {
-          if (r.personId === s.personId) continue;
-          sends.push(
-            notify.queue({
+      const sends = [
+        s.teamId
+          ? notifyAudience(db, notify, {
               orgId: scope.orgId,
-              templateCode: code,
-              channel: r.email ? "email" : "in_app",
-              idempotencyKey: `${code}:${s.id}:${r.personId}`,
-              recipientPersonId: r.personId,
-              recipientEmail: r.email,
+              target: { teamIds: [s.teamId] },
+              audiences: ["captains"],
+              templateCode: "suspension.issued.captain",
+              key: `suspension.issued.captain:${s.id}`,
               payload: base,
-              sourceEvent: "suspension.automatic"
+              sourceEvent: "suspension.automatic",
+              excludePersonIds: [s.personId]
             })
-          );
-        }
-      }
+          : null,
+        notifyAudience(db, notify, {
+          orgId: scope.orgId,
+          target: { leagueIds: [scope.leagueId], seasonIds: scope.seasonId ? [scope.seasonId] : [] },
+          audiences: ["all_admins"],
+          templateCode: "suspension.issued.admin",
+          key: `suspension.issued.admin:${s.id}`,
+          payload: base,
+          sourceEvent: "suspension.automatic",
+          excludePersonIds: [s.personId]
+        })
+      ];
+      for (const r of await Promise.all(sends)) queued += r?.queued ?? 0;
     }
-    const rows = await Promise.all(sends);
-    queued += rows.filter(Boolean).length;
   }
   log.log(`automatic suspensions=${issued.length} notices queued=${queued}`);
   return queued;

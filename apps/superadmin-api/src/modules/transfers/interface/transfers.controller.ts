@@ -26,6 +26,7 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyTransfer } from "../application/transfer-notices";
 
 class InitiateTransferBodyDto {
   @IsUUID() personId!: string;
@@ -128,15 +129,14 @@ export class TransfersController {
       .returning();
     const transfer = tRows[0]!;
 
-    void this.notify.queue({
-      orgId: toTeam.orgId,
+    // The destination team's captains decide first (COMP-19: this named
+    // no recipient and printed the player's id).
+    await notifyTransfer(this.db, this.notify, {
+      transfer,
       templateCode: "TRANSFER_REQUEST",
-      idempotencyKey: `transfer-request-${transfer.id}`,
-      payload: {
-        sourceTeam: fromTeam.name,
-        playerName: body.personId,
-        transferId: transfer.id
-      }
+      key: `transfer-request-${transfer.id}`,
+      toPlayer: false,
+      captainsOf: ["to"]
     });
 
     return { transfer };
@@ -291,11 +291,19 @@ export class TransfersController {
       .where(eq(schema.transferRequests.id, transferId))
       .returning();
 
-    void this.notify.queue({
-      orgId: tr.orgId,
+    const [actor] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, user.userId))
+      .limit(1);
+    await notifyTransfer(this.db, this.notify, {
+      transfer: tr,
       templateCode: "TRANSFER_REJECTED",
-      idempotencyKey: `transfer-rejected-${tr.id}`,
-      payload: { playerName: tr.personId, reason: body.reason.trim() }
+      key: `transfer-rejected-${tr.id}`,
+      toPlayer: true,
+      captainsOf: ["from", "to"],
+      extra: { reason: body.reason.trim() },
+      excludePersonIds: actor ? [actor.id] : []
     });
 
     return { transfer: updated[0]! };

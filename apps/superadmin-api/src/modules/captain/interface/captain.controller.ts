@@ -38,6 +38,7 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 
 /**
@@ -1178,17 +1179,22 @@ export class CaptainController {
     if (transitioned) {
       const [team] = await this.db
         .select({
-          orgId: schema.teams.orgId
+          orgId: schema.teams.orgId,
+          name: schema.teams.name
         })
         .from(schema.teams)
         .where(eq(schema.teams.id, entry.teamId))
         .limit(1);
       if (team) {
-        this.notify.queue({
+        // The team's captains, with the team's name (COMP-19: no recipient
+        // and an empty name before).
+        await notifyAudience(this.db, this.notify, {
           orgId: team.orgId,
+          target: { teamIds: [entry.teamId] },
+          audiences: ["captains"],
           templateCode: "TEAM_CONFIRMED",
-          idempotencyKey: `team-confirmed-${entry.id}`,
-          payload: { entryId: entry.id }
+          key: `team-confirmed-${entry.id}`,
+          payload: { entryId: entry.id, teamName: team.name }
         });
       }
     }

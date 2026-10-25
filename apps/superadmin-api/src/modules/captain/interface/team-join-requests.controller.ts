@@ -23,6 +23,7 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 
 class ApplyBodyDto {
   @IsUUID() teamId!: string;
@@ -139,19 +140,22 @@ export class TeamJoinRequestsController {
       })
       .returning();
 
-    // Notify the captain. Idempotent on (request id) so dupes (retries
-    // from the client) don't spam the inbox.
-    void this.notify.queue({
+    // Notify the team's captains. Idempotent per request and captain so
+    // a client retry does not send twice (COMP-19: no recipient before).
+    await notifyAudience(this.db, this.notify, {
       orgId: team.orgId,
+      target: { teamIds: [team.id] },
+      audiences: ["captains"],
       templateCode: "PLAYER_JOIN_REQUEST",
-      idempotencyKey: `join-req-${row!.id}`,
+      key: `join-req-${row!.id}`,
+      excludePersonIds: [person.id],
       payload: {
         teamId: team.id,
         teamName: team.name,
         playerPersonId: person.id,
         playerFullName: person.fullName,
         playerEmail: person.email,
-        message: row!.message
+        message: row!.message ?? "No message."
       }
     });
 
@@ -564,11 +568,12 @@ export class TeamJoinRequestsController {
           ? "PLAYER_JOIN_APPROVED"
           : "PLAYER_JOIN_REJECTED",
       idempotencyKey: `join-decide-${id}`,
+      recipientPersonId: row.playerPersonId,
       payload: {
         teamId: row.teamId,
         teamName: row.teamName,
         playerPersonId: row.playerPersonId,
-        reason: body.reason?.trim() || null
+        reason: body.reason?.trim() || "No reason given."
       }
     });
 
