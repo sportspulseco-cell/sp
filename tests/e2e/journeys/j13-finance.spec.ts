@@ -248,7 +248,7 @@ test("4. player @ player-web /payments sees invoice A with the right total and p
   // Payments run in test mode by founder decision (MON-10, accepted): the
   // dialog says so and lets the tester pick the outcome. Card collection
   // and no-mock checks apply only once a card provider is live.
-  const testMode = /Test payment: no real card is charged/.test(await dlg.innerText());
+  const testMode = /test payment: no real card is charged/i.test(await dlg.innerText());
   log("pay dialog in test mode:", testMode);
   if (!testMode) {
     expect.soft(mockVisible, "player-facing pay dialog must not expose a test 'mock outcome' control").toBe(false);
@@ -279,8 +279,10 @@ test("5. admin sees invoice A paid on /finance list and /finance/[id]", async ({
   const p = (await as(browser, "superAdmin")).page;
   // Admin page was open from before the payment: check without reload first.
   const before = await mainText(p);
-  log("admin /finance (no reload) mentions 123.45:", before.includes("123.45"));
-  await p.reload();
+  log("admin page (no reload) mentions 123.45:", before.includes("123.45"));
+  // After "Create and send" the admin lands on the invoice page; the
+  // check is on the list.
+  await p.goto(`${new URL(p.url()).origin}/finance`);
   const row = p.locator("tr").filter({ hasText: "$123.45" }).filter({ hasText: /staging-player|Staging Player/i }).first();
   await expect.soft(row, "invoice A row on /finance").toBeVisible();
   await expect.soft(row, "row shows Paid").toContainText(/paid/i);
@@ -298,14 +300,14 @@ test("6. internal notes save survives a reload", async ({ browser }) => {
   void b;
   const p = (await as(browser, "superAdmin")).page;
   const note = `${TAG} internal note`;
-  const ta = p.locator("aside textarea").first();
+  const ta = p.locator("textarea").first();
   await ta.fill(note);
   await p.getByRole("button", { name: "Save note" }).click();
   const flash = await p.locator("main p").filter({ hasText: /note/i }).first().innerText().catch(() => "");
   log("save note flash:", flash);
   await p.reload();
   await expect(p.getByText("Admin actions")).toBeVisible();
-  const persisted = (await p.locator("aside textarea").first().inputValue()) === note || (await mainText(p)).includes(note);
+  const persisted = (await p.locator("textarea").first().inputValue()) === note || (await mainText(p)).includes(note);
   expect.soft(persisted, `internal note persisted after reload (flash was "${flash}")`).toBe(true);
 });
 
