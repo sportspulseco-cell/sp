@@ -1,4 +1,5 @@
-﻿import {
+﻿import { teamLiveSeasons } from "../../../shared/display/team-seasons";
+import {
   Body,
   ConflictException,
   Controller,
@@ -97,6 +98,34 @@ export class TeamsController {
       ...page,
       items: items.map((t) => this.mergeLifecycle(t, lifecycle.get(t.id)))
     };
+  }
+
+  @Get(":id/seasons")
+  @ApiOperation({
+    summary:
+      "Seasons the team is live in, most current first (same rule as the captain roster). For anyone who can see the team (CAP-19)."
+  })
+  async seasons(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType
+  ) {
+    // Same visibility as GET :id: a team the caller cannot see is a 404.
+    const inDirectTeamScope = scope.teamIds?.includes(id) ?? false;
+    await this.getH.execute({
+      id,
+      leagueIdsFilter: inDirectTeamScope ? undefined : (scope.leagueIds ?? undefined),
+      orgIdsFilter: inDirectTeamScope ? undefined : (scope.orgIds ?? undefined)
+    });
+    const seasons = await teamLiveSeasons(this.db, id);
+    return seasons.map((s, i) => ({
+      id: s.id,
+      name: s.name,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      registrationOpensAt: s.registrationOpensAt,
+      registrationClosesAt: s.registrationClosesAt,
+      isCurrent: i === 0
+    }));
   }
 
   @Get(":id") async getOne(

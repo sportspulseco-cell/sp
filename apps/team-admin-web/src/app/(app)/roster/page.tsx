@@ -52,11 +52,27 @@ export default async function TeamAdminRosterPage({
     roster.listMemberships({ teamId, activeOnly: true }).catch(() => ({ items: [], nextCursor: null }))
   ]);
   // One season's roster (CAP-19): the current season unless another is picked.
-  const seasonIds = Array.from(new Set(allPage.items.map((m: TeamMembership) => m.seasonId)));
-  const seasonRows = (
-    await Promise.all(seasonIds.map((id) => leagueMgmt.getSeason(id).catch(() => null)))
-  ).filter((s): s is NonNullable<typeof s> => !!s);
-  const selectedSeason = pickRosterSeason(seasonRows, sp.season);
+  // Same season rule as the captain roster (team's live seasons).
+  const live = await leagueMgmt.teamSeasons(teamId).catch(() => []);
+  const seasonRows: Array<{
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    registrationOpensAt: string | null;
+    registrationClosesAt: string | null;
+  }> =
+    live.length > 0
+      ? live
+      : (
+          await Promise.all(
+            Array.from(new Set(allPage.items.map((m: TeamMembership) => m.seasonId))).map((id) =>
+              leagueMgmt.getSeason(id).catch(() => null)
+            )
+          )
+        ).filter((s): s is NonNullable<typeof s> => !!s);
+  const selectedSeason =
+    seasonRows.find((s) => s.id === sp.season) ?? (live.length > 0 ? live[0]! : pickRosterSeason(seasonRows, sp.season));
   const page = {
     ...allPage,
     items: selectedSeason

@@ -388,6 +388,7 @@ function ToggleChip({
   return (
     <button
       type="button"
+      aria-pressed={value}
       onClick={() => onChange(!value)}
       className={
         value

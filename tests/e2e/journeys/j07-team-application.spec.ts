@@ -245,12 +245,15 @@ test("J7.3 super_admin configures an active pricing tier via /forms", async () =
   await p.getByText("Pricing", { exact: true }).first().click();
   await settle(p);
   await p.getByRole("button", { name: /new tier/i }).click();
-  const price = p.locator("label:has-text('Full price (cents)') input").first();
+  // REG-19: price in dollars; a tier added while registration is open
+  // starts active, so switch it on only when it is off.
+  const price = p.locator("label", { hasText: /Full price/ }).locator("input").first();
   await expect(price).toBeVisible();
-  await price.fill("140000");
+  await price.fill("1400");
   await price.blur();
   await settle(p);
-  await p.getByRole("button", { name: /active/i }).first().click();
+  const active = p.getByRole("button", { name: /active/i }).first();
+  if ((await active.getAttribute("aria-pressed")) !== "true") await active.click();
   await settle(p);
   await snap(p, "11-pricing-tier");
   await expect

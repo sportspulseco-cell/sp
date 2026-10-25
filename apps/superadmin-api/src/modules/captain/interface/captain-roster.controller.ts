@@ -1,3 +1,4 @@
+import { teamLiveSeasons } from "../../../shared/display/team-seasons";
 import { randomBytes } from "node:crypto";
 import {
   BadRequestException,
@@ -1189,32 +1190,7 @@ export class CaptainRosterController {
    * registered for a future season to that season's empty roster (CAP-8).
    */
   private async loadTeamSeasons(teamId: string) {
-    const rows = await this.db
-      .selectDistinctOn([schema.seasons.id], {
-        seasonId: schema.seasons.id,
-        season: schema.seasons
-      })
-      .from(schema.divisionTeamEntries)
-      .innerJoin(
-        schema.divisions,
-        eq(schema.divisions.id, schema.divisionTeamEntries.divisionId)
-      )
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.divisions.seasonId)
-      )
-      .where(
-        and(
-          eq(schema.divisionTeamEntries.teamId, teamId),
-          inArray(schema.divisionTeamEntries.entryStatus, [
-            "applied",
-            "accepted",
-            "confirmed"
-          ])
-        )
-      )
-      .orderBy(schema.seasons.id, desc(schema.seasons.startDate));
-    return sortSeasonsByCurrency(rows.map((r) => r.season));
+    return teamLiveSeasons(this.db, teamId);
   }
 
   private async loadCurrentDivision(teamId: string, seasonId: string) {

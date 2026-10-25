@@ -275,6 +275,8 @@ export function RosterScreen({
 
       {/* Modals */}
       <AddPlayerModal
+        // Remount per requested tab so it opens on that tab at once.
+        key={addTab}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         teamId={teamId}

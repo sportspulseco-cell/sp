@@ -1451,6 +1451,19 @@ export function createApi(f: Fetcher) {
         } = {}
       ) => f<Page<Season>>(`/league/seasons${qs(q)}`),
       getSeason: (id: string) => f<Season>(`/league/seasons/${id}`),
+      /** Seasons the team is live in, most current first (CAP-19). */
+      teamSeasons: (teamId: string) =>
+        f<
+          Array<{
+            id: string;
+            name: string;
+            startDate: string;
+            endDate: string;
+            registrationOpensAt: string | null;
+            registrationClosesAt: string | null;
+            isCurrent: boolean;
+          }>
+        >(`/league/teams/${teamId}/seasons`),
       createSeason: (body: {
         leagueId: string;
         name: string;

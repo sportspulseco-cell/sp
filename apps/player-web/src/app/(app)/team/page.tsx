@@ -209,11 +209,28 @@ export default async function TeamPage({
   // default, another one when picked. Listing every season showed the
   // same people several times.
   const allMemberships: TeamMembership[] = membershipsPage.items;
-  const seasonIds = Array.from(new Set(allMemberships.map((m) => m.seasonId)));
-  const seasonRows = (
-    await Promise.all(seasonIds.map((id) => leagueMgmt.getSeason(id).catch(() => null)))
-  ).filter((s): s is NonNullable<typeof s> => !!s);
-  const selectedSeason = pickRosterSeason(seasonRows, sp.season);
+  // The team's live seasons, by the same rule as the captain roster;
+  // seasons from memberships only when the team has no live entry.
+  const live = await leagueMgmt.teamSeasons(myTeamId).catch(() => []);
+  const seasonRows: Array<{
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    registrationOpensAt: string | null;
+    registrationClosesAt: string | null;
+  }> =
+    live.length > 0
+      ? live
+      : (
+          await Promise.all(
+            Array.from(new Set(allMemberships.map((m) => m.seasonId))).map((id) =>
+              leagueMgmt.getSeason(id).catch(() => null)
+            )
+          )
+        ).filter((s): s is NonNullable<typeof s> => !!s);
+  const selectedSeason =
+    seasonRows.find((s) => s.id === sp.season) ?? (live.length > 0 ? live[0]! : pickRosterSeason(seasonRows, sp.season));
   const memberships: TeamMembership[] = selectedSeason
     ? allMemberships.filter((m) => m.seasonId === selectedSeason.id)
     : allMemberships;
