@@ -44,13 +44,21 @@ export default async function StatsPage({
   const [leaguesPage, teamsPage, divisionsPage] = await Promise.all([
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    leagueMgmt
-      // Post-flip: divisions live under seasons. Stats page used to
-      // filter by league; for now show all divisions and the in-page
-      // filters narrow further. League-scoped views land in the
-      // dedicated league detail page.
-      .listDivisions({})
-      .catch(() => ({ items: [], nextCursor: null }))
+    // Divisions of the selected league only (SCH-25: the filter listed
+    // every league's divisions). Divisions live under seasons, so read the
+    // league's seasons, then their divisions. No league picked: none.
+    leagueId
+      ? fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor }))
+          .then((seasons) =>
+            Promise.all(
+              seasons.items.map((season) =>
+                fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId: season.id, limit: 100, cursor }))
+              )
+            )
+          )
+          .then((pages) => ({ items: pages.flatMap((p) => p.items), nextCursor: null }))
+          .catch(() => ({ items: [], nextCursor: null }))
+      : Promise.resolve({ items: [], nextCursor: null })
   ]);
 
   const teamMap = new Map(

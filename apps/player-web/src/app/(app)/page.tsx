@@ -271,7 +271,7 @@ export default async function PlayerHome() {
 
       {/* Workflow 5 §3 — registration state banner above the hero so the
           player knows whether they're new / returning / mid-funnel. */}
-      <RegistrationStateBanner registrations={regPage.items} />
+      <RegistrationStateBanner registrations={regPage.items} onTeam={!!team} />
 
       {/* A team offered this player a spot (free-agent pool) or invited
           them: the one decision waiting on them, so it sits up top. */}

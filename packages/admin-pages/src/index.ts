@@ -74,3 +74,4 @@ export type {
   BillingScope,
   InvoiceItemKind
 } from "./invoice-composer/invoice-composer";
+export { slugify } from "./org-setup/types";

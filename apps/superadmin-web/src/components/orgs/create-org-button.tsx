@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { slugify } from "@sportspulse/admin-pages";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
@@ -34,6 +35,39 @@ export function CreateOrgButton() {
   );
 }
 
+// Values a North American hockey league uses. The country / currency /
+// locale tables have more rows; a value outside these lists stays
+// selectable (withCurrent) so the form never silently changes it.
+const COUNTRIES = [
+  { value: "US", label: "United States" },
+  { value: "CA", label: "Canada" }
+];
+const CURRENCIES = [
+  { value: "USD", label: "US dollar (USD)" },
+  { value: "CAD", label: "Canadian dollar (CAD)" }
+];
+const LOCALES = [
+  { value: "en-US", label: "English (United States)" },
+  { value: "en-CA", label: "English (Canada)" },
+  { value: "fr-CA", label: "French (Canada)" }
+];
+const TIME_ZONES = [
+  { value: "America/New_York", label: "Eastern (New York, Toronto)" },
+  { value: "America/Chicago", label: "Central (Chicago, Winnipeg)" },
+  { value: "America/Denver", label: "Mountain (Denver, Edmonton)" },
+  { value: "America/Phoenix", label: "Mountain, no daylight saving (Phoenix)" },
+  { value: "America/Los_Angeles", label: "Pacific (Los Angeles, Vancouver)" },
+  { value: "America/Anchorage", label: "Alaska (Anchorage)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
+  { value: "America/Halifax", label: "Atlantic (Halifax)" },
+  { value: "America/St_Johns", label: "Newfoundland (St. John's)" },
+  { value: "America/Regina", label: "Saskatchewan (Regina)" },
+  { value: "UTC", label: "UTC" }
+];
+function withCurrent(list: Array<{ value: string; label: string }>, current: string) {
+  return current && !list.some((o) => o.value === current) ? [...list, { value: current, label: current }] : list;
+}
+
 /**
  * Create-organisation form (same fields as before), reused by the dialog
  * on /organizations and inline in Org setup step 1. Calls `onCreated`
@@ -58,6 +92,8 @@ export function CreateOrgForm({
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // The slug follows the display name until the admin edits it (SETUP-11).
+  const [slugTouched, setSlugTouched] = useState(false);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -89,7 +125,14 @@ export function CreateOrgForm({
               id="displayName"
               required
               value={form.displayName}
-              onChange={(e) => set("displayName", e.target.value)}
+              onChange={(e) => {
+                const displayName = e.target.value;
+                setForm((f) => ({
+                  ...f,
+                  displayName,
+                  slug: slugTouched ? f.slug : slugify(displayName).slice(0, 60)
+                }));
+              }}
               placeholder="Toronto Hockey League"
             />
           </Field>
@@ -124,7 +167,10 @@ export function CreateOrgForm({
               // adjacent min/maxLength HTML attrs.
               pattern="^[a-z0-9]+(-[a-z0-9]+)*$"
               value={form.slug}
-              onChange={(e) => set("slug", e.target.value.toLowerCase())}
+              onChange={(e) => {
+                setSlugTouched(true);
+                set("slug", e.target.value.toLowerCase());
+              }}
               placeholder="toronto-hockey"
             />
           </Field>
@@ -144,49 +190,63 @@ export function CreateOrgForm({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Country" htmlFor="countryCode" hint="ISO-3166 alpha-2">
-            <Input
+          <Field label="Country" htmlFor="countryCode">
+            <Select
               id="countryCode"
               required
-              maxLength={2}
               value={form.countryCode}
-              onChange={(e) =>
-                set("countryCode", e.target.value.toUpperCase())
-              }
-            />
+              onChange={(e) => {
+                const countryCode = e.target.value;
+                // Canada defaults to Canadian dollars and English (Canada).
+                setForm((f) => ({
+                  ...f,
+                  countryCode,
+                  defaultCurrency: countryCode === "CA" ? "CAD" : countryCode === "US" ? "USD" : f.defaultCurrency,
+                  defaultLocale: countryCode === "CA" ? "en-CA" : countryCode === "US" ? "en-US" : f.defaultLocale
+                }));
+              }}
+            >
+              {withCurrent(COUNTRIES, form.countryCode).map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </Select>
           </Field>
-          <Field label="Locale" htmlFor="defaultLocale">
-            <Input
+          <Field label="Language" htmlFor="defaultLocale">
+            <Select
               id="defaultLocale"
               required
               value={form.defaultLocale}
               onChange={(e) => set("defaultLocale", e.target.value)}
-            />
+            >
+              {withCurrent(LOCALES, form.defaultLocale).map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </Select>
           </Field>
-          <Field
-            label="Currency"
-            htmlFor="defaultCurrency"
-            hint="ISO-4217 3-letter"
-          >
-            <Input
+          <Field label="Currency" htmlFor="defaultCurrency">
+            <Select
               id="defaultCurrency"
               required
-              maxLength={3}
               value={form.defaultCurrency}
-              onChange={(e) =>
-                set("defaultCurrency", e.target.value.toUpperCase())
-              }
-            />
+              onChange={(e) => set("defaultCurrency", e.target.value)}
+            >
+              {withCurrent(CURRENCIES, form.defaultCurrency).map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </Select>
           </Field>
         </div>
 
-        <Field label="Timezone" htmlFor="defaultTimezone" hint="IANA name">
-          <Input
+        <Field label="Time zone" htmlFor="defaultTimezone" hint="Games and deadlines are shown in this time zone">
+          <Select
             id="defaultTimezone"
             value={form.defaultTimezone}
             onChange={(e) => set("defaultTimezone", e.target.value)}
-            placeholder="America/New_York"
-          />
+          >
+            {withCurrent(TIME_ZONES, form.defaultTimezone).map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </Select>
         </Field>
 
         {error ? (

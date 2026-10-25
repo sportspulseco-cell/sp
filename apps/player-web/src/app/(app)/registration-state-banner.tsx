@@ -26,11 +26,18 @@ import type { Registration } from "@sportspulse/api-client";
  * API call).
  */
 export function RegistrationStateBanner({
-  registrations
+  registrations,
+  onTeam = false
 }: {
   registrations: Registration[];
+  /**
+   * The player is on a team's active roster (added by a captain, an
+   * invite or a transfer) even if they never filled in a registration
+   * themselves. Such a player is not "new here" (CAP-18).
+   */
+  onTeam?: boolean;
 }) {
-  const state = detectState(registrations);
+  const state = detectState(registrations, onTeam);
   if (state.kind === "active") return null;
   if (state.kind === "new") return <NewPlayerBanner />;
   if (state.kind === "returning") return <ReturningBanner />;
@@ -43,8 +50,8 @@ type RegState =
   | { kind: "returning" }
   | { kind: "in_progress"; registration: Registration };
 
-function detectState(regs: Registration[]): RegState {
-  if (regs.length === 0) return { kind: "new" };
+function detectState(regs: Registration[], onTeam: boolean): RegState {
+  if (regs.length === 0) return onTeam ? { kind: "active" } : { kind: "new" };
   const incomplete = regs.find((r) => {
     const s = r.status as string;
     return (
@@ -58,7 +65,7 @@ function detectState(regs: Registration[]): RegState {
     const s = r.status as string;
     return s === "approved" || s === "submitted" || s === "under_review";
   });
-  if (hasActive) return { kind: "active" };
+  if (hasActive || onTeam) return { kind: "active" };
   return { kind: "returning" };
 }
 
