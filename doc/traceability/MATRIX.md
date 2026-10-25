@@ -24,6 +24,10 @@ Generated 2026-10-26 by `doc/traceability/build.py`. Every status comes from a b
 - Crawl **staging-24355fb** as **player**: 19 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-24355fb** as **superAdmin**: 129 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-24355fb** as **teamAdmin**: 16 pages, 0 404/error, 0 with a failed API call.
+- Crawl **staging-5986398** as **leagueAdmin**: 87 pages, 0 404/error, 0 with a failed API call.
+- Crawl **staging-5986398** as **player**: 21 pages, 0 404/error, 0 with a failed API call.
+- Crawl **staging-5986398** as **superAdmin**: 128 pages, 0 404/error, 0 with a failed API call.
+- Crawl **staging-5986398** as **teamAdmin**: 21 pages, 0 404/error, 0 with a failed API call.
 - Crawl **staging-before-fixes** as **leagueAdmin**: 78 pages, 5 404/error, 14 with a failed API call.
 - Crawl **staging-before-fixes** as **orgAdmin**: 68 pages, 1 404/error, 0 with a failed API call.
 - Crawl **staging-before-fixes** as **player**: 21 pages, 0 404/error, 0 with a failed API call.
@@ -293,7 +297,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 153 total, 4 still open
+## Logged findings: 154 total, 3 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -321,6 +325,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CAP-22 | minor | Set-up wizard page has two nested <main> landmarks | J7 | fixed in code, not deployed | commit 3b2a7c1: one main landmark on the set-up wizard |
 | CAP-23 | minor | "New registration form" dialog preselects another tenant's org | J7 setup (forms) | fixed in code, not deployed | commit 5532b52: New form dialog preselects only the single org or the page's org filter |
 | CAP-24 | major | Captain roster page and invite flow default to different seasons for the same team, so one player ends up with two active memberships (one per season) | J8.4 → J8.5 · M10 | fixed in code, not deployed | commit 560c13d: refuses a second active membership in another open season |
+| CAP-25 | major | A transfer can never reach the league admin: the destination captain has nowhere to accept it |  | fixed in code, not deployed | commit fe19414: Roster > Transfers tab (accept, decline with reason, cancel, states in words); accept tells the league admins; browser 12/12 |
 | COMP-5 | blocker | Player and captain compliance pages are always empty | J9 · UC-05, UC-29, UC-14 | fixed | journey matrix 3a |
 | COMP-1 | blocker | UC-29 has no admin review queue and no approve/reject | J9 · UC-29, UC-05 | fixed in code, not deployed | commit 200733b: Documents to review queue with approve / reject / request new upload |
 | COMP-2 | major | USA Hockey ID submit fails: "Unknown governing body code "USA_HOCKEY"" | J9 · UC-29 | fixed | migration 0049 on staging + prod; j09 step 2 passed (journey matrix 3a) |
@@ -332,12 +337,12 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | COMP-6 | minor | Records table does not refresh after "Run eligibility sweep" | J9 · UC-05 | fixed in code, not deployed | commit 7235744: eligibility table refreshes after a sweep |
 | COMP-7 | minor | No notification for an eligibility decision | J9 · UC-29, UC-05 ("Notification sent to player/captain") | fixed in code, not deployed | commit 356aeaf: waiver notifies player and captains; local API on staging |
 | COMP-10 | blocker | No screen to issue, lift or serve a suspension | J12 · UC-14 | fixed in code, not deployed | commit 200733b: issue / lift suspensions; served games counted at finalize |
-| COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | fixed in code, not deployed | commit e49ba5c: league discipline rules (off until set), ejection on penalties, finalize issues + notifies, Change games override; kernel 105/105, local API 14/14; staging browser walk pending |
+| COMP-11 | blocker | No automatic suspension from penalties | J12 · UC-14 (trigger: infraction threshold in finalized scoresheets) | fixed in code, not deployed | commit e49ba5c: league discipline rules (off until set), ejection on penalties, finalize issues + notifies, Change games override; kernel 105/105, local API 14/14, staging browser 13/13 (5986398) |
 | COMP-12 | major | Captain compliance never shows suspensions | J12 · UC-14 | fixed in code, not deployed | commit 200733b: captain compliance lists suspended players |
 | COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | fixed in code, not deployed | commit 200733b: lineup save refuses suspended starters/bench |
 | COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | fixed in code, not deployed | commit 200733b: sweep: missing data pending, suspension ineligible |
 | COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | fixed in code, not deployed | commit 5d87870: same fix as SCH-23 |
-| COMP-19 | minor | Compliance sweep writes "sweep complete" emails with no recipient |  | open |  |
+| COMP-19 | minor | Compliance sweep writes "sweep complete" emails with no recipient |  | fixed in code, not deployed | commit 716a940 + migration 0055: no notice without a recipient (guard + shared audience helper, 14 writers fixed, 4 templates added); local API 12/12, 0055 staging dry run 7/7 then applied; production migration awaits go-ahead |
 | CONSOLE-1 | blocker | Every API failure renders Next's "404 This page could not be found" | all · M1–M17 (every detail page) | fixed in code, not deployed | commit c66e81f: load() + LoadError in 60 pages; awaiting staging deploy + crawl |
 | CONSOLE-2 | major | Roles rows link to /roles/:id, which does not exist | J2 · M1 | fixed in code, not deployed | commit c66e81f: roles/[id] page; awaiting deploy |
 | CONSOLE-3 | blocker | League admin: Users and Forms say "Could not load"; Registrations, Division applications, Transfers, Eligibility say "Super admin access required"; Documents and Game events show an empty list as if true | J1/J2/J3/J4/J7/J9 · M1, M5, M6, M9, M10, M11, M13 | fixed in code, not deployed | commit 3ad966b: ScopedAdminGuard + visibility.ts; awaiting deploy + league-admin-console journey |
