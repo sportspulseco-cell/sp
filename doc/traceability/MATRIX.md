@@ -293,7 +293,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 152 total, 6 still open
+## Logged findings: 152 total, 5 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -377,7 +377,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | MON-20 | minor | Bulk invoice "individual" target is not checked against the org |  | fixed in code, not deployed | commit 3f612dd: bulk invoice target must belong to the billing org; local API on staging: outsider 404, insider 201 |
 | MON-21 | minor | Mojibake in team-admin header: "CAPTAIN Â· 1 TEAM" |  | fixed | mojibake removed (journey matrix 3a) |
 | MON-22 | major | Players are never told an invoice was issued | J13 step 3 (local build against staging, 25 Oct) · UC-15 | fixed in code, not deployed | commit 3642294: invoice issued notice; local API on staging 4/4 |
-| MON-23 | major | An admin "team" invoice never reaches the captain's Dues screen | J14 step 2 (local build against staging, 25 Oct) · UC-16 | open |  |
+| MON-23 | major | An admin "team" invoice never reaches the captain's Dues screen | J14 step 2 (local build against staging, 25 Oct) · UC-16 | fixed in code, not deployed | commit 398a1c1: Team invoice to the captain, split on Dues into player shares; no double counting; end to end 17/17, J14 5/5 |
 | MON-24 | major | Super admin Finance: search, filters and paging do nothing | J13 step 5 (local build against staging, 25 Oct) | fixed in code, not deployed | commit 3f057e0: Finance filters push /finance, old address keeps its query, pager total only when unfiltered; browser 6/6 |
 | REG-1 | blocker | Funnel "Sign in" never checks the password — anyone can open another player's registration | J4 · UC-01 | fixed | journey matrix 3a |
 | REG-2 | blocker | "Create account" with an existing email and any password registers as that user | J4 · UC-01 | fixed | journey matrix 3a |

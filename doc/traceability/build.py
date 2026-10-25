@@ -345,6 +345,7 @@ FIXED_IN_CODE = {
     "CAP-19": "commits 5da2fee + 338aa22 + 3ee7809 + 6b50648: one season per roster, same rule as the captain roster (GET teams/:id/seasons), every page of memberships; browser on local apps",
     "MON-22": "commit 3642294: invoice issued notice; local API on staging 4/4",
     "MON-24": "commit 3f057e0: Finance filters push /finance, old address keeps its query, pager total only when unfiltered; browser 6/6",
+    "MON-23": "commit 398a1c1: Team invoice to the captain, split on Dues into player shares; no double counting; end to end 17/17, J14 5/5",
     "SETUP-2": "commit 8196989: Edit team on admin + org team pages; org admins may edit their org's teams; browser + API 11/11",
     "CONSOLE-17": "commit ba6ad79: keyset paging matches sort order (games, invoices, assignments, notifications, events, imports, roles); walked staging 8/8 exact",
     "REG-27": "commit 52d6726: /org-admin/forms accepts limit + cursor; org season overview loads forms; API 200 (40 = db), browser 2/2",
