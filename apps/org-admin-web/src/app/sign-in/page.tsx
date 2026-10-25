@@ -32,11 +32,15 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(
+  const [error, setError] = useState<string | null>(null);
+  // Read on every render: after a wrong-role bounce the app redirects
+  // back here and this component keeps its state, so a message set only
+  // when it first mounted never showed (J17).
+  const roleError =
     sp.get("error") === "wrong_role"
-      ? "This account doesn't have org admin access. Try a different sign-in or contact your admin."
-      : null
-  );
+      ? "You're signed in, but this account isn't an admin of an organisation. Sign in with another account here, or use “Pick another app” for the app that fits your role."
+      : null;
+  const shownError = error ?? roleError;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -75,6 +79,7 @@ function SignInForm() {
             </a>
           </p>
         </div>
+        {shownError && <Alert tone="error">{shownError}</Alert>}
         <Field label="Email">
           <Input
             type="email"
@@ -93,7 +98,6 @@ function SignInForm() {
             required
           />
         </Field>
-        {error && <Alert tone="error">{error}</Alert>}
         <Button type="submit" disabled={submitting || !email || !password}>
           {submitting ? "Signing in…" : "Sign in"}
         </Button>

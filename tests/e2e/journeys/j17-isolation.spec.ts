@@ -315,7 +315,8 @@ test.describe.serial("J17 · role isolation", () => {
         await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
         await page.waitForTimeout(1500);
         const after = new URL(page.url());
-        const msg = (await page.locator("body").innerText()).slice(0, 200).replace(/\n/g, " / ");
+        const bodyText = await page.locator("body").innerText();
+        const msg = bodyText.slice(0, 200).replace(/\n/g, " / ");
         console.log(`[J17] ${w.who} sign-in on ${w.appName} -> ${after.pathname}${after.search} · "${msg}"`);
         await page.goto(`${w.app}${w.guarded}`);
         await page.waitForLoadState("networkidle").catch(() => undefined);
@@ -325,7 +326,9 @@ test.describe.serial("J17 · role isolation", () => {
           expect(u.pathname.startsWith("/sign-in") || u.pathname.startsWith("/onboarding"), `${w.who} reached ${w.appName}${w.guarded}`).toBe(true)
         );
         if (after.pathname.startsWith("/sign-in")) {
-          await softly(async () => expect(msg, `${w.who} on ${w.appName}: wrong-role message is readable`).toMatch(/role|access|permission|not allowed/i));
+          // The whole page: on superadmin the reason sits in the form, after
+          // the side panel's intro text.
+          await softly(async () => expect(bodyText, `${w.who} on ${w.appName}: wrong-role message is readable`).toMatch(/role|access|permission|not allowed|isn't (an admin|a player|a captain)/i));
         }
       } finally {
         await context.close();
