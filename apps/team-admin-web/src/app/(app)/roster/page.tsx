@@ -7,9 +7,11 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  SeasonSwitch
 } from "@sportspulse/ui";
 import type { TeamMembership } from "@sportspulse/api-client";
+import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -27,7 +29,12 @@ function ageFromDob(dob: string | null | undefined): number | null {
   return a;
 }
 
-export default async function TeamAdminRosterPage() {
+export default async function TeamAdminRosterPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ season?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
   const scope = await iam.meScope().catch(() => null);
   const teamId = scope?.teamIds[0] ?? null;
 
@@ -40,10 +47,27 @@ export default async function TeamAdminRosterPage() {
     );
   }
 
-  const [team, page] = await Promise.all([
+  const [team, allPage] = await Promise.all([
     leagueMgmt.getTeam(teamId).catch(() => null),
     roster.listMemberships({ teamId, activeOnly: true }).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  // One season's roster (CAP-19): the current season unless another is picked.
+  const seasonIds = Array.from(new Set(allPage.items.map((m: TeamMembership) => m.seasonId)));
+  const seasonRows = (
+    await Promise.all(seasonIds.map((id) => leagueMgmt.getSeason(id).catch(() => null)))
+  ).filter((s): s is NonNullable<typeof s> => !!s);
+  const selectedSeason = pickRosterSeason(seasonRows, sp.season);
+  const page = {
+    ...allPage,
+    items: selectedSeason
+      ? allPage.items.filter((m: TeamMembership) => m.seasonId === selectedSeason.id)
+      : allPage.items
+  };
+  const seasonOptions = seasonRows.map((s) => ({
+    id: s.id,
+    name: s.name,
+    current: seasonCurrency(s) === "in_progress"
+  }));
 
   // Resolve person rows so we render real names instead of 8-char id
   // prefixes. Roster memberships carry only person_id; the persons
@@ -72,8 +96,9 @@ export default async function TeamAdminRosterPage() {
       <PageHeader
         eyebrow="Roster"
         title={team ? `${team.name} - Roster` : "Roster"}
-        description={`${page.items.length} active membership${page.items.length === 1 ? "" : "s"}.`}
+        description={`${page.items.length} active ${page.items.length === 1 ? "player" : "players"}${selectedSeason ? ` in ${selectedSeason.name}` : ""}.`}
       />
+      <SeasonSwitch seasons={seasonOptions} selectedId={selectedSeason?.id ?? null} />
       {page.items.length === 0 ? (
         <EmptyState icon={Users} title="Empty roster" description="Add players from the captain console or super-admin." />
       ) : (

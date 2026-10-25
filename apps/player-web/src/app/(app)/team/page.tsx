@@ -1,8 +1,10 @@
 import { Clock, UsersRound } from "lucide-react";
+import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import {
   Badge,
   EmptyState,
   Eyebrow,
+  SeasonSwitch,
   TBody,
   TD,
   TH,
@@ -28,7 +30,12 @@ function fmtDate(iso: string): string {
   });
 }
 
-export default async function TeamPage() {
+export default async function TeamPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ season?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
   const [scope, myInvites] = await Promise.all([
     iam.meScope().catch(() => null),
     // Team offers / invites waiting for this player's answer (CAP-9).
@@ -198,7 +205,23 @@ export default async function TeamPage() {
   // to no standings if we can't infer.
   // TODO(roadmap): expose teams.leagueId on the SDK so we don't have
   // to derive it.
-  const memberships: TeamMembership[] = membershipsPage.items;
+  // One roster per season (CAP-19): the team's current season by
+  // default, another one when picked. Listing every season showed the
+  // same people several times.
+  const allMemberships: TeamMembership[] = membershipsPage.items;
+  const seasonIds = Array.from(new Set(allMemberships.map((m) => m.seasonId)));
+  const seasonRows = (
+    await Promise.all(seasonIds.map((id) => leagueMgmt.getSeason(id).catch(() => null)))
+  ).filter((s): s is NonNullable<typeof s> => !!s);
+  const selectedSeason = pickRosterSeason(seasonRows, sp.season);
+  const memberships: TeamMembership[] = selectedSeason
+    ? allMemberships.filter((m) => m.seasonId === selectedSeason.id)
+    : allMemberships;
+  const seasonOptions = seasonRows.map((s) => ({
+    id: s.id,
+    name: s.name,
+    current: seasonCurrency(s) === "in_progress"
+  }));
 
   // TeamMembership rows carry person_id but no name. Fan out a
   // getPerson() per row to resolve display names. Small rosters
@@ -235,7 +258,7 @@ export default async function TeamPage() {
 
   // Fetch standings once we know the league. We'll use the first
   // membership row's seasonId as a hint.
-  const seasonId = memberships[0]?.seasonId ?? null;
+  const seasonId = selectedSeason?.id ?? memberships[0]?.seasonId ?? null;
   let standings: Standing[] = [];
   if (seasonId) {
     const season = await leagueMgmt.getSeason(seasonId).catch(() => null);
@@ -262,6 +285,8 @@ export default async function TeamPage() {
             : "Roster + standings."
         }
       />
+
+      <SeasonSwitch seasons={seasonOptions} selectedId={selectedSeason?.id ?? null} />
 
       {/* Offers from other teams still need an answer (CAP-9). */}
       <TeamOffersCard items={myInvites.items} />

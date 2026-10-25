@@ -97,3 +97,20 @@ export function pickCurrentSeason<T extends SeasonCurrencyFields>(
 ): T | null {
   return sortSeasonsByCurrency(seasons, now)[0] ?? null;
 }
+
+/**
+ * The season a roster page shows (CAP-19): the season asked for when the
+ * team has played it, otherwise the team's current season by the rule
+ * above. `seasons` are the seasons the team has memberships in.
+ */
+export function pickRosterSeason<T extends SeasonCurrencyFields & { id: string }>(
+  seasons: readonly T[],
+  requestedId: string | null | undefined,
+  now: Date = new Date()
+): T | null {
+  if (requestedId) {
+    const asked = seasons.find((s) => s.id === requestedId);
+    if (asked) return asked;
+  }
+  return pickCurrentSeason(seasons, now);
+}
