@@ -70,6 +70,21 @@ the player's form (REG-22), prices in dollars and live tiers in open seasons
 link (SCH-19), venue org not preselected (SETUP-16), invoice notes saved
 (MON-18).
 
+Added 25 Oct (local stack against staging, browser-checked):
+
+- Game times show in the rink's zone on every server-rendered page (SCH-28).
+  On Vercel they showed UTC: "Nov 5, 1:00 AM" for a 9 PM Eastern game.
+- Money, numbers and dates use one US format; no React hydration errors in
+  en-US or en-IN browsers (CONSOLE-16).
+- Super admin Finance search, filters and paging work (MON-24); one New
+  invoice button.
+- Notices written by database jobs (overdue reminders) are sent within 5
+  minutes; nothing older than 24 hours is ever sent (CONSOLE-15).
+- Player Home notices without "queued" or raw codes (SCH-26 sweep); bracket
+  refusal in words (SCH-27); org admins can open an invoice (MON-19).
+
+Open, needs a decision: MON-23 (composer "Team" invoice vs captain Dues).
+
 ## Evidence level
 
 Each fix above was proven on a local build of this code against the staging
