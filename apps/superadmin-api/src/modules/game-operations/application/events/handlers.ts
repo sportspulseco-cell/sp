@@ -1,6 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -58,6 +58,7 @@ export interface AppendEventInput {
 export class AppendEventHandler
   implements CommandHandler<AppendEventInput, GameEventDto>
 {
+  private readonly log = new Logger(AppendEventHandler.name);
   constructor(
     @Inject(GAME_EVENT_REPOSITORY) private readonly events: GameEventRepository,
     @Inject(GAME_REPOSITORY) private readonly games: GameRepository,
@@ -119,7 +120,36 @@ export class AppendEventHandler
       loggedByUserId: input.loggedByUserId
     });
     await this.events.insert(event);
+    if (input.eventType === "goal") await this.raiseScoreToGoalTally(input.gameId);
     return GameEventDto.fromDomain(event);
+  }
+
+  /**
+   * SCH-16: logging a goal moves the score. Each side's score rises to at
+   * least its count of goal events (the same count finalize checks), and
+   * is never lowered here, so a manual correction or a shootout goal the
+   * scorekeeper entered is kept.
+   */
+  private async raiseScoreToGoalTally(gameId: string): Promise<void> {
+    const rows = await this.db.execute(sql`
+      UPDATE games g SET
+        home_score = GREATEST(g.home_score, t.home_goals),
+        away_score = GREATEST(g.away_score, t.away_goals),
+        updated_at = now()
+      FROM (
+        SELECT
+          count(*) FILTER (WHERE e.team_id = g2.home_team_id)::int AS home_goals,
+          count(*) FILTER (WHERE e.team_id = g2.away_team_id)::int AS away_goals
+        FROM games g2
+        LEFT JOIN game_events e ON e.game_id = g2.id AND e.event_type = 'goal'
+        WHERE g2.id = ${gameId}::uuid
+      ) t
+      WHERE g.id = ${gameId}::uuid AND g.status = 'in_play'
+        AND (g.home_score < t.home_goals OR g.away_score < t.away_goals)
+      RETURNING g.home_score, g.away_score
+    `);
+    const list = (Array.isArray(rows) ? rows : (rows as { rows?: unknown[] }).rows ?? []) as Array<{ home_score: number; away_score: number }>;
+    if (list[0]) this.log.log(`game.score_from_goals game=${gameId} score=${list[0].home_score}-${list[0].away_score}`);
   }
 
   private async assertOnRoster(
