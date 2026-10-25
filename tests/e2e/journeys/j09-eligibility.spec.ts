@@ -1,6 +1,8 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { deflateSync } from "node:zlib";
 import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors } from "./_helpers";
 
 /**
@@ -34,6 +36,56 @@ const errs: Record<string, string[]> = {};
 const findings: string[] = [];
 let playerPersonId = "";
 let seasonId = "";
+/** COMP-3/COMP-1 need migration 0054 on staging (the owner applies it). */
+let documentsTableReady = false;
+const DOCUMENTS_SKIP_REASON =
+  "Migration 0054_compliance_document_submissions is not applied on staging yet, so COMP-3 / COMP-1 cannot run. Apply it with: pnpm --filter @sportspulse/db migrate --target=staging";
+let firstUploadId = "";
+let secondUploadId = "";
+const REJECT_REASON = `${RUN_TAG} Photo is blurry, upload a sharper scan`;
+
+/** CRC-32 for PNG chunks. */
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buf) {
+    crc ^= byte;
+    for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * A real, unique PNG (64x40, one colour per variant, RUN_TAG in a tEXt
+ * chunk) so every run uploads a file the API has never seen.
+ */
+function testPng(variant: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const w = 64;
+  const h = 40;
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB
+  const rgb = variant === 1 ? [200, 40, 40] : [40, 140, 60];
+  const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({ length: w }, () => rgb).flat())]);
+  const raw = Buffer.concat(Array.from({ length: h }, () => row));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("tEXt", Buffer.from(`Comment\0${RUN_TAG} J9 document ${variant}`, "latin1")),
+    chunk("IDAT", deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0))
+  ]);
+}
+const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 
 function check(ok: boolean, msg: string) {
   if (!ok) findings.push(msg);
@@ -72,6 +124,10 @@ test.beforeAll(async ({ browser }, testInfo) => {
   playerPersonId = p?.id ?? "";
   const [s] = await stagingSql<{ id: string }>(`select id from seasons where name = $1`, [SEASON_NAME]);
   seasonId = s?.id ?? "";
+  const [t] = await stagingSql<{ t: string | null }>(
+    `select to_regclass('public.compliance_document_submissions')::text t`
+  );
+  documentsTableReady = !!t?.t;
 });
 
 test.afterAll(async () => {
@@ -139,22 +195,234 @@ test("2 player submits a USA Hockey ID (validation + happy path)", async () => {
   }
 });
 
-test("3 super_admin looks for the player's submission in a review queue (UC-29)", async () => {
+test("3 super_admin finds the document review queue on /eligibility (UC-29)", async () => {
   const { page, app } = admin;
+  // /documents stays waiver-template authoring; the review queue sits on
+  // Eligibility, where the operator decides whether a player is cleared.
   await page.goto(app + "/dashboard");
-  await navClick(page, /^Documents$/, "Compliance");
-  await expect(page).toHaveURL(/\/documents$/);
-  const txt = await snap(page, "03-sa-documents");
-  check(
-    /Staging Player|ABC1234567|pending verification/i.test(txt),
-    "COMP-1: /documents has no queue of player-submitted IDs or documents (it is waiver-template management only)"
-  );
-
-  await page.goto(app + "/eligibility");
+  await navClick(page, /^Eligibility$/, "Compliance");
+  await expect(page).toHaveURL(/\/eligibility/);
+  await expect(page.getByRole("heading", { name: "Documents to review" })).toBeVisible();
   const elig = await snap(page, "03-sa-eligibility-before");
-  const approve = await page.getByRole("button", { name: /Approve|Verify|Reject/ }).count();
-  check(approve > 0, "COMP-1: /eligibility has no Approve / Reject / Verify control (only Waive)");
-  writeFileSync(`${OUT}/03-eligibility-controls.txt`, `approveButtons=${approve}\n\n${elig}`);
+  const review = await page.getByRole("button", { name: /^Review$/ }).count();
+  writeFileSync(`${OUT}/03-eligibility-controls.txt`, `reviewButtons=${review}\n\n${elig}`);
+});
+
+test("3a COMP-3 player uploads an ID document from /compliance", async () => {
+  test.skip(!documentsTableReady, DOCUMENTS_SKIP_REASON);
+  const { page, app } = player;
+  await page.goto(app + "/compliance");
+  await expect(page.getByRole("heading", { name: "ID and eligibility documents" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Upload a document" })).toBeVisible();
+
+  // The season picker lists the player's own registrations and team seasons.
+  const option = page.locator("#upload-target option", { hasText: SEASON_NAME }).first();
+  await expect(option, "the team season is offered as an upload target").toHaveCount(1);
+  await page.locator("#upload-target").selectOption((await option.getAttribute("value"))!);
+  // Kind dropdown is the kernel enum with plain labels and no default.
+  await expect(page.locator("#upload-kind")).toHaveValue("");
+  const kindLabels = await page.locator("#upload-kind option").allInnerTexts();
+  expect(kindLabels).toEqual([
+    "Choose a type",
+    "Birth certificate",
+    "USA Hockey or other governing-body card",
+    "Government photo ID",
+    "Signed waiver (scanned)",
+    "Other document"
+  ]);
+  await page.locator("#upload-kind").selectOption("birth_certificate");
+  const file1 = testPng(1);
+  await page
+    .locator("#upload-file")
+    .setInputFiles({ name: `${RUN_TAG}-birth-certificate.png`, mimeType: "image/png", buffer: file1 });
+  await page.getByRole("button", { name: /^Upload$/ }).click();
+  await expect(page.getByText(/Uploaded\. Status: Waiting for review/)).toBeVisible({ timeout: 30_000 });
+  await snap(page, "03a-player-uploaded");
+
+  const rows = await stagingSql<{
+    id: string;
+    status: string;
+    kind: string;
+    season_id: string;
+    content_type: string;
+    storage_path: string;
+    size_bytes: number;
+  }>(
+    `select id, status, kind, season_id, content_type, storage_path, size_bytes
+       from compliance_document_submissions where person_id = $1 and sha256 = $2`,
+    [playerPersonId, sha256(file1)]
+  );
+  writeFileSync(`${OUT}/03a-db-submission.json`, JSON.stringify(rows, null, 2));
+  expect(rows.length, "exactly one submission row for the uploaded file").toBe(1);
+  expect(rows[0]).toMatchObject({
+    status: "pending",
+    kind: "birth_certificate",
+    season_id: seasonId,
+    content_type: "image/png",
+    size_bytes: file1.length
+  });
+  expect(rows[0]!.storage_path.startsWith(`${playerPersonId}/`)).toBe(true);
+  firstUploadId = rows[0]!.id;
+
+  // Same surface, no reload: the new row is listed with its server status.
+  const li = page.locator(`li[data-submission-id="${firstUploadId}"]`);
+  await expect(li).toContainText("Birth certificate");
+  await expect(li).toContainText("Waiting for review");
+
+  // Replay: the same file again is the same submission, not a second row.
+  await page.locator("#upload-kind").selectOption("birth_certificate");
+  await page.locator("#upload-file").setInputFiles({ name: "again.png", mimeType: "image/png", buffer: file1 });
+  await page.getByRole("button", { name: /^Upload$/ }).click();
+  await expect(page.getByText(/You already sent this file/)).toBeVisible({ timeout: 30_000 });
+  const again = await stagingSql<{ n: number }>(
+    `select count(*)::int n from compliance_document_submissions where person_id = $1 and sha256 = $2`,
+    [playerPersonId, sha256(file1)]
+  );
+  expect(again[0]?.n).toBe(1);
+});
+
+test("3b COMP-1 super_admin reviews the upload and rejects it with a reason", async () => {
+  test.skip(!documentsTableReady || !firstUploadId, DOCUMENTS_SKIP_REASON);
+  const { page, app } = admin;
+  await page.goto(app + "/eligibility");
+  const row = page.locator(`tr[data-submission-id="${firstUploadId}"]`);
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  await expect(row).toContainText(PLAYER_NAME);
+  await expect(row).toContainText("Birth certificate");
+  await expect(row).toContainText("Waiting for review");
+  await row.getByRole("button", { name: /^Review$/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(`Birth certificate: ${PLAYER_NAME}`)).toBeVisible();
+  // The file opens through a short-lived signed link from the private bucket.
+  const link = dialog.getByRole("link", { name: /Open the file/ });
+  await expect(link).toBeVisible({ timeout: 20_000 });
+  const href = (await link.getAttribute("href"))!;
+  expect(href).toMatch(/\/storage\/v1\/object\/sign\/compliance-documents\//);
+  const fileRes = await page.request.get(href);
+  expect(fileRes.status()).toBe(200);
+  expect(sha256(Buffer.from(await fileRes.body()))).toBe(sha256(testPng(1)));
+  await expect(dialog.locator("img")).toBeVisible();
+  await snap(page, "03b-sa-review-dialog");
+
+  // Reject needs a reason the player can act on.
+  await dialog.getByRole("button", { name: /^Reject$/ }).click();
+  await expect(dialog.getByText("Give the player a reason for the rejection.")).toBeVisible();
+  await dialog.locator("#document-decision-reason").fill(REJECT_REASON);
+  await dialog.getByRole("button", { name: /^Reject$/ }).click();
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
+  // Same surface, no reload: the row shows the server's new status.
+  await expect(row).toContainText("Rejected");
+  await expect(row).toContainText(REJECT_REASON);
+  await snap(page, "03b-sa-after-reject");
+
+  const db = await stagingSql<{ status: string; decisions: unknown }>(
+    `select s.status,
+            (select json_agg(json_build_object('decision', d.decision, 'reason', d.reason))
+               from compliance_document_decisions d where d.submission_id = s.id) decisions
+       from compliance_document_submissions s where s.id = $1`,
+    [firstUploadId]
+  );
+  writeFileSync(`${OUT}/03b-db-after-reject.json`, JSON.stringify(db, null, 2));
+  expect(db[0]?.status).toBe("rejected");
+  expect(db[0]?.decisions).toEqual([{ decision: "rejected", reason: REJECT_REASON }]);
+  const notes = await stagingSql<{ template_code: string; recipient_person_id: string; status: string }>(
+    `select template_code, recipient_person_id, status from notifications where payload->>'submissionId' = $1`,
+    [firstUploadId]
+  );
+  writeFileSync(`${OUT}/03b-db-notifications.json`, JSON.stringify(notes, null, 2));
+  expect(
+    notes.some(
+      (n) => n.template_code === "compliance.document.decided" && n.recipient_person_id === playerPersonId
+    ),
+    "a decision notification is queued for the player"
+  ).toBe(true);
+});
+
+test("3c COMP-3 player sees the reason and uploads a new file", async () => {
+  test.skip(!documentsTableReady || !firstUploadId, DOCUMENTS_SKIP_REASON);
+  const { page, app } = player;
+  await page.goto(app + "/compliance");
+  const li = page.locator(`li[data-submission-id="${firstUploadId}"]`);
+  await expect(li).toContainText("Rejected");
+  await expect(li).toContainText(`Reason from the admin: ${REJECT_REASON}`);
+  await snap(page, "03c-player-sees-reason");
+
+  // "Upload a new file" pre-fills the form with the same season and type.
+  await li.getByRole("button", { name: /Upload a new file/ }).click();
+  await expect(page.locator("#upload-kind")).toHaveValue("birth_certificate");
+  await expect(page.locator("#upload-target")).not.toHaveValue("");
+
+  // The rejected file itself is refused, with the admin's reason.
+  await page.locator("#upload-file").setInputFiles({ name: "same.png", mimeType: "image/png", buffer: testPng(1) });
+  await page.getByRole("button", { name: /^Upload$/ }).click();
+  await expect(page.getByText(/already sent this exact file .* was rejected/)).toBeVisible({ timeout: 30_000 });
+
+  const file2 = testPng(2);
+  await page
+    .locator("#upload-file")
+    .setInputFiles({ name: `${RUN_TAG}-birth-certificate-2.png`, mimeType: "image/png", buffer: file2 });
+  await page.getByRole("button", { name: /^Upload$/ }).click();
+  await expect(page.getByText(/Uploaded\. Status: Waiting for review/)).toBeVisible({ timeout: 30_000 });
+  const rows = await stagingSql<{ id: string; status: string }>(
+    `select id, status from compliance_document_submissions where person_id = $1 and sha256 = $2`,
+    [playerPersonId, sha256(file2)]
+  );
+  expect(rows).toHaveLength(1);
+  expect(rows[0]!.status).toBe("pending");
+  secondUploadId = rows[0]!.id;
+  await expect(page.locator(`li[data-submission-id="${secondUploadId}"]`)).toContainText("Waiting for review");
+});
+
+test("3d COMP-1 admin approves the new file; player sees Approved and a notification", async () => {
+  test.skip(!documentsTableReady || !secondUploadId, DOCUMENTS_SKIP_REASON);
+  const { page, app } = admin;
+  await page.goto(app + "/eligibility");
+  const row = page.locator(`tr[data-submission-id="${secondUploadId}"]`);
+  await expect(row).toContainText("Waiting for review", { timeout: 15_000 });
+  await row.getByRole("button", { name: /^Review$/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("link", { name: /Open the file/ })).toBeVisible({ timeout: 20_000 });
+  await dialog.getByRole("button", { name: /^Approve$/ }).click();
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
+  await expect(row).toContainText("Approved");
+  const db = await stagingSql<{ status: string; n: number }>(
+    `select s.status, (select count(*)::int from compliance_document_decisions d where d.submission_id = s.id) n
+       from compliance_document_submissions s where s.id = $1`,
+    [secondUploadId]
+  );
+  writeFileSync(`${OUT}/03d-db-after-approve.json`, JSON.stringify(db, null, 2));
+  expect(db[0]).toEqual({ status: "approved", n: 1 });
+
+  const p = player.page;
+  await p.goto(player.app + "/compliance");
+  await expect(p.locator(`li[data-submission-id="${secondUploadId}"]`)).toContainText("Approved");
+  await snap(p, "03d-player-approved");
+  await p.getByRole("link", { name: /^Notifications$/ }).first().click();
+  await expect(p).toHaveURL(/\/notifications/);
+  const inbox = await snap(p, "03d-player-notifications");
+  expect(inbox, "player inbox shows the document decision").toMatch(/Birth certificate/);
+});
+
+test("3e COMP-1 league_admin and org_admin see the queue for their scope", async ({ browser }) => {
+  test.skip(!documentsTableReady || !secondUploadId, DOCUMENTS_SKIP_REASON);
+  const la = await signedInAs(browser, "leagueAdmin");
+  await la.page.goto(la.app + "/eligibility");
+  await la.page.locator("#document-queue-filter").selectOption("all");
+  await expect(la.page.locator(`tr[data-submission-id="${secondUploadId}"]`)).toContainText("Approved", {
+    timeout: 15_000
+  });
+  await snap(la.page, "03e-league-admin-queue");
+  await la.context.close();
+
+  const oa = await signedInAs(browser, "orgAdmin");
+  await oa.page.goto(oa.app + "/registrations");
+  await expect(oa.page.getByRole("heading", { name: "Documents to review" })).toBeVisible();
+  await oa.page.locator("#document-queue-filter").selectOption("all");
+  await expect(oa.page.locator(`tr[data-submission-id="${secondUploadId}"]`)).toContainText("Approved", {
+    timeout: 15_000
+  });
+  await snap(oa.page, "03e-org-admin-queue");
+  await oa.context.close();
 });
 
 test("4 super_admin creates and publishes a waiver template (UC-27 precondition)", async () => {
@@ -198,7 +466,13 @@ test("4 super_admin creates and publishes a waiver template (UC-27 precondition)
 test("5 super_admin runs the season eligibility sweep, then decides on the player", async () => {
   const { page, app } = admin;
   await page.goto(app + "/eligibility");
-  await page.locator("select").first().selectOption({ label: SEASON_NAME });
+  // The season picker is the select that offers the season (the page also
+  // has a document-status filter select now).
+  await page
+    .locator("select")
+    .filter({ has: page.locator("option", { hasText: SEASON_NAME }) })
+    .first()
+    .selectOption({ label: SEASON_NAME });
   const tableBefore = await page.locator("main").innerText();
   const prior = await stagingSql<{ status: string }>(
     `select status from eligibility_records where person_id = $1 and season_id = $2`,
@@ -232,20 +506,22 @@ AFTER ${rowTextAfter}`);
   writeFileSync(`${OUT}/05-db-eligibility-after-sweep.json`, JSON.stringify(recs, null, 2));
   expect(recs.length, "sweep should write an eligibility record for the rostered player").toBe(1);
   if (waivedBeforeSweep) {
-    check(
-      recs[0]?.status === "waived",
+    // COMP-17 fixed: a sweep records its evaluation but never overwrites a waiver.
+    expect(
+      recs[0]?.status,
       `COMP-17: season sweep overwrote an admin waiver: status was 'waived' before the sweep, '${recs[0]?.status}' after`
-    );
+    ).toBe("waived");
   }
 
   await page.reload();
   const row = playerRow().filter({ hasText: SEASON_NAME }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
   const statusBefore = await row.innerText();
-  check(
-    !(recs[0]?.status !== "waived" && /verified offline/.test(statusBefore)),
+  // COMP-17 fixed: a waiver reason is shown only on a record that is waived.
+  expect(
+    recs[0]?.status !== "waived" && /verified offline/.test(statusBefore),
     `COMP-17: row shows status ${recs[0]?.status} together with a stale waiver reason from an earlier decision`
-  );
+  ).toBe(false);
   check(
     statusBefore.includes(PLAYER_NAME),
     `COMP-9: /eligibility shows the person as a UUID fragment, not a name. Row: ${statusBefore.replace(/\s+/g, " ")}`

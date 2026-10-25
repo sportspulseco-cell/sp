@@ -11,8 +11,9 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Standing, TeamMembership } from "@sportspulse/api-client";
-import { iam, leagueMgmt, registration, roster, stats } from "@/lib/api/server-api";
+import { captain, iam, leagueMgmt, registration, roster, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { TeamOffersCard } from "@/components/team-offers-card";
 import { JoinTeamButton } from "./join-team-button";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,11 @@ function fmtDate(iso: string): string {
 }
 
 export default async function TeamPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const [scope, myInvites] = await Promise.all([
+    iam.meScope().catch(() => null),
+    // Team offers / invites waiting for this player's answer (CAP-9).
+    captain.myInvites().catch(() => ({ items: [] }))
+  ]);
   const myTeamId = scope?.teamIds[0] ?? null;
   const myPersonId = scope?.personId ?? null;
 
@@ -81,7 +86,8 @@ export default async function TeamPage() {
       }
     }
 
-    const hasAnything = pending.length > 0 || byDivision.size > 0;
+    const hasAnything =
+      pending.length > 0 || byDivision.size > 0 || myInvites.items.length > 0;
 
     return (
       <div className="space-y-6">
@@ -90,6 +96,8 @@ export default async function TeamPage() {
           title="Team"
           description="Roster + division standings."
         />
+
+        <TeamOffersCard items={myInvites.items} />
 
         {pending.length > 0 ? (
           <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--warning)]/[0.06] p-5">
@@ -254,6 +262,9 @@ export default async function TeamPage() {
             : "Roster + standings."
         }
       />
+
+      {/* Offers from other teams still need an answer (CAP-9). */}
+      <TeamOffersCard items={myInvites.items} />
 
       <section className="grid gap-4 lg:grid-cols-2">
         {/* Roster */}

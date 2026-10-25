@@ -15,8 +15,9 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
-import { loadUserScope } from "../../../shared/auth/scope";
-import { personVisible } from "../../../shared/auth/visibility";
+import { sql } from "drizzle-orm";
+import { loadAdminScope, loadUserScope } from "../../../shared/auth/scope";
+import { personVisible, visiblePersonIds } from "../../../shared/auth/visibility";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import type { Database } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -66,8 +67,11 @@ export class PersonsController {
       ...q,
       visibleTo: scope.isSuperAdmin ? undefined : { scope, userId: user.userId }
     });
-    if (await userIsPeopleAdmin(this.db, user.userId)) return page;
-    return { ...page, items: page.items.map(redactPerson) };
+    if (scope.isSuperAdmin) return page;
+    // Personal details only for people inside the caller's ADMIN scope; a
+    // roster spot elsewhere shows names only, like any teammate.
+    const detailed = await this.adminVisibleIds(user.userId, page.items.map((p) => p.id));
+    return { ...page, items: page.items.map((p) => (detailed.has(p.id) ? p : redactPerson(p))) };
   }
   @Get(":id") @ApiOperation({ summary: "Get a person (personal details for admins only)" })
   async getOne(
@@ -79,7 +83,8 @@ export class PersonsController {
       throw new NotFoundException("Person not found");
     }
     const person = await this.getH.execute({ id });
-    if (await userIsPeopleAdmin(this.db, user.userId)) return person;
+    if (scope.isSuperAdmin) return person;
+    if ((await this.adminVisibleIds(user.userId, [id])).has(id)) return person;
     return redactPerson(person);
   }
   @Post() @UseGuards(SuperAdminGuard)
@@ -102,6 +107,19 @@ export class PersonsController {
     @Body() body: LinkPersonUserBodyDto
   ): Promise<PersonDto> {
     return this.linkH.execute({ id, userId: body.userId });
+  }
+
+  /** Ids (of `ids`) inside the caller's admin scope; empty for non-admins. */
+  private async adminVisibleIds(userId: string, ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0 || !(await userIsPeopleAdmin(this.db, userId))) return new Set();
+    const adminScope = await loadAdminScope(this.db, userId);
+    const sub = visiblePersonIds({ scope: adminScope, userId });
+    if (!sub) return new Set(ids);
+    const rows = await this.db.execute(
+      sql`select p.id from persons p where p.id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)}) and p.id in ${sub}`
+    );
+    const list = (Array.isArray(rows) ? rows : (rows as { rows?: unknown[] }).rows ?? []) as Array<{ id: string }>;
+    return new Set(list.map((r) => r.id));
   }
 }
 

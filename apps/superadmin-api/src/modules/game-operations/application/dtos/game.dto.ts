@@ -7,6 +7,12 @@ import {
   SUSPENSION_KINDS,
   SUSPENSION_STATUSES
 } from "../../domain/value-objects/game-status.vo";
+import {
+  describeSuspension,
+  suspensionEndsAt,
+  suspensionGamesRemaining,
+  suspensionInForce
+} from "@sportspulse/kernel";
 
 export class GameDto {
   @ApiProperty() id!: string;
@@ -136,7 +142,10 @@ export class GameEventPageDto {
 export class SuspensionDto {
   @ApiProperty() id!: string;
   @ApiProperty() personId!: string;
+  @ApiPropertyOptional({ nullable: true }) personName?: string | null;
   @ApiPropertyOptional({ nullable: true }) sourceEventId!: string | null;
+  /** Game of the penalty the suspension came from. */
+  @ApiPropertyOptional({ nullable: true }) sourceGameId?: string | null;
   @ApiProperty({ enum: SUSPENSION_KINDS })
   kind!: (typeof SUSPENSION_KINDS)[number];
   @ApiPropertyOptional({ nullable: true }) nGames!: number | null;
@@ -147,13 +156,27 @@ export class SuspensionDto {
   @ApiPropertyOptional({ nullable: true }) reason!: string | null;
   @ApiProperty() startAt!: string;
   @ApiPropertyOptional({ nullable: true }) endAt!: string | null;
+  /** Server-computed: does it stand right now. */
+  @ApiProperty() inForce!: boolean;
+  /** Game-count suspensions: games still to sit out. */
+  @ApiPropertyOptional({ nullable: true }) gamesRemaining!: number | null;
+  /** Time-based suspensions: when the player may play again. */
+  @ApiPropertyOptional({ nullable: true }) endsAt!: string | null;
+  /** "2 of 3 games left", "Until Nov 3, 2026", "Lifted". */
+  @ApiProperty() label!: string;
 
-  static fromDomain(s: Suspension): SuspensionDto {
+  static fromDomain(
+    s: Suspension,
+    extra: { personName?: string | null; sourceGameId?: string | null } = {},
+    now: Date = new Date()
+  ): SuspensionDto {
     const x = s.toSnapshot();
     return {
       id: x.id,
       personId: x.personId,
+      personName: extra.personName ?? null,
       sourceEventId: x.sourceEventId,
+      sourceGameId: extra.sourceGameId ?? null,
       kind: x.kind,
       nGames: x.nGames,
       nDays: x.nDays,
@@ -161,7 +184,11 @@ export class SuspensionDto {
       status: x.status,
       reason: x.reason,
       startAt: x.startAt.toISOString(),
-      endAt: x.endAt?.toISOString() ?? null
+      endAt: x.endAt?.toISOString() ?? null,
+      inForce: suspensionInForce(x, now),
+      gamesRemaining: suspensionGamesRemaining(x),
+      endsAt: suspensionEndsAt(x)?.toISOString() ?? null,
+      label: describeSuspension(x, now)
     };
   }
 }
@@ -169,4 +196,10 @@ export class SuspensionDto {
 export class SuspensionPageDto {
   @ApiProperty({ type: [SuspensionDto] }) items!: SuspensionDto[];
   @ApiProperty({ nullable: true }) nextCursor!: string | null;
+  /**
+   * With `personId` or `gameId`: which of "suspension.issue" and
+   * "suspension.lift" the caller holds there, so screens show only the
+   * actions the server will accept.
+   */
+  @ApiPropertyOptional({ type: [String] }) viewerPermissions?: string[];
 }

@@ -6,6 +6,8 @@ import {
   Get,
   Inject,
   NotFoundException,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UnprocessableEntityException,
@@ -31,6 +33,8 @@ import {
   requestUserAgent,
   type RegistrationDocumentStatus
 } from "../../registration-v2/application/registration-requirements.service";
+import { ComplianceDocumentSubmissionsService } from "../application/document-submissions/document-submissions.service";
+import { UploadComplianceDocumentBodyDto } from "./dto/compliance-document-upload.dto";
 
 class SignMyDocumentBodyDto {
   @IsUUID()
@@ -101,7 +105,8 @@ interface IdentityVerificationDto {
 export class SelfComplianceController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly requirements: RegistrationRequirementsService
+    private readonly requirements: RegistrationRequirementsService,
+    private readonly uploads: ComplianceDocumentSubmissionsService
   ) {}
 
   /**
@@ -354,6 +359,57 @@ export class SelfComplianceController {
       })
       .returning();
     return toDto(inserted!);
+  }
+
+  // -------- Uploaded ID / eligibility documents (COMP-3) --------
+  // Same people as signing: the caller, plus minors linked to them.
+
+  @Get("documents/uploads")
+  @ApiOperation({
+    summary:
+      "The caller's uploaded ID / eligibility documents (and their linked minors'), with status and the admin's latest decision, plus the seasons and registrations they can upload for (COMP-3)."
+  })
+  async myUploads(@CurrentUser() principal: AuthPrincipal) {
+    const people = await this.signablePeople(principal.userId);
+    const [items, targets] = await Promise.all([
+      this.uploads.listMine(people),
+      this.uploads.uploadTargets(people)
+    ]);
+    return { items, targets };
+  }
+
+  @Post("documents/uploads")
+  @ApiOperation({
+    summary:
+      "Upload an ID or eligibility document (PDF/PNG/JPG/WebP, base64, 3 MB max, type checked by its bytes) for yourself or a linked minor. Stored privately; status pending until an admin decides. The same file for the same season again returns the existing row (alreadySubmitted: true)."
+  })
+  async uploadMine(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: UploadComplianceDocumentBodyDto
+  ) {
+    const people = await this.signablePeople(principal.userId);
+    const result = await this.uploads.upload(principal.userId, people, body);
+    // `id` and `orgId` at the top level for the audit interceptor.
+    return {
+      id: result.submission.id,
+      orgId: result.submission.orgId,
+      alreadySubmitted: result.alreadySubmitted,
+      submission: result.submission
+    };
+  }
+
+  @Get("documents/uploads/:id/file")
+  @ApiOperation({
+    summary:
+      "A 5-minute signed URL for one of your own uploads (or your linked minor's). 404 for anything else. Written to the audit log."
+  })
+  myUploadFile(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param("id", new ParseUUIDPipe()) id: string
+  ) {
+    return this.signablePeople(principal.userId).then((people) =>
+      this.uploads.fileUrlForOwner(principal.userId, people, id)
+    );
   }
 }
 

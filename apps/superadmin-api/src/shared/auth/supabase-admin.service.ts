@@ -68,6 +68,76 @@ export class SupabaseAdminService {
   }
 
   /**
+   * Store a player's ID or eligibility document (COMP-3) in the PRIVATE
+   * `compliance-documents` bucket, created on first use with
+   * `public: false`. Path `{personId}/{uuid}.{ext}`. Nothing is ever
+   * public: reads go through {@link signComplianceDocumentUrl} after the
+   * API's permission check. Refuses to write if the bucket exists but
+   * was made public by hand.
+   */
+  async uploadComplianceDocument(input: {
+    personId: string;
+    contentType: string;
+    extension: string;
+    bytes: Buffer;
+  }): Promise<{ bucket: string; path: string }> {
+    const storage = this.get().storage;
+    const bucket = SupabaseAdminService.COMPLIANCE_BUCKET;
+    const { data: existing } = await storage.getBucket(bucket);
+    if (existing) {
+      if (existing.public) {
+        throw new Error(
+          `Storage bucket ${bucket} is public. It must be private before identity documents are stored in it.`
+        );
+      }
+    } else {
+      const { error } = await storage.createBucket(bucket, {
+        public: false,
+        fileSizeLimit: 3 * 1024 * 1024,
+        allowedMimeTypes: ["application/pdf", "image/png", "image/jpeg", "image/webp"]
+      });
+      if (error && !/already exists/i.test(error.message)) {
+        throw new Error(`Could not create the ${bucket} bucket: ${error.message}`);
+      }
+      this.log.log(`Created private storage bucket ${bucket}`);
+    }
+    const path = `${input.personId}/${randomUUID()}.${input.extension}`;
+    const { error } = await storage.from(bucket).upload(path, input.bytes, {
+      contentType: input.contentType,
+      upsert: false
+    });
+    if (error) throw new Error(`Could not store the document: ${error.message}`);
+    this.log.log(
+      `compliance document stored person=${input.personId} bytes=${input.bytes.length} path=${path}`
+    );
+    return { bucket, path };
+  }
+
+  /** Delete a stored compliance document (used to undo an upload whose row was not written). */
+  async removeComplianceDocument(bucket: string, path: string): Promise<void> {
+    const { error } = await this.get().storage.from(bucket).remove([path]);
+    if (error) throw new Error(`Could not remove ${bucket}/${path}: ${error.message}`);
+    this.log.log(`compliance document removed path=${path}`);
+  }
+
+  /** Short-lived signed read URL for a private compliance document. */
+  async signComplianceDocumentUrl(
+    bucket: string,
+    path: string,
+    expiresInSeconds: number
+  ): Promise<string> {
+    const { data, error } = await this.get()
+      .storage.from(bucket)
+      .createSignedUrl(path, expiresInSeconds);
+    if (error || !data?.signedUrl) {
+      throw new Error(`Could not sign ${bucket}/${path}: ${error?.message ?? "no URL returned"}`);
+    }
+    return data.signedUrl;
+  }
+
+  static readonly COMPLIANCE_BUCKET = "compliance-documents";
+
+  /**
    * Send a Supabase-managed invite email. Returns the new auth user id and
    * a boolean `created` flag (false when the user already existed).
    *

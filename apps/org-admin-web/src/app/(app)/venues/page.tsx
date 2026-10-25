@@ -5,10 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import * as browser from "@/lib/api/browser-api";
 
-interface OrgRow { id: string; name: string }
+interface OrgRow { id: string; name: string; timezone: string }
 
 export default function OrgAdminVenuesPage() {
-  const api = browser.schedulingInventory as unknown as VenuesApi;
+  // Typed, not cast: a renamed SDK call fails the build, not the page.
+  const api: VenuesApi = browser.schedulingInventory;
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -19,7 +20,7 @@ export default function OrgAdminVenuesPage() {
         if (ids.length === 0) return;
         const res = await browser.orgs.list({ limit: 100 });
         const mine = res.items.filter((o) => ids.includes(o.id));
-        setOrgs(mine.map((o) => ({ id: o.id, name: o.displayName })));
+        setOrgs(mine.map((o) => ({ id: o.id, name: o.displayName, timezone: o.defaultTimezone })));
         setActiveOrgId(mine[0]?.id);
       } catch {
         setOrgs([]);

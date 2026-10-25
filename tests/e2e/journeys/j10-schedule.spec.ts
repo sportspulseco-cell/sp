@@ -70,24 +70,62 @@ async function stagingSql<T = Record<string, any>>(q: string, params: unknown[] 
   return (await sqlClient(q, params)) as T[];
 }
 /**
- * Pick a team in the New game dialog. SCH-20: the picker only holds the first
- * 25 teams by UUID (listTeams() default page), so on a busy staging the team
- * a PPHL admin needs is often missing. When that happens the step is recorded
- * as a soft failure and, as LABELLED FIXTURE SETUP, the missing team is added
- * as an <option> so the real dialog submit path (gameOps.createGame) can still
- * run and the rest of the journey can be walked.
+ * Pick a team in the New game dialog the way an admin does (SCH-20): type part
+ * of its name into the team picker and click the match. The picker holds every
+ * team entered in the chosen division (all pages), so a missing option is a
+ * hard failure.
  */
-async function pickTeam(select: import("@playwright/test").Locator, name: string, id: string, tag: string) {
-  const opts = await select.locator("option").allInnerTexts();
-  const present = opts.includes(name);
-  console.log(`[${tag}] team picker has ${opts.length} options; "${name}" present: ${present}`);
-  expect.soft(present, `SCH-20 "${name}" is selectable in the New game team picker`).toBe(true);
-  if (!present) {
-    await select.evaluate((el: HTMLSelectElement, a: { id: string; name: string }) => {
-      const o = document.createElement("option"); o.value = a.id; o.text = `${a.name} (fixture-injected)`; el.appendChild(o);
-    }, { id, name });
-    await select.selectOption(id);
-  } else await select.selectOption({ label: name });
+async function pickTeam(dlg: import("@playwright/test").Locator, label: string, name: string, typed: string) {
+  const input = dlg.getByLabel(label);
+  await input.click();
+  await input.fill(typed);
+  const option = dlg.getByRole("listbox").getByRole("option", { name, exact: true });
+  await expect(option, `SCH-20 "${name}" found by typing "${typed}" in ${label}`).toBeVisible({ timeout: 15_000 });
+  await option.click();
+  await expect(input).toHaveValue(name);
+}
+
+/**
+ * Fill the New game dialog: league, season, division, both teams, rink, rink-
+ * local start (SCH-5). A team clash with an earlier run on shared staging is
+ * scheduled anyway with a reason, the way an admin overrides one (UC-07).
+ */
+async function scheduleGame(
+  page: Page,
+  o: { league: string; season: string; divisionId: string; away: string; home: string; rink: string | null; startLocal: string; tag: string }
+) {
+  const dlg = page.getByRole("dialog");
+  await dlg.getByLabel("League").selectOption({ label: o.league });
+  await expect(dlg.getByLabel("Season").locator("option", { hasText: o.season }).first()).toBeAttached({ timeout: 30_000 });
+  await dlg.getByLabel("Season").selectOption({ label: o.season });
+  await expect(dlg.locator(`#divisionId option[value="${o.divisionId}"]`)).toHaveCount(1, { timeout: 30_000 });
+  await dlg.getByLabel("Division").selectOption(o.divisionId);
+  await expect(dlg.getByText(/teams? entered in/)).toBeVisible({ timeout: 30_000 });
+  // SCH-20: a name nobody has is answered plainly, not with a random list.
+  await dlg.getByLabel("Away team").fill("zzqx-no-such-team");
+  await expect(dlg.getByText(/No team in this division matches/)).toBeVisible();
+  await pickTeam(dlg, "Away team", o.away, o.away.slice(-6));
+  await pickTeam(dlg, "Home team", o.home, o.home.slice(0, 5));
+  const rink = dlg.getByLabel("Rink");
+  await expect(rink.locator("option").nth(1), "SCH-5 rink picker lists the org's rinks").toBeAttached({ timeout: 30_000 });
+  const rinkOpts = await rink.locator("option").allInnerTexts();
+  const label = o.rink ?? rinkOpts.find((x) => x !== "Pick a rink")!;
+  await rink.selectOption({ label });
+  await expect(dlg.getByText(/^Rink time \(/), "SCH-5 start time is in the rink's zone").toBeVisible();
+  await dlg.getByLabel("Date and time").fill(o.startLocal);
+  const created = page.waitForResponse((r) => /\/api\/games$/.test(r.url()) && r.request().method() === "POST", { timeout: 30_000 });
+  await dlg.getByRole("button", { name: "Schedule game" }).click();
+  let r = await created;
+  if (r.status() === 409) {
+    console.log(`[${o.tag}] New game clash: ${(await dlg.innerText()).replace(/\s+/g, " ").slice(0, 300)}`);
+    await dlg.getByLabel("Reason").fill(`${o.tag} rerun on shared staging`);
+    const forced = page.waitForResponse((x) => /\/api\/games$/.test(x.url()) && x.request().method() === "POST", { timeout: 30_000 });
+    await dlg.getByRole("button", { name: "Schedule anyway" }).click();
+    r = await forced;
+  }
+  expect(r.status(), "SCH-5 New game accepted").toBe(201);
+  await expect(dlg).toBeHidden({ timeout: 20_000 });
+  return { rink: label };
 }
 
 async function shot(page: Page, name: string) {
@@ -205,7 +243,8 @@ test.describe("J10 schedule generate and publish", () => {
     await page.getByRole("button", { name: /^Cancel$/ }).first().click();
     await page.getByRole("button", { name: /Add venue/i }).first().click();
     await page.getByLabel("Rink name").fill(venueName);
-    await page.getByLabel(/Timezone/i).fill("America/New_York");
+    // Time zone is a picker of real zones (SCH-3), not free text.
+    await page.getByLabel("Timezone").selectOption("America/New_York");
     const org = page.getByLabel("Organization");
     if (await org.count()) {
       const shownOrg = await org.evaluate((el: HTMLSelectElement) => el.options[el.selectedIndex]?.text ?? "");
@@ -215,7 +254,8 @@ test.describe("J10 schedule generate and publish", () => {
       await org.selectOption({ label: "PPHL Staging" });
     }
     await page.getByRole("button", { name: /^Create$/ }).click();
-    const venueRow = page.getByRole("button", { name: new RegExp(venueName) });
+    // Anchored: the row's Edit / Delete buttons also carry the rink's name.
+    const venueRow = page.getByRole("button", { name: new RegExp(`^${venueName}`) });
     await expect(venueRow, "new venue appears without reload").toBeVisible({ timeout: 15_000 });
     await venueRow.click();
 
@@ -224,7 +264,7 @@ test.describe("J10 schedule generate and publish", () => {
     await page.getByRole("button", { name: /^Create( surface)?$/ }).last().click();
     // SCH-10: the venue header flips to "1 SURFACES" but the open panel
     // still says "No surfaces yet" until the row is collapsed and reopened.
-    const surfaceRow = page.getByRole("button", { name: /Rink A/ });
+    const surfaceRow = page.getByRole("button", { name: /^Rink A/ });
     await page.waitForTimeout(3000);
     const sameScreen = await surfaceRow.isVisible().catch(() => false);
     console.log(`[J10] new surface visible without reopening venue: ${sameScreen}`);
@@ -237,6 +277,7 @@ test.describe("J10 schedule generate and publish", () => {
     const d = new Date(Date.now() + 14 * 86400_000);
     const local = `${d.toISOString().slice(0, 10)}T19:00`;
     await page.getByRole("button", { name: /Single slot/i }).first().click();
+    await page.getByLabel("Season").selectOption({ label: SEASON_NAME });
     await page.getByLabel("Start (local)").fill(local);
     await page.getByRole("button", { name: /Create slot/i }).click();
     await page.waitForTimeout(2500);
@@ -251,12 +292,47 @@ test.describe("J10 schedule generate and publish", () => {
     // Venues form never sends a season, so these slots are invisible to it.
     expect.soft(slots[0]?.season_id, "SCH-2 ice slot is tied to a season").not.toBeNull();
 
-    // SCH-3: edit/rename/delete venue, rename surface, edit slot.
-    const venueBlock = page.locator("li", { has: page.getByText(venueName) }).first();
-    const editCount = await venueBlock.getByRole("button", { name: /edit|rename/i }).count();
-    const deleteVenue = await venueBlock.getByRole("button", { name: /delete venue|archive venue/i }).count();
-    expect.soft(editCount, "SCH-3 venue/surface/slot can be edited from the UI").toBeGreaterThan(0);
-    expect.soft(deleteVenue, "SCH-3 venue can be deleted from the UI").toBeGreaterThan(0);
+    // SCH-3: every row can be changed and removed from the UI, and each change
+    // shows on the same screen and in the stored row.
+    // Rink: add its city (name and zone stay; later steps use them).
+    await page.getByRole("button", { name: `Edit venue ${venueName}` }).click();
+    await page.getByLabel("City").fill("Pittsburgh");
+    await page.getByRole("button", { name: "Save rink" }).click();
+    await expect(page.getByText(`Saved ${venueName}.`)).toBeVisible({ timeout: 15_000 });
+    const [addr] = await stagingSql<{ city: string | null }>(
+      `select address->>'city' as city from venues where name = $1 and deleted_at is null`, [venueName]
+    );
+    expect(addr?.city, "SCH-3 rink address saved").toBe("Pittsburgh");
+    // Surface: rename Rink A -> Rink 1 (step 5 books "Rink 1").
+    await page.getByRole("button", { name: "Rename surface Rink A" }).click();
+    await page.getByLabel("Surface label").fill("Rink 1");
+    await page.getByRole("button", { name: "Save surface" }).click();
+    await expect(page.getByRole("button", { name: "Rename surface Rink 1" }), "SCH-3 surface renamed in place").toBeVisible({ timeout: 15_000 });
+    // Slot: lengthen the single slot to 75 minutes.
+    await page.getByRole("button", { name: /^Edit slot / }).first().click();
+    await page.getByLabel("Duration (min)").fill("75");
+    await page.getByRole("button", { name: "Save slot" }).click();
+    await expect(page.getByText("· 75min").first(), "SCH-3 slot edited in place").toBeVisible({ timeout: 15_000 });
+    const [len] = await stagingSql<{ duration_min: number }>(
+      `select s.duration_min from ice_slots s join surfaces f on f.id = s.surface_id join venues v on v.id = f.venue_id where v.name = $1`, [venueName]
+    );
+    expect(len?.duration_min, "SCH-3 slot length stored").toBe(75);
+    // Removal: a mistyped rink with nothing booked is deleted outright after
+    // the confirm step says what will happen.
+    const typo = `${RUN_TAG} Typo Rink`;
+    await page.getByRole("button", { name: /Add venue/i }).first().click();
+    await page.getByLabel("Rink name").fill(typo);
+    if (await page.getByLabel("Organization").count()) await page.getByLabel("Organization").selectOption({ label: "PPHL Staging" });
+    await page.getByLabel("Timezone").selectOption("America/New_York");
+    await page.getByRole("button", { name: /^Create$/ }).click();
+    await page.getByRole("button", { name: `Delete venue ${typo}` }).click();
+    await expect(page.getByText(/will be deleted/)).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Delete rink" }).click();
+    await expect(page.getByText(`${typo} deleted.`)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: `Delete venue ${typo}` }), "SCH-3 deleted rink leaves the list").toHaveCount(0);
+    const [gone] = await stagingSql<{ n: number }>(`select count(*)::int n from venues where name = $1`, [typo]);
+    expect(gone?.n, "SCH-3 unused rink row deleted").toBe(0);
+    await shot(page, "01-venue-edited");
   });
 
   await test.step("2 · team creation for a second division team (UC-06 precondition)", async () => {
@@ -340,27 +416,32 @@ test.describe("J10 schedule generate and publish", () => {
     await expect(newGame, "New game enabled once 2 teams exist").toBeEnabled({ timeout: 15_000 });
     await newGame.click();
     const dlg = page.getByRole("dialog");
-    // Venue should be a picker of /venues rows, season/division pickers should exist.
-    const venueIsText = await dlg.locator("input#venueName").count();
-    expect.soft(venueIsText, "SCH-5 venue is a picker of real venues (not free text)").toBe(0);
-    expect.soft(await dlg.getByLabel(/Season|Division/i).count(), "SCH-5 manual game has season/division pickers").toBeGreaterThan(0);
-    const leagueOpts = await dlg.getByLabel("League").locator("option").allInnerTexts();
-    console.log(`[J10] New game league options (${leagueOpts.length}), default="${leagueOpts[0]}"`);
-    await dlg.getByLabel("League").selectOption({ label: leagueOpts.find((o) => o.startsWith("PPHL Staging League")) ?? leagueOpts[0]! });
-    const [base] = await stagingSql<{ id: string }>(`select id from teams where name = $1 and deleted_at is null`, [BASE_TEAM]);
-    await pickTeam(dlg.getByLabel("Away team"), teamName, newTeamId, "J10");
-    await pickTeam(dlg.getByLabel("Home team"), BASE_TEAM, base!.id, "J10");
+    // SCH-5: no free-text venue or zone; league -> season -> division pickers.
+    await expect(dlg.locator("input#venueName"), "SCH-5 venue is not free text").toHaveCount(0);
+    await expect(dlg.locator("input#tz"), "SCH-5 time zone is not free text").toHaveCount(0);
     const d = new Date(Date.now() + 10 * 86400_000);
-    await dlg.getByLabel(/Kickoff/i).fill(`${d.toISOString().slice(0, 10)}T20:00`);
-    await dlg.locator("input#venueName").fill(venueName).catch(() => {});
-    await dlg.getByRole("button", { name: /Schedule game/i }).click();
-    await expect(dlg).toBeHidden({ timeout: 20_000 });
+    await scheduleGame(page, {
+      league: "PPHL Staging League",
+      season: SEASON_NAME,
+      divisionId,
+      away: teamName,
+      home: BASE_TEAM,
+      rink: `${venueName} · Rink 1`,
+      startLocal: `${d.toISOString().slice(0, 10)}T20:00`,
+      tag: "J10"
+    });
     const g = await stagingSql<{ id: string; season_id: string | null; division_id: string | null; published_at: string | null; slot_id: string | null }>(
       `select id, season_id, division_id, published_at, slot_id from games where (home_team_id = $1 or away_team_id = $1) order by created_at desc limit 1`, [newTeamId]
     );
     gameId = g[0]?.id ?? "";
     expect(gameId, "manual game persisted").not.toBe("");
-    expect.soft(g[0]?.season_id, "SCH-5 manual game carries season").not.toBeNull();
+    expect(g[0]?.season_id, "SCH-5 manual game carries the season").toBe(seasonId);
+    expect(g[0]?.division_id, "SCH-5 manual game carries the division").toBe(divisionId);
+    const [placed] = await stagingSql<{ tz: string; venue_name: string | null; surface_label: string | null; surface_id: string | null }>(
+      `select tz, venue_name, surface_label, surface_id from games where id = $1`, [gameId]
+    );
+    expect(placed?.surface_id, "SCH-5 manual game is on a real rink").toBeTruthy();
+    expect([placed?.venue_name, placed?.surface_label, placed?.tz], "SCH-5 rink names and zone come from the rink").toEqual([venueName, "Rink 1", "America/New_York"]);
     // Same-screen refresh: game row visible without reload.
     await expect.soft(page.getByRole("link", { name: /Wolves|Skaters/ }).first()).toBeVisible();
     await shot(page, "05-manual-game");

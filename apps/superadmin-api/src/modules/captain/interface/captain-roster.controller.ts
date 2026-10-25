@@ -29,11 +29,13 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
+  FREE_AGENT_OFFER_SOURCE,
   INVITE_DEFAULT_TTL_DAYS,
   INVITE_EXTENSION_DAYS,
   INVITE_RESEND_COOLDOWN_HOURS,
   MAX_INVITE_EXTENSIONS,
   ROSTER_DROP_REASON_MIN_CHARS,
+  freeAgentOfferStatus,
   pickCurrentSeason,
   resolveDivisionRules,
   sortSeasonsByCurrency
@@ -46,6 +48,10 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
+import { FreeAgentOffersService } from "../../registration-v2/application/free-agent-offers.service";
+
+/** Invite statuses that can still be accepted or declined (`extended` = reminded with a new expiry). */
+const OPEN_INVITE_STATUSES = ["pending", "extended"];
 
 /**
  * Workflow 7B · Sprint 5 — captain roster management (cases 1–5).
@@ -104,7 +110,8 @@ export class CaptainRosterController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notify: NotificationService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly faOffers: FreeAgentOffersService
   ) {}
 
   // -------------------------------------------------------------------
@@ -283,37 +290,7 @@ export class CaptainRosterController {
       .limit(1);
     if (!person) throw new NotFoundException("Person not found");
 
-    // The per-season duplicate guard inside addToRoster cannot see a
-    // membership in another season of the same team. The roster page
-    // and the invite flow used to default to different seasons, so one
-    // player ended up active twice on one team (CAP-24). Refuse here
-    // with the same conflict shape and name the season they are on.
-    const today = new Date().toISOString().slice(0, 10);
-    const [elsewhere] = await this.db
-      .select({ seasonName: schema.seasons.name })
-      .from(schema.teamMemberships)
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.teamMemberships.seasonId)
-      )
-      .where(
-        and(
-          eq(schema.teamMemberships.teamId, teamId),
-          eq(schema.teamMemberships.personId, body.personId),
-          eq(schema.teamMemberships.currentStatus, "active"),
-          ne(schema.teamMemberships.seasonId, season.id),
-          sql`${schema.seasons.status} NOT IN ('completed','archived')`,
-          sql`${schema.seasons.endDate} >= ${today}`
-        )
-      )
-      .limit(1);
-    if (elsewhere) {
-      throw new ConflictException({
-        error: "Already on roster",
-        message: `This player is already on this team's active roster for ${elsewhere.seasonName}. Switch the season to ${elsewhere.seasonName} to manage them, or drop them there first.`,
-        seasonName: elsewhere.seasonName
-      });
-    }
+    await this.assertNotActiveInOtherSeason(teamId, body.personId, season.id);
 
     return this.addToRoster({
       teamId,
@@ -336,7 +313,7 @@ export class CaptainRosterController {
   @Post("invites/:token/accept")
   @ApiOperation({
     summary:
-      "Signed-in player accepts a team invite. Personal invites must match the player's email. 409 when expired, revoked, already used, roster full or locked."
+      "Signed-in player accepts a team invite or a free-agent offer. Personal invites must match the player's email. Same roster add as the captain's Add player (lock, cap, duplicate, other-season rule); a free-agent offer also marks the pool entry placed and withdraws other teams' offers, in the same transaction. 409 when expired, revoked, already used, roster full or locked."
   })
   async acceptInvite(
     @CurrentUser() user: AuthPrincipal,
@@ -348,7 +325,9 @@ export class CaptainRosterController {
       .where(eq(schema.teamInvites.token, token))
       .limit(1);
     if (!invite) throw new NotFoundException("Invite not found");
-    if (invite.status !== "pending") {
+    // `extended` is a reminded invite with a new expiry; it was refused
+    // here before, so every reminded invite became unusable.
+    if (!OPEN_INVITE_STATUSES.includes(invite.status)) {
       throw new ConflictException(`This invite is ${invite.status}. Ask your captain for a new one.`);
     }
     if (invite.expiresAt && invite.expiresAt < new Date()) {
@@ -379,10 +358,14 @@ export class CaptainRosterController {
     const season = await this.loadSeason(invite.seasonId);
     if (!season) throw new NotFoundException("Season not found");
     this.assertRosterUnlocked(season);
+    // Same one-active-membership rule as the captain's Add player (CAP-24).
+    await this.assertNotActiveInOtherSeason(invite.teamId, me.personId, season.id);
     const division = await this.loadCurrentDivision(invite.teamId, season.id);
     const rules = resolveDivisionRules(
       (division?.ruleSetOverrides as Record<string, unknown>) ?? null
     );
+    const meta = (invite.metadata as Record<string, unknown>) ?? {};
+    const isFreeAgentOffer = meta.source === FREE_AGENT_OFFER_SOURCE;
 
     const result = await this.addToRoster({
       teamId: invite.teamId,
@@ -393,7 +376,7 @@ export class CaptainRosterController {
       jerseyNumber: null,
       positionCode: null,
       inTx: async (tx) => {
-        await tx
+        const accepted = await tx
           .update(schema.teamInvites)
           .set({
             status: "accepted",
@@ -401,10 +384,152 @@ export class CaptainRosterController {
             acceptedAt: new Date(),
             updatedAt: new Date()
           })
-          .where(eq(schema.teamInvites.id, invite.id));
+          .where(
+            and(
+              eq(schema.teamInvites.id, invite.id),
+              inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
+            )
+          )
+          .returning({ id: schema.teamInvites.id });
+        if (accepted.length !== 1) {
+          throw new ConflictException("This invite was just used or withdrawn. Ask your captain for a new one.");
+        }
+        // Free-agent offer: the pool entry is placed in this same
+        // transaction (CAP-9), so roster and pool never disagree.
+        await this.faOffers.placeOnAccept(tx, invite, me.personId!);
       }
     });
+    if (isFreeAgentOffer) void this.faOffers.notifyOutcome(invite.id, "accepted");
     return { teamId: invite.teamId, seasonId: season.id, membershipId: result.membership.id };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /captain/roster/invites/:token/decline  (UC-03, UC-04)
+  // The invited player says no. A free-agent offer leaves the player in
+  // the pool; the person who made it is told.
+  // -------------------------------------------------------------------
+  @Post("invites/:token/decline")
+  @ApiOperation({
+    summary:
+      "Signed-in player declines a team invite or free-agent offer addressed to their email. Nothing changes on the roster; a free agent stays in the pool and the offering captain or admin is notified. 409 when the invite is no longer open."
+  })
+  async declineInvite(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("token") token: string
+  ) {
+    const [invite] = await this.db
+      .select()
+      .from(schema.teamInvites)
+      .where(eq(schema.teamInvites.token, token))
+      .limit(1);
+    if (!invite) throw new NotFoundException("Invite not found");
+    const [me] = await this.db
+      .select({ email: schema.profiles.email })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
+    if (
+      invite.kind !== "personal" ||
+      !invite.inviteeEmail ||
+      invite.inviteeEmail.toLowerCase() !== (me?.email ?? "").toLowerCase()
+    ) {
+      throw new ForbiddenException(
+        invite.inviteeEmail
+          ? `This invite was sent to ${invite.inviteeEmail}. Sign in with that email to answer it.`
+          : "Only a personal invite can be declined."
+      );
+    }
+    if (!OPEN_INVITE_STATUSES.includes(invite.status)) {
+      throw new ConflictException(`This invite is already ${invite.status}.`);
+    }
+    const now = new Date();
+    const updated = await this.db
+      .update(schema.teamInvites)
+      .set({
+        status: "declined",
+        updatedAt: now,
+        metadata: sql`${schema.teamInvites.metadata} || ${JSON.stringify({
+          declinedAt: now.toISOString(),
+          declinedByUserId: user.userId
+        })}::jsonb`
+      })
+      .where(
+        and(
+          eq(schema.teamInvites.id, invite.id),
+          inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
+        )
+      )
+      .returning({ id: schema.teamInvites.id, status: schema.teamInvites.status });
+    if (updated.length !== 1) {
+      throw new ConflictException("This invite was just answered or withdrawn.");
+    }
+    const meta = (invite.metadata as Record<string, unknown>) ?? {};
+    if (meta.source === FREE_AGENT_OFFER_SOURCE) {
+      void this.faOffers.notifyOutcome(invite.id, "declined");
+    }
+    return { id: invite.id, status: updated[0]!.status, teamId: invite.teamId, seasonId: invite.seasonId };
+  }
+
+  // -------------------------------------------------------------------
+  // GET /captain/roster/invites/mine  (player-web home + /team)
+  // Open team invites and free-agent offers addressed to the caller.
+  // -------------------------------------------------------------------
+  @Get("invites/mine")
+  @ApiOperation({
+    summary:
+      "The caller's open personal invites and free-agent offers (not expired), newest first, with the token to accept or decline."
+  })
+  async myInvites(@CurrentUser() user: AuthPrincipal) {
+    const [me] = await this.db
+      .select({ email: schema.profiles.email })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
+    const email = (me?.email ?? "").trim().toLowerCase();
+    if (!email) return { items: [] };
+    const rows = await this.db
+      .select({
+        id: schema.teamInvites.id,
+        token: schema.teamInvites.token,
+        status: schema.teamInvites.status,
+        expiresAt: schema.teamInvites.expiresAt,
+        createdAt: schema.teamInvites.createdAt,
+        metadata: schema.teamInvites.metadata,
+        teamId: schema.teamInvites.teamId,
+        teamName: schema.teams.name,
+        seasonId: schema.teamInvites.seasonId,
+        seasonName: schema.seasons.name
+      })
+      .from(schema.teamInvites)
+      .innerJoin(schema.teams, eq(schema.teams.id, schema.teamInvites.teamId))
+      .leftJoin(schema.seasons, eq(schema.seasons.id, schema.teamInvites.seasonId))
+      .where(
+        and(
+          eq(schema.teamInvites.kind, "personal"),
+          sql`lower(${schema.teamInvites.inviteeEmail}) = ${email}`,
+          inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
+        )
+      )
+      .orderBy(desc(schema.teamInvites.createdAt));
+    const now = new Date();
+    return {
+      items: rows
+        .filter((r) => freeAgentOfferStatus(r.status, r.expiresAt, now) === "pending")
+        .map((r) => ({
+          id: r.id,
+          token: r.token,
+          kind:
+            (r.metadata as Record<string, unknown> | null)?.source === FREE_AGENT_OFFER_SOURCE
+              ? ("free_agent_offer" as const)
+              : ("team_invite" as const),
+          teamId: r.teamId,
+          teamName: r.teamName,
+          seasonId: r.seasonId,
+          seasonName: r.seasonName ?? null,
+          expiresAt: r.expiresAt?.toISOString() ?? null,
+          createdAt: r.createdAt.toISOString()
+        }))
+    };
   }
 
   private async addToRoster(input: {
@@ -1109,6 +1234,47 @@ export class CaptainRosterController {
       )
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * One active membership per player per team across the team's live
+   * seasons (CAP-24). The per-season duplicate guard inside addToRoster
+   * cannot see a membership in another season of the same team; the
+   * roster page and the invite flow used to default to different seasons,
+   * so one player ended up active twice on one team. Used by the
+   * captain's Add player and by invite / free-agent offer accept.
+   */
+  private async assertNotActiveInOtherSeason(
+    teamId: string,
+    personId: string,
+    seasonId: string
+  ): Promise<void> {
+    const today = new Date().toISOString().slice(0, 10);
+    const [elsewhere] = await this.db
+      .select({ seasonName: schema.seasons.name })
+      .from(schema.teamMemberships)
+      .innerJoin(
+        schema.seasons,
+        eq(schema.seasons.id, schema.teamMemberships.seasonId)
+      )
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, teamId),
+          eq(schema.teamMemberships.personId, personId),
+          eq(schema.teamMemberships.currentStatus, "active"),
+          ne(schema.teamMemberships.seasonId, seasonId),
+          sql`${schema.seasons.status} NOT IN ('completed','archived')`,
+          sql`${schema.seasons.endDate} >= ${today}`
+        )
+      )
+      .limit(1);
+    if (elsewhere) {
+      throw new ConflictException({
+        error: "Already on roster",
+        message: `This player is already on this team's active roster for ${elsewhere.seasonName}. Switch the season to ${elsewhere.seasonName} to manage them, or drop them there first.`,
+        seasonName: elsewhere.seasonName
+      });
+    }
   }
 
   private assertRosterUnlocked(season: { rosterLockAt: Date | null }) {

@@ -3,6 +3,11 @@ import type {
   AuditFacets,
   CaptainDuesBreakdown,
   ConsentSignature,
+  AdminComplianceDocument,
+  ComplianceDocumentQueuePage,
+  ComplianceDocumentSubmission,
+  ComplianceFileLink,
+  ComplianceUploadTarget,
   CrossOrgGrant,
   MyRegistrationDocuments,
   RegistrationDocumentStatus,
@@ -45,6 +50,9 @@ import type {
   FormPurpose,
   FormVersion,
   FreeAgentPoolEntry,
+  FreeAgentOffer,
+  FreeAgentOfferTeam,
+  MyTeamInvite,
   Invoice,
   InvoiceStatus,
   Payment,
@@ -53,6 +61,9 @@ import type {
   GameEnding,
   GameFinalizeSummary,
   GameReschedulePlan,
+  RinkAddress,
+  RinkRemoval,
+  RinkUsage,
   GameEvent,
   GameOfficial,
   GameOfficialRole,
@@ -75,6 +86,8 @@ import type {
   StatLine,
   Standing,
   Suspension,
+  SuspensionPage,
+  SuspendedPlayer,
   Team,
   TeamMembership,
   TeamStoreProduct
@@ -401,6 +414,12 @@ export function createApi(f: Fetcher) {
         f<{ items: Array<EligibilityRecord & { displayName: string | null }> }>(
           `/compliance/team/${teamId}/eligibility`
         ),
+      /**
+       * Captain view (COMP-12 / COMP-13): roster players suspended now, or
+       * with gameId, the players barred from that game.
+       */
+      teamSuspensions: (teamId: string, q: { gameId?: string } = {}) =>
+        f<{ items: SuspendedPlayer[] }>(`/compliance/team/${teamId}/suspensions${qs(q)}`),
       createEligibility: (body: {
         personId: string;
         seasonId?: string | null;
@@ -428,10 +447,18 @@ export function createApi(f: Fetcher) {
 
       // Workflow 7C — admin sweeps + summary + duplicate-ID panel.
       runSeasonSweep: (seasonId: string) =>
-        f<{ seasonId: string; evaluated: number; flagged: number }>(
-          `/compliance/eligibility/season/${seasonId}/sweep`,
-          { method: "POST" }
-        ),
+        f<{
+          seasonId: string;
+          evaluated: number;
+          /** Records whose new status is not eligible (waived records excluded). */
+          flagged: number;
+          /** Admin waivers left as they were (COMP-17). */
+          waivedKept?: number;
+          /** Waived records whose fresh evaluation is not eligible. */
+          waivedWithFindings?: number;
+          /** Status after the sweep -> count. */
+          counts?: Record<string, number>;
+        }>(`/compliance/eligibility/season/${seasonId}/sweep`, { method: "POST" }),
       runLockSweep: (seasonId: string) =>
         f<{ seasonId: string; expiring: number; expired: number }>(
           `/compliance/eligibility/season/${seasonId}/lock-sweep`,
@@ -547,7 +574,62 @@ export function createApi(f: Fetcher) {
         }>("/compliance/self/documents/sign", {
           method: "POST",
           body: JSON.stringify(body)
-        })
+        }),
+
+      // Uploaded ID / eligibility documents (COMP-3): the caller's own
+      // (and linked minors'), the seasons they may upload for, the
+      // upload itself (base64, 3 MB max) and a signed link to the file.
+      myDocumentUploads: () =>
+        f<{ items: ComplianceDocumentSubmission[]; targets: ComplianceUploadTarget[] }>(
+          "/compliance/self/documents/uploads"
+        ),
+      uploadMyDocument: (body: {
+        personId: string;
+        orgId: string;
+        seasonId: string | null;
+        registrationId: string | null;
+        kind: ComplianceDocumentSubmission["kind"];
+        dataBase64: string;
+      }) =>
+        f<{
+          id: string;
+          orgId: string;
+          alreadySubmitted: boolean;
+          submission: ComplianceDocumentSubmission;
+        }>("/compliance/self/documents/uploads", {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      myDocumentUploadFile: (id: string) =>
+        f<ComplianceFileLink>(`/compliance/self/documents/uploads/${id}/file`),
+
+      // Admin review queue (COMP-1 / UC-29), scoped server-side.
+      listDocumentSubmissions: (
+        q: {
+          status?: ComplianceDocumentSubmission["status"];
+          limit?: number;
+          cursor?: string;
+        } = {}
+      ) => f<ComplianceDocumentQueuePage>(`/compliance/document-submissions${qs(q)}`),
+      getDocumentSubmission: (id: string) =>
+        f<AdminComplianceDocument>(`/compliance/document-submissions/${id}`),
+      decideDocumentSubmission: (
+        id: string,
+        body: { decision: "approved" | "rejected" | "resubmit_requested"; reason?: string | null }
+      ) =>
+        f<{
+          id: string;
+          orgId: string;
+          status: ComplianceDocumentSubmission["status"];
+          alreadyDecided: boolean;
+          notified: number;
+          submission: AdminComplianceDocument;
+        }>(`/compliance/document-submissions/${id}/decision`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      documentSubmissionFile: (id: string) =>
+        f<ComplianceFileLink>(`/compliance/document-submissions/${id}/file`)
     },
 
     audit: {
@@ -1415,6 +1497,8 @@ export function createApi(f: Fetcher) {
           codeOfConductContent: string;
           maxRosterSize: number;
           rosterLockAt: string;
+          /** REG-14: which funnel paths the season offers. */
+          registrationType: "team" | "individual" | "both";
         }>
       ) =>
         f<{ id: string; config: Record<string, unknown> }>(
@@ -1857,20 +1941,29 @@ export function createApi(f: Fetcher) {
         } = {}
       ) => f<Page<Game>>(`/games${qs(q)}`),
       getGame: (id: string) => f<Game>(`/games/${id}`),
+      /**
+       * Hand-made game in a division at a rink (SCH-5). Both teams must
+       * be entered in the division (422 otherwise). The server reads the
+       * season, sport, time zone and rink names from the division and the
+       * rink. A rink or team clash is refused (409) unless `force` with a
+       * `reason`.
+       */
       createGame: (body: {
         leagueId: string;
-        seasonId?: string | null;
-        divisionId?: string | null;
+        /** Optional cross-check; must be the division's season. */
+        seasonId?: string;
+        divisionId: string;
         homeTeamId: string;
         awayTeamId: string;
-        sportCode: string;
-        scheduledStartTsUtc: string;
-        tz?: string;
+        /** Rink (surface id) from schedulingInventory. */
+        surfaceId: string;
+        /** Rink-local start "YYYY-MM-DDTHH:MM". */
+        startLocal: string;
         durationMin?: number;
-        venueName?: string | null;
-        surfaceLabel?: string | null;
         /** Show on team schedules now. Omit or false = draft (SCH-7). */
         publish?: boolean;
+        force?: boolean;
+        reason?: string;
       }) => f<Game>("/games", { method: "POST", body: JSON.stringify(body) }),
       /** Show a hand-made draft on team schedules and notify both teams. */
       publishGame: (id: string) =>
@@ -2003,22 +2096,32 @@ export function createApi(f: Fetcher) {
           body: JSON.stringify(body)
         }),
 
+      /** Admin console (scoped). With personId or gameId the page carries viewerPermissions. */
       listSuspensions: (
-        q: { limit?: number; cursor?: string; personId?: string; status?: string } = {}
-      ) => f<Page<Suspension>>(`/suspensions${qs(q)}`),
+        q: {
+          limit?: number;
+          cursor?: string;
+          personId?: string;
+          status?: string;
+          /** Suspensions from penalties in this game. */
+          gameId?: string;
+        } = {}
+      ) => f<SuspensionPage>(`/suspensions${qs(q)}`),
       issueSuspension: (body: {
         personId: string;
         kind: Suspension["kind"];
         sourceEventId?: string | null;
         nGames?: number | null;
         nDays?: number | null;
-        reason?: string | null;
+        /** time_bounded: ISO instant the player may play again. */
+        endAt?: string | null;
+        reason: string;
       }) =>
         f<Suspension>("/suspensions", {
           method: "POST",
           body: JSON.stringify(body)
         }),
-      liftSuspension: (id: string, reason?: string) =>
+      liftSuspension: (id: string, reason: string) =>
         f<Suspension>(`/suspensions/${id}/lift`, {
           method: "POST",
           body: JSON.stringify({ reason })
@@ -2194,6 +2297,34 @@ export function createApi(f: Fetcher) {
     // because the v2 actions (request_resubmission, override_flag,
     // bulk variants) don't fit the v1 contract.
     registrationV2Admin: {
+      /**
+       * Free-agent pool of the seasons the admin covers (CAP-10), with
+       * position / level / day filters and each entry's open offers.
+       */
+      listFreeAgentPool: (
+        q: {
+          seasonId?: string;
+          position?: string;
+          level?: string;
+          day?: string;
+          status?: "active" | "placed" | "withdrawn" | "all";
+        } = {}
+      ) =>
+        f<{
+          items: FreeAgentPoolEntry[];
+          seasons: Array<{ id: string; name: string }>;
+        }>(`/registration-v2/admin/free-agent-pool${qs(q)}`),
+      /** Teams that play the free agent's season (Assign to team picker). */
+      listFreeAgentOfferTeams: (entryId: string) =>
+        f<FreeAgentOfferTeam[]>(
+          `/registration-v2/admin/free-agent-pool/${entryId}/teams`
+        ),
+      /** Assign to team: the same offer a captain makes; the player answers. */
+      offerFreeAgent: (entryId: string, body: { teamId: string }) =>
+        f<{ offer: FreeAgentOffer; created: boolean }>(
+          `/registration-v2/admin/free-agent-pool/${entryId}/offers`,
+          { method: "POST", body: JSON.stringify(body) }
+        ),
       listSubmissions: (
         q: {
           status?: string;
@@ -2363,11 +2494,19 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body)
         }),
-      placeFreeAgent: (id: string, body: { teamId: string }) =>
-        f<FreeAgentPoolEntry>(
-          `/registration-v2/free-agent-pool/${id}/place`,
-          { method: "PATCH", body: JSON.stringify(body) }
+      /**
+       * Captain offers a free agent a spot (UC-03, CAP-9). Nothing is added
+       * to the roster: the player accepts or declines on player-web.
+       * `created` is false when this team's open offer already existed.
+       */
+      offerFreeAgent: (entryId: string, body: { teamId: string }) =>
+        f<{ offer: FreeAgentOffer; created: boolean }>(
+          `/registration-v2/free-agent-pool/${entryId}/offers`,
+          { method: "POST", body: JSON.stringify(body) }
         ),
+      /** A team's free-agent offers and their state, newest first. */
+      listFreeAgentOffers: (q: { teamId: string }) =>
+        f<FreeAgentOffer[]>(`/registration-v2/free-agent-pool/offers${qs(q)}`),
 
       rolloverSeason: (targetSeasonId: string, sourceSeasonId: string) =>
         f<{
@@ -2386,6 +2525,16 @@ export function createApi(f: Fetcher) {
     // visitor has an account. The Account step in the funnel binds the
     // resulting draft submission to a real auth user.
     publicRegistration: {
+      /**
+       * This environment's player app origin, from the API's
+       * PLAYER_WEB_URL (REG-12/13). Admin consoles build registration
+       * links from it instead of a build-time env var with a production
+       * fallback. `configured` is false when the API itself fell back.
+       */
+      appLinks: () =>
+        f<{ playerWebUrl: string; configured: boolean }>(
+          "/public/registration/app-links"
+        ),
       /**
        * List every season currently open for public registration that
        * also has a published form attached. Drives the player-web
@@ -2560,6 +2709,15 @@ export function createApi(f: Fetcher) {
           `/captain/roster/invites/${encodeURIComponent(token)}/accept`,
           { method: "POST" }
         ),
+      /** Invited player or free agent declines (UC-03 / UC-04). */
+      declineInvite: (token: string) =>
+        f<{ id: string; status: string; teamId: string; seasonId: string }>(
+          `/captain/roster/invites/${encodeURIComponent(token)}/decline`,
+          { method: "POST" }
+        ),
+      /** Open team invites and free-agent offers addressed to the caller. */
+      myInvites: () =>
+        f<{ items: MyTeamInvite[] }>("/captain/roster/invites/mine"),
       /**
        * Returns the team's current registration mode. `registration_open`
        * = the green pulsing banner + sidebar item should render.
@@ -3183,20 +3341,35 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body)
         }),
+      /**
+       * Rename, change time zone (IANA, validated) or postal address.
+       * Slots and games already saved keep their own time and zone.
+       */
       updateVenue: (
         id: string,
         body: {
           name?: string;
-          address?: Record<string, unknown>;
+          address?: RinkAddress;
           timezone?: string;
         }
       ) =>
-        f<{ id: string }>(`/scheduling/venues/${id}`, {
-          method: "PATCH",
-          body: JSON.stringify(body)
+        f<{ id: string; name: string; timezone: string; address: Record<string, unknown> }>(
+          `/scheduling/venues/${id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(body)
+          }
+        ),
+      /** What still uses the venue and what removing it would do. Writes nothing. */
+      venueUsage: (id: string) => f<RinkUsage>(`/scheduling/venues/${id}/usage`),
+      /**
+       * Remove a venue (SCH-3). 409 while a game there is not finished,
+       * or while open slots exist and `removeOpenSlots` is not true.
+       */
+      deleteVenue: (id: string, opts: { removeOpenSlots?: boolean } = {}) =>
+        f<RinkRemoval>(`/scheduling/venues/${id}${qs(opts.removeOpenSlots ? { removeOpenSlots: true } : {})}`, {
+          method: "DELETE"
         }),
-      deleteVenue: (id: string) =>
-        f<{ ok: true }>(`/scheduling/venues/${id}`, { method: "DELETE" }),
 
       createSurface: (venueId: string, body: { label: string }) =>
         f<{ id: string }>(`/scheduling/venues/${venueId}/surfaces`, {
@@ -3204,12 +3377,17 @@ export function createApi(f: Fetcher) {
           body: JSON.stringify(body)
         }),
       updateSurface: (id: string, body: { label?: string }) =>
-        f<{ id: string }>(`/scheduling/surfaces/${id}`, {
+        f<{ id: string; label: string }>(`/scheduling/surfaces/${id}`, {
           method: "PATCH",
           body: JSON.stringify(body)
         }),
-      deleteSurface: (id: string) =>
-        f<{ ok: true }>(`/scheduling/surfaces/${id}`, { method: "DELETE" }),
+      /** What still uses the surface and what removing it would do. Writes nothing. */
+      surfaceUsage: (id: string) => f<RinkUsage>(`/scheduling/surfaces/${id}/usage`),
+      /** Remove a surface; same rules as deleteVenue. */
+      deleteSurface: (id: string, opts: { removeOpenSlots?: boolean } = {}) =>
+        f<RinkRemoval>(`/scheduling/surfaces/${id}${qs(opts.removeOpenSlots ? { removeOpenSlots: true } : {})}`, {
+          method: "DELETE"
+        }),
 
       listIceSlots: (
         surfaceId: string,
@@ -3233,8 +3411,12 @@ export function createApi(f: Fetcher) {
         surfaceId: string,
         body: {
           seasonId?: string | null;
-          startTsUtc: string;
+          /** Rink-local "YYYY-MM-DDTHH:MM", converted in the venue's zone (preferred). */
+          startLocal?: string;
+          /** Absolute start; used only when startLocal is absent. */
+          startTsUtc?: string;
           durationMin: number;
+          /** Ignored by the server: slots take their venue's zone. */
           tz?: string;
           band?: "early" | "mid" | "late";
           hourlyCostCents?: number;
@@ -3254,7 +3436,8 @@ export function createApi(f: Fetcher) {
           weekdays: number[];
           startLocalTime: string;
           durationMin: number;
-          tz: string;
+          /** Ignored by the server: slots take their venue's zone. */
+          tz?: string;
           band?: "early" | "mid" | "late";
           hourlyCostCents?: number;
           isPlayoffReservation?: boolean;
@@ -3264,21 +3447,31 @@ export function createApi(f: Fetcher) {
           `/scheduling/surfaces/${surfaceId}/ice-slots/bulk`,
           { method: "POST", body: JSON.stringify(body) }
         ),
+      /**
+       * Edit one slot (SCH-3). 409 while a game is booked in it (move the
+       * game instead) or when another slot starts at the same time.
+       */
       updateIceSlot: (
         id: string,
         body: {
+          /** Rink-local "YYYY-MM-DDTHH:MM" in the slot's zone (preferred). */
+          startLocal?: string;
           startTsUtc?: string;
           durationMin?: number;
-          band?: "early" | "mid" | "late";
+          /** null clears the band. */
+          band?: "early" | "mid" | "late" | null;
+          /** null unties the slot from any season. */
+          seasonId?: string | null;
           hourlyCostCents?: number;
           isPlayoffReservation?: boolean;
           status?: "available" | "assigned" | "blocked" | "returned";
         }
       ) =>
-        f<{ id: string }>(`/scheduling/ice-slots/${id}`, {
+        f<{ id: string; startTsUtc: string }>(`/scheduling/ice-slots/${id}`, {
           method: "PATCH",
           body: JSON.stringify(body)
         }),
+      /** 409 while a game is booked in the slot. */
       deleteIceSlot: (id: string) =>
         f<{ ok: true }>(`/scheduling/ice-slots/${id}`, { method: "DELETE" })
     },

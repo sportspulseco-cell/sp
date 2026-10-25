@@ -35,9 +35,31 @@ export interface UserScope {
   orgWideOrgIds: string[] | null;
 }
 
+/** Role codes that administer records (mirrors PEOPLE_ADMIN_ROLES in org-admin.ts, minus super_admin, which is a profile flag here). */
+export const ADMIN_SCOPE_ROLE_CODES = [
+  "super_admin",
+  "org_admin",
+  "league_admin",
+  "season_admin",
+  "division_admin",
+  "registrar"
+];
+
+/**
+ * The scope an admin decision may use: only assignments of an admin role,
+ * no team-scoped roles and no roster-membership projection. Use it for
+ * every admin read or write (ScopedAdminGuard, review queues, team moves,
+ * personal details). An org-A admin who also plays in org B must not see
+ * or change org B's records (found 25 Oct 2026 while building COMP-1).
+ */
+export function loadAdminScope(db: Database, userId: string): Promise<UserScope> {
+  return loadUserScope(db, userId, { adminRolesOnly: true });
+}
+
 export async function loadUserScope(
   db: Database,
-  userId: string
+  userId: string,
+  opts: { adminRolesOnly?: boolean } = {}
 ): Promise<UserScope> {
   const [profile] = await db
     .select({ isSuperAdmin: schema.profiles.isSuperAdmin })
@@ -49,18 +71,26 @@ export async function loadUserScope(
     return { isSuperAdmin: true, leagueIds: null, orgIds: null, teamIds: null, orgWideOrgIds: null };
   }
 
-  const rows = await db
-    .select({
-      scopeType: schema.userRoleAssignments.scopeType,
-      scopeId: schema.userRoleAssignments.scopeId
-    })
-    .from(schema.userRoleAssignments)
-    .where(
-      and(
-        eq(schema.userRoleAssignments.userId, userId),
-        isNull(schema.userRoleAssignments.revokedAt)
+  const rows = (
+    await db
+      .select({
+        scopeType: schema.userRoleAssignments.scopeType,
+        scopeId: schema.userRoleAssignments.scopeId,
+        roleCode: schema.roles.code
+      })
+      .from(schema.userRoleAssignments)
+      .innerJoin(schema.roles, eq(schema.roles.id, schema.userRoleAssignments.roleId))
+      .where(
+        and(
+          eq(schema.userRoleAssignments.userId, userId),
+          isNull(schema.userRoleAssignments.revokedAt)
+        )
       )
-    );
+  ).filter(
+    (r) =>
+      !opts.adminRolesOnly ||
+      (ADMIN_SCOPE_ROLE_CODES.includes(r.roleCode) && r.scopeType !== "team")
+  );
 
   // Platform-scoped roles widen visibility beyond per-org/per-league filtering.
   if (rows.some((r) => r.scopeType === "platform")) {
@@ -137,7 +167,9 @@ export async function loadUserScope(
       };
     })(),
     (async () => {
-      // Memberships grant player access to a team independently of roles.
+      // Memberships grant player access to a team independently of roles;
+      // never an admin's reach.
+      if (opts.adminRolesOnly) return { teamIds: [] as string[], orgIds: [] as string[] };
       const people = await db
         .select({ id: schema.persons.id })
         .from(schema.persons)

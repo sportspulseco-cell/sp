@@ -12,6 +12,7 @@ import { and, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
+  PARENTAL_CONSENT_TITLE,
   registrationWindowMessage,
   registrationWindowState,
   resolveRegistrationWaivers,
@@ -432,6 +433,95 @@ export class RegistrationRequirementsService {
       signedAt: result.row.signedAt.toISOString(),
       created: result.created,
       documents
+    };
+  }
+
+  /**
+   * REG-15: the guardian's signed consent for a minor's registration.
+   * Runs inside the caller's transaction (the caller also moves the
+   * registration out of pending_consent, so both commit or neither).
+   * Stores the consent text as a `parental` document version of the
+   * registration's org (same find-or-create as the waivers) and the
+   * signature as a consent record on the child's person, with the
+   * guardian's typed name and email, IP and user agent. The guardian has
+   * no account, so `signed_by_user_id` stays null. Idempotent per child
+   * and text: a second confirm returns the stored record.
+   */
+  async recordGuardianConsent(
+    tx: Tx,
+    input: {
+      orgId: string;
+      subjectPersonId: string;
+      registrationId: string;
+      consentText: string;
+      guardianName: string;
+      guardianEmail: string | null;
+      ipAddr: string | null;
+      userAgent: string | null;
+    }
+  ): Promise<{ signatureId: string; documentVersionId: string; signedAt: Date; created: boolean }> {
+    const req: RegistrationDocumentRequirement = {
+      // Not a waiver key; only documentKind, title and content are read by
+      // materializeVersion / contentHash.
+      key: "liability_waiver",
+      documentKind: "parental" as RegistrationDocumentRequirement["documentKind"],
+      title: PARENTAL_CONSENT_TITLE,
+      content: input.consentText,
+      contentSource: "default",
+      signMode: "typed_name"
+    };
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`registration-doc:${input.orgId}:parental`}))`
+    );
+    const versionId = await this.materializeVersion(tx, input.orgId, req);
+    const label = `Parental consent by ${input.guardianName.trim()}${
+      input.guardianEmail ? ` <${input.guardianEmail}>` : ""
+    } for registration ${input.registrationId}`;
+    const inserted = await tx
+      .insert(schema.consentSignatures)
+      .values({
+        personId: input.subjectPersonId,
+        documentVersionId: versionId,
+        signedByUserId: null,
+        ipAddr: input.ipAddr,
+        userAgent: input.userAgent,
+        signatureBlobUrl: `data:text/plain,${encodeURIComponent(label)}`
+      })
+      .onConflictDoNothing({
+        target: [schema.consentSignatures.personId, schema.consentSignatures.documentVersionId]
+      })
+      .returning();
+    const [row] =
+      inserted.length > 0
+        ? inserted
+        : await tx
+            .select()
+            .from(schema.consentSignatures)
+            .where(
+              and(
+                eq(schema.consentSignatures.personId, input.subjectPersonId),
+                eq(schema.consentSignatures.documentVersionId, versionId)
+              )
+            )
+            .limit(1);
+    if (!row) {
+      throw new Error(
+        `guardian consent readback empty registration=${input.registrationId} version=${versionId}`
+      );
+    }
+    if (row.revokedAt) {
+      throw new ConflictException(
+        "A league admin revoked an earlier consent for this player. Contact the league before confirming again."
+      );
+    }
+    this.log.log(
+      `guardian consent ${inserted.length > 0 ? "stored" : "already on file"} registration=${input.registrationId} person=${input.subjectPersonId} version=${versionId} signature=${row.id}`
+    );
+    return {
+      signatureId: row.id,
+      documentVersionId: row.documentVersionId,
+      signedAt: row.signedAt,
+      created: inserted.length > 0
     };
   }
 

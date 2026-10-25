@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Put,
@@ -19,6 +20,9 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
+import { suspensionBlocksForGame } from "../application/suspensions/suspension-rules";
+
+const log = new Logger("Lineups");
 
 class LineupPlayerDto {
   @IsUUID() personId!: string;
@@ -105,7 +109,8 @@ export class LineupsController {
         id: schema.games.id,
         homeTeamId: schema.games.homeTeamId,
         awayTeamId: schema.games.awayTeamId,
-        status: schema.games.status
+        status: schema.games.status,
+        start: schema.games.scheduledStartTsUtc
       })
       .from(schema.games)
       .where(eq(schema.games.id, gameId))
@@ -142,6 +147,22 @@ export class LineupsController {
       });
     }
 
+    // UC-14 / COMP-13: a suspended player may be scratched, never dressed.
+    const dressed = [...(body.starters ?? []), ...(body.bench ?? [])].map((p) => p.personId);
+    const blocked = await suspensionBlocksForGame(this.db, {
+      game: { id: gameId, start: game.start },
+      teamId,
+      personIds: dressed
+    });
+    if (blocked.length > 0) {
+      const who = blocked.map((b) => `${b.displayName} (${b.label})`).join(", ");
+      log.warn(`lineup refused game=${gameId} team=${teamId} suspended=${blocked.map((b) => b.personId).join(",")}`);
+      throw new ConflictException({
+        error: "player_suspended",
+        message: `Suspended for this game: ${who}. Move ${blocked.length === 1 ? "this player" : "these players"} to Scratch, then save.`
+      });
+    }
+
     const now = new Date();
     const lineupJson = {
       starters: body.starters ?? [],
@@ -169,6 +190,9 @@ export class LineupsController {
       });
 
     const updated = await this.findRow(gameId, teamId);
+    log.log(
+      `lineup saved game=${gameId} team=${teamId} starters=${lineupJson.starters.length} bench=${lineupJson.bench.length} scratches=${lineupJson.scratches.length} readback=${updated ? 1 : 0}`
+    );
     return updated ? this.toDto(updated) : null;
   }
 

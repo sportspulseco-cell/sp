@@ -19,6 +19,12 @@ export interface ListTeamsQuery extends PageQuery {
   leagueIdsFilter?: string[];
   /** Org-scope whitelist; union'd with `leagueIdsFilter` (see above). */
   orgIdsFilter?: string[];
+  /**
+   * Only teams playing in this division: an entry with a schedulable
+   * status (kernel SCHEDULABLE_ENTRY_STATUSES) and no `left_at`. Applied
+   * in SQL so every page is full and paging reaches every team (SCH-20).
+   */
+  divisionId?: string;
 }
 
 export interface TeamRepository {

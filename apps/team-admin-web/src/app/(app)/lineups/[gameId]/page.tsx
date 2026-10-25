@@ -3,7 +3,7 @@ import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock, Users } from "lucide-react";
 import { Badge, EmptyState, LoadError } from "@sportspulse/ui";
-import { captain, gameOps, iam } from "@/lib/api/server-api";
+import { captain, compliance, gameOps, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { LineupEditor } from "./lineup-editor";
 
@@ -76,12 +76,18 @@ export default async function LineupEditorPage({
   // The roster of the game's season, not "today's" season: a team live in
   // two seasons showed the other season's players here (SCH-23). Games
   // without a season fall back to the season current at kickoff.
-  const [rosterResp, lineup] = await Promise.all([
+  const [rosterResp, lineup, suspendedResult] = await Promise.all([
     captain.roster
       .list(myTeamId, game.seasonId ?? undefined, { asOf: game.scheduledStartTsUtc })
       .catch(() => null),
-    gameOps.getLineup(gameId, myTeamId).catch(() => null)
+    gameOps.getLineup(gameId, myTeamId).catch(() => null),
+    // Players barred from this game (UC-14, COMP-13). The server refuses
+    // them on save either way; this marks them in the editor.
+    load(compliance.teamSuspensions(myTeamId, { gameId }))
   ]);
+  const suspended = suspendedResult.ok
+    ? Object.fromEntries(suspendedResult.data.items.map((x) => [x.personId, x.label]))
+    : {};
 
   const isLocked = !!lineup?.lockedAt || game.status !== "scheduled";
   const isHome = game.homeTeamId === myTeamId;
@@ -159,6 +165,8 @@ export default async function LineupEditorPage({
         }}
         locked={isLocked}
         submittedAt={lineup?.submittedAt ?? null}
+        suspended={suspended}
+        suspensionsChecked={suspendedResult.ok}
       />
     </div>
   );

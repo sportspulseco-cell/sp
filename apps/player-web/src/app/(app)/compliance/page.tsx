@@ -12,6 +12,7 @@ import { compliance, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { UsaHockeyIdForm } from "./usa-hockey-id-form";
 import { DocumentsToSign } from "./documents-to-sign";
+import { UploadDocuments } from "./upload-documents";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -85,6 +86,9 @@ export default async function CompliancePage() {
   // to sign".
   const docsResult = await load(compliance.myDocuments());
   const docItems = docsResult.ok ? docsResult.data.items : [];
+
+  // Uploaded ID / eligibility documents and where they can go (COMP-3).
+  const uploadsResult = await load(compliance.myDocumentUploads());
   const unsignedDocs = docItems.reduce(
     (n, r) => n + r.documents.filter((d) => !d.signed).length,
     0
@@ -187,6 +191,24 @@ export default async function CompliancePage() {
           <DocumentsToSign items={docItems} />
         </section>
       ) : null}
+
+      <section id="documents" className="space-y-3">
+        <h2 className="text-[14px] font-semibold tracking-tight text-fg">
+          ID and eligibility documents
+        </h2>
+        {uploadsResult.ok ? (
+          <UploadDocuments
+            items={uploadsResult.data.items}
+            targets={uploadsResult.data.targets}
+          />
+        ) : (
+          <LoadError
+            what="your uploaded documents"
+            status={uploadsResult.status}
+            message={uploadsResult.message}
+          />
+        )}
+      </section>
 
       {sorted.length === 0 && docItems.length > 0 ? null : sorted.length === 0 ? (
         <EmptyState

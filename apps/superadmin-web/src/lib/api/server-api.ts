@@ -21,6 +21,8 @@ export const crossOrgGrants = api.crossOrgGrants;
 export const dataMigration = api.dataMigration;
 export const registrationV2 = api.registrationV2;
 export const registrationV2Admin = api.registrationV2Admin;
+// Anonymous funnel endpoints; the admin pages read appLinks (REG-12/13).
+export const publicRegistration = api.publicRegistration;
 export const adminTransfers = api.adminTransfers;
 export const orgAdminTeams = api.orgAdminTeams;
 export const orgAdminPersons = api.orgAdminPersons;

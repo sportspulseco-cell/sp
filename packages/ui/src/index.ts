@@ -10,6 +10,7 @@ export * from "./eyebrow";
 export * from "./icon-tile";
 export * from "./input";
 export * from "./select";
+export * from "./combobox";
 export * from "./skeleton";
 export * from "./table";
 export * from "./phase-progress";

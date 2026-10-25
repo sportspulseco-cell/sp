@@ -228,34 +228,38 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await seasonSelect.selectOption({ label: label! });
     await expect(oa.getByText("Saved.")).toBeVisible({ timeout: 20_000 });
 
-    // Registration type: individual so the J4 player path is the default.
-    const regType = oa.locator("main select").nth(1);
+    // Registration type (REG-14): individual, so the funnel offers the player
+    // paths J4/J5 walk and not "Register a team". Saved on the season
+    // (seasons.config.registrationType), which the funnel and API read.
+    const regType = oa.getByLabel("Registration type");
     expect(await regType.locator("option").allInnerTexts()).toEqual([
       "Team registration (captain-led)",
       "Individual registration",
       "Team + individual (mixed)"
     ]);
-    await regType.selectOption("team_and_individual");
+    await regType.selectOption("individual");
     const saveBtn = oa.getByRole("button", { name: /^save$/i });
     await expect(saveBtn).toBeEnabled({ timeout: 20_000 });
-    const saveResp = oa.waitForResponse((r) => /\/forms\/[0-9a-f-]{36}$/.test(r.url()) && r.request().method() === "PATCH", { timeout: 20_000 }).catch(() => null);
+    const saveResp = oa.waitForResponse((r) => /\/seasons\/[0-9a-f-]{36}\/config$/.test(r.url()) && r.request().method() === "PATCH", { timeout: 20_000 }).catch(() => null);
     await saveBtn.click();
     const resp = await saveResp;
     state.registrationTypeSaveHttp = resp ? String(resp.status()) : "no PATCH sent";
-    await oa.waitForTimeout(1500);
-    const [f] = await stagingSql<{ season_id: string; description: string | null }>(
-      "select season_id, description from registration_forms where id = $1",
+    await expect(oa.getByText("Saved.")).toBeVisible({ timeout: 20_000 });
+    const [f] = await stagingSql<{ season_id: string }>(
+      "select season_id from registration_forms where id = $1",
       [state.formId]
     );
     expect(f!.season_id).toBe(state.seasonId);
-    state.registrationTypeStored = String(f!.description);
-    // Registration type is written into the form's free-text description column (domain overload),
-    // and the funnel never reads it.
-    softExpect(f!.description, `registration type persisted (PATCH ${state.registrationTypeSaveHttp})`).toBe("team_and_individual");
+    const [cfg] = await stagingSql<{ t: string | null }>(
+      "select config->>'registrationType' t from seasons where id = $1",
+      [state.seasonId]
+    );
+    state.registrationTypeStored = String(cfg!.t);
+    expect(cfg!.t, `registration type stored on the season (PATCH ${state.registrationTypeSaveHttp})`).toBe("individual");
     // Reload: the dropdown must show what was saved.
     await oa.reload();
     await expect(oa.getByText(/Loading seasons/)).toHaveCount(0, { timeout: 20_000 });
-    softExpect(await oa.locator("main select").nth(1).inputValue(), "registration type after reload").toBe("team_and_individual");
+    expect(await oa.getByLabel("Registration type").inputValue(), "registration type after reload").toBe("individual");
   });
 
   test("4 · Pricing — create a tier with a payment plan", async () => {
@@ -365,9 +369,12 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     const fmt = (s: string) => new Date(`${s}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const windowTile = main.locator("div", { has: oa.locator("p", { hasText: /^Registration window$/i }) }).last();
     softExpect(await windowTile.innerText(), "review registration window").toContain(`${fmt(opens)} – ${fmt(closes)}`);
-    // Registration links must point at the real player funnel, not a hard-coded marketing domain.
-    const links = await main.locator("text=/registration\\//").allInnerTexts();
-    softExpect(links.join(" "), "registration links").toContain("/register/");
+    // Registration links (REG-13): this environment's player funnel, never a marketing domain.
+    const reviewText = await main.innerText();
+    expect(reviewText, "registration link").toContain(`${E2E_URLS.player}/register/${state.seasonId}`);
+    expect(reviewText, "no hard-coded marketing domain").not.toMatch(/powerplayhockeyleague/);
+    // REG-14: the summary reads the season's registration type.
+    expect(reviewText).toContain("Individual registration");
     await shot(oa, "08-review");
 
     const publishBtn = main.getByRole("button", { name: /publish registration/i });
@@ -405,7 +412,8 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await expect(live).toBeVisible();
     const href = (await live.getAttribute("href")) ?? "";
     state.liveWizardHref = href;
-    softExpect(href, "OA Live wizard must target this environment's player app").toBe(`${E2E_URLS.player}/register/${state.seasonId}`);
+    // REG-12: built from the API's PLAYER_WEB_URL, no production fallback.
+    expect(href, "OA Live wizard must target this environment's player app").toBe(`${E2E_URLS.player}/register/${state.seasonId}`);
     // Admin preview of the player form ("Preview" button) should show the form, not the Review tab.
     const preview = oa.getByRole("link", { name: /^preview$/i });
     softExpect(await preview.getAttribute("href"), "Preview shows the player form").not.toMatch(/section=review/);
@@ -429,7 +437,7 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await shot(page, "11-sa-review");
     const href = await page.getByRole("link", { name: /live wizard/i }).getAttribute("href");
     state.saLiveWizardHref = href ?? "";
-    softExpect(href, "SA Live wizard targets this environment's player app").toBe(`${E2E_URLS.player}/register/${state.seasonId}`);
+    expect(href, "SA Live wizard targets this environment's player app").toBe(`${E2E_URLS.player}/register/${state.seasonId}`);
     softExpect(errs.filter((e) => /http 5\d\d/.test(e)), "5xx on SA form pages").toEqual([]);
     await context.close();
   });

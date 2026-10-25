@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Inject,
   NotFoundException,
@@ -25,13 +24,17 @@ import {
 import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
+import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
+import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { RegistrationV2Service } from "../application/registration-v2.service";
+import { FreeAgentOffersService } from "../application/free-agent-offers.service";
 
 class UpsertFreeAgentBodyDto {
   @ApiProperty() @IsUUID() playerPersonId!: string;
@@ -52,6 +55,10 @@ class PlaceFreeAgentBodyDto {
   @ApiProperty() @IsUUID() teamId!: string;
 }
 
+class ListTeamOffersQueryDto {
+  @ApiProperty() @IsUUID() teamId!: string;
+}
+
 class ListFreeAgentsQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
   /**
@@ -69,27 +76,34 @@ class ListFreeAgentsQueryDto {
 export class FreeAgentPoolController {
   constructor(
     private readonly svc: RegistrationV2Service,
+    private readonly offers: FreeAgentOffersService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   @Get()
-  @ApiOperation({ summary: "List active free agents (filter by season)" })
+  @ApiOperation({
+    summary:
+      "List active free agents (filter by season). With forTeamId (captains): every season the team plays, each entry with this team's latest offer (`teamOffer`)."
+  })
   async list(
     @Query() q: ListFreeAgentsQueryDto,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ) {
     // Captains hit this from /captain/free-agents with `forTeamId`. The
-    // server resolves the team's season + division automatically; we
-    // verify the caller actually holds the team in their scope first
-    // (no leak of pools the captain doesn't have a team in).
+    // caller must captain the team: `scope.teamIds` also holds the teams
+    // a player is rostered on, which used to open the pool (names,
+    // emails, birth dates) to any rostered player.
     if (q.forTeamId) {
-      if (!scope.isSuperAdmin) {
-        const inTeamScope = scope.teamIds?.includes(q.forTeamId) ?? false;
-        if (!inTeamScope) {
-          throw new NotFoundException(`Team not found: ${q.forTeamId}`);
-        }
-      }
-      return this.svc.listFreeAgentPool({ forTeamId: q.forTeamId });
+      await this.requireCaptain(user.userId, q.forTeamId);
+      const [entries, teamOffers] = await Promise.all([
+        this.svc.listFreeAgentPool({ forTeamId: q.forTeamId }),
+        this.offers.listTeamOffers(q.forTeamId)
+      ]);
+      // Newest offer from this team per entry (offers are newest first).
+      const latest = new Map<string, (typeof teamOffers)[number]>();
+      for (const o of teamOffers) if (!latest.has(o.entryId)) latest.set(o.entryId, o);
+      return entries.map((e) => ({ ...e, teamOffer: latest.get(e.id) ?? null }));
     }
 
     // Require seasonId for non-super-admin callers so we can scope-check
@@ -143,23 +157,62 @@ export class FreeAgentPoolController {
     });
   }
 
-  @Patch(":id/place")
+  @Post(":id/offers")
   @AllowScopedWrite()
-  @ApiOperation({ summary: "Captain places a free agent on a team" })
-  place(
+  @ApiOperation({
+    summary:
+      "Captain offers a free agent a spot on their team (UC-03, CAP-9). Creates a personal team invite linked to the pool entry and notifies the player (email + in-app); the player accepts or declines on player-web. Nothing is added to the roster here. Returns the existing open offer when this team already made one. 409 when the player left the pool, the team does not play the entry's season, the roster is locked or the player is already on the team."
+  })
+  async offer(
     @Param("id") id: string,
     @Body() body: PlaceFreeAgentBodyDto,
-    @UserScope() scope: UserScopeType
+    @CurrentUser() user: AuthPrincipal
   ) {
-    // Captains place free agents only on their own team. League/org/
-    // super admins always pass.
-    const allowed =
-      scope.isSuperAdmin ||
-      scope.leagueIds === null ||
-      (scope.teamIds?.includes(body.teamId) ?? false);
-    if (!allowed) {
-      throw new ForbiddenException("Cannot place free agents on this team");
-    }
-    return this.svc.placeFreeAgent(id, { teamId: body.teamId });
+    await this.requireCaptain(user.userId, body.teamId);
+    return this.offers.createOffer({
+      entryId: id,
+      teamId: body.teamId,
+      actorUserId: user.userId,
+      offeredBy: "captain"
+    });
+  }
+
+  @Patch(":id/place")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Deprecated alias of POST :id/offers. It used to put the player straight on the roster without asking them (CAP-9); it now makes the same offer."
+  })
+  async place(
+    @Param("id") id: string,
+    @Body() body: PlaceFreeAgentBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    await this.requireCaptain(user.userId, body.teamId);
+    return this.offers.createOffer({
+      entryId: id,
+      teamId: body.teamId,
+      actorUserId: user.userId,
+      offeredBy: "captain"
+    });
+  }
+
+  @Get("offers")
+  @ApiOperation({
+    summary:
+      "A team's free-agent offers with their state (Offer sent / Accepted / Declined / Expired / Withdrawn), newest first. Captain of the team only."
+  })
+  async listOffers(
+    @Query() q: ListTeamOffersQueryDto,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    await this.requireCaptain(user.userId, q.teamId);
+    return this.offers.listTeamOffers(q.teamId);
+  }
+
+  /** Captain of the team (or super admin, per userIsCaptainOfTeam). 404 otherwise, never leaking the team. */
+  private async requireCaptain(userId: string, teamId: string): Promise<void> {
+    const ok = await userIsCaptainOfTeam(this.db, userId, teamId);
+    if (!ok) throw new NotFoundException(`Team not found: ${teamId}`);
   }
 }

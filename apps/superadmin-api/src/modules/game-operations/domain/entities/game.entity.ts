@@ -101,6 +101,9 @@ export class Game extends AggregateRoot<GameId> {
     durationMin?: number;
     venueName?: string | null;
     surfaceLabel?: string | null;
+    /** Rink (surface) the game is played on; venueName/surfaceLabel are its names. */
+    surfaceId?: string | null;
+    metadata?: Record<string, unknown>;
   }): Game {
     if (input.homeTeamId === input.awayTeamId) {
       throw new DomainError(
@@ -126,14 +129,14 @@ export class Game extends AggregateRoot<GameId> {
       0,
       0,
       0,
-      {},
+      input.metadata ?? {},
       now,
       now,
       null,
       null,
       null,
       null,
-      null,
+      input.surfaceId ?? null,
       null,
       null,
       null,

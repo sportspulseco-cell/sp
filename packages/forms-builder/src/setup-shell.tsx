@@ -115,6 +115,7 @@ export function RegistrationSetupShell({
   submissionsCount,
   draft,
   searchParams,
+  playerWebUrl,
   children
 }: {
   formId: string;
@@ -127,6 +128,12 @@ export function RegistrationSetupShell({
    * is documented in the link's title-tooltip (audit §1.4 / P3-4).
    */
   seasonId: string | null;
+  /**
+   * This environment's player app origin from the API (PLAYER_WEB_URL,
+   * publicRegistration.appLinks). The Live wizard link is built from it;
+   * null hides the link instead of guessing production (REG-12).
+   */
+  playerWebUrl: string | null;
   orgName: string;
   active: SectionKey;
   sections: SectionState[];
@@ -209,12 +216,13 @@ export function RegistrationSetupShell({
               <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
               Preview
             </Link>
-            {seasonId ? (
+            {seasonId && playerWebUrl ? (
               <a
-                // Absolute URL into player-web. A relative href stayed
-                // on the superadmin host where the funnel doesn't
-                // render — BUG-042 (Live wizard hits the wrong app).
-                href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://player.sportspulse.us"}/register/${seasonId}`}
+                // Absolute URL into this environment's player-web. A
+                // relative href stayed on the admin host (BUG-042); a
+                // build-time env var with a production fallback sent the
+                // staging org console to production (REG-12).
+                href={`${playerWebUrl}/register/${seasonId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Opens player-web in a new tab — you'll see the funnel as a fresh visitor, so expect a sign-in prompt."

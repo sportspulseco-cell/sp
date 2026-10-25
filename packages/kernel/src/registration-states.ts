@@ -79,7 +79,12 @@ export const REGISTRATION_TRANSITIONS: Record<
   draft: ["pending_verification", "pending_consent", "pending_payment", "cancelled"],
   pending_verification: ["pending_consent", "pending_payment", "cancelled"],
   pending_consent: ["pending_payment", "cancelled"],
-  pending_payment: ["pending_review", "pending_offline", "cancelled"],
+  // `pending_payment → pending_consent`: a date of birth entered or
+  // corrected after the account step shows the registrant is a minor
+  // (Details edit, or a returning account whose profile DOB is a
+  // minor's). The guardian must consent before payment, so the row goes
+  // back to wait for them instead of letting the minor pay.
+  pending_payment: ["pending_review", "pending_offline", "pending_consent", "cancelled"],
   // Admin verifying an offline payment can either mark it received (→
   // pending_review for separate eligibility review) OR approve/reject
   // directly when the registration itself is the only thing pending.

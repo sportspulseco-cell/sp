@@ -77,6 +77,12 @@ export interface SeasonConfig {
    */
   maxRosterSize?: number;
 
+  /**
+   * Which registration paths the season offers (REG-14): team | individual
+   * | both. See registration-paths.ts. Default: both (unset).
+   */
+  registrationType?: "team" | "individual" | "both";
+
   // NOTE: rosterLockAt used to live here in JSONB but is now a single
   // source of truth on the `seasons.roster_lock_at` column. Plan
   // P0-5 / audit §4.5. Readers must use season.rosterLockAt; writers

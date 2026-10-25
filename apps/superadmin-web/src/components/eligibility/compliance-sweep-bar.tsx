@@ -67,8 +67,19 @@ export function ComplianceSweepBar({
     setError(null);
     try {
       const res = await compliance.runSeasonSweep(seasonId);
+      // Status counts and kept waivers (COMP-14 / COMP-17): unknown data
+      // is "pending", and an admin waiver is never overwritten.
+      const byStatus = Object.entries(res.counts ?? {})
+        .filter(([, n]) => n > 0)
+        .map(([status, n]) => `${n} ${status}`)
+        .join(", ");
+      const kept = res.waivedKept
+        ? ` ${res.waivedKept} waiver${res.waivedKept === 1 ? "" : "s"} kept${
+            res.waivedWithFindings ? ` (${res.waivedWithFindings} with new findings to review)` : ""
+          }.`
+        : "";
       setFlash(
-        `Eligibility sweep complete — ${res.evaluated} evaluated, ${res.flagged} flagged.`
+        `Eligibility sweep complete — ${res.evaluated} evaluated, ${res.flagged} need attention${byStatus ? ` (${byStatus})` : ""}.${kept}`
       );
       await refresh();
     } catch (e) {

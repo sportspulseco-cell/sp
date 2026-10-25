@@ -419,6 +419,77 @@ export interface MyRegistrationDocuments {
   documents: RegistrationDocumentStatus[];
 }
 
+// ----- Uploaded ID / eligibility documents (COMP-3, COMP-1 / UC-29) -----
+// Enums and labels: @sportspulse/kernel compliance-documents.ts.
+
+/** A season / registration the caller may upload a document for. */
+export interface ComplianceUploadTarget {
+  personId: string;
+  personName: string;
+  /** True when the person is a minor linked to the caller. */
+  forMinor: boolean;
+  orgId: string;
+  orgName: string | null;
+  seasonId: string | null;
+  seasonName: string | null;
+  registrationId: string | null;
+  teamName: string | null;
+}
+
+export interface ComplianceDocumentDecisionEntry {
+  decision: "approved" | "rejected" | "resubmit_requested";
+  reason: string | null;
+  decidedAt: string;
+  decidedByName: string | null;
+}
+
+export interface ComplianceDocumentSubmission {
+  id: string;
+  personId: string;
+  personName: string;
+  orgId: string;
+  orgName: string | null;
+  seasonId: string | null;
+  seasonName: string | null;
+  registrationId: string | null;
+  documentVersionId: string | null;
+  kind: "birth_certificate" | "governing_body_card" | "government_id" | "signed_waiver" | "other";
+  contentType: string;
+  sizeBytes: number;
+  status: "pending" | "approved" | "rejected" | "resubmit_requested" | "withdrawn";
+  submittedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  latestDecision: ComplianceDocumentDecisionEntry | null;
+}
+
+/** Review-queue row: the submission plus what the reviewer checks it against. */
+export interface AdminComplianceDocument extends ComplianceDocumentSubmission {
+  dobDate: string | null;
+  submittedByName: string | null;
+  /** True when someone other than the person uploaded it (a guardian). */
+  submittedByOther: boolean;
+  divisionName: string | null;
+  divisionGender: string | null;
+  ageGroupLabel: string | null;
+  birthYearMin: number | null;
+  birthYearMax: number | null;
+  sha256: string;
+  decisions: ComplianceDocumentDecisionEntry[];
+}
+
+export interface ComplianceDocumentQueuePage {
+  items: AdminComplianceDocument[];
+  nextCursor: string | null;
+  counts: Record<ComplianceDocumentSubmission["status"], number>;
+}
+
+export interface ComplianceFileLink {
+  url: string;
+  expiresAt: string;
+  contentType: string;
+}
+
 export interface IdentityVerification {
   id: string;
   personId: string;
@@ -704,6 +775,44 @@ export interface GameFinalizeSummary {
   pointsRuleSource: "default" | "request";
   notificationRecipients: number;
   notificationsQueued: number;
+  /** Game-count suspensions that counted this game (COMP-10). */
+  suspensionsServed?: number;
+  /** Of those, how many are now fully served. */
+  suspensionsCompleted?: number;
+}
+
+/** Postal address stored on a venue (all optional; blanks are dropped). */
+export interface RinkAddress {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  countryCode?: string;
+}
+
+/**
+ * What still uses a venue or surface, and what removing it would do
+ * (SCH-3): blocked while a game there is not finished; archived (hidden,
+ * history kept) when it has played games, past slots or integrations;
+ * deleted otherwise. Open slots from today on go only after confirmation.
+ */
+export interface RinkUsage {
+  name: string;
+  unfinishedGames: Array<{ id: string; label: string }>;
+  unfinishedGamesCount: number;
+  finishedGamesCount: number;
+  openSlotsCount: number;
+  pastSlotsCount: number;
+  rinkIntegrationsCount: number;
+  outcome: "blocked" | "archive" | "delete";
+  message: string;
+}
+
+/** Result of removing a venue or surface. */
+export interface RinkRemoval {
+  outcome: "deleted" | "archived";
+  removedSlots: number;
 }
 
 export interface GameEvent {
@@ -749,32 +858,56 @@ export interface GameOfficial {
   updatedAt: string;
 }
 
-export type SuspensionKind =
-  | "match_misconduct"
-  | "game_misconduct"
-  | "discipline"
-  | "automatic"
-  | "manual";
+/** Mirrors `suspensions.kind` (rules: @sportspulse/kernel suspensions.ts). */
+export type SuspensionKind = "n_games" | "time_bounded" | "indefinite" | "n_days";
 
-export type SuspensionStatus =
-  | "active"
-  | "served"
-  | "lifted"
-  | "expired"
-  | "completed";
+/** Mirrors `suspensions.status`. */
+export type SuspensionStatus = "active" | "served" | "lifted" | "appealed";
 
 export interface Suspension {
   id: string;
   personId: string;
+  personName?: string | null;
+  /** The penalty (game event) it came from, when it did. */
   sourceEventId: string | null;
+  sourceGameId?: string | null;
   kind: SuspensionKind;
   nGames: number | null;
   nDays: number | null;
+  /** Finalized games counted so far (automatic at finalize). */
   servedCount: number;
   status: SuspensionStatus;
+  /** Issue reason; a lift appends "| Lifted: <reason>". */
   reason: string | null;
   startAt: string;
   endAt: string | null;
+  /** Server-computed: stands right now. */
+  inForce: boolean;
+  /** Game-count suspensions: games still to sit out. */
+  gamesRemaining: number | null;
+  /** Time-based suspensions: when the player may play again. */
+  endsAt: string | null;
+  /** "2 of 3 games left", "Until Nov 3, 2026", "Lifted". */
+  label: string;
+}
+
+/** GET /suspensions page; viewerPermissions only with personId or gameId. */
+export interface SuspensionPage {
+  items: Suspension[];
+  nextCursor: string | null;
+  viewerPermissions?: string[];
+}
+
+/** A player barred from a game, or suspended now (captain views, COMP-12 / COMP-13). */
+export interface SuspendedPlayer {
+  suspensionId: string;
+  personId: string;
+  displayName: string;
+  kind: SuspensionKind | string;
+  gamesRemaining: number | null;
+  endsAt: string | null;
+  reason: string | null;
+  label: string;
 }
 
 // ----- Stats -----
@@ -1273,6 +1406,54 @@ export interface FreeAgentPoolEntry {
   playerEmail: string | null;
   /** ISO date YYYY-MM-DD if present on the persons row. */
   playerDob: string | null;
+  /** Captain pool (forTeamId): this team's latest offer to the player, any state. */
+  teamOffer?: FreeAgentOffer | null;
+  /** Admin pool: open offers from any team. */
+  openOffers?: FreeAgentOffer[];
+}
+
+/**
+ * A team's offer of a roster spot to a free agent (UC-03, CAP-9). Stored
+ * as a personal team invite; the player accepts or declines on player-web.
+ */
+export interface FreeAgentOffer {
+  /** team_invites id */
+  id: string;
+  entryId: string;
+  teamId: string;
+  teamName: string;
+  seasonId: string;
+  seasonName: string | null;
+  playerPersonId: string | null;
+  playerName: string | null;
+  status: "pending" | "accepted" | "declined" | "expired" | "revoked";
+  offeredBy: "captain" | "admin";
+  createdAt: string;
+  expiresAt: string | null;
+  decidedAt: string | null;
+}
+
+/** A team that plays the free agent's season (admin "Assign to team" picker). */
+export interface FreeAgentOfferTeam {
+  teamId: string;
+  teamName: string;
+  orgId: string;
+  divisionId: string;
+  divisionName: string;
+  entryStatus: string;
+}
+
+/** An open team invite or free-agent offer addressed to the signed-in player. */
+export interface MyTeamInvite {
+  id: string;
+  token: string;
+  kind: "free_agent_offer" | "team_invite";
+  teamId: string;
+  teamName: string;
+  seasonId: string;
+  seasonName: string | null;
+  expiresAt: string | null;
+  createdAt: string;
 }
 
 // ----- Team Store (Backlog #11) -----

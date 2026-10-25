@@ -1,17 +1,13 @@
-import type { Page, PageQuery } from "@sportspulse/kernel";
 import type { Suspension } from "../entities/suspension.entity";
 import { SuspensionId } from "../identifiers";
 
-export interface ListSuspensionsQuery extends PageQuery {
-  personId?: string;
-  status?: string;
-}
-
+/**
+ * Reads by id. Lists are scoped by the caller's visibility and live in
+ * ListSuspensionsHandler; issue / lift / serve write inside their own
+ * transactions (application/suspensions/handlers.ts).
+ */
 export interface SuspensionRepository {
   findById(id: SuspensionId): Promise<Suspension | null>;
-  list(q: ListSuspensionsQuery): Promise<Page<Suspension>>;
-  insert(susp: Suspension): Promise<void>;
-  save(susp: Suspension): Promise<void>;
 }
 
 export const SUSPENSION_REPOSITORY = Symbol("SUSPENSION_REPOSITORY");

@@ -1,194 +1,429 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
-import { gameOps } from "@/lib/api/browser-api";
-import type { League, Team } from "@/lib/api/types";
+import { fetchAll } from "@sportspulse/api-client";
+import { Combobox } from "@sportspulse/ui";
+import { gameOps, leagueMgmt } from "@/lib/api/browser-api";
+import type { Division, League, Season, Team } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useOrgRinks } from "./use-org-rinks";
+
+/** Context the Games page passes in: its current URL filters. */
+export interface NewGameDefaults {
+  leagueId?: string;
+  seasonId?: string;
+  divisionId?: string;
+}
 
 export function CreateGameButton({
   leagues,
-  teams
+  defaults
 }: {
   leagues: League[];
-  teams: Team[];
+  defaults?: NewGameDefaults;
 }) {
   const [open, setOpen] = useState(false);
-  const disabled = leagues.length === 0 || teams.length < 2;
+  const usable = leagues.filter((l) => l.status !== "archived");
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={disabled}>
+      <Button
+        onClick={() => setOpen(true)}
+        disabled={usable.length === 0}
+        title={usable.length === 0 ? "Create a league first." : undefined}
+      >
         <Plus className="mr-2 h-4 w-4" />
         New game
       </Button>
-      <CreateGameDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        leagues={leagues}
-        teams={teams}
-      />
+      {open ? (
+        <CreateGameDialog
+          onClose={() => setOpen(false)}
+          leagues={usable}
+          defaults={defaults ?? {}}
+        />
+      ) : null}
     </>
   );
 }
 
+const SEASON_PLAYING = new Set(["in_progress", "playoffs"]);
+
+/** The only option, or none: never guess between several (CLAUDE.md, defaults). */
+function onlyOne<T extends { id: string }>(items: T[]): string {
+  return items.length === 1 ? items[0]!.id : "";
+}
+
+/**
+ * New game (UC-07 fallback, SCH-5 / SCH-20). League, then one of its
+ * seasons, then one of that season's divisions; both teams come from the
+ * teams entered in that division (every page, type to search); the rink
+ * comes from the organisation's Rinks & ice time; the start is typed in
+ * the rink's time zone and converted on the server. The server checks
+ * all of it again and refuses a rink or team clash unless the admin
+ * schedules it anyway with a reason.
+ */
 function CreateGameDialog({
-  open,
   onClose,
   leagues,
-  teams
+  defaults
 }: {
-  open: boolean;
   onClose: () => void;
   leagues: League[];
-  teams: Team[];
+  defaults: NewGameDefaults;
 }) {
   const router = useRouter();
-  const initialLeague = leagues[0];
+  const sortedLeagues = useMemo(
+    () => [...leagues].sort((a, b) => a.name.localeCompare(b.name)),
+    [leagues]
+  );
+  const [leagueId, setLeagueId] = useState(
+    defaults.leagueId && leagues.some((l) => l.id === defaults.leagueId)
+      ? defaults.leagueId
+      : onlyOne(leagues)
+  );
+  const league = leagues.find((l) => l.id === leagueId) ?? null;
 
-  const teamsForSport = useMemo(() => {
-    if (!initialLeague) return teams;
-    return teams.filter((t) => t.sportCode === initialLeague.sportCode);
-  }, [initialLeague, teams]);
+  const [seasons, setSeasons] = useState<Season[] | null>(null);
+  const [seasonId, setSeasonId] = useState("");
+  const [divisions, setDivisions] = useState<Division[] | null>(null);
+  const [divisionId, setDivisionId] = useState("");
+  const [teams, setTeams] = useState<Team[] | null>(null);
+  const [homeTeamId, setHomeTeamId] = useState("");
+  const [awayTeamId, setAwayTeamId] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    leagueId: initialLeague?.id ?? "",
-    sportCode: initialLeague?.sportCode ?? "HOCKEY_ICE",
-    homeTeamId: teamsForSport[0]?.id ?? "",
-    awayTeamId: teamsForSport[1]?.id ?? teamsForSport[0]?.id ?? "",
-    scheduledStartTsUtc: "",
-    tz: "America/New_York",
-    durationMin: 60,
-    venueName: "",
-    // A hand-made game is usually meant to be seen right away (SCH-7);
-    // untick to keep it as a draft.
-    publish: true
-  });
+  const { rinks, error: rinkError } = useOrgRinks(league?.orgId ?? null);
+  const [surfaceId, setSurfaceId] = useState("");
+  const rink = rinks?.find((r) => r.surfaceId === surfaceId) ?? null;
+
+  const [startLocal, setStartLocal] = useState("");
+  const [durationMin, setDurationMin] = useState(60);
+  // A hand-made game is usually meant to be seen right away (SCH-7);
+  // untick to keep it as a draft.
+  const [publish, setPublish] = useState(true);
+  const [clash, setClash] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
-    setForm((f) => ({ ...f, [k]: v }));
-  }
+  // League -> its seasons (archived seasons cannot take games).
+  useEffect(() => {
+    setSeasons(null);
+    setSeasonId("");
+    if (!leagueId) return;
+    let cancelled = false;
+    fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor }))
+      .then((res) => {
+        if (cancelled) return;
+        const list = res.items
+          .filter((s) => s.leagueId === leagueId && s.status !== "archived")
+          .sort((a, b) => b.startDate.localeCompare(a.startDate));
+        setSeasons(list);
+        const playing = list.filter((s) => SEASON_PLAYING.has(s.status));
+        setSeasonId(
+          defaults.seasonId && list.some((s) => s.id === defaults.seasonId)
+            ? defaults.seasonId
+            : playing.length === 1
+              ? playing[0]!.id
+              : onlyOne(list)
+        );
+      })
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setSeasons([]);
+        setLoadError(`Could not load seasons: ${e.message}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [leagueId, defaults.seasonId]);
 
-  function onLeagueChange(leagueId: string) {
-    const l = leagues.find((x) => x.id === leagueId);
-    if (!l) return;
-    const eligible = teams.filter((t) => t.sportCode === l.sportCode);
-    setForm((f) => ({
-      ...f,
-      leagueId,
-      sportCode: l.sportCode,
-      homeTeamId: eligible[0]?.id ?? "",
-      awayTeamId: eligible[1]?.id ?? eligible[0]?.id ?? ""
-    }));
-  }
+  // Season -> its divisions.
+  useEffect(() => {
+    setDivisions(null);
+    setDivisionId("");
+    if (!seasonId) return;
+    let cancelled = false;
+    fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId, limit: 100, cursor }))
+      .then((res) => {
+        if (cancelled) return;
+        const list = res.items
+          .filter((d) => d.seasonId === seasonId && d.status !== "archived")
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setDivisions(list);
+        setDivisionId(
+          defaults.divisionId && list.some((d) => d.id === defaults.divisionId)
+            ? defaults.divisionId
+            : onlyOne(list)
+        );
+      })
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setDivisions([]);
+        setLoadError(`Could not load divisions: ${e.message}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [seasonId, defaults.divisionId]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (form.homeTeamId === form.awayTeamId) {
-      setError("Home and away teams must differ.");
+  // Division -> every team entered in it (all pages, SCH-20).
+  useEffect(() => {
+    setTeams(null);
+    setHomeTeamId("");
+    setAwayTeamId("");
+    if (!divisionId) return;
+    let cancelled = false;
+    fetchAll((cursor) => leagueMgmt.listTeams({ divisionId, limit: 100, cursor }))
+      .then((res) => {
+        if (cancelled) return;
+        setTeams([...res.items].sort((a, b) => a.name.localeCompare(b.name)));
+      })
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setTeams([]);
+        setLoadError(`Could not load the division's teams: ${e.message}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [divisionId]);
+
+  // One rink: take it. Several: the admin picks.
+  useEffect(() => {
+    if (rinks && rinks.length === 1) setSurfaceId(rinks[0]!.surfaceId);
+    else setSurfaceId("");
+  }, [rinks]);
+
+  const teamOptions = (exclude: string) =>
+    (teams ?? []).filter((t) => t.id !== exclude).map((t) => ({ value: t.id, label: t.name }));
+  const division = divisions?.find((d) => d.id === divisionId) ?? null;
+
+  const ready =
+    !!leagueId && !!seasonId && !!divisionId && !!homeTeamId && !!awayTeamId && !!surfaceId && !!startLocal;
+
+  async function submit(force: boolean) {
+    if (homeTeamId === awayTeamId) {
+      setError("Pick two different teams.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
       await gameOps.createGame({
-        leagueId: form.leagueId,
-        homeTeamId: form.homeTeamId,
-        awayTeamId: form.awayTeamId,
-        sportCode: form.sportCode,
-        scheduledStartTsUtc: new Date(form.scheduledStartTsUtc).toISOString(),
-        tz: form.tz,
-        durationMin: Number(form.durationMin),
-        venueName: form.venueName || null,
-        publish: form.publish
+        leagueId,
+        seasonId,
+        divisionId,
+        homeTeamId,
+        awayTeamId,
+        surfaceId,
+        startLocal,
+        durationMin: Number(durationMin),
+        publish,
+        ...(force ? { force: true, reason: reason.trim() } : {})
       });
       onClose();
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      const e = err as Error & { status?: number };
+      if (e.status === 409) setClash(e.message);
+      else setError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  const eligibleTeams = teams.filter((t) => t.sportCode === form.sportCode);
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void submit(false);
+  }
+
+  // Any change to where or when clears an old clash.
+  useEffect(() => {
+    setClash(null);
+  }, [homeTeamId, awayTeamId, surfaceId, startLocal, durationMin]);
+
+  const teamsHint =
+    teams === null
+      ? divisionId
+        ? "Loading the division's teams…"
+        : "Pick a division first."
+      : `${teams.length} team${teams.length === 1 ? "" : "s"} entered in ${division?.name ?? "this division"}.`;
 
   return (
     <Dialog
-      open={open}
+      open
       onClose={onClose}
       title="Schedule game"
-      description="Create a fixture between two teams in the same league. Status starts as scheduled."
+      description="Pick the division, both teams, the rink and the start time."
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="League" htmlFor="leagueId">
-          <Select
-            id="leagueId"
-            required
-            value={form.leagueId}
-            onChange={(e) => onLeagueChange(e.target.value)}
-          >
-            {leagues.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name} · {l.sportCode}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Away team" htmlFor="awayTeamId">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field label="League" htmlFor="leagueId">
             <Select
-              id="awayTeamId"
+              id="leagueId"
               required
-              value={form.awayTeamId}
-              onChange={(e) => set("awayTeamId", e.target.value)}
+              value={leagueId}
+              onChange={(e) => setLeagueId(e.target.value)}
             >
-              {eligibleTeams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              <option value="">Pick a league</option>
+              {sortedLeagues.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
                 </option>
               ))}
             </Select>
+          </Field>
+          <Field
+            label="Season"
+            htmlFor="seasonId"
+            hint={
+              leagueId && seasons === null
+                ? "Loading seasons…"
+                : seasons && seasons.length === 0
+                  ? "This league has no open season."
+                  : undefined
+            }
+          >
+            <Select
+              id="seasonId"
+              required
+              value={seasonId}
+              disabled={!seasons || seasons.length === 0}
+              onChange={(e) => setSeasonId(e.target.value)}
+            >
+              <option value="">Pick a season</option>
+              {(seasons ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field
+            label="Division"
+            htmlFor="divisionId"
+            hint={
+              seasonId && divisions === null
+                ? "Loading divisions…"
+                : divisions && divisions.length === 0
+                  ? "This season has no divisions."
+                  : undefined
+            }
+          >
+            <Select
+              id="divisionId"
+              required
+              value={divisionId}
+              disabled={!divisions || divisions.length === 0}
+              onChange={(e) => setDivisionId(e.target.value)}
+            >
+              <option value="">Pick a division</option>
+              {(divisions ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+
+        {teams && teams.length < 2 ? (
+          <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg">
+            {teams.length === 0
+              ? `No teams are entered in ${division?.name ?? "this division"} yet.`
+              : `Only one team is entered in ${division?.name ?? "this division"}.`}{" "}
+            <Link href={`/divisions/${divisionId}`} className="font-medium underline">
+              Add teams on the division page
+            </Link>
+            .
+          </p>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Away team" htmlFor="awayTeamId" hint={teamsHint}>
+            <Combobox
+              id="awayTeamId"
+              options={teamOptions(homeTeamId)}
+              value={awayTeamId}
+              onChange={setAwayTeamId}
+              placeholder="Type a team name"
+              emptyText="No team in this division matches"
+              disabled={!teams || teams.length < 2}
+            />
           </Field>
           <Field label="Home team" htmlFor="homeTeamId">
-            <Select
+            <Combobox
               id="homeTeamId"
+              options={teamOptions(awayTeamId)}
+              value={homeTeamId}
+              onChange={setHomeTeamId}
+              placeholder="Type a team name"
+              emptyText="No team in this division matches"
+              disabled={!teams || teams.length < 2}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field
+            label="Rink"
+            htmlFor="surfaceId"
+            hint={
+              rinkError ??
+              (!league
+                ? "Pick a league first."
+                : rinks === null
+                  ? "Loading rinks…"
+                  : rinks.length === 0
+                    ? "No rinks set up for this organisation yet."
+                    : undefined)
+            }
+          >
+            <Select
+              id="surfaceId"
               required
-              value={form.homeTeamId}
-              onChange={(e) => set("homeTeamId", e.target.value)}
+              value={surfaceId}
+              disabled={!rinks || rinks.length === 0}
+              onChange={(e) => setSurfaceId(e.target.value)}
             >
-              {eligibleTeams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              <option value="">Pick a rink</option>
+              {(rinks ?? []).map((r) => (
+                <option key={r.surfaceId} value={r.surfaceId}>
+                  {r.label}
                 </option>
               ))}
             </Select>
           </Field>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Kickoff (local)" htmlFor="scheduledStartTsUtc">
+          <Field
+            label="Date and time"
+            htmlFor="startLocal"
+            hint={rink ? `Rink time (${rink.timezone}).` : "In the rink's time zone. Pick the rink first."}
+          >
             <Input
-              id="scheduledStartTsUtc"
+              id="startLocal"
               type="datetime-local"
               required
-              value={form.scheduledStartTsUtc}
-              onChange={(e) => set("scheduledStartTsUtc", e.target.value)}
-            />
-          </Field>
-          <Field label="Timezone" htmlFor="tz">
-            <Input
-              id="tz"
-              value={form.tz}
-              onChange={(e) => set("tz", e.target.value)}
+              value={startLocal}
+              onChange={(e) => setStartLocal(e.target.value)}
             />
           </Field>
         </div>
+        {rinks && rinks.length === 0 && league ? (
+          <p className="text-[12px] text-fg-muted">
+            <Link href="/venues" className="font-medium underline">
+              Add a rink under Rinks &amp; ice time
+            </Link>
+            , then come back.
+          </p>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Duration (min)" htmlFor="durationMin">
             <Input
@@ -196,16 +431,8 @@ function CreateGameDialog({
               type="number"
               min={15}
               max={360}
-              value={form.durationMin}
-              onChange={(e) => set("durationMin", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Venue" htmlFor="venueName">
-            <Input
-              id="venueName"
-              value={form.venueName}
-              onChange={(e) => set("venueName", e.target.value)}
-              placeholder="Optional"
+              value={durationMin}
+              onChange={(e) => setDurationMin(Number(e.target.value))}
             />
           </Field>
         </div>
@@ -215,8 +442,8 @@ function CreateGameDialog({
             id="publish"
             type="checkbox"
             className="mt-0.5"
-            checked={form.publish}
-            onChange={(e) => set("publish", e.target.checked)}
+            checked={publish}
+            onChange={(e) => setPublish(e.target.checked)}
           />
           <span>
             Show on team schedules now
@@ -225,6 +452,27 @@ function CreateGameDialog({
             </span>
           </span>
         </label>
+
+        {loadError ? (
+          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            {loadError}
+          </p>
+        ) : null}
+
+        {clash ? (
+          <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-800 dark:text-amber-300">
+            <p>{clash}</p>
+            <Field label="Reason" htmlFor="clashReason" hint="Required to schedule over the clash. Kept on the game.">
+              <Input
+                id="clashReason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Back-to-back booking agreed with the rink"
+                maxLength={500}
+              />
+            </Field>
+          </div>
+        ) : null}
 
         {error ? (
           <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
@@ -236,7 +484,18 @@ function CreateGameDialog({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          {clash ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void submit(true)}
+              disabled={loading || !reason.trim()}
+              title={reason.trim() ? undefined : "Add a reason to schedule over the clash"}
+            >
+              Schedule anyway
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={loading || !ready}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Scheduling…

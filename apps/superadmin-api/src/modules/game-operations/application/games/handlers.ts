@@ -7,6 +7,7 @@ import {
   ConflictError,
   DomainError,
   GAME_ENDING_LABELS,
+  SCHEDULABLE_ENTRY_STATUSES,
   ValidationError,
   checkFinalResult,
   clampLimit,
@@ -29,6 +30,7 @@ import { NotificationService } from "../../../communications/application/notific
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../../shared/display/entity-names";
 import {
+  gameInsertValues,
   gameUpdateValues,
   rowToGame
 } from "../../infrastructure/repositories/drizzle-game.repository";
@@ -43,6 +45,7 @@ import {
   queueGameNotice,
   type GameNoticeResult
 } from "./game-notifications";
+import { serveSuspensionsForFinalizedGame } from "../suspensions/suspension-rules";
 
 const log = new Logger("GameCommands");
 
@@ -99,20 +102,156 @@ export class GetGameHandler
 
 export interface CreateGameInput {
   leagueId: string;
+  /** Optional cross-check: must be the division's season when given. */
   seasonId?: string | null;
-  divisionId?: string | null;
+  divisionId: string;
   homeTeamId: string;
   awayTeamId: string;
-  sportCode: string;
-  scheduledStartTsUtc: string;
-  tz?: string;
+  /** Rink (surface). The game takes the rink's names and time zone. */
+  surfaceId: string;
+  /** Start as rink-local wall time "YYYY-MM-DDTHH:MM". */
+  startLocal: string;
   durationMin?: number;
-  venueName?: string | null;
-  surfaceLabel?: string | null;
   /** Show on team schedules right away (SCH-7). Default false = draft. */
   publish?: boolean;
+  /** Create even when the time clashes; needs a reason. */
+  force?: boolean;
+  reason?: string;
+  userId: string;
 }
 
+interface NewGamePlacement {
+  sportCode: string;
+  seasonId: string;
+  divisionId: string;
+  rink: Rink;
+  start: Date;
+}
+
+/**
+ * Check a hand-made game against the stored rows (SCH-5): the division
+ * belongs to the league (and to the season, when one is sent), both
+ * teams play in that division, the rink belongs to the league's
+ * organisation, and the rink-local start is a real time in the rink's
+ * zone. Season, sport, time zone and rink names come from the database,
+ * never from the client.
+ */
+async function resolveNewGame(exec: Exec, input: CreateGameInput): Promise<NewGamePlacement> {
+  const [league] = await exec
+    .select({
+      orgId: schema.leagues.orgId,
+      sportCode: schema.leagues.sportCode,
+      status: schema.leagues.status,
+      name: schema.leagues.name
+    })
+    .from(schema.leagues)
+    .where(eq(schema.leagues.id, input.leagueId))
+    .limit(1);
+  if (!league) throw new NotFoundError("League", input.leagueId);
+  if (league.status === "archived") {
+    throw new DomainError("GAME_LEAGUE_ARCHIVED", `${league.name} is archived. Games cannot be added to it.`);
+  }
+
+  const [division] = await exec
+    .select({
+      id: schema.divisions.id,
+      name: schema.divisions.name,
+      status: schema.divisions.status,
+      deletedAt: schema.divisions.deletedAt,
+      seasonId: schema.divisions.seasonId,
+      seasonName: schema.seasons.name,
+      seasonStatus: schema.seasons.status,
+      seasonDeletedAt: schema.seasons.deletedAt,
+      seasonLeagueId: schema.seasons.leagueId
+    })
+    .from(schema.divisions)
+    .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
+    .where(eq(schema.divisions.id, input.divisionId))
+    .limit(1);
+  if (!division || division.deletedAt || division.seasonDeletedAt) {
+    throw new NotFoundError("Division", input.divisionId);
+  }
+  if (division.seasonLeagueId !== input.leagueId) {
+    throw new DomainError(
+      "GAME_DIVISION_OTHER_LEAGUE",
+      `${division.name} belongs to another league. Pick a division of ${league.name}.`
+    );
+  }
+  if (input.seasonId && input.seasonId !== division.seasonId) {
+    throw new DomainError(
+      "GAME_DIVISION_OTHER_SEASON",
+      `${division.name} is not in the season you picked. Pick the season again.`
+    );
+  }
+  if (division.seasonStatus === "archived") {
+    throw new DomainError("GAME_SEASON_ARCHIVED", `${division.seasonName} is archived. Games cannot be added to it.`);
+  }
+  if (division.status === "archived") {
+    throw new DomainError("GAME_DIVISION_ARCHIVED", `${division.name} is archived. Games cannot be added to it.`);
+  }
+
+  const teamIds = [input.homeTeamId, input.awayTeamId];
+  const [teams, entries] = await Promise.all([
+    exec
+      .select({
+        id: schema.teams.id,
+        name: schema.teams.name,
+        status: schema.teams.status,
+        deletedAt: schema.teams.deletedAt
+      })
+      .from(schema.teams)
+      .where(inArray(schema.teams.id, teamIds)),
+    exec
+      .select({ teamId: schema.divisionTeamEntries.teamId })
+      .from(schema.divisionTeamEntries)
+      .where(
+        and(
+          eq(schema.divisionTeamEntries.divisionId, division.id),
+          inArray(schema.divisionTeamEntries.teamId, teamIds),
+          isNull(schema.divisionTeamEntries.leftAt),
+          inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
+        )
+      )
+  ]);
+  const entered = new Set(entries.map((e) => e.teamId));
+  for (const id of teamIds) {
+    const team = teams.find((t) => t.id === id);
+    if (!team || team.deletedAt) throw new NotFoundError("Team", id);
+    if (team.status === "dissolved") {
+      throw new DomainError("GAME_TEAM_DISSOLVED", `${team.name} is dissolved and cannot play.`);
+    }
+    if (!entered.has(id)) {
+      throw new DomainError(
+        "GAME_TEAM_NOT_IN_DIVISION",
+        `${team.name} is not entered in ${division.name}. Add the team on the division page first, or pick another team.`
+      );
+    }
+  }
+
+  const rink = await loadRinkForOrg(exec, input.surfaceId, league.orgId);
+  if (!isValidTimeZone(rink.timezone)) {
+    throw new DomainError(
+      "GAME_RINK_TIME_ZONE",
+      `${rink.venueName} has the time zone "${rink.timezone}", which is not a real time zone. Fix it under Rinks & ice time first.`
+    );
+  }
+  let start: Date;
+  try {
+    start = zonedWallTimeToUtc(input.startLocal, rink.timezone);
+  } catch (err) {
+    throw new ValidationError((err as Error).message);
+  }
+  return { sportCode: league.sportCode, seasonId: division.seasonId, divisionId: division.id, rink, start };
+}
+
+/**
+ * Create a hand-made game (UC-07 fallback, SCH-5) as one command: in one
+ * transaction, check it against the stored season, division, entries and
+ * rink, take the same placement locks as a move, refuse a clash (rink
+ * double-booked or a team playing twice at once) unless forced with a
+ * reason, and insert. After commit: read it back and, when published,
+ * queue a notice per player and captain of both teams.
+ */
 @Injectable()
 export class CreateGameHandler
   implements CommandHandler<CreateGameInput, GameDto>
@@ -123,25 +262,86 @@ export class CreateGameHandler
     private readonly notify: NotificationService
   ) {}
   async execute(input: CreateGameInput): Promise<GameDto> {
-    const g = Game.create({
-      id: GameId.of(randomUUID()),
-      leagueId: input.leagueId,
-      seasonId: input.seasonId,
-      divisionId: input.divisionId,
-      homeTeamId: input.homeTeamId,
-      awayTeamId: input.awayTeamId,
-      sportCode: input.sportCode,
-      scheduledStartTsUtc: new Date(input.scheduledStartTsUtc),
-      tz: input.tz,
-      durationMin: input.durationMin,
-      venueName: input.venueName,
-      surfaceLabel: input.surfaceLabel
+    if (input.homeTeamId === input.awayTeamId) {
+      throw new DomainError("GAME_SELF_PLAY", "Pick two different teams. A team cannot play itself.");
+    }
+    const reason = input.reason?.trim() || null;
+    if (input.force && !reason) {
+      throw new ValidationError("Say why you are scheduling over the clash.");
+    }
+    const durationMin = input.durationMin ?? 60;
+
+    const created = await this.db.transaction(async (tx) => {
+      // Lock first, then read: a rink archived or a game placed by a
+      // concurrent request is seen here, not after the insert.
+      await lockPlacement(tx, {
+        homeTeamId: input.homeTeamId,
+        awayTeamId: input.awayTeamId,
+        surfaceId: input.surfaceId
+      });
+      const placed = await resolveNewGame(tx, input);
+      const conflicts = await placementConflicts(tx, {
+        excludeGameId: null,
+        start: placed.start,
+        durationMin,
+        surfaceId: placed.rink.surfaceId,
+        homeTeamId: input.homeTeamId,
+        awayTeamId: input.awayTeamId,
+        tz: placed.rink.timezone,
+        venueName: placed.rink.venueName,
+        surfaceLabel: placed.rink.surfaceLabel
+      });
+      if (conflicts.length > 0 && !input.force) {
+        throw new ConflictError(
+          `This game clashes: ${conflicts.map((c) => c.message).join(" ")} Pick another time or rink, or schedule it anyway with a reason.`
+        );
+      }
+      const g = Game.create({
+        id: GameId.of(randomUUID()),
+        leagueId: input.leagueId,
+        seasonId: placed.seasonId,
+        divisionId: placed.divisionId,
+        homeTeamId: input.homeTeamId,
+        awayTeamId: input.awayTeamId,
+        sportCode: placed.sportCode,
+        scheduledStartTsUtc: placed.start,
+        tz: placed.rink.timezone,
+        durationMin,
+        venueName: placed.rink.venueName,
+        surfaceLabel: placed.rink.surfaceLabel,
+        surfaceId: placed.rink.surfaceId,
+        metadata: {
+          createdByUserId: input.userId,
+          ...(conflicts.length > 0
+            ? { createdOverConflicts: { reason, conflicts: conflicts.map((c) => c.message) } }
+            : {})
+        }
+      });
+      if (input.publish) g.publish();
+      const rows = await tx
+        .insert(schema.games)
+        .values(gameInsertValues(g.toSnapshot()))
+        .returning({ id: schema.games.id });
+      if (rows.length !== 1) throw new Error(`game insert wrote ${rows.length} rows`);
+      return { id: g.id.value, start: placed.start, forcedOver: conflicts.length };
     });
-    if (input.publish) g.publish();
-    await this.games.insert(g);
-    const saved = await this.games.findById(g.id);
-    if (!saved) throw new Error(`game ${g.id.value} not found after insert`);
-    if (saved.publishedAt) await notifyScheduled(this.db, this.notify, saved);
+
+    const saved = await this.games.findById(GameId.of(created.id));
+    if (
+      !saved ||
+      saved.scheduledStartTsUtc.getTime() !== created.start.getTime() ||
+      saved.divisionId !== input.divisionId ||
+      saved.surfaceId !== input.surfaceId ||
+      !saved.seasonId
+    ) {
+      throw new Error(`game ${created.id}: readback after create does not match what was written`);
+    }
+    const notices = saved.publishedAt
+      ? await notifyScheduled(this.db, this.notify, saved)
+      : { recipients: 0, queued: 0 };
+    log.log(
+      `create game=${created.id} by=${input.userId} division=${input.divisionId} surface=${input.surfaceId} start=${created.start.toISOString()} published=${!!saved.publishedAt} forcedOver=${created.forcedOver} queued=${notices.queued}`
+    );
     return GameDto.fromDomain(saved);
   }
 }
@@ -278,37 +478,17 @@ async function planMove(exec: Exec, g: Game, input: RescheduleInput): Promise<Re
   let surfaceId = g.surfaceId;
 
   if (input.surfaceId) {
-    const [surface] = await exec
-      .select({
-        id: schema.surfaces.id,
-        label: schema.surfaces.label,
-        venueName: schema.venues.name,
-        timezone: schema.venues.timezone,
-        venueOrgId: schema.venues.orgId
-      })
-      .from(schema.surfaces)
-      .innerJoin(schema.venues, eq(schema.venues.id, schema.surfaces.venueId))
-      .where(
-        and(
-          eq(schema.surfaces.id, input.surfaceId),
-          isNull(schema.surfaces.deletedAt),
-          isNull(schema.venues.deletedAt)
-        )
-      )
-      .limit(1);
-    if (!surface) throw new NotFoundError("Rink", input.surfaceId);
     const [league] = await exec
       .select({ orgId: schema.leagues.orgId })
       .from(schema.leagues)
       .where(eq(schema.leagues.id, g.leagueId))
       .limit(1);
-    if (!league || surface.venueOrgId !== league.orgId) {
-      throw new ValidationError("That rink belongs to another organisation. Pick one of this league's rinks.");
-    }
-    tz = surface.timezone;
-    venueName = surface.venueName;
-    surfaceLabel = surface.label;
-    surfaceId = surface.id;
+    if (!league) throw new NotFoundError("League", g.leagueId);
+    const rink = await loadRinkForOrg(exec, input.surfaceId, league.orgId);
+    tz = rink.timezone;
+    venueName = rink.venueName;
+    surfaceLabel = rink.surfaceLabel;
+    surfaceId = rink.surfaceId;
   }
 
   if (!isValidTimeZone(tz)) {
@@ -328,9 +508,114 @@ async function planMove(exec: Exec, g: Game, input: RescheduleInput): Promise<Re
     start.getTime() === g.scheduledStartTsUtc.getTime() && surfaceId === g.surfaceId;
   if (unchanged) throw new ValidationError("That is the game's current time and rink. Nothing to change.");
 
-  const end = new Date(start.getTime() + g.durationMin * 60_000);
+  const conflicts = await placementConflicts(exec, {
+    excludeGameId: g.id.value,
+    start,
+    durationMin: g.durationMin,
+    surfaceId,
+    homeTeamId: g.homeTeamId,
+    awayTeamId: g.awayTeamId,
+    tz,
+    venueName,
+    surfaceLabel
+  });
+
+  return {
+    startTsUtc: start.toISOString(),
+    startLocal,
+    tz,
+    venueName,
+    surfaceLabel,
+    surfaceId,
+    durationMin: g.durationMin,
+    conflicts
+  };
+}
+
+interface Rink {
+  surfaceId: string;
+  surfaceLabel: string;
+  venueName: string;
+  timezone: string;
+}
+
+/** A live rink (surface of a live venue) of `orgId`, or a plain refusal. */
+async function loadRinkForOrg(exec: Exec, surfaceId: string, orgId: string): Promise<Rink> {
+  const [surface] = await exec
+    .select({
+      id: schema.surfaces.id,
+      label: schema.surfaces.label,
+      venueName: schema.venues.name,
+      timezone: schema.venues.timezone,
+      venueOrgId: schema.venues.orgId
+    })
+    .from(schema.surfaces)
+    .innerJoin(schema.venues, eq(schema.venues.id, schema.surfaces.venueId))
+    .where(
+      and(
+        eq(schema.surfaces.id, surfaceId),
+        isNull(schema.surfaces.deletedAt),
+        isNull(schema.venues.deletedAt)
+      )
+    )
+    .limit(1);
+  if (!surface) throw new NotFoundError("Rink", surfaceId);
+  if (surface.venueOrgId !== orgId) {
+    throw new DomainError(
+      "GAME_RINK_OTHER_ORG",
+      "That rink belongs to another organisation. Pick one of this league's rinks."
+    );
+  }
+  return {
+    surfaceId: surface.id,
+    surfaceLabel: surface.label,
+    venueName: surface.venueName,
+    timezone: surface.timezone
+  };
+}
+
+/**
+ * Serialise placements (create, move) that touch the same rink or teams,
+ * so two admins cannot both pass the clash check and land in the same
+ * window.
+ */
+async function lockPlacement(
+  tx: Tx,
+  p: { homeTeamId: string; awayTeamId: string; surfaceId: string | null }
+): Promise<void> {
+  const keys = [
+    `placement:team:${p.homeTeamId}`,
+    `placement:team:${p.awayTeamId}`,
+    ...(p.surfaceId ? [`placement:surface:${p.surfaceId}`] : [])
+  ].sort();
+  for (const k of keys) await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${k}))`);
+}
+
+interface PlacementTarget {
+  /** The game being moved; null for a new game. */
+  excludeGameId: string | null;
+  start: Date;
+  durationMin: number;
+  surfaceId: string | null;
+  homeTeamId: string;
+  awayTeamId: string;
+  /** For the messages: the rink's zone and names. */
+  tz: string;
+  venueName: string | null;
+  surfaceLabel: string | null;
+}
+
+/**
+ * What a placement would clash with: another live game on the same rink
+ * in an overlapping window, or either team already playing in an
+ * overlapping window. Same two hard constraints the scheduler enforces
+ * (no_venue_double_book, no_team_overlap), checked across every league
+ * so a team is never in two places at once.
+ */
+async function placementConflicts(exec: Exec, t: PlacementTarget): Promise<RescheduleConflict[]> {
+  const end = new Date(t.start.getTime() + t.durationMin * 60_000);
   const overlaps = sql`${schema.games.scheduledStartTsUtc} < ${end.toISOString()}::timestamptz
-    and ${schema.games.scheduledStartTsUtc} + make_interval(mins => ${schema.games.durationMin}::int) > ${start.toISOString()}::timestamptz`;
+    and ${schema.games.scheduledStartTsUtc} + make_interval(mins => ${schema.games.durationMin}::int) > ${t.start.toISOString()}::timestamptz`;
   const live = notInArray(schema.games.status, ["cancelled", "postponed"]);
 
   const clashes = await exec
@@ -345,13 +630,13 @@ async function planMove(exec: Exec, g: Game, input: RescheduleInput): Promise<Re
     .from(schema.games)
     .where(
       and(
-        ne(schema.games.id, g.id.value),
+        ...(t.excludeGameId ? [ne(schema.games.id, t.excludeGameId)] : []),
         live,
         overlaps,
         or(
-          ...(surfaceId ? [eq(schema.games.surfaceId, surfaceId)] : []),
-          inArray(schema.games.homeTeamId, [g.homeTeamId, g.awayTeamId]),
-          inArray(schema.games.awayTeamId, [g.homeTeamId, g.awayTeamId])
+          ...(t.surfaceId ? [eq(schema.games.surfaceId, t.surfaceId)] : []),
+          inArray(schema.games.homeTeamId, [t.homeTeamId, t.awayTeamId]),
+          inArray(schema.games.awayTeamId, [t.homeTeamId, t.awayTeamId])
         )
       )
     );
@@ -362,43 +647,33 @@ async function planMove(exec: Exec, g: Game, input: RescheduleInput): Promise<Re
       { type: "team", id: c.homeTeamId },
       { type: "team", id: c.awayTeamId }
     ]).concat([
-      { type: "team", id: g.homeTeamId },
-      { type: "team", id: g.awayTeamId }
+      { type: "team", id: t.homeTeamId },
+      { type: "team", id: t.awayTeamId }
     ])
   );
   const team = (id: string) => names.get(`team:${id}`) ?? "another team";
   const conflicts: RescheduleConflict[] = [];
   for (const c of clashes) {
-    const when = gameTimeLabel(c.start, tz);
+    const when = gameTimeLabel(c.start, t.tz);
     const matchup = `${team(c.awayTeamId)} at ${team(c.homeTeamId)}`;
-    if (surfaceId && c.surfaceId === surfaceId) {
+    if (t.surfaceId && c.surfaceId === t.surfaceId) {
       conflicts.push({
         kind: "rink",
         gameId: c.id,
-        message: `${venueName ?? "This rink"}${surfaceLabel ? `, ${surfaceLabel}` : ""} is already booked for ${matchup} at ${when}.`
+        message: `${t.venueName ?? "This rink"}${t.surfaceLabel ? `, ${t.surfaceLabel}` : ""} is already booked for ${matchup} at ${when}.`
       });
     }
-    for (const t of [g.homeTeamId, g.awayTeamId]) {
-      if (c.homeTeamId === t || c.awayTeamId === t) {
+    for (const id of [t.homeTeamId, t.awayTeamId]) {
+      if (c.homeTeamId === id || c.awayTeamId === id) {
         conflicts.push({
           kind: "team",
           gameId: c.id,
-          message: `${team(t)} already have a game then: ${matchup} at ${when}.`
+          message: `${team(id)} already have a game then: ${matchup} at ${when}.`
         });
       }
     }
   }
-
-  return {
-    startTsUtc: start.toISOString(),
-    startLocal,
-    tz,
-    venueName,
-    surfaceLabel,
-    surfaceId,
-    durationMin: g.durationMin,
-    conflicts
-  };
+  return conflicts;
 }
 
 @Injectable()
@@ -435,14 +710,11 @@ export class RescheduleGameHandler
     }
     const { plan, record } = await this.db.transaction(async (tx) => {
       const before = await lockGame(tx, input.id);
-      // Serialise moves that touch the same rink or teams, so two admins
-      // cannot both pass the clash check and land in the same window.
-      const keys = [
-        `placement:team:${before.homeTeamId}`,
-        `placement:team:${before.awayTeamId}`,
-        ...(input.surfaceId ?? before.surfaceId ? [`placement:surface:${input.surfaceId ?? before.surfaceId}`] : [])
-      ].sort();
-      for (const k of keys) await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${k}))`);
+      await lockPlacement(tx, {
+        homeTeamId: before.homeTeamId,
+        awayTeamId: before.awayTeamId,
+        surfaceId: input.surfaceId ?? before.surfaceId
+      });
 
       const plan = await planMove(tx, before, input);
       if (plan.conflicts.length > 0 && !input.force) {
@@ -614,16 +886,23 @@ export interface FinalizeSummary {
   pointsRuleSource: "default" | "request";
   notificationRecipients: number;
   notificationsQueued: number;
+  /** Game-count suspensions of players on either team that counted this game (COMP-10). */
+  suspensionsServed: number;
+  /** Of those, how many are now fully served. */
+  suspensionsCompleted: number;
 }
 
 /**
  * Finalize (UC-12) as one command (SCH-17): in one transaction, lock the
  * game, check the score against the goal events, mark it completed with
  * how it ended and who finalized it, rebuild the game's stat lines from
- * the event log and the league's standings from completed games. Any
- * failure rolls all of it back, so a game is never final without its
- * stats. After commit: read the game back and queue one notification
- * per player and captain of both teams.
+ * the event log and the league's standings from completed games, and
+ * count the game served for suspended players of both teams (COMP-10).
+ * Any failure rolls all of it back, so a game is never final without
+ * its stats or its suspension count. Finalize happens once per game
+ * (in_play -> completed is terminal), which keeps that count
+ * idempotent. After commit: read the game back and queue one
+ * notification per player and captain of both teams.
  */
 @Injectable()
 export class FinalizeGameHandler
@@ -679,7 +958,14 @@ export class FinalizeGameHandler
       await saveIfStatus(tx, g, "in_play");
       const projection = await projectGameStats(tx, input.id);
       const standings = await recomputeLeagueStandings(tx, g.leagueId);
-      return { endedIn: verdict.endedIn, projection, standings };
+      const suspensions = await serveSuspensionsForFinalizedGame(tx, {
+        id: input.id,
+        start: g.scheduledStartTsUtc,
+        seasonId: g.seasonId,
+        homeTeamId: g.homeTeamId,
+        awayTeamId: g.awayTeamId
+      });
+      return { endedIn: verdict.endedIn, projection, standings, suspensions };
     });
 
     const fresh = await this.games.findById(GameId.of(input.id));
@@ -719,7 +1005,9 @@ export class FinalizeGameHandler
       standingsGamesCounted: done.standings.gamesCounted,
       pointsRuleSource: done.standings.pointsRuleSource,
       notificationRecipients: notices.recipients,
-      notificationsQueued: notices.queued
+      notificationsQueued: notices.queued,
+      suspensionsServed: done.suspensions.served.length,
+      suspensionsCompleted: done.suspensions.served.filter((x) => x.status === "served").length
     };
     log.log(`finalize game=${input.id} by=${input.userId} ${JSON.stringify(finalizeSummary)}`);
     return { ...GameDto.fromDomain(fresh), finalizeSummary };

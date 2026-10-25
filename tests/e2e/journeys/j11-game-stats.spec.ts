@@ -121,30 +121,69 @@ async function createTeamViaUi(page: Page, name: string, tag: string): Promise<s
 
 
 /**
- * Pick a team in the New game dialog. SCH-20: the picker only holds the first
- * 25 teams by UUID (listTeams() default page), so on a busy staging the team
- * a PPHL admin needs is often missing. When that happens the step is recorded
- * as a soft failure and, as LABELLED FIXTURE SETUP, the missing team is added
- * as an <option> so the real dialog submit path (gameOps.createGame) can still
- * run and the rest of the journey can be walked.
+ * Pick a team in the New game dialog the way an admin does (SCH-20): type part
+ * of its name into the team picker and click the match. The picker holds every
+ * team entered in the chosen division (all pages), so a missing option is a
+ * hard failure.
  */
-async function pickTeam(select: import("@playwright/test").Locator, name: string, id: string, tag: string) {
-  const opts = await select.locator("option").allInnerTexts();
-  const present = opts.includes(name);
-  console.log(`[${tag}] team picker has ${opts.length} options; "${name}" present: ${present}`);
-  expect.soft(present, `SCH-20 "${name}" is selectable in the New game team picker`).toBe(true);
-  if (!present) {
-    await select.evaluate((el: HTMLSelectElement, a: { id: string; name: string }) => {
-      const o = document.createElement("option"); o.value = a.id; o.text = `${a.name} (fixture-injected)`; el.appendChild(o);
-    }, { id, name });
-    await select.selectOption(id);
-  } else await select.selectOption({ label: name });
+async function pickTeam(dlg: import("@playwright/test").Locator, label: string, name: string, typed: string) {
+  const input = dlg.getByLabel(label);
+  await input.click();
+  await input.fill(typed);
+  const option = dlg.getByRole("listbox").getByRole("option", { name, exact: true });
+  await expect(option, `SCH-20 "${name}" found by typing "${typed}" in ${label}`).toBeVisible({ timeout: 15_000 });
+  await option.click();
+  await expect(input).toHaveValue(name);
+}
+
+/**
+ * Fill the New game dialog: league, season, division, both teams, rink, rink-
+ * local start (SCH-5). A team clash with an earlier run on shared staging is
+ * scheduled anyway with a reason, the way an admin overrides one (UC-07).
+ */
+async function scheduleGame(
+  page: Page,
+  o: { league: string; season: string; divisionId: string; away: string; home: string; rink: string | null; startLocal: string; tag: string }
+) {
+  const dlg = page.getByRole("dialog");
+  await dlg.getByLabel("League").selectOption({ label: o.league });
+  await expect(dlg.getByLabel("Season").locator("option", { hasText: o.season }).first()).toBeAttached({ timeout: 30_000 });
+  await dlg.getByLabel("Season").selectOption({ label: o.season });
+  await expect(dlg.locator(`#divisionId option[value="${o.divisionId}"]`)).toHaveCount(1, { timeout: 30_000 });
+  await dlg.getByLabel("Division").selectOption(o.divisionId);
+  await expect(dlg.getByText(/teams? entered in/)).toBeVisible({ timeout: 30_000 });
+  // SCH-20: a name nobody has is answered plainly, not with a random list.
+  await dlg.getByLabel("Away team").fill("zzqx-no-such-team");
+  await expect(dlg.getByText(/No team in this division matches/)).toBeVisible();
+  await pickTeam(dlg, "Away team", o.away, o.away.slice(-6));
+  await pickTeam(dlg, "Home team", o.home, o.home.slice(0, 5));
+  const rink = dlg.getByLabel("Rink");
+  await expect(rink.locator("option").nth(1), "SCH-5 rink picker lists the org's rinks").toBeAttached({ timeout: 30_000 });
+  const rinkOpts = await rink.locator("option").allInnerTexts();
+  const label = o.rink ?? rinkOpts.find((x) => x !== "Pick a rink")!;
+  await rink.selectOption({ label });
+  await expect(dlg.getByText(/^Rink time \(/), "SCH-5 start time is in the rink's zone").toBeVisible();
+  await dlg.getByLabel("Date and time").fill(o.startLocal);
+  const created = page.waitForResponse((r) => /\/api\/games$/.test(r.url()) && r.request().method() === "POST", { timeout: 30_000 });
+  await dlg.getByRole("button", { name: "Schedule game" }).click();
+  let r = await created;
+  if (r.status() === 409) {
+    console.log(`[${o.tag}] New game clash: ${(await dlg.innerText()).replace(/\s+/g, " ").slice(0, 300)}`);
+    await dlg.getByLabel("Reason").fill(`${o.tag} rerun on shared staging`);
+    const forced = page.waitForResponse((x) => /\/api\/games$/.test(x.url()) && x.request().method() === "POST", { timeout: 30_000 });
+    await dlg.getByRole("button", { name: "Schedule anyway" }).click();
+    r = await forced;
+  }
+  expect(r.status(), "SCH-5 New game accepted").toBe(201);
+  await expect(dlg).toBeHidden({ timeout: 20_000 });
+  return { rink: label };
 }
 
 async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${OUTPUT_DIR}/j11/${name}.png`, fullPage: true }).catch(() => {});
 }
 const BASE_TEAM = "Staging Skaters";
+const SEASON_NAME = "Staging 2026-27";
 const PLAYER_EMAIL = SMOKE_USERS.player;
 
 test.describe("J11 game day to stats", () => {
@@ -175,17 +214,35 @@ test.describe("J11 game day to stats", () => {
     await test.step("1 · create opponent team + game via /games (fixture setup through UI)", async () => {
       await page.goto(`${app}/teams`);
       oppId = await createTeamViaUi(page, oppName, "J11");
+      // A game is between two teams of one division (SCH-5): place the new
+      // team in the season's division from the division page (SCH-4).
+      const [div] = await stagingSql<{ id: string }>(
+        `select d.id from divisions d join seasons s on s.id = d.season_id
+          where s.name = $1 and s.deleted_at is null and d.deleted_at is null
+            and exists (select 1 from division_team_entries e where e.division_id = d.id and e.team_id = $2 and e.left_at is null)
+          limit 1`,
+        [SEASON_NAME, skaters!.id]
+      );
+      await page.goto(`${app}/divisions/${div!.id}`);
+      await page.getByRole("button", { name: "Add a team" }).click();
+      await page.getByLabel("Search teams").fill(oppName.slice(0, 6));
+      await page.getByRole("option", { name: oppName }).click();
+      await page.getByRole("button", { name: "Add to division" }).click();
+      await expect(page.getByText(`${oppName} is now in`)).toBeVisible({ timeout: 20_000 });
       await page.goto(`${app}/games`);
       await page.getByRole("button", { name: /New game/i }).first().click();
-      const dlg = page.getByRole("dialog");
-      const leagueOpts = await dlg.getByLabel("League").locator("option").allInnerTexts();
-      await dlg.getByLabel("League").selectOption({ label: leagueOpts.find((o) => o.startsWith("PPHL Staging League")) ?? leagueOpts[0]! });
-      await pickTeam(dlg.getByLabel("Away team"), oppName, oppId, "J11");
-      await pickTeam(dlg.getByLabel("Home team"), BASE_TEAM, skaters!.id, "J11");
       const d = new Date(Date.now() + 3 * 86400_000);
-      await dlg.getByLabel(/Kickoff/i).fill(`${d.toISOString().slice(0, 10)}T20:00`);
-      await dlg.getByRole("button", { name: /Schedule game/i }).click();
-      await expect(dlg).toBeHidden({ timeout: 20_000 });
+      // Any rink of the organisation will do for game-day checks.
+      await scheduleGame(page, {
+        league: "PPHL Staging League",
+        season: SEASON_NAME,
+        divisionId: div!.id,
+        away: oppName,
+        home: BASE_TEAM,
+        rink: null,
+        startLocal: `${d.toISOString().slice(0, 10)}T20:00`,
+        tag: "J11"
+      });
       const [g] = await stagingSql<{ id: string }>(`select id from games where away_team_id = $1 order by created_at desc limit 1`, [oppId]);
       gameId = g?.id ?? "";
       expect(gameId, "game row persisted").not.toBe("");
@@ -408,16 +465,11 @@ test.describe("J11 game day to stats", () => {
       await cap.page.screenshot({ path: `${OUTPUT_DIR}/j11/07-captain-stats.png`, fullPage: true });
       console.log(`[J11] captain /stats: ${capText.replace(/\s+/g, " ").slice(0, 600)}`);
       expect(capText, "SCH-24 captain /stats shows standings after a finalized game").not.toMatch(/No standings yet/);
-      // Player lines are per season. The New game dialog still sends no
-      // season (SCH-5), so this game's lines carry none and cannot appear in
-      // a season's player stats; only assert it when the game has one.
+      // Player lines are per season; the New game dialog now stores the
+      // division's season on the game (SCH-5).
       const [gs] = await stagingSql<{ season_id: string | null }>(`select season_id from games where id = $1`, [gameId]);
-      if (gs?.season_id) {
-        expect(capText, "SCH-24 captain /stats lists the scorer").toContain(scorer?.name ?? "???");
-      } else {
-        console.log("[J11] captain player stats for this game blocked by SCH-5 (game has no season)");
-        expect.soft(gs?.season_id, "SCH-5 manual game carries a season (needed for season player stats)").not.toBeNull();
-      }
+      expect(gs?.season_id, "SCH-5 manual game carries a season (needed for season player stats)").not.toBeNull();
+      expect(capText, "SCH-24 captain /stats lists the scorer").toContain(scorer?.name ?? "???");
       await cap.page.goto(`${cap.app}/schedule`);
       const capSched = await cap.page.locator("main").innerText();
       expect(capSched, "SCH-7 captain /schedule shows the completed game").toContain(oppName);

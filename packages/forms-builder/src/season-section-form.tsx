@@ -6,16 +6,17 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
-import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
+import {
+  SEASON_REGISTRATION_TYPES,
+  SEASON_REGISTRATION_TYPE_LABELS,
+  SYSTEM_ROLE_BY_CODE,
+  seasonRegistrationType,
+  type SeasonRegistrationType
+} from "@sportspulse/kernel";
 import { Badge } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 import { SectionHeader } from "./section-header";
 
-const REGISTRATION_TYPES: { value: string; label: string }[] = [
-  { value: "team_captain_led", label: "Team registration (captain-led)" },
-  { value: "individual", label: "Individual registration" },
-  { value: "team_and_individual", label: "Team + individual (mixed)" }
-];
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -48,8 +49,11 @@ export function SeasonSectionForm({
   const { leagueMgmt, registration } = useFormsBuilderApi();
   const router = useRouter();
   const [seasonId, setSeasonId] = useState<string>(form.seasonId ?? "");
-  const [registrationType, setRegistrationType] = useState<string>(
-    typeof form.description === "string" ? form.description : "team_captain_led"
+  // REG-14: the registration type lives on the season (seasons.config),
+  // where the funnel and the API read it. It used to be written into the
+  // form's description, which nothing read (and the save was a no-op).
+  const [registrationType, setRegistrationType] = useState<SeasonRegistrationType>(
+    seasonRegistrationType(season?.config ?? null)
   );
   const [allSeasons, setAllSeasons] = useState<Season[]>([]);
   const [seasonsLoading, setSeasonsLoading] = useState(true);
@@ -84,6 +88,13 @@ export function SeasonSectionForm({
   const selectedSeason =
     allSeasons.find((s) => s.id === seasonId) ?? season ?? null;
 
+  // Follow the bound season: picking another season shows its type.
+  useEffect(() => {
+    if (selectedSeason) {
+      setRegistrationType(seasonRegistrationType(selectedSeason.config ?? null));
+    }
+  }, [selectedSeason?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function bindSeason(nextSeasonId: string) {
     setError(null);
     setSaved(false);
@@ -103,12 +114,28 @@ export function SeasonSectionForm({
   }
 
   async function saveRegistrationType() {
+    if (!seasonId) {
+      setError("Pick the season first. The registration type is saved on the season.");
+      return;
+    }
     setError(null);
     setSaved(false);
     setBusy("type");
     try {
-      await registration.updateForm(form.id, { description: registrationType });
-      setSaved(true);
+      const res = await leagueMgmt.updateSeasonConfig(seasonId, {
+        registrationType
+      });
+      // Show Saved only when the stored value reads back as chosen.
+      const stored = seasonRegistrationType(res?.config ?? null);
+      setRegistrationType(stored);
+      setAllSeasons((prev) =>
+        prev.map((s) => (s.id === seasonId ? { ...s, config: res?.config ?? s.config } : s))
+      );
+      if (stored !== registrationType) {
+        setError("The season did not keep this registration type. Reload and try again.");
+      } else {
+        setSaved(true);
+      }
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -282,16 +309,24 @@ export function SeasonSectionForm({
           </p>
         ) : null}
 
-        <Field label="Registration type" required>
+        <Field
+          label="Registration type"
+          required
+          hint="Decides which paths players see. Team: captains register teams and players join from their captain's invite link. Individual: players register themselves, and as free agents when that is allowed under Divisions & eligibility. Saved on the season."
+        >
           <div className="flex items-center gap-2">
             <select
+              aria-label="Registration type"
               value={registrationType}
-              onChange={(e) => setRegistrationType(e.target.value)}
+              onChange={(e) =>
+                setRegistrationType(e.target.value as SeasonRegistrationType)
+              }
+              disabled={!seasonId || busy !== "none"}
               className="input"
             >
-              {REGISTRATION_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {SEASON_REGISTRATION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {SEASON_REGISTRATION_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
@@ -300,7 +335,7 @@ export function SeasonSectionForm({
               variant="ghost"
               size="sm"
               onClick={saveRegistrationType}
-              disabled={busy !== "none"}
+              disabled={!seasonId || busy !== "none"}
             >
               {busy === "type" ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

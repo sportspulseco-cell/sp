@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -249,6 +249,7 @@ export class RegistrationV2Service {
         status: schema.teamInvites.status,
         kind: schema.teamInvites.kind,
         expiresAt: schema.teamInvites.expiresAt,
+        source: sql<string | null>`${schema.teamInvites.metadata}->>'source'`,
         teamName: schema.teams.name,
         seasonName: schema.seasons.name
       })
@@ -259,11 +260,15 @@ export class RegistrationV2Service {
       .limit(1);
     if (!row) throw new NotFoundException("Invite not found");
     const expired = !!row.expiresAt && row.expiresAt < new Date();
+    // `extended` is a reminded invite with a new expiry: still open.
+    const open = row.status === "pending" || row.status === "extended";
     return {
       teamName: row.teamName,
       seasonName: row.seasonName,
       kind: row.kind,
-      status: row.status === "pending" && expired ? "expired" : row.status
+      /** free_agent_offer: a team's offer from the free-agent pool (CAP-9). */
+      offerKind: row.source === "free_agent_pool" ? "free_agent_offer" : "team_invite",
+      status: open ? (expired ? "expired" : "pending") : row.status
     };
   }
 
@@ -285,6 +290,13 @@ export class RegistrationV2Service {
   async listFreeAgentPool(opts: {
     seasonId?: string;
     forTeamId?: string;
+    /**
+     * Admin console (CAP-10): only entries whose season is in this subquery
+     * (shared/auth/visibility visibleSeasonIds). Null = unrestricted.
+     */
+    visibleSeasons?: SQL | null;
+    /** Pool status to list; default active. */
+    status?: "active" | "placed" | "withdrawn" | "all";
   }) {
     // Captain view: every season the team is live in. The old lookup took
     // the team's newest division entry of any status, so a rejected or
@@ -328,12 +340,14 @@ export class RegistrationV2Service {
       if (seasonIds.length === 0) return [];
     }
 
-    const where = seasonIds
-      ? and(
-          inArray(schema.freeAgentPoolEntries.seasonId, seasonIds),
-          eq(schema.freeAgentPoolEntries.status, "active")
-        )
-      : eq(schema.freeAgentPoolEntries.status, "active");
+    const status = opts.status ?? "active";
+    const where = and(
+      seasonIds ? inArray(schema.freeAgentPoolEntries.seasonId, seasonIds) : undefined,
+      status === "all" ? undefined : eq(schema.freeAgentPoolEntries.status, status),
+      opts.visibleSeasons
+        ? sql`${schema.freeAgentPoolEntries.seasonId} in ${opts.visibleSeasons}`
+        : undefined
+    );
 
     const rows = await this.db
       .select({
@@ -427,61 +441,9 @@ export class RegistrationV2Service {
     return row;
   }
 
-  async placeFreeAgent(
-    id: string,
-    input: { teamId: string }
-  ) {
-    const [row] = await this.db
-      .update(schema.freeAgentPoolEntries)
-      .set({
-        status: "placed",
-        placedTeamId: input.teamId,
-        placedAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(schema.freeAgentPoolEntries.id, id))
-      .returning();
-    if (!row) throw new NotFoundException(`Free agent entry ${id} not found`);
-
-    // The "place" used to stop at the pool-entry flip — but flipping
-    // status='placed' alone never put the player on the roster. The
-    // captain's roster view + the player's "My team" view both read
-    // from team_memberships, which stayed empty. Insert it here as
-    // part of the same operation (idempotent on the natural key).
-    // Pull jersey + primary position from the FA pool entry's
-    // positions[] + metadata.jersey_number (set at funnel approval).
-    const [existing] = await this.db
-      .select({ id: schema.teamMemberships.id })
-      .from(schema.teamMemberships)
-      .where(
-        and(
-          eq(schema.teamMemberships.teamId, input.teamId),
-          eq(schema.teamMemberships.personId, row.playerPersonId),
-          eq(schema.teamMemberships.seasonId, row.seasonId)
-        )
-      )
-      .limit(1);
-    if (!existing) {
-      const positions = Array.isArray(row.positions) ? (row.positions as string[]) : [];
-      const meta = (row.metadata as Record<string, unknown> | null) ?? {};
-      const jerseyRaw = meta.jersey_number;
-      const jerseyNumber =
-        typeof jerseyRaw === "number" && Number.isFinite(jerseyRaw)
-          ? Math.max(0, Math.min(99, Math.floor(jerseyRaw)))
-          : null;
-      await this.db.insert(schema.teamMemberships).values({
-        teamId: input.teamId,
-        personId: row.playerPersonId,
-        seasonId: row.seasonId,
-        membershipType: "primary",
-        currentStatus: "active",
-        effectiveFrom: new Date(),
-        jerseyNumber,
-        positionCode: positions[0] ?? null
-      });
-    }
-    return row;
-  }
+  // Direct placement (placeFreeAgent) was removed (CAP-9): it put a free
+  // agent on a roster without asking them. Offers go through
+  // FreeAgentOffersService; the player accepts on player-web.
 
   // ================= SEASON ROLLOVER (placeholder) =================
 

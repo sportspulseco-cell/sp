@@ -21,6 +21,7 @@ import {
 import { WaiveEligibilityButton } from "@/components/eligibility/waive-eligibility-button";
 import { CreateEligibilityButton } from "@/components/eligibility/create-eligibility-button";
 import { ComplianceSweepBar } from "@/components/eligibility/compliance-sweep-bar";
+import { DocumentReviewQueue } from "@/components/eligibility/document-review-queue";
 import type { EligibilityStatus } from "@/lib/api/types";
 
 export const metadata = { title: "Eligibility — SportsPulse" };
@@ -53,7 +54,7 @@ export default async function EligibilityPage({
   const sp = await searchParams;
   const status = sp?.status;
 
-  const [filteredResult, allPage, persons, seasonsPage] = await Promise.all([
+  const [filteredResult, allPage, persons, seasonsPage, documentsResult] = await Promise.all([
     load(compliance.listEligibility({ status, limit: 100 })),
     status
       ? compliance
@@ -61,7 +62,9 @@ export default async function EligibilityPage({
           .catch(() => ({ items: [], nextCursor: null }))
       : Promise.resolve(null),
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    // COMP-1: uploaded ID / eligibility documents waiting for a decision.
+    load(compliance.listDocumentSubmissions({ status: "pending" }))
   ]);
   if (!filteredResult.ok) {
     console.error("[eligibility] listEligibility failed", filteredResult.status, filteredResult.message);
@@ -91,12 +94,21 @@ export default async function EligibilityPage({
       <PageHeader
         eyebrow="Registration"
         title="Eligibility"
-        description="Who is cleared to play each season, based on age, documents and USA Hockey number. Re-check or waive a player here."
+        description="Who is cleared to play each season, based on age, documents and USA Hockey number. Review uploaded IDs, re-check or waive a player here."
         action={
           <CreateEligibilityButton
             persons={persons.items}
             seasons={seasonsPage.items}
           />
+        }
+      />
+
+      <DocumentReviewQueue
+        initial={documentsResult.ok ? documentsResult.data : null}
+        initialError={
+          documentsResult.ok
+            ? null
+            : { status: documentsResult.status, message: documentsResult.message }
         }
       />
 
@@ -206,7 +218,9 @@ export default async function EligibilityPage({
                     : "—"}
                 </TD>
                 <TD className="max-w-xs truncate text-fg-muted">
-                  {e.waiverReason ?? "—"}
+                  {/* A reason only explains a standing waiver; an older one
+                      left on a re-evaluated record must not read as current (COMP-17). */}
+                  {e.status === "waived" ? (e.waiverReason ?? "—") : "—"}
                 </TD>
                 <TD className="font-mono text-[11px] text-fg-muted">
                   {new Date(e.evaluatedAt).toLocaleString("en-US", {

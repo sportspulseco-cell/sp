@@ -203,11 +203,18 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     await expect(parent.getByText(fullName).first()).toBeVisible({ timeout: 30_000 });
     await expect(parent.getByText(j3.seasonName!).first()).toBeVisible();
     await shot(parent, "04-parent-portal");
-    // UC-28: checkbox + digital signature, linked parent account.
-    const sigInputs = await parent.locator("input[type=checkbox], input[type=text], canvas").count();
-    softExpect(sigInputs, "guardian portal collects a signature / acknowledgement").toBeGreaterThan(0);
-    await parent.getByRole("button", { name: /Confirm registration/i }).click();
-    await expect(parent.getByText(/confirmed|thank/i).first()).toBeVisible({ timeout: 30_000 });
+    // UC-28 / REG-15: the guardian reads the consent, types their full legal
+    // name and ticks the box; Confirm stays disabled until both are done.
+    await expect(parent.getByText(/I am the parent or legal guardian/).first()).toBeVisible();
+    const confirmBtn = parent.getByRole("button", { name: /Sign and confirm registration/i });
+    await expect(confirmBtn, "Confirm disabled before signing").toBeDisabled();
+    const guardianName = `Pat ${last}Guardian`;
+    await parent.getByLabel(/Your full legal name/i).fill(guardianName);
+    await parent.locator("input[type=checkbox]").check();
+    await expect(confirmBtn).toBeEnabled();
+    await confirmBtn.click();
+    await expect(parent.getByText(/Consent signed and recorded/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(parent.getByText(`Signed by ${guardianName}`, { exact: false }).first()).toBeVisible();
     await shot(parent, "04-parent-confirmed");
     const [r] = await stagingSql<{ status: string; confirmed: string | null }>(
       "select status, metadata->>'parentConsentConfirmedAt' confirmed from registrations where id = $1",
@@ -215,11 +222,20 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     );
     expect(r!.status).toBe("pending_payment");
     expect(r!.confirmed).toBeTruthy();
-    const consentRows = await stagingSql(
-      "select cs.id from consent_signatures cs join registrations r on r.subject_person_id = cs.person_id where r.id = $1",
+    // REG-15: one consent record on the child, under a `parental` document,
+    // carrying the guardian's typed name; the registration points at it.
+    const consentRows = await stagingSql<{ id: string; kind: string; label: string; sig: string | null }>(
+      `select cs.id, d.kind, cs.signature_blob_url label, r.metadata->>'parentConsentSignatureId' sig
+         from consent_signatures cs
+         join registrations r on r.subject_person_id = cs.person_id
+         join document_versions dv on dv.id = cs.document_version_id
+         join documents d on d.id = dv.document_id
+        where r.id = $1 and d.kind = 'parental'`,
       [submissionId]
     );
-    softExpect(consentRows.length, "consent record stored in compliance (consent_signatures) after guardian signs").toBeGreaterThan(0);
+    expect(consentRows.length, "parental consent record stored after the guardian signs").toBe(1);
+    expect(consentRows[0]!.sig, "registration points at the consent record").toBe(consentRows[0]!.id);
+    expect(decodeURIComponent(consentRows[0]!.label), "signature carries the guardian's name").toContain(guardianName);
     softExpect(errs.filter((e) => /http 5/.test(e)), "5xx on parental-consent page").toEqual([]);
     await ctx.close();
   });

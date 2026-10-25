@@ -9,9 +9,9 @@ import { IS_STAGING, RUN_TAG, freshContext, signedInAs, stagingSql, supabaseFetc
  *
  *   new visitor  @ PL /sign-up            → can a brand-new account reach the free-agent form?
  *   player       @ PL /register/free-agent → lists self for the team's current season
- *   captain      @ TA /captain/free-agents → sees the pool → claims
- *   super_admin  @ SA /registrations, org_admin @ OA /registrations → admin view of the pool
- *   player       @ PL /team                → sees the team
+ *   captain      @ TA /captain/free-agents → sees the pool → offers a spot (row updates in place)
+ *   super_admin  @ SA /registrations, org_admin @ OA /registrations → admin view of the pool + offer
+ *   player       @ PL /                    → accepts the offer → PL /team shows the team
  *
  * The free agent is a labelled fixture: auth user created with the staging
  * admin API (sign-up needs email confirmation on staging), then given the
@@ -207,87 +207,99 @@ test("J6.2 captain browses the pool for the team's season", async ({ browser }) 
   writeFileSync(`${OUT}/20-pool-season.json`, JSON.stringify(row));
 });
 
-test("J6.3 free agent also lists for the season the captain sees; captain claims", async () => {
-  test.skip(!poolSeason || poolSeason.id === SEASON_ID, "captain pool already reads the current season");
-  const p = fa.page;
-  await p.goto(`${fa.app}/register/free-agent`);
-  await settle(p);
-  const seasonBtn = p.getByRole("button", { name: new RegExp(`^${poolSeason!.name}`) });
-  const listed = await seasonBtn.isVisible().catch(() => false);
-  finding(listed, `CAP: free-agent form does not offer the season the captain's pool reads (${poolSeason!.name})`);
-  if (!listed) return;
-  await seasonBtn.click();
-  await p.getByRole("button", { name: /^defense$/i }).click();
-  await p.getByRole("button", { name: /join the pool|update entry/i }).click();
-  await settle(p);
-  await snap(p, "30-fa-listed-second-season");
+const faEntry = async () =>
+  (await stagingSql<{ id: string; status: string; placed_team_id: string | null }>(
+    `select f.id, f.status, f.placed_team_id from free_agent_pool_entries f join persons pe on pe.id=f.player_person_id
+       join auth.users u on u.id=pe.user_id where u.email=$1 and f.season_id=$2`,
+    [FA_EMAIL, SEASON_ID]
+  ))[0];
+const faMemberships = async () =>
+  (await stagingSql<{ n: number }>(
+    `select count(*)::int n from team_memberships m join persons pe on pe.id=m.person_id join auth.users u on u.id=pe.user_id
+      where m.team_id=$1 and m.season_id=$2 and u.email=$3 and m.current_status='active'`,
+    [TEAM_ID, SEASON_ID, FA_EMAIL]
+  ))[0]?.n ?? 0;
 
+test("J6.3 captain offers the free agent a spot; the row says so without a reload; nobody is placed yet (CAP-9)", async () => {
   const c = cap.page;
   c.on("dialog", (d) => d.accept());
   await c.goto(`${cap.app}/captain/free-agents`);
   await settle(c);
-  await c.getByText(/Pool is empty|CLAIM/i).first().waitFor({ timeout: 30_000 }).catch(() => {});
-  const pool = await snap(c, "31-captain-pool-again");
-  expect(pool, "free agent visible in captain pool").toContain(FA_FIRST);
-  const row = c.locator("li, tr").filter({ hasText: FA_FIRST }).first();
-  await Promise.all([
-    c.waitForResponse((r) => /free-agent-pool\/.*\/place/.test(r.url()), { timeout: 30_000 }).catch(() => null),
-    row.getByRole("button", { name: /claim/i }).click()
+  const row = c.locator("tr").filter({ hasText: FA_FIRST }).first();
+  await row.waitFor({ timeout: 30_000 });
+  const before = await row.innerText();
+  expect(before, "row offers 'Offer a spot' before any offer").toMatch(/offer a spot/i);
+  await snap(c, "30-captain-pool-before-offer");
+  const [resp] = await Promise.all([
+    c.waitForResponse((r) => /free-agent-pool\/[0-9a-f-]{36}\/offers$/.test(r.url()) && r.request().method() === "POST", { timeout: 30_000 }),
+    row.getByRole("button", { name: /offer a spot/i }).click()
   ]);
-  await settle(c);
-  await c.waitForTimeout(3000);
+  expect(resp.status(), "offer POST").toBeLessThan(300);
+  // Same-surface refresh: re-query the SAME row without reloading (J6 finding).
+  await expect(row.getByText(/offer sent/i)).toBeVisible({ timeout: 20_000 });
+  expect(await row.innerText(), "the row no longer offers 'Offer a spot'").not.toMatch(/offer a spot/i);
+  await snap(c, "32-after-offer");
+  // Nothing is placed until the player answers (UC-03).
+  expect((await faEntry())?.status, "pool entry still active after the offer").toBe("active");
+  expect(await faMemberships(), "no membership before the player accepts").toBe(0);
   await expect
-    .poll(async () => (await c.locator("main").first().innerText()).includes(FA_FIRST), { timeout: 15_000 })
-    .toBe(false).catch(() => {});
-  const after = await snap(c, "32-after-claim");
-  finding(!after.includes(FA_FIRST) || /placed|claimed/i.test(after), "CAP: claimed free agent still shows as available in the pool without reload");
-  await expect
-    .poll(async () => (await stagingSql<{ status: string }>(
-      `select f.status from free_agent_pool_entries f join persons pe on pe.id=f.player_person_id join auth.users u on u.id=pe.user_id
-        where u.email=$1 and f.season_id=$2`,
-      [FA_EMAIL, poolSeason!.id]
-    ))[0]?.status, { timeout: 20_000 })
-    .toBe("placed");
-  const mem = await stagingSql<{ n: number }>(
-    `select count(*)::int n from team_memberships m join persons pe on pe.id=m.person_id join auth.users u on u.id=pe.user_id
-      where m.team_id=$1 and u.email=$2 and m.current_status='active'`,
-    [TEAM_ID, FA_EMAIL]
-  );
-  expect(mem[0]?.n, "claim created an active membership").toBeGreaterThan(0);
-  await c.waitForTimeout(4000);
-  const notes = await stagingSql<{ n: number }>(
-    `select count(*)::int n from notifications n join persons pe on pe.id = n.recipient_person_id join auth.users u on u.id=pe.user_id where u.email=$1`,
-    [FA_EMAIL]
-  );
-  finding((notes[0]?.n ?? 0) > 0, "CAP: claim sent no notification to the free agent; UC-03 'player accepts or declines captain's invite' is skipped (claim places the player directly)");
+    .poll(async () => (await stagingSql<{ n: number }>(
+      `select count(*)::int n from notifications n join persons pe on pe.id = n.recipient_person_id join auth.users u on u.id=pe.user_id
+        where u.email=$1 and n.template_code='FREE_AGENT_OFFER'`,
+      [FA_EMAIL]
+    ))[0]?.n ?? 0, { timeout: 20_000, message: "free agent notified of the offer (in-app + email rows)" })
+    .toBeGreaterThan(0);
 });
 
-test("J6.4 free agent sees the team in player-web /team and the form shows 'placed'", async () => {
-  test.skip(!poolSeason, "no pool season");
+test("J6.4 admins see the free agent and the open offer (SA and OA /registrations, CAP-10)", async ({ browser }) => {
+  for (const role of ["superAdmin", "orgAdmin"] as const) {
+    const s = await signedInAs(browser, role);
+    await s.page.goto(`${s.app}/registrations`);
+    await settle(s.page);
+    const panel = s.page.locator("section[aria-label='Free-agent pool']");
+    await panel.waitFor({ timeout: 30_000 });
+    const row = panel.locator("tr").filter({ hasText: FA_FIRST }).first();
+    await row.waitFor({ timeout: 30_000 });
+    expect(await row.innerText(), `${role}: row shows the captain's open offer`).toMatch(/Offer sent: Staging Skaters/);
+    // Filters narrow the list (J6.1 listed the free agent as a defenseman).
+    await panel.getByLabel("Position").selectOption("G");
+    await expect(panel.locator("tr").filter({ hasText: FA_FIRST })).toHaveCount(0, { timeout: 20_000 });
+    await panel.getByLabel("Position").selectOption("D");
+    await expect(panel.locator("tr").filter({ hasText: FA_FIRST }).first()).toBeVisible({ timeout: 20_000 });
+    await snap(s.page, role === "superAdmin" ? "50-sa-registrations" : "51-oa-registrations");
+    await s.context.close();
+  }
+});
+
+test("J6.5 free agent accepts on player-web; joins the roster; the pool entry is placed", async () => {
   const p = fa.page;
+  await p.goto(`${fa.app}/`);
+  await settle(p);
+  const card = p.locator("section[aria-label='Team offers']");
+  await card.waitFor({ timeout: 30_000 });
+  expect(await card.innerText()).toContain("Staging Skaters");
+  await snap(p, "38-fa-offer-card");
+  await card.getByRole("button", { name: /^accept$/i }).first().click();
+  await expect(card.getByText(/You joined Staging Skaters/)).toBeVisible({ timeout: 30_000 });
+  expect(await faMemberships(), "active membership after accept").toBe(1);
+  const e = await faEntry();
+  expect(e?.status, "pool entry placed after accept").toBe("placed");
+  expect(e?.placed_team_id).toBe(TEAM_ID);
   await p.goto(`${fa.app}/team`);
   await settle(p);
   const t = await snap(p, "40-fa-team");
-  finding(t.includes("Staging Skaters"), "CAP: player-web /team does not show the team after the captain claimed the free agent");
+  expect(t, "player-web /team shows the team").toContain("Staging Skaters");
   await p.goto(`${fa.app}/register/free-agent`);
   await settle(p);
   const f = await snap(p, "41-fa-form-after-claim");
-  finding(/placed/i.test(f), "CAP: free-agent form does not show the entry as placed after the claim");
-});
-
-test("J6.5 admins can see the free-agent pool (SA and OA /registrations)", async ({ browser }) => {
-  const sa = await signedInAs(browser, "superAdmin");
-  await sa.page.goto(`${sa.app}/registrations`);
-  await settle(sa.page);
-  const st = await snap(sa.page, "50-sa-registrations");
-  finding(st.includes(FA_FIRST), "CAP: superadmin /registrations has no free-agent pool view (UC-03 'Admin manually assigns player to a team' has no screen)");
-  await sa.context.close();
-  const oa = await signedInAs(browser, "orgAdmin");
-  await oa.page.goto(`${oa.app}/registrations`);
-  await settle(oa.page);
-  const ot = await snap(oa.page, "51-oa-registrations");
-  finding(ot.includes(FA_FIRST), "CAP: org-admin /registrations has no free-agent pool view");
-  await oa.context.close();
+  finding(/placed/i.test(f), "CAP: free-agent form does not show the entry as placed after the claim (CAP-17)");
+  // Captain: the player left the pool; the offer reads Accepted.
+  const c = cap.page;
+  await c.goto(`${cap.app}/captain/free-agents`);
+  await settle(c);
+  const offers = c.locator("section", { hasText: "Your offers" });
+  await expect(offers.locator("tr").filter({ hasText: FA_FIRST }).first()).toContainText(/accepted/i, { timeout: 20_000 });
+  await expect(c.locator("table").first().locator("tr").filter({ hasText: FA_FIRST })).toHaveCount(0);
 });
 
 test("J6.z no defects recorded during the walk", async () => {

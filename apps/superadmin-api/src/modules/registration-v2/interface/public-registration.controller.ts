@@ -22,27 +22,41 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import {
+  IsBoolean,
   IsEmail,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
+  MaxLength,
   MinLength
 } from "class-validator";
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import {
   assertValidTransition,
+  canTransition,
+  guardianNameAcceptable,
+  initialFunnelRegistrationState,
+  isMinorOn,
   isRegistrationDocumentKey,
   isRegistrationState,
+  isRegistrationSubmissionType,
+  parentalConsentText,
+  PARENTAL_CONSENT_TITLE,
   REGISTRATION_ACCEPTING_SEASON_STATUSES,
+  REGISTRATION_STATE_LABELS,
+  submissionTypeRefusal,
   type RegistrationDocumentKey,
-  type RegistrationState
+  type RegistrationState,
+  type RegistrationSubmissionType
 } from "@sportspulse/kernel";
+import { playerWebUrl } from "../../../shared/app-urls";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -63,7 +77,61 @@ const PRE_SUBMISSION_STATES = new Set<string>([
   "pending_consent",
   "pending_payment"
 ]);
+/**
+ * Statuses in which the registrant may still change what they entered:
+ * before submission, and `incomplete` (the admin sent it back for fixes,
+ * kernel `incomplete → pending_review`). Anything else was submitted and
+ * is the record the league reviews; the funnel must not rewrite it.
+ */
+const EDITABLE_STATES = new Set<string>([...PRE_SUBMISSION_STATES, "incomplete"]);
+/**
+ * Final states that end a registration without a place: the kernel has no
+ * way back from them, and `registrations_active_uniq` ignores them, so the
+ * same person may start a new registration for the season.
+ */
+const RESTARTABLE_STATES = new Set<string>(["rejected", "cancelled", "withdrawn"]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Kernel transition guard as a 409 with a readable sentence (the kernel throws a plain Error, which Nest turns into a 500). */
+function assertTransitionOr409(from: string, to: RegistrationState, message: string): void {
+  if (!isRegistrationState(from) || !canTransition(from, to)) {
+    throw new ConflictException({ error: "invalid_transition", message, currentStatus: from });
+  }
+  assertValidTransition(from, to);
+}
+
+function stateLabel(status: string): string {
+  return isRegistrationState(status) ? REGISTRATION_STATE_LABELS[status] : status.replace(/_/g, " ");
+}
+
+/** 409 for a registration the league already has: points the player to My registrations. */
+function alreadySubmitted(row: { id: string; status: string }): ConflictException {
+  return new ConflictException({
+    error: "registration_already_submitted",
+    message: `You already submitted this registration (${stateLabel(row.status)}). Open My registrations at /registrations to see it; changes now go through the league.`,
+    registrationId: row.id,
+    status: row.status
+  });
+}
+
+class RedeemParentalConsentBodyDto {
+  @ApiProperty({ enum: ["confirm", "decline"] })
+  @IsIn(["confirm", "decline"])
+  action!: "confirm" | "decline";
+
+  /** Confirm only: the guardian's full legal name, typed as their signature. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  guardianName?: string;
+
+  /** Confirm only: the guardian ticked "I have read and agree". */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  acknowledged?: boolean;
+}
 
 /** Funnel signing handle → requirement key. Accepts the key itself or the legacy `form:<kind>[:vN]` ids. */
 function documentKeyFrom(raw: string | undefined | null): RegistrationDocumentKey | null {
@@ -391,6 +459,16 @@ export class PublicRegistrationController {
     return { items };
   }
 
+  @Get("app-links")
+  @ApiOperation({
+    summary:
+      "This environment's player app origin, from the API's PLAYER_WEB_URL (the same value the invite and consent emails use). Admin consoles build registration links from it, so a staging console never links to the production player app (REG-12, REG-13). `configured` is false when the API falls back to the production default."
+  })
+  appLinks(): { playerWebUrl: string; configured: boolean } {
+    const raw = this.config.get<string>("PLAYER_WEB_URL");
+    return { playerWebUrl: playerWebUrl(this.config), configured: !!raw && !!raw.trim() };
+  }
+
   @Get("seasons/:id")
   @ApiOperation({
     summary:
@@ -475,10 +553,11 @@ export class PublicRegistrationController {
       season,
       body.formVersionId ?? null
     );
+    // REG-14: the season's registration type decides which paths exist.
+    const submissionType = this.assertPathOffered(season, body.submissionType);
 
     const email = body.email.trim().toLowerCase();
-    const submissionType = body.submissionType ?? "individual";
-    const idempotencyKey = `${email}|${seasonId}|${submissionType}`;
+    const baseKey = `${email}|${seasonId}|${submissionType}`;
 
     // Phase 1.1 — find-or-create the Supabase auth user. Mock flow:
     // email_confirm=true so we don't depend on inbox roundtrip. Real
@@ -501,11 +580,11 @@ export class PublicRegistrationController {
       }
     }
 
-    // Phase 1.3 — minor evaluation. dob optional in this MVP since
-    // the funnel's Account step doesn't always collect it; if absent
-    // we treat as adult. Spec §6.2 says the parental flag adapts
-    // retroactively when dob is later entered.
-    const isMinor = body.dobDate ? computeIsMinor(body.dobDate) : false;
+    // Phase 1.3 — minor evaluation (kernel rule). The Account step
+    // collects the DOB; an unknown DOB is treated as adult here and the
+    // Details edit re-checks it (spec §6.2: the flag adapts when the DOB
+    // is entered later).
+    const isMinor = isMinorOn(body.dobDate ?? null);
 
     // Find-or-create the persons row.
     //
@@ -562,70 +641,102 @@ export class PublicRegistrationController {
       }
     }
 
-    // Resume support — if a draft already exists, return it instead
-    // of creating a new one.
-    const [existing] = await this.db
-      .select()
-      .from(schema.registrations)
-      .where(eq(schema.registrations.idempotencyKey, idempotencyKey))
-      .limit(1);
-    if (existing) {
-      // Patch in any newly-supplied fields so the next page-load
-      // reflects them. State only advances forward — drives by the
-      // kernel state machine, not whatever the client claims.
-      const rebind = this.rebindFormVersion(existing, formVersion.versionId);
-      const merged = mergeMetadata(existing.metadata, {
+    // Resume support, per (email, season, path), latest registration:
+    //   - not submitted yet, or sent back as `incomplete`: resume it and
+    //     patch in only the fields this request supplied;
+    //   - submitted (pending_review, pending_offline, approved): 409. The
+    //     league reviews that record; the funnel must not rewrite it.
+    //   - rejected / cancelled / withdrawn: final in the kernel, so this
+    //     is a new registration (new row, chained idempotency key).
+    const existing = await this.findLatestRegistration(baseKey);
+    if (existing && !RESTARTABLE_STATES.has(existing.status)) {
+      if (!EDITABLE_STATES.has(existing.status)) {
+        this.log.log(
+          `refused start over submitted registration=${existing.id} status=${existing.status}`
+        );
+        throw alreadySubmitted(existing);
+      }
+      const existingMeta = (existing.metadata as Record<string, unknown>) ?? {};
+      const dob =
+        body.dobDate ?? ((existingMeta.dobDate as string | null | undefined) ?? null);
+      const minor = isMinorOn(dob);
+      const patch: Record<string, unknown> = {
         submissionType,
-        pricingTierId: body.pricingTierId ?? null,
         email,
         fullName: body.fullName,
-        phone: body.phone ?? null,
-        dobDate: body.dobDate ?? null,
-        answers: body.answers ?? {},
-        isMinor,
-        team:
-          body.teamName || body.teamColor
-            ? {
-                name: body.teamName ?? null,
-                color: body.teamColor ?? null
-              }
-            : undefined
-      });
-      await this.db
+        isMinor: minor
+      };
+      if (body.pricingTierId !== undefined) patch.pricingTierId = body.pricingTierId;
+      if (body.phone !== undefined) patch.phone = body.phone;
+      if (body.dobDate !== undefined) patch.dobDate = body.dobDate;
+      if (body.answers) {
+        patch.answers = {
+          ...((existingMeta.answers as Record<string, unknown> | undefined) ?? {}),
+          ...body.answers
+        };
+      }
+      if (body.teamName || body.teamColor) {
+        patch.team = { name: body.teamName ?? null, color: body.teamColor ?? null };
+      }
+      const rebind = this.rebindFormVersion(existing, formVersion.versionId);
+      const toConsent = this.needsGuardianConsentNow(existing, dob);
+      if (toConsent) {
+        assertTransitionOr409(
+          existing.status,
+          "pending_consent",
+          "This registration needs a parent or guardian's consent, but it can no longer wait for it. Contact the league."
+        );
+      }
+      const [updated] = await this.db
         .update(schema.registrations)
         .set({
           submittedByUserId: userId,
-          metadata: merged,
+          metadata: mergeMetadata(existing.metadata, patch),
           ...rebind,
+          ...(toConsent ? { status: "pending_consent" } : {}),
           updatedAt: new Date()
         })
-        .where(eq(schema.registrations.id, existing.id));
+        .where(
+          and(
+            eq(schema.registrations.id, existing.id),
+            eq(schema.registrations.status, existing.status)
+          )
+        )
+        .returning({ id: schema.registrations.id, status: schema.registrations.status });
+      if (!updated) {
+        throw new ConflictException(
+          "This registration changed while you were saving. Reload the page and sign in again."
+        );
+      }
+      if (toConsent) {
+        this.log.log(
+          `registration=${existing.id} pending_payment -> pending_consent (start: DOB is a minor's, no guardian consent on file)`
+        );
+      }
       await this.v2.ensurePlayerRoleForRegistration({
         userId,
         divisionId: body.divisionId ?? existing.divisionId ?? null,
         orgId: season.orgId
       });
       return {
-        id: existing.id,
-        status: existing.status,
+        id: updated.id,
+        status: updated.status,
         resumed: true,
         userId,
         userCreated: false,
-        isMinor
+        isMinor: minor
       };
     }
+    // A new registration. After a rejected / cancelled one the key chains
+    // to it, so a retry of this same request finds this row again.
+    const idempotencyKey = existing ? `${baseKey}#${existing.id}` : baseKey;
 
-    // Initial state per spec §10. We auto-confirm email above (mock
-    // flow), so we land in pending_consent for minors and
-    // pending_payment for adults. If real email verification gets wired
-    // in, change initial state to pending_verification and let the
-    // verify endpoint advance it.
-    const initialState: RegistrationState = isMinor
-      ? "pending_consent"
-      : "pending_payment";
-    // Validate the transition draft → initial — this is informational
-    // (we never actually persist `draft` first), but it documents the
-    // path through the state machine.
+    // Initial state (kernel rule): pending_consent for a minor,
+    // pending_payment for an adult. The funnel confirms the account email
+    // itself, so there is no pending_verification step.
+    const initialState: RegistrationState = initialFunnelRegistrationState(
+      body.dobDate ?? null
+    );
     assertValidTransition("draft", initialState);
 
     let reg: typeof schema.registrations.$inferSelect | undefined;
@@ -720,6 +831,7 @@ export class PublicRegistrationController {
       season,
       body.formVersionId ?? null
     );
+    const submissionType = this.assertPathOffered(season, body.submissionType);
 
     const email = (body.email ?? "").trim().toLowerCase();
     if (!email) throw new NotFoundException("email required");
@@ -739,8 +851,7 @@ export class PublicRegistrationController {
     const userId = detail.userId;
     const fullName = detail.displayName?.trim() || email.split("@")[0]!;
 
-    const submissionType = body.submissionType ?? "individual";
-    const idempotencyKey = `${email}|${seasonId}|${submissionType}`;
+    const baseKey = `${email}|${seasonId}|${submissionType}`;
 
     // Find-or-create person row — same priority as startSubmission:
     // by userId first, then by name (and back-fill userId if missing).
@@ -785,35 +896,69 @@ export class PublicRegistrationController {
       }
     }
 
-    const [existing] = await this.db
-      .select()
-      .from(schema.registrations)
-      .where(eq(schema.registrations.idempotencyKey, idempotencyKey))
-      .limit(1);
-    if (existing) {
-      const rebind = this.rebindFormVersion(existing, formVersion.versionId);
-      if (rebind.formVersionId) {
-        await this.db
-          .update(schema.registrations)
-          .set({ ...rebind, updatedAt: new Date() })
-          .where(eq(schema.registrations.id, existing.id));
-      }
+    // Same rule as startSubmission: resume the latest registration unless
+    // it ended (rejected / cancelled / withdrawn), in which case this is a
+    // new one. A submitted registration is returned read-only.
+    const existing = await this.findLatestRegistration(baseKey);
+    if (existing && !RESTARTABLE_STATES.has(existing.status)) {
       // Return the full prior state so the funnel can hydrate the
-      // Details step on resume. Previously this only returned
-      // { id, status, userId, isMinor: false, fullName } — meaning the
-      // returning user saw a blank Details form even though their
-      // answers were stored. Pull dob + answers from metadata and
+      // Details step on resume. Pull dob + answers from metadata and
       // recompute isMinor from the stored DOB.
       const existingMeta =
         (existing.metadata as Record<string, unknown> | undefined) ?? {};
       const storedDob = (existingMeta.dobDate as string | null) ?? null;
+      const rebind = this.rebindFormVersion(existing, formVersion.versionId);
+      // A minor's registration that reached pending_payment without the
+      // guardian (rows created by the old resume, which ignored the DOB)
+      // goes back to wait for consent before the minor can pay.
+      const toConsent = this.needsGuardianConsentNow(existing, storedDob);
+      if (toConsent) {
+        assertTransitionOr409(
+          existing.status,
+          "pending_consent",
+          "This registration needs a parent or guardian's consent, but it can no longer wait for it. Contact the league."
+        );
+      }
+      let status = existing.status;
+      if (rebind.formVersionId || toConsent) {
+        const [updated] = await this.db
+          .update(schema.registrations)
+          .set({
+            ...rebind,
+            ...(toConsent
+              ? {
+                  status: "pending_consent",
+                  metadata: mergeMetadata(existing.metadata, { isMinor: true })
+                }
+              : {}),
+            updatedAt: new Date()
+          })
+          .where(
+            and(
+              eq(schema.registrations.id, existing.id),
+              eq(schema.registrations.status, existing.status)
+            )
+          )
+          .returning({ status: schema.registrations.status });
+        if (!updated) {
+          throw new ConflictException(
+            "This registration changed while you were signing in. Reload the page and sign in again."
+          );
+        }
+        status = updated.status;
+        if (toConsent) {
+          this.log.log(
+            `registration=${existing.id} pending_payment -> pending_consent (resume: stored DOB is a minor's, no guardian consent on file)`
+          );
+        }
+      }
       return {
         id: existing.id,
-        status: existing.status,
+        status,
         resumed: true,
         userId,
         userCreated: false,
-        isMinor: storedDob ? computeIsMinor(storedDob) : false,
+        isMinor: isMinorOn(storedDob),
         fullName: (existingMeta.fullName as string | undefined) ?? fullName,
         dobDate: storedDob,
         phone: (existingMeta.phone as string | null) ?? null,
@@ -837,8 +982,22 @@ export class PublicRegistrationController {
       .from(schema.profiles)
       .where(eq(schema.profiles.id, userId))
       .limit(1);
-    const profileDob = profileRow?.dobDate ?? null;
+    // The DOB the account already holds: the profile's, else the person
+    // row's (a minor who registered before has it on persons, not on the
+    // profile, and used to resume here as an adult).
+    const [personRow] = await this.db
+      .select({ dobDate: schema.persons.dobDate })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, personId!))
+      .limit(1);
+    const profileDob = profileRow?.dobDate ?? personRow?.dobDate ?? null;
     const profilePhone = profileRow?.phoneE164 ?? null;
+    // The consent bypass: this used to insert every resumed account as
+    // pending_payment, so a minor signing in with an existing account
+    // skipped the guardian. Same kernel rule as startSubmission.
+    const initialState: RegistrationState = initialFunnelRegistrationState(profileDob);
+    assertValidTransition("draft", initialState);
+    const idempotencyKey = existing ? `${baseKey}#${existing.id}` : baseKey;
 
     let reg: typeof schema.registrations.$inferSelect | undefined;
     try {
@@ -851,7 +1010,7 @@ export class PublicRegistrationController {
           submittedByUserId: userId,
           subjectPersonId: personId!,
           seasonId,
-          status: "pending_payment" as RegistrationState,
+          status: initialState,
           metadata: {
             submissionType,
             pricingTierId: null,
@@ -860,7 +1019,7 @@ export class PublicRegistrationController {
             phone: profilePhone,
             dobDate: profileDob,
             answers: {},
-            isMinor: profileDob ? computeIsMinor(profileDob) : false
+            isMinor: isMinorOn(profileDob)
           }
         })
         .returning();
@@ -880,7 +1039,7 @@ export class PublicRegistrationController {
       resumed: false,
       userId,
       userCreated: false,
-      isMinor: profileDob ? computeIsMinor(profileDob) : false,
+      isMinor: isMinorOn(profileDob),
       fullName,
       dobDate: profileDob,
       phone: profilePhone,
@@ -1051,20 +1210,34 @@ export class PublicRegistrationController {
     @Body() body: { email: string; parentEmail: string }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
+    const rowMeta = (row.metadata as Record<string, unknown>) ?? {};
     if (row.status !== "pending_consent") {
-      throw new Error(
-        `Cannot start parental consent from status=${row.status}; only valid from pending_consent.`
-      );
+      // Was a plain Error (500). Already-consented is the common case.
+      throw new ConflictException({
+        error: "not_pending_consent",
+        message: rowMeta.parentConsentConfirmedAt
+          ? "Your parent or guardian already confirmed. Continue to the next step."
+          : `This registration is ${stateLabel(row.status)}. A consent request can only be sent while it waits for a parent or guardian.`,
+        currentStatus: row.status
+      });
     }
-    if (!body.parentEmail?.includes("@")) {
-      throw new Error("parentEmail required");
+    const parentEmail = (body.parentEmail ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
+      throw new UnprocessableEntityException("Enter your parent or guardian's email address.");
+    }
+    if (parentEmail === String(rowMeta.email ?? "").toLowerCase()) {
+      // The link is the guardian's credential (REG-6); it must not go to
+      // the registrant's own inbox.
+      throw new UnprocessableEntityException(
+        "Use your parent or guardian's own email address, not the one you registered with."
+      );
     }
 
     // Signed token (see signConsentToken). Only the guardian receives it;
     // the redeem endpoint verifies the signature and the 24h expiry.
     const token = this.signConsentToken(submissionId, Date.now());
     const meta = mergeMetadata(row.metadata, {
-      parentEmail: body.parentEmail.trim().toLowerCase(),
+      parentEmail,
       parentConsentTokenIssuedAt: new Date().toISOString()
     });
     await this.db
@@ -1072,10 +1245,8 @@ export class PublicRegistrationController {
       .set({ metadata: meta, updatedAt: new Date() })
       .where(eq(schema.registrations.id, submissionId));
 
-    const playerWebBase =
-      this.config.get<string>("PLAYER_WEB_URL") ??
-      "https://player.sportspulse.us";
-    const portalUrl = `${playerWebBase}/parental-consent/${token}`;
+    // One per-environment origin for every emailed link (shared/app-urls).
+    const portalUrl = `${playerWebUrl(this.config)}/parental-consent/${token}`;
     const subject = "Action required: please confirm your child's registration";
     const messageBody = [
       `A child registration on SportsPulse needs your consent before it can proceed.`,
@@ -1090,7 +1261,7 @@ export class PublicRegistrationController {
     // unset). The mockConsentMessage comes back regardless so the
     // funnel can offer a copy/paste fallback.
     const dispatch = await this.email.send({
-      to: body.parentEmail,
+      to: parentEmail,
       subject,
       body: messageBody,
       channel: "registration.parental_consent"
@@ -1105,7 +1276,7 @@ export class PublicRegistrationController {
       emailDeliveryReason: dispatch.reason ?? null,
       mockConsentMessage: dispatch.delivered
         ? null
-        : { to: body.parentEmail, subject, body: messageBody }
+        : { to: parentEmail, subject, body: messageBody }
     };
   }
 
@@ -1156,6 +1327,11 @@ export class PublicRegistrationController {
     orgName: string | null;
     expired: boolean;
     confirmedAt: string | null;
+    /** REG-15: the exact words the guardian signs (stored with the signature). */
+    consentTitle: string;
+    consentText: string;
+    guardianEmail: string | null;
+    signedBy: string | null;
   }> {
     const decoded = this.decodeConsentToken(token);
     if (!decoded) {
@@ -1186,7 +1362,14 @@ export class PublicRegistrationController {
       seasonName: row.seasonName ?? null,
       orgName: row.orgName ?? null,
       expired: decoded.expired,
-      confirmedAt: (meta.parentConsentConfirmedAt as string) ?? null
+      confirmedAt: (meta.parentConsentConfirmedAt as string) ?? null,
+      consentTitle: PARENTAL_CONSENT_TITLE,
+      consentText: parentalConsentText({
+        seasonName: row.seasonName ?? null,
+        orgName: row.orgName ?? null
+      }),
+      guardianEmail: (meta.parentEmail as string | undefined) ?? null,
+      signedBy: (meta.parentConsentSignerName as string | undefined) ?? null
     };
   }
 
@@ -1199,12 +1382,19 @@ export class PublicRegistrationController {
   @Post("parental-consent/:token/redeem")
   @ApiOperation({
     summary:
-      "Anonymous redeem: parent confirms or declines via the portal. 410 when the token is expired (>24h)."
+      "Anonymous redeem: the guardian confirms (typed full legal name + acknowledgement, stored as a consent record with the consent text, IP and user agent; status pending_consent -> pending_payment) or declines (-> cancelled). One transaction. 409 when the link expired (>24h) or the registration is no longer waiting; a repeated confirm returns the stored consent."
   })
   async redeemParentalConsent(
     @Param("token") token: string,
-    @Body() body: { action: "confirm" | "decline" }
-  ): Promise<{ submissionId: string; status: string }> {
+    @Body() body: RedeemParentalConsentBodyDto,
+    @Req() req: { ip?: string; headers?: Record<string, string | string[] | undefined> }
+  ): Promise<{
+    submissionId: string;
+    status: string;
+    alreadyConfirmed?: boolean;
+    signatureId?: string | null;
+    signedBy?: string | null;
+  }> {
     const decoded = this.decodeConsentToken(token);
     if (!decoded) {
       throw new NotFoundException("Invalid consent token");
@@ -1216,56 +1406,134 @@ export class PublicRegistrationController {
           "This consent link has expired. Ask the player to resend the consent email."
       });
     }
-    if (body.action !== "confirm" && body.action !== "decline") {
-      throw new ConflictException({
-        error: "invalid_action",
-        message: "action must be 'confirm' or 'decline'"
-      });
-    }
-
-    const [row] = await this.db
-      .select()
-      .from(schema.registrations)
-      .where(eq(schema.registrations.id, decoded.submissionId))
-      .limit(1);
-    if (!row) throw new NotFoundException("Submission not found");
-    if (row.status !== "pending_consent") {
-      throw new ConflictException({
-        error: "not_pending_consent",
-        message: `Registration is in status=${row.status}; only pending_consent can be redeemed.`,
-        currentStatus: row.status
-      });
-    }
-
-    const now = new Date();
+    const guardianName = (body.guardianName ?? "").trim().replace(/\s+/g, " ");
     if (body.action === "confirm") {
-      const meta = mergeMetadata(row.metadata, {
-        parentConsentConfirmedAt: now.toISOString()
+      // REG-15: consent is a signature, not a button press.
+      if (!guardianNameAcceptable(guardianName)) {
+        throw new UnprocessableEntityException(
+          "Type your full legal name (first and last) to sign the consent."
+        );
+      }
+      if (body.acknowledged !== true) {
+        throw new UnprocessableEntityException(
+          "Tick the box to confirm you have read the consent and agree to it."
+        );
+      }
+    }
+    const ipAddr = requestClientIp(req);
+    const userAgent = requestUserAgent(req);
+
+    const result = await this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(schema.registrations)
+        .where(eq(schema.registrations.id, decoded.submissionId))
+        .limit(1)
+        .for("update");
+      if (!row) throw new NotFoundException("Submission not found");
+      const meta = (row.metadata as Record<string, unknown>) ?? {};
+
+      if (row.status !== "pending_consent") {
+        if (body.action === "confirm" && meta.parentConsentConfirmedAt) {
+          return {
+            submissionId: row.id,
+            status: row.status,
+            alreadyConfirmed: true,
+            signatureId: (meta.parentConsentSignatureId as string | undefined) ?? null,
+            signedBy: (meta.parentConsentSignerName as string | undefined) ?? null
+          };
+        }
+        throw new ConflictException({
+          error: "not_pending_consent",
+          message: `This registration is ${stateLabel(row.status)} and is no longer waiting for a parent or guardian. Contact the league if that is not what you expected.`,
+          currentStatus: row.status
+        });
+      }
+
+      const now = new Date();
+      if (body.action === "decline") {
+        assertTransitionOr409(
+          row.status,
+          "cancelled",
+          "This registration can no longer be declined. Contact the league."
+        );
+        const [updated] = await tx
+          .update(schema.registrations)
+          .set({
+            status: "cancelled",
+            metadata: mergeMetadata(row.metadata, {
+              parentConsentDeclinedAt: now.toISOString(),
+              ...(guardianName ? { parentConsentDeclinedBy: guardianName } : {})
+            }),
+            updatedAt: now
+          })
+          .where(
+            and(
+              eq(schema.registrations.id, row.id),
+              eq(schema.registrations.status, "pending_consent")
+            )
+          )
+          .returning({ status: schema.registrations.status });
+        if (!updated) throw new Error(`decline readback empty registration=${row.id}`);
+        return { submissionId: row.id, status: updated.status };
+      }
+
+      assertTransitionOr409(
+        row.status,
+        "pending_payment",
+        "This registration can no longer be confirmed. Contact the league."
+      );
+      const [names] = await tx
+        .select({ seasonName: schema.seasons.name, orgName: schema.orgs.displayName })
+        .from(schema.registrations)
+        .leftJoin(schema.seasons, eq(schema.seasons.id, schema.registrations.seasonId))
+        .leftJoin(schema.orgs, eq(schema.orgs.id, schema.registrations.orgId))
+        .where(eq(schema.registrations.id, row.id))
+        .limit(1);
+      const signature = await this.requirements.recordGuardianConsent(tx, {
+        orgId: row.orgId,
+        subjectPersonId: row.subjectPersonId,
+        registrationId: row.id,
+        consentText: parentalConsentText({
+          seasonName: names?.seasonName ?? null,
+          orgName: names?.orgName ?? null
+        }),
+        guardianName,
+        guardianEmail: (meta.parentEmail as string | undefined) ?? null,
+        ipAddr,
+        userAgent
       });
-      await this.db
+      const [updated] = await tx
         .update(schema.registrations)
         .set({
           status: "pending_payment",
-          metadata: meta,
+          metadata: mergeMetadata(row.metadata, {
+            parentConsentConfirmedAt: now.toISOString(),
+            parentConsentSignerName: guardianName,
+            parentConsentSignatureId: signature.signatureId,
+            parentConsentDocumentVersionId: signature.documentVersionId
+          }),
           updatedAt: now
         })
-        .where(eq(schema.registrations.id, decoded.submissionId));
-      return { submissionId: decoded.submissionId, status: "pending_payment" };
-    }
-
-    // Decline.
-    const meta = mergeMetadata(row.metadata, {
-      parentConsentDeclinedAt: now.toISOString()
+        .where(
+          and(
+            eq(schema.registrations.id, row.id),
+            eq(schema.registrations.status, "pending_consent")
+          )
+        )
+        .returning({ status: schema.registrations.status });
+      if (!updated) throw new Error(`consent readback empty registration=${row.id}`);
+      return {
+        submissionId: row.id,
+        status: updated.status,
+        signatureId: signature.signatureId,
+        signedBy: guardianName
+      };
     });
-    await this.db
-      .update(schema.registrations)
-      .set({
-        status: "cancelled",
-        metadata: meta,
-        updatedAt: now
-      })
-      .where(eq(schema.registrations.id, decoded.submissionId));
-    return { submissionId: decoded.submissionId, status: "cancelled" };
+    this.log.log(
+      `parental consent ${body.action} registration=${result.submissionId} status=${result.status}${result.alreadyConfirmed ? " (already confirmed)" : ""}`
+    );
+    return result;
   }
 
   /**
@@ -1460,7 +1728,14 @@ export class PublicRegistrationController {
     }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
+    // A submitted registration is the league's record; the funnel used to
+    // overwrite its answers, tier and division after review had started.
+    if (!EDITABLE_STATES.has(row.status)) {
+      this.log.log(`refused edit of submitted registration=${row.id} status=${row.status}`);
+      throw alreadySubmitted(row);
+    }
     const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const has = (k: string) => Object.prototype.hasOwnProperty.call(body, k);
 
     const patch: Record<string, unknown> = {};
     if (body.answers && typeof body.answers === "object") {
@@ -1470,55 +1745,87 @@ export class PublicRegistrationController {
         (meta.answers as Record<string, unknown> | undefined) ?? {};
       patch.answers = { ...existingAnswers, ...body.answers };
     }
-    if (Object.prototype.hasOwnProperty.call(body, "pricingTierId")) {
+    if (has("pricingTierId")) {
       patch.pricingTierId = body.pricingTierId ?? null;
     }
-    if (Object.prototype.hasOwnProperty.call(body, "dobDate")) {
+    let dob = (meta.dobDate as string | null | undefined) ?? null;
+    if (has("dobDate")) {
+      const next = body.dobDate ?? null;
+      if (next !== null && !/^\d{4}-\d{2}-\d{2}$/.test(next)) {
+        throw new UnprocessableEntityException("Date of birth must be a date (YYYY-MM-DD).");
+      }
+      if (next !== dob && !PRE_SUBMISSION_STATES.has(row.status)) {
+        throw new ConflictException(
+          "The date of birth cannot be changed after the registration was submitted. Contact the league to correct it."
+        );
+      }
       // Editable inline on Details — write DOB onto metadata and
-      // recompute isMinor so the dynamic parental-consent step
-      // re-renders correctly on the next stepper transition.
-      patch.dobDate = body.dobDate ?? null;
-      patch.isMinor = body.dobDate ? computeIsMinor(body.dobDate) : false;
+      // recompute isMinor (kernel rule).
+      dob = next;
+      patch.dobDate = next;
+      patch.isMinor = isMinorOn(next);
     }
-    if (
-      Object.prototype.hasOwnProperty.call(body, "teamName") ||
-      Object.prototype.hasOwnProperty.call(body, "teamColor")
-    ) {
+    if (has("teamName") || has("teamColor")) {
       const existingTeam =
         (meta.team as Record<string, unknown> | undefined) ?? {};
       patch.team = {
         ...existingTeam,
-        ...(Object.prototype.hasOwnProperty.call(body, "teamName")
-          ? { name: body.teamName ?? null }
-          : {}),
-        ...(Object.prototype.hasOwnProperty.call(body, "teamColor")
-          ? { color: body.teamColor ?? null }
-          : {})
+        ...(has("teamName") ? { name: body.teamName ?? null } : {}),
+        ...(has("teamColor") ? { color: body.teamColor ?? null } : {})
       };
     }
 
     // divisionId is a real column, not metadata.
     const dbPatch: Record<string, unknown> = {};
-    if (Object.prototype.hasOwnProperty.call(body, "divisionId")) {
+    if (has("divisionId")) {
       dbPatch.divisionId = body.divisionId ?? null;
     }
 
-    if (Object.keys(patch).length === 0 && Object.keys(dbPatch).length === 0) {
-      return { id: submissionId, updated: false };
+    // A DOB that shows a minor sends an unpaid registration back to wait
+    // for the guardian (kernel pending_payment -> pending_consent). It
+    // never goes the other way: only the guardian's consent leaves
+    // pending_consent.
+    const toConsent = this.needsGuardianConsentNow(row, dob);
+    if (toConsent) {
+      assertTransitionOr409(
+        row.status,
+        "pending_consent",
+        "This registration needs a parent or guardian's consent, but it can no longer wait for it. Contact the league."
+      );
     }
 
-    await this.db
+    if (Object.keys(patch).length === 0 && Object.keys(dbPatch).length === 0 && !toConsent) {
+      return { id: submissionId, updated: false, status: row.status, isMinor: isMinorOn(dob) };
+    }
+
+    const [updated] = await this.db
       .update(schema.registrations)
       .set({
         ...(Object.keys(patch).length > 0
           ? { metadata: mergeMetadata(meta, patch) }
           : {}),
         ...dbPatch,
+        ...(toConsent ? { status: "pending_consent" } : {}),
         updatedAt: new Date()
       })
-      .where(eq(schema.registrations.id, submissionId));
-
-    return { id: submissionId, updated: true };
+      .where(
+        and(
+          eq(schema.registrations.id, submissionId),
+          eq(schema.registrations.status, row.status)
+        )
+      )
+      .returning({ status: schema.registrations.status });
+    if (!updated) {
+      throw new ConflictException(
+        "This registration changed while you were saving. Reload the page and sign in again."
+      );
+    }
+    if (toConsent) {
+      this.log.log(
+        `registration=${submissionId} pending_payment -> pending_consent (Details: DOB is a minor's, no guardian consent on file)`
+      );
+    }
+    return { id: submissionId, updated: true, status: updated.status, isMinor: isMinorOn(dob) };
   }
 
   @Post("submissions/:id/pay")
@@ -1561,6 +1868,21 @@ export class PublicRegistrationController {
       throw new BadRequestException(
         `Cannot pay from state=${row.status}; expected pending_payment. Re-open the funnel from the start so the state advances.`
       );
+    }
+    // Guardian gate: a minor pays only after the guardian's consent is on
+    // file, whatever path put the row in pending_payment (older rows from
+    // the resume bypass, a DOB fixed later).
+    const payMeta = (row.metadata as Record<string, unknown>) ?? {};
+    if (
+      isMinorOn((payMeta.dobDate as string | null | undefined) ?? null) &&
+      !payMeta.parentConsentConfirmedAt
+    ) {
+      this.log.log(`refused pay: registration=${row.id} minor without guardian consent`);
+      throw new ConflictException({
+        error: "guardian_consent_required",
+        message:
+          "A parent or guardian must confirm this registration before payment. Sign in to the registration again to send them the consent link."
+      });
     }
     // Submission gate, before any invoice or state write: the window is
     // open (REG-16) and every required document is signed by the
@@ -1786,6 +2108,61 @@ export class PublicRegistrationController {
   // ---------- internals ----------
 
   /**
+   * REG-14: the path must be one this season offers (kernel
+   * allowedSubmissionTypes: the season's registration type, plus the
+   * free-agent toggle). 422 naming the paths it does take. Runs before
+   * any account or row is written.
+   */
+  private assertPathOffered(
+    season: { id: string; config: unknown },
+    requested: string | null | undefined
+  ): RegistrationSubmissionType {
+    const type = requested ?? "individual";
+    if (!isRegistrationSubmissionType(type)) {
+      throw new UnprocessableEntityException(`Unknown registration path "${type}".`);
+    }
+    const refusal = submissionTypeRefusal(
+      (season.config ?? {}) as Record<string, unknown>,
+      type
+    );
+    if (refusal) {
+      this.log.log(`refused path=${type} season=${season.id}`);
+      throw new UnprocessableEntityException(refusal);
+    }
+    return type;
+  }
+
+  /**
+   * Latest registration for (email, season, path). A restart after a
+   * rejected / cancelled registration stores `<key>#<previous id>`, so the
+   * chain is followed by prefix (starts_with, not LIKE: emails contain
+   * `_`).
+   */
+  private async findLatestRegistration(baseKey: string) {
+    const [row] = await this.db
+      .select()
+      .from(schema.registrations)
+      .where(
+        or(
+          eq(schema.registrations.idempotencyKey, baseKey),
+          sql`starts_with(${schema.registrations.idempotencyKey}, ${`${baseKey}#`})`
+        )
+      )
+      .orderBy(desc(schema.registrations.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** An unpaid registration whose DOB is a minor's and has no guardian consent on file. */
+  private needsGuardianConsentNow(
+    row: { status: string; metadata: unknown },
+    dob: string | null
+  ): boolean {
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    return row.status === "pending_payment" && isMinorOn(dob) && !meta.parentConsentConfirmedAt;
+  }
+
+  /**
    * REG-8: a not-yet-submitted registration bound to another form's
    * version (rows created before the fix) is moved to the season's
    * active version when the player comes back. Submitted rows keep their
@@ -1884,16 +2261,6 @@ function lastName(full: string): string {
   const parts = full.trim().split(/\s+/);
   if (parts.length < 2) return "Registrant";
   return parts.slice(1).join(" ");
-}
-
-function computeIsMinor(dobDate: string): boolean {
-  const dob = new Date(dobDate + "T00:00:00Z");
-  if (isNaN(dob.getTime())) return false;
-  const now = new Date();
-  let age = now.getUTCFullYear() - dob.getUTCFullYear();
-  const m = now.getUTCMonth() - dob.getUTCMonth();
-  if (m < 0 || (m === 0 && now.getUTCDate() < dob.getUTCDate())) age--;
-  return age < 18;
 }
 
 function mergeMetadata(

@@ -53,6 +53,10 @@ export type {
   CreateFormDivision
 } from "./forms/create-form-button";
 export { InvoiceComposer } from "./invoice-composer/invoice-composer";
+export { FreeAgentPoolPanel } from "./free-agents/free-agent-pool-panel";
+export type { FreeAgentPoolApi } from "./free-agents/free-agent-pool-panel";
+export { DocumentReviewQueue } from "./compliance-documents/document-review-queue";
+export type { DocumentReviewApi } from "./compliance-documents/document-review-queue";
 export { VenuesPage } from "./venues/venues-page";
 export type { VenuesPageProps, VenuesApi } from "./venues/venues-page";
 export * from "./scheduling";

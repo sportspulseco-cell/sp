@@ -72,6 +72,28 @@ export class DomainExceptionFilter implements ExceptionFilter {
     if (exception instanceof BaseError) {
       return { status: HttpStatus.INTERNAL_SERVER_ERROR, code: exception.code, message: exception.message };
     }
+    // Body-parser refusals happen before routing and carry their own 4xx
+    // (413 too large, 400 malformed JSON). They used to surface as a 500
+    // "unexpected error", which blamed the server for the caller's request.
+    const parser = exception as { status?: unknown; type?: unknown; expose?: unknown };
+    if (
+      typeof parser?.status === "number" &&
+      parser.status >= 400 &&
+      parser.status < 500 &&
+      parser.expose === true &&
+      typeof parser.type === "string"
+    ) {
+      return {
+        status: parser.status,
+        code: parser.type.toUpperCase().replace(/\W+/g, "_"),
+        message:
+          parser.status === HttpStatus.PAYLOAD_TOO_LARGE
+            ? "The request is too large for the server to accept. Send a smaller file."
+            : parser.type === "entity.parse.failed"
+              ? "The request body is not valid JSON."
+              : "The request could not be read."
+      };
+    }
     return {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: "INTERNAL_ERROR",

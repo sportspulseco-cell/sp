@@ -21,6 +21,7 @@ import {
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import { GameActions } from "@/components/games/game-actions";
 import { AppendEventButton } from "@/components/games/append-event-button";
+import { IssueSuspensionButton } from "@/components/discipline/suspension-buttons";
 
 export const metadata = { title: "Game — SportsPulse" };
 
@@ -70,15 +71,25 @@ export default async function GameDetailPage({
   }
   const game = gameResult.data;
 
-  const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division] = await Promise.all([
+  const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division, suspensionsResult] = await Promise.all([
     gameOps.eventsForGame(id).catch(() => []),
     stats.linesForGame(id).catch(() => []),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
     gameOps.listOfficials(id).catch(() => []),
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    game.divisionId ? leagueMgmt.getDivision(game.divisionId).catch(() => null) : Promise.resolve(null)
+    game.divisionId ? leagueMgmt.getDivision(game.divisionId).catch(() => null) : Promise.resolve(null),
+    // Suspensions issued from this game's penalties (COMP-10). Admin
+    // console only: a scorekeeper gets a 403 here and sees no Suspend.
+    load(gameOps.listSuspensions({ gameId: id, limit: 100 }))
   ]);
+  const suspensionByEvent = new Map(
+    (suspensionsResult.ok ? suspensionsResult.data.items : [])
+      .filter((x) => x.sourceEventId)
+      .map((x) => [x.sourceEventId!, x])
+  );
+  const canSuspend =
+    suspensionsResult.ok && (suspensionsResult.data.viewerPermissions ?? []).includes("suspension.issue");
   const can = (p: string) => (game.viewerPermissions ?? []).includes(p);
   const leagueOrgId = leaguesPage.items.find((l) => l.id === game.leagueId)?.orgId ?? null;
   // Regulation length from the division's game rules (org setup), else 3.
@@ -271,6 +282,19 @@ export default async function GameDetailPage({
                           {e.attributes.minutes} min
                         </p>
                       ) : null}
+                      {e.eventType === "penalty" && e.primaryPersonId ? (
+                        <PenaltySuspension
+                          suspension={suspensionByEvent.get(e.id) ?? null}
+                          canSuspend={canSuspend}
+                          eventId={e.id}
+                          personId={e.primaryPersonId}
+                          personName={personMap.get(e.primaryPersonId) ?? "this player"}
+                          penaltyLabel={`${HOCKEY_INFRACTION_LABELS[String(e.attributes?.infraction)] ?? "Penalty"}${
+                            typeof e.attributes?.minutes === "number" ? `, ${e.attributes.minutes} min` : ""
+                          }`}
+                          gameLabel={`${awayShort} at ${homeShort}, ${fmtTime(game.scheduledStartTsUtc)}`}
+                        />
+                      ) : null}
                     </div>
                     <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                       {fmtTime(e.tsUtc)}
@@ -329,6 +353,55 @@ export default async function GameDetailPage({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+/** Under a penalty: the suspension it led to, or "Suspend" for an admin (COMP-10). */
+function PenaltySuspension({
+  suspension,
+  canSuspend,
+  eventId,
+  personId,
+  personName,
+  penaltyLabel,
+  gameLabel
+}: {
+  suspension: { id: string; personId: string; label: string; inForce: boolean } | null;
+  canSuspend: boolean;
+  eventId: string;
+  personId: string;
+  personName: string;
+  penaltyLabel: string;
+  gameLabel: string;
+}) {
+  if (suspension) {
+    return (
+      <p className="mt-1 text-[12px]">
+        <Link
+          href={`/persons/${suspension.personId}`}
+          className={
+            suspension.inForce
+              ? "font-medium text-rose-600 underline-offset-2 hover:underline dark:text-rose-400"
+              : "text-fg-muted underline-offset-2 hover:underline"
+          }
+        >
+          {suspension.inForce ? "Suspended" : "Suspension"} · {suspension.label}
+        </Link>
+      </p>
+    );
+  }
+  if (!canSuspend) return null;
+  return (
+    <div className="mt-1.5">
+      <IssueSuspensionButton
+        compact
+        triggerLabel="Suspend"
+        personId={personId}
+        personName={personName}
+        source={{ eventId, label: `${penaltyLabel} (${gameLabel})` }}
+        defaultReason={`${penaltyLabel}, ${gameLabel}`}
+      />
     </div>
   );
 }

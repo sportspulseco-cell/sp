@@ -11,6 +11,8 @@ import { ComplianceCronController } from "./interface/compliance-cron.controller
 import { DocumentsController } from "./interface/documents.controller";
 import { SelfComplianceController } from "./interface/self-compliance.controller";
 import { SelfRegistrationsController } from "./interface/self-registrations.controller";
+import { DocumentSubmissionsController } from "./interface/document-submissions.controller";
+import { ComplianceDocumentSubmissionsService } from "./application/document-submissions/document-submissions.service";
 import { CronSecretGuard } from "../../shared/auth/guards/cron-secret.guard";
 
 import {
@@ -69,7 +71,8 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
     ComplianceCronController,
     DocumentsController,
     SelfComplianceController,
-    SelfRegistrationsController
+    SelfRegistrationsController,
+    DocumentSubmissionsController
   ],
   providers: [
     CronSecretGuard,
@@ -110,6 +113,8 @@ import { DrizzleDocumentRepository } from "./infrastructure/repositories/drizzle
     SignDocumentHandler,
     RevokeSignatureHandler,
     ListPersonSignaturesHandler,
+    // Uploaded ID / eligibility documents + admin review (COMP-3, COMP-1)
+    ComplianceDocumentSubmissionsService,
 
     {
       provide: REGISTRATION_FORM_REPOSITORY,

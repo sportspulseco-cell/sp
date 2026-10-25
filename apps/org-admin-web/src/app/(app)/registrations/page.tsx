@@ -3,10 +3,13 @@
  */
 import { ScrollText } from "lucide-react";
 import { EmptyState, SectionRail } from "@sportspulse/ui";
-import { iam, registrationV2Admin } from "@/lib/api/server-api";
+import { load } from "@sportspulse/api-client";
+import { compliance, iam, registrationV2Admin } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { RegistrationsTable } from "./registrations-table";
+import { FreeAgentPoolSection } from "./free-agent-pool-section";
+import { DocumentReviewQueue } from "@/components/compliance/document-review-queue";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Registrations - Org Admin" };
@@ -22,6 +25,9 @@ export default async function RegistrationsPage() {
         .listSubmissions({ orgId, limit: 200 })
         .catch(() => ({ items: [] }))
     : { items: [] };
+
+  // COMP-1: uploaded ID / eligibility documents waiting for a decision.
+  const documentsResult = await load(compliance.listDocumentSubmissions({ status: "pending" }));
 
   const pending = page.items.filter((r) => {
     const v = r.status as string;
@@ -67,6 +73,31 @@ export default async function RegistrationsPage() {
             />
           )}
         </div>
+      </section>
+
+      <section className="space-y-6">
+        <SectionRail
+          index="02"
+          label="Documents"
+          subtitle="IDs and eligibility documents players upload for your seasons. Approve, reject with a reason, or ask for a new upload; the player sees your decision."
+        />
+        <DocumentReviewQueue
+          initial={documentsResult.ok ? documentsResult.data : null}
+          initialError={
+            documentsResult.ok
+              ? null
+              : { status: documentsResult.status, message: documentsResult.message }
+          }
+        />
+      </section>
+
+      <section className="space-y-6">
+        <SectionRail
+          index="03"
+          label="Free agents"
+          subtitle="Players looking for a team in your seasons. Assign one to a team to send them an offer; they join the roster when they accept."
+        />
+        <FreeAgentPoolSection />
       </section>
     </div>
   );

@@ -26,6 +26,8 @@ export const gameOps = api.gameOps;
 export const finance = api.finance;
 export const communications = api.communications;
 export const audit = api.audit;
+// COMP-1 review queue (first page rendered on /registrations).
+export const compliance = api.compliance;
 // /admin/divisions/:id/teams + /admin/seasons/:id/applications —
 // gated by RolesGuard(super_admin, org_admin, league_admin) +
 // AuthorizedAccessGuard, so org_admin can hit them directly. Used by
@@ -46,3 +48,5 @@ export const orgAdminPersons = api.orgAdminPersons;
 // wrapper rewrites these paths to /org-admin/* proxies.
 export const registrationV2 = api.registrationV2;
 export const registrationV2Admin = api.registrationV2Admin;
+// Anonymous funnel endpoints; the admin pages read appLinks (REG-12/13).
+export const publicRegistration = api.publicRegistration;

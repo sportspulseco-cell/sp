@@ -171,7 +171,13 @@ export interface PublicRegistrationApi {
        * isMinor and the parental-consent step from this value. */
       dobDate?: string | null;
     }
-  ): Promise<{ id: string; updated: boolean }>;
+  ): Promise<{
+    id: string;
+    updated: boolean;
+    /** Current status; `pending_consent` when the DOB shows a minor without guardian consent. */
+    status?: string;
+    isMinor?: boolean;
+  }>;
   /** Season preview of the documents a registrant will sign (no signed state). */
   listWaivers(seasonId: string): Promise<{
     requiredKinds: string[];

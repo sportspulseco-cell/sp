@@ -99,6 +99,36 @@ export function gameUpdateValues(x: GameSnapshot) {
   };
 }
 
+/** Insert values for a new aggregate. Shared with the transactional create. */
+export function gameInsertValues(x: GameSnapshot): typeof schema.games.$inferInsert {
+  return {
+    id: x.id,
+    leagueId: x.leagueId,
+    seasonId: x.seasonId,
+    divisionId: x.divisionId,
+    homeTeamId: x.homeTeamId,
+    awayTeamId: x.awayTeamId,
+    sportCode: x.sportCode,
+    scheduledStartTsUtc: x.scheduledStartTsUtc,
+    tz: x.tz,
+    durationMin: x.durationMin,
+    venueName: x.venueName,
+    surfaceLabel: x.surfaceLabel,
+    status: x.status,
+    homeScore: x.homeScore,
+    awayScore: x.awayScore,
+    period: x.period,
+    metadata: x.metadata,
+    publishedAt: x.publishedAt,
+    slotId: x.slotId,
+    surfaceId: x.surfaceId,
+    scheduleRunId: x.scheduleRunId,
+    lockedAt: x.lockedAt,
+    lockedByUserId: x.lockedByUserId,
+    source: x.source
+  };
+}
+
 @Injectable()
 export class DrizzleGameRepository implements GameRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
@@ -146,28 +176,7 @@ export class DrizzleGameRepository implements GameRepository {
   }
 
   async insert(g: Game): Promise<void> {
-    const x = g.toSnapshot();
-    await this.db.insert(schema.games).values({
-      id: x.id,
-      leagueId: x.leagueId,
-      seasonId: x.seasonId,
-      divisionId: x.divisionId,
-      homeTeamId: x.homeTeamId,
-      awayTeamId: x.awayTeamId,
-      sportCode: x.sportCode,
-      scheduledStartTsUtc: x.scheduledStartTsUtc,
-      tz: x.tz,
-      durationMin: x.durationMin,
-      venueName: x.venueName,
-      surfaceLabel: x.surfaceLabel,
-      status: x.status,
-      homeScore: x.homeScore,
-      awayScore: x.awayScore,
-      period: x.period,
-      metadata: x.metadata,
-      publishedAt: x.publishedAt,
-      source: x.source
-    });
+    await this.db.insert(schema.games).values(gameInsertValues(g.toSnapshot()));
   }
 
   async save(g: Game): Promise<void> {

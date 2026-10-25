@@ -11,7 +11,8 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
-import { BadRequestException, Inject, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { isSeasonRegistrationType } from "@sportspulse/kernel";
 import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -205,6 +206,16 @@ export class SeasonsController {
     @Param("id") id: string,
     @Body() body: Record<string, unknown>
   ): Promise<{ id: string; config: Record<string, unknown> }> {
+    // REG-14: the funnel and the API read registrationType; refuse a value
+    // they would silently treat as "both".
+    if (
+      Object.prototype.hasOwnProperty.call(body, "registrationType") &&
+      !isSeasonRegistrationType(body.registrationType)
+    ) {
+      throw new UnprocessableEntityException(
+        "Registration type must be team, individual or both."
+      );
+    }
     // Merge with existing so unrelated keys (whatever the admin set
     // earlier) survive a partial update.
     const [row] = await this.db

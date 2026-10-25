@@ -6,6 +6,7 @@ import {
   league,
   leagueMgmt,
   orgs,
+  publicRegistration,
   registration,
   registrationV2
 } from "@/lib/api/server-api";
@@ -63,12 +64,16 @@ export default async function FormSetupPage({
   const form = formResult.data;
 
   // Resolve season + org context for the chrome.
-  const [season, org] = await Promise.all([
+  const [season, org, appLinks] = await Promise.all([
     form.seasonId
       ? leagueMgmt.getSeason(form.seasonId).catch(() => null)
       : Promise.resolve(null),
-    orgs.get(form.orgId).catch(() => null)
+    orgs.get(form.orgId).catch(() => null),
+    // REG-12/13: registration links use this environment's player app,
+    // as configured on the API (PLAYER_WEB_URL). Null hides the links.
+    publicRegistration.appLinks().catch(() => null)
   ]);
+  const playerWebUrl = appLinks?.playerWebUrl ?? null;
 
   // Pull the data needed to compute section status pills + Submissions count.
   const seasonId = form.seasonId;
@@ -184,6 +189,7 @@ export default async function FormSetupPage({
       submissionsCount={registrationsPage.items.length}
       draft={!form.activeVersionId}
       searchParams={sp}
+      playerWebUrl={playerWebUrl}
     >
       {active === "season" ? (
         <SeasonSection form={form} season={season} />
@@ -225,6 +231,7 @@ export default async function FormSetupPage({
           templates={templates}
           versions={versions}
           uncoveredDivisions={uncoveredDivisions}
+          playerWebUrl={playerWebUrl}
         />
       ) : null}
       {active === "submissions" ? (

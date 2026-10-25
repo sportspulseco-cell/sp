@@ -1,4 +1,10 @@
-import { AggregateRoot, DomainError } from "@sportspulse/kernel";
+import {
+  AggregateRoot,
+  DomainError,
+  SUSPENSION_IN_FORCE_STATUSES,
+  validateLiftReason,
+  validateSuspensionIssue
+} from "@sportspulse/kernel";
 import { SuspensionId } from "../identifiers";
 import {
   type SuspensionKind,
@@ -51,16 +57,24 @@ export class Suspension extends AggregateRoot<SuspensionId> {
     sourceEventId?: string | null;
     nGames?: number | null;
     nDays?: number | null;
+    /** time_bounded only: the moment the player may play again. */
+    endAt?: Date | null;
     reason?: string | null;
     issuedByUserId?: string | null;
+    now?: Date;
   }): Suspension {
-    if (input.kind === "n_games" && (!input.nGames || input.nGames < 1)) {
-      throw new DomainError("INVALID_SUSPENSION_N", "n_games must be >= 1");
-    }
-    if (input.kind === "n_days" && (!input.nDays || input.nDays < 1)) {
-      throw new DomainError("INVALID_SUSPENSION_N", "n_days must be >= 1");
-    }
-    const now = new Date();
+    const now = input.now ?? new Date();
+    const problem = validateSuspensionIssue(
+      {
+        kind: input.kind,
+        nGames: input.nGames,
+        nDays: input.nDays,
+        endAt: input.endAt ?? null,
+        reason: input.reason
+      },
+      now
+    );
+    if (problem) throw new DomainError("INVALID_SUSPENSION", problem);
     return new Suspension(
       input.id,
       input.personId,
@@ -70,9 +84,9 @@ export class Suspension extends AggregateRoot<SuspensionId> {
       input.nDays ?? null,
       0,
       "active",
-      input.reason ?? null,
+      input.reason!.trim(),
       now,
-      null,
+      input.kind === "time_bounded" ? (input.endAt ?? null) : null,
       now,
       now,
       input.issuedByUserId ?? null
@@ -98,11 +112,22 @@ export class Suspension extends AggregateRoot<SuspensionId> {
     );
   }
 
+  /**
+   * Manual correction: count one game served. Finalized games are
+   * counted automatically (FinalizeGameHandler); this is for a game the
+   * platform does not know about.
+   */
   serveOneGame(): void {
     if (this._status !== "active") {
       throw new DomainError(
         "SUSPENSION_NOT_ACTIVE",
         `Cannot serve a ${this._status} suspension`
+      );
+    }
+    if (this._kind !== "n_games") {
+      throw new DomainError(
+        "SUSPENSION_NOT_GAME_COUNT",
+        "Only a suspension for a number of games counts games served."
       );
     }
     this._servedCount += 1;
@@ -113,10 +138,24 @@ export class Suspension extends AggregateRoot<SuspensionId> {
     this._touch();
   }
 
-  lift(reason?: string): void {
+  /**
+   * Lift a standing suspension. The issue reason is kept; the lift
+   * reason is appended so the history row says both (no lift_reason
+   * column yet, see the COMP-10 migration note).
+   */
+  lift(reason: string, at: Date = new Date()): void {
+    if (!SUSPENSION_IN_FORCE_STATUSES.includes(this._status)) {
+      throw new DomainError(
+        "SUSPENSION_NOT_ACTIVE",
+        `This suspension is already ${this._status}. Only a standing suspension can be lifted.`
+      );
+    }
+    const problem = validateLiftReason(reason);
+    if (problem) throw new DomainError("LIFT_REASON_REQUIRED", problem);
     this._status = "lifted";
-    this._endAt = new Date();
-    if (reason) this._reason = reason;
+    this._endAt = at;
+    const why = `Lifted: ${reason.trim()}`;
+    this._reason = this._reason ? `${this._reason} | ${why}` : why;
     this._touch();
   }
 

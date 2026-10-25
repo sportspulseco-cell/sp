@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -11,9 +12,13 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { and, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 import {
+  evaluateSeasonEligibility,
   resolveDivisionRules,
-  resolvePlayoffConfig
+  resolvePlayoffConfig,
+  suspensionInForce,
+  sweepOutcome
 } from "@sportspulse/kernel";
+import { loadStandingSuspensions } from "../../game-operations/application/suspensions/suspension-rules";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -24,6 +29,8 @@ import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator"
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { seasonVisible } from "../../../shared/auth/visibility";
 import { NotificationService } from "../../communications/application/notification.service";
+
+const log = new Logger("ComplianceSweeps");
 
 /**
  * Workflow 7C — bulk sweep operations on eligibility_records.
@@ -74,29 +81,43 @@ export class ComplianceSweepsController {
     if (!season) throw new NotFoundException("Season not found");
 
     const members = await this.loadActiveMembers(seasonId);
+    const suspensions = await loadStandingSuspensions(
+      this.db,
+      members.map((m) => m.personId)
+    );
+    const counts: Record<string, number> = {};
     let evaluated = 0;
     let flagged = 0;
+    let waivedKept = 0;
+    let waivedWithFindings = 0;
 
     for (const m of members) {
-      const evalBlock = await this.evaluateRegistrationChecks(
+      const result = await this.evaluateRegistrationChecks(
         m,
         season,
-        seasonId
+        seasonId,
+        suspensions.filter((x) => x.personId === m.personId)
       );
-      const status =
-        evalBlock.summary === "blocked"
-          ? "ineligible"
-          : evalBlock.summary === "expiring"
-            ? "expiring"
-            : evalBlock.summary === "expired"
-              ? "expired"
-              : "eligible";
-      if (status !== "eligible") flagged++;
-      await this.upsertEligibility(m.personId, seasonId, evalBlock.body, status);
+      const written = await this.upsertEligibility(
+        m.personId,
+        seasonId,
+        result.ruleEvaluation as Record<string, unknown>,
+        result.status
+      );
+      if (written.keptWaiver) {
+        waivedKept++;
+        if (result.status !== "eligible") waivedWithFindings++;
+      } else if (written.status !== "eligible") {
+        flagged++;
+      }
+      counts[written.status] = (counts[written.status] ?? 0) + 1;
       evaluated++;
     }
+    log.log(
+      `season sweep season=${seasonId} evaluated=${evaluated} flagged=${flagged} waivedKept=${waivedKept} counts=${JSON.stringify(counts)}`
+    );
 
-    return { seasonId, evaluated, flagged };
+    return { seasonId, evaluated, flagged, waivedKept, waivedWithFindings, counts };
   }
 
   // -------------------------------------------------------------------
@@ -261,6 +282,11 @@ export class ComplianceSweepsController {
     const requireUsaHockeyId = !!seasonConfig.requireUsaHockeyId;
 
     const members = await this.loadActiveMembers(seasonId);
+    const standing = await loadStandingSuspensions(
+      this.db,
+      members.map((m) => m.personId)
+    );
+    const now = new Date();
     let eligible = 0;
     let ineligible = 0;
     const breakdown: Array<{
@@ -321,10 +347,16 @@ export class ComplianceSweepsController {
       const guestAppearances = c3?.count ?? 0;
       const check3 = guestAppearances <= rules.guestPlayerSeasonLimit;
 
+      // Check 4: no suspension standing (UC-14, COMP-14)
+      const check4 = !standing.some(
+        (x) => x.personId === m.personId && suspensionInForce(x, now)
+      );
+
       const failed: string[] = [];
       if (!check1) failed.push("minGamesPlayed");
       if (!check2) failed.push("usaHockeyValidAtPlayoffStart");
       if (!check3) failed.push("guestSeasonLimit");
+      if (!check4) failed.push("suspended");
       const status: "eligible" | "ineligible" =
         failed.length === 0 ? "eligible" : "ineligible";
 
@@ -507,7 +539,8 @@ export class ComplianceSweepsController {
     const [row] = await this.db
       .select({
         id: schema.divisions.id,
-        ruleSetOverrides: schema.divisions.ruleSetOverrides
+        ruleSetOverrides: schema.divisions.ruleSetOverrides,
+        genderEligibility: schema.divisions.genderEligibility
       })
       .from(schema.divisionTeamEntries)
       .innerJoin(
@@ -524,23 +557,24 @@ export class ComplianceSweepsController {
     return row ?? null;
   }
 
+  /**
+   * Load the facts for one rostered player and let the kernel decide
+   * (evaluateSeasonEligibility, COMP-14): missing data is pending, a
+   * standing suspension is ineligible, a self-reported USA Hockey ID is
+   * not verified.
+   */
   private async evaluateRegistrationChecks(
     m: { personId: string; teamId: string; orgId: string },
     season: typeof schema.seasons.$inferSelect,
-    seasonId: string
-  ): Promise<{
-    summary: "eligible" | "expiring" | "expired" | "blocked";
-    body: Record<string, unknown>;
-  }> {
+    seasonId: string,
+    suspensions: Awaited<ReturnType<typeof loadStandingSuspensions>>
+  ) {
     const division = await this.loadDivisionForTeam(m.teamId, seasonId);
     const rules = resolveDivisionRules(
       (division?.ruleSetOverrides as Record<string, unknown>) ?? null
     );
     const seasonConfig = (season.config as Record<string, unknown>) ?? {};
     const requireUsaHockeyId = !!seasonConfig.requireUsaHockeyId;
-    const seasonStart = season.startDate
-      ? new Date(season.startDate as unknown as string)
-      : new Date();
 
     const [person] = await this.db
       .select({
@@ -551,80 +585,70 @@ export class ComplianceSweepsController {
       .where(eq(schema.persons.id, m.personId))
       .limit(1);
 
-    // Age check
-    const dobDate = person?.dobDate
-      ? new Date(person.dobDate as unknown as string)
-      : null;
-    const ageAtRef = dobDate
-      ? Math.floor(
-          (seasonStart.getTime() - dobDate.getTime()) /
-            (365.25 * 24 * 3600 * 1000)
+    const [roster] = await this.db
+      .select({ n: sql<number>`COUNT(*)::int` })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, m.teamId),
+          eq(schema.teamMemberships.seasonId, seasonId),
+          eq(schema.teamMemberships.currentStatus, "active")
         )
-      : null;
+      );
 
-    const body: Record<string, unknown> = {
-      ageRestriction: {
-        dobDate: person?.dobDate ?? null,
-        referenceDate: seasonStart.toISOString().slice(0, 10),
-        ageGroupCode: null,
-        birthYearMin: null,
-        birthYearMax: null,
-        ageAtReferenceDate: ageAtRef,
-        status: "eligible"
+    const [id] = requireUsaHockeyId
+      ? await this.db
+          .select()
+          .from(schema.identityVerifications)
+          .where(eq(schema.identityVerifications.personId, m.personId))
+          .orderBy(sql`${schema.identityVerifications.createdAt} DESC`)
+          .limit(1)
+      : [];
+
+    return evaluateSeasonEligibility({
+      now: new Date(),
+      season: {
+        startDate: season.startDate as unknown as string,
+        endDate: (season.endDate as unknown as string) ?? null,
+        requireUsaHockeyId
       },
-      genderEligibility: {
-        divisionGender: "open",
-        personGenderSelfId: person?.genderSelfId ?? null,
-        status: "eligible"
+      division: division
+        ? {
+            genderEligibility: division.genderEligibility,
+            ageMinYears: rules.ageMinYears,
+            ageMaxYears: rules.ageMaxYears,
+            maxRosterSize: rules.maxRosterSize
+          }
+        : null,
+      person: {
+        dobDate: (person?.dobDate as unknown as string) ?? null,
+        genderSelfId: person?.genderSelfId ?? null
       },
-      rosterSize: {
-        countAtCheck: 0,
-        maxAllowed: rules.maxRosterSize,
-        status: "eligible"
-      }
-    };
-
-    // USA Hockey
-    if (requireUsaHockeyId) {
-      const [id] = await this.db
-        .select()
-        .from(schema.identityVerifications)
-        .where(eq(schema.identityVerifications.personId, m.personId))
-        .orderBy(sql`${schema.identityVerifications.createdAt} DESC`)
-        .limit(1);
-      const now = new Date();
-      let usaStatus: "verified" | "expiring" | "expired" | "not_provided" =
-        "verified";
-      if (!id) usaStatus = "not_provided";
-      else if (id.expiresAt && id.expiresAt < now) usaStatus = "expired";
-      else if (
-        id.expiresAt &&
-        season.endDate &&
-        id.expiresAt <= new Date(season.endDate as unknown as string)
-      )
-        usaStatus = "expiring";
-      body.usaHockeyId = {
-        provided: id?.externalId ?? null,
-        expiresAt: id?.expiresAt?.toISOString() ?? null,
-        source: id?.source ?? "self_attest",
-        status: usaStatus,
-        checkedAt: now.toISOString(),
-        adminWaived: false,
-        waiveReason: null
-      };
-      if (usaStatus === "expired") return { summary: "expired", body };
-      if (usaStatus === "expiring") return { summary: "expiring", body };
-    }
-
-    return { summary: "eligible", body };
+      rosterCount: roster?.n ?? 0,
+      usaHockeyId: id
+        ? {
+            externalId: id.externalId,
+            status: id.status,
+            expiresAt: id.expiresAt,
+            source: id.source
+          }
+        : null,
+      suspensions
+    });
   }
 
+  /**
+   * Merge a sweep's evaluation into the (person, season) record. An
+   * admin's waiver is never overwritten (COMP-17): the evaluation is
+   * recorded with a `lastSweep` note of what the status would have
+   * been, and the status, reason and waiver columns stay as they are.
+   */
   private async upsertEligibility(
     personId: string,
     seasonId: string,
     addBody: Record<string, unknown>,
     status: string
-  ) {
+  ): Promise<{ status: string; keptWaiver: boolean }> {
     const [existing] = await this.db
       .select()
       .from(schema.eligibilityRecords)
@@ -637,26 +661,55 @@ export class ComplianceSweepsController {
       .limit(1);
 
     if (existing) {
+      const outcome = sweepOutcome(existing.status, status);
       const merged = {
         ...((existing.ruleEvaluation as Record<string, unknown>) ?? {}),
-        ...addBody
+        ...addBody,
+        lastSweep: {
+          at: new Date().toISOString(),
+          evaluatedStatus: status,
+          keptWaiver: outcome.keptWaiver
+        }
       };
-      await this.db
+      const rows = await this.db
         .update(schema.eligibilityRecords)
         .set({
           ruleEvaluation: merged,
-          status,
+          status: outcome.status,
           evaluatedAt: new Date(),
           updatedAt: new Date()
         })
-        .where(eq(schema.eligibilityRecords.id, existing.id));
-    } else {
-      await this.db.insert(schema.eligibilityRecords).values({
+        .where(
+          and(
+            eq(schema.eligibilityRecords.id, existing.id),
+            // Never clobber a decision an admin saved after the read above.
+            eq(schema.eligibilityRecords.status, existing.status)
+          )
+        )
+        .returning({ id: schema.eligibilityRecords.id });
+      if (rows.length !== 1) {
+        log.warn(
+          `sweep person=${personId} season=${seasonId}: record changed during the sweep, update touched ${rows.length} rows; left as is`
+        );
+        return { status: existing.status, keptWaiver: existing.status === "waived" };
+      }
+      if (outcome.keptWaiver) {
+        log.log(`sweep person=${personId} season=${seasonId}: waiver kept (evaluation is ${status})`);
+      }
+      return outcome;
+    }
+    const rows = await this.db
+      .insert(schema.eligibilityRecords)
+      .values({
         personId,
         seasonId,
         ruleEvaluation: addBody,
         status
-      });
+      })
+      .returning({ id: schema.eligibilityRecords.id });
+    if (rows.length !== 1) {
+      log.warn(`sweep person=${personId} season=${seasonId}: insert wrote ${rows.length} rows`);
     }
+    return { status, keptWaiver: false };
   }
 }

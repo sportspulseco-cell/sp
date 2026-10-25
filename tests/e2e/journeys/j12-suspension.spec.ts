@@ -1,21 +1,22 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { IS_STAGING, signedInAs, stagingSql, watchErrors } from "./_helpers";
+import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors } from "./_helpers";
 
 /**
  * J12 · Suspension blocks lineup (UC-14).
  *
- * super_admin @ SA  → find a screen to issue / lift a suspension
- *                     (/persons/[id] discipline section, /games, /eligibility)
- * captain @ TA      → /captain/compliance shows the suspension
- * captain @ TA      → /lineups/[gameId] refuses the suspended player
+ * super_admin @ SA  → /persons/[id] Suspensions → Issue suspension (1 game)
+ * captain @ TA      → /captain/compliance lists the suspended player
+ * captain @ TA      → /lineups/[gameId] marks the player Scratch-only
  * super_admin @ SA  → /no-show-report and /eligibility season sweep
+ * super_admin @ SA  → Lift the suspension (cleanup, also the lift flow)
  *
- * Read-only on staging except the report run. It never clicks the
- * account-level "Suspend" on /users (that locks the shared staging
- * player out of every app). Product bugs are collected with check()
- * and reported by the last test. Bug ids: doc/testing/bugs/compliance.md.
+ * MUTATES staging: one 1-game suspension on Staging Player (reason carries
+ * RUN_TAG), lifted by the last step. It never clicks the account-level
+ * "Suspend account" on /users (that locks the shared staging player out of
+ * every app). COMP-11 (automatic proposals) stays a soft finding: it needs
+ * a migration. Bug ids: doc/testing/bugs/compliance.md.
  */
 
 test.skip(!IS_STAGING, "J12 runs on staging only");
@@ -34,6 +35,7 @@ const findings: string[] = [];
 const blocked: string[] = [];
 let playerPersonId = "";
 let teamId = "";
+const REASON = `${RUN_TAG} J12 game misconduct`;
 
 function check(ok: boolean, msg: string) {
   if (!ok) findings.push(msg);
@@ -78,7 +80,7 @@ test.afterAll(async () => {
   await Promise.all([admin?.context.close(), captain?.context.close()]);
 });
 
-test("1 super_admin looks for an Issue suspension action on the player's person page", async () => {
+test("1 super_admin issues a 1-game suspension from the player's person page", async () => {
   const { page, app } = admin;
   await page.goto(app + "/dashboard");
   await navClick(page, /^Persons$/);
@@ -86,15 +88,35 @@ test("1 super_admin looks for an Issue suspension action on the player's person 
   await page.getByRole("link", { name: new RegExp(PLAYER_NAME) }).first().click();
   await expect(page).toHaveURL(new RegExp(`/persons/${playerPersonId}`));
   const txt = await snap(page, "01-sa-person");
-  check(/Suspension history/.test(txt), "person page has no Suspension history section");
-  const issue = await page.getByRole("button", { name: /suspen|discipline/i }).count();
-  check(
-    issue > 0,
-    "COMP-10: no screen lets an admin issue a suspension (person page shows history only; SDK gameOps.issueSuspension has no caller)"
+  expect(txt, "person page has a Suspensions section").toMatch(/Suspensions/);
+
+  // COMP-10: the action exists and the dialog offers the three lengths.
+  await page.getByRole("button", { name: /Issue suspension/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  expect(await dialog.locator("select option").allInnerTexts()).toEqual([
+    "Number of games",
+    "Until a date",
+    "Until lifted"
+  ]);
+  await expect(dialog.locator("input[type=number]")).toHaveValue("1");
+  await dialog.locator("textarea").fill(REASON);
+  await dialog.getByRole("button", { name: "Suspend player" }).click();
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
+
+  // Same surface, no reload: the new row is there.
+  const row = page.locator("tbody tr").filter({ hasText: REASON });
+  await expect(row).toHaveCount(1, { timeout: 30_000 });
+  await expect(row).toContainText(/1 of 1 game left/);
+  await expect(row.getByRole("button", { name: "Lift" })).toBeVisible();
+  await snap(page, "01-sa-person-after-issue");
+
+  const rows = await stagingSql<{ status: string; kind: string; n_games: number; served_count: number }>(
+    `select status, kind, n_games, served_count from suspensions where person_id = $1 and reason = $2`,
+    [playerPersonId, REASON]
   );
-  const lift = await page.getByRole("button", { name: /lift|reinstate|serve/i }).count();
-  check(lift > 0, "COMP-10: no screen lets an admin lift / serve / reduce a suspension (UC-14 alt flow)");
-  writeFileSync(`${OUT}/01-controls.txt`, `issueButtons=${issue} liftButtons=${lift}`);
+  writeFileSync(`${OUT}/01-db-suspension.json`, JSON.stringify(rows, null, 2));
+  expect(rows).toEqual([{ status: "active", kind: "n_games", n_games: 1, served_count: 0 }]);
 });
 
 test("2 super_admin: suspension from game events (penalties) path", async () => {
@@ -109,69 +131,76 @@ test("2 super_admin: suspension from game events (penalties) path", async () => 
       where table_name in ('divisions','seasons','leagues') and column_name ilike '%suspen%'`
   );
   writeFileSync(`${OUT}/02-db-suspension-rule-columns.json`, JSON.stringify(rules, null, 2));
+  // Admins can suspend from a penalty on the game page now (COMP-10). The
+  // automatic proposal queue needs a migration ("proposed" status), so it
+  // stays a finding until that lands.
   check(
     false,
-    "COMP-11: no automatic suspension from penalties: no rule config (e.g. 3 misconducts = 1 game) and no code that reads finalized game events to create suspensions"
+    "COMP-11: no automatic suspension proposals from penalties yet: blocked on the suspensions 'proposed' status migration"
   );
   if (games.length === 0) {
     blocked.push(`2: no games for ${TEAM_NAME} on staging (needs J10 schedule publish + J11 game finalize)`);
   }
 });
 
-test("3 captain /captain/compliance shows suspension status per player", async () => {
+test("3 captain /captain/compliance lists the suspended player", async () => {
   const { page, app } = captain;
   await page.goto(app + "/");
   await navClick(page, /^Compliance$/);
   await expect(page).toHaveURL(/\/captain\/compliance$/);
   const txt = await snap(page, "03-captain-compliance");
-  check(
-    /suspen/i.test(txt),
-    "COMP-12: /captain/compliance has no suspension status at all (reads eligibility records only, never the suspensions table)"
-  );
+  expect(txt).toMatch(/suspended players/i);
+  const item = page.locator("li").filter({ hasText: PLAYER_NAME }).filter({ hasText: /Suspended ·/i });
+  await expect(item.first()).toContainText(/1 of 1 game left/i);
 });
 
-test("4 captain lineup refuses a suspended player", async () => {
+test("4 captain lineup marks the suspended player Scratch-only", async () => {
   const { page, app } = captain;
   await page.goto(app + "/");
   await navClick(page, /^Lineups$/);
   await expect(page).toHaveURL(/\/lineups$/);
   const txt = await snap(page, "04-captain-lineups");
+  // The team's next published, not-yet-started game is the one a
+  // 1-game suspension covers.
   const games = await stagingSql<{ id: string; status: string }>(
     `select id, status from games where $1 in (home_team_id, away_team_id)
-      order by (status = 'scheduled') desc, scheduled_start_ts_utc limit 1`,
+      and status = 'scheduled' and published_at is not null
+      order by scheduled_start_ts_utc limit 1`,
     [teamId]
   );
   if (games.length === 0) {
     blocked.push(
-      `4: no game for ${TEAM_NAME} on staging, so /lineups/[gameId] cannot be opened. Lineups page says: ${txt.replace(/\s+/g, " ").slice(0, 200)}. Needs J10 (schedule publish).`
+      `4: no published scheduled game for ${TEAM_NAME} on staging, so the lineup refusal cannot be opened. Lineups page says: ${txt.replace(/\s+/g, " ").slice(0, 200)}. Needs J10 (schedule publish).`
     );
-    test.info().annotations.push({ type: "blocked", description: "no scheduled game for the staging team" });
+    test.info().annotations.push({ type: "blocked", description: "no published scheduled game for the staging team" });
     return;
   }
-  // A game exists: open its lineup from the list (not by URL) and
-  // confirm the player is offered. Because no suspension can be issued
-  // from any screen (COMP-10), this records whether the editor would
-  // let a player dress without any suspension check.
-  const link = page.locator(`a[href="/lineups/${games[0]!.id}"]`).first();
-  const listed = await link.isVisible().catch(() => false);
-  writeFileSync(`${OUT}/04-game.json`, JSON.stringify({ game: games[0], listedOnLineups: listed }, null, 2));
-  if (listed) await link.click();
-  else await page.goto(`${app}/lineups/${games[0]!.id}`);
-  await expect(page).toHaveURL(new RegExp(`/lineups/${games[0]!.id}`));
+  const gameId = games[0]!.id;
+  const link = page.locator(`a[href="/lineups/${gameId}"]`).first();
+  if (await link.isVisible().catch(() => false)) await link.click();
+  else await page.goto(`${app}/lineups/${gameId}`);
+  await expect(page).toHaveURL(new RegExp(`/lineups/${gameId}`));
   const editor = await snap(page, "04-captain-lineup-editor");
   writeFileSync(`${OUT}/04-editor.txt`, editor);
-  const active = await stagingSql(
-    `select count(*)::int n from suspensions where person_id = $1 and status = 'active'`,
-    [playerPersonId]
-  );
-  writeFileSync(`${OUT}/04-db-active-suspensions.json`, JSON.stringify(active, null, 2));
   check(
     !/\b[0-9a-f]{8}\b/.test(editor.split("\n").slice(0, 8).join(" ")),
     "COMP-13: lineup editor header shows the opponent as a UUID fragment"
   );
-  blocked.push(
-    `4: game ${games[0]!.id} status=${games[0]!.status} (listed on /lineups: ${listed}). Lineup refusal cannot be exercised: no UI can create a suspension (COMP-10); code shows PUT /games/:id/lineups/:teamId never reads suspensions (COMP-13)`
+  // COMP-13: the editor names the player and allows Scratch only.
+  await expect(page.getByText(new RegExp(`Suspended for this game: ${PLAYER_NAME}`))).toBeVisible();
+  await expect(page.getByRole("radio", { name: `${PLAYER_NAME} · starters` })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: `${PLAYER_NAME} · bench` })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: `${PLAYER_NAME} · scratches` })).toBeChecked();
+  await page.getByRole("button", { name: /Save lineup/ }).click();
+  await expect(page.getByText("Saved.")).toBeVisible({ timeout: 30_000 });
+  const [lineup] = await stagingSql<{ lineup: { scratches?: Array<{ personId: string }>; starters?: Array<{ personId: string }>; bench?: Array<{ personId: string }> } }>(
+    `select lineup from game_lineups where game_id = $1 and team_id = $2`,
+    [gameId, teamId]
   );
+  writeFileSync(`${OUT}/04-db-lineup.json`, JSON.stringify(lineup, null, 2));
+  const dressed = [...(lineup?.lineup.starters ?? []), ...(lineup?.lineup.bench ?? [])].map((p) => p.personId);
+  expect(dressed).not.toContain(playerPersonId);
+  expect((lineup?.lineup.scratches ?? []).map((p) => p.personId)).toContain(playerPersonId);
 });
 
 test("5 super_admin /no-show-report and /eligibility season sweep", async () => {
@@ -200,24 +229,53 @@ test("5 super_admin /no-show-report and /eligibility season sweep", async () => 
   writeFileSync(`${OUT}/05-same-season.txt`, `runEnabledWithSameSeason=${runEnabled}`);
 
   await page.goto(app + "/eligibility");
-  await page.locator("main select").first().selectOption({ label: SEASON_NAME });
+  await page
+    .locator("main select")
+    .filter({ has: page.locator("option", { hasText: SEASON_NAME }) })
+    .first()
+    .selectOption({ label: SEASON_NAME });
   await page.getByRole("button", { name: /Run eligibility sweep/i }).click();
   await expect(page.getByText(/Eligibility sweep complete/)).toBeVisible({ timeout: 30_000 });
   const sweep = await snap(page, "05-sa-eligibility-sweep");
-  const rec = await stagingSql(
+  const rec = await stagingSql<{
+    status: string;
+    rule_evaluation: { suspension?: { status: string }; lastSweep?: { evaluatedStatus: string; keptWaiver: boolean } };
+  }>(
     `select er.status, er.rule_evaluation from eligibility_records er join seasons s on s.id = er.season_id
       where er.person_id = $1 and s.name = $2`,
     [playerPersonId, SEASON_NAME]
   );
   writeFileSync(`${OUT}/05-db-eligibility.json`, JSON.stringify(rec, null, 2));
   writeFileSync(`${OUT}/05-sweep.txt`, sweep);
-  check(
-    JSON.stringify(rec).includes("suspension"),
-    "COMP-14: eligibility season sweep never evaluates suspensions (rule_evaluation has no suspension check)"
-  );
+  // COMP-14: the sweep evaluates the standing suspension. COMP-17: a
+  // waived record stays waived, with the fresh evaluation recorded.
+  expect(rec[0]?.rule_evaluation.suspension?.status).toBe("suspended");
+  expect(rec[0]?.rule_evaluation.lastSweep?.evaluatedStatus).toBe("ineligible");
+  expect(rec[0]?.status).toBe(rec[0]?.rule_evaluation.lastSweep?.keptWaiver ? "waived" : "ineligible");
 });
 
-test("6 report findings", async () => {
+test("6 super_admin lifts the suspension with a reason (also cleans up)", async () => {
+  const { page, app } = admin;
+  await page.goto(`${app}/persons/${playerPersonId}`);
+  const row = page.locator("tbody tr").filter({ hasText: REASON });
+  await expect(row).toHaveCount(1, { timeout: 30_000 });
+  await row.getByRole("button", { name: "Lift" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Lift suspension" })).toBeDisabled();
+  await dialog.locator("textarea").fill(`${RUN_TAG} J12 cleanup`);
+  await dialog.getByRole("button", { name: "Lift suspension" }).click();
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
+  await expect(row.getByText("lifted", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(row.getByRole("button", { name: "Lift" })).toHaveCount(0);
+  await snap(page, "06-sa-person-after-lift");
+  const rows = await stagingSql<{ status: string }>(
+    `select status from suspensions where person_id = $1 and reason like $2`,
+    [playerPersonId, `${REASON}%`]
+  );
+  expect(rows).toEqual([{ status: "lifted" }]);
+});
+
+test("7 report findings", async () => {
   test.info().annotations.push({ type: "blocked", description: blocked.join(" | ") || "none" });
   expect(findings, findings.join("\n")).toEqual([]);
 });

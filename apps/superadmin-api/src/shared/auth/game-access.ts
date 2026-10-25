@@ -39,7 +39,7 @@ export interface GameScopeRef {
   scheduleRunId: string | null;
 }
 
-interface ActiveAssignment {
+export interface ActiveAssignment {
   scopeType: string;
   scopeId: string | null;
   roleCode: string;
@@ -71,10 +71,13 @@ export const GAME_ACTION_PERMISSIONS = [
   "game.reschedule",
   "game.publish",
   "game.assign_officials",
-  "stats.recompute"
+  "stats.recompute",
+  // Discipline from the scoresheet (COMP-10): suspend from a penalty, lift.
+  "suspension.issue",
+  "suspension.lift"
 ] as const;
 
-async function isSuperAdmin(db: Database, userId: string): Promise<boolean> {
+export async function isSuperAdmin(db: Database, userId: string): Promise<boolean> {
   const [p] = await db
     .select({ s: schema.profiles.isSuperAdmin })
     .from(schema.profiles)
@@ -83,7 +86,7 @@ async function isSuperAdmin(db: Database, userId: string): Promise<boolean> {
   return !!p?.s;
 }
 
-async function loadActiveAssignments(db: Database, userId: string): Promise<ActiveAssignment[]> {
+export async function loadActiveAssignments(db: Database, userId: string): Promise<ActiveAssignment[]> {
   return db
     .select({
       scopeType: schema.userRoleAssignments.scopeType,
@@ -106,7 +109,7 @@ async function loadActiveAssignments(db: Database, userId: string): Promise<Acti
     );
 }
 
-function rolePermissions(a: ActiveAssignment): string[] {
+export function rolePermissions(a: ActiveAssignment): string[] {
   if (a.isSystem) {
     const def = SYSTEM_ROLE_BY_CODE[a.roleCode];
     if (def) return def.defaultPermissions;
@@ -190,6 +193,27 @@ export async function accessForScope(
   let covered = false;
   for (const a of await loadActiveAssignments(db, userId)) {
     if (!covers(a, g)) continue;
+    covered = true;
+    granted.push(...rolePermissions(a));
+  }
+  return { superAdmin: false, granted, covered };
+}
+
+/**
+ * Pool the permissions of the caller's assignments that cover ANY of
+ * `shapes` (one query for the assignments). Used for records that hang
+ * off several scopes at once, e.g. a person on two teams (COMP-10).
+ */
+export async function accessForAnyScope(
+  db: Database,
+  userId: string,
+  shapes: ReadonlyArray<GameScopeShape>
+): Promise<{ superAdmin: boolean; granted: string[]; covered: boolean }> {
+  if (await isSuperAdmin(db, userId)) return { superAdmin: true, granted: ["*"], covered: true };
+  const granted: string[] = [];
+  let covered = false;
+  for (const a of await loadActiveAssignments(db, userId)) {
+    if (!shapes.some((g) => covers(a, g))) continue;
     covered = true;
     granted.push(...rolePermissions(a));
   }

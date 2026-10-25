@@ -141,6 +141,14 @@ export default async function GamesPage({
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
+  // New game starts from what the admin is looking at (CLAUDE.md:
+  // defaults reflect context), never the first league in the list.
+  const newGameDefaults = {
+    leagueId: leagueId ?? undefined,
+    seasonId: sp.seasonId ?? undefined,
+    divisionId: sp.divisionId ?? undefined
+  };
+
   const live = gamesPage.items.filter((g) => g.status === "in_play").length;
   const scheduled = gamesPage.items.filter(
     (g) => g.status === "scheduled"
@@ -159,7 +167,7 @@ export default async function GamesPage({
         action={
           <CreateGameButton
             leagues={leaguesPage.items}
-            teams={teamsPage.items}
+            defaults={newGameDefaults}
           />
         }
       />
@@ -223,7 +231,7 @@ export default async function GamesPage({
           action={
             <CreateGameButton
               leagues={leaguesPage.items}
-              teams={teamsPage.items}
+              defaults={newGameDefaults}
             />
           }
         />

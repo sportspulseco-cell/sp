@@ -39,7 +39,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
-import { loadUserScope } from "../../../shared/auth/scope";
+import { loadAdminScope } from "../../../shared/auth/scope";
 import { userHasOrgAdminOnOrg, userIsPeopleAdmin } from "../../../shared/auth/org-admin";
 import { orgVisible, visibleRegistrationsWhere } from "../../../shared/auth/visibility";
 import { RegistrationV2Service } from "../application/registration-v2.service";
@@ -152,7 +152,7 @@ export class AdminReviewController {
     // Same queue for org admins (role-filtered view), limited to an org
     // they administer. Writes below stay super_admin only; org admins
     // decide through /org-admin/registrations/:id/review.
-    const scope = await loadUserScope(this.db, user.userId);
+    const scope = await loadAdminScope(this.db, user.userId);
     const conditions = [];
     if (!scope.isSuperAdmin) {
       // Scoped admins (org / league / season / division) see the queue

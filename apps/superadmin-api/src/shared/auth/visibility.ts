@@ -169,6 +169,26 @@ export function visiblePersonIds(v: Visibility): SQL | null {
   )`;
 }
 
+/**
+ * WHERE fragment for `compliance_document_submissions` (COMP-1): a
+ * document is reviewed by whoever administers what it was submitted
+ * for. Season-bound uploads follow the league-owned season rule (a
+ * league admin sees their league's seasons, not sibling leagues');
+ * registration-bound ones also follow the registration rule; an upload
+ * with neither is org-owned (`orgIds`, like teams and people).
+ * `alias` is the table alias the caller's query uses.
+ */
+export function visibleComplianceSubmissionsWhere(scope: UserScope, alias = "cds"): SQL | null {
+  if (unrestricted(scope)) return null;
+  const a = sql.raw(alias);
+  const regs = visibleRegistrationsWhere(scope)!;
+  return sql`(
+    (${a}.season_id is not null and ${a}.season_id in ${visibleSeasonIds(scope)!})
+    or (${a}.registration_id is not null and ${a}.registration_id in (select registrations.id from registrations where ${regs}))
+    or (${a}.season_id is null and ${a}.registration_id is null and ${a}.org_id in (${uuidList(scope.orgIds)}))
+  )`;
+}
+
 export async function personVisible(db: Database, v: Visibility, personId: string): Promise<boolean> {
   const sub = visiblePersonIds(v);
   if (!sub) return true;

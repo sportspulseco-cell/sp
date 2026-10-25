@@ -23,7 +23,7 @@ import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
-import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { loadAdminScope, type UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
 import { seasonVisible } from "../../../shared/auth/visibility";
 import { TeamMovementService, type MovementResult } from "../application/team-movement.service";
@@ -101,13 +101,15 @@ export class TeamMovementController {
   }
 
   /** The division must sit in a season the admin may manage; 404 otherwise. */
-  private async assertDivisionInScope(divisionId: string, scope: UserScopeType) {
+  private async assertDivisionInScope(divisionId: string, scope: UserScopeType, userId: string) {
     const [d] = await this.db
       .select({ seasonId: schema.divisions.seasonId })
       .from(schema.divisions)
       .where(eq(schema.divisions.id, divisionId))
       .limit(1);
-    if (!d || !(await seasonVisible(this.db, scope, d.seasonId))) {
+    // Writes use the admin-only scope: a roster spot never widens it.
+    const adminScope = scope.isSuperAdmin ? scope : await loadAdminScope(this.db, userId);
+    if (!d || !(await seasonVisible(this.db, adminScope, d.seasonId))) {
       throw new NotFoundException("Division not found");
     }
   }
@@ -126,7 +128,7 @@ export class TeamMovementController {
     @UserScope() scope: UserScopeType
   ) {
     await this.assertAdmin(user, scope);
-    await this.assertDivisionInScope(body.divisionId, scope);
+    await this.assertDivisionInScope(body.divisionId, scope, user.userId);
     return this.svc.placeInDivision({
       teamId: id,
       divisionId: body.divisionId,
@@ -159,7 +161,7 @@ export class TeamMovementController {
     @Headers("x-idempotency-key") key?: string
   ): Promise<MovementResult> {
     await this.assertAdmin(user, scope);
-    await this.assertTeamInScope(id, scope);
+    await this.assertTeamInScope(id, scope.isSuperAdmin ? scope : await loadAdminScope(this.db, user.userId));
     return this.svc.rollover({
       teamId: id,
       sourceEntryId: body.sourceEntryId ?? null,
@@ -180,7 +182,7 @@ export class TeamMovementController {
     @Headers("x-idempotency-key") key?: string
   ): Promise<MovementResult> {
     await this.assertAdmin(user, scope);
-    await this.assertTeamInScope(id, scope);
+    await this.assertTeamInScope(id, scope.isSuperAdmin ? scope : await loadAdminScope(this.db, user.userId));
     return this.svc.divisionShift({
       teamId: id,
       entryId: body.entryId,
@@ -201,7 +203,7 @@ export class TeamMovementController {
     @Headers("x-idempotency-key") key?: string
   ): Promise<MovementResult> {
     await this.assertAdmin(user, scope);
-    await this.assertTeamInScope(id, scope);
+    await this.assertTeamInScope(id, scope.isSuperAdmin ? scope : await loadAdminScope(this.db, user.userId));
     return this.svc.leagueMigration({
       teamId: id,
       entryId: body.entryId,

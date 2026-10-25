@@ -9,7 +9,13 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import type { FreeAgentPoolEntry } from "@sportspulse/api-client";
+import type { FreeAgentOffer, FreeAgentPoolEntry } from "@sportspulse/api-client";
+import {
+  FREE_AGENT_OFFER_STATUS_LABELS,
+  formatFreeAgentAvailability,
+  freeAgentLevelLabel,
+  freeAgentPositionLabel
+} from "@sportspulse/kernel";
 import { iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ClaimFreeAgentButton } from "./claim-button";
@@ -17,32 +23,6 @@ import { ClaimFreeAgentButton } from "./claim-button";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Free agents — SportsPulse" };
-
-const LEVEL_COPY: Record<string, string> = {
-  A: "Elite",
-  B: "Intermediate",
-  C1: "Rec — experienced",
-  C2: "Rec — improving",
-  C3: "Rec — beginner",
-  // Legacy values from the original C/D enum — kept so historical pool
-  // rows still render a label instead of a raw code.
-  C: "Recreational",
-  D: "Beginner"
-};
-const POSITION_LABEL: Record<string, string> = {
-  C: "Center",
-  LW: "Left Wing",
-  RW: "Right Wing",
-  D: "Defense",
-  G: "Goalie"
-};
-const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-
-function fmtAvailability(av: Record<string, unknown>): string {
-  const days = DAY_ORDER.filter((d) => av[d]);
-  if (days.length === 0) return "—";
-  return days.map((d) => d.toUpperCase()).join(", ");
-}
 
 function ageFromDob(dob: string | null): number | null {
   if (!dob) return null;
@@ -54,6 +34,19 @@ function ageFromDob(dob: string | null): number | null {
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
   return age;
 }
+
+function fmtDay(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+const OFFER_TONE: Record<FreeAgentOffer["status"], "info" | "success" | "danger" | "neutral"> = {
+  pending: "info",
+  accepted: "success",
+  declined: "danger",
+  expired: "neutral",
+  revoked: "neutral"
+};
 
 export default async function CaptainFreeAgentsPage() {
   const scope = await iam.meScope().catch(() => null);
@@ -80,40 +73,47 @@ export default async function CaptainFreeAgentsPage() {
         <EmptyState
           icon={Star}
           title="No team in scope"
-          description="Captains claim free agents for their own team. None is currently scoped to your account."
+          description="Captains offer free agents a spot on their own team. None is currently scoped to your account."
         />
       </div>
     );
   }
 
-  // Pass forTeamId so the server resolves every season the team is live
-  // in and returns only those pools. Avoids leaking pools the captain's
-  // team isn't part of.
-  const [team, raw] = await Promise.all([
+  // forTeamId: the server resolves every season the team is live in and
+  // returns only those pools, each entry with this team's latest offer.
+  const [team, raw, offersRaw] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
     registrationV2
       .listFreeAgentPool({ forTeamId: myTeamId })
-      .catch(() => [] as FreeAgentPoolEntry[])
+      .then((r) => ({ ok: true as const, rows: r }))
+      .catch((e: Error) => ({ ok: false as const, error: e.message, rows: [] as FreeAgentPoolEntry[] })),
+    registrationV2.listFreeAgentOffers({ teamId: myTeamId }).catch(() => null)
   ]);
 
-  const list: FreeAgentPoolEntry[] = Array.isArray(raw)
-    ? raw
-    : ((raw as unknown as { items?: FreeAgentPoolEntry[] }).items ?? []);
+  const list: FreeAgentPoolEntry[] = Array.isArray(raw.rows)
+    ? raw.rows
+    : ((raw.rows as unknown as { items?: FreeAgentPoolEntry[] }).items ?? []);
   const active = list.filter((e: FreeAgentPoolEntry) => e.status === "active");
+  const teamName = team?.name ?? "your team";
+  const offers = offersRaw ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         eyebrow="Captain console"
         title="Free agents"
-        description={`Players who registered as free agents and are looking for a team. Claim one to add them to ${team?.name ?? "your roster"}.`}
+        description={`Players looking for a team. Offer one a spot on ${teamName}: they get an email, accept or decline, and join your roster when they accept.`}
       />
 
-      {active.length === 0 ? (
+      {!raw.ok ? (
+        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+          Could not load the free-agent pool: {raw.error}
+        </p>
+      ) : active.length === 0 ? (
         <EmptyState
           icon={Star}
           title="Pool is empty"
-          description="No active free agents right now. Once players register without a team they'll show up here."
+          description="No free agents are looking for a team in your seasons right now. Players who list themselves as free agents show up here."
         />
       ) : (
         <Table>
@@ -125,7 +125,7 @@ export default async function CaptainFreeAgentsPage() {
               <TH>Level</TH>
               <TH>Availability</TH>
               <TH>Note</TH>
-              <TH className="text-right">Action</TH>
+              <TH className="text-right">Offer</TH>
             </TR>
           </THead>
           <TBody>
@@ -134,9 +134,7 @@ export default async function CaptainFreeAgentsPage() {
               return (
                 <TR key={e.id}>
                   <TD>
-                    <div className="font-medium text-fg">
-                      {e.playerName ?? "—"}
-                    </div>
+                    <div className="font-medium text-fg">{e.playerName ?? "—"}</div>
                     {e.playerEmail ? (
                       <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                         {e.playerEmail}
@@ -152,13 +150,13 @@ export default async function CaptainFreeAgentsPage() {
                   <TD>
                     {e.positions.map((p: string) => (
                       <Badge key={p} mono tone="info" className="mr-1">
-                        {POSITION_LABEL[p] ?? p}
+                        {freeAgentPositionLabel(p)}
                       </Badge>
                     ))}
                   </TD>
                   <TD>
                     <Badge mono tone="neutral">
-                      {LEVEL_COPY[e.levelPrimary] ?? e.levelPrimary}
+                      {freeAgentLevelLabel(e.levelPrimary)}
                     </Badge>
                     {e.levelFlexibility?.length ? (
                       <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
@@ -167,13 +165,21 @@ export default async function CaptainFreeAgentsPage() {
                     ) : null}
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
-                    {fmtAvailability(e.availability)}
+                    {formatFreeAgentAvailability(e.availability)}
                   </TD>
                   <TD className="max-w-[18ch] truncate text-[12px] text-fg-muted">
                     {e.note ?? "—"}
                   </TD>
                   <TD className="text-right">
-                    <ClaimFreeAgentButton entryId={e.id} teamId={myTeamId} />
+                    <ClaimFreeAgentButton
+                      key={`${e.id}:${e.teamOffer?.id ?? "none"}:${e.teamOffer?.status ?? ""}`}
+                      entryId={e.id}
+                      teamId={myTeamId}
+                      teamName={teamName}
+                      playerName={e.playerName ?? "this player"}
+                      seasonName={e.seasonName ?? null}
+                      initialOffer={e.teamOffer ?? null}
+                    />
                   </TD>
                 </TR>
               );
@@ -181,6 +187,49 @@ export default async function CaptainFreeAgentsPage() {
           </TBody>
         </Table>
       )}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-[16px] font-semibold tracking-tight text-fg">Your offers</h2>
+          <p className="text-[12px] text-fg-muted">
+            What happened to each offer {teamName} made. Accepted players are on your roster.
+          </p>
+        </div>
+        {offersRaw === null ? (
+          <p className="text-[12px] text-[var(--tint-rose-fg)]">Could not load your offers.</p>
+        ) : offers.length === 0 ? (
+          <p className="text-[12px] text-fg-muted">No offers yet.</p>
+        ) : (
+          <Table>
+            <THead>
+              <TR>
+                <TH>Player</TH>
+                <TH>Season</TH>
+                <TH>State</TH>
+                <TH>Sent</TH>
+                <TH>Expires / answered</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {offers.map((o) => (
+                <TR key={o.id}>
+                  <TD className="font-medium text-fg">{o.playerName ?? "—"}</TD>
+                  <TD className="text-[12px] text-fg-muted">{o.seasonName ?? "—"}</TD>
+                  <TD>
+                    <Badge mono tone={OFFER_TONE[o.status]}>
+                      {FREE_AGENT_OFFER_STATUS_LABELS[o.status]}
+                    </Badge>
+                  </TD>
+                  <TD className="font-mono text-[11px] text-fg-muted">{fmtDay(o.createdAt)}</TD>
+                  <TD className="font-mono text-[11px] text-fg-muted">
+                    {o.status === "pending" ? fmtDay(o.expiresAt) : fmtDay(o.decidedAt ?? o.expiresAt)}
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        )}
+      </section>
     </div>
   );
 }

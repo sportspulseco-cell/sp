@@ -141,6 +141,7 @@ export class DrizzleSeasonRepository implements SeasonRepository {
       timezone: r.timezone,
       status: r.status as never,
       metadata: r.metadata as Record<string, unknown>,
+      config: (r.config as Record<string, unknown> | null) ?? {},
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       createdByUserId: r.createdByUserId

@@ -15,7 +15,8 @@ export const ELIGIBILITY_CHECK_TYPES = [
   "genderEligibility",
   "rosterSize",
   "usaHockeyId",
-  "playoffEligibility"
+  "playoffEligibility",
+  "suspension"
 ] as const;
 export type EligibilityCheckType = (typeof ELIGIBILITY_CHECK_TYPES)[number];
 
@@ -26,12 +27,15 @@ export type EligibilityCheckType = (typeof ELIGIBILITY_CHECK_TYPES)[number];
 export const HARD_BLOCK_CHECK_TYPES: ReadonlyArray<EligibilityCheckType> = [
   "ageRestriction",
   "genderEligibility",
-  "rosterSize"
+  "rosterSize",
+  // A suspension is lifted on the suspension itself (POST /suspensions/:id/lift),
+  // never waived on the eligibility record.
+  "suspension"
 ];
 
 export function isHardBlockCheck(
   check: string
-): check is "ageRestriction" | "genderEligibility" | "rosterSize" {
+): check is "ageRestriction" | "genderEligibility" | "rosterSize" | "suspension" {
   return (HARD_BLOCK_CHECK_TYPES as ReadonlyArray<string>).includes(check);
 }
 
@@ -58,7 +62,11 @@ export interface UsaHockeyEvaluation {
   provided: string | null;
   expiresAt: string | null;
   source: "self_attest" | "live_api";
-  status: "verified" | "expiring" | "expired" | "not_provided" | "flagged";
+  /**
+   * `pending` = self-attested and not verified yet; `mismatch` = the
+   * identity check failed. Neither counts as verified (COMP-14).
+   */
+  status: "verified" | "expiring" | "expired" | "not_provided" | "pending" | "mismatch" | "flagged";
   checkedAt: string;
   adminWaived: boolean;
   waiveReason: string | null;
@@ -73,13 +81,15 @@ export interface AgeRestrictionEvaluation {
   birthYearMin: number | null;
   birthYearMax: number | null;
   ageAtReferenceDate: number | null;
-  status: "eligible" | "ineligible";
+  /** `unknown` = an age rule applies but no date of birth is on file; `not_required` = no age rule. */
+  status: "eligible" | "ineligible" | "unknown" | "not_required";
 }
 
 export interface GenderEligibilityEvaluation {
   divisionGender: string;
   personGenderSelfId: string | null;
-  status: "eligible" | "ineligible";
+  /** `unknown` = gendered division, no gender on file; `flagged` = mismatch for an admin to review. */
+  status: "eligible" | "ineligible" | "unknown" | "flagged";
 }
 
 export interface RosterSizeEvaluation {
@@ -98,12 +108,27 @@ export interface PlayoffEligibilityEvaluation {
   failedChecks?: string[];
 }
 
+/** Suspensions standing when the sweep ran (UC-14, COMP-14). */
+export interface SuspensionEvaluation {
+  status: "clear" | "suspended";
+  checkedAt: string;
+  suspensions: Array<{
+    id: string;
+    kind: string;
+    gamesRemaining: number | null;
+    endsAt: string | null;
+    reason: string | null;
+    label: string;
+  }>;
+}
+
 export interface RuleEvaluation {
   usaHockeyId?: UsaHockeyEvaluation;
   ageRestriction?: AgeRestrictionEvaluation;
   genderEligibility?: GenderEligibilityEvaluation;
   rosterSize?: RosterSizeEvaluation;
   playoffEligibility?: PlayoffEligibilityEvaluation;
+  suspension?: SuspensionEvaluation;
 }
 
 // =====================================================================

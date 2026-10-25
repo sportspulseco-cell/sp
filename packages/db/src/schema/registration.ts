@@ -10,6 +10,7 @@ import {
   timestamp,
   index,
   uniqueIndex,
+  unique,
   check
 } from "drizzle-orm/pg-core";
 import { inet } from "./_helpers";
@@ -453,5 +454,126 @@ export const identityVerifications = pgTable(
       t.governingBodyId,
       t.externalId
     )
+  })
+);
+
+// =====================================================================
+// COMPLIANCE DOCUMENT SUBMISSIONS — files a player (or the guardian of a
+// linked minor) uploads for review: birth certificate, governing-body
+// card, government ID, scanned signed waiver (COMP-3, UC-29).
+//
+// The file lives in the private `compliance-documents` storage bucket;
+// it is read only through a short-lived signed URL the API issues after
+// a permission check. `status` is the latest decision; every decision is
+// appended to compliance_document_decisions. Migration 0054.
+// Enums: @sportspulse/kernel compliance-documents.ts.
+// =====================================================================
+export const complianceDocumentSubmissions = pgTable(
+  "compliance_document_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => persons.id, { onDelete: "cascade" }),
+    /** The organisation whose admins review it (from the registration or team). */
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    seasonId: uuid("season_id").references(() => seasons.id, {
+      onDelete: "set null"
+    }),
+    registrationId: uuid("registration_id").references(() => registrations.id, {
+      onDelete: "set null"
+    }),
+    /** The waiver text a scanned signed waiver answers, when known. */
+    documentVersionId: uuid("document_version_id").references(
+      () => documentVersions.id,
+      { onDelete: "set null" }
+    ),
+    kind: text("kind").notNull(),
+    storageBucket: text("storage_bucket")
+      .notNull()
+      .default("compliance-documents"),
+    storagePath: text("storage_path").notNull().unique("cds_storage_path_uniq"),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    status: text("status").notNull().default("pending"),
+    submittedByUserId: uuid("submitted_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" }
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    kindCheck: check(
+      "cds_kind_check",
+      sql`${t.kind} IN ('birth_certificate','governing_body_card','government_id','signed_waiver','other')`
+    ),
+    statusCheck: check(
+      "cds_status_check",
+      sql`${t.status} IN ('pending','approved','rejected','resubmit_requested','withdrawn')`
+    ),
+    contentTypeCheck: check(
+      "cds_content_type_check",
+      sql`${t.contentType} IN ('application/pdf','image/png','image/jpeg','image/webp')`
+    ),
+    sizeCheck: check(
+      "cds_size_check",
+      sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 3145728`
+    ),
+    shaCheck: check("cds_sha256_check", sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
+    /**
+     * The same file for the same person and review target is one
+     * submission: a re-upload is a replay, not a second row. The same
+     * file for another season (another league) is a new submission.
+     */
+    uniqTargetFile: unique("cds_person_target_sha_uniq")
+      .on(t.personId, t.orgId, t.seasonId, t.sha256)
+      .nullsNotDistinct(),
+    statusCreatedIdx: index("cds_status_created_idx").on(t.status, t.createdAt),
+    personIdx: index("cds_person_idx").on(t.personId),
+    orgIdx: index("cds_org_idx").on(t.orgId),
+    seasonIdx: index("cds_season_idx").on(t.seasonId),
+    registrationIdx: index("cds_registration_idx").on(t.registrationId)
+  })
+);
+
+/**
+ * Append-only decision log for compliance_document_submissions. A
+ * trigger (migration 0054) refuses UPDATE and direct DELETE; rows go
+ * only when their submission is deleted.
+ */
+export const complianceDocumentDecisions = pgTable(
+  "compliance_document_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => complianceDocumentSubmissions.id, { onDelete: "cascade" }),
+    decision: text("decision").notNull(),
+    reason: text("reason"),
+    decidedByUserId: uuid("decided_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    decidedAt: timestamp("decided_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    decisionCheck: check(
+      "cdd_decision_check",
+      sql`${t.decision} IN ('approved','rejected','resubmit_requested')`
+    ),
+    reasonCheck: check(
+      "cdd_reason_check",
+      sql`${t.reason} IS NULL OR char_length(${t.reason}) <= 500`
+    ),
+    submissionIdx: index("cdd_submission_idx").on(t.submissionId, t.decidedAt)
   })
 );

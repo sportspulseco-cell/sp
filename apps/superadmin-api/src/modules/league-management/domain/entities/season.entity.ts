@@ -26,6 +26,12 @@ export interface SeasonSnapshot {
   timezone: string;
   status: SeasonStatus;
   metadata: Record<string, unknown>;
+  /**
+   * Per-season toggles (seasons.config, kernel SeasonConfig). Read-only on
+   * the aggregate: written only by the season config endpoints, never by
+   * save(), so it is carried here just to be returned to clients.
+   */
+  config?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   createdByUserId: string | null;
@@ -34,6 +40,9 @@ export interface SeasonSnapshot {
 // Aggregate root: Season.
 // Owns lifecycle (status transitions) and validation (date ranges).
 export class Season extends AggregateRoot<SeasonId> {
+  /** seasons.config as loaded; see SeasonSnapshot.config. */
+  private _config: Record<string, unknown> = {};
+
   private constructor(
     id: SeasonId,
     private readonly _leagueId: string,
@@ -101,7 +110,7 @@ export class Season extends AggregateRoot<SeasonId> {
   }
 
   static rehydrate(s: SeasonSnapshot): Season {
-    return new Season(
+    const season = new Season(
       SeasonId.of(s.id),
       s.leagueId,
       s.orgId,
@@ -121,6 +130,8 @@ export class Season extends AggregateRoot<SeasonId> {
       s.updatedAt,
       s.createdByUserId
     );
+    season._config = s.config ?? {};
+    return season;
   }
 
   // ---------- behavior ----------
@@ -249,6 +260,7 @@ export class Season extends AggregateRoot<SeasonId> {
       timezone: this._timezone,
       status: this._status,
       metadata: this._metadata,
+      config: this._config,
       createdAt: this._createdAt,
       updatedAt: this._updatedAt,
       createdByUserId: this._createdByUserId

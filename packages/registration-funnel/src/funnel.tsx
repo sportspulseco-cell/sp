@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Clock, Loader2 } from "lucide-react";
-import { resolveRegistrationWaivers, type AnswerMap } from "@sportspulse/kernel";
+import {
+  allowedSubmissionTypes,
+  resolveRegistrationWaivers,
+  type AnswerMap
+} from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
 import { Button, Chip, Field, Input } from "@sportspulse/ui";
@@ -157,8 +161,13 @@ export function RegistrationFunnel({
     liabilityWaiverContent?: string;
     codeOfConductContent?: string;
   };
-  const allowFreeAgent = seasonConfig.allowFreeAgent ?? false;
   const parentalConsentRequired = seasonConfig.parentalConsentRequired ?? true;
+  // REG-14: the paths this season offers (registration type + free-agent
+  // toggle). Same kernel rule the API enforces on start and resume.
+  const offeredPaths = useMemo(
+    () => allowedSubmissionTypes(context.season.config ?? {}),
+    [context.season.config]
+  );
 
   // Which documents this season asks for: the kernel rule the API also
   // uses (season setup, then the form, then the SportsPulse default
@@ -203,7 +212,12 @@ export function RegistrationFunnel({
     // Skip parental consent entirely when the admin disabled it for
     // this season, even if DOB indicates a minor — adult-only leagues
     // (or test seasons) often turn it off.
-    if (isMinor && parentalConsentRequired) out.push("consent");
+    // The server's status wins: a registration waiting for the guardian
+    // always shows the consent step, even when the season toggle says
+    // consent is not required (the API holds every minor for consent).
+    if ((isMinor && parentalConsentRequired) || submissionStatus === "pending_consent") {
+      out.push("consent");
+    }
     if (hasRequiredDocs || (waivers?.length ?? 0) > 0 || photoRelease.enabled) {
       out.push("waivers");
     }
@@ -213,6 +227,7 @@ export function RegistrationFunnel({
   }, [
     isMinor,
     parentalConsentRequired,
+    submissionStatus,
     waivers,
     tiers.length,
     hasRequiredDocs,
@@ -241,7 +256,7 @@ export function RegistrationFunnel({
     setSubmitting(true);
     setError(null);
     try {
-      await api.updateSubmission(submissionId, {
+      const saved = await api.updateSubmission(submissionId, {
         email: email.trim(),
         answers,
         dobDate: dobDate || null,
@@ -256,11 +271,18 @@ export function RegistrationFunnel({
             }
           : {})
       });
+      // The API re-checks the DOB: a minor's unpaid registration goes back
+      // to wait for the guardian, and the step list follows the status.
+      if (saved.status) setSubmissionStatus(saved.status);
+      if (typeof saved.isMinor === "boolean") setIsMinor(saved.isMinor);
       const elig = await api
         .runEligibilityCheck(submissionId, email.trim())
         .catch(() => null);
       if (elig) setEligibilityFlags(elig.flags);
-      next();
+      // `next()` reads this render's step list, which may not have the
+      // consent step yet; go there directly when the API says so.
+      if (saved.status === "pending_consent") setStep("consent");
+      else next();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -561,7 +583,7 @@ export function RegistrationFunnel({
             value={submissionType}
             onChange={setSubmissionType}
             onNext={next}
-            allowFreeAgent={allowFreeAgent}
+            offeredPaths={offeredPaths}
           />
         )}
 
@@ -877,17 +899,15 @@ function PathStep({
   value,
   onChange,
   onNext,
-  allowFreeAgent
+  offeredPaths
 }: {
   value: SubmissionType | null;
   onChange: (v: SubmissionType) => void;
   onNext: () => void;
-  /** Hide the free-agent card when the season has it disabled. */
-  allowFreeAgent: boolean;
+  /** Paths the season offers (kernel allowedSubmissionTypes). */
+  offeredPaths: readonly string[];
 }) {
-  const visiblePaths = PATHS.filter(
-    (p) => p.value !== "free_agent" || allowFreeAgent
-  );
+  const visiblePaths = PATHS.filter((p) => offeredPaths.includes(p.value));
   return (
     <div className="space-y-5">
       <section className="rounded-xl border border-border bg-surface-1 p-5">

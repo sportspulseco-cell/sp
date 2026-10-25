@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { and, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import type { Page } from "@sportspulse/kernel";
+import { SCHEDULABLE_ENTRY_STATUSES, type Page } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import { Team } from "../../domain/entities/team.entity";
 import { TeamId } from "../../domain/identifiers";
@@ -57,6 +57,23 @@ export class DrizzleTeamRepository implements TeamRepository {
     if (q.status) cs.push(eq(schema.teams.status, q.status));
     if (q.search) cs.push(ilike(schema.teams.name, `%${q.search}%`));
     if (q.cursor) cs.push(gt(schema.teams.id, q.cursor));
+    if (q.divisionId) {
+      cs.push(
+        inArray(
+          schema.teams.id,
+          this.db
+            .select({ teamId: schema.divisionTeamEntries.teamId })
+            .from(schema.divisionTeamEntries)
+            .where(
+              and(
+                eq(schema.divisionTeamEntries.divisionId, q.divisionId),
+                isNull(schema.divisionTeamEntries.leftAt),
+                inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
+              )
+            )
+        )
+      );
+    }
     // Scope filter: orgIdsFilter and leagueIdsFilter union together.
     // A team is in scope when (a) its org is in the org whitelist, or
     // (b) it has an active DTE under a league in the league whitelist.

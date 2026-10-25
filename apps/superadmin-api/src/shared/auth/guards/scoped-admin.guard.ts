@@ -10,7 +10,7 @@ import type { Database } from "@sportspulse/db";
 import { DRIZZLE } from "../../database/database.tokens";
 import { ALLOW_SCOPED_WRITE_KEY } from "../decorators/allow-scoped-write.decorator";
 import { userIsPeopleAdmin } from "../org-admin";
-import { loadUserScope } from "../scope";
+import { loadAdminScope } from "../scope";
 
 /**
  * Admin-console reads for scoped admins. Same contract as
@@ -33,7 +33,8 @@ export class ScopedAdminGuard implements CanActivate {
     const principal = req.principal;
     if (!principal?.userId) throw new ForbiddenException("No principal");
 
-    const scope = await loadUserScope(this.db, principal.userId);
+    // Admin reads use the admin-only scope: roster spots never widen it.
+    const scope = await loadAdminScope(this.db, principal.userId);
     req.userScope = scope;
     if (scope.isSuperAdmin) return true;
 

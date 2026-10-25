@@ -85,32 +85,12 @@ export class TeamsController {
       leagueIdsFilter: filter,
       orgIdsFilter: orgFilter
     });
+    // `divisionId` (P2-2) narrows in SQL to teams playing in that
+    // division, so a page is never short and paging reaches every team.
+    // It used to filter each page after the fact, which left pickers
+    // with a partial list (SCH-20).
     if (page.items.length === 0) return page;
-
-    // P2-2 — narrow to teams with an active DTE in the requested
-    // division. Done at the controller level so the underlying list
-    // handler stays unchanged. Non-terminal statuses only — a team
-    // whose DTE is rejected/withdrawn shouldn't show up to players.
-    let items = page.items;
-    if (q.divisionId) {
-      const dteRows = await this.db
-        .select({ teamId: schema.divisionTeamEntries.teamId })
-        .from(schema.divisionTeamEntries)
-        .where(
-          and(
-            eq(schema.divisionTeamEntries.divisionId, q.divisionId),
-            inArray(schema.divisionTeamEntries.entryStatus, [
-              "applied",
-              "accepted",
-              "confirmed"
-            ])
-          )
-        );
-      const inDivision = new Set(dteRows.map((r) => r.teamId));
-      items = items.filter((t) => inDivision.has(t.id));
-    }
-
-    if (items.length === 0) return { ...page, items: [] };
+    const items = page.items;
     const ids = items.map((t) => t.id);
     const lifecycle = await this.loadLifecycle(ids);
     return {

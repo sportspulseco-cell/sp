@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CommunicationsModule } from "../communications/communications.module";
+import { RegistrationV2Module } from "../registration-v2/registration-v2.module";
 import { CaptainController } from "./interface/captain.controller";
 import { CaptainRosterController } from "./interface/captain-roster.controller";
 import { ComplianceController } from "./interface/compliance.controller";
@@ -16,7 +17,9 @@ import { TeamJoinRequestsController } from "./interface/team-join-requests.contr
  * through the same paths so they can preview the captain UI.
  */
 @Module({
-  imports: [CommunicationsModule],
+  // RegistrationV2Module: FreeAgentOffersService settles free-agent offers
+  // when the player accepts or declines (CAP-9).
+  imports: [CommunicationsModule, RegistrationV2Module],
   controllers: [
     CaptainController,
     CaptainRosterController,

@@ -6,16 +6,19 @@ import { LoadError } from "@sportspulse/ui";
 import { PageHeader } from "@/components/layout/page-header";
 import * as browser from "@/lib/api/browser-api";
 
-interface OrgRow { id: string; name: string }
+interface OrgRow { id: string; name: string; timezone: string }
 
 export default function VenuesAdminPage() {
-  const api = browser.schedulingInventory as unknown as VenuesApi;
+  // Typed, not cast: a renamed SDK call fails the build, not the page.
+  const api: VenuesApi = browser.schedulingInventory;
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [orgsError, setOrgsError] = useState<string | null>(null);
   useEffect(() => {
     browser.orgs
       .list({ limit: 100 })
-      .then((res) => setOrgs(res.items.map((o) => ({ id: o.id, name: o.displayName }))))
+      .then((res) =>
+        setOrgs(res.items.map((o) => ({ id: o.id, name: o.displayName, timezone: o.defaultTimezone })))
+      )
       .catch((e: Error) => {
         // Say so: an empty list here left Create disabled with no reason (SCH-9).
         console.error("[venues] orgs.list failed", e);

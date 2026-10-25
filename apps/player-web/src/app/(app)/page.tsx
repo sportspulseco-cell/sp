@@ -23,6 +23,7 @@ import type {
   Registration
 } from "@sportspulse/api-client";
 import {
+  captain,
   communications,
   finance,
   gameOps,
@@ -32,6 +33,7 @@ import {
   registration,
   roster
 } from "@/lib/api/server-api";
+import { TeamOffersCard } from "@/components/team-offers-card";
 
 type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 import { RegistrationStateBanner } from "./registration-state-banner";
@@ -125,7 +127,7 @@ export default async function PlayerHome() {
   const openRegs = await fetchOpenRegistrations();
 
   // Single batch — Home view fetches everything in parallel.
-  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage] =
+  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites] =
     await Promise.all([
       myTeamId
         ? gameOps
@@ -148,7 +150,9 @@ export default async function PlayerHome() {
         ? roster
             .listMemberships({ teamId: myTeamId, activeOnly: true })
             .catch(() => ({ items: [], nextCursor: null }))
-        : Promise.resolve({ items: [], nextCursor: null })
+        : Promise.resolve({ items: [], nextCursor: null }),
+      // Team offers / invites waiting for this player's answer (CAP-9).
+      captain.myInvites().catch(() => ({ items: [] }))
     ]);
 
   // -- Next game (chronologically earliest future scheduled game) --
@@ -268,6 +272,10 @@ export default async function PlayerHome() {
       {/* Workflow 5 §3 — registration state banner above the hero so the
           player knows whether they're new / returning / mid-funnel. */}
       <RegistrationStateBanner registrations={regPage.items} />
+
+      {/* A team offered this player a spot (free-agent pool) or invited
+          them: the one decision waiting on them, so it sits up top. */}
+      <TeamOffersCard items={myInvites.items} />
 
       {/* Dual-role users (player + captain) get a single discoverable
           entry point into the captain console — which lives in

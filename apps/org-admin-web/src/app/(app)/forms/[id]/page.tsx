@@ -25,6 +25,7 @@ import {
   iam,
   leagueMgmt,
   orgs,
+  publicRegistration,
   registration,
   registrationV2
 } from "@/lib/api/server-api";
@@ -87,12 +88,16 @@ export default async function OrgAdminFormSetupPage({
   // proxy ever drifts.
   if (activeOrgId && form.orgId !== activeOrgId) notFound();
 
-  const [season, org] = await Promise.all([
+  const [season, org, appLinks] = await Promise.all([
     form.seasonId
       ? leagueMgmt.getSeason(form.seasonId).catch(() => null)
       : Promise.resolve(null),
-    orgs.get(form.orgId).catch(() => null)
+    orgs.get(form.orgId).catch(() => null),
+    // REG-12/13: registration links use this environment's player app,
+    // as configured on the API (PLAYER_WEB_URL). Null hides the links.
+    publicRegistration.appLinks().catch(() => null)
   ]);
+  const playerWebUrl = appLinks?.playerWebUrl ?? null;
 
   const seasonId = form.seasonId;
   const [tiers, divisionsPage, templates, registrationsPage, versions] =
@@ -207,6 +212,7 @@ export default async function OrgAdminFormSetupPage({
         submissionsCount={registrationsPage.items.length}
         draft={!form.activeVersionId}
         searchParams={sp}
+        playerWebUrl={playerWebUrl}
       >
         {active === "season" ? (
           <SeasonSectionForm form={form} season={season} priorSeasons={priorSeasons} />
@@ -275,6 +281,7 @@ export default async function OrgAdminFormSetupPage({
             templates={templates}
             versions={versions}
             uncoveredDivisions={uncoveredDivisions}
+            playerWebUrl={playerWebUrl}
           />
         ) : null}
         {active === "submissions" ? (

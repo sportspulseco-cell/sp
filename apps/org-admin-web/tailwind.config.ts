@@ -5,7 +5,9 @@ const config: Config = {
   content: [
     "./src/**/*.{ts,tsx}",
     "../../packages/ui/src/**/*.{ts,tsx}",
-    "../../packages/registration-funnel/src/**/*.{ts,tsx}"
+    "../../packages/registration-funnel/src/**/*.{ts,tsx}",
+    // Shared admin screens (review queue, regions, venues...) render here too.
+    "../../packages/admin-pages/src/**/*.{ts,tsx}"
   ],
   theme: {
     extend: {

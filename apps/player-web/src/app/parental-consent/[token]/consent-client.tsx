@@ -2,29 +2,45 @@
 
 import { useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { Field, Input } from "@sportspulse/ui";
+import { guardianNameAcceptable } from "@sportspulse/kernel";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 /**
- * Parent-portal confirm/decline UI. POSTs the redeem endpoint
- * anonymously — token is the auth. On success replaces the form with
- * a confirmation card; on failure surfaces the error text inline.
+ * Parent-portal confirm/decline UI (UC-28, REG-15). The guardian reads
+ * the consent text, types their full legal name and ticks the box; the
+ * API stores that as a signed consent record with the text, and only
+ * then moves the registration on. Anonymous: the token is the auth.
+ * The confirmation card shows what the server stored, not the click.
  */
 export function ParentalConsentClient({
   token,
   childDisplayName,
   seasonName,
-  orgName
+  orgName,
+  consentTitle,
+  consentText,
+  guardianEmail
 }: {
   token: string;
   childDisplayName: string;
   seasonName: string | null;
   orgName: string | null;
+  consentTitle: string;
+  consentText: string;
+  guardianEmail: string | null;
 }) {
   const [busy, setBusy] = useState<"confirm" | "decline" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [outcome, setOutcome] = useState<"confirmed" | "declined" | null>(null);
+  const [name, setName] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [outcome, setOutcome] = useState<
+    { kind: "confirmed"; signedBy: string | null } | { kind: "declined" } | null
+  >(null);
+
+  const nameOk = guardianNameAcceptable(name);
 
   async function submit(action: "confirm" | "decline") {
     setBusy(action);
@@ -35,23 +51,38 @@ export function ParentalConsentClient({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action })
+          body: JSON.stringify(
+            action === "confirm"
+              ? { action, guardianName: name.trim(), acknowledged: agreed }
+              : { action, ...(name.trim() ? { guardianName: name.trim() } : {}) }
+          )
         }
       );
+      const text = await res.text();
+      let body: Record<string, unknown> | null = null;
+      try {
+        body = text ? (JSON.parse(text) as Record<string, unknown>) : null;
+      } catch {
+        body = null;
+      }
       if (!res.ok) {
         // Friendly message rather than raw JSON (BUG-045 family).
-        let msg = `API ${res.status}`;
-        const body = await res.text();
-        try {
-          const p = JSON.parse(body);
-          msg =
-            p?.error?.message ?? p?.message ?? p?.error?.code ?? msg;
-        } catch {
-          if (body) msg = `${msg}: ${body}`;
-        }
+        const err = body?.error as { message?: string } | string | undefined;
+        const msg =
+          (typeof err === "object" ? err?.message : undefined) ??
+          (typeof body?.message === "string" ? body.message : undefined) ??
+          (typeof err === "string" ? err : undefined) ??
+          `Could not record your answer (error ${res.status}). Try again.`;
         throw new Error(msg);
       }
-      setOutcome(action === "confirm" ? "confirmed" : "declined");
+      if (action === "confirm") {
+        setOutcome({
+          kind: "confirmed",
+          signedBy: (body?.signedBy as string | null | undefined) ?? null
+        });
+      } else {
+        setOutcome({ kind: "declined" });
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -59,7 +90,7 @@ export function ParentalConsentClient({
     }
   }
 
-  if (outcome === "confirmed") {
+  if (outcome?.kind === "confirmed") {
     return (
       <section className="mt-8 rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-6 dark:bg-[var(--tint-emerald-bg)]">
         <div className="flex items-start gap-3">
@@ -69,11 +100,12 @@ export function ParentalConsentClient({
           />
           <div>
             <p className="text-[18px] font-semibold tracking-tight text-fg">
-              Thanks — consent recorded.
+              Consent signed and recorded.
             </p>
             <p className="mt-1 text-[13px] text-fg-muted">
-              {childDisplayName}&apos;s registration will now advance to
-              payment. You can close this page.
+              {outcome.signedBy ? `Signed by ${outcome.signedBy}. ` : ""}
+              {childDisplayName}&apos;s registration can now continue to the
+              waivers and payment. You can close this page.
             </p>
           </div>
         </div>
@@ -81,7 +113,7 @@ export function ParentalConsentClient({
     );
   }
 
-  if (outcome === "declined") {
+  if (outcome?.kind === "declined") {
     return (
       <section className="mt-8 rounded-2xl border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] p-6 dark:bg-[var(--tint-rose-bg)]">
         <div className="flex items-start gap-3">
@@ -94,8 +126,7 @@ export function ParentalConsentClient({
               Registration declined.
             </p>
             <p className="mt-1 text-[13px] text-fg-muted">
-              The registration has been cancelled and the player has been
-              notified. Nothing else to do here.
+              The registration has been cancelled. Nothing else to do here.
             </p>
           </div>
         </div>
@@ -123,18 +154,53 @@ export function ParentalConsentClient({
               <dd className="font-medium text-fg">{orgName}</dd>
             </div>
           )}
+          {guardianEmail && (
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <dt className="text-fg-muted">Sent to</dt>
+              <dd className="font-medium text-fg">{guardianEmail}</dd>
+            </div>
+          )}
         </dl>
       </div>
 
-      <p className="text-[12px] text-fg-muted">
-        By confirming, you authorise {childDisplayName} to register for this
-        season and acknowledge they&apos;ll need to complete any required
-        waivers. By declining, the registration will be cancelled and the
-        player will be told.
-      </p>
+      <div className="space-y-2">
+        <p className="text-[13px] font-semibold text-fg">{consentTitle}</p>
+        <div className="max-h-56 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-bg-subtle p-3 text-[13px] leading-relaxed text-fg">
+          {consentText}
+        </div>
+      </div>
+
+      <Field
+        label="Your full legal name"
+        hint="Typing your name is your signature. First and last name."
+      >
+        <Input
+          type="text"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="First and last name"
+        />
+      </Field>
+
+      <label className="flex items-start gap-2 text-[13px] text-fg">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+        />
+        <span>
+          I am {childDisplayName}&apos;s parent or legal guardian. I have read
+          the consent above and agree to it.
+        </span>
+      </label>
 
       {error && (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+        <p
+          role="alert"
+          className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]"
+        >
           {error}
         </p>
       )}
@@ -143,7 +209,7 @@ export function ParentalConsentClient({
         <button
           type="button"
           onClick={() => submit("confirm")}
-          disabled={busy !== null}
+          disabled={busy !== null || !nameOk || !agreed}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[var(--success)] px-4 py-2.5 text-[14px] font-medium text-white hover:bg-[var(--success)] disabled:opacity-50"
         >
           {busy === "confirm" ? (
@@ -151,7 +217,7 @@ export function ParentalConsentClient({
           ) : (
             <>
               <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
-              Confirm registration
+              Sign and confirm registration
             </>
           )}
         </button>
@@ -171,6 +237,11 @@ export function ParentalConsentClient({
           )}
         </button>
       </div>
+      {!nameOk || !agreed ? (
+        <p className="text-[11px] text-fg-muted">
+          To confirm, type your first and last name and tick the box.
+        </p>
+      ) : null}
     </section>
   );
 }

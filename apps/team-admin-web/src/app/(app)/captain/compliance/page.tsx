@@ -1,4 +1,5 @@
-import { ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
+import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
+import { load } from "@sportspulse/api-client";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import { compliance, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -12,7 +13,8 @@ export const metadata = { title: "Compliance — SportsPulse" };
  *
  * The captain can see USA Hockey + playoff eligibility status per
  * player on their team but cannot modify state. Waiving is admin-only
- * via the admin compliance dashboard.
+ * via the admin compliance dashboard. Suspended players are listed
+ * with the games or date left (UC-14, COMP-12); lineups refuse them.
  */
 export default async function CaptainCompliancePage() {
   const scope = await iam.meScope().catch(() => null);
@@ -28,10 +30,12 @@ export default async function CaptainCompliancePage() {
     );
   }
 
-  // Team-scoped endpoint: only this team's roster, with names.
-  const records = await compliance
-    .teamEligibility(myTeamId)
-    .catch(() => ({ items: [] }));
+  // Team-scoped endpoints: only this team's roster, with names.
+  const [records, suspended] = await Promise.all([
+    compliance.teamEligibility(myTeamId).catch(() => ({ items: [] })),
+    load(compliance.teamSuspensions(myTeamId))
+  ]);
+  const suspendedItems = suspended.ok ? suspended.data.items : [];
 
   const counts = {
     allClear: records.items.filter((r) => r.status === "eligible").length,
@@ -49,6 +53,46 @@ export default async function CaptainCompliancePage() {
         title="Waivers & documents"
         description="Per-player USA Hockey + playoff eligibility. Read-only — admins issue waivers."
       />
+
+      <section className="rounded-xl border border-border bg-surface-1">
+        <header className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="flex items-center gap-2">
+            <Gavel className="h-4 w-4 text-fg-muted" strokeWidth={1.5} />
+            <Eyebrow>suspended players</Eyebrow>
+          </div>
+          {suspended.ok ? (
+            <Badge tone={suspendedItems.length ? "danger" : "success"} mono>
+              {suspendedItems.length} suspended
+            </Badge>
+          ) : null}
+        </header>
+        {!suspended.ok ? (
+          <p role="alert" className="px-5 py-4 text-[13px] text-[var(--tint-rose-fg)]">
+            Could not load suspensions ({suspended.status}). Lineups still refuse suspended players when you save.
+          </p>
+        ) : suspendedItems.length === 0 ? (
+          <p className="px-5 py-4 text-[13px] text-fg-muted">No player on your roster is suspended.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {suspendedItems.map((x) => (
+              <li
+                key={x.suspensionId}
+                className="grid grid-cols-1 gap-1 px-5 py-3 md:grid-cols-[1fr_auto] md:items-center"
+              >
+                <div>
+                  <p className="text-[13px] font-medium text-fg">{x.displayName}</p>
+                  {x.reason ? (
+                    <p className="mt-0.5 text-[12px] text-fg-muted">{x.reason}</p>
+                  ) : null}
+                </div>
+                <Badge tone="danger" mono>
+                  Suspended · {x.label}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <SummaryTile

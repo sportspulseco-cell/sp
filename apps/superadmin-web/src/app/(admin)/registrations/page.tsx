@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { PublicSeasonContext } from "@sportspulse/registration-funnel";
 import { ReviewQueue } from "@/components/registrations/review-queue";
-import { registration } from "@/lib/api/server-api";
+import { publicRegistration, registration } from "@/lib/api/server-api";
 import { Reveal, LoadError } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/components/motion/kinetic";
 import { ProgressBar } from "../dashboard/live-widgets";
 import { FunnelClient } from "../../registration/[id]/funnel-client";
+import { FreeAgentPoolSection } from "./free-agent-pool-section";
 
 export const metadata = { title: "Registrations — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -50,12 +51,15 @@ async function getContext(seasonId: string): Promise<PublicSeasonContext | null>
  * specialised to registration data: Inbox / Throughput / Form binding.
  */
 export default async function RegistrationsPage() {
-  const [formsPage, regsResult] = await Promise.all([
+  const [formsPage, regsResult, appLinks] = await Promise.all([
     registration
       .listForms({ purpose: "season_registration" })
       .catch(() => ({ items: [], nextCursor: null })),
-    load(registration.listRegistrations())
+    load(registration.listRegistrations()),
+    // REG-12/13: this environment's player app, from the API.
+    publicRegistration.appLinks().catch(() => null)
   ]);
+  const playerWebUrl = appLinks?.playerWebUrl ?? null;
   if (!regsResult.ok) {
     console.error("[registrations] listRegistrations failed", regsResult.status, regsResult.message);
   }
@@ -172,13 +176,12 @@ export default async function RegistrationsPage() {
                 Edit form
               </Link>
             ) : null}
-            {activeForm?.seasonId ? (
+            {activeForm?.seasonId && playerWebUrl ? (
               <a
-                // Absolute URL into player-web; relative path stayed on
-                // superadmin and showed the admin's session view of the
-                // funnel rather than the fresh-visitor experience the
-                // tooltip promised (BUG-044a, family of BUG-042).
-                href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://player.sportspulse.us"}/register/${activeForm.seasonId}`}
+                // Absolute URL into this environment's player-web
+                // (BUG-044a; REG-12: origin from the API, no production
+                // fallback).
+                href={`${playerWebUrl}/register/${activeForm.seasonId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-bg-subtle px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
@@ -209,6 +212,7 @@ export default async function RegistrationsPage() {
                 form={activeForm}
                 ctx={ctx}
                 hasRecent={recent.length > 0}
+                playerWebUrl={playerWebUrl}
               />
 
               {/* Footer 4-cell band */}
@@ -244,6 +248,9 @@ export default async function RegistrationsPage() {
           <ReviewQueue />
         </div>
       </Reveal>
+
+      {/* FREE AGENTS — CAP-10: players without a team; assign = offer. */}
+      <FreeAgentPoolSection />
 
       {/* INLINE WIZARD — integral to /registrations */}
       <Reveal>
@@ -372,11 +379,13 @@ function ThroughputCard({
 function FormBindingCard({
   form,
   ctx,
-  hasRecent
+  hasRecent,
+  playerWebUrl
 }: {
   form: { id: string; name: string; seasonId: string | null } | null;
   ctx: PublicSeasonContext | null;
   hasRecent: boolean;
+  playerWebUrl: string | null;
 }) {
   if (!form) {
     return (
@@ -423,10 +432,11 @@ function FormBindingCard({
           <FileSignature className="h-3 w-3" strokeWidth={1.75} />
           edit
         </Link>
-        {form.seasonId ? (
+        {form.seasonId && playerWebUrl ? (
           <a
-            // Absolute URL into player-web (BUG-044b, family of BUG-042).
-            href={`${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://player.sportspulse.us"}/register/${form.seasonId}`}
+            // Absolute URL into this environment's player-web (BUG-044b;
+            // REG-12: origin from the API).
+            href={`${playerWebUrl}/register/${form.seasonId}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted hover:border-fg-muted hover:text-fg"

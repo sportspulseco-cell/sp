@@ -130,6 +130,8 @@ export const orgAdminDivisions = api.orgAdminDivisions;
 export const orgAdminBroadcast = api.orgAdminBroadcast;
 export const orgAdminFinance = api.orgAdminFinance;
 export const orgAdminRegistrations = api.orgAdminRegistrations;
+// Free-agent pool panel on /registrations (CAP-10), ScopedAdminGuard'd.
+export const registrationV2Admin = api.registrationV2Admin;
 
 // Forms-builder shared package (BUG-043) consumes these namespaces via
 // its React context. They hit super-admin-guarded endpoints today —
@@ -139,3 +141,6 @@ export const registration = api.registration;
 export const registrationV2 = api.registrationV2;
 export const leagueMgmt = api.leagueMgmt;
 export const teamMovement = api.teamMovement;
+// Review queue of uploaded ID / eligibility documents (COMP-1). Scoped
+// server-side by ScopedAdminGuard + visibility.
+export const compliance = api.compliance;

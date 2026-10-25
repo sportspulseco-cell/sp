@@ -7,6 +7,10 @@ import type {
   RegistrationForm,
   Season
 } from "@sportspulse/api-client";
+import {
+  SEASON_REGISTRATION_TYPE_LABELS,
+  seasonRegistrationType
+} from "@sportspulse/kernel";
 import { SectionHeader } from "./section-header";
 import { ReviewActions } from "./review-actions";
 
@@ -48,7 +52,8 @@ export function ReviewSection({
   tierAssignments,
   templates,
   versions,
-  uncoveredDivisions
+  uncoveredDivisions,
+  playerWebUrl
 }: {
   form: RegistrationForm;
   season: Season | null;
@@ -58,6 +63,12 @@ export function ReviewSection({
   templates: EmailTemplate[];
   versions: FormVersion[];
   uncoveredDivisions: Division[];
+  /**
+   * This environment's player app origin, read from the API
+   * (publicRegistration.appLinks, PLAYER_WEB_URL). Null when the API
+   * could not be reached: no link is shown rather than a guess.
+   */
+  playerWebUrl: string | null;
 }) {
   const standardTiers = tiers.filter((t) => !t.customUrlSlug);
   const customTiers = tiers.filter((t) => !!t.customUrlSlug);
@@ -79,10 +90,14 @@ export function ReviewSection({
 
   // The real public funnel (player-web /register/<seasonId>). The old
   // powerplayhockeyleague.com/registration/<slug> links were not routes
-  // anywhere (REG-13). NEXT_PUBLIC_PLAYER_WEB_URL is set per environment.
-  const standardLink = form.seasonId
-    ? `${process.env.NEXT_PUBLIC_PLAYER_WEB_URL ?? "https://player.sportspulse.us"}/register/${form.seasonId}`
-    : "Bind a season first";
+  // anywhere (REG-13), and a build-time env var with a production
+  // fallback sent staging admins to production (REG-12). The origin now
+  // comes from the API's PLAYER_WEB_URL, the one the emails use.
+  const standardLink = !form.seasonId
+    ? "Bind a season first"
+    : playerWebUrl
+      ? `${playerWebUrl}/register/${form.seasonId}`
+      : "Player app address unavailable. Reload the page.";
 
   const issues: string[] = [];
   for (const d of uncoveredDivisions) {
@@ -124,7 +139,10 @@ export function ReviewSection({
                 : "—"}
             </p>
             <p className="font-mono text-[11px] text-fg-muted">
-              {form.description?.replace(/_/g, " ") ?? "Team + individual"}
+              {/* REG-14: the season's registration type (seasons.config). */}
+              {SEASON_REGISTRATION_TYPE_LABELS[
+                seasonRegistrationType(season?.config as Record<string, unknown> | undefined)
+              ]}
             </p>
           </Tile>
           <Tile label="Pricing">
@@ -269,10 +287,11 @@ function LinkRow({ label, value }: { label: string; value: string }) {
 }
 
 function CopyButton({ value }: { value: string }) {
-  // Server-rendered placeholder; the client island below intercepts.
+  // Only real URLs get an Open button; "Bind a season first" is a hint.
+  if (!/^https?:\/\//.test(value)) return null;
   return (
     <a
-      href={`https://${value}`}
+      href={value}
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"

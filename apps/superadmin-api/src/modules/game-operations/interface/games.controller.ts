@@ -88,9 +88,9 @@ export class GamesController {
   /**
    * Add homeTeamName + awayTeamName so screens never print raw ids, and
    * fill `seasonId` from the division when the row has none (games
-   * created before migration 0046 or from the New game dialog, which
-   * sends no season). Readers such as the captain lineup editor need
-   * the game's season to show the right roster (SCH-23).
+   * created before migration 0046, or by the New game dialog before it
+   * required a division, SCH-5). Readers such as the captain lineup
+   * editor need the game's season to show the right roster (SCH-23).
    */
   private async withNames<T extends GameDto>(games: T[]): Promise<T[]> {
     const [names, seasonByDivision] = await Promise.all([
@@ -195,7 +195,10 @@ export class GamesController {
 
   @Post()
   @AllowScopedWrite()
-  @ApiOperation({ summary: "Create a game (draft unless publish=true)" })
+  @ApiOperation({
+    summary:
+      "Create a hand-made game in a division at a rink (draft unless publish=true). Both teams must be entered in the division; a rink or team clash is refused (409) unless force=true with a reason."
+  })
   async create(
     @Body() body: CreateGameBodyDto,
     @CurrentUser() user: AuthPrincipal
@@ -206,21 +209,20 @@ export class GamesController {
       .where(eq(schema.leagues.id, body.leagueId))
       .limit(1);
     if (!league) throw new NotFoundException(`League not found: ${body.leagueId}`);
-    let seasonId = body.seasonId ?? null;
-    if (!seasonId && body.divisionId) {
-      const [d] = await this.db
-        .select({ seasonId: schema.divisions.seasonId })
-        .from(schema.divisions)
-        .where(eq(schema.divisions.id, body.divisionId))
-        .limit(1);
-      seasonId = d?.seasonId ?? null;
-    }
+    // Scope from the stored division, never from the client: a season-
+    // or division-scoped admin is covered by the division's own season.
+    const [division] = await this.db
+      .select({ seasonId: schema.divisions.seasonId })
+      .from(schema.divisions)
+      .where(eq(schema.divisions.id, body.divisionId))
+      .limit(1);
+    if (!division) throw new NotFoundException(`Division not found: ${body.divisionId}`);
     const access = await accessForScope(this.db, user.userId, {
       id: "",
       orgId: league.orgId,
       leagueId: body.leagueId,
-      seasonId,
-      divisionId: body.divisionId ?? null,
+      seasonId: division.seasonId,
+      divisionId: body.divisionId,
       homeTeamId: body.homeTeamId,
       awayTeamId: body.awayTeamId
     });
@@ -233,7 +235,7 @@ export class GamesController {
     if (body.publish && !accessCan(access, "game.publish")) {
       throw new ForbiddenException("Your role cannot publish games. Save it as a draft or ask your league admin.");
     }
-    return this.one(await this.createH.execute(body));
+    return this.one(await this.createH.execute({ ...body, userId: user.userId }));
   }
 
   @Post(":id/start")

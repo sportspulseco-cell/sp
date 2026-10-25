@@ -389,7 +389,9 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     rank: 2,
     // Runs game day too: PPHL permission matrix (requirements 7.1) gives
     // League Admin "Submit/Finalize scoresheet (override)", "Create
-    // season/division/schedule" and "Assign refs" (SCH-12).
+    // season/division/schedule" and "Assign refs" (SCH-12). UC-14 names
+    // League Admin as the actor who issues, overrides and lifts
+    // suspensions (COMP-10).
     defaultPermissions: [
       "league.*",
       "division.*",
@@ -397,7 +399,8 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
       "scheduler.*",
       "game.*",
       "game_event.*",
-      "score.*"
+      "score.*",
+      "suspension.*"
     ]
   },
   {

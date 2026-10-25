@@ -11,10 +11,12 @@ import {
   Post,
   Put,
   Query,
+  UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { isSeasonRegistrationType } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -442,6 +444,15 @@ export class OrgAdminFormBuilderController {
       .limit(1);
     if (!row) throw new NotFoundException("Season not found");
     await this.assertScope(user, row.orgId);
+    // REG-14: same rule as PATCH /league/seasons/:id/config.
+    if (
+      Object.prototype.hasOwnProperty.call(body, "registrationType") &&
+      !isSeasonRegistrationType(body.registrationType)
+    ) {
+      throw new UnprocessableEntityException(
+        "Registration type must be team, individual or both."
+      );
+    }
     const merged = {
       ...((row.config as Record<string, unknown>) ?? {}),
       ...body

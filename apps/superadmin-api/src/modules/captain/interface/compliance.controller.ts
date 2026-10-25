@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { resolveDivisionRules } from "@sportspulse/kernel";
+import { genderMatchesDivision, resolveDivisionRules } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -17,6 +17,10 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import type { AuthPrincipal } from "@sportspulse/auth";
+import {
+  suspensionBlocksForGame,
+  teamSuspendedPlayers
+} from "../../game-operations/application/suspensions/suspension-rules";
 
 /**
  * Workflow 7B · pre-add eligibility precheck (non-blocking warnings).
@@ -76,6 +80,48 @@ export class ComplianceController {
         displayName: nameById.get(r.personId) ?? null
       }))
     };
+  }
+
+  @Get("team/:teamId/suspensions")
+  @ApiOperation({
+    summary:
+      "Players on this team's active roster with a suspension standing now (UC-14, COMP-12). With gameId: the players barred from that game. Captain of that team (or super_admin) only; 404 otherwise."
+  })
+  async teamSuspensions(
+    @Param("teamId") teamId: string,
+    @Query("gameId") gameId: string | undefined,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    if (!(await userIsCaptainOfTeam(this.db, user.userId, teamId))) {
+      throw new NotFoundException("Team not found");
+    }
+    if (!gameId) return { items: await teamSuspendedPlayers(this.db, teamId) };
+
+    const [game] = await this.db
+      .select({
+        id: schema.games.id,
+        start: schema.games.scheduledStartTsUtc,
+        homeTeamId: schema.games.homeTeamId,
+        awayTeamId: schema.games.awayTeamId
+      })
+      .from(schema.games)
+      .where(eq(schema.games.id, gameId))
+      .limit(1);
+    if (!game || (game.homeTeamId !== teamId && game.awayTeamId !== teamId)) {
+      throw new NotFoundException("Game not found");
+    }
+    const roster = await this.db
+      .selectDistinct({ personId: schema.teamMemberships.personId })
+      .from(schema.teamMemberships)
+      .where(
+        and(eq(schema.teamMemberships.teamId, teamId), eq(schema.teamMemberships.currentStatus, "active"))
+      );
+    const items = await suspensionBlocksForGame(this.db, {
+      game: { id: game.id, start: game.start },
+      teamId,
+      personIds: roster.map((r) => r.personId)
+    });
+    return { items };
   }
 
   @Get("eligibility/precheck")
@@ -168,7 +214,7 @@ export class ComplianceController {
     const genderCheck =
       division.genderEligibility === "open" || !person.genderIdentity
         ? { status: "eligible" as const }
-        : matchesGender(division.genderEligibility, person.genderIdentity)
+        : genderMatchesDivision(division.genderEligibility, person.genderIdentity) !== false
           ? { status: "eligible" as const }
           : {
               status: "warning" as const,
@@ -216,13 +262,4 @@ function yearsBetween(from: Date | string, to: Date): number {
   const m = to.getMonth() - start.getMonth();
   if (m < 0 || (m === 0 && to.getDate() < start.getDate())) years--;
   return years;
-}
-
-function matchesGender(eligibility: string, identity: string): boolean {
-  const e = eligibility.toLowerCase();
-  const i = identity.toLowerCase();
-  if (e === "mixed" || e === "open") return true;
-  if (e === "male") return i === "male" || i === "m";
-  if (e === "female") return i === "female" || i === "f";
-  return true;
 }

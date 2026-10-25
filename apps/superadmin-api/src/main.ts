@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { json, type NextFunction, type Request, type Response } from "express";
 import { AppModule } from "./app.module";
 import { DomainExceptionFilter } from "./shared/filters/domain-exception.filter";
 
@@ -12,6 +13,20 @@ import { DomainExceptionFilter } from "./shared/filters/domain-exception.filter"
  * the Vercel serverless handler (which calls `app.init()`).
  */
 export async function configureApp(app: INestApplication): Promise<void> {
+  // Compliance document uploads (COMP-3) carry a base64 file: 3 MiB
+  // decoded, about 4.2 MB encoded. Only that path gets the larger JSON
+  // limit; every other route keeps the default 100 kB. Registered before
+  // Nest's own parsers (they are added at init), and the wrapper has its
+  // own name so Nest still registers the default `jsonParser` for
+  // everything else; the default then skips bodies already parsed here.
+  const complianceUploadJson = json({ limit: "4500kb" });
+  app.use(
+    "/api/compliance/self/documents/uploads",
+    function complianceUploadJsonParser(req: Request, res: Response, next: NextFunction) {
+      complianceUploadJson(req, res, next);
+    }
+  );
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -112,7 +112,7 @@ export function UserActionsMenu({
               onClick={toggleSuspend}
               tone={user.status === "suspended" ? "ok" : "danger"}
             >
-              {user.status === "suspended" ? "Reactivate" : "Suspend"}
+              {user.status === "suspended" ? "Reactivate account" : "Suspend account"}
             </MenuItem>
             <div className="my-1 h-px bg-border" />
             <MenuItem

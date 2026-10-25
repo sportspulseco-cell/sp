@@ -8,6 +8,8 @@ type InviteContext = {
   teamName: string;
   seasonName: string;
   kind: string;
+  /** free_agent_offer: a team's offer from the free-agent pool (CAP-9). */
+  offerKind?: "free_agent_offer" | "team_invite";
   status: string;
 };
 
@@ -54,7 +56,7 @@ export default async function InvitePage({
           <Message title="Invite not found">
             This link is not valid. Ask your captain to send a new one.
           </Message>
-        ) : invite.status !== "pending" ? (
+        ) : invite.status !== "pending" && invite.status !== "extended" ? (
           <Message title={`This invite is ${invite.status}`}>
             Ask the captain of {invite.teamName} for a new invite.
           </Message>
@@ -64,10 +66,18 @@ export default async function InvitePage({
               <h1 className="text-[24px] font-semibold tracking-tight text-fg">
                 Join {invite.teamName}
               </h1>
-              <p className="mt-1 text-[14px] text-fg-muted">{invite.seasonName}</p>
+              <p className="mt-1 text-[14px] text-fg-muted">
+                {invite.offerKind === "free_agent_offer"
+                  ? `${invite.teamName} offered you a spot for ${invite.seasonName} from the free-agent pool. Accept to join the roster, or decline to stay in the pool.`
+                  : invite.seasonName}
+              </p>
             </div>
             {user ? (
-              <AcceptInviteButton token={token} teamName={invite.teamName} />
+              <AcceptInviteButton
+                token={token}
+                teamName={invite.teamName}
+                canDecline={invite.kind === "personal"}
+              />
             ) : (
               <div className="flex flex-wrap gap-3">
                 <Link

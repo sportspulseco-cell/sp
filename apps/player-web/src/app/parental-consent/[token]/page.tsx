@@ -12,6 +12,11 @@ type ConsentContext = {
   orgName: string | null;
   expired: boolean;
   confirmedAt: string | null;
+  /** REG-15: the words the guardian signs and who signed. */
+  consentTitle?: string;
+  consentText?: string;
+  guardianEmail?: string | null;
+  signedBy?: string | null;
 };
 
 async function fetchContext(token: string): Promise<ConsentContext | null> {
@@ -74,14 +79,14 @@ export default async function ParentalConsentPage({
             tone="emerald"
             icon={<CheckCircle2 className="h-6 w-6" strokeWidth={1.75} />}
             title="Consent already on file"
-            body={`You confirmed ${ctx.childDisplayName}'s registration on ${new Date(ctx.confirmedAt).toLocaleDateString("en-CA")}. Nothing else to do here.`}
+            body={`${ctx.signedBy ? `${ctx.signedBy} signed` : "You confirmed"} ${ctx.childDisplayName}'s registration on ${new Date(ctx.confirmedAt).toLocaleDateString("en-CA")}. Nothing else to do here.`}
           />
         ) : ctx.status !== "pending_consent" ? (
           <Card
             tone="amber"
             icon={<Clock className="h-6 w-6" strokeWidth={1.75} />}
             title="Registration no longer awaiting consent"
-            body={`This registration is in state "${ctx.status}". If you weren't expecting that, contact the league admin.`}
+            body={`This registration is ${ctx.status === "cancelled" ? "cancelled" : "no longer waiting for a parent or guardian"}. If you weren't expecting that, contact the league.`}
           />
         ) : (
           <ParentalConsentClient
@@ -89,6 +94,12 @@ export default async function ParentalConsentPage({
             childDisplayName={ctx.childDisplayName}
             seasonName={ctx.seasonName}
             orgName={ctx.orgName}
+            consentTitle={ctx.consentTitle ?? "Parental consent"}
+            consentText={
+              ctx.consentText ??
+              "I am the parent or legal guardian of the player named on this registration and consent to their registration."
+            }
+            guardianEmail={ctx.guardianEmail ?? null}
           />
         )}
 

@@ -1,4 +1,10 @@
-import { DomainError } from "@sportspulse/kernel";
+import {
+  DomainError,
+  SUSPENSION_KINDS,
+  SUSPENSION_STATUSES,
+  type SuspensionKind,
+  type SuspensionStatus
+} from "@sportspulse/kernel";
 
 export const GAME_STATUSES = [
   "scheduled",
@@ -29,21 +35,14 @@ export const assertGameStatus = (raw: string): GameStatus => {
 export const canTransitionGame = (from: GameStatus, to: GameStatus): boolean =>
   ALLOWED[from].includes(to);
 
-export const SUSPENSION_KINDS = [
-  "n_games",
-  "n_days",
-  "indefinite",
-  "time_bounded"
-] as const;
-export type SuspensionKind = (typeof SUSPENSION_KINDS)[number];
-
-export const SUSPENSION_STATUSES = [
-  "active",
-  "served",
-  "lifted",
-  "appealed"
-] as const;
-export type SuspensionStatus = (typeof SUSPENSION_STATUSES)[number];
+// Canonical lists live in the kernel (packages/kernel/src/suspensions.ts)
+// so the API, the admin dialog and the captain screens never drift.
+export {
+  SUSPENSION_KINDS,
+  SUSPENSION_STATUSES,
+  type SuspensionKind,
+  type SuspensionStatus
+} from "@sportspulse/kernel";
 
 export const assertSuspensionKind = (raw: string): SuspensionKind => {
   if (!SUSPENSION_KINDS.includes(raw as SuspensionKind)) {

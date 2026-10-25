@@ -45,6 +45,9 @@ export const TEMPLATE_CODES = [
   "PLAYOFF_INELIGIBLE",
   "DUPLICATE_ID_FLAGGED",
   "REGISTRATION_UNDER_REVIEW",
+  // COMP-1 / UC-29: an admin decided on an uploaded ID or eligibility document.
+  "compliance.document.decided",
+  "compliance.document.decided.captain",
   // Approval-gate (Team Registration via Admin Approval brief)
   "TEAM_REGISTRATION_APPLIED",
   "TEAM_REGISTRATION_APPLIED_CONFIRMATION",
@@ -55,6 +58,11 @@ export const TEMPLATE_CODES = [
   "PLAYER_JOIN_REQUEST",
   "PLAYER_JOIN_APPROVED",
   "PLAYER_JOIN_REJECTED",
+  // Free-agent pool offers (UC-03, CAP-9): captain or admin offers a
+  // spot, the player accepts or declines, the offering side is told.
+  "FREE_AGENT_OFFER",
+  "FREE_AGENT_OFFER_ACCEPTED",
+  "FREE_AGENT_OFFER_DECLINED",
   // Payments & Invoicing
   "INVOICE_OVERDUE_STAGE_1",
   "INVOICE_OVERDUE_STAGE_2",
@@ -465,6 +473,42 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "We'll notify you within 48 hours.",
     variables: []
   },
+  // COMP-1 / UC-29. To the player, or the guardian who uploaded for a
+  // minor. reasonLine is "Reason: ..." or empty; nextStep says what to do.
+  {
+    code: "compliance.document.decided",
+    channel: "email",
+    subject: "{{documentLabel}}: {{decisionLabel}}",
+    body:
+      "An admin reviewed the {{documentLabel}} uploaded for {{personName}} ({{forLabel}}).\n\n" +
+      "Decision: {{decisionLabel}}\n{{reasonLine}}\n\n{{nextStep}}",
+    variables: ["documentLabel", "decisionLabel", "personName", "forLabel", "reasonLine", "nextStep"]
+  },
+  {
+    code: "compliance.document.decided",
+    channel: "in_app",
+    subject: "{{documentLabel}}: {{decisionLabel}}",
+    body: "{{personName}} ({{forLabel}}). {{reasonLine}} {{nextStep}}",
+    variables: ["documentLabel", "decisionLabel", "personName", "forLabel", "reasonLine", "nextStep"]
+  },
+  // To the player's team captain(s). No reason: that stays between the
+  // admin and the player.
+  {
+    code: "compliance.document.decided.captain",
+    channel: "email",
+    subject: "{{personName}}: {{documentLabel}} {{decisionLabel}}",
+    body:
+      "An admin reviewed the {{documentLabel}} for {{personName}} on {{teamName}} ({{forLabel}}).\n\n" +
+      "Decision: {{decisionLabel}}. The player has the details.",
+    variables: ["personName", "documentLabel", "decisionLabel", "teamName", "forLabel"]
+  },
+  {
+    code: "compliance.document.decided.captain",
+    channel: "in_app",
+    subject: "{{personName}}: {{documentLabel}} {{decisionLabel}}",
+    body: "{{teamName}} ({{forLabel}}). The player has the details.",
+    variables: ["personName", "documentLabel", "decisionLabel", "teamName", "forLabel"]
+  },
   // -----------------------------------------------------------------
   // Approval-gate (Team Registration via Admin Approval brief)
   // -----------------------------------------------------------------
@@ -689,6 +733,59 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Your captain covered your dues",
     body: "Your captain paid {{amountCents}} toward your team dues.",
     variables: ["amountCents"]
+  },
+  // -----------------------------------------------------------------
+  // Free-agent pool offers (UC-03, CAP-9). Payload from
+  // FreeAgentOffersService: offerUrl is the player-app link to accept or
+  // decline (/invite/<token>), expiryClause a sentence or "".
+  // -----------------------------------------------------------------
+  {
+    code: "FREE_AGENT_OFFER",
+    channel: "email",
+    subject: "{{teamName}} would like you on their roster",
+    body:
+      "{{teamName}} offered you a spot for {{seasonName}} from the free-agent pool.\n\n" +
+      "Accept or decline here:\n{{offerUrl}}\n\n" +
+      "{{expiryClause}}",
+    variables: ["teamName", "seasonName", "offerUrl", "expiryClause"]
+  },
+  {
+    code: "FREE_AGENT_OFFER",
+    channel: "in_app",
+    subject: "Team offer: {{teamName}}",
+    body:
+      "{{teamName}} offered you a spot for {{seasonName}}. Accept or decline from your home page. {{expiryClause}}",
+    variables: ["teamName", "seasonName", "expiryClause"]
+  },
+  {
+    code: "FREE_AGENT_OFFER_ACCEPTED",
+    channel: "email",
+    subject: "{{playerName}} joined {{teamName}}",
+    body:
+      "{{playerName}} accepted your offer and is now on the {{teamName}} roster for {{seasonName}}.",
+    variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
+    code: "FREE_AGENT_OFFER_ACCEPTED",
+    channel: "in_app",
+    subject: "{{playerName}} joined {{teamName}}",
+    body: "{{playerName}} accepted your free-agent offer for {{seasonName}}.",
+    variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
+    code: "FREE_AGENT_OFFER_DECLINED",
+    channel: "email",
+    subject: "{{playerName}} declined the {{teamName}} offer",
+    body:
+      "{{playerName}} declined your offer for {{seasonName}}. They stay in the free-agent pool.",
+    variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
+    code: "FREE_AGENT_OFFER_DECLINED",
+    channel: "in_app",
+    subject: "{{playerName}} declined your offer",
+    body: "{{playerName}} declined the {{teamName}} offer for {{seasonName}}. They stay in the free-agent pool.",
+    variables: ["playerName", "teamName", "seasonName"]
   },
   {
     code: "org.broadcast",

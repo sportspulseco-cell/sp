@@ -30,6 +30,8 @@ export interface ListTeamsInput {
    * org.
    */
   orgIdsFilter?: string[];
+  /** Only teams playing in this division (see ListTeamsQuery.divisionId). */
+  divisionId?: string;
 }
 
 @Injectable()
@@ -56,7 +58,8 @@ export class ListTeamsHandler
       status: input.status,
       search: input.search,
       leagueIdsFilter: input.leagueIdsFilter,
-      orgIdsFilter: input.orgIdsFilter
+      orgIdsFilter: input.orgIdsFilter,
+      divisionId: input.divisionId
     });
     return {
       items: page.items.map(TeamDto.fromDomain),

@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import { EditPersonButton } from "@/components/persons/edit-person-button";
 import { LinkPersonButton } from "@/components/persons/link-person-button";
+import {
+  IssueSuspensionButton,
+  LiftSuspensionButton
+} from "@/components/discipline/suspension-buttons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
@@ -112,9 +116,8 @@ export default async function PersonDetailPage({
       .listEligibility({ personId: id, limit: 50 })
       .catch(() => ({ items: [], nextCursor: null })),
     compliance.signaturesByPerson(id).catch(() => []),
-    gameOps
-      .listSuspensions({ personId: id, limit: 50 })
-      .catch(() => ({ items: [], nextCursor: null })),
+    // A failed read must not render as "clean record" (COMP-10).
+    load(gameOps.listSuspensions({ personId: id, limit: 50 })),
     roster
       .listMemberships({ personId: id })
       .catch(() => ({ items: [], nextCursor: null })),
@@ -147,9 +150,12 @@ export default async function PersonDetailPage({
   const activeMemberships = memberships.items.filter(
     (m) => m.currentStatus === "active"
   );
-  const activeSuspensions = suspensions.items.filter(
-    (s) => s.status === "active"
-  );
+  const suspensionItems = suspensions.ok ? suspensions.data.items : [];
+  const suspensionPerms = suspensions.ok ? (suspensions.data.viewerPermissions ?? []) : [];
+  const canIssue = suspensionPerms.includes("suspension.issue");
+  const canLift = suspensionPerms.includes("suspension.lift");
+  // Server-computed: a dated suspension past its date is not standing.
+  const activeSuspensions = suspensionItems.filter((s) => s.inForce);
   const activeSignatures = signatures.filter((s) => !s.revokedAt);
   const eligibleNow = eligibility.items.filter(
     (e) => e.status === "eligible" || e.status === "waived"
@@ -219,7 +225,7 @@ export default async function PersonDetailPage({
           <Kpi
             label="Active suspensions"
             value={activeSuspensions.length}
-            total={suspensions.items.length}
+            total={suspensionItems.length}
             tone={activeSuspensions.length > 0 ? "danger" : undefined}
           />
           <Kpi
@@ -277,7 +283,7 @@ export default async function PersonDetailPage({
                         : "Platform-wide"}
                     </span>
                   </p>
-                  {e.waiverReason ? (
+                  {e.waiverReason && e.status === "waived" ? (
                     <p className="mt-1 text-[13px] text-fg-muted">
                       Waiver: {e.waiverReason}
                     </p>
@@ -345,48 +351,64 @@ export default async function PersonDetailPage({
         )}
       </Section>
 
-      {/* Suspensions */}
+      {/* Suspensions (UC-14, COMP-10) */}
       <Section
         icon={Gavel}
         tint="rose"
         eyebrow="Discipline"
-        title="Suspension history"
-        description="Match misconduct, automatic sit-outs, and admin-issued bans."
+        title="Suspensions"
+        description="Game-count suspensions are counted down when the player's team finalizes a game."
+        action={
+          canIssue ? (
+            <IssueSuspensionButton personId={person.id} personName={display} />
+          ) : null
+        }
       >
-        {suspensions.items.length === 0 ? (
-          <Empty message="No suspensions — clean record." />
+        {!suspensions.ok ? (
+          <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+            Could not load suspensions ({suspensions.status}): {suspensions.message}
+          </p>
+        ) : suspensionItems.length === 0 ? (
+          <Empty message="No suspensions on record." />
         ) : (
           <Table>
             <THead>
               <TR>
-                <TH>Kind</TH>
                 <TH>Status</TH>
-                <TH className="text-center">Served</TH>
+                <TH>Length</TH>
                 <TH>Reason</TH>
-                <TH>Period</TH>
+                <TH>Started</TH>
+                <TH>From</TH>
+                <TH className="text-right">{canLift ? "Action" : ""}</TH>
               </TR>
             </THead>
             <TBody>
-              {suspensions.items.map((s) => (
+              {suspensionItems.map((s) => (
                 <TR key={s.id}>
                   <TD>
-                    <span className="font-mono text-[11px] uppercase tracking-wide text-fg">
-                      {s.kind.replace(/_/g, " ")}
-                    </span>
-                  </TD>
-                  <TD>
-                    <Badge tone={statusTone(s.status)} mono>
-                      {s.status}
+                    <Badge tone={s.inForce ? "danger" : statusTone(s.status)} mono>
+                      {s.inForce ? "suspended" : s.status === "active" ? "ended" : s.status}
                     </Badge>
                   </TD>
-                  <TD className="text-center font-mono tabular-nums text-fg">
-                    {s.servedCount}
-                    {s.nGames ? ` / ${s.nGames}` : ""}
-                  </TD>
-                  <TD className="text-fg-muted">{s.reason ?? "—"}</TD>
+                  <TD className="text-fg">{s.label}</TD>
+                  <TD className="max-w-[320px] text-fg-muted">{s.reason ?? "No reason recorded"}</TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
                     {fmtDate(s.startAt)}
-                    {s.endAt ? ` → ${fmtDate(s.endAt)}` : ""}
+                    {s.endAt && !s.inForce ? ` → ${fmtDate(s.endAt)}` : ""}
+                  </TD>
+                  <TD className="text-[12px]">
+                    {s.sourceGameId ? (
+                      <Link href={`/games/${s.sourceGameId}`} className="text-fg underline-offset-2 hover:underline">
+                        Penalty in game
+                      </Link>
+                    ) : (
+                      <span className="text-fg-muted">Admin</span>
+                    )}
+                  </TD>
+                  <TD className="text-right">
+                    {canLift && s.inForce ? (
+                      <LiftSuspensionButton suspensionId={s.id} personName={display} label={s.label} />
+                    ) : null}
                   </TD>
                 </TR>
               ))}
@@ -574,6 +596,7 @@ function Section({
   eyebrow,
   title,
   description,
+  action,
   children
 }: {
   icon: LucideIcon;
@@ -581,6 +604,7 @@ function Section({
   eyebrow: string;
   title: string;
   description?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const Icon = icon;
@@ -588,7 +612,7 @@ function Section({
     <section className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-center gap-3 border-b border-border px-6 py-4">
         <IconTile icon={Icon} tint={tint} size="sm" />
-        <div>
+        <div className="min-w-0 flex-1">
           <Eyebrow>{eyebrow}</Eyebrow>
           <p className="mt-0.5 text-base font-semibold tracking-tight text-fg">
             {title}
@@ -597,6 +621,7 @@ function Section({
             <p className="mt-0.5 text-[13px] text-fg-muted">{description}</p>
           ) : null}
         </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </header>
       <div className="px-6 py-5">{children}</div>
     </section>

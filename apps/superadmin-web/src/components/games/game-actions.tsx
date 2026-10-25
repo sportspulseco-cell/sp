@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
@@ -20,12 +20,13 @@ import {
   type GameEnding
 } from "@sportspulse/kernel";
 import type { GameReschedulePlan } from "@sportspulse/api-client";
-import { gameOps, schedulingInventory, stats } from "@/lib/api/browser-api";
+import { gameOps, stats } from "@/lib/api/browser-api";
 import type { Game } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useOrgRinks } from "./use-org-rinks";
 
 /**
  * Game lifecycle actions. Each button shows only when the server says
@@ -317,8 +318,14 @@ function FinalizeDialog({
     try {
       const r = await gameOps.finalizeGame(game.id, endedIn ? { endedIn } : {});
       const s = r.finalizeSummary;
+      // Suspended players of either team served this game (COMP-10).
+      const served = s.suspensionsServed
+        ? ` ${s.suspensionsServed} suspension${s.suspensionsServed === 1 ? "" : "s"} counted this game${
+            s.suspensionsCompleted ? `, ${s.suspensionsCompleted} now fully served` : ""
+          }.`
+        : "";
       onDone(
-        `Final. ${s.statLinesWritten} player stat ${s.statLinesWritten === 1 ? "line" : "lines"} saved, standings updated, ${s.notificationsQueued} notices queued for both teams.`
+        `Final. ${s.statLinesWritten} player stat ${s.statLinesWritten === 1 ? "line" : "lines"} saved, standings updated, ${s.notificationsQueued} notices queued for both teams.${served}`
       );
     } catch (err) {
       setError((err as Error).message);
@@ -408,12 +415,6 @@ function FinalizeDialog({
   );
 }
 
-interface RinkOption {
-  surfaceId: string;
-  label: string;
-  timezone: string;
-}
-
 /**
  * UC-07 manual override (SCH-6). Pick a new rink-local time and/or rink.
  * The server converts the time in the rink's zone, checks the same two
@@ -438,43 +439,10 @@ function RescheduleDialog({
   );
   const [surfaceId, setSurfaceId] = useState("");
   const [reason, setReason] = useState("");
-  const [rinks, setRinks] = useState<RinkOption[] | null>(null);
-  const [rinkError, setRinkError] = useState<string | null>(null);
+  const { rinks, error: rinkError } = useOrgRinks(orgId);
   const [plan, setPlan] = useState<GameReschedulePlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!orgId) {
-      setRinks([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const venues = await schedulingInventory.listVenues({ orgId });
-        const details = await Promise.all(
-          venues.items.map((v) => schedulingInventory.getVenue(v.id))
-        );
-        const opts: RinkOption[] = details.flatMap((d) =>
-          d.surfaces.map((s) => ({
-            surfaceId: s.id,
-            label: `${d.venue.name} · ${s.label}`,
-            timezone: d.venue.timezone
-          }))
-        );
-        if (!cancelled) setRinks(opts);
-      } catch (err) {
-        if (!cancelled) {
-          setRinks([]);
-          setRinkError(`Could not load rinks: ${(err as Error).message}`);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [orgId]);
 
   const chosenRink = rinks?.find((r) => r.surfaceId === surfaceId) ?? null;
   const currentRink = rinks?.find((r) => r.surfaceId === game.surfaceId) ?? null;

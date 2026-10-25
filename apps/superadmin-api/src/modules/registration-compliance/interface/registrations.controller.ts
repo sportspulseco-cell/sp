@@ -15,7 +15,7 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
-import { loadUserScope } from "../../../shared/auth/scope";
+import { loadAdminScope } from "../../../shared/auth/scope";
 import { userIsPeopleAdmin } from "../../../shared/auth/org-admin";
 import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
@@ -66,7 +66,7 @@ export class RegistrationsController {
     @Query() q: ListRegistrationsQueryDto,
     @CurrentUser() user: AuthPrincipal
   ): Promise<RegistrationPageDto> {
-    const scope = await loadUserScope(this.db, user.userId);
+    const scope = await loadAdminScope(this.db, user.userId);
     if (!scope.isSuperAdmin) {
       if (!(await userIsPeopleAdmin(this.db, user.userId))) {
         throw new ForbiddenException(

@@ -18,6 +18,12 @@ export class SeasonDto {
   @ApiPropertyOptional({ nullable: true }) playoffEndDate!: string | null;
   @ApiProperty() timezone!: string;
   @ApiProperty({ enum: SEASON_STATUSES }) status!: (typeof SEASON_STATUSES)[number];
+  /**
+   * Per-season toggles (kernel SeasonConfig): registration type, free-agent
+   * and consent toggles, waiver texts. The admin setup screens read their
+   * saved values from here; without it every reload showed the defaults.
+   */
+  @ApiPropertyOptional({ type: Object }) config!: Record<string, unknown>;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 
@@ -38,6 +44,7 @@ export class SeasonDto {
       playoffEndDate: x.playoffEndDate ?? null,
       timezone: x.timezone,
       status: x.status,
+      config: x.config ?? {},
       createdAt: x.createdAt.toISOString(),
       updatedAt: x.updatedAt.toISOString()
     };
