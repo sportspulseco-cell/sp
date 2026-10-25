@@ -52,6 +52,8 @@ import {
   REGISTRATION_ACCEPTING_SEASON_STATUSES,
   REGISTRATION_STATE_LABELS,
   submissionTypeRefusal,
+  tierOffersDivision,
+  tiersForDivision,
   type RegistrationDocumentKey,
   type RegistrationState,
   type RegistrationSubmissionType
@@ -63,6 +65,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { RegistrationV2Service } from "../application/registration-v2.service";
+import { loadSeasonTiers } from "../application/season-tiers";
 import {
   RegistrationRequirementsService,
   requestClientIp,
@@ -482,7 +485,9 @@ export class PublicRegistrationController {
       .limit(1);
     if (!season) throw new NotFoundException("Season not found");
 
-    const tiers = await this.v2.listPricingTiers({ seasonId: id });
+    // Each tier carries the divisions it is offered to; the funnel shows
+    // a player only their division's prices (REG-18).
+    const tiers = await loadSeasonTiers(this.db, id);
 
     // Divisions list for the in-funnel "Pick a division" step
     // (P2-2 / audit §8.1). The funnel skips the step when there's
@@ -1781,6 +1786,36 @@ export class PublicRegistrationController {
       dbPatch.divisionId = body.divisionId ?? null;
     }
 
+    // REG-18: the division is one of this season's, and the price is one
+    // the season offers for that division. A division change that leaves
+    // the old price invalid clears it, so the player picks again.
+    const nextDivisionId = has("divisionId") ? (body.divisionId ?? null) : (row.divisionId ?? null);
+    if (has("divisionId") && nextDivisionId && row.seasonId) {
+      const [div] = await this.db
+        .select({ id: schema.divisions.id })
+        .from(schema.divisions)
+        .where(and(eq(schema.divisions.id, nextDivisionId), eq(schema.divisions.seasonId, row.seasonId)))
+        .limit(1);
+      if (!div) throw new UnprocessableEntityException("That division is not part of this season.");
+    }
+    const nextTierId = has("pricingTierId")
+      ? (body.pricingTierId ?? null)
+      : ((meta.pricingTierId as string | null | undefined) ?? null);
+    if (nextTierId && row.seasonId && (has("pricingTierId") || has("divisionId"))) {
+      const tier = (await loadSeasonTiers(this.db, row.seasonId)).find((t) => t.id === nextTierId);
+      const offered = !!tier && tier.isActive && tierOffersDivision(tier.divisionIds, nextDivisionId);
+      if (!offered) {
+        if (has("pricingTierId")) {
+          this.log.log(`refused tier=${nextTierId} registration=${row.id} division=${nextDivisionId}`);
+          throw new UnprocessableEntityException(
+            "That price is not offered for your division. Pick one of the prices shown."
+          );
+        }
+        patch.pricingTierId = null;
+        this.log.log(`registration=${row.id} division=${nextDivisionId}: tier ${nextTierId} not offered there, cleared`);
+      }
+    }
+
     // A DOB that shows a minor sends an unpaid registration back to wait
     // for the guardian (kernel pending_payment -> pending_consent). It
     // never goes the other way: only the guardian's consent leaves
@@ -1892,24 +1927,31 @@ export class PublicRegistrationController {
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     const outcome = body.mockOutcome ?? "succeeded";
 
-    // Resolve pricing tier amount. If none picked, default to 0 — the
-    // funnel may have skipped the Tier step when the season has no
-    // active tiers.
+    // The amount comes from a tier this season offers for the
+    // registration's division, re-checked here (REG-18). With prices on
+    // offer one must be picked; only a season with no price for the
+    // division registers at no charge.
     let amountCents = 0;
     let currency = "USD";
     let tierName = "Registration fee";
-    const tierId = meta.pricingTierId as string | null | undefined;
+    const seasonTiers = row.seasonId ? await loadSeasonTiers(this.db, row.seasonId) : [];
+    const offeredTiers = tiersForDivision(seasonTiers, row.divisionId ?? null);
+    const tierId = (meta.pricingTierId as string | null | undefined) ?? null;
     if (tierId) {
-      const [tier] = await this.db
-        .select()
-        .from(schema.pricingTiers)
-        .where(eq(schema.pricingTiers.id, tierId))
-        .limit(1);
-      if (tier) {
-        amountCents = tier.fullPriceCents;
-        currency = tier.currency;
-        tierName = tier.name;
+      const tier = offeredTiers.find((t) => t.id === tierId);
+      if (!tier) {
+        this.log.log(`refused pay: registration=${row.id} tier=${tierId} not offered for division=${row.divisionId}`);
+        throw new ConflictException({
+          error: "tier_not_offered",
+          message: "Your price is not offered for your division. Go back to the price step and pick again."
+        });
       }
+      amountCents = tier.fullPriceCents;
+      currency = tier.currency;
+      tierName = tier.name;
+    } else if (offeredTiers.length > 0) {
+      this.log.log(`refused pay: registration=${row.id} no tier picked, ${offeredTiers.length} offered`);
+      throw new ConflictException({ error: "tier_required", message: "Pick a price before paying." });
     }
 
     // Offline branch — no card charge, admin marks paid later. We still

@@ -179,15 +179,7 @@ function TierCard({
           min={0}
           max={24}
         />
-        <SelectField
-          label="Division"
-          value={tier.divisionId ?? ""}
-          options={[
-            { value: "", label: "— Whole season —" },
-            ...divisions.map((d) => ({ value: d.id, label: d.name }))
-          ]}
-          onChange={(v) => onPatch({ divisionId: v || undefined })}
-        />
+        <OfferedTo tier={tier} divisions={divisions} />
         <NumberField
           label="Usage limit"
           defaultValue={tier.usageLimit ?? 0}
@@ -326,34 +318,19 @@ function NumberField({
   );
 }
 
-function SelectField({
-  label,
-  value,
-  options,
-  onChange
-}: {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
+/**
+ * Which divisions this price is for. Set in one place, the Divisions
+ * tab's grid (REG-18); shown here so the admin sees it next to the price.
+ */
+function OfferedTo({ tier, divisions }: { tier: PricingTier; divisions: Division[] }) {
+  const ids = tier.divisionIds ?? (tier.divisionId ? [tier.divisionId] : []);
+  const names = ids.map((id) => divisions.find((d) => d.id === id)?.name ?? "A removed division");
   return (
-    <label className="block">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 text-[13px] text-fg focus:border-fg-muted focus:outline-none"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="block">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Divisions</span>
+      <p className="mt-1 text-[13px] text-fg">{names.length ? names.join(", ") : "Whole season"}</p>
+      <p className="text-[11px] text-fg-muted">Set on the Divisions tab.</p>
+    </div>
   );
 }
 

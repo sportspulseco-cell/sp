@@ -3927,6 +3927,8 @@ export interface PricingTier {
   code: string | null;
   description: string | null;
   divisionId: string | null;
+  /** Divisions this price is for, from the Divisions grid; empty = whole season (REG-18). */
+  divisionIds?: string[];
   currency: string;
   fullPriceCents: number;
   isFree: boolean;

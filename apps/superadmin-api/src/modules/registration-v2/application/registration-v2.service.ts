@@ -10,6 +10,7 @@ import { playerWebUrl } from "../../../shared/app-urls";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 import { NotificationService } from "../../communications/application/notification.service";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
+import { withTierDivisions } from "./season-tiers";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -33,11 +34,13 @@ export class RegistrationV2Service {
     const where = opts.seasonId
       ? eq(schema.pricingTiers.seasonId, opts.seasonId)
       : undefined;
-    return this.db
+    const tiers = await this.db
       .select()
       .from(schema.pricingTiers)
       .where(where)
       .orderBy(asc(schema.pricingTiers.fullPriceCents));
+    // Each with the divisions it is offered to (REG-18).
+    return withTierDivisions(this.db, tiers);
   }
 
   async getPricingTier(id: string) {

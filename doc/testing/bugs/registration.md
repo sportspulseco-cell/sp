@@ -200,11 +200,40 @@ shared file was touched.
   Root cause: apps/org-admin-web/src/app/(app)/registrations/registrations-table.tsx:42 isReviewable, :86 subjectPersonId.slice; OA has its own table instead of the SA ReviewQueue (apps/superadmin-web/src/components/registrations/review-queue.tsx) — a silo; SA stat cards read a different list.
   Proposed fix: move ReviewQueue + review dialog into a shared package and mount it in both apps with role-scoped API; reviewable = pending_review | pending_offline only; reason required on reject.
 
-[REG-18] Duplicate config sources in the form builder · minor
+[REG-18] Duplicate config sources in the form builder · major (raised 26 Oct: the funnel offers every division's price)
   Journey: J3
   Actual: (a) two waiver editors (Form builder "Waivers & documents" and Divisions "eligibility") — the first is ignored once the second is saved; (b) "Allow free agent registration" shows ON by default in admin but the funnel defaults it OFF until saved; (c) tier "Division" select and the Divisions assignment matrix both assign divisions; (d) Max roster size exists on the division (org-setup) and on season.config.
   Root cause: packages/forms-builder/src/divisions-client.tsx:82 (`?? true`) vs packages/registration-funnel/src/funnel.tsx:158 (`?? false`); pricing-tab.tsx Division select vs pricing_tier_divisions.
   Proposed fix: one canonical field each, defaults in packages/kernel shared by admin and funnel.
+  Status 26 Oct: (b) fixed (commit bda4634: both read SEASON_CONFIG_DEFAULTS); (d) fixed (commit 88f4fa7: the season's
+    max roster is the default for divisions without their own). (a) and (c) open, traced in code:
+  (a) The Waivers & documents tab writes the form version (schema.waivers.*), the Divisions tab writes seasons.config
+    (requireLiabilityWaiver, requireCodeOfConduct and their texts, always all four keys). One kernel rule,
+    resolveRegistrationWaivers, decides: the season boolean wins, then the form's switch, then on. So after one
+    eligibility save the form's liability and code-of-conduct switches never count again. The admin season page prints
+    "No" for an unset requireLiabilityWaiver although the effective default is on.
+  (c) The tier "Division" select writes pricing_tiers.division_id; "Whole season" sends no key, so the old division
+    stays. The Divisions matrix writes pricing_tier_divisions and overwrites division_id with the first ticked division.
+    Readers: the player funnel reads neither and offers every active tier of the season whatever division was picked;
+    neither the tier change nor payment checks the tier against the division. The captain team registration reads
+    division_id only. pricing_tier_divisions is read by no player or captain flow. Severity: (c) lets a player pick
+    another division's price; raised to major. Also found: the price step accepted any tier id (another season's,
+    inactive), the division change accepted another season's division, and payment charged $0 when no price was picked.
+  Fix (c), 26 Oct: one rule in packages/kernel/src/pricing-tiers.ts. The Divisions grid decides which divisions a price
+    is for; a tier saved before the grid keeps its single division; none means the whole season. One loader
+    (registration-v2/application/season-tiers.ts) feeds the funnel context, the admin tier list, the submission and
+    payment checks and captain team registration. The funnel shows only the registrant's division's prices and drops a
+    stale pick. The server refuses another division's or season's price (422), refuses another season's division (422),
+    clears a price that a division change leaves invalid, and at payment re-checks the price (409) and requires one when
+    prices are offered (409). The pricing tab's own Division picker is gone; it shows the divisions and "Set on the
+    Divisions tab".
+  Evidence: kernel 117/117 (4 tier tests). Local API against staging, regfa/verify-reg18c.mjs 10/10 (context and admin
+    list carry divisions; B's price refused in A 422; A's accepted; other season's division 422; moving to B clears A's
+    price; pay with none 409; pay with A's price forced into the row 409; no invoice from refused pays; B's price pays
+    $222.00). Browser, local player and admin apps, regfa/walk-reg18c.mjs 6/6 (new player in division B: price step
+    shows B's price and not A's; registration holds B and B's price; admin pricing tab shows each price's divisions, no
+    picker). Season-wide price shown in the browser: not exercised (that season has none; kernel test covers it).
+  Not verified: captain team registration's price (kernel test + typecheck only). (a) still open.
 
 [REG-19] Pricing tier editor is raw cents and missing plan controls · minor
   Journey: J3 · UC-01 "installment"

@@ -9,7 +9,8 @@ import {
   normalizeSkillLevel,
   SKILL_LEVEL_HINTS,
   SKILL_LEVEL_LABELS,
-  SKILL_LEVELS
+  SKILL_LEVELS,
+  tiersForDivision
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
@@ -147,10 +148,27 @@ export function RegistrationFunnel({
   } | null>(null);
   const [eligibilityFlags, setEligibilityFlags] = useState<string[] | null>(null);
 
+  // Only the prices for the registrant's division (REG-18); the server
+  // refuses any other at the price step and again at payment.
+  const registrantDivision =
+    submissionType === "team" ? teamDivision || null : divisionId;
   const tiers = useMemo(
-    () => context.pricingTiers.filter((t) => t.isActive),
-    [context.pricingTiers]
+    () =>
+      tiersForDivision(
+        context.pricingTiers.map((t) => ({
+          ...t,
+          divisionIds: t.divisionIds ?? (t.divisionId ? [t.divisionId] : [])
+        })),
+        registrantDivision
+      ),
+    [context.pricingTiers, registrantDivision]
   );
+  // A division change can leave a picked price that is not offered there.
+  useEffect(() => {
+    if (pricingTierId && !tiers.some((t) => t.id === pricingTierId)) {
+      setPricingTierId(null);
+    }
+  }, [tiers, pricingTierId]);
   const hasQuestions = (context.formDefinition?.questions ?? []).length > 0;
 
   // Per-season toggles set on the admin wizard's Divisions &

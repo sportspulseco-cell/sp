@@ -30,7 +30,7 @@ import { Type } from "class-transformer";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { pickCurrentSeason, resolveDivisionRules } from "@sportspulse/kernel";
+import { pickCurrentSeason, resolveDivisionRules, teamTierForDivision } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { playerWebUrl } from "../../../shared/app-urls";
@@ -38,6 +38,7 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
+import { loadSeasonTiers } from "../../registration-v2/application/season-tiers";
 import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 
@@ -453,20 +454,11 @@ export class CaptainController {
 
     // Pricing tiers — fetch all season-level tiers and per-division tiers,
     // then resolve the active tier per division.
-    const tiers = await this.db
-      .select()
-      .from(schema.pricingTiers)
-      .where(
-        and(
-          eq(schema.pricingTiers.seasonId, seasonId),
-          eq(schema.pricingTiers.isActive, true)
-        )
-      );
+    // Same rule as the player funnel (REG-18): the Divisions grid decides.
+    const tiers = await loadSeasonTiers(this.db, seasonId);
 
     function pricingFor(divisionId: string) {
-      const perDiv = tiers.find((t) => t.divisionId === divisionId);
-      const seasonWide = tiers.find((t) => !t.divisionId);
-      const t = perDiv ?? seasonWide;
+      const t = teamTierForDivision(tiers, divisionId);
       if (!t) return null;
       return {
         tierId: t.id,
@@ -649,19 +641,7 @@ export class CaptainController {
 
     // Resolve the active pricing tier for this division — same lookup
     // as GET /captain/divisions.
-    const tiers = await this.db
-      .select()
-      .from(schema.pricingTiers)
-      .where(
-        and(
-          eq(schema.pricingTiers.seasonId, season.id),
-          eq(schema.pricingTiers.isActive, true)
-        )
-      );
-    const pricing =
-      tiers.find((t) => t.divisionId === division.id) ??
-      tiers.find((t) => !t.divisionId) ??
-      null;
+    const pricing = teamTierForDivision(await loadSeasonTiers(this.db, season.id), division.id);
     if (!pricing) {
       throw new BadRequestException(
         "Division has no active pricing tier — league admin must configure one before registration."

@@ -12,6 +12,8 @@ export interface PricingTier {
   code: string | null;
   description: string | null;
   divisionId: string | null;
+  /** Divisions this price is for; empty means every division (REG-18). */
+  divisionIds?: string[];
   currency: string;
   fullPriceCents: number;
   isFree: boolean;
