@@ -341,6 +341,9 @@ FIXED_IN_CODE = {
     "COMP-7": "commit 356aeaf: waiver notifies player and captains; local API on staging",
     "MON-12": "commit 356aeaf: captain team message; local API on staging 14 recipients, replay idempotent, non-captain 404",
     "SETUP-17": "commits 834156f + 200733b: user type resolved on the server, super admin first",
+    "REG-19": "commits 408fec2 + 3ee7809: prices in dollars; new tier live in an open season (local API on staging: open=active, draft=off)",
+    "MON-18": "commits c9b4561 + a8812b2: note endpoint (local API 4/4, browser saves), printable receipt, no fake card update",
+    "CAP-19": "commits 5da2fee + 338aa22 + 3ee7809: one season per roster, same rule as the captain roster (GET teams/:id/seasons); browser on local apps",
 }
 
 # Not bugs to fix now: decisions the founder made, with the date.
