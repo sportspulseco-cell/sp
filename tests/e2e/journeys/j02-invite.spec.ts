@@ -192,9 +192,15 @@ test.describe.serial("J2 · invite admin and sign in", () => {
       await softly(async () =>
         expect(`${body.message?.subject}\n${body.message?.body}`, "SETUP-13: invite message has mojibake (UTF-8 em dash decoded as cp1252)").not.toMatch(/â€/)
       );
-      await softly(async () =>
-        expect(body.emailDelivered, `SETUP-8: invite email not delivered (${body.emailDeliveryReason})`).toBe(true)
-      );
+      // Staging has no email key on purpose (production does): that is the
+      // environment, not a product finding. Any other non-delivery is.
+      if (!body.emailDelivered && /RESEND_API_KEY not configured/.test(String(body.emailDeliveryReason))) {
+        console.log(`[J2] invite email not sent: ${body.emailDeliveryReason} (staging has no email key; the dialog shows the copyable link)`);
+      } else {
+        await softly(async () =>
+          expect(body.emailDelivered, `SETUP-8: invite email not delivered (${body.emailDeliveryReason})`).toBe(true)
+        );
+      }
       const err = dialog.locator("p.text-rose-600, p[class*=rose]");
       const errCount = await err.count();
       const errText = errCount ? await err.first().textContent() : "";
@@ -352,7 +358,8 @@ test.describe.serial("J2 · invite admin and sign in", () => {
     await page.goto(`${SA}/users/${oa.id}`);
     const scopeLine = await page.getByText(/scope: org/i).first().innerText();
     console.log(`[J2] org admin assignment line: ${scopeLine}`);
-    await softly(async () => expect(scopeLine, "SETUP-9: assignment shows scope as raw UUID prefix instead of org name").toContain(STAGING_ORG));
+    // The line is styled uppercase, so compare without case.
+    await softly(async () => expect(scopeLine.toLowerCase(), "SETUP-9: assignment shows scope as raw UUID prefix instead of org name").toContain(STAGING_ORG.toLowerCase()));
   });
 
   test("7. /roles page", async () => {
