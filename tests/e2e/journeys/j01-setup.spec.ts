@@ -318,19 +318,18 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
 
   test("5. edit after creation: league, season, division, team, org", async () => {
     const page = sa.page;
-    // League: the only affordance is "Edit in Org setup".
+    // League: "Edit league" edits this league in place, prefilled (SETUP-2,
+    // fixed in 16b975d; the old "Edit in Org setup" link opened a blank wizard).
     await page.goto(`${SA}/leagues/${ids.league}`);
-    const editLeague = page.getByRole("link", { name: /Edit/ }).first();
+    const editLeague = page.getByRole("button", { name: "Edit league" });
     await expect(editLeague).toBeVisible();
     await editLeague.click();
-    await page.waitForLoadState("networkidle");
-    // An edit link must open an editor for THIS league, prefilled.
-    const onWizard = /\/org-setup/.test(page.url());
-    const nameVisible = await page.getByText(LEAGUE_NAME).count();
+    const nameField = page.getByLabel("League name", { exact: true });
     await softly(async () => expect(
-      { onWizard, leagueNameOnPage: nameVisible },
-      "SETUP-2: 'Edit in Org setup' opens the blank create wizard; there is no way to rename a league"
-    ).toEqual({ onWizard: false, leagueNameOnPage: 1 }));
+      { url: page.url().includes(`/leagues/${ids.league}`), prefilled: await nameField.inputValue().catch(() => "") },
+      "SETUP-2: Edit league opens an editor for THIS league, prefilled"
+    ).toEqual({ url: true, prefilled: LEAGUE_NAME }));
+    await page.keyboard.press("Escape");
 
     // Season: no rename / date edit on the detail page.
     await page.goto(`${SA}/seasons/${ids.season}`);
