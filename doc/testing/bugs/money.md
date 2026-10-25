@@ -286,6 +286,16 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Root cause: `apps/team-admin-web/src/app/(app)/layout.tsx:37` contains a literal "Â·" (double-encoded "·").
   Proposed fix: replace with "·".
 
+[MON-22] Players are never told an invoice was issued · major
+  Journey: J13 step 3 (local build against staging, 25 Oct) · UC-15
+  Surface: player inbox and email after an admin issues an invoice
+  Repro: issue an invoice to a player (composer "Create and send", or send a draft).
+  Expected: the player gets a notice with the amount, due date and a link to Payments.
+  Actual: no notification row at all; the "invoice.created" template existed with the body "Template pending" and nothing queued it.
+  Fix (commit 3642294): InvoiceNoticesService on create-as-sent and on send; idempotent per invoice; drafts and void notify nobody.
+  Evidence: local API against staging 4/4 (sent notifies once with "$42.00 due Nov 3, 2026"; draft none; send twice = one notice).
+
+
 ---
 
 ## Gaps
