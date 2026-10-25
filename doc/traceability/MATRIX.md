@@ -293,7 +293,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 152 total, 7 still open
+## Logged findings: 152 total, 6 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -437,7 +437,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | SETUP-6 | blocker | Create team fails with 500 when "Home rink" is left blank, but the team row is still written | J1 · UC-33 (team setup), M4 | fixed | journey matrix 3a: team create with blank rink |
 | SETUP-15 | major | league_admin sees, and can open, seasons of OTHER leagues in the same org | J17 | fixed | journey matrix 3a (code fix; league_admin browser check pending) |
 | SETUP-10 | major | No way to add a season to an existing league, or a division to an existing season | J1 | fixed | blockers-oct24-b item 2: New season under league, New division under season, wizard 'existing league' (staging, 24 Oct) |
-| SETUP-2 | major | Org, league, season, division and team cannot be edited after creation | J1 | open |  |
+| SETUP-2 | major | Org, league, season, division and team cannot be edited after creation | J1 | fixed in code, not deployed | commit 8196989: Edit team on admin + org team pages; org admins may edit their org's teams; browser + API 11/11 |
 | SETUP-14 | major | Admin lists and scope pickers silently stop at 25 rows | J1 (also affects J2 pickers) | fixed | users 83 of 83 shown; fetchAll everywhere (staging, 24 Oct) |
 | SETUP-8 | major | Invite email is never sent on staging; magic-link invite flashes "Invite sent" and can 500 | J2 | fixed in code, not deployed | commit 7235744: invite dialog says when the email was not sent |
 | SETUP-17 | minor | Role editing on the super_admin row shows "no role" until per-row fetches finish | J2 | fixed in code, not deployed | commits 834156f + 200733b: user type resolved on the server, super admin first |

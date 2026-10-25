@@ -226,7 +226,6 @@ FIXED_BY_HAND = {
     "CAP-7": "pdf-items item 6 + blockers-oct24 item 4 (staging, 24 Oct)",
     "CAP-12": "blockers-oct24 item 3: wizard in Asia/Kolkata, registration opens today (staging, 24 Oct)",
     "REG-10": "same run as CAP-12",
-    # SETUP-2 open again 25 Oct: league/season/division/org edit in place, but no team edit on the admin team page.
     "SETUP-10": "blockers-oct24-b item 2: New season under league, New division under season, wizard 'existing league' (staging, 24 Oct)",
     "SETUP-9": "pdf-items items 1/4: no id fragments on /users/[id] (staging, 24 Oct)",
     "SETUP-14": "users 83 of 83 shown; fetchAll everywhere (staging, 24 Oct)",
@@ -346,6 +345,7 @@ FIXED_IN_CODE = {
     "CAP-19": "commits 5da2fee + 338aa22 + 3ee7809 + 6b50648: one season per roster, same rule as the captain roster (GET teams/:id/seasons), every page of memberships; browser on local apps",
     "MON-22": "commit 3642294: invoice issued notice; local API on staging 4/4",
     "MON-24": "commit 3f057e0: Finance filters push /finance, old address keeps its query, pager total only when unfiltered; browser 6/6",
+    "SETUP-2": "commit 8196989: Edit team on admin + org team pages; org admins may edit their org's teams; browser + API 11/11",
     "CONSOLE-17": "commit ba6ad79: keyset paging matches sort order (games, invoices, assignments, notifications, events, imports, roles); walked staging 8/8 exact",
     "REG-27": "commit 52d6726: /org-admin/forms accepts limit + cursor; org season overview loads forms; API 200 (40 = db), browser 2/2",
     "SCH-28": "commit a79aa34: kernel formatInZone; game times in the rink zone on server pages; kernel 91/91, browsers in 2 zones 21/21",
