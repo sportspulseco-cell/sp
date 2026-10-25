@@ -2,16 +2,13 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
-  Bell,
   CalendarRange,
   Check,
-  CircleDollarSign,
   ClipboardList,
   Clock,
   Compass,
   ExternalLink,
   MapPin,
-  ShieldAlert,
   Trophy,
   Wallet,
   type LucideIcon
@@ -38,6 +35,7 @@ import { TeamOffersCard } from "@/components/team-offers-card";
 type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 import { RegistrationStateBanner } from "./registration-state-banner";
 import { CaptainConsoleBanner } from "@/components/captain-console-banner";
+import { iconFor, noticeAt, tintFor, titleOf } from "./notifications/notice-format";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -771,14 +769,14 @@ function NotificationsPreview({
               />
               <div className="flex-1 min-w-0">
                 <p className="truncate text-[12px] font-medium text-fg">
-                  {n.subject ?? n.templateCode}
+                  {titleOf(n)}
                 </p>
                 <p className="line-clamp-2 text-[11px] text-fg-muted">
                   {n.body}
                 </p>
               </div>
               <p className="shrink-0 font-mono text-[10px] text-fg-muted">
-                {n.sentAt ? relativeTime(n.sentAt, now) : "queued"}
+                {relativeTime(noticeAt(n), now)}
               </p>
             </li>
           ))}
@@ -786,22 +784,6 @@ function NotificationsPreview({
       )}
     </div>
   );
-}
-
-function iconFor(code: string): LucideIcon {
-  if (code.includes("payment") || code.includes("invoice")) return CircleDollarSign;
-  if (code.includes("game") || code.includes("schedule")) return CalendarRange;
-  if (code.includes("comply") || code.includes("waiver")) return ShieldAlert;
-  return Bell;
-}
-
-function tintFor(
-  code: string
-): "blue" | "violet" | "amber" | "rose" | "emerald" | "cyan" | "neutral" {
-  if (code.includes("payment") || code.includes("invoice")) return "amber";
-  if (code.includes("game") || code.includes("schedule")) return "blue";
-  if (code.includes("comply") || code.includes("waiver")) return "rose";
-  return "neutral";
 }
 
 /* ------------------------------ KPI ------------------------------- */

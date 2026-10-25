@@ -469,6 +469,10 @@ staging is no longer near-empty, which is also what PPHL production looks like.
   Root cause: apps/player-web/src/app/(app)/notifications/notification-row.tsx rendered notif.status,
     fmt(sentAt) with "queued" fallback, and subject ?? templateCode.
   Fix: no status pill for players; time = sentAt or createdAt; title from the code in words.
+  Also on player Home (found 25 Oct, J13 step 9 screenshot test-results-journeys-money-local-shots/j13-09-player-wallet.png):
+    the Notifications preview printed "queued" as the time and fell back to the raw code as the title
+    (apps/player-web/src/app/(app)/page.tsx NotificationsPreview). Second place with the same bug, so the inbox row's
+    helpers moved to notifications/notice-format.ts and both use them.
 ```
 
 ## Gaps
