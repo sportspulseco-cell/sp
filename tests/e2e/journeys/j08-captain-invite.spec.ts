@@ -378,14 +378,16 @@ test("J8.5 captain adds the plain player by name; player sees the team; captain 
   const probe = await snap(p, "50-picker-search-plain");
   writeFileSync(`${OUT}/50-picker-probe.txt`, probe);
   await search.fill("");
-  await search.pressSequentially(PLAIN_FIRST.slice(0, 8), { delay: 80 });
+  // The full first name: every earlier run's fixture shares the first 8 letters,
+  // and the picker shows 8 matches.
+  await search.pressSequentially(PLAIN_FIRST, { delay: 40 });
   await p.waitForTimeout(1500);
   await p.getByText(/searching/i).waitFor({ state: "hidden", timeout: 20_000 }).catch(() => {});
   await snap(p, "51-picker-search-name");
   writeFileSync(`${OUT}/51-person-search-responses.txt`, searches.join("\n"));
   const hit = p.getByRole("button").filter({ hasText: PLAIN_FIRST }).first();
   const found = await hit.isVisible().catch(() => false);
-  finding(found, `CAP: 'Add player' name search for "${PLAIN_FIRST.slice(0, 8)}" returned no match`);
+  finding(found, `CAP: 'Add player' name search for "${PLAIN_FIRST}" returned no match`);
   if (!found) return;
   await hit.click();
   await p.getByRole("button", { name: /add to roster/i }).click();
