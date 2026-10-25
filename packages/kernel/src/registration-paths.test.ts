@@ -97,8 +97,9 @@ test("free agents: availability reads the player form's Mon/AM keys and legacy l
   assert.equal(formatFreeAgentAvailability({ Mon: ["AM"], Wed: [], Sat: ["EVE"] }), "Mon, Sat");
   assert.equal(formatFreeAgentAvailability({ mon: true, fri: false }), "Mon");
   assert.equal(formatFreeAgentAvailability({}), "—");
-  assert.equal(freeAgentLevelLabel("C2"), "Rec — improving");
-  assert.equal(freeAgentLevelLabel("D"), "Beginner");
+  // REG-21: one A-D list; older C1/C2 rows read as C, C3 as D.
+  assert.equal(freeAgentLevelLabel("C2"), "C — Recreational");
+  assert.equal(freeAgentLevelLabel("D"), "D — Beginner");
 });
 
 test("free-agent offers expire after 7 days or at the roster lock, whichever is first", () => {
