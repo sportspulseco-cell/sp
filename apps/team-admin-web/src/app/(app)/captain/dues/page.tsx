@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Star } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { finance, iam } from "@/lib/api/server-api";
@@ -45,12 +46,17 @@ export default async function CaptainDuesPage() {
         <PageHeader
           eyebrow="Captain console"
           title="Team dues"
-          description="No master invoice on file yet — once you complete the rollover wizard, dues collection appears here."
+          description="Dues appear here once your team's invoice for the season exists."
         />
         <EmptyState
           icon={Star}
-          title="No dues to track"
-          description="Run the rollover wizard from /captain/register to set up dues."
+          title="No team invoice yet"
+          description="When the league approves your team, the Register the team page walks you through roster and dues. If your league confirmed the team directly, ask your league admin how the team pays."
+          action={
+            <Link href="/captain/register" className="text-[13px] font-medium text-fg underline underline-offset-2">
+              Open Register the team
+            </Link>
+          }
         />
       </div>
     );

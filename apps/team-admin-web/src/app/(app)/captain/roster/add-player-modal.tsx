@@ -14,7 +14,8 @@ export function AddPlayerModal({
   divisionId,
   currentCount,
   maxRosterSize,
-  onCreated
+  onCreated,
+  initialTab = "search"
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,8 +25,14 @@ export function AddPlayerModal({
   currentCount: number;
   maxRosterSize: number;
   onCreated: (msg: string) => void;
+  /** "Invite by email" opens straight on the email form (CAP-16). */
+  initialTab?: "search" | "invite";
 }) {
-  const [tab, setTab] = useState<"search" | "invite">("search");
+  const [tab, setTab] = useState<"search" | "invite">(initialTab);
+  // Each open starts on the tab the captain asked for.
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, initialTab]);
 
   return (
     <Dialog
@@ -279,7 +286,6 @@ function InvitePanel({
   onCreated: (msg: string) => void;
 }) {
   const [email, setEmail] = useState("");
-  const [splitAmount, setSplitAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -287,13 +293,9 @@ function InvitePanel({
     setBusy(true);
     setError(null);
     try {
-      const parsed = splitAmount.trim()
-        ? Math.round(parseFloat(splitAmount) * 100)
-        : undefined;
       await captain.roster.invite(teamId, {
         seasonId,
-        email: email.trim().toLowerCase(),
-        splitAmountCents: parsed
+        email: email.trim().toLowerCase()
       });
       onCreated(`Invite sent to ${email.trim()}.`);
     } catch (e) {
@@ -319,23 +321,12 @@ function InvitePanel({
         />
       </label>
 
-      <label className="grid gap-1">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          Their share of dues (optional)
-        </span>
-        <input
-          type="number"
-          inputMode="decimal"
-          step="0.01"
-          value={splitAmount}
-          onChange={(e) => setSplitAmount(e.target.value)}
-          placeholder="125.00"
-          className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
-        />
-        <span className="font-mono text-[10px] text-fg-muted">
-          Leave blank to use the even-split default for this division.
-        </span>
-      </label>
+      {/* The invite never billed anyone: the share typed here was dropped
+          (CAP-16). Shares live on the Dues page, which re-splits the team's
+          invoice when players join. */}
+      <p className="text-[12px] text-fg-muted">
+        Set this player&apos;s share of the team dues on the Dues page once they join.
+      </p>
 
       {error && (
         <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">

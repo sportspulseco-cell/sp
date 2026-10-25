@@ -284,6 +284,10 @@ function ApprovedDetailCard({
   // invoiceId is set once the roster + dues wizard ran: approved but not
   // yet set up -> "Set up roster & dues"; set up -> deposits in progress.
   const setupDone = !isConfirmed && !!app.invoiceId;
+  // Confirmed with no team invoice: the league confirmed the team itself
+  // (or placed it), so no dues were set up here. Never tick dues steps
+  // that did not happen (MON-16).
+  const confirmedWithoutDues = isConfirmed && !app.invoiceId;
   const setupHref = `/captain/register/setup/${app.id}`;
   return (
     <section className="rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] p-6 dark:bg-[var(--tint-emerald-bg)]">
@@ -304,6 +308,9 @@ function ApprovedDetailCard({
               {teamName} is confirmed for{" "}
               <span className="font-medium text-fg">{app.divisionName}</span> in{" "}
               <span className="font-medium text-fg">{app.seasonName}</span>.
+              {confirmedWithoutDues
+                ? " Your league confirmed the team directly, so team dues were not set up in SportsPulse. Ask your league admin how the team pays."
+                : null}
             </>
           ) : (
             <>
@@ -331,10 +338,12 @@ function ApprovedDetailCard({
         <DetailRow
           label="Confirms when"
           value={
-            app.thresholdCents > 0
-              ? formatMoney(app.thresholdCents, app.currency ?? "USD") +
-                " deposited"
-              : "Threshold not set"
+            isConfirmed
+              ? "Confirmed"
+              : app.thresholdCents > 0
+                ? formatMoney(app.thresholdCents, app.currency ?? "USD") +
+                  " deposited"
+                : "Threshold not set"
           }
         />
         <DetailRow
@@ -348,26 +357,36 @@ function ApprovedDetailCard({
       <div className="mt-5 space-y-2">
         <Eyebrow>what to do now</Eyebrow>
         <StepList
-          steps={[
-            { status: "done", title: "Application submitted" },
-            { status: "done", title: "Admin approved your application" },
-            {
-              status: isConfirmed || setupDone ? "done" : "current",
-              title: "Invite your players and configure dues split"
-            },
-            {
-              status: isConfirmed ? "done" : setupDone ? "current" : "future",
-              title: "Collect deposits to confirm your spot"
-            }
-          ]}
+          steps={
+            confirmedWithoutDues
+              ? [
+                  { status: "done", title: "Team confirmed in the division" },
+                  { status: "current", title: "Invite your players" },
+                  { status: "future", title: "Team dues: ask your league admin (not set up in SportsPulse)" }
+                ]
+              : [
+                  { status: "done", title: "Application submitted" },
+                  { status: "done", title: "Admin approved your application" },
+                  {
+                    status: isConfirmed || setupDone ? "done" : "current",
+                    title: "Invite your players and configure dues split"
+                  },
+                  {
+                    status: isConfirmed ? "done" : setupDone ? "current" : "future",
+                    title: "Collect deposits to confirm your spot"
+                  }
+                ]
+          }
         />
       </div>
 
       <Link
-        href={isConfirmed ? "/" : setupDone ? "/captain/dues" : setupHref}
+        href={confirmedWithoutDues ? "/captain/invites" : isConfirmed ? "/" : setupDone ? "/captain/dues" : setupHref}
         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-[var(--success)] px-3 py-2.5 text-[13px] font-medium text-white hover:bg-[var(--success)]"
       >
-        {isConfirmed
+        {confirmedWithoutDues
+          ? "Invite players"
+          : isConfirmed
           ? "Open team console"
           : setupDone
             ? "View dues"

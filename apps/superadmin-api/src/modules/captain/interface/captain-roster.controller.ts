@@ -88,6 +88,10 @@ class DropPlayerBodyDto {
 class InviteBodyDto {
   @IsUUID() seasonId!: string;
   @IsEmail() email!: string;
+  /**
+   * Accepted from older clients and ignored: an invite never billed
+   * anyone (CAP-16). Shares are set on the captain's Dues page.
+   */
   @IsOptional() @IsInt() @Min(0) splitAmountCents?: number;
 }
 

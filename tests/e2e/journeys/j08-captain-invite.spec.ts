@@ -184,7 +184,7 @@ test("J8.1 captain sends a personal invite from /captain/invites", async () => {
   p.on("dialog", (d) => d.accept());
   await p.goto(`${cap.app}/`);
   await settle(p);
-  await p.getByRole("link", { name: /^invites$/i }).first().click();
+  await p.getByRole("link", { name: /^invite players$/i }).first().click();
   await p.waitForURL(/\/captain\/invites/);
   await settle(p);
   await snap(p, "10-invites-page");
@@ -328,14 +328,17 @@ test("J8.4 captain invites by email from /captain/roster", async () => {
   // one (CAP-8, CAP-24).
   expect(rosterHead, "roster header names the current season").toMatch(/Season: Staging 2026-27/);
   await p.getByRole("button", { name: /invite by email/i }).first().click();
-  // The button opens the "Add player" dialog; the email form is a second tab.
+  // CAP-16: the button opens the email form directly.
   const dlg = p.getByRole("dialog");
   if (!(await dlg.getByPlaceholder("player@example.com").isVisible().catch(() => false))) {
     finding(false, "CAP: roster 'Invite by email' button opens the 'Add player' dialog, not the invite form");
     await dlg.getByRole("button", { name: /invite by email/i }).click();
   }
   await p.getByPlaceholder("player@example.com").fill(ROSTER_INVITEE);
-  await p.getByPlaceholder("125.00").fill("70");
+  // CAP-16: the invite no longer offers a dues share it never billed;
+  // it points to the Dues page instead.
+  finding((await dlg.getByPlaceholder("125.00").count()) === 0, "CAP: roster invite still offers a 'share of dues' field that bills nobody");
+  finding(/Dues page/.test(await dlg.innerText()), "CAP: roster invite does not say where the player's dues share is set");
   await snap(p, "40-roster-invite-modal");
   await p.getByRole("button", { name: /send invite/i }).last().click();
   await settle(p);
@@ -346,8 +349,6 @@ test("J8.4 captain invites by email from /captain/roster", async () => {
   finding(pend.includes(ROSTER_INVITEE.split("@")[0]!), "CAP: roster 'Pending invite' tab does not list the new invite");
   const rows = await stagingSql<{ id: string }>(`select id from team_invites where invitee_email = $1`, [ROSTER_INVITEE]);
   expect(rows.length, `invite row (${t.slice(0, 80)})`).toBe(1);
-  const subs = await stagingSql<{ n: number }>(`select count(*)::int n from invoices where recipient_email = $1`, [ROSTER_INVITEE]);
-  finding((subs[0]?.n ?? 0) > 0, "CAP: 'Their share of dues' entered on the roster invite created no sub-invoice (value silently dropped)");
   await p.waitForTimeout(4000);
   const notes = await stagingSql<{ n: number }>(`select count(*)::int n from notifications where recipient_email = $1`, [ROSTER_INVITEE]);
   finding((notes[0]?.n ?? 0) > 0, "CAP: roster 'Invite by email' queued no notification row for the invitee");

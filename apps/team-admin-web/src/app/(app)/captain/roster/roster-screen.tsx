@@ -63,6 +63,7 @@ export function RosterScreen({
   const [switching, setSwitching] = useState(false);
   const [tab, setTab] = useState<TabKey>("active");
   const [addOpen, setAddOpen] = useState(false);
+  const [addTab, setAddTab] = useState<"search" | "invite">("search");
   const [dropTarget, setDropTarget] = useState<MembershipRow | null>(null);
   const [transferTarget, setTransferTarget] = useState<MembershipRow | null>(
     null
@@ -184,10 +185,10 @@ export function RosterScreen({
       {/* Action bar — hidden ENTIRELY after rosterLockAt per spec §1.2 */}
       {!isLocked && data?.season && (
         <div className="flex flex-wrap gap-2 rounded-md border border-border bg-surface-1 p-3">
-          <Button onClick={() => setAddOpen(true)}>
+          <Button onClick={() => { setAddTab("search"); setAddOpen(true); }}>
             <UserPlus className="mr-2 h-4 w-4" /> Add player
           </Button>
-          <Button variant="secondary" onClick={() => setAddOpen(true)}>
+          <Button variant="secondary" onClick={() => { setAddTab("invite"); setAddOpen(true); }}>
             <Mail className="mr-2 h-4 w-4" /> Invite by email
           </Button>
           <Button variant="ghost" disabled>
@@ -281,6 +282,7 @@ export function RosterScreen({
         divisionId={data?.division?.id ?? null}
         currentCount={memberships.length}
         maxRosterSize={rules?.maxRosterSize ?? 20}
+        initialTab={addTab}
         onCreated={async (msg) => {
           setAddOpen(false);
           setFlash(msg);

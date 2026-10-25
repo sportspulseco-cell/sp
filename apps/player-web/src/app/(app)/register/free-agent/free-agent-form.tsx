@@ -289,7 +289,7 @@ export function FreeAgentForm({
                     : "border-border bg-bg-subtle text-fg-muted hover:border-fg-muted"
                 }`}
               >
-                {lvl.value} · {lvl.label}
+                {lvl.label}
               </button>
             );
           })}
