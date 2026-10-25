@@ -1,4 +1,4 @@
-import { stagingDbUrl } from "./_helpers";
+import { openNav, stagingDbUrl } from "./_helpers";
 /**
  * J10 · Schedule generate and publish (UC-06, UC-07, UC-08, UC-09, UC-10, UC-21)
  *
@@ -417,7 +417,13 @@ test.describe("J10 schedule generate and publish", () => {
         console.log(`[J10] bracket refusal shown in words: ${said}`);
         if (!said) failures.push(`playoffs generate: refusal not explained (${r})`);
       } else if (!/^http 2/.test(r)) failures.push(`playoffs generate: ${r}`);
-    } else failures.push("playoffs: no Generate bracket button visible");
+    } else {
+      // Generate shows only for divisions without a bracket; earlier runs may
+      // have made one for every division. Then the page must list them.
+      const listed = await page.getByText(/^\d+ brackets?$/i).first().innerText().catch(() => "");
+      console.log(`[J10] no Generate button; page lists: "${listed}"`);
+      if (!/^[1-9]\d* brackets?$/i.test(listed)) failures.push("playoffs: no Generate bracket button and no bracket listed");
+    }
     console.log(`[J10] tab failures:\n  ${failures.join("\n  ")}`);
     expect.soft(failures, "SCH-1 scheduling tabs load").toEqual([]);
   });
@@ -551,8 +557,9 @@ test.describe("J10 schedule generate and publish", () => {
     const oa = await signedInAs(browser, "orgAdmin");
     const errs = watchErrors(oa.page);
     await oa.page.goto(`${oa.app}/`);
-    const nav = oa.page.getByRole("link", { name: /^Schedul/i }).first();
-    expect.soft(await nav.count(), "org-admin sidebar has Scheduling").toBeGreaterThan(0);
+    // "Schedule" sits in the collapsed Season group on Home: open it like a user.
+    const reached = await openNav(oa.page, /^Schedul/i).then(() => oa.page.waitForURL(/\/scheduling/, { timeout: 20_000 })).then(() => true).catch(() => false);
+    expect.soft(reached, "org-admin sidebar has Scheduling").toBe(true);
     await oa.page.goto(`${oa.app}/scheduling`);
     await expect.soft(oa.page.getByText(SEASON_NAME).first()).toBeVisible();
     await oa.page.goto(`${oa.app}/scheduling/${seasonId}/generate`);
