@@ -5,6 +5,7 @@ import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import type { TeamStoreProduct } from "@sportspulse/api-client";
 import { teamStore } from "@/lib/api/browser-api";
+import { GenerateStore } from "./generate-store";
 
 type Product = TeamStoreProduct;
 
@@ -66,6 +67,12 @@ export function StoreManager({
   const [editForm, setEditForm] = useState<FormState>(emptyForm());
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  // Items "Generate store" already made, so it does not offer them twice.
+  const generatedKinds = items
+    .map((p) => (p.metadata ?? {}) as { kind?: string; generated?: boolean })
+    .filter((m) => m.generated === true && m.kind)
+    .map((m) => m.kind as string);
 
   function parseForm(f: FormState): {
     body: Parameters<typeof teamStore.create>[1];
@@ -184,6 +191,17 @@ export function StoreManager({
 
   return (
     <div className="space-y-4">
+      <GenerateStore
+        teamId={teamId}
+        existingKinds={generatedKinds}
+        onDone={async (msg) => {
+          await refresh();
+          setFlash(msg);
+        }}
+      />
+      {flash ? (
+        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">{flash}</p>
+      ) : null}
       {error ? (
         <div className="rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-4 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}

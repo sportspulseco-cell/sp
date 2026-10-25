@@ -13,15 +13,24 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Length,
   Matches,
+  MaxLength,
   Min,
-  MinLength
+  MinLength,
+  ValidateNested
 } from "class-validator";
+import { Type } from "class-transformer";
+import { STORE_ORDER_STATUSES, type StoreOrderStatus, type StoreProductKind } from "@sportspulse/kernel";
+import { StoreOrdersService } from "../application/store-orders.service";
 import { and, desc, eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -60,12 +69,59 @@ class UpdateProductDto {
  *
  * Purchase flow deferred until P4-1 (real Stripe).
  */
+class GenerateItemDto {
+  @IsIn(["jersey", "hoodie", "cap"]) kind!: StoreProductKind;
+  @IsInt() @Min(1) priceCents!: number;
+}
+
+class GenerateStoreDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(3) @ValidateNested({ each: true }) @Type(() => GenerateItemDto)
+  items!: GenerateItemDto[];
+  @IsOptional() @IsBoolean() tellPlayers?: boolean;
+}
+
+class OrderStatusDto {
+  @IsIn(STORE_ORDER_STATUSES as unknown as string[]) status!: StoreOrderStatus;
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+
 @ApiTags("captain/store")
 @ApiBearerAuth()
 @Controller("captain/store")
 @UseGuards(JwtAuthGuard)
 export class TeamStoreCaptainController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly orders: StoreOrdersService
+  ) {}
+
+  @Post(":teamId/generate")
+  @ApiOperation({ summary: "UC-25: create the team's jersey, hoodie and cap with name/number personalization at the captain's prices; tell the roster." })
+  async generate(@CurrentUser() user: AuthPrincipal, @Param("teamId") teamId: string, @Body() body: GenerateStoreDto) {
+    await this.requireCaptain(user.userId, teamId);
+    return this.orders.generate(user.userId, teamId, body.items, body.tellPlayers ?? true);
+  }
+
+  @Get(":teamId/orders")
+  @ApiOperation({ summary: "Orders from the team store, newest first, with payment state from each invoice." })
+  async listOrders(@CurrentUser() user: AuthPrincipal, @Param("teamId") teamId: string) {
+    await this.requireCaptain(user.userId, teamId);
+    return { items: await this.orders.teamOrders(teamId) };
+  }
+
+  @Post(":teamId/orders/:orderId/status")
+  @ApiOperation({ summary: "Mark an order processing or shipped (paid orders), or cancel it (unpaid). The buyer is told." })
+  async setOrderStatus(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Param("orderId") orderId: string,
+    @Body() body: OrderStatusDto
+  ) {
+    await this.requireCaptain(user.userId, teamId);
+    // Another team's order does not exist for this captain.
+    if ((await this.orders.teamIdOfOrder(orderId)) !== teamId) throw new NotFoundException("Order not found");
+    return { order: await this.orders.transition(orderId, body.status, body.note ?? null, user.userId) };
+  }
 
   @Get(":teamId/products")
   @ApiOperation({

@@ -90,7 +90,9 @@ import type {
   SuspendedPlayer,
   Team,
   TeamMembership,
-  TeamStoreProduct
+  TeamStoreProduct,
+  StoreOrder,
+  StoreOrderLineInput
 } from "./types";
 
 const qs = (params: Record<string, string | number | boolean | undefined>) => {
@@ -3692,9 +3694,41 @@ export function createApi(f: Fetcher) {
             currency: string;
             variantLabel: string | null;
             stockQty: number | null;
+            options: {
+              kind: "jersey" | "hoodie" | "cap" | "custom";
+              sizes: string[];
+              personalization: { name: boolean; number: boolean };
+            };
             createdAt: string;
           }>;
-        }>(`/team-store/${teamId}/products`)
+        }>(`/team-store/${teamId}/products`),
+      // UC-26: the buyer's roster name/number for the back, and their orders.
+      me: (teamId: string) =>
+        f<{ backName: string | null; jerseyNumber: number | null; orders: StoreOrder[] }>(
+          `/team-store/${teamId}/me`
+        ),
+      placeOrder: (teamId: string, body: { lines: StoreOrderLineInput[]; requestKey?: string }) =>
+        f<{ order: StoreOrder; replay: boolean }>(`/team-store/${teamId}/orders`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      cancelOrder: (orderId: string) =>
+        f<{ order: StoreOrder }>(`/team-store/orders/${orderId}/cancel`, { method: "POST" }),
+      // Captain: UC-25 generate, and fulfilment.
+      generate: (
+        teamId: string,
+        body: { items: Array<{ kind: "jersey" | "hoodie" | "cap"; priceCents: number }>; tellPlayers?: boolean }
+      ) =>
+        f<{ created: string[]; skipped: string[]; playersTold: number }>(`/captain/store/${teamId}/generate`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      listOrders: (teamId: string) => f<{ items: StoreOrder[] }>(`/captain/store/${teamId}/orders`),
+      setOrderStatus: (teamId: string, orderId: string, status: StoreOrder["status"], note?: string) =>
+        f<{ order: StoreOrder }>(`/captain/store/${teamId}/orders/${orderId}/status`, {
+          method: "POST",
+          body: JSON.stringify({ status, note })
+        })
     },
 
     // Team movement (PPHL item 8): rollover, division shift, league

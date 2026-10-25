@@ -1,12 +1,18 @@
 import {
+  Body,
   Controller,
   ForbiddenException,
   Get,
   Inject,
   NotFoundException,
   Param,
+  Post,
   UseGuards
 } from "@nestjs/common";
+import { Type } from "class-transformer";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from "class-validator";
+import { readStoreProductOptions } from "@sportspulse/kernel";
+import { StoreOrdersService } from "../application/store-orders.service";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { and, desc, eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -25,12 +31,53 @@ import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
  * with an active `team_memberships` row on the team. Other callers
  * get 404 so we don't leak existence of arbitrary team stores.
  */
+class OrderLineDto {
+  @IsUUID() productId!: string;
+  @IsInt() quantity!: number;
+  @IsOptional() @IsString() @MaxLength(10) size?: string | null;
+  @IsOptional() @IsString() @MaxLength(40) personalName?: string | null;
+  @IsOptional() @IsInt() personalNumber?: number | null;
+}
+
+class PlaceOrderDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => OrderLineDto)
+  lines!: OrderLineDto[];
+  /** One per checkout; a repeated submit returns the first order. */
+  @IsOptional() @IsString() @MaxLength(80) requestKey?: string;
+}
+
 @ApiTags("team-store")
 @ApiBearerAuth()
 @Controller("team-store")
 @UseGuards(JwtAuthGuard)
 export class TeamStorePlayerController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly orders: StoreOrdersService
+  ) {}
+
+  @Get(":teamId/me")
+  @ApiOperation({ summary: "What the caller needs to order: their name and number from the roster, and their orders (UC-26)." })
+  async me(@CurrentUser() user: AuthPrincipal, @Param("teamId") teamId: string) {
+    const me = await this.orders.memberOf(user.userId, teamId);
+    return {
+      backName: me.backName,
+      jerseyNumber: me.jerseyNumber,
+      orders: await this.orders.myOrders(user.userId, teamId)
+    };
+  }
+
+  @Post(":teamId/orders")
+  @ApiOperation({ summary: "Place an order (UC-26). Creates the order and its invoice; the player pays it on Payments." })
+  async place(@CurrentUser() user: AuthPrincipal, @Param("teamId") teamId: string, @Body() body: PlaceOrderDto) {
+    return this.orders.placeOrder(user.userId, teamId, body.lines, body.requestKey ?? null);
+  }
+
+  @Post("orders/:orderId/cancel")
+  @ApiOperation({ summary: "Cancel your own order while it is placed and unpaid. Voids its invoice and returns the stock." })
+  async cancel(@CurrentUser() user: AuthPrincipal, @Param("orderId") orderId: string) {
+    return { order: await this.orders.cancelByBuyer(user.userId, orderId) };
+  }
 
   @Get(":teamId/products")
   @ApiOperation({
@@ -103,6 +150,8 @@ export class TeamStorePlayerController {
         currency: r.currency,
         variantLabel: r.variantLabel,
         stockQty: r.stockQty,
+        // Sizes and name/number personalization (kernel team-store).
+        options: readStoreProductOptions(r.metadata),
         createdAt: r.createdAt.toISOString()
       }))
     };

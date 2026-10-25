@@ -42,6 +42,10 @@ export const TEMPLATE_CODES = [
   "TRANSFER_REJECTED",
   "TRANSFER_APPROVED",
   "TRANSFER_ACCEPTED",
+  // Team store (UC-25, UC-26, MON-15).
+  "team_store.open",
+  "store.order.placed",
+  "store.order.status",
   "CAPTAIN_REVOKED",
   "DIVISION_APPLICATION_REJECTED",
   // Workflow 7C · compliance + eligibility
@@ -489,6 +493,31 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "The proposed trade of {{playerName}} has been rejected.\n\n" +
       "Reason: {{reason}}",
     variables: ["playerName", "reason"]
+  },
+  {
+    code: "team_store.open",
+    channel: "email",
+    subject: "The {{teamName}} store is open",
+    body:
+      "Your captain opened the {{teamName}} team store: {{items}}. " +
+      "Pick your size and the name and number on the back here:\n{{storeUrl}}",
+    variables: ["teamName", "items", "storeUrl"]
+  },
+  {
+    code: "store.order.placed",
+    channel: "email",
+    subject: "Order received: {{teamName}} store",
+    body:
+      "Thanks, {{personName}}. You ordered:\n{{lines}}\n\nTotal {{totalLabel}}. " +
+      "Pay invoice {{invoiceNumber}} to confirm your order:\n{{payUrl}}",
+    variables: ["personName", "teamName", "lines", "totalLabel", "invoiceNumber", "payUrl"]
+  },
+  {
+    code: "store.order.status",
+    channel: "email",
+    subject: "Your {{teamName}} order is {{statusLabel}}",
+    body: "{{lines}}\n\n{{noteLine}}",
+    variables: ["teamName", "statusLabel", "lines", "noteLine"]
   },
   {
     code: "TRANSFER_ACCEPTED",

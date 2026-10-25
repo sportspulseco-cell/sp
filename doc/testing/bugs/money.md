@@ -222,7 +222,7 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Proposed fix: emit `game.postponed|cancelled|rescheduled` from the game command handlers via NotificationService (after MON-2), with
     recipients = both rosters + officials.
 
-[MON-15] Team store: players cannot order; no roster-generated store · major (gap)
+[MON-15] Team store: players cannot order; no roster-generated store · major (gap) · fixed in code
   Journey: J16 · UC-25, UC-26
   Surface: team-admin-web /captain/store → player-web /store
   Repro: captain adds "<tag> Home jersey", $59, Large · Black, stock 10 → player opens Team store.
@@ -232,6 +232,32 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Evidence: runtime. j16-01b-product-created.png, j16-02-player-store.png; db `team_store_products` row (price_cents 5900, stock 10).
   Root cause: purchase deferred to real Stripe (page comments in `apps/player-web/src/app/(app)/store/page.tsx`).
   Proposed fix: product scope decision for PPHL; at minimum label it "catalog only" in both apps.
+  Fix (26 Oct), payments stay mock (founder decision), no outside shop:
+    UC-25: the captain's store page has "Generate from the roster": jersey (sizes YS to 3XL, name and number on the back),
+      hoodie (S to XXL, name), cap (one size). The captain sets every price (nothing is priced for them); an item
+      already generated is not offered again; the roster can be emailed that the store is open.
+    UC-26: on the player's Team store, Order opens a picker: size, quantity (1 to 10), the name and number for the back,
+      filled in from the player's roster entry. Items go to a cart; Place order writes the order, its lines (name and
+      price as ordered) and one invoice for the total in one transaction, takes stock and flags any shortfall as a
+      backorder; a repeated submit returns the first order. The buyer is emailed the order with the pay link and pays
+      the invoice on Payments (mock card). "Your orders" shows each order's state and payment. The captain's Orders
+      list shows paid and unpaid orders; Mark processing and Mark shipped (with a note such as where to pick it up) need
+      the invoice paid, and the buyer is told each time. An unpaid order can be cancelled by the buyer or the captain:
+      the invoice is voided and the stock returned. A paid order is not cancelled here (refund path).
+    Rules in packages/kernel/src/team-store.ts; tables team_store_orders and team_store_order_items (migration 0056,
+    staging applied, drift clean).
+  Evidence: kernel 8 store tests. Local API against staging, regfa/verify-mon15.mjs 21/21 (generate refuses no price,
+    creates 3 at the captain's prices, tells 27 players, skips on repeat; bad size/one-size/number/quantity refused
+    422; non-roster 403; order total $99.00 with one invoice; line label "jersey · L · #12 SMITH"; backorder and stock 0;
+    replay = one order one invoice; confirmation email; unpaid cannot process 409; mock pay; paid cannot be cancelled
+    409; processing then shipped with note; 2 status emails; shipped cannot cancel 409; other order 404; unpaid cancel
+    voids and returns stock). Browser, local captain and player apps, regfa/walk-mon15.mjs 13/13 (generate and list
+    without reload; roster name prefilled; size required in the picker; cart reads like the back of the shirt; order
+    placed and shown awaiting payment; captain sees it paid, processing, shipped with note; player sees Shipped and the
+    note; unpaid order cancelled, invoice void).
+  Not built: sync to an outside shop (UC-25 Shopify) and its CSV fallback; parent ordering for a child; an admin
+    (super admin console) view of store orders; real card payment. Not verified in a browser: paying through the
+    Payments page itself (paid through the same API it calls).
 
 [MON-16] Captain register page claims dues are set up when they are not; dues page points back to it · minor
   Journey: J14 · UC-16

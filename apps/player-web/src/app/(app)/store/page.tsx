@@ -1,25 +1,17 @@
 import { ShoppingBag, UsersRound } from "lucide-react";
-import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { EmptyState } from "@sportspulse/ui";
 import { iam, teamStore } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { StoreClient } from "./store-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Team store — SportsPulse" };
 
-function fmt(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
-
 /**
- * Backlog #11 — player view of the team merch catalog. The captain
- * curates the list from team-admin-web `/captain/store`.
- *
- * Purchase flow ships with P4-1 (real Stripe); for now each product
- * shows a disabled "Buy" CTA labelled "Coming soon".
+ * Team store (UC-26): the roster's gear, ordered here and paid on
+ * Payments. Players on the roster order; anyone else who can see the
+ * store browses only.
  */
 export default async function StorePage() {
   const scope = await iam.meScope().catch(() => null);
@@ -63,64 +55,28 @@ export default async function StorePage() {
     );
   }
 
+  // Roster name and number for the back, and this player's orders.
+  const me = await teamStore.me(myTeamId).catch(() => null);
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Team store"
         title={`${data.team.name} store`}
-        description="Merch curated by your captain. Checkout arrives once payments are wired up."
+        description={
+          me
+            ? "Pick a size and the name and number on the back. You pay the order's invoice on Payments."
+            : "Your captain's gear for the team. Only players on the roster can order."
+        }
       />
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {data.items.map((p) => (
-          <article
-            key={p.id}
-            className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface-1"
-          >
-            <div className="relative aspect-square w-full bg-surface-2">
-              {p.imageUrl ? (
-                // Captain-supplied URL; we don't proxy through Next image-loader.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.imageUrl}
-                  alt={p.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-fg-muted">
-                  <ShoppingBag
-                    className="h-10 w-10"
-                    strokeWidth={1.25}
-                  />
-                </div>
-              )}
-              {p.stockQty != null && p.stockQty <= 0 ? (
-                <div className="absolute right-2 top-2">
-                  <Badge tone="danger" mono>
-                    sold out
-                  </Badge>
-                </div>
-              ) : null}
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
-              <Eyebrow>{p.variantLabel ?? "product"}</Eyebrow>
-              <h3 className="text-sm font-medium text-fg">{p.name}</h3>
-              {p.description ? (
-                <p className="line-clamp-3 text-xs text-fg-muted">
-                  {p.description}
-                </p>
-              ) : null}
-              <div className="mt-auto flex items-center justify-between">
-                <span className="font-mono text-sm font-semibold text-fg tabular-nums">
-                  {fmt(p.priceCents, p.currency)}
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                  checkout soon
-                </span>
-              </div>
-            </div>
-          </article>
-        ))}
-      </section>
+      <StoreClient
+        teamId={myTeamId}
+        products={data.items}
+        backName={me?.backName ?? null}
+        jerseyNumber={me?.jerseyNumber ?? null}
+        initialOrders={me?.orders ?? []}
+        canOrder={!!me}
+      />
     </div>
   );
 }

@@ -35,4 +35,5 @@ export * from "./suspensions";
 export * from "./discipline";
 export * from "./team-store";
 export * from "./pricing-tiers";
+export * from "./money";
 export * from "./eligibility-evaluation";

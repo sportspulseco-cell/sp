@@ -11,6 +11,8 @@ import {
   uuid
 } from "drizzle-orm/pg-core";
 import { authUsers } from "./auth";
+import { invoices } from "./finance";
+import { orgs, persons } from "./iam";
 import { teams } from "./league";
 
 // =====================================================================
@@ -59,6 +61,99 @@ export const teamStoreProducts = pgTable(
     priceCheck: check(
       "team_store_product_price_check",
       sql`${t.priceCents} >= 0`
+    )
+  })
+);
+
+// =====================================================================
+// TEAM_STORE_ORDERS — a player's order from the team store (UC-26).
+// Money lives on the linked invoice, paid on the player's Payments page
+// like any other; this row carries what was ordered and its fulfilment
+// (placed -> processing -> shipped, or cancelled). Rules: kernel
+// team-store.ts.
+// =====================================================================
+export const teamStoreOrders = pgTable(
+  "team_store_orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    buyerPersonId: uuid("buyer_person_id")
+      .notNull()
+      .references(() => persons.id, { onDelete: "cascade" }),
+    invoiceId: uuid("invoice_id").references(() => invoices.id, {
+      onDelete: "set null"
+    }),
+    status: text("status").notNull().default("placed"),
+    totalCents: integer("total_cents").notNull(),
+    currency: text("currency").notNull().default("USD"),
+    /** Captain's fulfilment note, e.g. pickup or tracking details. */
+    note: text("note"),
+    statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    teamIdx: index("team_store_order_team_idx").on(t.teamId),
+    buyerIdx: index("team_store_order_buyer_idx").on(t.buyerPersonId),
+    invoiceIdx: index("team_store_order_invoice_idx").on(t.invoiceId),
+    statusCheck: check(
+      "team_store_order_status_check",
+      sql`${t.status} IN ('placed','processing','shipped','cancelled')`
+    ),
+    totalCheck: check("team_store_order_total_check", sql`${t.totalCents} >= 0`)
+  })
+);
+
+// =====================================================================
+// TEAM_STORE_ORDER_ITEMS — one line of an order, with the product's name
+// and price as they were when ordered, and the back of the shirt.
+// =====================================================================
+export const teamStoreOrderItems = pgTable(
+  "team_store_order_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => teamStoreOrders.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => teamStoreProducts.id, {
+      onDelete: "set null"
+    }),
+    productName: text("product_name").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    quantity: integer("quantity").notNull(),
+    size: text("size"),
+    personalName: text("personal_name"),
+    personalNumber: integer("personal_number"),
+    /** Ordered beyond the stock on hand. */
+    backorder: boolean("backorder").notNull().default(false),
+    /** Stock taken from the product for this line; returned on cancel. */
+    reservedQty: integer("reserved_qty").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    orderIdx: index("team_store_order_item_order_idx").on(t.orderId),
+    qtyCheck: check(
+      "team_store_order_item_qty_check",
+      sql`${t.quantity} BETWEEN 1 AND 10`
+    ),
+    numberCheck: check(
+      "team_store_order_item_number_check",
+      sql`${t.personalNumber} IS NULL OR ${t.personalNumber} BETWEEN 0 AND 99`
+    ),
+    priceCheck: check(
+      "team_store_order_item_price_check",
+      sql`${t.unitPriceCents} >= 0`
     )
   })
 );

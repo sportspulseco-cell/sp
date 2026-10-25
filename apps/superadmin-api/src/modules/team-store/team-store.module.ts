@@ -1,17 +1,18 @@
 import { Module } from "@nestjs/common";
+import { CommunicationsModule } from "../communications/communications.module";
+import { StoreOrdersService } from "./application/store-orders.service";
 import { TeamStoreCaptainController } from "./interface/team-store-captain.controller";
 import { TeamStorePlayerController } from "./interface/team-store-player.controller";
 
 /**
- * Backlog #11 — team merch catalog module.
- *
- * Captain mutations live under `/captain/store/...` and require team
- * captaincy (super_admin bypass). Player browse lives under
- * `/team-store/...` and is restricted to team members.
- *
- * Purchase / checkout flow is deferred until real Stripe (P4-1).
+ * Team store (UC-25, UC-26). Captains curate or generate the catalog
+ * and fulfil orders under `/captain/store/...`; players on the roster
+ * browse and order under `/team-store/...`. An order's money is its
+ * invoice, paid on the player's Payments page (mock card for now).
  */
 @Module({
-  controllers: [TeamStoreCaptainController, TeamStorePlayerController]
+  imports: [CommunicationsModule],
+  controllers: [TeamStoreCaptainController, TeamStorePlayerController],
+  providers: [StoreOrdersService]
 })
 export class TeamStoreModule {}

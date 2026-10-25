@@ -1,6 +1,6 @@
 {
-  "id": "f1aaf4c0-5772-4646-824d-61822d533cee",
-  "prevId": "364d81fa-9569-4291-8ff7-ba9e1d2fc917",
+  "id": "d0504b81-be9c-4469-b04d-00907c93dd8b",
+  "prevId": "f1aaf4c0-5772-4646-824d-61822d533cee",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15809,6 +15809,349 @@
         "wallet_ledger_type_check": {
           "name": "wallet_ledger_type_check",
           "value": "\"wallet_ledger\".\"entry_type\" IN ('credit_issued','credit_applied','credit_expired','adjustment')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.team_store_order_items": {
+      "name": "team_store_order_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "product_name": {
+          "name": "product_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price_cents": {
+          "name": "unit_price_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "personal_name": {
+          "name": "personal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "personal_number": {
+          "name": "personal_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "backorder": {
+          "name": "backorder",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "reserved_qty": {
+          "name": "reserved_qty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "team_store_order_item_order_idx": {
+          "name": "team_store_order_item_order_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "team_store_order_items_order_id_team_store_orders_id_fk": {
+          "name": "team_store_order_items_order_id_team_store_orders_id_fk",
+          "tableFrom": "team_store_order_items",
+          "tableTo": "team_store_orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_store_order_items_product_id_team_store_products_id_fk": {
+          "name": "team_store_order_items_product_id_team_store_products_id_fk",
+          "tableFrom": "team_store_order_items",
+          "tableTo": "team_store_products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "team_store_order_item_qty_check": {
+          "name": "team_store_order_item_qty_check",
+          "value": "\"team_store_order_items\".\"quantity\" BETWEEN 1 AND 10"
+        },
+        "team_store_order_item_number_check": {
+          "name": "team_store_order_item_number_check",
+          "value": "\"team_store_order_items\".\"personal_number\" IS NULL OR \"team_store_order_items\".\"personal_number\" BETWEEN 0 AND 99"
+        },
+        "team_store_order_item_price_check": {
+          "name": "team_store_order_item_price_check",
+          "value": "\"team_store_order_items\".\"unit_price_cents\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.team_store_orders": {
+      "name": "team_store_orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "buyer_person_id": {
+          "name": "buyer_person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'placed'"
+        },
+        "total_cents": {
+          "name": "total_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USD'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_changed_at": {
+          "name": "status_changed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "team_store_order_team_idx": {
+          "name": "team_store_order_team_idx",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "team_store_order_buyer_idx": {
+          "name": "team_store_order_buyer_idx",
+          "columns": [
+            {
+              "expression": "buyer_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "team_store_order_invoice_idx": {
+          "name": "team_store_order_invoice_idx",
+          "columns": [
+            {
+              "expression": "invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "team_store_orders_org_id_orgs_id_fk": {
+          "name": "team_store_orders_org_id_orgs_id_fk",
+          "tableFrom": "team_store_orders",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_store_orders_team_id_teams_id_fk": {
+          "name": "team_store_orders_team_id_teams_id_fk",
+          "tableFrom": "team_store_orders",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_store_orders_buyer_person_id_persons_id_fk": {
+          "name": "team_store_orders_buyer_person_id_persons_id_fk",
+          "tableFrom": "team_store_orders",
+          "tableTo": "persons",
+          "columnsFrom": [
+            "buyer_person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_store_orders_invoice_id_invoices_id_fk": {
+          "name": "team_store_orders_invoice_id_invoices_id_fk",
+          "tableFrom": "team_store_orders",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "team_store_order_status_check": {
+          "name": "team_store_order_status_check",
+          "value": "\"team_store_orders\".\"status\" IN ('placed','processing','shipped','cancelled')"
+        },
+        "team_store_order_total_check": {
+          "name": "team_store_order_total_check",
+          "value": "\"team_store_orders\".\"total_cents\" >= 0"
         }
       },
       "isRLSEnabled": false

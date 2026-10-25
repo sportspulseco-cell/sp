@@ -1,20 +1,18 @@
-import { ShoppingBag, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { iam, teamStore } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { StoreManager } from "./store-manager";
+import { StoreOrders } from "./store-orders";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Team store — SportsPulse" };
 
 /**
- * Backlog #11 — captain merch catalog. Curate jerseys/hoodies/etc;
- * the player-web `/store` surface displays the active rows.
- *
- * Purchase flow is deferred until real Stripe (P4-1) — for now the
- * catalog only stores price + stock; players will see "Coming soon"
- * on the purchase button.
+ * Team store (UC-25, UC-26): generate the team's gear from the roster or
+ * add items by hand, and fulfil the orders players place from their app.
+ * Players pay an order's invoice on their Payments page (mock card).
  */
 export default async function CaptainStorePage() {
   const scope = await iam.meScope().catch(() => null);
@@ -43,16 +41,10 @@ export default async function CaptainStorePage() {
       <PageHeader
         eyebrow="Captain console"
         title="Team store"
-        description="Add merch your team can browse from their player app. Checkout will arrive once Stripe is wired in P4."
+        description="Your team's gear. Players on the roster order it in their app and pay on their Payments page."
       />
-      {initial.items.length === 0 ? (
-        <EmptyState
-          icon={ShoppingBag}
-          title="No products yet"
-          description="Add your first product below — jersey, hoodie, hat, whatever the team wants."
-        />
-      ) : null}
       <StoreManager teamId={myTeamId} initialItems={initial.items} />
+      <StoreOrders teamId={myTeamId} />
     </div>
   );
 }

@@ -1474,6 +1474,45 @@ export interface MyTeamInvite {
 
 // ----- Team Store (Backlog #11) -----
 
+/** A team store order (UC-26); payment state comes from its invoice. */
+export interface StoreOrder {
+  id: string;
+  orgId: string;
+  teamId: string;
+  teamName: string;
+  status: "placed" | "processing" | "shipped" | "cancelled";
+  statusLabel: string;
+  totalCents: number;
+  currency: string;
+  note: string | null;
+  createdAt: string;
+  statusChangedAt: string | null;
+  buyer: { personId: string; name: string };
+  invoice: { id: string; number: string; status: string; paidCents: number; totalCents: number } | null;
+  paid: boolean;
+  items: Array<{
+    id: string;
+    productId: string | null;
+    productName: string;
+    unitPriceCents: number;
+    quantity: number;
+    size: string | null;
+    personalName: string | null;
+    personalNumber: number | null;
+    backorder: boolean;
+    /** "Home jersey · L · #12 SMITH" */
+    label: string;
+  }>;
+}
+
+export interface StoreOrderLineInput {
+  productId: string;
+  quantity: number;
+  size?: string | null;
+  personalName?: string | null;
+  personalNumber?: number | null;
+}
+
 export interface TeamStoreProduct {
   id: string;
   teamId: string;
