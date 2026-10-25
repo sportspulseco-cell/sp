@@ -2769,6 +2769,8 @@ export function createApi(f: Fetcher) {
             currentTeamCount: number;
             ageGroupLabel: string | null;
             gamesCount: number | null;
+            /** Roster cap for this division (division rule > season setting > default). */
+            maxRosterSize: number;
             perPlayerCostCents: number | null;
             pricing: {
               tierId: string;

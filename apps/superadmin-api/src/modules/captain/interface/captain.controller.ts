@@ -30,7 +30,7 @@ import { Type } from "class-transformer";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { pickCurrentSeason } from "@sportspulse/kernel";
+import { pickCurrentSeason, resolveDivisionRules } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { playerWebUrl } from "../../../shared/app-urls";
@@ -384,7 +384,7 @@ export class CaptainController {
     const cfg = (season.config as { maxRosterSize?: number }) ?? {};
     // Hockey defaults to ~14 if admin hasn't set it; per-player cost
     // is purely an *advertised* number, so a sane default beats null.
-    const maxRosterSize = cfg.maxRosterSize ?? 14;
+    const maxRosterSize = cfg.maxRosterSize ?? resolveDivisionRules(null).maxRosterSize;
 
     const divs = await this.db
       .select({
@@ -496,9 +496,22 @@ export class CaptainController {
           (d.ruleSetOverrides as { gamesPerSeason?: number; totalGames?: number }) ??
           {};
         const gamesCount = rules.gamesPerSeason ?? rules.totalGames ?? null;
+        // One roster cap per division (CAP-21): the division's own rule,
+        // else the season setting, else the kernel default. The picker's
+        // per-player cost and the wizard's roster limit both use it.
+        const raw = (d.ruleSetOverrides ?? {}) as Record<string, unknown>;
+        const gameRules = (raw.gameRules ?? {}) as Record<string, unknown>;
+        const divisionCap =
+          typeof raw.maxRosterSize === "number"
+            ? raw.maxRosterSize
+            : typeof gameRules.maxRosterSize === "number"
+              ? gameRules.maxRosterSize
+              : null;
+        const divisionMaxRoster =
+          divisionCap ?? cfg.maxRosterSize ?? resolveDivisionRules(null).maxRosterSize;
         const perPlayerCostCents =
-          pricing && maxRosterSize
-            ? Math.round(pricing.fullPriceCents / maxRosterSize)
+          pricing && divisionMaxRoster
+            ? Math.round(pricing.fullPriceCents / divisionMaxRoster)
             : null;
         return {
           id: d.id,
@@ -509,6 +522,7 @@ export class CaptainController {
           currentTeamCount: countByDiv.get(d.id) ?? 0,
           ageGroupLabel: d.ageGroupId ? ageGroupLabel.get(d.ageGroupId) ?? null : null,
           gamesCount,
+          maxRosterSize: divisionMaxRoster,
           perPlayerCostCents,
           pricing
         };

@@ -37,6 +37,8 @@ interface DivisionItem {
   genderEligibility: string;
   maxTeams: number | null;
   currentTeamCount: number;
+  /** Roster cap for this division (from GET /captain/divisions). */
+  maxRosterSize?: number;
   pricing: {
     tierId: string;
     name: string;
@@ -138,7 +140,9 @@ export function RegisterWizard({
   // last-season roster query.
   const [invitedEmails, setInvitedEmails] = useState<InvitedEmail[]>([]);
   const [emailDraft, setEmailDraft] = useState("");
-  const maxRoster = 25;
+  // The division's roster cap, the same number the picker's per-player
+  // cost uses (CAP-21; this was a hard-coded 25).
+  const maxRoster = division?.maxRosterSize ?? 20;
   const rosterCount = invitedEmails.length;
   const step3Valid = rosterCount > 0;
 
