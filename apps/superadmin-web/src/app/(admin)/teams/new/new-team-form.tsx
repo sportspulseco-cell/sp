@@ -160,7 +160,8 @@ export function NewTeamForm({
         confirmationThresholdCents: cents
       });
       router.push(`/teams/${created.id}`);
-      router.refresh();
+      // No router.refresh() here: it can cancel the push and leave the
+      // user on this form (J11). The new page loads fresh server data.
     } catch (err) {
       const e = err as Error & {
         status?: number;

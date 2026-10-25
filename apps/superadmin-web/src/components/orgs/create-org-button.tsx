@@ -321,9 +321,14 @@ function CreateOrgDialog({
   const [created, setCreated] = useState<Org | null>(null);
   function close() {
     // Dismissing the org-admin step after a create still leaves a new
-    // row behind; refresh so the list shows it without a manual reload
-    // (J1 step 1, 24 Oct: "Showing 31 of 31" while the org existed).
-    if (created) router.refresh();
+    // row behind (CONSOLE-11). Go to the list with the new org marked
+    // "New": the URL change loads the fresh list and the admin sees which
+    // row they just made.
+    if (created) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("created", created.id);
+      router.replace(`/organizations?${params}`);
+    }
     setCreated(null);
     onClose();
   }
@@ -347,7 +352,8 @@ function CreateOrgDialog({
             const id = created.id;
             close();
             router.push(`/organizations/${id}`);
-            router.refresh();
+            // No router.refresh() here: it can cancel the push and leave the
+            // user on this form (J11). The new page loads fresh server data.
           }}
         />
       ) : (

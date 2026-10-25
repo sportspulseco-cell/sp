@@ -52,7 +52,8 @@ export function InvoiceComposerShell({
       allowDraft={false}
       onSuccess={() => {
         router.push("/finance");
-        router.refresh();
+        // No router.refresh() here: it can cancel the push and leave the
+        // user on this form (J11). The new page loads fresh server data.
       }}
       onCancel={() => router.back()}
     />

@@ -27,7 +27,8 @@ export function AcceptInviteButton({
     try {
       await captain.acceptInvite(token);
       router.push("/team");
-      router.refresh();
+      // No router.refresh() here: it can cancel the push and leave the
+      // user on this form (J11). The new page loads fresh server data.
     } catch (e) {
       setError((e as Error).message);
       setBusy(null);

@@ -67,7 +67,8 @@ export function DivisionPicker({
         divisionId: picked
       });
       router.push(`/captain/register?submitted=${entry.id}`);
-      router.refresh();
+      // No router.refresh() here: it can cancel the push and leave the
+      // user on this form (J11). The new page loads fresh server data.
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

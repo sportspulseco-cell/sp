@@ -137,3 +137,53 @@ Crawl totals (pages visited / pages with a problem):
   Actual: list still says Showing 31 of 31; the org exists in the database (setup-v3 run, orgs PPHL E2EMVMLO6VD and Org B E2EMVMLR7L4 created 16:15/16:17 UTC).
 
   Root cause: CreateOrgDialog.close() only reset state; router.refresh() ran on Done only. Fixed: refresh on close when an org was created.
+
+[CONSOLE-12] League admin's audit log shows sibling leagues' history · major (data isolation)
+
+  Journey: J17 step 3 (staging ship run of 24355fb, 25 Oct)
+
+  Surface: superadmin-web /audit as league_admin; API GET /audit
+
+  Repro: sign in as a league admin whose org has other leagues; open the Activity log.
+
+  Expected: own actions and events on own league's leagues, seasons, divisions and games only.
+
+  Actual: 2 sibling-league names in the page and in the /audit payload. On staging the league admin could read all 391 of the org's events.
+
+  Root cause: audit.controller.ts filtered by scope.orgIds (league grants project their org) and used AuthorizedAccessGuard, whose scope also widens with roster spots.
+
+  Fix: ScopedAdminGuard (admin roles, admin scope) and visibleAuditWhere in shared/auth/visibility.ts; event by id outside scope is 404. Verified on the local API against staging: 125 of 391 events, 0 from 58 sibling leagues.
+
+[CONSOLE-13] Wrong-role sign-in shows no reason on org, team and player apps · minor
+
+  Journey: J17 step 5 (staging ship run of 24355fb, 25 Oct)
+
+  Surface: sp-org-admin, sp-team-admin, sp-player /sign-in after signing in with an account of another role
+
+  Repro: sign in to the org app as a captain.
+
+  Expected: a message saying the account is signed in but is not an org admin, and what to do.
+
+  Actual: the sign-in form comes back empty with no message (body text ends "Email / Password / Sign in"). Access itself is blocked correctly.
+
+  Root cause: the three sign-in pages set the wrong_role message only in useState's initial value; the redirect back to /sign-in?error=wrong_role reuses the mounted component, so it never showed. The message also sat below the password field.
+
+  Fix: derive the message from the URL on every render and show it above the form, in all three apps (superadmin already had a recovery panel).
+
+[CONSOLE-14] List pages without a query string ignore router.refresh() · local build only (not reproduced on deployed staging)
+
+  Journey: J1 step 1 (also CONSOLE-11's symptom); reproduced 25 Oct on a local production build (next build + next start) against staging data.
+
+  Surface: superadmin-web /organizations and /teams (any URL without ?query)
+
+  Repro: open /organizations; create an org (dialog or API); call router.refresh().
+
+  Expected: the new row appears without a reload.
+
+  Actual: the refresh request returns 200 in under a second and its RSC payload contains the new row ("Showing 37"), but the page keeps "Showing 36 of 36". The same refresh on /organizations?search=Iso updates the list. A full reload always shows it. The game page (/games/[id], refresh inside a React transition) updates fine.
+
+  Evidence: scratchpad regfa/refresh-isolate.mjs, refresh-org-q.mjs, repro-org.mjs output (payload hasNew=true, count=37; page unchanged).
+
+  Not the cause (checked): API or fetch caching (no-store, payload is fresh), connection limits, UrlFilters (no replace on mount), console errors (none).
+
+  Deployed staging (24355fb) does not show it: list-filters and pdf-items 3/7 change the URL with router.replace on the same pages and pass there, while they fail on the local next start build. Treated as a local-stack artifact; local runs are not evidence for refresh/replace on query-less list URLs. CONSOLE-11's dismiss-after-create path now navigates to ?created=<id> (row marked New) instead of refreshing.

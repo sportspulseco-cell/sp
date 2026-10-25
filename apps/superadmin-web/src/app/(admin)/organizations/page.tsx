@@ -28,7 +28,7 @@ export const metadata = { title: "Organizations — SportsPulse" };
 export default async function OrganizationsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ search?: string; status?: string; type?: string; country?: string }>;
+  searchParams?: Promise<{ search?: string; status?: string; type?: string; country?: string; created?: string }>;
 }) {
   const sp = (await searchParams) ?? {};
   let loadFailed = false;
@@ -165,6 +165,11 @@ export default async function OrganizationsPage({
                   >
                     {o.displayName}
                   </Link>
+                  {sp.created === o.id ? (
+                    <Badge tone="success" className="ml-2">
+                      New
+                    </Badge>
+                  ) : null}
                 </TD>
                 <TD className="text-muted-foreground">{o.slug}</TD>
                 <TD className="text-muted-foreground">
