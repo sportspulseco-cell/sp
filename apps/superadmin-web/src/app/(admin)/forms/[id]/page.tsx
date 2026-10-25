@@ -212,7 +212,11 @@ export default async function FormSetupPage({
         />
       ) : null}
       {active === "form_builder" ? (
-        <FormBuilderSection form={form} versions={versions} />
+        <FormBuilderSection
+          form={form}
+          versions={versions}
+          seasonConfig={season ? ((season.config ?? {}) as Record<string, unknown>) : null}
+        />
       ) : null}
       {active === "email_templates" ? (
         <EmailTemplatesSection

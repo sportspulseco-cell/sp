@@ -8,10 +8,13 @@ import { FormBuilderClient } from "@sportspulse/forms-builder";
  */
 export function FormBuilderSection({
   form,
-  versions
+  versions,
+  seasonConfig
 }: {
   form: RegistrationForm;
   versions: FormVersion[];
+  /** The bound season's config; null when the form has no season. */
+  seasonConfig: Record<string, unknown> | null;
 }) {
   // Pick the latest draft if any, else the active version, else empty.
   const latestVersion =
@@ -28,6 +31,7 @@ export function FormBuilderSection({
       }
       isLocked={!!latestVersion?.locked}
       hasActiveVersion={!!form.activeVersionId}
+      seasonConfig={seasonConfig}
     />
   );
 }

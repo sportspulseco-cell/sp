@@ -258,6 +258,7 @@ export default async function OrgAdminFormSetupPage({
             }
             isLocked={!!latestVersion?.locked}
             hasActiveVersion={!!form.activeVersionId}
+            seasonConfig={season ? ((season.config ?? {}) as Record<string, unknown>) : null}
           />
         ) : null}
         {active === "email_templates" ? (

@@ -200,7 +200,7 @@ shared file was touched.
   Root cause: apps/org-admin-web/src/app/(app)/registrations/registrations-table.tsx:42 isReviewable, :86 subjectPersonId.slice; OA has its own table instead of the SA ReviewQueue (apps/superadmin-web/src/components/registrations/review-queue.tsx) — a silo; SA stat cards read a different list.
   Proposed fix: move ReviewQueue + review dialog into a shared package and mount it in both apps with role-scoped API; reviewable = pending_review | pending_offline only; reason required on reject.
 
-[REG-18] Duplicate config sources in the form builder · major (raised 26 Oct: the funnel offers every division's price)
+[REG-18] Duplicate config sources in the form builder · major (raised 26 Oct: the funnel offers every division's price) · fixed in code
   Journey: J3
   Actual: (a) two waiver editors (Form builder "Waivers & documents" and Divisions "eligibility") — the first is ignored once the second is saved; (b) "Allow free agent registration" shows ON by default in admin but the funnel defaults it OFF until saved; (c) tier "Division" select and the Divisions assignment matrix both assign divisions; (d) Max roster size exists on the division (org-setup) and on season.config.
   Root cause: packages/forms-builder/src/divisions-client.tsx:82 (`?? true`) vs packages/registration-funnel/src/funnel.tsx:158 (`?? false`); pricing-tab.tsx Division select vs pricing_tier_divisions.
@@ -233,7 +233,18 @@ shared file was touched.
     $222.00). Browser, local player and admin apps, regfa/walk-reg18c.mjs 6/6 (new player in division B: price step
     shows B's price and not A's; registration holds B and B's price; admin pricing tab shows each price's divisions, no
     picker). Season-wide price shown in the browser: not exercised (that season has none; kernel test covers it).
-  Not verified: captain team registration's price (kernel test + typecheck only). (a) still open.
+  Not verified: captain team registration's price (kernel test + typecheck only).
+  Fix (a), 26 Oct: for a form bound to a season, the Waivers tab no longer edits the liability waiver and code of conduct
+    (its switches were ignored once the season's were saved). It shows what the funnel will ask for, from the same
+    kernel rule (resolveRegistrationWaivers): Required or Off, whose text is used, and "Set on the Divisions tab". The
+    photo release stays editable there (only the form has it). A form with no season keeps its editors. The season page
+    shows each registration switch as Yes or No when set and "Default (on/off)" when not (it printed No for unset).
+  Evidence (a): local admin app against staging, regfa/walk-reg18a.mjs 5/5: both documents read-only and matching the
+    public document list; no switch for them, photo release switch present; turning the season's code of conduct off
+    shows Off on the tab and drops it from the funnel's list; season page shows the liability switch as set. Season
+    config restored.
+  Not verified (a): the "Default (on)" wording in a browser (that season has the switch set); the Divisions tab still
+    starts an unsaved season at the kernel default rather than an old form's own switch (old forms only).
 
 [REG-19] Pricing tier editor is raw cents and missing plan controls · minor
   Journey: J3 · UC-01 "installment"

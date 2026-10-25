@@ -7,6 +7,7 @@ import { Button } from "@sportspulse/ui";
 import {
   defaultWaiversConfig,
   emptyFormDefinition,
+  resolveRegistrationWaivers,
   validateFormDefinition,
   type FormDefinition,
   type FormWaiversConfig,
@@ -34,12 +35,19 @@ export function FormBuilderClient({
   formId,
   initialSchema,
   isLocked,
-  hasActiveVersion
+  hasActiveVersion,
+  seasonConfig = null
 }: {
   formId: string;
   initialSchema: Record<string, unknown> | null;
   isLocked: boolean;
   hasActiveVersion: boolean;
+  /**
+   * The bound season's config. When set, the liability waiver and code
+   * of conduct are the season's (Divisions tab) and shown here read-only
+   * (REG-18 a); a form with no season edits them here.
+   */
+  seasonConfig?: Record<string, unknown> | null;
 }) {
   // The header's Preview pill lands here with ?preview=1 (REG-22).
   const previewRequested = useSearchParams().get("preview") === "1";
@@ -241,31 +249,36 @@ export function FormBuilderClient({
             Waivers & documents
           </p>
           <p className="mt-1 text-[12px] text-fg-muted">
-            Documents the player signs in the Compliance step. The season's
-            Divisions &amp; eligibility settings come first: their on/off
-            switches win, and their text wins when it is filled in. Text
-            here is used when the season's text is empty. It saves with the
-            rest of the form draft.
+            Documents the player signs in the Compliance step.
+            {seasonConfig
+              ? " The liability waiver and code of conduct are set for the whole season on the Divisions tab. The photo release saves with this form."
+              : " They save with the rest of the form draft."}
           </p>
         </div>
 
-        <WaiverEditor
-          title="Liability waiver"
-          subtitle="Digital signature required — registration blocked if skipped"
-          requiredHint="Required when enabled"
-          editing={editing}
-          config={waivers.liabilityWaiver}
-          onChange={(p) => patchWaiver("liabilityWaiver", p)}
-        />
+        {seasonConfig ? (
+          <SeasonWaivers seasonConfig={seasonConfig} formWaivers={waivers} />
+        ) : (
+          <>
+            <WaiverEditor
+              title="Liability waiver"
+              subtitle="Digital signature required — registration blocked if skipped"
+              requiredHint="Required when enabled"
+              editing={editing}
+              config={waivers.liabilityWaiver}
+              onChange={(p) => patchWaiver("liabilityWaiver", p)}
+            />
 
-        <WaiverEditor
-          title="Code of conduct"
-          subtitle="Checkbox acknowledgment required"
-          requiredHint="Required when enabled"
-          editing={editing}
-          config={waivers.codeOfConduct}
-          onChange={(p) => patchWaiver("codeOfConduct", p)}
-        />
+            <WaiverEditor
+              title="Code of conduct"
+              subtitle="Checkbox acknowledgment required"
+              requiredHint="Required when enabled"
+              editing={editing}
+              config={waivers.codeOfConduct}
+              onChange={(p) => patchWaiver("codeOfConduct", p)}
+            />
+          </>
+        )}
 
         <WaiverEditor
           title="Photo / media release"
@@ -367,6 +380,53 @@ function AutosaveBadge({
  * collapses (still in state, just hidden) so admins can re-enable
  * without losing what they wrote.
  */
+/**
+ * What players sign for the season, decided by the same rule the funnel
+ * uses (kernel resolveRegistrationWaivers). Read-only: the season's
+ * Divisions tab is the one place to change it (REG-18 a).
+ */
+function SeasonWaivers({
+  seasonConfig,
+  formWaivers
+}: {
+  seasonConfig: Record<string, unknown>;
+  formWaivers: FormWaiversConfig;
+}) {
+  const resolved = resolveRegistrationWaivers(seasonConfig, formWaivers);
+  const SOURCE: Record<string, string> = {
+    season: "the season's text",
+    form: "this form's earlier text",
+    default: "the standard text"
+  };
+  const rows: Array<{ key: string; title: string; how: string }> = [
+    { key: "liability_waiver", title: "Liability waiver", how: "Typed-name signature, blocks registration until signed" },
+    { key: "code_of_conduct", title: "Code of conduct", how: "Acknowledgment, blocks registration until checked" }
+  ];
+  return (
+    <>
+      {rows.map((r) => {
+        const doc = resolved.required.find((d) => d.key === r.key);
+        return (
+          <div key={r.key} className="rounded-lg border border-border bg-bg-subtle p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-fg">{r.title}</p>
+                <p className="mt-0.5 text-[12px] text-fg-muted">
+                  {doc ? `${r.how}. Uses ${SOURCE[doc.contentSource] ?? "the standard text"}.` : "Not asked for this season."}
+                </p>
+                <p className="mt-1 text-[11px] text-fg-muted">Set on the Divisions tab.</p>
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+                {doc ? "Required" : "Off"}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function WaiverEditor({
   title,
   subtitle,

@@ -4,6 +4,13 @@ import Link from "next/link";
 import { Badge, Eyebrow, IconTile, Reveal } from "@sportspulse/ui";
 import type { Division, League, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
+import { SEASON_CONFIG_DEFAULTS } from "@sportspulse/kernel";
+
+/** A season switch as set, or the default registration uses when it is not set. */
+function yesNo(v: boolean | undefined, fallback: boolean): string {
+  if (v === undefined) return `Default (${fallback ? "on" : "off"})`;
+  return v ? "Yes" : "No";
+}
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -180,28 +187,28 @@ export function SeasonDetail({
             tag="config.requireUsaHockeyId"
             mono
           >
-            {cfg.requireUsaHockeyId ? "Yes" : "No"}
+            {yesNo(cfg.requireUsaHockeyId, SEASON_CONFIG_DEFAULTS.requireUsaHockeyId)}
           </Field>
           <Field
             label="Require liability waiver"
             tag="config.requireLiabilityWaiver"
             mono
           >
-            {cfg.requireLiabilityWaiver ? "Yes" : "No"}
+            {yesNo(cfg.requireLiabilityWaiver, SEASON_CONFIG_DEFAULTS.requireLiabilityWaiver)}
           </Field>
           <Field
             label="Allow free agent registration"
             tag="config.allowFreeAgent"
             mono
           >
-            {cfg.allowFreeAgent ? "Yes" : "No"}
+            {yesNo(cfg.allowFreeAgent, SEASON_CONFIG_DEFAULTS.allowFreeAgent)}
           </Field>
           <Field
             label="Parental consent for minors"
             tag="config.parentalConsentRequired"
             mono
           >
-            {cfg.parentalConsentRequired ? "Yes" : "No"}
+            {yesNo(cfg.parentalConsentRequired, SEASON_CONFIG_DEFAULTS.parentalConsentRequired)}
           </Field>
         </dl>
       </Reveal>
