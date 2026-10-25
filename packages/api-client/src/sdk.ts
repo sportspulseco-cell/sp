@@ -1331,7 +1331,7 @@ export function createApi(f: Fetcher) {
       retry: (id: string) =>
         f<Notification>(`/notifications/${id}/retry`, { method: "POST" }),
       flushQueued: () =>
-        f<{ sent: number; failed: number }>(`/notifications/flush`, {
+        f<{ sent: number; failed: number; skippedStale: number }>(`/notifications/flush`, {
           method: "POST"
         }),
 

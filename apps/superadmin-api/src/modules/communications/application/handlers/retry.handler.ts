@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -23,6 +23,42 @@ import { DRIZZLE } from "../../../../shared/database/database.tokens";
  *   - 3rd failure → terminal, no further retries
  */
 
+/**
+ * Queued rows nobody sent: rows written by database jobs (overdue sweep,
+ * compliance sweep, invite expiry) never get the API's inline send. Only
+ * the last 24 hours are sent: an older notice is stale and must never
+ * reach a person late. SMS has no provider, so it is left alone.
+ */
+function recentQueued(db: Database, limit: number, minAgeMinutes: number) {
+  return db
+    .select()
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.status, "queued"),
+        inArray(schema.notifications.channel, ["email", "in_app", "push"]),
+        sql`${schema.notifications.createdAt} > now() - interval '24 hours'`,
+        sql`${schema.notifications.createdAt} < now() - make_interval(mins => ${minAgeMinutes}::int)`
+      )
+    )
+    .orderBy(asc(schema.notifications.createdAt))
+    .limit(limit) as unknown as Promise<NotificationRow[]>;
+}
+
+/** Queued rows older than the 24-hour send window (reported, never sent). */
+async function staleQueuedCount(db: Database): Promise<number> {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.status, "queued"),
+        sql`${schema.notifications.createdAt} <= now() - interval '24 hours'`
+      )
+    );
+  return r?.n ?? 0;
+}
+
 @Injectable()
 export class RetryNotificationHandler {
   constructor(
@@ -44,24 +80,34 @@ export class RetryNotificationHandler {
 
 @Injectable()
 export class FlushQueuedHandler {
+  private readonly log = new Logger(FlushQueuedHandler.name);
+
   constructor(
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly repo: NotificationRepository,
-    private readonly service: NotificationService
+    private readonly service: NotificationService,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
-  /** Send everything currently queued. Returns count sent + failed. */
-  async execute(): Promise<{ sent: number; failed: number }> {
-    const page = await this.repo.list({ status: "queued", limit: 100 });
+  /**
+   * Send what is queued from the last 24 hours. Older rows are counted
+   * as `skippedStale` and left queued: months-old notices never go out.
+   */
+  async execute(): Promise<{ sent: number; failed: number; skippedStale: number }> {
+    const rows = await recentQueued(this.db, 100, 0);
+    const skippedStale = await staleQueuedCount(this.db);
     let sent = 0;
     let failed = 0;
-    for (const row of page.items) {
+    for (const row of rows) {
       await this.service.dispatch(row);
       const after = await this.repo.findById(row.id);
       if (after?.status === "sent") sent++;
       else failed++;
     }
-    return { sent, failed };
+    this.log.log(
+      `flush queued: picked=${rows.length} sent=${sent} failed=${failed} skippedStale=${skippedStale}`
+    );
+    return { sent, failed, skippedStale };
   }
 }
 
@@ -94,6 +140,8 @@ export class RetryFailedHandler {
     eligible: number;
     sent: number;
     stillFailed: number;
+    queuedPicked: number;
+    queuedSent: number;
   }> {
     // Fetch failed candidates respecting the per-attempt backoff
     // window. updated_at is bumped by markStatus, so it tracks the
@@ -129,9 +177,31 @@ export class RetryFailedHandler {
         stillFailed++;
       }
     }
+    // Then the queued rows nobody sent (see recentQueued). The 2-minute
+    // floor leaves a fresh row to the API's inline send. A row that fails
+    // here becomes `failed` and joins the retry schedule above.
+    const queued = await recentQueued(this.db, 50, 2);
+    let queuedSent = 0;
+    for (const row of queued) {
+      try {
+        await this.service.dispatch(row);
+        const after = await this.repo.findById(row.id);
+        if (after?.status === "sent") queuedSent++;
+      } catch (err) {
+        this.log.error(
+          `queued dispatch threw for ${row.id}: ${(err as Error).message}`
+        );
+      }
+    }
     this.log.log(
-      `retry-failed cron sweep: eligible=${rows.length} sent=${sent} stillFailed=${stillFailed}`
+      `retry-failed cron sweep: eligible=${rows.length} sent=${sent} stillFailed=${stillFailed} queuedPicked=${queued.length} queuedSent=${queuedSent}`
     );
-    return { eligible: rows.length, sent, stillFailed };
+    return {
+      eligible: rows.length,
+      sent,
+      stillFailed,
+      queuedPicked: queued.length,
+      queuedSent
+    };
   }
 }

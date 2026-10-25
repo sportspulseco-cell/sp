@@ -187,3 +187,21 @@ Crawl totals (pages visited / pages with a problem):
   Not the cause (checked): API or fetch caching (no-store, payload is fresh), connection limits, UrlFilters (no replace on mount), console errors (none).
 
   Deployed staging (24355fb) does not show it: list-filters and pdf-items 3/7 change the URL with router.replace on the same pages and pass there, while they fail on the local next start build. Treated as a local-stack artifact; local runs are not evidence for refresh/replace on query-less list URLs. CONSOLE-11's dismiss-after-create path now navigates to ?created=<id> (row marked New) instead of refreshing.
+
+[CONSOLE-15] Notices written by database jobs never send; "Flush queued" would send months-old ones · major
+
+  Journey: production email go-live check, 25 Oct (production read-only queries; fix verified on staging).
+
+  Surface: superadmin-web /communications ("Flush queued"); every notice written by a database job (overdue sweep, compliance sweep, invite expiry).
+
+  Repro: production notifications, read-only: 494 email rows queued, oldest 4 May (453 compliance-sweep rows with no recipient; about 40 with a recipient: payment confirmations, overdue stages 2 to 4, invite reminders). 0 have an attempt.
+
+  Expected: a notice is sent soon after it is written, or not at all. A notice from May must never reach a person in October.
+
+  Actual: only the API's own inline send ever dispatches a row. Rows inserted by SQL jobs stay queued forever, so the overdue sweep's email reminders (UC-18) would never go out. The only drain is "Flush queued", which sends the oldest 100 queued rows, whatever their age; with the email key live, one click would mail months-old notices to real people.
+
+  Fix: the existing 5-minute retry job (POST /notifications/cron/retry-failed, pg_cron) also sends queued email, in-app and push rows from the last 24 hours that are at least 2 minutes old (the inline send keeps its turn). "Flush queued" sends only the last 24 hours and reports how many older rows it skipped; the button shows that line. SMS has no provider and is left alone. Older rows stay queued, untouched.
+
+  Evidence: local API (no email key) against staging, scratchpad regfa/verify-queued.mjs 14/14: recent in-app row sent by the sweep; recent email enters the send path (failed "RESEND_API_KEY not configured", attempt 1, then the normal retry backoff); 3-day-old email untouched by sweep and flush; 30-second-old row left to the inline send; SMS left alone; wrong cron secret 403; flush sends a fresh row (sent 1) and reports skippedStale 27; a player cannot flush (403). Seeds deleted.
+
+  Production before email goes live: the retry job runs every 5 minutes and answers 201; all 30 failed email rows are at 3 attempts, so none is retried.

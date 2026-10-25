@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send } from "lucide-react";
 import { communications } from "@/lib/api/browser-api";
@@ -9,29 +9,40 @@ import { Button } from "@/components/ui/button";
 export function FlushQueuedButton({ count }: { count: number }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [result, setResult] = useState<string | null>(null);
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      disabled={pending || count === 0}
-      onClick={() => {
-        start(async () => {
-          try {
-            await communications.flushQueued();
-            router.refresh();
-          } catch (err) {
-            alert((err as Error).message);
-          }
-        });
-      }}
-    >
-      {pending ? (
-        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <Send className="mr-2 h-3.5 w-3.5" />
-      )}
-      Flush {count > 0 ? `(${count})` : ""} queued
-    </Button>
+    <span className="inline-flex items-center gap-3">
+      {result && <span className="text-[12px] text-fg-muted">{result}</span>}
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={pending || count === 0}
+        title="Sends queued notices from the last 24 hours. Older ones are never sent late."
+        onClick={() => {
+          start(async () => {
+            try {
+              const r = await communications.flushQueued();
+              setResult(
+                `Sent ${r.sent}, failed ${r.failed}.` +
+                  (r.skippedStale
+                    ? ` ${r.skippedStale} older than 24 hours were not sent.`
+                    : "")
+              );
+              router.refresh();
+            } catch (err) {
+              alert((err as Error).message);
+            }
+          });
+        }}
+      >
+        {pending ? (
+          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Send className="mr-2 h-3.5 w-3.5" />
+        )}
+        Flush {count > 0 ? `(${count})` : ""} queued
+      </Button>
+    </span>
   );
 }
 
