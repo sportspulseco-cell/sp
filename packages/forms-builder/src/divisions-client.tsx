@@ -248,7 +248,7 @@ export function DivisionsClient({
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Max roster size">
+          <Field label="Default max roster size">
             <input
               type="number"
               min={1}
@@ -259,6 +259,11 @@ export function DivisionsClient({
               }
               className="input"
             />
+            {/* REG-18: a division's own max roster wins (CAP-21); this is the
+                fallback, so say so instead of looking like a second setting. */}
+            <p className="text-[11px] text-fg-muted">
+              Used for divisions without their own max roster size (set per division in season set-up).
+            </p>
           </Field>
           <Field label="Roster lock date">
             <input
