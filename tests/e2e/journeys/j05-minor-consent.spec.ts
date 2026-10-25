@@ -158,7 +158,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     const usa = minor.getByPlaceholder("e.g. 1234567890").first();
     if (await usa.isVisible().catch(() => false)) await usa.fill("MIN12345");
     const level = minor.locator("select").filter({ has: minor.locator("option", { hasText: /Pick a level/ }) }).first();
-    await level.selectOption("C2");
+    await level.selectOption("C");
     await minor.getByRole("button", { name: /^Center$/ }).click().catch(() => {});
     await minor.getByRole("button", { name: /^mon$/i }).click().catch(() => {});
     await minor.getByRole("button", { name: /Next: Compliance/ }).click();
@@ -261,7 +261,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
       await minor.getByRole("button", { name: /Sign in & continue/i }).click();
       await expect(minor.getByRole("button", { name: /Next: Compliance/ })).toBeVisible({ timeout: 30_000 });
       const level = minor.locator("select").filter({ has: minor.locator("option", { hasText: /Pick a level/ }) }).first();
-      if ((await level.inputValue()) === "") await level.selectOption("C2");
+      if ((await level.inputValue()) === "") await level.selectOption("C");
       const usa = minor.getByPlaceholder("e.g. 1234567890").first();
       if (await usa.isVisible().catch(() => false) && !(await usa.inputValue())) await usa.fill("MIN12345");
       await minor.getByRole("button", { name: /Next: Compliance/ }).click();

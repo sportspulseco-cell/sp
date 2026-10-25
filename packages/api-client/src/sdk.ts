@@ -2506,7 +2506,7 @@ export function createApi(f: Fetcher) {
         seasonId: string;
         positions: string[];
         availability?: Record<string, unknown>;
-        levelPrimary: "A" | "B" | "C1" | "C2" | "C3";
+        levelPrimary: "A" | "B" | "C" | "D";
         levelFlexibility?: string[];
         note?: string;
       }) =>

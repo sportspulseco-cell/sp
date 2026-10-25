@@ -9,7 +9,8 @@ import {
   ConflictError,
   NotFoundError,
   type CommandHandler,
-  type QueryHandler
+  type QueryHandler,
+  normalizeSkillLevel
 } from "@sportspulse/kernel";
 import {
   REGISTRATION_REPOSITORY,
@@ -323,10 +324,8 @@ export class ReviewRegistrationHandler
 
     // --- (3) free-agent pool entry ---
     if (submissionType === "free_agent" && reg.seasonId) {
-      const skillLevel =
-        typeof answers.skill_level === "string"
-          ? (answers.skill_level as string).toUpperCase()
-          : null;
+      // A–D, older C1 / C2 / C3 answers mapped (REG-21).
+      const skillLevel = normalizeSkillLevel(answers.skill_level);
       const positions = Array.isArray(answers.positions)
         ? (answers.positions as unknown[]).filter(
             (p): p is string => typeof p === "string" && p.trim().length > 0
@@ -347,7 +346,6 @@ export class ReviewRegistrationHandler
       // pool entry.
       if (
         skillLevel &&
-        ["A", "B", "C1", "C2", "C3"].includes(skillLevel) &&
         positions.length > 0
       ) {
         await this.regV2.upsertFreeAgentEntry({

@@ -6,8 +6,14 @@ import { Check, Loader2, ShieldCheck, Star } from "lucide-react";
 import { Badge, Button } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
 import { registrationV2 } from "@/lib/api/browser-api";
+import {
+  normalizeSkillLevel,
+  SKILL_LEVEL_HINTS,
+  SKILL_LEVEL_LABELS,
+  SKILL_LEVELS,
+  type SkillLevel
+} from "@sportspulse/kernel";
 
-type SkillLevel = "A" | "B" | "C1" | "C2" | "C3";
 
 const POSITIONS: { value: string; label: string }[] = [
   { value: "C", label: "Center" },
@@ -17,13 +23,12 @@ const POSITIONS: { value: string; label: string }[] = [
   { value: "G", label: "Goalie" }
 ];
 
-const LEVELS: { value: SkillLevel; label: string; hint: string }[] = [
-  { value: "A", label: "Elite / competitive", hint: "Junior / college / former pro" },
-  { value: "B", label: "Intermediate", hint: "Solid fundamentals + travel experience" },
-  { value: "C1", label: "Rec — experienced", hint: "Years of play; prefers intermediate pace" },
-  { value: "C2", label: "Rec — improving", hint: "Novice / intermediate learning the game" },
-  { value: "C3", label: "Rec — beginner", hint: "Just learning to skate + play" }
-];
+// One level list for funnel, pool and divisions (REG-21).
+const LEVELS = SKILL_LEVELS.map((value) => ({
+  value,
+  label: SKILL_LEVEL_LABELS[value],
+  hint: SKILL_LEVEL_HINTS[value]
+}));
 
 const DAYS = [
   "Mon",
@@ -61,7 +66,8 @@ export function FreeAgentForm({
   const placed = existing?.status === "placed";
 
   const [positions, setPositions] = useState<string[]>([]);
-  const [levelPrimary, setLevelPrimary] = useState<SkillLevel>("C2");
+  // No preselected level: the player says where they play.
+  const [levelPrimary, setLevelPrimary] = useState<SkillLevel | "">("");
   const [flex, setFlex] = useState<string[]>([]);
   const [availability, setAvailability] = useState<Availability>({});
   const [note, setNote] = useState("");
@@ -73,20 +79,20 @@ export function FreeAgentForm({
   useEffect(() => {
     if (!existing) {
       setPositions([]);
-      setLevelPrimary("C2");
+      setLevelPrimary("");
       setFlex([]);
       setAvailability({});
       setNote("");
       return;
     }
     setPositions(existing.positions ?? []);
-    // Legacy "C" → "C2" so old entries still land on a valid level.
-    setLevelPrimary(
-      existing.levelPrimary === "C"
-        ? "C2"
-        : ((existing.levelPrimary as SkillLevel) ?? "C2")
+    // Older entries stored C1 / C2 / C3; they read as C or D.
+    setLevelPrimary(normalizeSkillLevel(existing.levelPrimary) ?? "");
+    setFlex(
+      (existing.levelFlexibility ?? [])
+        .map((l) => normalizeSkillLevel(l))
+        .filter((l): l is SkillLevel => !!l)
     );
-    setFlex(existing.levelFlexibility ?? []);
     setAvailability(
       sanitiseAvailability(existing.availability ?? {})
     );
@@ -124,6 +130,10 @@ export function FreeAgentForm({
       setError("Pick at least one position");
       return;
     }
+    if (!levelPrimary) {
+      setError("Pick your level");
+      return;
+    }
     setBusy(true);
     try {
       await registrationV2.upsertFreeAgentEntry({
@@ -132,7 +142,7 @@ export function FreeAgentForm({
         positions,
         availability: stripEmptyDays(availability) as Record<string, unknown>,
         levelPrimary,
-        levelFlexibility: flex.length > 0 ? flex : undefined,
+        levelFlexibility: flex.length > 0 ? flex.filter((l) => l !== levelPrimary) : undefined,
         note: note.trim() ? note.trim() : undefined
       });
       setSuccess(true);

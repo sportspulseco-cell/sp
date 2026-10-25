@@ -1,3 +1,4 @@
+import { normalizeSkillLevel } from "@sportspulse/kernel";
 import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { randomBytes } from "node:crypto";
@@ -413,8 +414,16 @@ export class RegistrationV2Service {
   }
 
   async upsertFreeAgentEntry(
-    input: typeof schema.freeAgentPoolEntries.$inferInsert
+    raw: typeof schema.freeAgentPoolEntries.$inferInsert
   ) {
+    // Store A–D only (REG-21); older C1 / C2 / C3 codes are mapped.
+    const input = {
+      ...raw,
+      levelPrimary: normalizeSkillLevel(raw.levelPrimary) ?? raw.levelPrimary,
+      levelFlexibility: raw.levelFlexibility
+        ? [...new Set(raw.levelFlexibility.map((l) => normalizeSkillLevel(l) ?? l))]
+        : raw.levelFlexibility
+    };
     // ON CONFLICT (player_person_id, season_id) DO UPDATE — uses the unique
     // index from the migration to keep one entry per player/season.
     const [row] = await this.db
@@ -738,16 +747,16 @@ export class RegistrationV2Service {
     seasonId: string;
     playerPersonId: string;
     answers: Record<string, unknown>;
-  }): Promise<{ id: string; created: boolean }> {
+  }): Promise<{ id: string | null; created: boolean }> {
     const positions = Array.isArray(input.answers.positions)
       ? (input.answers.positions as string[])
       : [];
     const availability =
       (input.answers.availability as Record<string, boolean> | undefined) ?? {};
-    const levelPrimary =
-      typeof input.answers.skill_level === "string"
-        ? (input.answers.skill_level as string)
-        : "B";
+    // A–D; older C1 / C2 / C3 answers mapped (REG-21). No level is left
+    // unknown, never guessed: an existing entry keeps its level, and a new
+    // one waits for the player to set it on the free-agent form.
+    const levelPrimary = normalizeSkillLevel(input.answers.skill_level);
     const note =
       typeof input.answers.fa_note === "string"
         ? (input.answers.fa_note as string)
@@ -785,7 +794,7 @@ export class RegistrationV2Service {
         .set({
           positions,
           availability,
-          levelPrimary,
+          ...(levelPrimary ? { levelPrimary } : {}),
           note,
           status: "active",
           metadata: mergedMeta,
@@ -795,6 +804,12 @@ export class RegistrationV2Service {
       return { id: existing.id, created: false };
     }
 
+    if (!levelPrimary) {
+      this.log.warn(
+        `free-agent pool: registration ${input.registrationId} has no skill level; no pool entry until the player sets one`
+      );
+      return { id: null, created: false };
+    }
     const [created] = await this.db
       .insert(schema.freeAgentPoolEntries)
       .values({

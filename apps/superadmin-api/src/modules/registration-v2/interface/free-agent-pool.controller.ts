@@ -1,3 +1,4 @@
+import { SKILL_LEVELS } from "@sportspulse/kernel";
 import {
   BadRequestException,
   Body,
@@ -42,9 +43,10 @@ class UpsertFreeAgentBodyDto {
   @ApiProperty({ type: [String] }) @IsArray() @IsString({ each: true })
   positions!: string[];
   @ApiPropertyOptional() @IsOptional() availability?: Record<string, unknown>;
-  @ApiProperty({ enum: ["A", "B", "C1", "C2", "C3"] })
-  @IsIn(["A", "B", "C1", "C2", "C3"])
-  levelPrimary!: "A" | "B" | "C1" | "C2" | "C3";
+  /** A–D (REG-21); C1 / C2 / C3 from older clients are mapped on save. */
+  @ApiProperty({ enum: [...SKILL_LEVELS] })
+  @IsIn([...SKILL_LEVELS, "C1", "C2", "C3"])
+  levelPrimary!: string;
   @ApiPropertyOptional({ type: [String] })
   @IsOptional() @IsArray() @IsString({ each: true })
   levelFlexibility?: string[];

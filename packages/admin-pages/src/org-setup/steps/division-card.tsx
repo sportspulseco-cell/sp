@@ -1,5 +1,6 @@
 "use client";
 
+import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from "@sportspulse/kernel";
 import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@sportspulse/ui";
 import { cn } from "@sportspulse/ui";
@@ -19,11 +20,9 @@ import {
 } from "../types";
 import { Field, FieldStyle } from "./league-step";
 
+// Same A–D labels players pick their level from (REG-21), plus Premier.
 export const TIERS: { value: NonNullable<Tier>; label: string }[] = [
-  { value: "A", label: "A — Competitive" },
-  { value: "B", label: "B — Recreational+" },
-  { value: "C", label: "C — Recreational" },
-  { value: "D", label: "D — Beginner" },
+  ...SKILL_LEVELS.map((value) => ({ value, label: SKILL_LEVEL_LABELS[value] })),
   { value: "Premier", label: "Premier" }
 ];
 

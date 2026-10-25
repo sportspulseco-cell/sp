@@ -26,6 +26,7 @@ export * from "./registration-waivers";
 export * from "./registration-paths";
 export * from "./registration-consent";
 export * from "./free-agents";
+export * from "./skill-levels";
 export * from "./game-results";
 export * from "./hockey-scoring";
 export * from "./time-zones";

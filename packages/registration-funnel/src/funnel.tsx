@@ -5,7 +5,11 @@ import { ArrowLeft, ArrowRight, Check, Clock, Loader2 } from "lucide-react";
 import {
   allowedSubmissionTypes,
   resolveRegistrationWaivers,
-  type AnswerMap
+  type AnswerMap,
+  normalizeSkillLevel,
+  SKILL_LEVEL_HINTS,
+  SKILL_LEVEL_LABELS,
+  SKILL_LEVELS
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
@@ -2015,10 +2019,8 @@ function QuestionsStep({
 
   // Reserved keys live in the shared answers map so the funnel's
   // existing persistence covers them (mergeMetadata in startSubmission).
-  const skillLevel =
-    typeof initialAnswers.skill_level === "string"
-      ? (initialAnswers.skill_level as string)
-      : "";
+  // Older drafts stored C1 / C2 / C3; show them as C or D (REG-21).
+  const skillLevel = normalizeSkillLevel(initialAnswers.skill_level) ?? "";
   const positions = Array.isArray(initialAnswers.positions)
     ? (initialAnswers.positions as string[])
     : [];
@@ -2224,7 +2226,7 @@ function QuestionsStep({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
               label="Skill level *"
-              hint="A = elite / competitive · B = intermediate · C1 = experienced rec · C2 = improving novice · C3 = beginner"
+              hint="The same levels the league uses for divisions. Admins check your level against the division."
             >
               <select
                 value={skillLevel}
@@ -2233,11 +2235,11 @@ function QuestionsStep({
                 className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent"
               >
                 <option value="">Pick a level…</option>
-                <option value="A">A — Elite / competitive</option>
-                <option value="B">B — Intermediate</option>
-                <option value="C1">C1 — Experienced recreational</option>
-                <option value="C2">C2 — Improving / novice</option>
-                <option value="C3">C3 — Beginner</option>
+                {SKILL_LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {SKILL_LEVEL_LABELS[l]} ({SKILL_LEVEL_HINTS[l].toLowerCase()})
+                  </option>
+                ))}
               </select>
             </Field>
             <Field

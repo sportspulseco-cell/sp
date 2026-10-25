@@ -16,7 +16,11 @@ import { eq } from "drizzle-orm";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { FREE_AGENT_DAYS, freeAgentAvailableDays } from "@sportspulse/kernel";
+import {
+  FREE_AGENT_DAYS,
+  freeAgentAvailableDays,
+  normalizeSkillLevel
+} from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
@@ -32,7 +36,7 @@ class AdminPoolQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
   /** Position code (C, LW, RW, D, G). */
   @ApiPropertyOptional() @IsOptional() @IsString() position?: string;
-  /** Level code (A, B, C1, C2, C3). Matches the primary level or a flexibility level. */
+  /** Level code (A–D). Matches the primary level or a flexibility level. */
   @ApiPropertyOptional() @IsOptional() @IsString() level?: string;
   /** Weekday (Mon..Sun) the player marked available. */
   @ApiPropertyOptional({ enum: [...FREE_AGENT_DAYS] })
@@ -84,8 +88,11 @@ export class FreeAgentPoolAdminController {
     const items = rows.filter((r) => {
       if (q.seasonId && r.seasonId !== q.seasonId) return false;
       if (q.position && !r.positions.includes(q.position)) return false;
-      if (q.level && r.levelPrimary !== q.level && !(r.levelFlexibility ?? []).includes(q.level)) {
-        return false;
+      if (q.level) {
+        // Older rows hold C1 / C2 / C3; compare as A–D (REG-21).
+        const want = normalizeSkillLevel(q.level);
+        const levels = [r.levelPrimary, ...(r.levelFlexibility ?? [])].map((l) => normalizeSkillLevel(l));
+        if (!want || !levels.includes(want)) return false;
       }
       if (q.day && !freeAgentAvailableDays(r.availability).includes(q.day as never)) return false;
       return true;

@@ -251,7 +251,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     if (await usa.isVisible().catch(() => false)) await usa.fill("ABC12345");
     const level = player.locator("select").filter({ has: player.locator("option", { hasText: /Pick a level/ }) }).first();
     const levels = await level.locator("option").allInnerTexts();
-    // Division skill tiers in org-setup are A/B/C/D/Premier; the funnel offers A/B/C1/C2/C3.
+    // REG-21: the funnel offers the same A/B/C/D levels as the division tiers.
     softExpect(levels.join("|"), "funnel skill levels match division skill/tier enum (A,B,C,D)").toContain("D");
     await level.selectOption("B");
     await player.getByRole("button", { name: /^Center$/ }).click().catch(() => {});

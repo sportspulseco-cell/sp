@@ -9,6 +9,8 @@
  * same transaction that adds them to the roster.
  */
 
+import { normalizeSkillLevel, SKILL_LEVEL_LABELS, SKILL_LEVELS } from "./skill-levels";
+
 export const FREE_AGENT_OFFER_SOURCE = "free_agent_pool" as const;
 
 /** Offers expire like captain invites (7 days), never after the roster lock. */
@@ -22,19 +24,11 @@ export const FREE_AGENT_POSITIONS = [
   { value: "G", label: "Goalie" }
 ] as const;
 
-export const FREE_AGENT_LEVELS = [
-  { value: "A", label: "Elite" },
-  { value: "B", label: "Intermediate" },
-  { value: "C1", label: "Rec — experienced" },
-  { value: "C2", label: "Rec — improving" },
-  { value: "C3", label: "Rec — beginner" }
-] as const;
-
-/** Legacy pool codes still stored on older rows. */
-const LEGACY_LEVEL_LABELS: Record<string, string> = {
-  C: "Recreational",
-  D: "Beginner"
-};
+/** The pool uses the one skill-level list (REG-21). */
+export const FREE_AGENT_LEVELS = SKILL_LEVELS.map((value) => ({
+  value,
+  label: SKILL_LEVEL_LABELS[value]
+}));
 
 export const FREE_AGENT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export type FreeAgentDay = (typeof FREE_AGENT_DAYS)[number];
@@ -43,12 +37,10 @@ export function freeAgentPositionLabel(code: string): string {
   return FREE_AGENT_POSITIONS.find((p) => p.value === code)?.label ?? code;
 }
 
+/** Label for a stored level; older C1 / C2 / C3 rows read as C or D. */
 export function freeAgentLevelLabel(code: string): string {
-  return (
-    FREE_AGENT_LEVELS.find((l) => l.value === code)?.label ??
-    LEGACY_LEVEL_LABELS[code] ??
-    code
-  );
+  const level = normalizeSkillLevel(code);
+  return level ? SKILL_LEVEL_LABELS[level] : code;
 }
 
 /**
