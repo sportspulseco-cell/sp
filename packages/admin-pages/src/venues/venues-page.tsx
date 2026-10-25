@@ -297,16 +297,19 @@ function CreateVenueForm({
   onCreated: () => void;
 }) {
   const [name, setName] = useState("");
-  const [orgId, setOrgId] = useState(defaultOrgId ?? ownableOrgs?.[0]?.id ?? "");
+  // Preselect only an organization that is certain: the one in view, or
+  // the only one the admin has. With several, the admin picks (SETUP-16).
+  const onlyOrg = ownableOrgs && ownableOrgs.length === 1 ? ownableOrgs[0]!.id : "";
+  const [orgId, setOrgId] = useState(defaultOrgId ?? onlyOrg);
   const orgZone = (id: string) => ownableOrgs?.find((o) => o.id === id)?.timezone ?? "";
   // The organisation's own zone, not UTC: a wrong zone shifts every slot.
-  const [timezone, setTimezone] = useState(orgZone(defaultOrgId ?? ownableOrgs?.[0]?.id ?? ""));
+  const [timezone, setTimezone] = useState(orgZone(defaultOrgId ?? onlyOrg));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The org list often arrives after the form opens; pick the first org
-  // when it does instead of leaving Create disabled with no reason (SCH-9).
+  // The org list often arrives after the form opens: take it then when
+  // there is only one (SCH-9); with several the picker asks.
   useEffect(() => {
-    if (!orgId && !defaultOrgId && ownableOrgs && ownableOrgs.length > 0) {
+    if (!orgId && !defaultOrgId && ownableOrgs && ownableOrgs.length === 1) {
       setOrgId(ownableOrgs[0]!.id);
     }
   }, [orgId, defaultOrgId, ownableOrgs]);
@@ -328,6 +331,7 @@ function CreateVenueForm({
               disabled={busy}
               className={SELECT_CLASS}
             >
+              {orgId ? null : <option value="">Select an organization…</option>}
               {ownableOrgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </Field>
