@@ -9,6 +9,11 @@ Generated 2026-10-26 by `doc/traceability/build.py`. Every status comes from a b
 - Crawl **prod** as **player**: 18 pages, 0 404/error, 0 with a failed API call.
 - Crawl **prod** as **superAdmin**: 127 pages, 3 404/error, 0 with a failed API call.
 - Crawl **prod** as **teamAdmin**: 15 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-3cee6a8** as **leagueAdmin**: 114 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-3cee6a8** as **orgAdmin**: 70 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-3cee6a8** as **player**: 16 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-3cee6a8** as **superAdmin**: 126 pages, 0 404/error, 0 with a failed API call.
+- Crawl **prod-3cee6a8** as **teamAdmin**: 16 pages, 0 404/error, 0 with a failed API call.
 - Crawl **prod-v2** as **leagueAdmin**: 105 pages, 5 404/error, 21 with a failed API call.
 - Crawl **prod-v2** as **orgAdmin**: 68 pages, 1 404/error, 0 with a failed API call.
 - Crawl **prod-v2** as **player**: 18 pages, 0 404/error, 0 with a failed API call.
@@ -74,9 +79,9 @@ Generated 2026-10-26 by `doc/traceability/build.py`. Every status comes from a b
 
 | Status | All 78 FRs | Release 1 core | Release 1 if works | Later |
 |---|---|---|---|---|
-| Working | 2 | 1 | 1 | 0 |
-| Partly working | 35 | 14 | 19 | 2 |
-| Fixed on staging, pending production | 2 | 2 | 0 | 0 |
+| Working | 3 | 2 | 1 | 0 |
+| Partly working | 36 | 15 | 19 | 2 |
+| Fixed on staging, pending production | 0 | 0 | 0 | 0 |
 | Degraded | 0 | 0 | 0 | 0 |
 | Renders, flow untested | 12 | 0 | 4 | 8 |
 | Broken | 0 | 0 | 0 | 0 |
@@ -186,10 +191,10 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | FR-3.17.1 | M15 | later | **Partly working** | Built-in chat, SMS, email. | UC-20 | J15 | J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
 | FR-3.17.2 | M15 | r1 | **Partly working** | Announcements from captains/coaches. | UC-19, UC-20 | J15 | J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
 | FR-3.17.3 | M15 | r1 | **Partly working** | Auto-reminders for payments and games. | UC-18, UC-21 | J13, J15 | J13: 30 of 48 steps pass; failing: 3. /finance/create composer: individual picker, then team-sc; 12. org-admin @ org-admin-web /finance parity and isolation (staging); J15: 5 of 14 steps pass; failing: 1. org_admin finds Communications → Compose and sees the UC-; 3. player @ player-web /notifications receives the announcem (staging) |
-| FR-3.18.1 | M5 | core | **Fixed on staging, pending production** | Custom forms for waivers, evaluations, feedback. | UC-27 | J3 | Production crawl still shows 404/error on: SA/forms; J3: all 11 steps pass (staging) |
+| FR-3.18.1 | M5 | core | **Working** | Custom forms for waivers, evaluations, feedback. | UC-27 | J3 | J3: all 11 steps pass (staging) |
 | FR-3.18.2 | M17 | r1 | **Renders, flow untested** | Export form data to CSV. | — | — | 6 route(s) load in the crawl; no journey run yet |
 | FR-3.19.1 | M2 | core | **Partly working** | Full CMS-style admin dashboard. | — | J1, J2 | J1: 8 of 45 steps pass; failing: 1. super_admin creates an organization from /organizations; 1. super_admin creates an organization from /organizations (staging); open findings SETUP; J2: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope +  (staging); open findings SETUP |
-| FR-3.19.2 | M1 | core | **Fixed on staging, pending production** | Role-based permissions (RBAC). | — | J2, J17 | Production crawl still shows 404/error on: SA/users, SA/users/:id; J2: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope +  (staging); open findings SETUP; J17: 9 of 45 steps pass; failing: 1. super_admin builds org B (league/season/division/team) an; 1. super_admin builds org B (league/season/division/team) an (staging) |
+| FR-3.19.2 | M1 | core | **Partly working** | Role-based permissions (RBAC). | — | J2, J17 | J2: 45 of 55 steps pass; failing: 2.orgAdmin super_admin invites a org_admin with org scope +  (staging); open findings SETUP; J17: 9 of 45 steps pass; failing: 1. super_admin builds org B (league/season/division/team) an; 1. super_admin builds org B (league/season/division/team) an (staging) |
 | FR-3.19.3 | M17 | r1 | **Renders, flow untested** | Audit logs and activity tracking. | UC-29, UC-17 | — | 6 route(s) load in the crawl; no journey run yet |
 | FR-3.19.4 | M15 | later | **Not built** | Email marketing (built-in or Mailchimp API). | UC-19 | — | Deferred to a later release; no screen claimed. |
 | FR-3.20.1 | M19 | later | **Not built** | Upload/share practice plans (PDF, video). | UC-24 | — | Deferred to a later release; no screen claimed. |
@@ -288,7 +293,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 151 total, 6 still open
+## Logged findings: 152 total, 7 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -332,6 +337,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | COMP-13 | major | Lineup save does not check suspensions | J12 · UC-14 ("Player blocked from appearing on active roster until cleared") | fixed in code, not deployed | commit 200733b: lineup save refuses suspended starters/bench |
 | COMP-14 | major | Eligibility sweep ignores suspensions and treats unknown data as eligible | J9/J12 · UC-05, UC-14 | fixed in code, not deployed | commit 200733b: sweep: missing data pending, suspension ineligible |
 | COMP-18 | major | Lineup editor roster is not the game's season: Staging Player is missing | J12 (and J11) · UC-14, UC-11 | fixed in code, not deployed | commit 5d87870: same fix as SCH-23 |
+| COMP-19 | minor | Compliance sweep writes "sweep complete" emails with no recipient |  | open |  |
 | CONSOLE-1 | blocker | Every API failure renders Next's "404 This page could not be found" | all · M1–M17 (every detail page) | fixed in code, not deployed | commit c66e81f: load() + LoadError in 60 pages; awaiting staging deploy + crawl |
 | CONSOLE-2 | major | Roles rows link to /roles/:id, which does not exist | J2 · M1 | fixed in code, not deployed | commit c66e81f: roles/[id] page; awaiting deploy |
 | CONSOLE-3 | blocker | League admin: Users and Forms say "Could not load"; Registrations, Division applications, Transfers, Eligibility say "Super admin access required"; Documents and Game events show an empty list as if true | J1/J2/J3/J4/J7/J9 · M1, M5, M6, M9, M10, M11, M13 | fixed in code, not deployed | commit 3ad966b: ScopedAdminGuard + visibility.ts; awaiting deploy + league-admin-console journey |
