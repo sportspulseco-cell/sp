@@ -530,8 +530,19 @@ async function invoke<TReq, TRes>(name: string, body: TReq): Promise<TRes> {
     let extracted: string | null = null;
     if (ctx instanceof Response) {
       try {
-        const parsed = (await ctx.clone().json()) as { error?: unknown };
-        if (parsed && typeof parsed.error === "string") {
+        const parsed = (await ctx.clone().json()) as {
+          error?: unknown;
+          required?: unknown;
+          have?: unknown;
+        };
+        if (
+          parsed?.error === "insufficient_teams" &&
+          typeof parsed.required === "number" &&
+          typeof parsed.have === "number"
+        ) {
+          // The bracket generator's refusal, in words with the next step.
+          extracted = `This division has ${parsed.have} team${parsed.have === 1 ? "" : "s"}. A Top ${parsed.required} bracket needs ${parsed.required}. Pick a smaller bracket or add teams.`;
+        } else if (parsed && typeof parsed.error === "string") {
           extracted = parsed.error;
         }
       } catch {

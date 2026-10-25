@@ -473,6 +473,17 @@ staging is no longer near-empty, which is also what PPHL production looks like.
     the Notifications preview printed "queued" as the time and fell back to the raw code as the title
     (apps/player-web/src/app/(app)/page.tsx NotificationsPreview). Second place with the same bug, so the inbox row's
     helpers moved to notifications/notice-format.ts and both use them.
+
+[SCH-27] Playoff bracket refusal shows the raw code "insufficient_teams" · minor
+  Journey: J10 step 4 (local build against staging, 25 Oct) · UC-09
+  Surface: superadmin-web /scheduling/<season>/playoffs → Generate bracket (default size Top 8)
+  Repro: pick a division with fewer teams than the bracket size; click Generate.
+  Expected: the reason and the next step in words.
+  Actual: the error line read "insufficient_teams"; the response also says required 8, have 4.
+  Fix: the shared scheduler client turns that refusal into "This division has 4 teams. A Top 8 bracket needs 8.
+    Pick a smaller bracket or add teams." J10 now treats this refusal as correct and checks it is explained.
+  Evidence: browser on the local app against staging, scratchpad regfa/walk-bracket-refusal.mjs 3/3 (422 written nothing).
+  Not done: the size picker still defaults to Top 8 whatever the division's team count (the screen does not load counts).
 ```
 
 ## Gaps

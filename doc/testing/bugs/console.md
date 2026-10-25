@@ -188,6 +188,8 @@ Crawl totals (pages visited / pages with a problem):
 
   Deployed staging (24355fb) does not show it: list-filters and pdf-items 3/7 change the URL with router.replace on the same pages and pass there, while they fail on the local next start build. Treated as a local-stack artifact; local runs are not evidence for refresh/replace on query-less list URLs. CONSOLE-11's dismiss-after-create path now navigates to ?created=<id> (row marked New) instead of refreshing.
 
+  25 Oct, ruled out: a hydration mismatch (CONSOLE-16). After the locale fix there is no React #418 on /organizations, /users, /games/<id>, /leagues/<id>, /forms, /teams, /teams/new, /leagues or /seasons (regfa/walk-hydration.mjs 18/18), yet J1, J2, J17, list-filters, pdf-items 3 and blockers-oct24-b item 2 still fail the same way locally. Cause still unknown; deployed staging stays the judge.
+
 [CONSOLE-15] Notices written by database jobs never send; "Flush queued" would send months-old ones · major
 
   Journey: production email go-live check, 25 Oct (production read-only queries; fix verified on staging).

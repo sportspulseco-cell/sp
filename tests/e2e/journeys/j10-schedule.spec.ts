@@ -411,7 +411,12 @@ test.describe("J10 schedule generate and publish", () => {
     if (await gen.isVisible().catch(() => false)) {
       const r = await edgeCall(page, "scheduler-bracket-generate", () => gen.click());
       console.log(`[J10] bracket generate → ${r}`);
-      if (!/^http 2/.test(r)) failures.push(`playoffs generate: ${r}`);
+      if (/^http 422 .*insufficient_teams/.test(r)) {
+        // Correct refusal (division smaller than the bracket): it must say so in words.
+        const said = await page.getByText(/Pick a smaller bracket or add teams/).first().isVisible({ timeout: 10_000 }).catch(() => false);
+        console.log(`[J10] bracket refusal shown in words: ${said}`);
+        if (!said) failures.push(`playoffs generate: refusal not explained (${r})`);
+      } else if (!/^http 2/.test(r)) failures.push(`playoffs generate: ${r}`);
     } else failures.push("playoffs: no Generate bracket button visible");
     console.log(`[J10] tab failures:\n  ${failures.join("\n  ")}`);
     expect.soft(failures, "SCH-1 scheduling tabs load").toEqual([]);
