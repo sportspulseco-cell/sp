@@ -245,8 +245,15 @@ test("4. player @ player-web /payments sees invoice A with the right total and p
   await expect(dlg).toBeVisible();
   const mockVisible = await mockSel.isVisible().catch(() => false);
   log("player sees 'Mock card outcome' selector:", mockVisible);
-  expect.soft(mockVisible, "player-facing pay dialog must not expose a test 'mock outcome' control").toBe(false);
-  expect.soft(await dlg.locator("input[name*='card'], iframe[name*='stripe'], input[autocomplete='cc-number']").count(), "pay dialog collects a card").toBeGreaterThan(0);
+  // Payments run in test mode by founder decision (MON-10, accepted): the
+  // dialog says so and lets the tester pick the outcome. Card collection
+  // and no-mock checks apply only once a card provider is live.
+  const testMode = /Test payment: no real card is charged/.test(await dlg.innerText());
+  log("pay dialog in test mode:", testMode);
+  if (!testMode) {
+    expect.soft(mockVisible, "player-facing pay dialog must not expose a test 'mock outcome' control").toBe(false);
+    expect.soft(await dlg.locator("input[name*='card'], iframe[name*='stripe'], input[autocomplete='cc-number']").count(), "pay dialog collects a card").toBeGreaterThan(0);
+  }
   await shot(p, "04b-pay-dialog");
   const respP = p.waitForResponse((r) => /\/finance\/invoices\/.+\/pay$/.test(r.url()));
   await dlg.getByRole("button", { name: "Pay now" }).click();
@@ -413,9 +420,9 @@ test("10. receipt and update-card affordances", async ({ browser }) => {
   const invoiceAId = a!.id;
   void b;
   const p = (await as(browser, "player")).page;
-  // Receipt button only renders on OPEN invoices with paidCents > 0, so a fully
-  // paid invoice (moved to history) has no receipt affordance at all.
-  const receiptBtns = await p.getByRole("button", { name: "Download receipt" }).count();
+  // MON-18: open invoices with a payment show "Download receipt"; paid ones
+  // in history show "Receipt".
+  const receiptBtns = await p.getByRole("button", { name: /^(Download receipt|Receipt)$/ }).count();
   log("Download receipt buttons on page:", receiptBtns);
   const history = (await mainText(p)).match(/history.{0,200}/i)?.[0];
   log("history section:", history);

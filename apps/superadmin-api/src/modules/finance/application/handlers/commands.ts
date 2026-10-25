@@ -1,3 +1,4 @@
+import { InvoiceNoticesService } from "../services/invoice-notices";
 import {
   Inject,
   Injectable,
@@ -42,10 +43,13 @@ export class CreateInvoiceHandler {
 @Injectable()
 export class MarkInvoiceSentHandler {
   constructor(
-    @Inject(FINANCE_REPOSITORY) private readonly repo: FinanceRepository
+    @Inject(FINANCE_REPOSITORY) private readonly repo: FinanceRepository,
+    private readonly notices: InvoiceNoticesService
   ) {}
   async execute({ id }: { id: string }) {
     const row = await this.repo.markSent(id);
+    // A draft just went out: the payer is told now (idempotent per invoice).
+    await this.notices.issued([id]);
     return InvoiceDto.fromRow(row);
   }
 }

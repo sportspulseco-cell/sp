@@ -10,6 +10,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import { personInOrg } from "../../../../shared/auth/visibility";
+import { InvoiceNoticesService } from "./invoice-notices";
 import {
   activeMemberPersonIds,
   ORG_TARGET_TYPES,
@@ -26,7 +27,10 @@ import type { BulkCreateInvoiceBodyDto } from "../../interface/dto/bulk-invoice.
  */
 @Injectable()
 export class InvoicingService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly notices: InvoiceNoticesService
+  ) {}
 
   /**
    * Create one or more invoices from a billing-scope target.
@@ -215,6 +219,8 @@ export class InvoicingService {
       return rows;
     });
 
+    // The payer hears about a sent invoice (drafts stay admin-only).
+    if (!body.asDraft) await this.notices.issued(created.map((i) => i.id));
     return {
       invoices: created,
       bulkJobId,

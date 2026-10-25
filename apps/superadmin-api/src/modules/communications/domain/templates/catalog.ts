@@ -708,11 +708,18 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     code: "invoice.created",
     channel: "email",
-    subject: "New invoice — {{invoiceNumber}}",
+    subject: "New invoice {{invoiceNumber}}: {{amountLabel}} due {{dueLabel}}",
     body:
-      "Template pending — invoice {{invoiceNumber}}. " +
-      "Pay at {{invoiceUrl}} by {{dueAt}}.",
-    variables: ["invoiceNumber", "totalCents", "dueAt", "invoiceUrl"]
+      "You have a new invoice from your league: {{invoiceNumber}} for {{amountLabel}}, due {{dueLabel}}.\n\n" +
+      "See it and pay at {{invoiceUrl}}.",
+    variables: ["invoiceNumber", "amountLabel", "dueLabel", "invoiceUrl"]
+  },
+  {
+    code: "invoice.created",
+    channel: "in_app",
+    subject: "New invoice {{invoiceNumber}}: {{amountLabel}}",
+    body: "Due {{dueLabel}}. Open Payments to see it and pay.",
+    variables: ["invoiceNumber", "amountLabel", "dueLabel"]
   },
   {
     code: "payment.confirmed",
