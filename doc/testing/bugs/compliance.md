@@ -324,3 +324,10 @@ Built and working (observed in the browser)
 | J12.4 lineup refuses suspended player | first runs: /lineups "No upcoming games" (0 games). Last run: 1 game (in_play, made by another tester), opened from the list: header UUID (COMP-13), player missing from roster (COMP-18) | Blocked: no UI can create a suspension (COMP-10) and the only game is already LOCKED. Needs COMP-10 fixed plus a scheduled game (J10). |
 | J12.5 /no-show-report | UI run, table row observed | none (same-season pick allowed, noted) |
 | J12.5 /eligibility sweep and suspensions | db-row rule_evaluation has no suspension key -> COMP-14 | none |
+
+[COMP-19] Compliance sweep writes "sweep complete" emails with no recipient · minor (open)
+  Found: production notifications, 25 Oct (read-only). 453 COMPLIANCE_SWEEP_COMPLETE email rows since 26 May, all with no
+    recipient_email; they stayed queued because nothing sent database-written rows (CONSOLE-15).
+  Now: the 5-minute job takes the last 24 hours, finds no recipient and marks them failed ("no recipientEmail on row"); the
+    first run after the 25 Oct release did this to 3 rows. Nobody receives them, nobody can.
+  Decision needed: who should get the sweep summary (the org's admins?), or stop writing an email row for it.

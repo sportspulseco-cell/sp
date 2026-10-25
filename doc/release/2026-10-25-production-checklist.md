@@ -100,3 +100,16 @@ only), so flows that end in a page change need the staging round.
 - Open: COMP-11 automatic suspensions (needs a founder decision), MON-15 team
   store, MON-19 org-admin refunds and invoice detail, REG-18 remaining
   duplicate settings, early-bird pricing.
+
+## Released 25 Oct 2026, 20:06 UTC
+
+- `main` fast-forwarded to `3cee6a8` (116 commits; app code identical to staging build `c280304`, which passed the crawl
+  with 0 problems for every role and the journeys except MON-23). All six production projects READY on `3cee6a8`
+  (Vercel API).
+- Read-only production crawl after the deploy: 342 pages as super admin, league admin, org admin, captain and player;
+  0 problems.
+- Email: the 5-minute job runs the new code (response has queuedPicked/queuedSent from 20:15 UTC). 491 queued emails
+  older than 24 hours untouched. No email has been sent since the deploy because nothing has triggered one yet; the
+  first real send is not yet observed.
+- Known after release: SETUP-2 (admins cannot edit a team), MON-23 (decision), COMP-19 (sweep emails with no
+  recipient), hydration warnings on /teams/<id> and /forms/<id> (production crawl), refunds / COMP-11 / MON-15 decisions.
