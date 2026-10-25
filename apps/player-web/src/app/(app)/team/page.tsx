@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import { Clock, UsersRound } from "lucide-react";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import {
@@ -195,9 +196,9 @@ export default async function TeamPage({
 
   const [team, membershipsPage] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
-    roster
-      .listMemberships({ teamId: myTeamId, activeOnly: true })
-      .catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) =>
+      roster.listMemberships({ teamId: myTeamId, activeOnly: true, limit: 100, cursor })
+    ).catch(() => ({ items: [] as TeamMembership[], nextCursor: null }))
   ]);
 
   // Standings need a leagueId — derive from any of the team's games

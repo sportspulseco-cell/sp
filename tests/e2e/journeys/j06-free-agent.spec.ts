@@ -122,10 +122,27 @@ test("J6.0 a brand-new visitor signs up on player-web and looks for the free-age
   writeFileSync(`${OUT}/02-signup-url.txt`, p.url());
   const users = await stagingSql<{ app: unknown }>(`select raw_app_meta_data app from auth.users where email = $1`, [SIGNUP_EMAIL]);
   writeFileSync(`${OUT}/02-signup-user.json`, JSON.stringify(users));
-  finding(
-    users.length === 0 || JSON.stringify(users[0]?.app ?? {}).includes("player"),
-    "CAP: player-web self sign-up creates an account with no role_codes; that account is refused by player-web (sign-in?error=wrong_role), so it can never reach /register/free-agent"
-  );
+  // Behaviour, not metadata: player-web lets an account with no role in
+  // (allowRoleless, onboarding first), so a new sign-up must be able to
+  // sign in and reach the free-agent form.
+  if (users.length > 0) {
+    const ctx2 = await freshContext(browser);
+    const p2 = await ctx2.newPage();
+    await p2.goto(`${E2E_URLS.player}/sign-in`);
+    await p2.locator("input[type='email']").fill(SIGNUP_EMAIL);
+    await p2.locator("input[type='password']").fill(FA_PASSWORD);
+    await p2.locator("button[type='submit']").click();
+    await p2.waitForLoadState("networkidle").catch(() => {});
+    await p2.goto(`${E2E_URLS.player}/register/free-agent`);
+    await p2.waitForLoadState("networkidle").catch(() => {});
+    const landed = p2.url();
+    writeFileSync(`${OUT}/02b-signup-signin-url.txt`, landed);
+    finding(
+      !/error=wrong_role/.test(landed),
+      `CAP: a new player-web sign-up is refused by player-web (${landed}), so it can never reach /register/free-agent`
+    );
+    await ctx2.close();
+  }
   finding(!/error/i.test(end) || /check your email|confirm/i.test(end), `CAP: sign-up funnel ends in an error (${end.slice(0, 200)})`);
   await ctx.close();
 });

@@ -405,7 +405,9 @@ test("J7.8 captain sees approval and completes the set-up wizard (roster + dues 
   const t = await snap(p, "60-captain-approved");
   expect(t).toMatch(/Application approved/i);
   finding(/\$1,400/.test(t), "CAP: approved card does not show the $1,400 team fee from the active pricing tier");
-  await p.getByRole("link", { name: /set up roster & dues/i }).click();
+  // Several "Set up roster & dues" links (banner, sidebar, cards): take
+  // the one for this run's approved entry.
+  await p.locator(`a[href="/captain/register/setup/${ids.entryB}"]`).first().click();
   await p.waitForURL(new RegExp(`/captain/register/setup/${ids.entryB}`));
   await settle(p);
   await snap(p, "61-wizard-step1");

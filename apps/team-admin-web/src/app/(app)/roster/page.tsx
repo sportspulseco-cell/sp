@@ -1,4 +1,5 @@
-﻿import { Users } from "lucide-react";
+﻿import { fetchAll } from "@sportspulse/api-client";
+import { Users } from "lucide-react";
 import {
   Badge,
   EmptyState,
@@ -47,13 +48,17 @@ export default async function TeamAdminRosterPage({
     );
   }
 
-  const [team, allPage] = await Promise.all([
+  const [team, live] = await Promise.all([
     leagueMgmt.getTeam(teamId).catch(() => null),
-    roster.listMemberships({ teamId, activeOnly: true }).catch(() => ({ items: [], nextCursor: null }))
+    leagueMgmt.teamSeasons(teamId).catch(() => [])
   ]);
+  // Every page of memberships: the team has dozens across seasons and the
+  // first page alone missed newly added players (J8).
+  const allPage = await fetchAll((cursor) =>
+    roster.listMemberships({ teamId, activeOnly: true, limit: 100, cursor })
+  ).catch(() => ({ items: [] as TeamMembership[], nextCursor: null }));
   // One season's roster (CAP-19): the current season unless another is picked.
   // Same season rule as the captain roster (team's live seasons).
-  const live = await leagueMgmt.teamSeasons(teamId).catch(() => []);
   const seasonRows: Array<{
     id: string;
     name: string;

@@ -34,12 +34,17 @@ export default async function RostersPage({
   const activeOnly = sp?.activeOnly !== "false";
 
   const [membershipsResult, teamsPage, personsPage, seasonsPage] = await Promise.all([
+    // Every page: the list showed the first page as if it were all of it.
     load(
-      roster.listMemberships({
-        teamId: sp?.teamId,
-        seasonId: sp?.seasonId,
-        activeOnly
-      })
+      fetchAll((cursor) =>
+        roster.listMemberships({
+          teamId: sp?.teamId,
+          seasonId: sp?.seasonId,
+          activeOnly,
+          limit: 100,
+          cursor
+        })
+      )
     ),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor }))
       .catch(() => ({ items: [], nextCursor: null })),

@@ -54,8 +54,9 @@ export default async function DashboardPage() {
     fetchAll((cursor) => leagueMgmt.listSeasons({ limit: 100, cursor })).catch(() => ({ items: [] })),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [] })),
     fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [] })),
-    registration.listRegistrations().catch(() => ({ items: [] })),
-    roster.listMemberships({ activeOnly: true }).catch(() => ({ items: [] })),
+    // Counts on this page are totals: read every page, not the first.
+    fetchAll((cursor) => registration.listRegistrations({ limit: 100, cursor })).catch(() => ({ items: [] })),
+    fetchAll((cursor) => roster.listMemberships({ activeOnly: true, limit: 100, cursor })).catch(() => ({ items: [] })),
     gameOps.listGames({ limit: 100 }).catch(() => ({ items: [] }))
   ]);
 

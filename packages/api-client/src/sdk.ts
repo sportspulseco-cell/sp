@@ -1751,7 +1751,7 @@ export function createApi(f: Fetcher) {
         ),
 
       listRegistrations: (
-        q: { orgId?: string; status?: string; subjectPersonId?: string } = {}
+        q: { orgId?: string; status?: string; subjectPersonId?: string; limit?: number; cursor?: string } = {}
       ) => f<Page<Registration>>(`/registration/registrations${qs(q)}`),
       /**
        * Self-scoped variant — returns only the caller's own

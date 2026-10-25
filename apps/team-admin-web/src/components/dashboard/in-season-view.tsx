@@ -1,3 +1,4 @@
+import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -29,9 +30,17 @@ export async function InSeasonView({
     gameOps
       .listGames({ teamId: team.id, status: "scheduled", limit: 1 })
       .catch(() => ({ items: [], nextCursor: null })),
-    roster
-      .listMemberships({ teamId: team.id, activeOnly: true })
-      .catch(() => ({ items: [], nextCursor: null })),
+    // The current season's roster, every page (the count read the first
+    // page of all seasons' memberships).
+    fetchAll((cursor) =>
+      roster.listMemberships({
+        teamId: team.id,
+        activeOnly: true,
+        ...(state.seasonId ? { seasonId: state.seasonId } : {}),
+        limit: 100,
+        cursor
+      })
+    ).catch(() => ({ items: [], nextCursor: null })),
     state.leagueId
       ? stats
           .teamStanding(team.id, { leagueId: state.leagueId })
