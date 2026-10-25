@@ -137,10 +137,10 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
     setBusy("note");
     setError(null);
     try {
-      // We don't have a dedicated notes endpoint; piggy-back on extend
-      // due date as a no-op + persist into metadata via the bulk update
-      // surface in a follow-up. For now, optimistic UI only.
-      setFlash("Note saved locally — wire-through endpoint coming soon.");
+      // Stored on the invoice (MON-18); admins only, never shown to the payer.
+      await finance.saveInvoiceNote(invoice.id, note);
+      setFlash("Note saved. Only admins see it.");
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {

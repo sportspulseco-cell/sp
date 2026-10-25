@@ -14,7 +14,9 @@ import {
   Post,
   Query,
   UnprocessableEntityException,
-  UseGuards
+  UseGuards,
+  Put,
+  ParseUUIDPipe
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
@@ -27,7 +29,8 @@ import {
   IsUUID,
   Max,
   Min,
-  ValidateNested
+  ValidateNested,
+  MaxLength
 } from "class-validator";
 import { Type } from "class-transformer";
 import { and, desc, eq, gt, ilike, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
@@ -70,6 +73,10 @@ class TeamSplitBodyDto {
 // =====================================================================
 // Controller
 // =====================================================================
+
+class InvoiceNoteBodyDto {
+  @IsString() @MaxLength(4000) note!: string;
+}
 
 @ApiTags("finance/invoicing")
 @ApiBearerAuth()
@@ -289,6 +296,40 @@ export class FinanceInvoicingController {
   // POST /finance/invoices/:id/refund was removed (MON-9): it wrote a
   // second wallet ledger (wallet_transactions) and had no caller. Every
   // refund goes through RefundService via POST /finance/invoices/:id/refund-split.
+
+  // -------------------------------------------------------------------
+  // PUT /finance/invoices/:id/note  (internal note, MON-18)
+  // -------------------------------------------------------------------
+  @Put("invoices/:id/note")
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @ApiOperation({
+    summary:
+      "Save the invoice's internal note (admins only; never shown to the payer). Stored on the invoice with who saved it and when."
+  })
+  async saveNote(
+    @Param("id", ParseUUIDPipe) invoiceId: string,
+    @Body() body: InvoiceNoteBodyDto,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    const note = body.note.trim();
+    const meta = {
+      internalNote: note,
+      internalNoteUpdatedAt: new Date().toISOString(),
+      internalNoteUpdatedBy: user.userId
+    };
+    const rows = await this.db
+      .update(schema.invoices)
+      .set({
+        metadata: sql`coalesce(${schema.invoices.metadata}, '{}'::jsonb) || ${JSON.stringify(meta)}::jsonb`,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.invoices.id, invoiceId))
+      .returning({ id: schema.invoices.id, metadata: schema.invoices.metadata });
+    if (rows.length !== 1) throw new NotFoundException("Invoice not found");
+    const saved = (rows[0]!.metadata as Record<string, unknown> | null)?.internalNote;
+    if (saved !== note) throw new Error(`invoice ${invoiceId}: note readback does not match`);
+    return { invoiceId, internalNote: note, internalNoteUpdatedAt: meta.internalNoteUpdatedAt };
+  }
 
   // -------------------------------------------------------------------
   // PATCH /finance/invoices/:id  (extend due date)

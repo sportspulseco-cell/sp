@@ -750,6 +750,12 @@ export function createApi(f: Fetcher) {
           `/finance/invoices/${invoiceId}/extend-due-date`,
           { method: "POST", body: JSON.stringify(body) }
         ),
+      /** Internal invoice note, admins only (MON-18). */
+      saveInvoiceNote: (invoiceId: string, note: string) =>
+        f<{ invoiceId: string; internalNote: string; internalNoteUpdatedAt: string }>(
+          `/finance/invoices/${invoiceId}/note`,
+          { method: "PUT", body: JSON.stringify({ note }) }
+        ),
       manualRemind: (
         invoiceId: string,
         channel: "email" | "sms" | "in_app" = "email"

@@ -133,9 +133,17 @@ export function PaymentsClient({
                       ? ` (${fmt(inv.refundedCents, inv.currency)} refunded)`
                       : ""}
                   </span>
-                  <Badge tone={inv.status === "paid" ? "success" : "neutral"} mono>
-                    {inv.status}
-                  </Badge>
+                  <span className="flex items-center gap-2">
+                    <Badge tone={inv.status === "paid" ? "success" : "neutral"} mono>
+                      {inv.status}
+                    </Badge>
+                    {inv.paidCents > 0 ? (
+                      <Button variant="ghost" size="sm" onClick={() => downloadReceipt(inv)}>
+                        <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+                        Receipt
+                      </Button>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -341,10 +349,8 @@ function InvoiceCard({
             Pay {fmt(outstanding, invoice.currency)}
           </Button>
         ) : null}
-        <Button variant="ghost" onClick={onUpdateCard}>
-          <CreditCard className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
-          Update card
-        </Button>
+        {/* No card is stored while payments run without a card provider,
+            so there is no card to update (MON-18). */}
         {invoice.paidCents > 0 && (
           <Button
             variant="ghost"
@@ -493,21 +499,37 @@ function invoiceTitleFor(inv: Invoice): string {
   }
 }
 
+/**
+ * A printable receipt from the invoice the player already sees: lines,
+ * total, paid, refunded, balance. Opens in a new tab; the browser's
+ * Print saves it as a PDF (MON-18). Values are escaped before writing.
+ */
 function downloadReceipt(inv: Invoice) {
-  // Receipt endpoint not wired yet; surface a placeholder.
+  const esc = (v: unknown) =>
+    String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  const day = (iso: string | null | undefined) =>
+    iso ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  const refunded = inv.refundedCents ?? 0;
+  const balance = Math.max(0, inv.totalCents - inv.paidCents);
+  const lines = `<tr><td>${esc(invoiceTitleFor(inv))}${inv.teamName ? ` · ${esc(inv.teamName)}` : ""}</td><td class="n">1</td><td class="n">${esc(fmt(inv.totalCents, inv.currency))}</td></tr>`;
   const win = window.open("", "_blank");
-  win?.document.write(
-    `<pre style="font: 14px monospace; padding: 24px">
-SportsPulse — Receipt
-
-Invoice: ${inv.invoiceNumber}
-Paid:    ${fmt(inv.paidCents, inv.currency)}
-Total:   ${fmt(inv.totalCents, inv.currency)}
-Status:  ${inv.status}
-
-Real PDF receipt wires in the next sprint.
-</pre>`
-  );
+  if (!win) return;
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(inv.invoiceNumber)}</title>
+<style>body{font:14px system-ui,sans-serif;max-width:640px;margin:32px auto;padding:0 16px;color:#111}
+h1{font-size:20px;margin:0 0 4px}p{margin:2px 0;color:#444}table{width:100%;border-collapse:collapse;margin:16px 0}
+td,th{padding:6px 4px;border-bottom:1px solid #ddd;text-align:left}.n{text-align:right}.tot td{font-weight:600}
+@media print{button{display:none}}</style></head><body>
+<h1>Receipt</h1><p>SportsPulse</p><p>Invoice ${esc(inv.invoiceNumber)}${inv.issuedAt ? ` · issued ${esc(day(inv.issuedAt))}` : ""} · printed ${esc(day(new Date().toISOString()))}</p>
+<table><thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Price</th></tr></thead><tbody>${lines}</tbody></table>
+<table><tbody>
+<tr><td>Total</td><td class="n">${esc(fmt(inv.totalCents, inv.currency))}</td></tr>
+<tr class="tot"><td>Paid</td><td class="n">${esc(fmt(inv.paidCents, inv.currency))}</td></tr>
+${refunded > 0 ? `<tr><td>Refunded</td><td class="n">${esc(fmt(refunded, inv.currency))}</td></tr>` : ""}
+<tr><td>Balance</td><td class="n">${esc(fmt(balance, inv.currency))}</td></tr>
+</tbody></table>
+<button onclick="window.print()">Print or save as PDF</button>
+</body></html>`);
+  win.document.close();
 }
 
 // ---------------------------------------------------------------------
