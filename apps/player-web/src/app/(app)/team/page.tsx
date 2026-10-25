@@ -263,9 +263,21 @@ export default async function TeamPage({
   if (seasonId) {
     const season = await leagueMgmt.getSeason(seasonId).catch(() => null);
     if (season?.leagueId) {
-      standings = await stats
-        .standings(season.leagueId)
-        .catch(() => [] as Standing[]);
+      // League standings cover every season; keep the shown season's
+      // divisions so a team is listed once (CAP-19).
+      const [rows, divisions] = await Promise.all([
+        stats.standings(season.leagueId).catch(() => [] as Standing[]),
+        leagueMgmt
+          .listDivisions({ seasonId, limit: 100 })
+          .then((p) => p.items.map((d) => d.id))
+          .catch(() => null)
+      ]);
+      // Prefer the season's division tables; a league that only keeps
+      // league-wide rows (no division) shows those instead.
+      const seasonRows = divisions
+        ? rows.filter((r) => r.divisionId !== null && divisions.includes(r.divisionId))
+        : [];
+      standings = seasonRows.length > 0 ? seasonRows : rows.filter((r) => r.divisionId === null);
     }
   }
 
