@@ -207,6 +207,37 @@ export async function personInOrg(db: Database, orgId: string, personId: string)
   return personVisible(db, { scope: orgScope, userId: "00000000-0000-0000-0000-000000000000" }, personId);
 }
 
+/**
+ * WHERE fragment for `audit_events` (J17): the caller's own actions; every
+ * event of an organisation they administer org-wide; and, for league,
+ * season and division admins, events on their own leagues, seasons,
+ * divisions and games. A league admin used to see the whole org's log,
+ * sibling leagues included, because events were filtered by org only.
+ */
+export function visibleAuditWhere(v: Visibility): SQL | null {
+  const { scope } = v;
+  if (unrestricted(scope)) return null;
+  const seasons = visibleSeasonIds(scope)!;
+  const leagues = uuidList(scope.leagueIds);
+  return sql`(
+    audit_events.actor_user_id = ${v.userId}::uuid
+    or audit_events.org_id in (${uuidList(scope.orgWideOrgIds)})
+    or (audit_events.resource_type = 'leagues' and audit_events.resource_id in (${leagues}))
+    or (audit_events.resource_type in ('seasons', 'season') and audit_events.resource_id in ${seasons})
+    or (audit_events.resource_type = 'divisions'
+        and audit_events.resource_id in (select d.id from divisions d where d.season_id in ${seasons}))
+    or (audit_events.resource_type in ('games', 'start', 'publish')
+        and audit_events.resource_id in (select g.id from games g where g.league_id in (${leagues}) or g.season_id in ${seasons}))
+  )`;
+}
+
+export async function auditEventVisible(db: Database, v: Visibility, eventId: string): Promise<boolean> {
+  const where = visibleAuditWhere(v);
+  if (!where) return true;
+  const rows = await db.execute(sql`select 1 from audit_events where audit_events.id = ${eventId}::uuid and ${where}`);
+  return hasRows(rows);
+}
+
 export async function personVisible(db: Database, v: Visibility, personId: string): Promise<boolean> {
   const sub = visiblePersonIds(v);
   if (!sub) return true;

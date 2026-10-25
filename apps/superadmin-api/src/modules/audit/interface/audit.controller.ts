@@ -1,8 +1,9 @@
-import { Controller, Get, Inject, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Inject, NotFoundException, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { auditEventVisible } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
@@ -44,7 +45,10 @@ function entityTypeFor(resourceType: string): string {
 @ApiTags("audit")
 @ApiBearerAuth()
 @Controller("audit")
-@UseGuards(JwtAuthGuard, AuthorizedAccessGuard)
+// Admin roles only, with the admin scope (no roster projection), and rows
+// limited by visibleAuditWhere: a league admin sees their league, not the
+// whole org (J17).
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class AuditController {
   constructor(
     private readonly listH: ListAuditEventsHandler,
@@ -77,8 +81,7 @@ export class AuditController {
   ): Promise<AuditEventPageDto> {
     const page = await this.listH.execute({
       ...q,
-      orgIdsFilter: scope.orgIds ?? undefined,
-      currentUserId: user.userId
+      visibleTo: { scope, userId: user.userId }
     });
     return { ...page, items: await this.withNames(page.items) };
   }
@@ -95,11 +98,10 @@ export class AuditController {
     @UserScope() scope: UserScopeType,
     @CurrentUser() user: AuthPrincipal
   ): Promise<AuditEventDto> {
-    const event = await this.getH.execute({
-      id,
-      orgIdsFilter: scope.orgIds ?? undefined,
-      currentUserId: user.userId
-    });
+    if (!(await auditEventVisible(this.db, { scope, userId: user.userId }, id))) {
+      throw new NotFoundException(`Audit event not found: ${id}`);
+    }
+    const event = await this.getH.execute({ id });
     const [named] = await this.withNames([event]);
     return named ?? event;
   }

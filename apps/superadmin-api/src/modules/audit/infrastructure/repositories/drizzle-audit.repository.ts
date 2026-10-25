@@ -9,6 +9,7 @@ import type {
   AuditRepository,
   ListAuditQuery
 } from "../../domain/repositories/audit.repository";
+import { visibleAuditWhere } from "../../../../shared/auth/visibility";
 
 @Injectable()
 export class DrizzleAuditRepository implements AuditRepository {
@@ -33,6 +34,10 @@ export class DrizzleAuditRepository implements AuditRepository {
         ? or(orgFilter, eq(schema.auditEvents.actorUserId, q.currentUserId))
         : orgFilter;
       cs.push(visibility!);
+    }
+    if (q.visibleTo) {
+      const visible = visibleAuditWhere(q.visibleTo);
+      if (visible) cs.push(visible);
     }
 
     const rows = await this.db

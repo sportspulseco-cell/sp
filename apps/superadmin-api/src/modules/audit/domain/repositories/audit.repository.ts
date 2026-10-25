@@ -1,4 +1,5 @@
 import type { Page, PageQuery } from "@sportspulse/kernel";
+import type { Visibility } from "../../../../shared/auth/visibility";
 
 export interface AuditEventRow {
   id: string;
@@ -33,6 +34,8 @@ export interface ListAuditQuery extends PageQuery {
    */
   orgIdsFilter?: string[];
   currentUserId?: string;
+  /** Admin-console caller: rows limited by `visibleAuditWhere` (J17). */
+  visibleTo?: Visibility;
 }
 
 export interface AuditRepository {
