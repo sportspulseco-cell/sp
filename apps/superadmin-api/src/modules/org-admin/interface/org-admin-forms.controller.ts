@@ -85,6 +85,11 @@ export class OrgAdminFormsController {
         id: schema.registrationForms.id,
         orgId: schema.registrationForms.orgId,
         seasonId: schema.registrationForms.seasonId,
+        // The shared season card reads these to tell "published" apart
+        // (org console home, 25 Oct 2026).
+        scope: schema.registrationForms.scope,
+        scopeId: schema.registrationForms.scopeId,
+        activeVersionId: schema.registrationForms.activeVersionId,
         name: schema.registrationForms.name,
         description: schema.registrationForms.description,
         purpose: schema.registrationForms.purpose,

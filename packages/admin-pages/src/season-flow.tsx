@@ -40,7 +40,7 @@ export interface SeasonFlowApi {
     listGames: (q: { leagueId?: string; limit?: number; cursor?: string }) => Promise<Page<Game>>;
   };
   registration: {
-    listForms: (q: { limit?: number; cursor?: string }) => Promise<Page<RegistrationForm>>;
+    listForms: (q: { orgId?: string; limit?: number; cursor?: string }) => Promise<Page<RegistrationForm>>;
     listRegistrations: (q?: { orgId?: string }) => Promise<Page<Registration>>;
   };
   roster: {
@@ -135,7 +135,9 @@ async function readSeason(
     safe("team applications", api.adminTransfers.listDivisionEntries({ status: "applied,pending_approval,accepted,confirmed" }), { items: [] }),
     safe("rosters", fetchAll((cursor) => api.roster.listMemberships({ seasonId: season.id, activeOnly: true, limit: 100, cursor })), EMPTY as Page<TeamMembership>),
     safe("games", fetchAll((cursor) => api.gameOps.listGames({ leagueId: season.leagueId, limit: 100, cursor })), EMPTY as Page<Game>),
-    safe("forms", fetchAll((cursor) => api.registration.listForms({ limit: 100, cursor })), EMPTY as Page<RegistrationForm>)
+    // The season's organisation only. The org console rewrites this read
+    // to /org-admin/forms, which requires orgId.
+    safe("forms", fetchAll((cursor) => api.registration.listForms({ orgId: season.orgId, limit: 100, cursor })), EMPTY as Page<RegistrationForm>)
   ]);
 
   const divisionIds = new Set(divisions.items.map((d) => d.id));
