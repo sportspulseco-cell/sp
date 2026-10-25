@@ -1,5 +1,6 @@
 "use client";
 
+import { SEASON_CONFIG_DEFAULTS } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -64,13 +65,13 @@ export function DivisionsClient({
     season.rosterLockAt ? season.rosterLockAt.slice(0, 10) : ""
   );
   const [requireUsaHockeyId, setRequireUsaHockeyId] = useState(
-    initialConfig.requireUsaHockeyId ?? true
+    initialConfig.requireUsaHockeyId ?? SEASON_CONFIG_DEFAULTS.requireUsaHockeyId
   );
   const [requireLiabilityWaiver, setRequireLiabilityWaiver] = useState(
-    initialConfig.requireLiabilityWaiver ?? true
+    initialConfig.requireLiabilityWaiver ?? SEASON_CONFIG_DEFAULTS.requireLiabilityWaiver
   );
   const [requireCodeOfConduct, setRequireCodeOfConduct] = useState(
-    initialConfig.requireCodeOfConduct ?? true
+    initialConfig.requireCodeOfConduct ?? SEASON_CONFIG_DEFAULTS.requireCodeOfConduct
   );
   const [liabilityWaiverContent, setLiabilityWaiverContent] = useState(
     initialConfig.liabilityWaiverContent ?? ""
@@ -78,11 +79,13 @@ export function DivisionsClient({
   const [codeOfConductContent, setCodeOfConductContent] = useState(
     initialConfig.codeOfConductContent ?? ""
   );
+  // Unset toggles show the kernel defaults the funnel and API use (REG-18):
+  // the screen showed some as on while registration treated them as off.
   const [allowFreeAgent, setAllowFreeAgent] = useState(
-    initialConfig.allowFreeAgent ?? true
+    initialConfig.allowFreeAgent ?? SEASON_CONFIG_DEFAULTS.allowFreeAgent
   );
   const [parentalConsent, setParentalConsent] = useState(
-    initialConfig.parentalConsentRequired ?? true
+    initialConfig.parentalConsentRequired ?? SEASON_CONFIG_DEFAULTS.parentalConsentRequired
   );
   const [savingConfig, setSavingConfig] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
