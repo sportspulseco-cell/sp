@@ -57,7 +57,31 @@ const LOCAL_URLS = {
 export const OUTPUT_DIR = process.env.E2E_OUTPUT_DIR ?? "test-results";
 export const BYPASS_STATE_PATH = `${OUTPUT_DIR}-state/staging-bypass-state.json`;
 
-export const E2E_URLS = TARGET === "local" ? LOCAL_URLS : TARGET === "staging" ? STAGING_URLS : PROD_URLS;
+/**
+ * E2E_TARGET=staging with E2E_LOCAL_APPS=1: the same staging data, users
+ * and database checks, but the browser drives locally built role apps
+ * (`next build && next start`, pointed at staging Supabase and a local
+ * API). For proving a change before it can be deployed to staging.
+ * Ports: superadmin 3141 (league admins too), org 3142, team 3143,
+ * player 3140. Landing stays on staging.
+ */
+const LOCAL_STAGING_URLS = {
+  landing: STAGING_URLS.landing,
+  league: "http://localhost:3141",
+  superadmin: "http://localhost:3141",
+  orgAdmin: "http://localhost:3142",
+  teamAdmin: "http://localhost:3143",
+  player: "http://localhost:3140"
+};
+
+export const E2E_URLS =
+  TARGET === "local"
+    ? LOCAL_URLS
+    : TARGET === "staging"
+      ? process.env.E2E_LOCAL_APPS === "1"
+        ? LOCAL_STAGING_URLS
+        : STAGING_URLS
+      : PROD_URLS;
 
 export default defineConfig({
   testDir: "./tests/e2e",
