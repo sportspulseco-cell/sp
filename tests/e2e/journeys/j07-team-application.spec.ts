@@ -157,8 +157,10 @@ test("J7.1 super_admin creates league + season + 2 divisions through /org-setup"
   // Step 4: two divisions.
   await p.getByPlaceholder("e.g. AHL").first().fill(DIV_A);
   await p.getByRole("button", { name: /add (another )?division/i }).click();
-  // The new card renders collapsed; expand it before typing.
-  await p.getByRole("button", { name: "Expand" }).last().click();
+  // SETUP-5: the new card opens ready to fill in. Older builds rendered it
+  // collapsed; expand only when that is what the page shows.
+  const expand = p.getByRole("button", { name: "Expand" }).last();
+  if (await expand.isVisible().catch(() => false)) await expand.click();
   await p.locator("input[placeholder='e.g. AHL']:visible").last().fill(DIV_B);
   await snap(p, "03-org-setup-divisions");
   await p.getByRole("button", { name: /publish league/i }).click();
@@ -220,6 +222,9 @@ test("J7.3 super_admin configures an active pricing tier via /forms", async () =
   await p.locator("#scope").selectOption("league");
   await expect(p.locator("#leagueId option", { hasText: LEAGUE_NAME })).toHaveCount(1, { timeout: 20_000 });
   await p.locator("#leagueId").selectOption({ label: LEAGUE_NAME });
+  // REG-20: a season-registration form names its season in the dialog.
+  await expect(p.locator("#seasonId option", { hasText: SEASON_NAME })).toHaveCount(1, { timeout: 20_000 });
+  await p.locator("#seasonId").selectOption({ label: SEASON_NAME });
   await p.locator("#name").fill(`${RUN_TAG} Team Registration`);
   await snap(p, "08-create-form-filled");
   await p.getByRole("dialog").getByRole("button", { name: /create/i }).last().click()
@@ -266,7 +271,7 @@ test("J7.4 captain finds the open season and applies to division A", async () =>
   // shows while a season is open, also for a team that is in season (CAP-6).
   const cta = p.getByRole("link", { name: /register the team/i }).first();
   await expect(cta, "captain home offers 'Register the team' while a season is open").toBeVisible();
-  await expect(p.getByRole("link", { name: /^register team$/i }).first(), "permanent 'Register team' nav item").toBeVisible();
+  await expect(p.getByRole("link", { name: /^register the team$/i }).first(), "permanent 'Register the team' nav item").toBeVisible();
   await p.goto(`${cap.app}/captain/register`);
   await settle(p);
   await snap(p, "21-captain-register-landing");

@@ -238,8 +238,14 @@ test.describe("J10 schedule generate and publish", () => {
     await page.getByLabel("Rink name").fill(venueName);
     await page.waitForLoadState("networkidle").catch(() => {});
     const raceEnabled = await page.getByRole("button", { name: /^Create$/ }).isEnabled();
-    console.log(`[J10] venue Create enabled after early open + name filled: ${raceEnabled}`);
-    expect.soft(raceEnabled, "SCH-9 Create enabled once org list loaded").toBe(true);
+    const raceOrg = page.getByLabel("Organization");
+    const raceShown = (await raceOrg.count())
+      ? await raceOrg.evaluate((el: HTMLSelectElement) => (el.value ? el.options[el.selectedIndex]?.text ?? "" : ""))
+      : "single org";
+    console.log(`[J10] venue Create enabled after early open + name filled: ${raceEnabled} (org shown: "${raceShown}")`);
+    // SCH-9: Create must agree with what the form shows. SETUP-16: with
+    // several orgs none is preselected, so Create waits for a pick.
+    expect.soft(raceEnabled, "SCH-9 Create state matches the org shown").toBe(raceShown !== "");
     await page.getByRole("button", { name: /^Cancel$/ }).first().click();
     await page.getByRole("button", { name: /Add venue/i }).first().click();
     await page.getByLabel("Rink name").fill(venueName);
@@ -247,11 +253,13 @@ test.describe("J10 schedule generate and publish", () => {
     await page.getByLabel("Timezone").selectOption("America/New_York");
     const org = page.getByLabel("Organization");
     if (await org.count()) {
-      const shownOrg = await org.evaluate((el: HTMLSelectElement) => el.options[el.selectedIndex]?.text ?? "");
+      const shownOrg = await org.evaluate((el: HTMLSelectElement) => (el.value ? el.options[el.selectedIndex]?.text ?? "" : ""));
       const createEnabled = await page.getByRole("button", { name: /^Create$/ }).isEnabled();
       console.log(`[J10] venue form default org="${shownOrg}" createEnabledBeforeOrgPick=${createEnabled}`);
-      expect.soft(createEnabled, "SCH-9 Create enabled when an org is shown as selected").toBe(true);
+      expect.soft(shownOrg, "SETUP-16 no organization preselected when there are several").toBe("");
+      expect.soft(createEnabled, "SCH-9 Create waits for the org pick").toBe(false);
       await org.selectOption({ label: "PPHL Staging" });
+      expect.soft(await page.getByRole("button", { name: /^Create$/ }).isEnabled(), "Create enabled once an org is picked").toBe(true);
     }
     await page.getByRole("button", { name: /^Create$/ }).click();
     // Anchored: the row's Edit / Delete buttons also carry the rink's name.
@@ -277,7 +285,7 @@ test.describe("J10 schedule generate and publish", () => {
     const d = new Date(Date.now() + 14 * 86400_000);
     const local = `${d.toISOString().slice(0, 10)}T19:00`;
     await page.getByRole("button", { name: /Single slot/i }).first().click();
-    await page.getByLabel("Season").selectOption({ label: SEASON_NAME });
+    await page.getByLabel("Season", { exact: true }).selectOption({ label: SEASON_NAME });
     await page.getByLabel("Start (local)").fill(local);
     await page.getByRole("button", { name: /Create slot/i }).click();
     await page.waitForTimeout(2500);

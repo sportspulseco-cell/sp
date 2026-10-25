@@ -152,25 +152,38 @@ test("3. split controls: even + custom split persist; per-player remind works", 
   const n = await amounts.count();
   log("split rows:", n);
   test.skip(n < 2, "a custom split needs two shares to move money between");
-  // Move $1.00 from the second share to the first: the total is unchanged,
-  // so the server must accept it (MON-8).
-  const a0 = Number(await amounts.nth(0).inputValue());
-  const a1 = Number(await amounts.nth(1).inputValue());
-  const want0 = (a0 + 1).toFixed(2);
-  const want1 = (a1 - 1).toFixed(2);
-  await amounts.nth(0).fill(want0);
-  await amounts.nth(1).fill(want1);
-  await p.keyboard.press("Tab");
+  // Move $1.00 between two shares: the total is unchanged, so the server
+  // must accept it (MON-8). A share can never drop below what that player
+  // already paid (the server refuses with 422), so take the dollar from a
+  // share that still has room; try the pairs in turn.
   const save = p.getByRole("button", { name: "Save split" });
-  await expect(save, "Save split enabled when shares add up to the team fee").toBeEnabled();
-  const respP = p.waitForResponse((r) => /\/captain\/dues\/[^/]+\/split$/.test(r.url()) && r.request().method() === "POST");
-  await save.click();
-  const resp = await respP;
-  log("save split →", resp.status(), (await resp.text()).slice(0, 200));
-  expect(resp.status(), "custom split is persisted to the server").toBeLessThan(300);
+  let resp: import("@playwright/test").Response | null = null;
+  let want0 = "";
+  let to = 0;
+  for (let from = n - 1; from >= 0 && (!resp || resp.status() === 422); from--) {
+    to = from === 0 ? 1 : 0;
+    const aTo = Number(await amounts.nth(to).inputValue());
+    const aFrom = Number(await amounts.nth(from).inputValue());
+    if (aFrom < 1) continue;
+    want0 = (aTo + 1).toFixed(2);
+    await amounts.nth(to).fill(want0);
+    await amounts.nth(from).fill((aFrom - 1).toFixed(2));
+    await p.keyboard.press("Tab");
+    await expect(save, "Save split enabled when shares add up to the team fee").toBeEnabled();
+    const respP = p.waitForResponse((r) => /\/captain\/dues\/[^/]+\/split$/.test(r.url()) && r.request().method() === "POST");
+    await save.click();
+    resp = await respP;
+    log(`save split (row ${from} -> row ${to}) →`, resp.status(), (await resp.text()).slice(0, 200));
+    if (resp.status() === 422) {
+      // Refused for a paid share: put the inputs back before the next pair.
+      await amounts.nth(to).fill(aTo.toFixed(2));
+      await amounts.nth(from).fill(aFrom.toFixed(2));
+    }
+  }
+  expect(resp?.status() ?? 0, "custom split is persisted to the server").toBeLessThan(300);
   await expect(p.getByText("Custom split saved.")).toBeVisible({ timeout: 20_000 });
   // Same surface, no reload: the row shows the stored amount.
-  await expect(amounts.nth(0)).toHaveValue(want0);
+  await expect(amounts.nth(to)).toHaveValue(want0);
   // Durable record: the master invoice remembers the method.
   const [m] = await stagingSql<{ method: string | null }>(
     `select i.metadata->>'splitMethod' method from invoices i
@@ -184,7 +197,7 @@ test("3. split controls: even + custom split persist; per-player remind works", 
   await expect(p.getByText("Player splits")).toBeVisible({ timeout: 60_000 });
   const mode = await p.locator("main select").filter({ hasText: "Even split" }).first().inputValue();
   expect(mode, "split mode survives a reload").toBe("custom");
-  await expect(p.locator("main tbody input").nth(0)).toHaveValue(want0);
+  await expect(p.locator("main tbody input").nth(to)).toHaveValue(want0);
   const remind = p.getByRole("button", { name: /^Remind$/ }).first();
   if (await remind.isVisible().catch(() => false)) {
     const respP = p.waitForResponse((r) => /remind/.test(r.url()));

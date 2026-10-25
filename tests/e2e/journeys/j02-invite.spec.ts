@@ -1,4 +1,4 @@
-import { stagingDbUrl } from "./_helpers";
+import { openNav, stagingDbUrl } from "./_helpers";
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
 import { E2E_URLS, SMOKE_USERS, signIn } from "../fixtures";
@@ -116,7 +116,7 @@ test.describe.serial("J2 · invite admin and sign in", () => {
   test("1. invite dialog: entry point, defaults, pickers", async () => {
     const page = sa.page;
     await page.goto(`${SA}/dashboard`);
-    await page.getByRole("link", { name: "Users", exact: true }).click();
+    await openNav(page, /^Users$/);
     await expect(page.getByRole("heading", { name: "Users", level: 1 })).toBeVisible();
     await page.getByRole("button", { name: "Invite user" }).click();
     const dialog = page.getByRole("dialog");
@@ -136,7 +136,7 @@ test.describe.serial("J2 · invite admin and sign in", () => {
     );
     // Picker, not UUID: type the first letters of the org name.
     await dialog.getByRole("button", { name: /Pick a org|Pick an org/i }).click();
-    await dialog.getByPlaceholder(/Search orgs/i).fill("PPH");
+    await dialog.getByPlaceholder(/Search (orgs|organi[sz]ations)/i).fill("PPH");
     await expect(dialog.getByRole("button", { name: new RegExp(STAGING_ORG) }).first()).toBeVisible();
     console.log(`[J2] org picker typed "PPH" -> match visible`);
     await page.keyboard.press("Escape");
@@ -223,7 +223,7 @@ test.describe.serial("J2 · invite admin and sign in", () => {
     await dialog.getByText("Also grant a role on invite.").click();
     await dialog.locator("select").first().selectOption("org_admin");
     await dialog.locator("button", { hasText: /^Pick (a|an) / }).click();
-    await dialog.getByPlaceholder(/Search orgs/i).fill("PPH");
+    await dialog.getByPlaceholder(/Search (orgs|organi[sz]ations)/i).fill("PPH");
     await dialog.getByRole("button", { name: new RegExp(STAGING_ORG) }).first().click();
     const resp = page.waitForResponse((r) => /\/iam\/.*invite/.test(r.url()) && r.request().method() === "POST");
     await dialog.getByRole("button", { name: "Send invite" }).click();
@@ -357,7 +357,7 @@ test.describe.serial("J2 · invite admin and sign in", () => {
   test("7. /roles page", async () => {
     const page = sa.page;
     await page.goto(`${SA}/dashboard`);
-    await page.getByRole("link", { name: "Roles & permissions", exact: true }).click();
+    await openNav(page, /^Roles & permissions$/);
     await expect(page.getByRole("heading", { name: /Roles/, level: 1 })).toBeVisible();
     const text = await page.locator("main").innerText();
     const title = await page.title();

@@ -125,7 +125,8 @@ test("item 6: captain free-agent page lists the pool across the team's live seas
          where dte.team_id = (select id from teams where name = 'Staging Skaters' limit 1)
            and dte.entry_status not in ('rejected','withdrawn','disqualified'))`
   );
-  const rows = await page.locator("main tbody tr").count();
+  // The pool is the first table; the second lists offers the team sent (CAP-9).
+  const rows = await page.locator("main table").first().locator("tbody tr").count();
   console.log(`[pdf] captain pool rows=${rows} db active in live seasons=${pool!.n}`);
   expect(rows).toBe(pool!.n);
   await context.close();

@@ -172,3 +172,21 @@ export async function supabaseFetch(
     req.end();
   });
 }
+
+/**
+ * Click a sidebar link the way a user would: sidebar groups are
+ * collapsible (<details>), so open the group that holds it first.
+ */
+export async function openNav(page: Page, name: RegExp) {
+  const link = page.locator("nav").getByRole("link", { name }).first();
+  if (!(await link.isVisible().catch(() => false))) {
+    const groups = page.locator("nav summary, nav button[aria-expanded=false]");
+    for (let i = 0; i < (await groups.count()); i++) {
+      const g = groups.nth(i);
+      if (!(await g.isVisible().catch(() => false))) continue;
+      await g.click();
+      if (await link.isVisible().catch(() => false)) break;
+    }
+  }
+  await link.click();
+}

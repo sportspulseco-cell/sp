@@ -163,6 +163,8 @@ test("J6.1 free agent lists themself for the team's current season", async ({ br
   await snap(p, "12-free-agent-form");
   await p.getByRole("button", { name: /^Staging 2026-27/ }).click();
   await p.getByRole("button", { name: /^defense$/i }).click();
+  // REG-21: the player picks a level (A-D); nothing is preselected.
+  await p.locator("fieldset", { hasText: "Primary level" }).getByRole("button", { name: /C — Recreational/ }).click();
   const [resp] = await Promise.all([
     p.waitForResponse((r) => /free-agent-pool/.test(r.url()) && r.request().method() === "POST", { timeout: 20_000 }).catch(() => null),
     p.getByRole("button", { name: /join the pool|update entry/i }).click()

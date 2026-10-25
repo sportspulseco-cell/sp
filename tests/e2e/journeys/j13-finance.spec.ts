@@ -98,9 +98,11 @@ async function runInvoices() {
 test("1. super_admin finds Invoices in the sidebar and the AR dashboard renders", async ({ browser }) => {
   const p = (await as(browser, "superAdmin")).page;
   await p.goto(`${new URL(p.url()).origin}/dashboard`);
-  // Finance lives under the collapsed "Operations" group.
-  if (!(await p.locator("a[href='/finance']:visible").count())) {
-    await p.locator("summary:visible", { hasText: "Operations" }).first().click();
+  // Finance sits in a collapsible sidebar group ("Financials" since the
+  // 25 Oct regrouping); open whichever group holds it, like a user would.
+  const groups = p.locator("nav summary:visible");
+  for (let i = 0; i < (await groups.count()) && !(await p.locator("a[href='/finance']:visible").count()); i++) {
+    await groups.nth(i).click();
   }
   const link = p.locator("a[href='/finance']:visible").first();
   await expect(link, "sidebar has an Invoices link").toBeVisible();

@@ -1,4 +1,4 @@
-import { stagingDbUrl } from "./_helpers";
+import { openNav, stagingDbUrl } from "./_helpers";
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { existsSync } from "node:fs";
 import { E2E_URLS, SMOKE_USERS, signIn } from "../fixtures";
@@ -194,7 +194,7 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
   test("1. super_admin creates an organization from /organizations", async () => {
     const page = sa.page;
     await page.goto(`${SA}/dashboard`);
-    await page.getByRole("link", { name: "Organizations", exact: true }).click();
+    await openNav(page, /^Organizations$/);
     await expect(page.getByRole("heading", { name: "Organizations", level: 1 })).toBeVisible();
     await page.getByRole("button", { name: "New organization" }).first().click();
     const dialog = page.getByRole("dialog");
