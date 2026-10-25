@@ -320,7 +320,9 @@ export class FinanceInvoicingController {
     const rows = await this.db
       .update(schema.invoices)
       .set({
-        metadata: sql`coalesce(${schema.invoices.metadata}, '{}'::jsonb) || ${JSON.stringify(meta)}::jsonb`,
+        // Merge into an object; a row whose metadata is not an object
+        // starts from {} rather than turning into an array.
+        metadata: sql`(case when jsonb_typeof(${schema.invoices.metadata}) = 'object' then ${schema.invoices.metadata} else '{}'::jsonb end) || ${JSON.stringify(meta)}::jsonb`,
         updatedAt: new Date()
       })
       .where(eq(schema.invoices.id, invoiceId))

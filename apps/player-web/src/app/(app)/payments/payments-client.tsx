@@ -494,6 +494,8 @@ function invoiceTitleFor(inv: Invoice): string {
       return "Team dues";
     case "referee_payroll":
       return "Officiating fee";
+    case "standard":
+      return "Invoice";
     default:
       return inv.invoiceType.replace(/_/g, " ");
   }
