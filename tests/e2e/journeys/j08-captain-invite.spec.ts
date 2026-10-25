@@ -421,7 +421,7 @@ test("J8.5 captain adds the plain player by name; player sees the team; captain 
     await expect(p.locator("main").first()).toContainText(`Season: ${other.text.replace(/ \(current\)$/, "")}`, { timeout: 20_000 });
     await p.getByRole("button", { name: /add player/i }).click();
     const search2 = p.getByPlaceholder("e.g. jane smith");
-    await search2.pressSequentially(PLAIN_FIRST.slice(0, 8), { delay: 80 });
+    await search2.fill(PLAIN_FIRST); // full name: earlier runs share the prefix
     await p.getByText(/searching/i).waitFor({ state: "hidden", timeout: 20_000 }).catch(() => {});
     await p.getByRole("button").filter({ hasText: PLAIN_FIRST }).first().click();
     await p.getByRole("button", { name: /add to roster/i }).click();

@@ -441,8 +441,9 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
     try {
       const page = oa.page;
       await page.goto(`${OA}/`);
-      // Discoverable entry point from the org-admin home/sidebar.
-      const entry = page.getByRole("link", { name: /Org setup/i }).first();
+      // Discoverable entry point from the org-admin home/sidebar: any visible
+      // link to /org-setup ("Start a season", "Set up a season", ...).
+      const entry = page.locator("main a[href='/org-setup']:visible, nav a[href='/org-setup']:visible").first();
       await expect(entry).toBeVisible();
       await entry.click();
       await walkWizard(page, { orgName: null, league: OA_LEAGUE, season: OA_SEASON, divisions: [OA_DIV] });
