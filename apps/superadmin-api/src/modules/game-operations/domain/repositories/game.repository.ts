@@ -13,6 +13,8 @@ export interface ListGamesQuery extends PageQuery {
   leagueIdsFilter?: string[];
   /** When true, restrict to games with `published_at IS NOT NULL`. */
   publishedOnly?: boolean;
+  /** Only games with no live (not revoked, not declined) official. */
+  withoutOfficials?: boolean;
   /** When set, only games inside one of these scopes (an official's games). */
   officiating?: {
     orgIds: string[];

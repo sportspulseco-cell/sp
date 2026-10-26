@@ -55,6 +55,8 @@ export default async function GamesPage({
     seasonId?: string;
     divisionId?: string;
     status?: GameStatus;
+    /** "none": assigner list, games without officials (FR-3.9). */
+    officials?: string;
   }>;
 }) {
   const sp = (await searchParams) ?? {};
@@ -66,7 +68,14 @@ export default async function GamesPage({
 
   const [gamesPage, leaguesPage, teamsPage, seasonsPage, divisionsPage] = await Promise.all([
     fetchAll((cursor) =>
-      gameOps.listGames({ leagueId, divisionId: sp.divisionId, status, limit: 100, cursor })
+      gameOps.listGames({
+        leagueId,
+        divisionId: sp.divisionId,
+        status,
+        withoutOfficials: sp.officials === "none" || undefined,
+        limit: 100,
+        cursor
+      })
     ).catch((e) => {
       // Show the failure; an empty list here read as "No games yet".
       console.error("[games] listGames failed", e);
@@ -206,7 +215,8 @@ export default async function GamesPage({
             { param: "leagueId", label: "League", allLabel: "All leagues", options: leagueOptions },
             { param: "seasonId", label: "Season", allLabel: "All seasons", options: seasonOptions },
             { param: "divisionId", label: "Division", allLabel: "All divisions", options: divisionOptions },
-            { param: "status", label: "Status", allLabel: "All statuses", options: STATUS_OPTIONS }
+            { param: "status", label: "Status", allLabel: "All statuses", options: STATUS_OPTIONS },
+            { param: "officials", label: "Officials", allLabel: "With or without officials", options: [{ value: "none", label: "Without officials" }] }
           ]}
         />
         <p className="text-[12px] text-fg-muted">

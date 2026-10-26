@@ -62,6 +62,7 @@ export interface ListGamesInput {
   leagueIdsFilter?: string[];
   /** When true, restrict to games with `published_at IS NOT NULL`. */
   publishedOnly?: boolean;
+  withoutOfficials?: boolean;
   /** An official's games only (shared/auth/game-access officiatingFilter). */
   officiating?: {
     orgIds: string[];

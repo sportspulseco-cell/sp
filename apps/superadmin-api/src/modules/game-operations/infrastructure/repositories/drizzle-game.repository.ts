@@ -163,6 +163,9 @@ export class DrizzleGameRepository implements GameRepository {
     if (q.leagueIdsFilter)
       cs.push(inArray(schema.games.leagueId, q.leagueIdsFilter));
     if (q.publishedOnly) cs.push(isNotNull(schema.games.publishedAt));
+    if (q.withoutOfficials) {
+      cs.push(sql`not exists (select 1 from game_officials o where o.game_id = ${schema.games.id} and o.revoked_at is null and o.status <> 'declined')`);
+    }
     if (q.officiating) {
       const o = q.officiating;
       const any = [];

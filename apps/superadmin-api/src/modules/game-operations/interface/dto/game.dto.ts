@@ -140,6 +140,12 @@ export class ListGamesQueryDto {
   @Transform(({ value }) => value === true || value === "true")
   @IsBoolean()
   assignedToMe?: boolean;
+  /** Assigner list (FR-3.9): only games with no live crew spot. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  withoutOfficials?: boolean;
 }
 
 // Game events

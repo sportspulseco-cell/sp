@@ -126,6 +126,10 @@ test.describe("J18 game-day official", () => {
         await signIn(page, E2E_URLS.league, SMOKE_USERS.leagueAdmin);
         await page.goto(`${E2E_URLS.league}/games/${w.gameId}`);
         await page.getByRole("button", { name: /^Assign$/ }).click();
+        // The keeper has no referee/scorekeeper role, so the default list
+        // (FR-3.9) does not hold them: show everyone, like an assigner would.
+        await expect(page.getByLabel("Person").locator("option").first()).toHaveText(/Pick an official|Loading officials/);
+        await page.getByLabel("Show everyone").check();
         await page.getByLabel("Person").selectOption({ label: `Keeper ${tag}` });
         await page.getByLabel("Role").selectOption("scorekeeper");
         const resp = page.waitForResponse((r) => r.url().includes(`/games/${w.gameId}/officials`) && r.request().method() === "POST");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Flag } from "lucide-react";
 import { gameOps } from "@/lib/api/browser-api";
@@ -155,8 +155,16 @@ function AssignForm({
   persons: Person[];
   onDone: () => void;
 }) {
+  // Never preselect someone (FR-3.9): the list starts with the people
+  // who hold a referee or scorekeeper role for this game's league.
+  const [candidates, setCandidates] = useState<Array<{ personId: string; name: string; roles: string[]; busyWith: string | null }> | null>(null);
+  const [everyone, setEveryone] = useState(false);
+  const [clash, setClash] = useState<string | null>(null);
+  useEffect(() => {
+    gameOps.officialCandidates(gameId).then(setCandidates).catch(() => setCandidates([]));
+  }, [gameId]);
   const [form, setForm] = useState({
-    personId: persons[0]?.id ?? "",
+    personId: "",
     role: "referee" as GameOfficialRole,
     slot: "",
     status: "confirmed" as GameOfficialStatus,
@@ -165,8 +173,7 @@ function AssignForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(force: boolean) {
     setLoading(true);
     setError(null);
     try {
@@ -175,14 +182,22 @@ function AssignForm({
         role: form.role,
         slot: form.slot || null,
         status: form.status,
-        notes: form.notes || null
+        notes: form.notes || null,
+        ...(force ? { force: true } : {})
       });
+      setClash(null);
       onDone();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      if (/already on the crew/.test(msg)) setClash(msg);
+      else setError(msg);
     } finally {
       setLoading(false);
     }
+  }
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void submit(false);
   }
 
   return (
@@ -190,19 +205,56 @@ function AssignForm({
       onSubmit={onSubmit}
       className="grid gap-4 border-b border-border px-6 py-5 md:grid-cols-[1fr_1fr_120px_140px_auto]"
     >
-      <Field label="Person" htmlFor="ao-person">
+      <Field
+        label="Person"
+        htmlFor="ao-person"
+        hint={
+          everyone
+            ? "Everyone you can see"
+            : candidates && candidates.length === 0
+              ? "No referee or scorekeeper role in this league yet"
+              : "Referees and scorekeepers of this league"
+        }
+      >
         <Select
           id="ao-person"
           required
           value={form.personId}
-          onChange={(e) => setForm({ ...form, personId: e.target.value })}
+          onChange={(e) => {
+            const personId = e.target.value;
+            const c = candidates?.find((x) => x.personId === personId);
+            const role = c?.roles.includes("referee") ? "referee" : c?.roles.includes("scorekeeper") ? "scorekeeper" : form.role;
+            setForm({ ...form, personId, role: role as GameOfficialRole });
+            setClash(null);
+          }}
         >
-          {persons.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`}
-            </option>
-          ))}
+          <option value="" disabled>
+            {candidates === null && !everyone ? "Loading officials…" : "Pick an official"}
+          </option>
+          {everyone
+            ? persons.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`}
+                </option>
+              ))
+            : (candidates ?? []).map((c) => (
+                <option key={c.personId} value={c.personId}>
+                  {c.name} · {c.roles.join(", ")}
+                  {c.busyWith ? ` (busy: ${c.busyWith})` : ""}
+                </option>
+              ))}
         </Select>
+        <label className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-muted">
+          <input
+            type="checkbox"
+            checked={everyone}
+            onChange={(e) => {
+              setEveryone(e.target.checked);
+              setForm({ ...form, personId: "" });
+            }}
+          />
+          Show everyone
+        </label>
       </Field>
       <Field label="Role" htmlFor="ao-role">
         <Select
@@ -254,6 +306,14 @@ function AssignForm({
           )}
         </Button>
       </div>
+      {clash ? (
+        <div className="md:col-span-5 flex flex-wrap items-center gap-3 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+          <span>{clash}</span>
+          <Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void submit(true)}>
+            Assign anyway
+          </Button>
+        </div>
+      ) : null}
       {error ? (
         <p className="md:col-span-5 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
           {error}

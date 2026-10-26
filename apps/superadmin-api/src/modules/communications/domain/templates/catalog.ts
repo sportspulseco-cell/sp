@@ -15,6 +15,8 @@ export const TEMPLATE_CODES = [
   "game.finalized",
   // UC-07 / UC-21 manual move of a game's time or rink (SCH-6).
   "game.rescheduled",
+  // FR-3.9: a referee or scorekeeper is put on a game's crew.
+  "game.official_assigned",
   // UC-08 a schedule run is published: one digest per person per team (SCH-8).
   "schedule.published",
   "suspension.issued",
@@ -264,6 +266,22 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       "toVenueClause",
       "reasonClause"
     ]
+  },
+  {
+    code: "game.official_assigned",
+    channel: "email",
+    subject: "You are on the crew: {{awayTeam}} at {{homeTeam}}",
+    body:
+      "You are assigned as {{roleLabel}} for {{awayTeam}} at {{homeTeam}} on {{whenLabel}}{{venueClause}}.\n\n" +
+      "Sign in to the admin console to run the scoresheet.",
+    variables: ["roleLabel", "awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.official_assigned",
+    channel: "in_app",
+    subject: "You are on the crew: {{awayTeam}} at {{homeTeam}}",
+    body: "{{roleLabel}} for {{awayTeam}} at {{homeTeam}} on {{whenLabel}}{{venueClause}}.",
+    variables: ["roleLabel", "awayTeam", "homeTeam", "whenLabel", "venueClause"]
   },
   {
     code: "suspension.issued",

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsIn, IsOptional, IsString, IsUUID } from "class-validator";
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID } from "class-validator";
 
 const ROLES = [
   "referee",
@@ -24,6 +24,8 @@ export class AssignGameOfficialBodyDto {
   @IsIn(STATUSES as unknown as string[])
   status?: (typeof STATUSES)[number];
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string | null;
+  /** Assign although the person runs another game at the same time. */
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() force?: boolean;
 }
 
 export class UpdateOfficialStatusBodyDto {

@@ -1966,6 +1966,8 @@ export function createApi(f: Fetcher) {
           publishedOnly?: boolean;
           /** A game-day official's own games (role or crew spot). */
           assignedToMe?: boolean;
+          /** Assigner list: games with no official yet. */
+          withoutOfficials?: boolean;
         } = {}
       ) => f<Page<Game>>(`/games${qs(q)}`),
       getGame: (id: string) => f<Game>(`/games/${id}`),
@@ -1977,6 +1979,11 @@ export function createApi(f: Fetcher) {
         f<MisconductReport>(`/game-events/misconduct-report${qs({ seasonId })}`),
       /** Does the caller run games (scorekeeper / referee role or a crew spot)? */
       officiating: () => f<{ officiates: boolean }>("/games/officiating"),
+      /** People with a referee / scorekeeper role covering the game, and any clash. */
+      officialCandidates: (gameId: string) =>
+        f<Array<{ personId: string; name: string; roles: string[]; busyWith: string | null }>>(
+          `/games/${gameId}/official-candidates`
+        ),
       /** Players the scoresheet may name, per team (season roster + guests). */
       gamePlayers: (id: string) =>
         f<Array<{
@@ -2200,6 +2207,8 @@ export function createApi(f: Fetcher) {
           slot?: string | null;
           status?: GameOfficialStatus;
           notes?: string | null;
+          /** Assign although the person runs another game at that time. */
+          force?: boolean;
         }
       ) =>
         f<GameOfficial>(`/games/${gameId}/officials`, {
