@@ -9,18 +9,21 @@ import {
   Dialog,
   EmptyState,
   LoadError,
+  LocalDate,
   Select,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
+  Table,
+  useLocalDate
 } from "@sportspulse/ui";
 import {
   COMPLIANCE_DOCUMENT_KIND_LABELS,
   COMPLIANCE_DOCUMENT_STATUS_LABELS,
   COMPLIANCE_DECISION_REASON_MAX,
+  formatCalendarDate,
   type ComplianceDocumentDecision,
   type ComplianceDocumentStatus
 } from "@sportspulse/kernel";
@@ -58,30 +61,15 @@ function statusTone(s: ComplianceDocumentStatus): "success" | "warning" | "dange
   return "neutral";
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
-
 /** "Mar 4, 2008 (18)" from a YYYY-MM-DD date of birth. */
 function dobLabel(dob: string | null): string {
   if (!dob) return "Not on file";
   const [y, m, d] = dob.split("-").map(Number);
   if (!y || !m || !d) return dob;
-  const born = new Date(Date.UTC(y, m - 1, d));
   const now = new Date();
   let age = now.getUTCFullYear() - y;
   if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age -= 1;
-  const label = born.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
-  return `${label} (${age})`;
+  return `${formatCalendarDate(dob)} (${age})`;
 }
 
 function divisionRule(d: AdminComplianceDocument): string | null {
@@ -255,7 +243,7 @@ export function DocumentReviewQueue({
                     <TD className="text-fg">{COMPLIANCE_DOCUMENT_KIND_LABELS[d.kind]}</TD>
                     <TD className="text-fg-muted">{forLabel(d)}</TD>
                     <TD className="text-fg-muted">
-                      {fmtDate(d.createdAt)}
+                      <LocalDate iso={d.createdAt} format="date" />
                       {d.submittedByOther && d.submittedByName ? (
                         <p className="text-[12px]">by {d.submittedByName}</p>
                       ) : null}
@@ -322,6 +310,7 @@ function ReviewDialog({
   const [busy, setBusy] = useState<ComplianceDocumentDecision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const rule = useMemo(() => divisionRule(doc), [doc]);
+  const localDate = useLocalDate();
   // The consuming app builds `api` inline; keep the latest without
   // re-running the link fetch (each fetch is an audited file view).
   const apiRef = useRef(api);
@@ -375,7 +364,7 @@ function ReviewDialog({
       open
       onClose={busy ? () => undefined : onClose}
       title={`${COMPLIANCE_DOCUMENT_KIND_LABELS[doc.kind]}: ${doc.personName}`}
-      description={`Uploaded ${fmtDateTime(doc.createdAt)}${doc.submittedByOther && doc.submittedByName ? ` by ${doc.submittedByName}` : ""}.`}
+      description={`Uploaded ${localDate(doc.createdAt, "dateTime")}${doc.submittedByOther && doc.submittedByName ? ` by ${doc.submittedByName}` : ""}.`}
       size="lg"
     >
       <div className="space-y-5">
@@ -438,7 +427,7 @@ function ReviewDialog({
             <ul className="mt-1 space-y-1 text-[12px] text-fg-muted">
               {doc.decisions.map((h, i) => (
                 <li key={`${h.decidedAt}-${i}`}>
-                  {fmtDateTime(h.decidedAt)} · {COMPLIANCE_DOCUMENT_STATUS_LABELS[h.decision]}
+                  <LocalDate iso={h.decidedAt} format="dateTime" /> · {COMPLIANCE_DOCUMENT_STATUS_LABELS[h.decision]}
                   {h.decidedByName ? ` by ${h.decidedByName}` : ""}
                   {h.reason ? `: ${h.reason}` : ""}
                 </li>

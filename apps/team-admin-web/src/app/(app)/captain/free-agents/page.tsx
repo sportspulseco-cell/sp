@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 import {
   Badge,
   EmptyState,
+  LocalDate,
   TBody,
   TD,
   TH,
@@ -35,9 +36,8 @@ function ageFromDob(dob: string | null): number | null {
   return age;
 }
 
-function fmtDay(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function fmtDay(iso: string | null) {
+  return <LocalDate iso={iso} format="monthDay" fallback="—" />;
 }
 
 const OFFER_TONE: Record<FreeAgentOffer["status"], "info" | "success" | "danger" | "neutral"> = {

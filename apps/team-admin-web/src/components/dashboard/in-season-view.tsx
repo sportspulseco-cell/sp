@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatInZone, formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -116,7 +116,7 @@ export async function InSeasonView({
           title="Collection progress"
           body={
             state.thresholdCents > 0
-              ? `${formatCents(state.collectedCents)} of ${formatCents(state.thresholdCents)} collected.`
+              ? `${formatMoney(state.collectedCents)} of ${formatMoney(state.thresholdCents)} collected.`
               : "No collection threshold for this season."
           }
           href="/captain/dues"
@@ -173,7 +173,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
             {outcomeLabel(g, teamId)}
           </Badge>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            {new Date(g.scheduledStartTsUtc).toLocaleDateString("en-CA")}
+            {formatInZone(g.scheduledStartTsUtc, g.tz, DATE_FORMATS.monthDay)}
           </span>
         </li>
       ))}
@@ -266,8 +266,4 @@ function outcomeLabel(
   if (ours > theirs) return "W";
   if (ours < theirs) return "L";
   return "T";
-}
-
-function formatCents(c: number): string {
-  return `$${(c / 100).toFixed(2)}`;
 }

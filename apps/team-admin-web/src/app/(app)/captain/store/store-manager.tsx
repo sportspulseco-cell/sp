@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
@@ -39,7 +39,7 @@ function productToForm(p: Product): FormState {
     name: p.name,
     description: p.description ?? "",
     imageUrl: p.imageUrl ?? "",
-    priceDollars: (p.priceCents / 100).toFixed(2),
+    priceDollars: centsToAmountInput(p.priceCents),
     currency: p.currency,
     variantLabel: p.variantLabel ?? "",
     stockQty: p.stockQty != null ? String(p.stockQty) : "",

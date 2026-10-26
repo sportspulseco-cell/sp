@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -499,9 +500,5 @@ function extractColor(_colors: Record<string, unknown>): string | null {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }

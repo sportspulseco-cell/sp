@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, History, Loader2, Pause, XCircle
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, TBody, TD, TH, THead, TR, Table
+  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table
 } from "@sportspulse/ui";
 import {
   scheduler, type ScheduleRunListItem
@@ -13,14 +13,8 @@ import {
 
 interface Props { seasonId: string }
 
-function fmtTs(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("en-US", {
-      year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso; }
+function fmtTs(iso: string) {
+  return <LocalDate iso={iso} format="dateTime" />;
 }
 
 function fmtDuration(ms: number | null): string {

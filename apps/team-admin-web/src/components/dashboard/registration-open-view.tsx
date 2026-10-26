@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock } from "lucide-react";
-import { Badge, Eyebrow } from "@sportspulse/ui";
+import { Badge, Eyebrow, LocalDate } from "@sportspulse/ui";
+import { formatMoney } from "@sportspulse/kernel";
 import type { DashboardState, DashboardTeam } from "./shared-types";
 
 /**
@@ -49,7 +50,7 @@ export function RegistrationOpenView({
             </Link>
             {state.registrationClosesAt && (
               <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-fg-muted">
-                Closes {new Date(state.registrationClosesAt).toLocaleDateString("en-CA")}
+                Closes <LocalDate iso={state.registrationClosesAt} format="date" />
               </p>
             )}
           </div>
@@ -137,6 +138,4 @@ function ProgressBar({
   );
 }
 
-function fmt(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
+const fmt = (cents: number): string => formatMoney(cents);

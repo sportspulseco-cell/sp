@@ -1,6 +1,7 @@
 import { formatMoney, registrationClosesLabel } from "@sportspulse/kernel";
 import Link from "next/link";
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
+import type { ReactNode } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -15,7 +16,7 @@ import {
   Wallet,
   type LucideIcon
 } from "lucide-react";
-import { Badge, Eyebrow, EmptyState, IconTile } from "@sportspulse/ui";
+import { Badge, Eyebrow, EmptyState, IconTile, LocalDate } from "@sportspulse/ui";
 import type {
   Game,
   Notification,
@@ -46,14 +47,12 @@ function fmtDateTime(iso: string, tz: string): string {
   });
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
+// Due dates are calendar days.
+function fmtDate(value: string): string {
+  return formatCalendarDate(value, DATE_FORMATS.monthDay);
 }
 
-function relativeTime(iso: string, now: Date): string {
+function relativeTime(iso: string, now: Date): ReactNode {
   const diff = now.getTime() - new Date(iso).getTime();
   const abs = Math.abs(diff);
   const minute = 60_000;
@@ -63,7 +62,7 @@ function relativeTime(iso: string, now: Date): string {
   if (abs < hour) return `${Math.floor(abs / minute)} min ago`;
   if (abs < day) return `${Math.floor(abs / hour)} h ago`;
   if (abs < 7 * day) return `${Math.floor(abs / day)} d ago`;
-  return fmtDate(iso);
+  return <LocalDate iso={iso} format="monthDay" />;
 }
 
 function countdown(iso: string, now: Date): string {
@@ -597,7 +596,7 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
                   <p className="truncate text-[11px] text-fg-muted">
                     {sub ||
                       (r.submittedAt
-                        ? `Submitted ${fmtDate(r.submittedAt)}`
+                        ? <>Submitted <LocalDate iso={r.submittedAt} format="monthDay" /></>
                         : "Draft")}
                   </p>
                 </div>

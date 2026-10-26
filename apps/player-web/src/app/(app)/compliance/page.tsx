@@ -6,7 +6,8 @@ import {
   ShieldCheck,
   Upload
 } from "lucide-react";
-import { Badge, EmptyState, Eyebrow, LoadError } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, LoadError, LocalDate } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { load, type EligibilityRecord } from "@sportspulse/api-client";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -18,12 +19,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Compliance — SportsPulse" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(value: string): string {
+  return formatCalendarDate(value, DATE_FORMATS.date);
 }
 
 const STATUS_COPY: Record<
@@ -252,7 +249,7 @@ export default async function CompliancePage() {
                     {rec.effectiveTo
                       ? ` → ${fmtDate(rec.effectiveTo)}`
                       : ""}{" "}
-                    · Last evaluated {fmtDate(rec.evaluatedAt)}
+                    · Last evaluated <LocalDate iso={rec.evaluatedAt} format="date" />
                   </p>
                 </div>
                 {/* Per-rule action — for blocking statuses, the player

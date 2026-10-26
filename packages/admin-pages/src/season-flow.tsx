@@ -1,4 +1,4 @@
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
 import type {
   Division,
@@ -104,10 +104,13 @@ const ACTIVE_STATUSES = new Set(["draft", "registration_open", "in_progress", "p
 const STATUS_ORDER: Record<string, number> = { registration_open: 0, in_progress: 1, playoffs: 2, draft: 3 };
 const EMPTY = { items: [], nextCursor: null };
 
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+/**
+ * "Nov 22" for season, playoff and deadline dates in these one-line notes.
+ * The season carries no rink zone here, so deadlines read as their UTC
+ * day, the same on the server and in every browser.
+ */
+function fmtDate(value: string | null | undefined): string {
+  return formatCalendarDate(value, DATE_FORMATS.monthDay) || "—";
 }
 
 function plural(n: number, one: string, many = `${one}s`): string {
@@ -210,7 +213,7 @@ async function readSeason(
       label: "Schedule",
       done: seasonGames.length > 0,
       note: seasonGames.length
-        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${formatInZone(nextGame.scheduledStartTsUtc, nextGame.tz, { month: "short", day: "numeric" })}` : ""}`
+        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${formatInZone(nextGame.scheduledStartTsUtc, nextGame.tz, DATE_FORMATS.monthDay)}` : ""}`
         : "No games yet",
       action: { label: "Generate the schedule", href: links.generate(season.id) }
     },

@@ -1,5 +1,6 @@
 "use client";
 
+import { centsToAmountInput } from "@sportspulse/kernel";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Receipt } from "lucide-react";
@@ -30,7 +31,7 @@ export function RecordPaymentForm({
   defaultAmountCents: number;
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState((defaultAmountCents / 100).toFixed(2));
+  const [amount, setAmount] = useState(centsToAmountInput(defaultAmountCents));
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);

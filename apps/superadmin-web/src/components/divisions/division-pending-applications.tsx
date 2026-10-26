@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocalDate } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -42,6 +43,7 @@ export function DivisionPendingApplications({
   initial: PendingApplication[];
 }) {
   const router = useRouter();
+  const localDate = useLocalDate();
   const [items, setItems] = useState<PendingApplication[]>(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -187,11 +189,7 @@ export function DivisionPendingApplications({
                   />
                   <Stat
                     label="Applied"
-                    value={new Date(t.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric"
-                    })}
+                    value={localDate(t.createdAt, "date")}
                   />
                 </div>
 

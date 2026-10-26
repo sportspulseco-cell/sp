@@ -4,11 +4,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
-import {
-  SCOPE_TYPES,
-  SCOPE_TYPE_LABELS,
-  scopeTypeWithArticle
-} from "@sportspulse/kernel";
+import { SCOPE_TYPES, SCOPE_TYPE_LABELS, scopeTypeWithArticle, DATE_FORMATS, formatInZone } from "@sportspulse/kernel";
 import {
   gameOps,
   iam,
@@ -145,10 +141,7 @@ export function AssignRolePanel({
         case "game": {
           const p = await gameOps.listGames({ limit: 100 });
           return p.items.map((g) => {
-            const d = new Date(g.scheduledStartTsUtc).toLocaleDateString(
-              undefined,
-              { month: "short", day: "numeric" }
-            );
+            const d = formatInZone(g.scheduledStartTsUtc, g.tz, DATE_FORMATS.monthDay);
             return {
               id: g.id,
               label: `${d} - ${g.venueName ?? "Venue to be confirmed"}`

@@ -1,5 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
@@ -223,12 +223,7 @@ export default async function EligibilityPage({
                   {e.status === "waived" ? (e.waiverReason ?? "—") : "—"}
                 </TD>
                 <TD className="font-mono text-[11px] text-fg-muted">
-                  {new Date(e.evaluatedAt).toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit"
-                  })}
+                  <LocalDate iso={e.evaluatedAt} format="dateTime" />
                 </TD>
                 <TD className="text-right">
                   {e.status !== "waived" ? (

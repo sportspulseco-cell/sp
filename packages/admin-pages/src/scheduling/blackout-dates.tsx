@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { CalendarOff, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button, Field, Input, Select } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 
 export interface BlackoutRow {
   id: string;
@@ -22,11 +23,9 @@ export interface BlackoutApi {
   rinks: () => Promise<Array<{ id: string; label: string }>>;
 }
 
+/** A calendar day, not an instant, so it never shifts: "Sat, Nov 22, 2026". */
 function fmtDay(d: string) {
-  // A calendar day, not an instant: format it as UTC so it never shifts.
-  return new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
-    timeZone: "UTC", weekday: "short", month: "short", day: "numeric", year: "numeric"
-  });
+  return formatCalendarDate(d, { ...DATE_FORMATS.date, weekday: "short" });
 }
 
 /**

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Division, PricingTier } from "@sportspulse/api-client";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
+import { LocalDate } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 
 export function PricingTab({
@@ -141,7 +143,7 @@ function TierCard({
             className="w-full bg-transparent text-[16px] font-semibold tracking-tight text-fg outline-none focus:bg-surface-2 focus:px-1 focus:py-0.5 focus:rounded"
           />
           <p className="mt-1 font-mono text-[11px] tabular-nums text-fg-muted">
-            Created {new Date(tier.createdAt).toLocaleDateString("en-CA")}
+            Created <LocalDate iso={tier.createdAt} format="date" />
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -229,13 +231,14 @@ function PaymentTimeline({ tier }: { tier: PricingTier }) {
           <div className="h-full w-1/4 rounded-full bg-success" />
         </div>
         <span className="font-mono tabular-nums text-fg">
-          ${(deposit / 100).toFixed(2)} <span className="text-fg-muted">deposit</span>
+          {formatMoney(deposit, tier.currency)} <span className="text-fg-muted">deposit</span>
         </span>
         {Array.from({ length: tier.installmentCount }).map((_, i) => (
           <FragmentRow
             key={i}
             day={tier.installmentIntervalDays * (i + 1)}
             amountCents={perInstallment}
+            currency={tier.currency}
           />
         ))}
       </div>
@@ -243,13 +246,13 @@ function PaymentTimeline({ tier }: { tier: PricingTier }) {
   );
 }
 
-function FragmentRow({ day, amountCents }: { day: number; amountCents: number }) {
+function FragmentRow({ day, amountCents, currency }: { day: number; amountCents: number; currency: string }) {
   return (
     <>
       <span className="font-mono text-fg-muted">Day {day}</span>
       <div className="h-1.5 rounded-full bg-surface-2" />
       <span className="font-mono tabular-nums text-fg">
-        ${(amountCents / 100).toFixed(2)}
+        {formatMoney(amountCents, currency)}
       </span>
     </>
   );
@@ -278,7 +281,7 @@ function MoneyField({
         inputMode="decimal"
         step="0.01"
         min={0}
-        defaultValue={(cents / 100).toFixed(2)}
+        defaultValue={centsToAmountInput(cents)}
         onBlur={(e) => {
           const dollars = Number(e.target.value);
           if (!Number.isFinite(dollars) || dollars < 0) return;

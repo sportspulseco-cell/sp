@@ -1,5 +1,5 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { Database, Upload, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { dataMigration, orgs } from "@/lib/api/server-api";
@@ -47,13 +47,7 @@ function statusTone(s: ImportStatus) {
 }
 
 function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function DataMigrationPage() {

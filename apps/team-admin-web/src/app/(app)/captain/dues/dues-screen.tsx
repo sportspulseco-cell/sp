@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { DATE_FORMATS, centsToAmountInput, formatCalendarDate, formatMoney } from "@sportspulse/kernel";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
@@ -517,7 +517,7 @@ export function DuesScreen({
                             min={0}
                             aria-label={`Share for ${c.name}`}
                             readOnly={splitMode === "even"}
-                            value={(cents / 100).toFixed(2)}
+                            value={centsToAmountInput(cents)}
                             onChange={(e) => {
                               const dollars = parseFloat(e.target.value);
                               setFirstCustom((prev) => ({
@@ -693,7 +693,7 @@ function PlayerRow({
           step="0.01"
           min={0}
           readOnly={splitDisabled}
-          value={(splitCents / 100).toFixed(2)}
+          value={centsToAmountInput(splitCents)}
           onChange={(e) => {
             const dollars = parseFloat(e.target.value);
             if (Number.isFinite(dollars)) {
@@ -753,12 +753,7 @@ function PlayerRow({
               : "font-mono text-[12px] text-fg-muted"
           }
         >
-          {sub.dueAt
-            ? new Date(sub.dueAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric"
-              })
-            : "—"}
+          {sub.dueAt ? formatCalendarDate(sub.dueAt, DATE_FORMATS.monthDay) : "—"}
         </span>
       </td>
       <td className="px-5 py-3 text-right">

@@ -18,6 +18,7 @@ import {
   Badge,
   EmptyState,
   Eyebrow,
+  LocalDate,
   SectionRail,
   StatTile,
   TBody,
@@ -271,7 +272,7 @@ export default async function OrgAdminHome() {
                       </Badge>
                     </TD>
                     <TD className="text-right text-[12px] text-fg-muted">
-                      {new Date(r.createdAt).toLocaleDateString("en-CA")}
+                      <LocalDate iso={r.createdAt} format="date" />
                     </TD>
                   </TR>
                 ))}

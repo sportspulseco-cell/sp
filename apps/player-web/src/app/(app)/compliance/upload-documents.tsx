@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, FileUp, Loader2 } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow, Select } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Select, useLocalDate } from "@sportspulse/ui";
 import {
   COMPLIANCE_DOCUMENT_KINDS,
   COMPLIANCE_DOCUMENT_KIND_LABELS,
@@ -28,10 +28,6 @@ function targetKey(t: { personId: string; orgId: string; seasonId: string | null
 function targetLabel(t: ComplianceUploadTarget): string {
   const parts = [t.seasonName ?? "No season", t.orgName ?? null, t.teamName ?? null].filter(Boolean);
   return t.forMinor ? `${t.personName} · ${parts.join(" · ")}` : parts.join(" · ");
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function mb(bytes: number): string {
@@ -95,6 +91,7 @@ export function UploadDocuments({
   targets: ComplianceUploadTarget[];
 }) {
   const router = useRouter();
+  const fmtDate = useLocalDate();
   const [rows, setRows] = useState(items);
   useEffect(() => setRows(items), [items]);
 

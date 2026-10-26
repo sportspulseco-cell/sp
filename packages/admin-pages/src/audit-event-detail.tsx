@@ -1,18 +1,11 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Eyebrow, Reveal } from "@sportspulse/ui";
+import { Eyebrow, LocalDate, Reveal } from "@sportspulse/ui";
+import { DATE_FORMATS } from "@sportspulse/kernel";
 import type { AuditEvent } from "@sportspulse/api-client";
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
+/** Audit times keep seconds; otherwise the shared timestamp shape. */
+const AUDIT_TIME: Intl.DateTimeFormatOptions = { ...DATE_FORMATS.dateTime, second: "2-digit" };
 
 /**
  * Read-only audit event detail. Pure presentational — each app
@@ -54,7 +47,7 @@ export function AuditEventDetail({
           ) : event.resourceId ? (
             <span className="ml-1 font-mono">· {event.resourceId}</span>
           ) : null}
-          <span className="ml-2 text-fg-muted">at {fmt(event.tsUtc)}</span>
+          <span className="ml-2 text-fg-muted">at <LocalDate iso={event.tsUtc} options={AUDIT_TIME} /></span>
         </p>
       </Reveal>
 

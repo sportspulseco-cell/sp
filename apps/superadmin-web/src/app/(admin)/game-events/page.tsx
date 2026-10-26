@@ -1,5 +1,5 @@
 import { fetchAll, load, mapLimit } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
 import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
@@ -19,13 +19,7 @@ import {
 export const metadata = { title: "Game events — SportsPulse" };
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit"
-  });
+  return <LocalDate iso={iso} options={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }} />;
 }
 
 function fmtClock(sec: number | null) {

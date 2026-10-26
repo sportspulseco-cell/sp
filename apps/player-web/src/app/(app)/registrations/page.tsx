@@ -9,7 +9,7 @@ import {
   Trophy,
   Users
 } from "lucide-react";
-import { Badge, EmptyState } from "@sportspulse/ui";
+import { Badge, EmptyState, LocalDate } from "@sportspulse/ui";
 import { registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -41,13 +41,6 @@ const STATUS_TONE: Record<
   cancelled: "neutral"
 };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-}
 
 function statusCopy(status: string): string {
   switch (status) {
@@ -219,10 +212,14 @@ function RegistrationRow({ r }: { r: Row }) {
 
             <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               Ref {r.id.slice(0, 8)} ·{" "}
-              {r.submittedAt
-                ? `Submitted ${fmtDate(r.submittedAt)}`
-                : `Started ${fmtDate(r.createdAt)}`}
-              {r.reviewedAt ? ` · Reviewed ${fmtDate(r.reviewedAt)}` : ""}
+              {r.submittedAt ? (
+                <>Submitted <LocalDate iso={r.submittedAt} format="date" /></>
+              ) : (
+                <>Started <LocalDate iso={r.createdAt} format="date" /></>
+              )}
+              {r.reviewedAt ? (
+                <> · Reviewed <LocalDate iso={r.reviewedAt} format="date" /></>
+              ) : null}
             </p>
           </div>
         </div>

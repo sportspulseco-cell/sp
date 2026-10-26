@@ -1,5 +1,6 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
+import { formatCalendarDate } from "@sportspulse/kernel";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -163,7 +164,7 @@ export default async function CaptainCompliancePage() {
                   <div className="text-[12px] text-fg-muted">
                     USA Hockey:{" "}
                     {usah?.status
-                      ? `${usah.status}${usah.expiresAt ? ` · ${new Date(usah.expiresAt).toLocaleDateString("en-CA")}` : ""}`
+                      ? `${usah.status}${usah.expiresAt ? ` · ${formatCalendarDate(usah.expiresAt)}` : ""}`
                       : "—"}
                   </div>
                   <div className="text-[12px] text-fg-muted">

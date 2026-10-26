@@ -19,13 +19,15 @@ import {
   Button,
   EmptyState,
   Eyebrow,
+  LocalDate,
   Select,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
+  Table,
+  useLocalDate
 } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -471,7 +473,7 @@ function ActiveRosterTable({
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {new Date(m.effectiveFrom).toLocaleDateString("en-CA")}
+                  <LocalDate iso={m.effectiveFrom} format="date" />
                 </TD>
                 <TD className="text-right">
                   {isLocked ? (
@@ -661,9 +663,7 @@ function PendingInvitesTable({
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {i.expiresAt
-                    ? new Date(i.expiresAt).toLocaleDateString("en-CA")
-                    : "—"}
+                  <LocalDate iso={i.expiresAt} format="date" fallback="—" />
                 </TD>
                 <TD className="text-[12px] text-fg-muted tabular-nums">
                   {i.extensionCount} / 2
@@ -701,6 +701,7 @@ function PendingInvitesTable({
 function useLockMeta(
   iso: string | null
 ): { label: string; tone: "neutral" | "amber" | "red" } | null {
+  const fmtDate = useLocalDate();
   return useMemo(() => {
     if (!iso) return null;
     const lock = new Date(iso).getTime();
@@ -708,7 +709,7 @@ function useLockMeta(
     const days = Math.ceil((lock - now) / (24 * 60 * 60 * 1000));
     if (days < 0) {
       return {
-        label: `Roster locked since ${new Date(iso).toLocaleDateString("en-CA")}`,
+        label: `Roster locked since ${fmtDate(iso, "date")}`,
         tone: "red"
       };
     }
@@ -725,7 +726,7 @@ function useLockMeta(
       return { label: `Locks in ${days} days`, tone: "amber" };
     }
     return { label: `Locks in ${days} days`, tone: "neutral" };
-  }, [iso]);
+  }, [iso, fmtDate]);
 }
 
 // Stub to suppress unused warnings on the icons we reserve for the

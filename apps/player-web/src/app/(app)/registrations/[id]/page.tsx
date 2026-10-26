@@ -15,7 +15,8 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { Badge, Eyebrow, LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError, LocalDate } from "@sportspulse/ui";
+import type { ReactNode } from "react";
 import { registration } from "@/lib/api/server-api";
 import { LegacyDivisionPrompt } from "./legacy-division-prompt";
 
@@ -23,13 +24,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Registration — SportsPulse" };
 
-function fmt(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmt(iso: string | null | undefined): ReactNode {
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
 const STATUS_TONE: Record<
@@ -335,7 +331,7 @@ function DetailRow({
   mono
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   mono?: boolean;
 }) {
   return (

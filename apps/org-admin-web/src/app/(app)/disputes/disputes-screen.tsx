@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Gavel, Loader2, X } from "lucide-react";
@@ -221,7 +221,7 @@ function ResolveForm({
 }) {
   const [decision, setDecision] = useState<Decision>("refund");
   const [refundDollars, setRefundDollars] = useState(
-    (item.paidCents / 100).toFixed(2)
+    centsToAmountInput(item.paidCents)
   );
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);

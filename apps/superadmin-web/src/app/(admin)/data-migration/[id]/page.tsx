@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import { ArrowLeft, Database } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { dataMigration } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
@@ -11,14 +12,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 export const metadata = { title: "Import job — SportsPulse" };
 
 function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function ImportJobDetailPage({
@@ -167,7 +161,7 @@ function Stat({
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-surface-1 px-4 py-3">
       <p className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">

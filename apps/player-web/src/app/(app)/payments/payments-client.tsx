@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { DATE_FORMATS, centsToAmountInput, formatCalendarDate, formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import {
   AlertOctagon,
@@ -16,7 +16,8 @@ import {
   Button,
   Dialog,
   DialogActions,
-  Eyebrow
+  Eyebrow,
+  useLocalDate
 } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
@@ -31,6 +32,7 @@ export function PaymentsClient({
 }: {
   initial: { wallet: Wallet; invoices: Invoices };
 }) {
+  const localDate = useLocalDate();
   const [wallet, setWallet] = useState<Wallet>(initial.wallet);
   const [invoices, setInvoices] = useState<Invoices>(initial.invoices);
   const [payTarget, setPayTarget] = useState<{ invoice: Invoice; presetCents: number } | null>(null);
@@ -136,7 +138,7 @@ export function PaymentsClient({
                       {inv.status}
                     </Badge>
                     {inv.paidCents > 0 ? (
-                      <Button variant="ghost" size="sm" onClick={() => downloadReceipt(inv)}>
+                      <Button variant="ghost" size="sm" onClick={() => downloadReceipt(inv, localDate)}>
                         <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
                         Receipt
                       </Button>
@@ -195,6 +197,7 @@ function InvoiceCard({
   onRetry: (ins: Installment) => void;
   onUpdateCard: () => void;
 }) {
+  const localDate = useLocalDate();
   const outstanding = Math.max(0, invoice.totalCents - invoice.paidCents);
   const range = invoice.payRange;
   // On a payment plan the player can pay the next installment instead of everything.
@@ -235,10 +238,7 @@ function InvoiceCard({
           <span>
             Your{" "}
             {oldestFailed.dueDate
-              ? new Date(oldestFailed.dueDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric"
-                })
+              ? formatCalendarDate(oldestFailed.dueDate, DATE_FORMATS.monthDay)
               : `installment #${oldestFailed.installmentNumber}`}{" "}
             payment of {formatMoney(oldestFailed.amountCents, invoice.currency)} failed.
             Update your card and retry.
@@ -341,10 +341,7 @@ function InvoiceCard({
                       {ins.status === "failed"
                         ? "Failed"
                         : ins.dueDate
-                          ? new Date(ins.dueDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric"
-                            })
+                          ? formatCalendarDate(ins.dueDate, DATE_FORMATS.monthDay)
                           : "Pending"}
                     </p>
                   </div>
@@ -383,7 +380,7 @@ function InvoiceCard({
         {invoice.paidCents > 0 && (
           <Button
             variant="ghost"
-            onClick={() => downloadReceipt(invoice)}
+            onClick={() => downloadReceipt(invoice, localDate)}
           >
             <Download className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
             Download receipt
@@ -519,11 +516,11 @@ function TeamLink({
  * total, paid, refunded, balance. Opens in a new tab; the browser's
  * Print saves it as a PDF (MON-18). Values are escaped before writing.
  */
-function downloadReceipt(inv: Invoice) {
+function downloadReceipt(inv: Invoice, localDate: (iso: string) => string) {
   const esc = (v: unknown) =>
     String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
   const day = (iso: string | null | undefined) =>
-    iso ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+    iso ? localDate(iso) : "";
   const refunded = inv.refundedCents ?? 0;
   const balance = Math.max(0, inv.totalCents - inv.paidCents);
   // The same lines the Payments card shows (MON-18): what each charge was for.
@@ -571,7 +568,7 @@ function PayDialog({
   onPaid: (msg: string) => void;
 }) {
   const [walletAmount, setWalletAmount] = useState<string>("");
-  const [amountText, setAmountText] = useState<string>((presetCents / 100).toFixed(2));
+  const [amountText, setAmountText] = useState<string>(centsToAmountInput(presetCents));
   // One key per opened dialog: a double click or a retry charges once.
   const [payKey] = useState(() =>
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -646,7 +643,7 @@ function PayDialog({
                 type="button"
                 size="sm"
                 variant={amount === range.minCents ? "primary" : "ghost"}
-                onClick={() => setAmountText((range.minCents / 100).toFixed(2))}
+                onClick={() => setAmountText(centsToAmountInput(range.minCents))}
               >
                 Next installment {formatMoney(range.minCents, invoice.currency)}
               </Button>
@@ -654,7 +651,7 @@ function PayDialog({
                 type="button"
                 size="sm"
                 variant={amount === range.maxCents ? "primary" : "ghost"}
-                onClick={() => setAmountText((range.maxCents / 100).toFixed(2))}
+                onClick={() => setAmountText(centsToAmountInput(range.maxCents))}
               >
                 Whole balance {formatMoney(range.maxCents, invoice.currency)}
               </Button>
@@ -668,8 +665,8 @@ function PayDialog({
                 aria-label="Amount to pay now"
                 type="number"
                 step="0.01"
-                min={range.minCents / 100}
-                max={range.maxCents / 100}
+                min={centsToAmountInput(range.minCents)}
+                max={centsToAmountInput(range.maxCents)}
                 value={amountText}
                 onChange={(e) => setAmountText(e.target.value)}
                 className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"

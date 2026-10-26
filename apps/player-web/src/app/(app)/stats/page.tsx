@@ -1,4 +1,4 @@
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatInZone } from "@sportspulse/kernel";
 import { ChartBar } from "lucide-react";
 import {
   Badge,
@@ -10,7 +10,8 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  LocalDate
 } from "@sportspulse/ui";
 import type { Game, StatLine } from "@sportspulse/api-client";
 import { gameOps, loadMeScope, stats } from "@/lib/api/server-api";
@@ -21,12 +22,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Stats — SportsPulse" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
-}
 
 function num(s: StatLine, key: string): number {
   const v = s.core?.[key];
@@ -294,8 +289,8 @@ export default async function StatsPage({
                     <TR key={s.id}>
                       <TD className="text-[12px] text-fg-muted">
                         {g
-                          ? formatInZone(g.scheduledStartTsUtc, g.tz, { month: "short", day: "numeric" })
-                          : fmtDate(s.derivedAt)}
+                          ? formatInZone(g.scheduledStartTsUtc, g.tz, DATE_FORMATS.monthDay)
+                          : <LocalDate iso={s.derivedAt} format="monthDay" />}
                       </TD>
                       <TD className="text-[12px] text-fg">
                         {g

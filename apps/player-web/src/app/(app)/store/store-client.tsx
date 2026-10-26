@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
-import { Badge, Button, Dialog, DialogActions, Eyebrow } from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, Eyebrow, LocalDate } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import {
   formatMoney,
@@ -219,7 +219,7 @@ export function StoreClient({
                 <li key={o.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-surface-1 p-4">
                   <div>
                     <p className="text-sm font-medium text-fg">
-                      {new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} ·{" "}
+                      <LocalDate iso={o.createdAt} format="date" /> ·{" "}
                       {formatMoney(o.totalCents, o.currency)}
                     </p>
                     <ul className="mt-1 space-y-0.5 text-[13px] text-fg">

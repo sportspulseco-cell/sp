@@ -13,8 +13,8 @@ import {
   Sparkles,
   XCircle
 } from "lucide-react";
-import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
-import { sortSeasonsByCurrency } from "@sportspulse/kernel";
+import { Badge, EmptyState, Eyebrow, LocalDate } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate, sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import {
@@ -467,10 +467,7 @@ function RejectionDetailCard({ app }: { app: Application }) {
 
 function SeasonCard({ season }: { season: OpenSeason }) {
   const startStr = season.startDate
-    ? new Date(season.startDate).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric"
-      })
+    ? formatCalendarDate(season.startDate, DATE_FORMATS.monthDay)
     : null;
   return (
     <Link
@@ -613,20 +610,10 @@ function StepBullet({
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" />;
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" />;
 }
 

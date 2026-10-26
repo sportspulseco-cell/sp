@@ -2,7 +2,7 @@ import { ArrowLeft, Building2, ShieldCheck, Trophy, UserCog } from "lucide-react
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -19,12 +19,7 @@ import { resolvePrimaryRole, resolveProfileRoles } from "@/components/users/prim
 export const metadata = { title: "User — SportsPulse" };
 
 function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
 export default async function UserDetailPage({

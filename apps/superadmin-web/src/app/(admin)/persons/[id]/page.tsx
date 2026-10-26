@@ -1,3 +1,4 @@
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { fetchAll, load } from "@sportspulse/api-client";
 import {
   ArrowLeft,
@@ -21,7 +22,7 @@ import {
 } from "@/components/discipline/suspension-buttons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import {
   communications,
   compliance,
@@ -53,23 +54,11 @@ function age(dob: string | null): number | null {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
-function fmtDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+function fmtDateTime(iso: string | null) {
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function PersonDetailPage({
@@ -523,7 +512,7 @@ export default async function PersonDetailPage({
                       : "Org-level"}
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {fmtDate(r.submittedAt ?? r.createdAt)}
+                    <LocalDate iso={r.submittedAt ?? r.createdAt} format="date" fallback="—" />
                   </p>
                 </div>
                 <Badge tone={statusTone(r.status)} mono>

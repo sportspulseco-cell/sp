@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Package } from "lucide-react";
-import { Badge, Button, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { Badge, Button, EmptyState, Eyebrow, LocalDate } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import { formatMoney } from "@sportspulse/kernel";
 import { teamStore } from "@/lib/api/browser-api";
@@ -14,7 +14,7 @@ const STATUS_TONE: Record<StoreOrder["status"], "neutral" | "warning" | "success
   cancelled: "neutral"
 };
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const day = (iso: string) => <LocalDate iso={iso} format="monthDay" />;
 
 /**
  * Orders from the team store (UC-26). Payment is the invoice's: an

@@ -1,3 +1,4 @@
+import { LocalDate } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApplicationsQueue } from "./applications-queue";
@@ -37,10 +38,7 @@ export default async function SeasonApplicationsPage({
           initial.season.registrationClosesAt ? (
             <span className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
               Registration closes{" "}
-              {new Date(initial.season.registrationClosesAt).toLocaleDateString(
-                undefined,
-                { month: "short", day: "numeric", year: "numeric" }
-              )}
+              <LocalDate iso={initial.season.registrationClosesAt} format="date" />
             </span>
           ) : undefined
         }

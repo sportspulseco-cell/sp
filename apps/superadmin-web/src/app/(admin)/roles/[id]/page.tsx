@@ -2,7 +2,7 @@ import { ArrowLeft, Building2, Layers, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAll, load, type RoleAssignment } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { countEffectivePermissions } from "@sportspulse/kernel";
 import { iam, orgs } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
@@ -24,12 +24,7 @@ import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 export const metadata = { title: "Role — SportsPulse" };
 
 function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
 function BackLink() {

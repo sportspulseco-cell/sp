@@ -1,5 +1,7 @@
 "use client";
 
+import { LocalDate } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate, centsToAmountInput } from "@sportspulse/kernel";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -246,7 +248,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
               if (typeof last !== "string") return null;
               return (
                 <p>
-                  Last reminder sent {new Date(last).toLocaleDateString("en-CA")}.
+                  Last reminder sent <LocalDate iso={last} format="date" />.
                 </p>
               );
             })()}
@@ -993,7 +995,7 @@ function MarkPaidOfflineDialog({
   currency: string;
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState(((balance ?? 0) / 100).toFixed(2));
+  const [amount, setAmount] = useState(centsToAmountInput(balance ?? 0));
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1094,13 +1096,8 @@ function MarkPaidOfflineDialog({
   );
 }
 
-function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(iso: string | null): string {
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
 function statusTone(

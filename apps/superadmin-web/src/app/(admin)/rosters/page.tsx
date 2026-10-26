@@ -1,5 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
@@ -292,12 +292,7 @@ async function RecentMovesCard({
               </p>
             </div>
             <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-              {new Date(m.effectiveAt).toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit"
-              })}
+              <LocalDate iso={m.effectiveAt} format="dateTime" />
             </span>
           </li>
         ))}

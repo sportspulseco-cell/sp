@@ -7,7 +7,8 @@ import {
   Badge,
   Button,
   Dialog,
-  DialogActions
+  DialogActions,
+  LocalDate
 } from "@sportspulse/ui";
 import { registration } from "@/lib/api/browser-api";
 
@@ -130,11 +131,7 @@ export function JoinRequestsClient({
                     )}
                     <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                       Applied{" "}
-                      {new Date(item.appliedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric"
-                      })}
+                      <LocalDate iso={item.appliedAt} format="date" />
                     </p>
                   </div>
                 </div>

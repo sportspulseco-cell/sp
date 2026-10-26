@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert } from "@sportspulse/ui";
+import { Alert, LocalDate } from "@sportspulse/ui";
 import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -213,7 +213,7 @@ export default async function UsersPage({
                     />
                   </TD>
                   <TD className="text-muted-foreground">
-                    {new Date(u.createdAt).toLocaleDateString("en-CA")}
+                    <LocalDate iso={u.createdAt} format="date" />
                   </TD>
                   <TD>
                     <UserActionsMenu user={u} userType={typeOf(u)?.code ?? null} />

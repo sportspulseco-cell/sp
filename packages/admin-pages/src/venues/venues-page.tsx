@@ -6,7 +6,7 @@ import {
   Snowflake, Trash2, RefreshCw, X
 } from "lucide-react";
 import type { RinkAddress, RinkRemoval, RinkUsage } from "@sportspulse/api-client";
-import { isValidTimeZone, utcToZonedWallTime } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatInZone, isValidTimeZone, utcToZonedWallTime } from "@sportspulse/kernel";
 import { Alert, Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
 import { TIMEZONES } from "../org-setup/steps/league-step";
 
@@ -146,18 +146,9 @@ const ADDRESS_FIELDS: Array<{ key: keyof RinkAddress; label: string }> = [
   { key: "countryCode", label: "Country code" }
 ];
 
+/** A slot time as the rink's clocks read it: "Nov 4, 9:00 PM". */
 function fmtSlotTime(iso: string, tz: string): string {
-  try {
-    return new Date(iso).toLocaleString("en-US", {
-      timeZone: tz,
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return iso;
-  }
+  return formatInZone(iso, tz, DATE_FORMATS.gameTime) || iso;
 }
 
 function errorText(e: unknown): string {

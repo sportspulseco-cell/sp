@@ -3,6 +3,7 @@ import {
   Badge,
   EmptyState,
   Eyebrow,
+  LocalDate,
   TBody,
   TD,
   TH,
@@ -22,13 +23,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Invites — SportsPulse" };
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(iso: string | null) {
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
 const STATUS_TONE: Record<

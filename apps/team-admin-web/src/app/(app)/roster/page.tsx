@@ -9,7 +9,8 @@ import {
   THead,
   TR,
   Table,
-  SeasonSwitch
+  SeasonSwitch,
+  LocalDate
 } from "@sportspulse/ui";
 import type { TeamMembership } from "@sportspulse/api-client";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
@@ -149,7 +150,7 @@ export default async function TeamAdminRosterPage({
                   <TD className="text-right font-mono tabular-nums">{m.jerseyNumber ?? "-"}</TD>
                   <TD className="text-fg-muted">{m.positionCode ?? "-"}</TD>
                   <TD><Badge mono tone="neutral">{m.membershipType}</Badge></TD>
-                  <TD className="text-[12px] text-fg-muted">{new Date(m.effectiveFrom).toLocaleDateString("en-CA")}</TD>
+                  <TD className="text-[12px] text-fg-muted"><LocalDate iso={m.effectiveFrom} format="date" /></TD>
                 </TR>
               );
             })}

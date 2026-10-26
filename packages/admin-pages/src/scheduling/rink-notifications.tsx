@@ -6,7 +6,7 @@ import {
   Radio, Send, XCircle, ZapOff
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, TBody, TD, TH, THead, TR, Table
+  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -17,13 +17,8 @@ import {
 
 interface Props { seasonId: string }
 
-function fmtTs(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso ?? "—"; }
+function fmtTs(iso: string | null) {
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 function circuitTone(

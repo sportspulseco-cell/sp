@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { signatureNameMatches } from "@sportspulse/kernel";
-import { Button, Field, Input } from "@sportspulse/ui";
+import { Button, Field, Input, LocalDate } from "@sportspulse/ui";
 import type { WaiverDoc } from "./types";
 
 /**
@@ -59,7 +59,7 @@ export function WaiverCard({
           {isSigned && signedAt ? (
             // Viewer-local date: server and browser zones may differ.
             <p className="mt-0.5 text-[12px] text-fg-muted" suppressHydrationWarning>
-              Signed on {fmtShortDate(signedAt)}
+              Signed on <LocalDate iso={signedAt} format="date" />
             </p>
           ) : null}
         </div>
@@ -129,14 +129,3 @@ export function WaiverCard({
   );
 }
 
-function fmtShortDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    });
-  } catch {
-    return "";
-  }
-}

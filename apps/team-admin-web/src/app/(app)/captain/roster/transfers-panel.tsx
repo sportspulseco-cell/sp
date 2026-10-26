@@ -7,6 +7,7 @@ import {
   Button,
   EmptyState,
   Eyebrow,
+  LocalDate,
   TBody,
   TD,
   TH,
@@ -26,8 +27,7 @@ const STATE_TONE: Record<TransferRequest["status"], "neutral" | "warning" | "suc
   cancelled: "neutral"
 };
 
-const day = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+const day = (iso: string | null) => <LocalDate iso={iso} format="date" />;
 
 /**
  * Transfers tab of the captain roster (CAP-25). Incoming: another captain

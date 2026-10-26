@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Radio } from "lucide-react";
-import { Badge } from "@sportspulse/ui";
+import { Badge, LocalDate } from "@sportspulse/ui";
 import { createSchedulerSupabaseClient } from "./scheduler-client";
 
 /**
@@ -83,7 +83,7 @@ export function ScheduleRealtimeBridge({
       </Badge>
       {lastEventAt !== null && (
         <span className="font-mono text-[10px] uppercase tracking-widest">
-          updated {new Date(lastEventAt).toLocaleTimeString("en-US")}
+          updated <LocalDate iso={new Date(lastEventAt)} format="time" />
         </span>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatCalendarDate, formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -11,9 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice — SportsPulse" };
 
 function day(iso: string | null | undefined) {
-  return iso
-    ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
-    : "—";
+  return formatCalendarDate(iso) || "—";
 }
 
 /**

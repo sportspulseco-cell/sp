@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import {
   Badge,
+  LocalDate,
   EmptyState,
   SectionRail,
   StatTile,
@@ -29,15 +30,6 @@ import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Communications · Org Admin" };
-
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
 
 export default async function CommunicationsPage() {
   const scope = await loadMeScope();
@@ -180,7 +172,7 @@ export default async function CommunicationsPage() {
                         </Badge>
                       </TD>
                       <TD className="text-right text-[12px] text-fg-muted">
-                        {fmt(n.createdAt)}
+                        <LocalDate iso={n.createdAt} format="dateTime" />
                       </TD>
                     </TR>
                   );

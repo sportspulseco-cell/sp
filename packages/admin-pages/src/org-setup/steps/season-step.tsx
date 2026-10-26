@@ -1,16 +1,13 @@
 "use client";
 
+import { formatCalendarDate } from "@sportspulse/kernel";
 import type { SeasonDraft } from "../types";
 import { SectionHeader } from "./org-step";
 import { Field, FieldStyle } from "./league-step";
 
+/** A YYYY-MM-DD draft date as written: "Nov 22, 2026". */
 function fmt(d: string): string {
-  if (!d) return "—";
-  return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return formatCalendarDate(d) || "—";
 }
 
 function todayIso(): string {

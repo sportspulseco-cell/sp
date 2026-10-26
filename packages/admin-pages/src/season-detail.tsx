@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { ArrowLeft, CalendarRange } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, Reveal } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LocalDate, Reveal } from "@sportspulse/ui";
 import type { Division, League, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
-import { SEASON_CONFIG_DEFAULTS } from "@sportspulse/kernel";
+import { SEASON_CONFIG_DEFAULTS, formatCalendarDate } from "@sportspulse/kernel";
 
 /** A season switch as set, or the default registration uses when it is not set. */
 function yesNo(v: boolean | undefined, fallback: boolean): string {
@@ -12,13 +12,9 @@ function yesNo(v: boolean | undefined, fallback: boolean): string {
   return v ? "Yes" : "No";
 }
 
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+/** A calendar date (season start and end): the same day for every reader. */
+function fmtDate(value: string | null | undefined): string {
+  return formatCalendarDate(value) || "—";
 }
 
 /**
@@ -163,13 +159,13 @@ export function SeasonDetail({
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-3">
           <Field label="Opens" tag="seasons.registration_opens_at" mono>
-            {fmtDate(season.registrationOpensAt)}
+            <LocalDate iso={season.registrationOpensAt} format="date" fallback="—" />
           </Field>
           <Field label="Closes" tag="seasons.registration_closes_at" mono>
-            {fmtDate(season.registrationClosesAt)}
+            <LocalDate iso={season.registrationClosesAt} format="date" fallback="—" />
           </Field>
           <Field label="Roster lock" tag="seasons.roster_lock_at" mono>
-            {fmtDate(season.rosterLockAt)}
+            <LocalDate iso={season.rosterLockAt} format="date" fallback="—" />
           </Field>
         </dl>
       </Reveal>

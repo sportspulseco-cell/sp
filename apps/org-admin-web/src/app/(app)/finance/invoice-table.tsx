@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -152,7 +152,7 @@ function RecordPaymentForm({
   onDone: () => void;
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState((remainingCents / 100).toFixed(2));
+  const [amount, setAmount] = useState(centsToAmountInput(remainingCents));
   const [method, setMethod] = useState<Method>("etransfer");
   const [receivedAt, setReceivedAt] = useState("");
   const [notes, setNotes] = useState("");

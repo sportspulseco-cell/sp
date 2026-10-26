@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { LocalDate } from "@sportspulse/ui";
 import { ParentalConsentClient } from "./consent-client";
 
 const API =
@@ -79,7 +80,12 @@ export default async function ParentalConsentPage({
             tone="emerald"
             icon={<CheckCircle2 className="h-6 w-6" strokeWidth={1.75} />}
             title="Consent already on file"
-            body={`${ctx.signedBy ? `${ctx.signedBy} signed` : "You confirmed"} ${ctx.childDisplayName}'s registration on ${new Date(ctx.confirmedAt).toLocaleDateString("en-CA")}. Nothing else to do here.`}
+            body={
+              <>
+                {ctx.signedBy ? `${ctx.signedBy} signed` : "You confirmed"} {ctx.childDisplayName}&apos;s registration on{" "}
+                <LocalDate iso={ctx.confirmedAt} format="date" />. Nothing else to do here.
+              </>
+            }
           />
         ) : ctx.status !== "pending_consent" ? (
           <Card
@@ -123,7 +129,7 @@ function Card({
   tone: "rose" | "emerald" | "amber";
   icon: React.ReactNode;
   title: string;
-  body: string;
+  body: React.ReactNode;
 }) {
   const toneClass: Record<typeof tone, string> = {
     rose: "border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] dark:bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]",

@@ -15,7 +15,10 @@ import {
   tierOffersPlan,
   tierIsFull,
   planInstallments,
-  formatMoney
+  formatMoney,
+  formatCalendarDate,
+  formatInZone,
+  DATE_FORMATS
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
@@ -873,16 +876,8 @@ function fmtDate(s: string, timeZone?: string) {
   // season's zone also gives the date the league means: a window closing
   // 23:59 ET on Nov 13 used to read "Nov 14" on a UTC server and caused
   // a hydration mismatch on every funnel mount.
-  const opts: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
-  try {
-    return new Date(s).toLocaleDateString("en-US", { ...opts, timeZone: timeZone || "UTC" });
-  } catch {
-    try {
-      return new Date(s).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
-    } catch {
-      return s;
-    }
-  }
+  const text = timeZone ? formatInZone(s, timeZone, DATE_FORMATS.date) : formatCalendarDate(s, DATE_FORMATS.date);
+  return text || s;
 }
 
 /**
@@ -2016,7 +2011,7 @@ function TierStep({
                 <p className="font-mono text-[16px] font-semibold tabular-nums text-fg">
                   {free
                     ? "Free"
-                    : `${(t.fullPriceCents / 100).toFixed(2)} ${t.currency}`}
+                    : formatMoney(t.fullPriceCents, t.currency)}
                 </p>
                 {on && (
                   <Check
@@ -2491,7 +2486,7 @@ function ReviewStep({
             {tier.name}
             {!tier.isFree && (
               <span className="ml-2 font-mono text-[12px] text-fg-muted">
-                {(tier.fullPriceCents / 100).toFixed(2)} {tier.currency}
+                {formatMoney(tier.fullPriceCents, tier.currency)}
               </span>
             )}
           </Row>

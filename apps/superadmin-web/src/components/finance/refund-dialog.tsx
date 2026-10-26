@@ -1,5 +1,6 @@
 "use client";
 
+import { centsToAmountInput } from "@sportspulse/kernel";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Info, Loader2, Wallet } from "lucide-react";
@@ -49,11 +50,11 @@ export function RefundDialog({
   const maxFor = (k: RefundKind) =>
     k === "gateway" ? refundable.cardCents : refundable.totalCents;
   const startAmount = (k: RefundKind) =>
-    (
-      (suggestedRefundCents != null
+    centsToAmountInput(
+      suggestedRefundCents != null
         ? Math.min(suggestedRefundCents, maxFor(k))
-        : maxFor(k)) / 100
-    ).toFixed(2);
+        : maxFor(k)
+    );
 
   const [kind, setKind] = useState<RefundKind>(defaultKind);
   const [amount, setAmount] = useState<string>(startAmount(defaultKind));
@@ -81,7 +82,7 @@ export function RefundDialog({
 
   function pick(k: RefundKind) {
     setKind(k);
-    if (amountCents > maxFor(k)) setAmount((maxFor(k) / 100).toFixed(2));
+    if (amountCents > maxFor(k)) setAmount(centsToAmountInput(maxFor(k)));
   }
 
   async function submit() {

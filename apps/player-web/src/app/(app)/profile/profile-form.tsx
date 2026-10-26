@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Badge, Button, LocalDate } from "@sportspulse/ui";
 import type { Profile } from "@sportspulse/api-client";
 import { iam } from "@/lib/api/browser-api";
 
@@ -193,19 +193,11 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         />
         <Detail
           label="Created"
-          value={new Date(profile.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric"
-          })}
+          value={<LocalDate iso={profile.createdAt} format="date" />}
         />
         <Detail
           label="Updated"
-          value={new Date(profile.updatedAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric"
-          })}
+          value={<LocalDate iso={profile.updatedAt} format="date" />}
         />
         {profile.isSuperAdmin ? (
           <Detail

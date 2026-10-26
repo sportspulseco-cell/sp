@@ -1,5 +1,6 @@
 "use client";
 
+import { centsToAmountInput } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
@@ -52,7 +53,7 @@ export function RefundForm({
   const maxFor = (d: Destination) =>
     d === "card" ? refundable.cardCents : refundable.totalCents;
   const [dest, setDest] = useState<Destination>(defaultDest);
-  const [amountStr, setAmountStr] = useState((maxFor(defaultDest) / 100).toFixed(2));
+  const [amountStr, setAmountStr] = useState(centsToAmountInput(maxFor(defaultDest)));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +144,7 @@ export function RefundForm({
               onChange={(e) => {
                 const d = e.target.value as Destination;
                 setDest(d);
-                if (amountCents > maxFor(d)) setAmountStr((maxFor(d) / 100).toFixed(2));
+                if (amountCents > maxFor(d)) setAmountStr(centsToAmountInput(maxFor(d)));
               }}
               className="input"
             >
@@ -165,7 +166,7 @@ export function RefundForm({
               type="number"
               min="0.01"
               step="0.01"
-              max={(maxRefundableCents / 100).toFixed(2)}
+              max={centsToAmountInput(maxRefundableCents)}
               value={amountStr}
               onChange={(e) => setAmountStr(e.target.value)}
               className="input font-mono"
@@ -223,7 +224,7 @@ export function RefundForm({
               size="sm"
               onClick={() => {
                 setDest(defaultDest);
-                setAmountStr((maxFor(defaultDest) / 100).toFixed(2));
+                setAmountStr(centsToAmountInput(maxFor(defaultDest)));
                 setReason("");
                 setError(null);
               }}

@@ -31,19 +31,14 @@ import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 import { viewerRoleGrants } from "@/lib/role-grants";
-import { SYSTEM_ROLE_CODES } from "@sportspulse/kernel";
+import { SYSTEM_ROLE_CODES, DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { RegionsSection } from "@/components/regions/regions-section";
 import { OrgActions } from "@/components/edit/detail-actions";
 
 export const metadata = { title: "Organization — SportsPulse" };
 
-function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(iso: string | null): string {
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
 export default async function OrgDetailPage({

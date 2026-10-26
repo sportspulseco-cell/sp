@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarRange, ChevronRight, ShieldAlert, Sparkles, Users } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, LocalDate } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { captain, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { DivisionPicker } from "./division-picker";
@@ -88,27 +89,13 @@ export default async function CaptainSeasonDetailPage({
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" />;
 }
 
 function formatSeasonRange(startISO: string | null, endISO: string | null) {
   if (!startISO || !endISO) return null;
-  const start = new Date(startISO);
-  const end = new Date(endISO);
-  const sameYear = start.getFullYear() === end.getFullYear();
-  const fmtShort = (d: Date) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const fmtLong = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    });
-  return sameYear
-    ? `${fmtShort(start)} – ${fmtLong(end)}`
-    : `${fmtLong(start)} – ${fmtLong(end)}`;
+  const sameYear =
+    formatCalendarDate(startISO, { year: "numeric" }) === formatCalendarDate(endISO, { year: "numeric" });
+  const start = formatCalendarDate(startISO, sameYear ? DATE_FORMATS.monthDay : DATE_FORMATS.date);
+  return `${start} – ${formatCalendarDate(endISO, DATE_FORMATS.date)}`;
 }

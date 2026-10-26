@@ -18,6 +18,7 @@ import {
   X
 } from "lucide-react";
 import { Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import type { Team } from "@sportspulse/api-client";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
 
@@ -509,7 +510,7 @@ export function RegisterWizard({
                     </span>
                     {splitMode === "even" ? (
                       <span className="font-mono text-[13px] tabular-nums text-fg">
-                        ${(s.amountCents / 100).toFixed(2)}
+                        {formatMoney(s.amountCents)}
                       </span>
                     ) : (
                       <div className="relative w-32">
@@ -520,7 +521,7 @@ export function RegisterWizard({
                           type="number"
                           min={0}
                           step="0.01"
-                          value={(s.amountCents / 100).toFixed(2)}
+                          value={centsToAmountInput(s.amountCents)}
                           onChange={(e) =>
                             setCustomCents((prev) => ({
                               ...prev,
@@ -544,9 +545,9 @@ export function RegisterWizard({
                   <span>
                     allocated{" "}
                     <span className="text-fg">
-                      ${(allocatedCents / 100).toFixed(2)}
+                      {formatMoney(allocatedCents)}
                     </span>{" "}
-                    / ${(totalFeeCents / 100).toFixed(2)}
+                    / {formatMoney(totalFeeCents)}
                   </span>
                   <span
                     className={
@@ -560,8 +561,8 @@ export function RegisterWizard({
                     {balanced
                       ? "balanced"
                       : remainingCents < 0
-                        ? `over by $${(Math.abs(remainingCents) / 100).toFixed(2)}`
-                        : `remaining $${(remainingCents / 100).toFixed(2)}`}
+                        ? `over by ${formatMoney(Math.abs(remainingCents))}`
+                        : `remaining ${formatMoney(remainingCents)}`}
                   </span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
@@ -584,7 +585,7 @@ export function RegisterWizard({
                 <p className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-[12px] text-fg-muted">
                   Your team confirms once{" "}
                   <span className="font-mono text-fg">
-                    ${(thresholdCents / 100).toFixed(2)}
+                    {formatMoney(thresholdCents)}
                   </span>{" "}
                   in deposits is collected. The progress bar appears once
                   you submit.
@@ -856,7 +857,7 @@ function DivisionCard({
   onSelect?: () => void;
 }) {
   const fee = division.pricing
-    ? `${(division.pricing.fullPriceCents / 100).toFixed(0)}`
+    ? formatMoney(division.pricing.fullPriceCents, division.pricing.currency)
     : "—";
   const full =
     division.maxTeams !== null &&
@@ -880,7 +881,7 @@ function DivisionCard({
           {division.currentTeamCount}
           {division.maxTeams ? ` / ${division.maxTeams}` : ""} teams
         </span>
-        <span className="font-mono text-fg">${fee}</span>
+        <span className="font-mono text-fg">{fee}</span>
       </p>
     </>
   );
@@ -959,7 +960,7 @@ function PricingTimeline({ division }: { division: DivisionItem }) {
               {i.label}
             </p>
             <p className="mt-1 font-mono text-[15px] tabular-nums text-fg">
-              ${(i.amount / 100).toFixed(2)}
+              {formatMoney(i.amount, p.currency)}
             </p>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
               due · {i.due}
@@ -970,7 +971,7 @@ function PricingTimeline({ division }: { division: DivisionItem }) {
       <p className="mt-3 text-[12px] text-fg-muted">
         Total{" "}
         <span className="font-mono text-fg">
-          ${(p.fullPriceCents / 100).toFixed(2)}
+          {formatMoney(p.fullPriceCents, p.currency)}
         </span>{" "}
         · currency{" "}
         <span className="font-mono uppercase text-fg">{p.currency}</span>
@@ -1006,13 +1007,13 @@ function SummaryBlock({
         label="Fee"
         value={
           division?.pricing
-            ? `$${(division.pricing.fullPriceCents / 100).toFixed(2)}`
+            ? formatMoney(division.pricing.fullPriceCents, division.pricing.currency)
             : "—"
         }
       />
       <Row
         label="Confirmation threshold"
-        value={`$${(thresholdCents / 100).toFixed(2)}`}
+        value={formatMoney(thresholdCents, division?.pricing?.currency)}
       />
       <Row
         label="Players invited"
@@ -1205,8 +1206,8 @@ function ConfirmationProgress({
         <div>
           <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
             <span>
-              ${(status.collectedCents / 100).toFixed(2)} /{" "}
-              ${(status.thresholdCents / 100).toFixed(2)} collected
+              {formatMoney(status.collectedCents)} /{" "}
+              {formatMoney(status.thresholdCents)} collected
             </span>
             <span>{status.pct}%</span>
           </div>

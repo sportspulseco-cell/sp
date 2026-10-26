@@ -1,4 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { formatCalendarDate } from "@sportspulse/kernel";
 /* Hallmark · page: list (seasons) · genre: editorial · theme: project
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -26,12 +27,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Seasons - Org Admin" };
 
 function fmt(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return formatCalendarDate(iso) || "—";
 }
 
 const OPEN_STATES = new Set([

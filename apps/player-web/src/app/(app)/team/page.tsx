@@ -11,7 +11,8 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  LocalDate
 } from "@sportspulse/ui";
 import type { Standing, TeamMembership } from "@sportspulse/api-client";
 import { captain, iam, leagueMgmt, loadMeScope, registration, roster, stats } from "@/lib/api/server-api";
@@ -23,13 +24,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Team — SportsPulse" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-}
 
 export default async function TeamPage({
   searchParams
@@ -124,7 +118,7 @@ export default async function TeamPage({
                       {p.teamName}
                     </p>
                     <p className="mt-0.5 text-[11px] text-fg-muted">
-                      {p.orgName ?? "—"} · applied {fmtDate(p.appliedAt)}
+                      {p.orgName ?? "—"} · applied <LocalDate iso={p.appliedAt} format="date" />
                     </p>
                   </div>
                   <Badge mono tone="warning">

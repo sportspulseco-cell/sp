@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert } from "@sportspulse/ui";
+import { Alert, LocalDate } from "@sportspulse/ui";
 import { FileSignature, CheckCircle2, FileQuestion, Layers } from "lucide-react";
 import Link from "next/link";
 import {
@@ -259,7 +259,7 @@ export default async function FormsPage({
                   )}
                 </TD>
                 <TD className="text-fg-muted">
-                  {new Date(f.updatedAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={f.updatedAt} format="date" />
                 </TD>
               </TR>
             ))}

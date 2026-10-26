@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@sportspulse/ui";
 import { useMemo, useState, type FormEvent } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { stats } from "@/lib/api/browser-api";
@@ -253,12 +254,7 @@ function ResultPanel({
           </p>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-          {new Date(result.rankedAt).toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit"
-          })}
+          <LocalDate iso={result.rankedAt} format="dateTime" />
         </span>
       </header>
       {result.entries.length === 0 ? (

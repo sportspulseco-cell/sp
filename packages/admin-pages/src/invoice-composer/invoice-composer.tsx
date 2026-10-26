@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney, invoiceLineTotals } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney, invoiceLineTotals } from "@sportspulse/kernel";
 /**
  * Shared InvoiceComposer used by both sa-web and org-admin-web.
  *
@@ -246,12 +246,12 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         kind: itemKindFor(f.kind),
         description: f.name,
         quantity: 1,
-        unitDollars: (f.baseAmountCents / 100).toFixed(2)
+        unitDollars: centsToAmountInput(f.baseAmountCents)
       },
       ...xs.slice(1).filter((x) => x.description.trim() || x.unitDollars)
     ]);
     setDueAt(addDaysIso(today, Math.max(0, f.dueOffsetDays)));
-    setLateFeeDollars(f.lateFeeCents > 0 ? (f.lateFeeCents / 100).toFixed(2) : "");
+    setLateFeeDollars(f.lateFeeCents > 0 ? centsToAmountInput(f.lateFeeCents) : "");
   }
 
   // Filter target picker by the selected org (so an admin with multi-org
@@ -305,7 +305,6 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
   );
   const discountTotalCents = lineTotals.discountCents;
   const totalCents = lineTotals.ok ? lineTotals.totalCents : 0;
-  const totalDisplay = (totalCents / 100).toFixed(2);
   const depositCents = Math.round(Number(depositDollars) * 100) || 0;
   const lateFeeCents = Math.round(Number(lateFeeDollars) * 100) || 0;
   const lateFeeInvalid = lateFeeDollars.trim() !== "" && !(Number(lateFeeDollars) >= 0);
@@ -654,7 +653,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             Total
           </span>
           <span className="font-mono tabular-nums text-fg">
-            ${totalDisplay}
+            {formatMoney(totalCents)}
           </span>
         </div>
         {!lineTotals.ok ? (

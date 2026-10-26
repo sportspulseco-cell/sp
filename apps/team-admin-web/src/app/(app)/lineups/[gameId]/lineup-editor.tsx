@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Badge, Button, LocalDate } from "@sportspulse/ui";
 import { gameOps } from "@/lib/api/browser-api";
 
 type Bucket = "starters" | "bench" | "scratches";
@@ -327,7 +327,7 @@ export function LineupEditor({
             <>
               Last saved{" "}
               <span className="font-mono text-fg">
-                {new Date(submittedAt).toLocaleString("en-US")}
+                <LocalDate iso={submittedAt} format="dateTime" />
               </span>
             </>
           ) : locked ? (

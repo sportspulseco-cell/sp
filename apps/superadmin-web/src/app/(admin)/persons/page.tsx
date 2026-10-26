@@ -1,5 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { UserCircle2, Link2, Cake, Globe2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -132,7 +132,7 @@ export default async function PersonsPage() {
                     )}
                   </TD>
                   <TD className="text-muted-foreground">
-                    {new Date(p.createdAt).toLocaleDateString("en-CA")}
+                    <LocalDate iso={p.createdAt} format="date" />
                   </TD>
                 </TR>
               );

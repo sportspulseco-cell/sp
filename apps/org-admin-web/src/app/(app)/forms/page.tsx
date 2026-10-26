@@ -6,6 +6,7 @@ import { FileSignature } from "lucide-react";
 import {
   Badge,
   EmptyState,
+  LocalDate,
   SectionRail,
   TBody,
   TD,
@@ -22,9 +23,6 @@ import { getActiveOrgId } from "@/lib/active-org";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Forms - Org Admin" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-CA");
-}
 
 export default async function FormsPage() {
   const scope = await loadMeScope();
@@ -116,7 +114,7 @@ export default async function FormsPage() {
                       </Badge>
                     </TD>
                     <TD className="text-right text-[11px] text-fg-muted">
-                      {fmtDate(f.updatedAt)}
+                      <LocalDate iso={f.updatedAt} format="date" />
                     </TD>
                   </TR>
                 ))}

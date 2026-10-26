@@ -2,7 +2,7 @@ import { ArrowLeft, FileSignature } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { compliance, orgs } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +12,7 @@ import { PublishDocumentVersionForm } from "@/components/documents/publish-docum
 export const metadata = { title: "Document — SportsPulse" };
 
 function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function DocumentDetailPage({

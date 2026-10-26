@@ -7,6 +7,7 @@ import {
   Alert,
   Badge,
   Button,
+  LocalDate,
   TBody,
   TD,
   TH,
@@ -25,13 +26,9 @@ interface Item {
   submittedAt: string | null;
 }
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null) {
   if (!iso) return "draft";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" />;
 }
 
 function statusTone(s: string): "success" | "warning" | "danger" | "info" | "neutral" {

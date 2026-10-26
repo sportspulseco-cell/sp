@@ -9,7 +9,10 @@ import type {
   Season
 } from "@sportspulse/api-client";
 import {
+  DATE_FORMATS,
   SEASON_REGISTRATION_TYPE_LABELS,
+  formatCalendarDate,
+  formatInZone,
   seasonRegistrationType
 } from "@sportspulse/kernel";
 import { SectionHeader } from "./section-header";
@@ -20,26 +23,12 @@ import { ReviewActions } from "./review-actions";
 // format them in the season's time zone. REG-11: a close at 23:59 Eastern
 // (04:59Z next day) was shown one day late.
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC"
-  });
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
 function fmtDateShort(iso: string | null, timeZone?: string | null): string {
   if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      timeZone: timeZone || "America/New_York"
-    });
-  } catch {
-    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
+  return formatInZone(iso, timeZone || "America/New_York", DATE_FORMATS.monthDay) || "—";
 }
 
 

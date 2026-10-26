@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert } from "@sportspulse/ui";
+import { Alert, LocalDate } from "@sportspulse/ui";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
@@ -181,7 +181,7 @@ export default async function OrganizationsPage({
                   <Badge tone={statusTone(o.status)}>{o.status}</Badge>
                 </TD>
                 <TD className="text-muted-foreground">
-                  {new Date(o.createdAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={o.createdAt} format="date" />
                 </TD>
               </TR>
             ))}

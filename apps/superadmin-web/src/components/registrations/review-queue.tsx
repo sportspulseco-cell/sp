@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -12,11 +13,7 @@ import {
   Wallet,
   X
 } from "lucide-react";
-import {
-  REGISTRATION_STATE_LABELS,
-  REGISTRATION_STATES,
-  type RegistrationState
-} from "@sportspulse/kernel";
+import { REGISTRATION_STATE_LABELS, REGISTRATION_STATES, type RegistrationState, formatMoney } from "@sportspulse/kernel";
 import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -405,8 +402,8 @@ function Row({
       </TD>
       <TD className="text-muted-foreground">
         {row.submittedAt
-          ? new Date(row.submittedAt).toLocaleDateString("en-CA")
-          : new Date(row.createdAt).toLocaleDateString("en-CA")}
+          ? <LocalDate iso={row.submittedAt} format="date" />
+          : <LocalDate iso={row.createdAt} format="date" />}
       </TD>
       <TD className="text-right">
         <Button variant="ghost" onClick={onReview}>
@@ -587,7 +584,7 @@ function ReviewDialog({
               <p className="text-amber-700/90 dark:text-amber-200/80">
                 The player chose offline payment
                 {payment?.amountCents
-                  ? ` (${(payment.amountCents / 100).toFixed(2)} ${payment.currency ?? "USD"})`
+                  ? ` (${formatMoney(payment.amountCents, payment.currency ?? "USD")})`
                   : ""}
                 . Verify receipt before approving — approving from here marks the registration final.
               </p>

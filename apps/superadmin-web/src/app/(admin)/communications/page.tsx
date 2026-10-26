@@ -1,7 +1,7 @@
 import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, LocalDate } from "@sportspulse/ui";
 import { communications, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
@@ -36,12 +36,7 @@ const STATUS_FILTERS: Array<{ key: NotificationStatus | "all"; label: string }> 
 ];
 
 function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" />;
 }
 
 function tintForStatus(s: NotificationStatus): Tint {

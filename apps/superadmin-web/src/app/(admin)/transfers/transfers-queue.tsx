@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
@@ -163,7 +164,7 @@ export function TransfersQueue({
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {new Date(t.initiatedAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={t.initiatedAt} format="date" />
                 </TD>
                 <TD className="text-right">
                   {t.status === "pending_admin" ? (

@@ -7,7 +7,7 @@ import {
   Sparkles,
   XCircle
 } from "lucide-react";
-import { Eyebrow } from "@sportspulse/ui";
+import { Eyebrow, LocalDate } from "@sportspulse/ui";
 import {
   registrationCallHref,
   registrationCallLabel,
@@ -23,13 +23,9 @@ import {
 export function RegistrationCallCard({ call }: { call: RegistrationCall }) {
   const tone = TONE[call.kind];
   const Icon = tone.icon;
-  const closes = call.registrationClosesAt
-    ? new Date(call.registrationClosesAt).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-      })
-    : null;
+  const closes = call.registrationClosesAt ? (
+    <LocalDate iso={call.registrationClosesAt} format="date" />
+  ) : null;
 
   return (
     <section

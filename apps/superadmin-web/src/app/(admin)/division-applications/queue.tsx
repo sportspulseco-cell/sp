@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import { LocalDate } from "@sportspulse/ui";
@@ -180,8 +181,8 @@ export function DivisionApplicationsQueue({
                   <TD>
                     <div className="flex flex-col gap-1">
                       <span className="font-mono text-[11px] tabular-nums">
-                        ${(t.collectedCents / 100).toFixed(2)} / $
-                        {(t.thresholdCents / 100).toFixed(2)}
+                        {formatMoney(t.collectedCents)} /{" "}
+                        {formatMoney(t.thresholdCents)}
                       </span>
                       <div className="h-1 w-32 overflow-hidden rounded-full bg-bg-subtle">
                         <div

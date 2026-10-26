@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Badge, Button, useLocalDate } from "@sportspulse/ui";
 import type { FormSubmissionRow, FormSubmissions } from "@sportspulse/api-client";
 import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
 import { useFormsBuilderApi } from "./context";
@@ -35,13 +35,6 @@ function statusLabel(status: string): string {
   return status.replace(/_/g, " ");
 }
 
-function whenLabel(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
 function matches(filter: SubmissionStatusFilter, status: string): boolean {
   const f = SUBMISSION_STATUS_FILTERS.find((x) => x.value === filter);
   return !f?.statuses || (f.statuses as readonly string[]).includes(status);
@@ -63,6 +56,7 @@ export function SubmissionsClient({
 }) {
   const { registration: regApi } = useFormsBuilderApi();
   const router = useRouter();
+  const whenLabel = useLocalDate();
   const [filter, setFilter] = useState<SubmissionStatusFilter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
