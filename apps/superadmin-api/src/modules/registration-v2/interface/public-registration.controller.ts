@@ -2147,7 +2147,7 @@ export class PublicRegistrationController {
         const settled = paidCents >= invoice.totalCents;
         await tx
           .update(schema.invoices)
-          .set({ paidCents, status: settled ? "paid" : "partial", paidAt: settled ? new Date() : null, updatedAt: new Date() })
+          .set({ paidCents, status: settled ? "paid" : paidCents > 0 ? "partial" : "sent", paidAt: settled ? new Date() : null, updatedAt: new Date() })
           .where(eq(schema.invoices.id, invoice.id));
         await tx
           .update(schema.registrations)
