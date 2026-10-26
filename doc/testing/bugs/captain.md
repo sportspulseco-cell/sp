@@ -438,3 +438,17 @@ Counts (journey steps above): 19 pass (some with defects), 7 fail, 4 blocked/par
     shows Cancelled without a reload, db cancelled; admin queue lists the accepted transfer as "Awaiting admin approval".
     Setup gave the Bears a temporary captain and two players; all removed after.
   Not verified: the admin's Approve on a captain-accepted transfer (roster moves and invoices) in this run.
+
+[CAP-26] Re-adding a rostered player to a full roster says "Another player may have registered simultaneously" · minor
+
+  Found: J8.5 on staging 006939b (26 Oct). Staging Skaters had reached its 20-player cap.
+
+  Actual: the add checked the cap before checking for a duplicate, so re-adding a player already on the roster got the
+    cap error, worded as a race ("Another player may have registered simultaneously. Refresh and try again.") even when
+    the roster was simply full.
+
+  Fix: the duplicate check comes first (a rostered player takes no new slot); a full roster says "The roster is full:
+    20 of 20 players. Drop a player before adding another."
+
+  Evidence: local API against staging with the team at 20/20: re-add 409 "already on the active roster"; new player 409
+    "The roster is full: 20 of 20 players", count unchanged (2/2).

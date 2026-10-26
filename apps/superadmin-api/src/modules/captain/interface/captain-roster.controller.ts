@@ -580,16 +580,8 @@ export class CaptainRosterController {
           )
         );
       const current = counted[0]?.count ?? 0;
-      if (current >= rules.maxRosterSize) {
-        throw new ConflictException({
-          error: "Roster is full",
-          message:
-            "Another player may have registered simultaneously. Refresh and try again.",
-          maxRosterSize: rules.maxRosterSize,
-          currentCount: current
-        });
-      }
-
+      // A player already on the roster takes no new slot, so that answer
+      // comes first; then the cap (counted under the lock above).
       // Already on roster? Refuse the duplicate.
       const existing = await tx
         .select({ id: schema.teamMemberships.id })
@@ -607,6 +599,15 @@ export class CaptainRosterController {
         throw new ConflictException({
           error: "Already on roster",
           message: "This player is already on the active roster."
+        });
+      }
+
+      if (current >= rules.maxRosterSize) {
+        throw new ConflictException({
+          error: "Roster is full",
+          message: `The roster is full: ${current} of ${rules.maxRosterSize} players. Drop a player before adding another.`,
+          maxRosterSize: rules.maxRosterSize,
+          currentCount: current
         });
       }
 
