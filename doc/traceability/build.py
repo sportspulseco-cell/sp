@@ -451,11 +451,18 @@ def load_journey_logs():
                 files.append((d.name.replace("journeys-", ""), f))
     id_re = re.compile(r"\b(SETUP|REG|CAP|COMP|SCH|MON|LA)-\d+\b")
 
-    def walk(suite, file_hint, env):
+    def walk(suite, file_hint, env, fresh):
         file = suite.get("file") or file_hint
         for spec in suite.get("specs", []):
             spec_name = re.sub(r"\.spec\.ts$", "", Path(file or "").name)
-            rec = out[env].setdefault(spec_name, {"passed": 0, "failed": 0, "skipped": 0, "findings": set(), "tests": []})
+            # The newest run of a journey replaces older ones: the first time
+            # a spec appears in a file, its earlier record is dropped. (Runs
+            # used to be added together, so a failure from weeks ago kept a
+            # requirement "Partly working" after it passed.)
+            if spec_name not in fresh:
+                fresh.add(spec_name)
+                out[env][spec_name] = {"passed": 0, "failed": 0, "skipped": 0, "findings": set(), "tests": [], "file": Path(f_current[0]).name}
+            rec = out[env][spec_name]
             for t in spec.get("tests", []):
                 results = t.get("results", [])
                 status = results[-1]["status"] if results else t.get("status", "skipped")
@@ -478,16 +485,19 @@ def load_journey_logs():
                         if "finding" in text.lower() or "[BUG" in text:
                             rec["findings"].update(id_re.findall(text))
         for child in suite.get("suites", []):
-            walk(child, file, env)
+            walk(child, file, env, fresh)
 
     files.sort(key=lambda ef: ef[1].stat().st_mtime)  # later runs override earlier ones
+    f_current = [""]
     for env, f in files:
         try:
             data = json.loads(f.read_text(encoding="utf8"))
         except Exception:
             continue
+        f_current[0] = str(f)
+        fresh: set[str] = set()
         for suite in data.get("suites", []):
-            walk(suite, suite.get("file"), env)
+            walk(suite, suite.get("file"), env, fresh)
     return out
 
 
