@@ -773,11 +773,17 @@ export function createApi(f: Fetcher) {
           `/finance/invoices/${invoiceId}/note`,
           { method: "PUT", body: JSON.stringify({ note }) }
         ),
+      /** Stop or resume the overdue sweep's automatic reminders for one invoice (UC-18). */
+      setReminders: (invoiceId: string, paused: boolean) =>
+        f<{ invoiceId: string; autoRemindersPaused: boolean }>(`/finance/invoices/${invoiceId}/reminders`, {
+          method: "POST",
+          body: JSON.stringify({ paused })
+        }),
       manualRemind: (
         invoiceId: string,
         channel: "email" | "sms" | "in_app" = "email"
       ) =>
-        f<{ invoiceId: string; channel: string; status: "queued" }>(
+        f<{ invoiceId: string; channel: string; status: "queued"; recipientEmail: string | null }>(
           `/finance/invoices/${invoiceId}/remind`,
           { method: "POST", body: JSON.stringify({ channel }) }
         ),

@@ -657,3 +657,24 @@ test("15. balances per team and player, and CSV exports that match the screen (F
   expect((await dl2).suggestedFilename(), "invoices file").toMatch(/^invoices-.*\.csv$/);
   await shot(p, "15-balances-exports");
 });
+
+test("16. admin stops and resumes automatic reminders on one invoice (UC-18 alternative flow)", async ({ browser }) => {
+  const { b } = await runInvoices();
+  test.skip(!b, "no invoice B for this run");
+  const p = (await as(browser, "superAdmin")).page;
+  await p.goto(`${new URL(p.url()).origin}/finance/${b!.id}`);
+  await expect(p.getByText("Admin actions")).toBeVisible({ timeout: 30_000 });
+  await p.getByRole("button", { name: "Stop automatic reminders" }).click();
+  await expect(p.getByText(/Automatic reminders stopped for this invoice/)).toBeVisible();
+  const paused = await stagingSql<{ p: boolean }>(`select auto_reminders_paused p from invoices where id = $1`, [b!.id]);
+  expect(paused[0]?.p, "paused on the invoice").toBe(true);
+  // Same page, no reload: the action now offers to resume.
+  await expect(p.getByRole("button", { name: "Resume automatic reminders" })).toBeVisible();
+  await p.getByRole("button", { name: "Resume automatic reminders" }).click();
+  await expect(p.getByText(/Automatic reminders resumed/)).toBeVisible();
+  const resumed = await stagingSql<{ p: boolean }>(`select auto_reminders_paused p from invoices where id = $1`, [b!.id]);
+  expect(resumed[0]?.p, "resumed").toBe(false);
+  // The manual reminder names who is emailed (only the recipient).
+  await p.getByRole("button", { name: "Send manual reminder" }).click();
+  await expect(p.getByText(/Reminder queued for staging-player@sportspulse\.us/)).toBeVisible();
+});

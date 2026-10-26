@@ -69,6 +69,9 @@ export function OverdueRowActions({
           lastActionKind: "waive_flag"
         });
       } else if (kind === "suppress") {
+        // Stops the sweep's automatic reminders for this invoice (0061);
+        // before, Suppress only cleared a flag and reminders kept going.
+        await finance.setReminders(inv.id, true);
         await finance.patchEscalation(escalation.id, {
           lockSuspended: false,
           lastActionKind: "suppress"
@@ -99,7 +102,7 @@ export function OverdueRowActions({
           { kind: "mark_paid", label: "Mark paid" },
           { kind: "message", label: "Message" },
           { kind: "extend", label: "Extend" },
-          { kind: "suppress", label: "Suppress" }
+          { kind: "suppress", label: "Stop reminders" }
         ];
 
   return (

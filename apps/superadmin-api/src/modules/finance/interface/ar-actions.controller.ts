@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  IsBoolean,
   IsDateString,
   IsInt,
   IsOptional,
@@ -44,6 +45,10 @@ class WaiveLateFeeBodyDto {
 class ExtendDueDateBodyDto {
   @IsDateString() newDueAt!: string;
   @IsOptional() @IsString() reason?: string;
+}
+
+class SetRemindersBodyDto {
+  @IsBoolean() paused!: boolean;
 }
 
 class ManualRemindBodyDto {
@@ -269,13 +274,21 @@ export class FinanceArActionsController {
     if (!inv) throw new NotFoundException("Invoice not found");
 
     const channel = body.channel ?? "email";
+    if (channel === "email" && !inv.recipientEmail) {
+      throw new ConflictException({
+        error: "no_recipient_email",
+        message: `Invoice ${inv.invoiceNumber} has no email address to send a reminder to.`
+      });
+    }
 
+    // A subject, so the email can be sent at all and reads as what it is.
     await this.db.insert(schema.notifications).values({
       orgId: inv.orgId,
       idempotencyKey: `manual-remind-${invoiceId}-${Date.now()}`,
       templateCode: "INVOICE_MANUAL_REMIND",
       channel,
-      body: `Reminder: please complete payment on invoice ${inv.invoiceNumber}.`,
+      subject: `Reminder: invoice ${inv.invoiceNumber} is waiting for payment`,
+      body: `Reminder: please complete payment on invoice ${inv.invoiceNumber}. The balance is ${(Math.max(0, inv.totalCents - inv.paidCents) / 100).toFixed(2)} ${inv.currency}.`,
       recipientPersonId: inv.recipientPersonId,
       recipientEmail: inv.recipientEmail,
       payload: { invoiceId },
@@ -300,7 +313,37 @@ export class FinanceArActionsController {
       });
     }
 
-    return { invoiceId, channel, status: "queued" as const };
+    return { invoiceId, channel, status: "queued" as const, recipientEmail: inv.recipientEmail };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /finance/invoices/:id/reminders  (UC-18 alternative flow)
+  // -------------------------------------------------------------------
+  @Post("invoices/:id/reminders")
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Stop or resume the overdue sweep's automatic reminders for one invoice. The invoice still goes overdue and a configured late fee still applies."
+  })
+  async setReminders(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("id", new ParseUUIDPipe()) invoiceId: string,
+    @Body() body: SetRemindersBodyDto,
+    @UserScope() scope: UserScopeType
+  ) {
+    await assertInvoiceInScope(this.db, scope, invoiceId);
+    const rows = await this.db
+      .update(schema.invoices)
+      .set({
+        autoRemindersPaused: body.paused,
+        metadata: sql`(case when jsonb_typeof(${schema.invoices.metadata}) = 'object' then ${schema.invoices.metadata} else '{}'::jsonb end) || ${JSON.stringify({ remindersPausedBy: user.userId, remindersPausedAt: new Date().toISOString(), remindersPaused: body.paused })}::jsonb`,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.invoices.id, invoiceId))
+      .returning({ paused: schema.invoices.autoRemindersPaused });
+    if (rows.length !== 1) throw new NotFoundException("Invoice not found");
+    return { invoiceId, autoRemindersPaused: rows[0]!.paused };
   }
 
   // -------------------------------------------------------------------
