@@ -207,15 +207,23 @@ Deno.serve(async (req) => {
   const allSlotIds = (slotRes.data ?? []).map((s) => s.id as string);
   const heldBy = new Map<string, string>();
   if (allSlotIds.length) {
-    const { data: holders, error: holdErr } = await sb
-      .from("games")
-      .select("id, slot_id, status")
-      .in("slot_id", allSlotIds)
-      .not("status", "in", "(cancelled,postponed)");
-    if (holdErr) return json({ error: "load_slot_holders_failed", detail: holdErr.message }, 500);
+    // In batches: a season has hundreds of slots, and one `in.(...)` filter
+    // with all of them makes a URL too long to send (J10, 26 Oct).
     const drafts = new Set(draftIds);
-    for (const h of holders ?? []) {
-      if (!drafts.has(h.id as string)) heldBy.set(h.slot_id as string, h.id as string);
+    const BATCH = 150;
+    for (let i = 0; i < allSlotIds.length; i += BATCH) {
+      const { data: holders, error: holdErr } = await sb
+        .from("games")
+        .select("id, slot_id, status")
+        .in("slot_id", allSlotIds.slice(i, i + BATCH))
+        .not("status", "in", "(cancelled,postponed)");
+      if (holdErr) {
+        console.error(`[scheduler-generate] slot holders batch ${i / BATCH} of ${allSlotIds.length} slots failed: ${holdErr.message}`);
+        return json({ error: "load_slot_holders_failed", detail: holdErr.message }, 500);
+      }
+      for (const h of holders ?? []) {
+        if (!drafts.has(h.id as string)) heldBy.set(h.slot_id as string, h.id as string);
+      }
     }
   }
 
@@ -426,7 +434,11 @@ Deno.serve(async (req) => {
 
   // 7a. Replace the drafts (only those; see step 3).
   if (draftIds.length) {
-    const { error: delErr } = await sb.from("games").delete().in("id", draftIds);
+    // In batches, like the slot holders: hundreds of ids in one URL fail.
+    let delErr: { message: string } | null = null;
+    for (let i = 0; i < draftIds.length && !delErr; i += 150) {
+      ({ error: delErr } = await sb.from("games").delete().in("id", draftIds.slice(i, i + 150)));
+    }
     if (delErr) {
       await sb.from("schedule_runs").update({
         status: "failed",

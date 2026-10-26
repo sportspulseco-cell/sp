@@ -28,12 +28,12 @@ export function PointsRuleFields({
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         {KEYS.map((k) => (
           <Field key={k} label={POINTS_RULE_LABELS[k]}>
+            {/* No min/max/required: the browser's own bubble would block the
+                save before pointsRuleFromForm can say which number is wrong. */}
             <Input
               type="number"
-              min={0}
-              max={10}
+              inputMode="numeric"
               step={1}
-              required
               disabled={disabled}
               value={value[k]}
               onChange={(e) => onChange({ ...value, [k]: e.target.value })}
