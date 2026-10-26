@@ -86,7 +86,7 @@ export function EditPersonButton({ person }: { person: Person }) {
           <Field
             label="Preferred name"
             htmlFor="ep-pn"
-            hint="What this person goes by — shown across the platform when set."
+            hint="What this person goes by. Shown across the platform when set."
           >
             <Input
               id="ep-pn"

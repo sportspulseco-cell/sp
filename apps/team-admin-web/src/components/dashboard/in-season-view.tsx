@@ -153,7 +153,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
   if (completed.items.length === 0) {
     return (
       <p className="px-5 py-5 text-[13px] text-fg-muted">
-        No completed games yet — once finalised games land, they'll appear
+        No completed games yet. Once games are final, they'll appear
         here with score + outcome.
       </p>
     );

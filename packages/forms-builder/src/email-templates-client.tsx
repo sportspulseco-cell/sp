@@ -18,7 +18,7 @@ export function EmailTemplatesClient({
     <div className="space-y-6">
       <SectionHeader
         title="Email templates"
-        subtitle="Configure all triggered emails — different templates per event"
+        subtitle="Configure all triggered emails, with a different template per event"
       />
       <EmailTemplatesTab
         seasonId={seasonId}

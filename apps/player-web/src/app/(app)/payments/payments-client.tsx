@@ -178,7 +178,7 @@ export function PaymentsClient({
         onClose={() => setUpdateCardTarget(null)}
         onSaved={() => {
           setUpdateCardTarget(null);
-          setFlash("Card updated — wired to Stripe element in next sprint.");
+          setFlash("Card updated. Card entry through Stripe is coming soon.");
         }}
       />
     </div>
@@ -789,7 +789,7 @@ function RetryDialog({
       open={true}
       onClose={onClose}
       title={`Retry installment #${target.ins.installmentNumber}`}
-      description={`${formatMoney(target.ins.amountCents, target.inv.currency)} — previous attempt declined.`}
+      description={`${formatMoney(target.ins.amountCents, target.inv.currency)} (previous attempt declined).`}
     >
       <div className="space-y-3">
         {target.inv.cardOnFile && (
@@ -852,7 +852,7 @@ function UpdateCardDialog({
       open={true}
       onClose={onClose}
       title="Update card on file"
-      description="Stripe Elements wire in the next sprint. For now this is a stub — captain still won't see your card details."
+      description="Card entry through Stripe is coming soon. Your captain never sees your card details."
     >
       <div className="space-y-3 text-[13px]">
         <div className="rounded-md border border-dashed border-border bg-bg-subtle p-4 text-fg-muted">

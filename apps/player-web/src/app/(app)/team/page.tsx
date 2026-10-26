@@ -23,7 +23,7 @@ import { JoinTeamButton } from "./join-team-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Team — SportsPulse" };
+export const metadata = { title: "Team · Player" };
 
 
 export default async function TeamPage({

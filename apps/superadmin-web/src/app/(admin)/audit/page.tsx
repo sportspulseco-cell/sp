@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { UrlFilters } from "@/components/ui/url-filters";
 
-export const metadata = { title: "Audit — SportsPulse" };
+export const metadata = { title: "Audit · Super Admin" };
 
 function fmt(iso: string) {
   return <LocalDate iso={iso} options={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }} />;

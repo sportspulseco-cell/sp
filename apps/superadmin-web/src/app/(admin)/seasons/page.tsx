@@ -18,7 +18,7 @@ import {
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Season } from "@/lib/api/types";
 
-export const metadata = { title: "Seasons — SportsPulse" };
+export const metadata = { title: "Seasons · Super Admin" };
 
 /** Season lifecycle states, in order, with the labels the UI uses. */
 const SEASON_STATUS_OPTIONS = [

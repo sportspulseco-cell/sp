@@ -2,7 +2,7 @@ import { Video } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Video — SportsPulse" };
+export const metadata = { title: "Video · Player" };
 
 export default function VideoPage() {
   return (

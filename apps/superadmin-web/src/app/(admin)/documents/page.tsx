@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { CreateDocumentButton } from "@/components/documents/create-document-button";
 
-export const metadata = { title: "Compliance documents — SportsPulse" };
+export const metadata = { title: "Compliance documents · Super Admin" };
 
 export default async function DocumentsPage() {
   const [docsResult, orgList] = await Promise.all([
@@ -69,7 +69,7 @@ export default async function DocumentsPage() {
         <EmptyState
           icon={FileSignature}
           title="No documents yet"
-          description="Create your first compliance document — waiver, code of conduct, media release, etc."
+          description="Create your first compliance document: a waiver, code of conduct, media release or similar."
           action={<CreateDocumentButton orgs={orgList.items} />}
         />
       ) : (

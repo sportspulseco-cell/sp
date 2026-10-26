@@ -443,7 +443,7 @@ function DoneStep({
           You're in{firstName ? `, ${firstName}` : ""}.
         </h1>
         <p className="text-[13px] leading-relaxed text-fg-muted">
-          Your SportsPulse {appName} account is ready. One last short step —
+          Your SportsPulse {appName} account is ready. One last short step:
           we'll capture role-specific details so the {roleLabel.toLowerCase()}{" "}
           app knows what to show you.
         </p>

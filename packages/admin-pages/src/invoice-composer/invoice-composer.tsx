@@ -444,7 +444,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             targets.length === 0
               ? billingScope === "individual"
                 ? "No people loaded yet for this org. A person shows up here once they hold an active membership, registration, or role assignment in your org."
-                : `No ${billingScope}s exist for this org yet — pick another scope or seed the data first.`
+                : `No ${billingScope}s exist for this org yet. Pick another scope or seed the data first.`
               : undefined
           }
         >
@@ -673,7 +673,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
           </h2>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Due date *" hint="No past dates — pick today or later.">
+          <Field label="Due date *" hint="No past dates. Pick today or later.">
             <Input
               type="date"
               value={dueAt}
@@ -699,11 +699,11 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
               placeholder="0.00"
             />
           </Field>
-          <Field label="Notes" hint="Optional — surfaces on the invoice.">
+          <Field label="Notes" hint="Optional. Shown on the invoice.">
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Includes jersey — please send size by 04/15."
+              placeholder="e.g. Includes jersey. Please send size by 04/15."
             />
           </Field>
         </div>

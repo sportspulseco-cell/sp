@@ -118,7 +118,7 @@ export function FindTeamClient({
                     disabled={!t.captainUserId}
                     title={
                       !t.captainUserId
-                        ? "Team has no captain yet — apply once one is assigned."
+                        ? "This team has no captain yet. Apply once one is assigned."
                         : undefined
                     }
                   >
@@ -182,7 +182,7 @@ function ApplyDialog({
           onChange={(e) => onMessage(e.target.value)}
           rows={3}
           maxLength={500}
-          placeholder="Anything the captain should know about you — position, level, availability."
+          placeholder="Anything the captain should know about you: position, level, availability."
           className="w-full rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg focus:border-accent focus:outline-none"
         />
         <span className="block text-right text-[10px] text-fg-muted">

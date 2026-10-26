@@ -22,7 +22,7 @@ import { OfficialGames } from "@/components/games/official-games";
 import { getConsoleViewer } from "@/lib/console-mode";
 import type { Division, Game, GameStatus, Season } from "@/lib/api/types";
 
-export const metadata = { title: "Games — SportsPulse" };
+export const metadata = { title: "Games · Super Admin" };
 
 const STATUS_OPTIONS: Array<{ value: GameStatus; label: string }> = [
   { value: "scheduled", label: "Scheduled" },

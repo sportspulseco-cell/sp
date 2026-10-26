@@ -49,19 +49,19 @@ export const PRIVACY_OPTIONS: {
 }[] = [
   {
     value: "public",
-    label: "Public — visible in league directory",
+    label: "Public: visible in league directory",
     description:
       "Anyone can find this league, view standings, and browse team profiles. Registration may still require login."
   },
   {
     value: "unlisted",
-    label: "Unlisted — accessible via direct link only",
+    label: "Unlisted: accessible via direct link only",
     description:
       "Does not appear in the directory. Only people with the link can register or view. Useful for private corporate leagues."
   },
   {
     value: "private",
-    label: "Private — login required to view anything",
+    label: "Private: login required to view anything",
     description:
       "All content including standings and schedules requires an authenticated account with a role in this league. Maximum privacy."
   }
@@ -178,7 +178,7 @@ export function LeagueStep({
               }
               className="input"
             >
-              <option value="">None — unsanctioned</option>
+              <option value="">None (unsanctioned)</option>
               {filteredBodies.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}

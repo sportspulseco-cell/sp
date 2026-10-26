@@ -4,7 +4,7 @@ import { LoadError } from "@sportspulse/ui";
 import { AuditEventDetail } from "@sportspulse/admin-pages";
 import { audit } from "@/lib/api/server-api";
 
-export const metadata = { title: "Audit event — Org Admin" };
+export const metadata = { title: "Audit event · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

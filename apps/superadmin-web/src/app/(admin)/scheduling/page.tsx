@@ -14,7 +14,7 @@ import {
   Table
 } from "@/components/ui/table";
 
-export const metadata = { title: "Schedule — SportsPulse" };
+export const metadata = { title: "Schedule · Super Admin" };
 
 /**
  * Scheduling index — list every season with a one-click "Generate"

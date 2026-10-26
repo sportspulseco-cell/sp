@@ -231,7 +231,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
       setFlash(
         result.created
           ? setPwd
-            ? `Account created for ${result.email}. Invite message ${clipboardCopied ? "copied to clipboard" : "ready below"} — share the credentials directly.`
+            ? `Account created for ${result.email}. Invite message ${clipboardCopied ? "copied to clipboard" : "ready below"}. Share the credentials directly.`
             : result.emailDelivered === false
               ? // SETUP-8: never say "sent" when the email was not sent.
                 `Account created for ${result.email}, but the invite email was not sent. ${clipboardCopied ? "The message is copied to your clipboard" : "Copy the message below"} and send it yourself.`
@@ -421,7 +421,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                         title={
                           profileSource === "admin"
                             ? "Schema comes from a role_profile form configured in /forms"
-                            : "No admin form configured — using the kernel-default schema. Build one in /forms to override."
+                            : "No admin form configured. Using the kernel-default schema. Build one in /forms to override."
                         }
                         className={
                           profileSource === "admin"
@@ -496,7 +496,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
               />
               <p className="text-[11px] text-fg-muted">
                 Email delivery via Resend lands in a follow-up. For now,
-                paste the message into Slack / WhatsApp / SMS — content is
+                paste the message into Slack / WhatsApp / SMS. The content is
                 already on your clipboard.
               </p>
             </div>

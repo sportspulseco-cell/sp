@@ -84,7 +84,7 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
             value={lastSeasonId}
             onChange={(e) => setLastSeasonId(e.target.value)}
           >
-            <option value="">— pick —</option>
+            <option value="">Pick a season</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -100,7 +100,7 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
             value={newSeasonId}
             onChange={(e) => setNewSeasonId(e.target.value)}
           >
-            <option value="">— pick —</option>
+            <option value="">Pick a season</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}

@@ -7,7 +7,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
 import { ReportDownloader } from "@/components/reports/report-downloader";
 
-export const metadata = { title: "Reports — SportsPulse" };
+export const metadata = { title: "Reports · Super Admin" };
 
 export default async function ReportsPage() {
   const [leaguesPage, orgsPage, seasonsPage] = await Promise.all([
@@ -146,7 +146,7 @@ export default async function ReportsPage() {
               Scheduled reports + PDF
             </p>
             <p className="text-[13px] text-fg-muted">
-              Save filter sets, run on a cadence, deliver to email — and a
+              Save filter sets, run on a cadence, deliver to email, plus a
               themed PDF renderer for league handouts.
             </p>
           </div>

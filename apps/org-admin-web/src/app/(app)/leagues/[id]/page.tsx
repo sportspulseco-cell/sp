@@ -6,7 +6,7 @@ import { LeagueActions } from "@/components/edit/detail-actions";
 import { leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
-export const metadata = { title: "League — Org Admin" };
+export const metadata = { title: "League · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { UrlFilters } from "@/components/ui/url-filters";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 
-export const metadata = { title: "Misconduct report — SportsPulse" };
+export const metadata = { title: "Misconduct report · Super Admin" };
 
 /**
  * Misconduct report (FR-3.5.4): misconduct, game misconduct and match

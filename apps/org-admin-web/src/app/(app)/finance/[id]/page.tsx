@@ -8,7 +8,7 @@ import { orgAdminFinance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Invoice — SportsPulse" };
+export const metadata = { title: "Invoice · Org Admin" };
 
 function day(iso: string | null | undefined) {
   return formatCalendarDate(iso) || "—";

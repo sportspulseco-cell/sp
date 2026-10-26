@@ -23,7 +23,7 @@ import { UsersFilters } from "@/components/users/users-filters";
 import { resolvePrimaryRole } from "@/components/users/primary-role";
 import type { RoleAssignment } from "@/lib/api/types";
 
-export const metadata = { title: "Users — SportsPulse" };
+export const metadata = { title: "Users · Super Admin" };
 
 export default async function UsersPage({
   searchParams
@@ -158,7 +158,7 @@ export default async function UsersPage({
         <EmptyState
           icon={Users}
           title="No users yet"
-          description="Users sign up via Supabase Auth — they appear here once a profile is created."
+          description="Users sign up via Supabase Auth. They appear here once a profile is created."
         />
       ) : (
         <Table>

@@ -5,7 +5,7 @@ import { InvoiceComposerShell } from "./invoice-composer-shell";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "New invoice — SportsPulse" };
+export const metadata = { title: "New invoice · Super Admin" };
 
 /**
  * Sa-web entry for the shared @sportspulse/admin-pages InvoiceComposer.

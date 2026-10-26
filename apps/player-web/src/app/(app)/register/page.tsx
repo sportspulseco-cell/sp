@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { publicRegistration } from "@/lib/api/server-api";
 import { registrationClosesLabel } from "@sportspulse/kernel";
 
-export const metadata = { title: "Find a team — SportsPulse" };
+export const metadata = { title: "Find a team · Player" };
 export const dynamic = "force-dynamic";
 
 interface OpenSeason {

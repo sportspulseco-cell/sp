@@ -26,7 +26,7 @@ import { SubmissionsSection } from "./sections/submissions-section";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Registration setup — SportsPulse" };
+export const metadata = { title: "Registration setup · Super Admin" };
 
 const VALID_SECTIONS: SectionKey[] = [
   "season",

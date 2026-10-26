@@ -153,7 +153,7 @@ export function ResolveConflictDialog({
                         {r.startTsUtc
                           ? `${r.venueName ?? "Rink"} · ${r.surfaceLabel ?? "Surface"} · ${fmtTime(r.startTsUtc)}`
                           : "Ice slot"}
-                      </span> — {r.reason}
+                      </span>: {r.reason}
                     </li>
                   ))}
                 </ul>

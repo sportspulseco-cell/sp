@@ -177,14 +177,14 @@ export function RefundForm({
           <Field
             label="Reason"
             required
-            hint="Required — document the reason for this refund (min 10 characters). Stored in audit trail."
+            hint="Required. Document the reason for this refund (min 10 characters). Stored in audit trail."
           >
             <textarea
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               maxLength={2000}
-              placeholder="e.g. season cancelled — full refund per league policy."
+              placeholder="e.g. season cancelled, full refund per league policy."
               className="input"
               required
             />

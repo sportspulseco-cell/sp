@@ -6,7 +6,7 @@ import { SchedulingVerifyForm } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Verify tiebreaker — SportsPulse" };
+export const metadata = { title: "Verify tiebreaker · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -49,7 +49,7 @@ export default async function VerifyPage({
       <PageHeader
         eyebrow="schedule"
         title={`Verify · ${season.name}`}
-        description="Order + toggle tiebreaker rules, then run against the live standings. Any teams flagged as ambiguous mean the ruleset has nothing left to say about them — refine before standings matter."
+        description="Order + toggle tiebreaker rules, then run against the live standings. Any teams flagged as ambiguous mean the ruleset has nothing left to say about them. Refine before standings matter."
         action={
           <Link
             href={`/seasons/${season.id}`}

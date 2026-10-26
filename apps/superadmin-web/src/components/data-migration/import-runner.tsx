@@ -133,7 +133,7 @@ export function ImportRunner({
           <Field
             label="Organization"
             htmlFor="ir-org"
-            hint="Required — teams attach to one org."
+            hint="Required. Teams attach to one org."
           >
             <Select
               id="ir-org"

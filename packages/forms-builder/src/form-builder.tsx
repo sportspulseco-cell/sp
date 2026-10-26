@@ -264,7 +264,7 @@ function QuestionCard({
             </Field>
             <Field
               label="Key"
-              hint="Stable identifier — referenced by conditional logic and answer storage."
+              hint="Stable identifier. Conditional logic and stored answers refer to it."
             >
               <Input
                 value={q.key}
@@ -491,7 +491,7 @@ function ConditionalEditor({
         <>
           {sourceCandidates.length === 0 ? (
             <p className="mt-3 text-[12px] text-fg-muted">
-              Add another question first — conditional logic needs a source.
+              Add another question first. Conditional logic needs a source.
             </p>
           ) : (
             <div className="mt-3 grid gap-2 sm:grid-cols-3">

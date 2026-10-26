@@ -14,7 +14,7 @@ import { OverdueTab } from "./tabs/overdue-tab";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Payment & invoicing — SportsPulse" };
+export const metadata = { title: "Payment & invoicing · Super Admin" };
 
 const VALID_TABS: TabKey[] = [
   "ar",

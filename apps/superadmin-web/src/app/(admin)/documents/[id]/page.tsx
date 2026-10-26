@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import { PublishDocumentVersionForm } from "@/components/documents/publish-document-version-form";
 
-export const metadata = { title: "Document — SportsPulse" };
+export const metadata = { title: "Document · Super Admin" };
 
 function fmt(iso: string | null) {
   return <LocalDate iso={iso} format="dateTime" fallback="—" />;

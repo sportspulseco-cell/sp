@@ -45,7 +45,7 @@ export function WaiveEligibilityButton({ id }: { id: string }) {
         open={open}
         onClose={() => setOpen(false)}
         title="Waive eligibility"
-        description="Admin override — record a reason that's auditable."
+        description="Admin override. Record a reason that's auditable."
       >
         <form onSubmit={onSubmit} className="space-y-4">
           <Field

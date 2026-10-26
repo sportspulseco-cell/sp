@@ -92,7 +92,7 @@ export function AddGuestModal({
       description={
         opponentName || gameDate
           ? `vs ${opponentName ?? "TBD"}${gameDate ? ` · ${gameDate}` : ""}`
-          : "Guests are added to this game's lineup only — they do not count against your roster cap."
+          : "Guests are added to this game's lineup only. They do not count against your roster cap."
       }
       size="lg"
     >

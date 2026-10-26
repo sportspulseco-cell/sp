@@ -8,7 +8,7 @@ import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Team store — SportsPulse" };
+export const metadata = { title: "Team store · Team Admin" };
 
 /**
  * Team store (UC-25, UC-26): generate the team's gear from the roster or

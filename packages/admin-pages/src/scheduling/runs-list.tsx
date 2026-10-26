@@ -206,7 +206,7 @@ function RunDetails({ run }: { run: ScheduleRunListItem }) {
       )}
       <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         The full <code>solution</code> + <code>constraint_snapshot</code> are stored
-        on the <code>schedule_runs</code> row (decision #4 — determinism by
+        on the <code>schedule_runs</code> row (decision #4: determinism by
         persistence). Forensic deep-dive UI lands when we wire game_provenance
         replay.
       </div>

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Compliance — SportsPulse" };
+export const metadata = { title: "Compliance · Team Admin" };
 
 /**
  * Workflow 7C §6.9 — read-only captain compliance tab.
@@ -53,7 +53,7 @@ export default async function CaptainCompliancePage() {
       <PageHeader
         eyebrow="Captain console"
         title="Waivers & documents"
-        description="Per-player USA Hockey + playoff eligibility. Read-only — admins issue waivers."
+        description="Per-player USA Hockey + playoff eligibility. Read-only. Admins issue waivers."
       />
 
       <section className="rounded-xl border border-border bg-surface-1">

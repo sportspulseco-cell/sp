@@ -6,7 +6,7 @@ import { SettingsClient } from "./settings-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Notification settings — SportsPulse" };
+export const metadata = { title: "Notification settings · Player" };
 
 export default async function NotificationSettingsPage() {
   // A failed load shows an error instead of a form of defaults, so a

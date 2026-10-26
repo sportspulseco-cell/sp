@@ -97,7 +97,7 @@ export function ReviewSection({
     issues.push(`${d.name} division has no pricing tier assigned. Go to Divisions to fix.`);
   }
   if (!form.activeVersionId) {
-    issues.push("No published form version yet — finish the Form builder section.");
+    issues.push("No published form version yet. Finish the Form builder section.");
   }
   if (templates.length === 0) {
     issues.push("No email templates configured. Add at least one in Email templates.");

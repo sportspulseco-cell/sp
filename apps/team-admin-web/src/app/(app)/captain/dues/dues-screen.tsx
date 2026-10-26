@@ -208,7 +208,7 @@ export function DuesScreen({
       setFlash(
         res.queued > 0
           ? `Queued ${res.queued} payment reminder${res.queued === 1 ? "" : "s"}.`
-          : "Nothing to remind — everyone is paid up."
+          : "Nothing to remind. Everyone is paid up."
       );
     } catch (e) {
       setError((e as Error).message);
@@ -233,7 +233,7 @@ export function DuesScreen({
       });
       setFlash(
         res.charged > 0
-          ? `Charged ${formatMoney(res.charged, currency)} — covered ${res.covered} player${res.covered === 1 ? "" : "s"}.`
+          ? `Charged ${formatMoney(res.charged, currency)}, covering ${res.covered} player${res.covered === 1 ? "" : "s"}.`
           : "Nothing outstanding."
       );
       await refresh();
@@ -289,7 +289,7 @@ export function DuesScreen({
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div>
             <h2 className="text-[16px] font-semibold tracking-tight text-fg">
-              Team dues — {data.teamName ?? "Team"}
+              Team dues: {data.teamName ?? "Team"}
               {data.seasonName && (
                 <span className="ml-1 text-fg-muted">· {data.seasonName}</span>
               )}

@@ -99,7 +99,7 @@ export async function OverdueTab({ orgId }: { orgId: string }) {
                   ? qbStatus.errorCount24h === 0
                     ? "Connected · Syncing"
                     : `Connected · ${qbStatus.errorCount24h} sync error${qbStatus.errorCount24h === 1 ? "" : "s"} (last 24h)`
-                  : "Not connected — Intuit OAuth integration ships separately"}
+                  : "Not connected. Intuit OAuth integration ships separately"}
                 {qbStatus.lastSyncAt
                   ? ` · Last sync: ${fmtRelative(qbStatus.lastSyncAt)}`
                   : ""}

@@ -7,7 +7,7 @@ import { adminTransfers, gameOps, leagueMgmt, loadMeScope, registration, roster 
 import { getActiveOrgId } from "@/lib/active-org";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
 
-export const metadata = { title: "Season — Org Admin" };
+export const metadata = { title: "Season · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

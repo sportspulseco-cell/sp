@@ -24,7 +24,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Seasons - Org Admin" };
+export const metadata = { title: "Seasons · Org Admin" };
 
 function fmt(iso: string | null | undefined): string {
   return formatCalendarDate(iso) || "—";
@@ -169,7 +169,7 @@ export default async function SeasonsPage({
                     <TD className="text-fg-muted">{leagueMap.get(s.leagueId) ?? "Unknown league"}</TD>
                     <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{s.sportCode}</TD>
                     <TD className="text-[12px] text-fg-muted">
-                      {fmt(s.startDate)} — {fmt(s.endDate)}
+                      {fmt(s.startDate)} to {fmt(s.endDate)}
                     </TD>
                     <TD>
                       <Badge status={s.status} />

@@ -95,8 +95,8 @@ export function SchedulingTournament({ seasonId, divisions, teams }: Props) {
           <span className="text-fg font-medium">Dynamic tournament mode.</span>{" "}
           Each round, teams play a round-robin within their tier. When the
           round is complete, the top quarter of each tier promotes and the
-          bottom quarter relegates — automatically generating fixtures for
-          the next round. Adjust promote / relegate fractions per round in
+          bottom quarter relegates. Games for the next round are then
+          generated automatically. Adjust promote / relegate fractions per round in
           the advance dialog.
         </p>
       </div>
@@ -355,7 +355,7 @@ function RoundCard({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             {allComplete
-              ? "All games complete — ready to advance to next round."
+              ? "All games complete. Ready to advance to the next round."
               : `${round.fixtureCount - round.completedCount} games remaining before advancing.`}
           </span>
           <Button

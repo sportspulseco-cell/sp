@@ -199,7 +199,7 @@ export function FreeAgentForm({
       <fieldset>
         <Eyebrow>Positions</Eyebrow>
         <p className="mb-2 text-[12px] text-fg-muted">
-          Pick every position you'd play. Order doesn't matter — captains see
+          Pick every position you'd play. Order doesn't matter. Captains see
           the full list.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -348,7 +348,7 @@ export function FreeAgentForm({
       <fieldset>
         <Eyebrow>Note (optional)</Eyebrow>
         <p className="mb-2 text-[12px] text-fg-muted">
-          One short line captains see — e.g. "available May 12 onward" or
+          One short line captains see, for example "available May 12 onward" or
           "skating since 2002".
         </p>
         <textarea
@@ -372,7 +372,7 @@ export function FreeAgentForm({
 
       {success ? (
         <Alert tone="success" role="status">
-          {existing ? "Entry updated." : "You're in the pool — captains can see you now."}
+          {existing ? "Entry updated." : "You're in the pool. Captains can see you now."}
         </Alert>
       ) : null}
 
@@ -414,7 +414,7 @@ function SeasonPicker({
       <Eyebrow>Season</Eyebrow>
       <p className="mb-2 text-[12px] text-fg-muted">
         One entry per season. Switching seasons loads any prior entry for that
-        season — edits overwrite in place.
+        season. Edits replace it.
       </p>
       <div className="flex flex-wrap gap-2">
         {seasons.map((s) => {

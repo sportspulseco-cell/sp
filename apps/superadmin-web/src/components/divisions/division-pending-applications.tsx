@@ -73,7 +73,7 @@ export function DivisionPendingApplications({
     setError(null);
     try {
       await adminTransfers.rejectApplication(t.id, reason);
-      setFlash(`Denied ${t.teamName} — captain notified.`);
+      setFlash(`Denied ${t.teamName}. Captain notified.`);
       setItems((arr) => arr.filter((i) => i.id !== t.id));
       setRejectTarget(null);
       router.refresh();
@@ -182,7 +182,7 @@ export function DivisionPendingApplications({
                       spotsLeft == null
                         ? "—"
                         : full
-                          ? "0 — full"
+                          ? "0 (full)"
                           : `${spotsLeft}`
                     }
                     tone={full ? "rose" : "neutral"}
@@ -209,7 +209,7 @@ export function DivisionPendingApplications({
                     disabled={busy === t.id || full}
                     title={
                       full
-                        ? "Division is full — open a spot before approving."
+                        ? "Division is full. Open a spot before approving."
                         : undefined
                     }
                   >

@@ -83,7 +83,7 @@ export function UserTypeCell({
         open={open}
         onClose={() => setOpen(false)}
         title="Change user type"
-        description={`User type === role. Pick a role and (if scoped) the resource it applies to. Adds a new assignment without revoking existing ones — manage the full list from the user's detail page or the Roles cell.`}
+        description={`User type === role. Pick a role and (if scoped) the resource it applies to. Adds a new assignment without revoking existing ones. Manage the full list from the user's detail page or the Roles cell.`}
         size="lg"
       >
         {loadingDialog && (

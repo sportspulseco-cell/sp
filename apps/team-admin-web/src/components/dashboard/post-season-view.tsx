@@ -29,7 +29,7 @@ export function PostSeasonView({
         <div className="mt-1 flex items-center gap-3">
           <Trophy className="h-7 w-7 text-[var(--tint-amber-fg)]" strokeWidth={1.75} />
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            {team.name} — playoffs
+            {team.name}: playoffs
           </h1>
         </div>
         <p className="mt-2 text-sm text-white/80">

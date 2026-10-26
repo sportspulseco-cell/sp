@@ -22,7 +22,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Schedule - Team Admin" };
+export const metadata = { title: "Schedule · Team Admin" };
 
 // In the game's own zone, so server and browser show the same rink time.
 function fmtDateTime(iso: string, tz: string): string {

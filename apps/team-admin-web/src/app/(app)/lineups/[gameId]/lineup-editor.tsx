@@ -331,7 +331,7 @@ export function LineupEditor({
               </span>
             </>
           ) : locked ? (
-            <Badge tone="danger" mono>locked — game in play</Badge>
+            <Badge tone="danger" mono>Locked: game in play</Badge>
           ) : (
             <>No lineup saved yet.</>
           )}

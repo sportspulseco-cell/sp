@@ -142,8 +142,8 @@ export function CaptainAssignment({
       });
       setFlash(
         res.created
-          ? `Invite sent to ${email} — they're now this team's captain.`
-          : `${email} already had an account — assigned as captain.`
+          ? `Invite sent to ${email}. They're now this team's captain.`
+          : `${email} already had an account and is now captain.`
       );
       resetDialog();
       await refresh();
@@ -155,7 +155,7 @@ export function CaptainAssignment({
   }
 
   async function handleRevoke(assignmentId: string) {
-    if (!confirm("Revoke this captain assignment?")) return;
+    if (!confirm("Revoke this captain assignment? They lose captain access to this team.")) return;
     setError(null);
     setBusy(assignmentId);
     try {
@@ -279,7 +279,7 @@ export function CaptainAssignment({
                 loadingPeople
                   ? "Loading org members…"
                   : people && people.length === 0
-                    ? "No assignable users in this org yet — invite one from the Users page first."
+                    ? "No assignable users in this org yet. Invite one from the Users page first."
                     : "Type to filter; pick a person to assign them as captain."
               }
             >
@@ -320,7 +320,7 @@ export function CaptainAssignment({
               matches.length === 0 &&
               query.trim() ? (
                 <p className="mt-2 text-[12px] text-fg-muted">
-                  No match for &ldquo;{query}&rdquo; — try a different name
+                  No match for &ldquo;{query}&rdquo;. Try a different name.
                   or invite this person to the org first.
                 </p>
               ) : null}

@@ -102,7 +102,7 @@ export function ManageUserRolesCell({
           <div className="space-y-5">
             {assignments.length === 0 ? (
               <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-4 text-center text-[13px] text-fg-muted">
-                No active assignments yet — use the form below to grant one.
+                No active assignments yet. Use the form below to grant one.
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-md border border-border bg-surface-1">

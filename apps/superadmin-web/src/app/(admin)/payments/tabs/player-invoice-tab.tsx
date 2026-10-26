@@ -169,7 +169,7 @@ export async function PlayerInvoiceTab({
             ))}
             {successfulPayments.length === 0 && upcoming.length === 0 ? (
               <li className="text-[12px] text-fg-muted">
-                No payments recorded yet — when payments land they appear here in
+                No payments recorded yet. When payments land they appear here in
                 chronological order.
               </li>
             ) : null}
@@ -203,7 +203,7 @@ export async function PlayerInvoiceTab({
             <button
               type="button"
               disabled
-              title="Stripe Checkout integration ships separately — see doc/deferred-integrations.md #1"
+              title="Stripe Checkout integration ships separately. See doc/deferred-integrations.md #1"
               className="inline-flex h-9 items-center rounded-md bg-blue-600 px-4 font-mono text-[11px] uppercase tracking-widest text-white hover:bg-blue-700 disabled:opacity-60"
             >
               Pay now

@@ -461,7 +461,7 @@ function FormCard({
               rows={2}
               disabled={busy}
               className="flex w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Optional details — sizing, material, deadline…"
+              placeholder="Optional details: sizing, material, deadline…"
             />
           </Field>
         </div>

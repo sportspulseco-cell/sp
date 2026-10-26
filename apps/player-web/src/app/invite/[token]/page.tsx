@@ -28,7 +28,7 @@ async function fetchInvite(token: string): Promise<InviteContext | null> {
 }
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Team invite — SportsPulse" };
+export const metadata = { title: "Team invite · Player" };
 
 /**
  * Captain invite landing (UC-04). The captain shares

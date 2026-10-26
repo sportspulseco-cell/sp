@@ -6,7 +6,7 @@ import { SchedulingRunsList } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Run history — SportsPulse" };
+export const metadata = { title: "Run history · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -41,7 +41,7 @@ export default async function RunsPage({
       <PageHeader
         eyebrow="schedule"
         title={`Run history · ${season.name}`}
-        description="Every generation run for this season. Each row stores its full solution + seed + input hash — the answer to 'why did the engine put X here?'"
+        description="Every generation run for this season. Each row stores its full solution + seed + input hash: the answer to 'why did the engine put X here?'"
         action={
           <Link
             href={`/seasons/${season.id}`}

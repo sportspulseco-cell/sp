@@ -106,9 +106,9 @@ export function LinkOrgButton({
                 setRelation(e.target.value as typeof relation)
               }
             >
-              <option value="owns">owns — full control</option>
-              <option value="sanctions">sanctions — governing-body endorsement</option>
-              <option value="member_of">member_of — federation membership</option>
+              <option value="owns">owns: full control</option>
+              <option value="sanctions">sanctions: governing-body endorsement</option>
+              <option value="member_of">member_of: federation membership</option>
             </Select>
           </Field>
 

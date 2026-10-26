@@ -96,7 +96,7 @@ export function DropPlayerModal({
 
         <Alert tone="warning">
           If this player has paid any amount, a refund will be assessed by the
-          league admin — no immediate refund is issued.
+          league admin. No immediate refund is issued.
         </Alert>
 
         {error && (

@@ -124,7 +124,7 @@ function buildIcs(games: Game[], teamLabel: string): string {
     "PRODID:-//SportsPulse//Player Schedule//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeIcs(teamLabel + " — SportsPulse")}`,
+    `X-WR-CALNAME:${escapeIcs(teamLabel + " · SportsPulse")}`,
     ...events,
     "END:VCALENDAR"
   ].join("\r\n");

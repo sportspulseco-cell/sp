@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SeasonLeadersBlock } from "@sportspulse/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Stats - Team Admin" };
+export const metadata = { title: "Stats · Team Admin" };
 
 interface PlayerTotals {
   personId: string;

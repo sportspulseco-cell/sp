@@ -26,7 +26,7 @@ import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Register your team — SportsPulse" };
+export const metadata = { title: "Register your team · Team Admin" };
 
 type Application = Awaited<
   ReturnType<typeof captain.myApplications>
@@ -233,8 +233,8 @@ function SubmittedSuccessCard({
             steps={[
               { status: "done", title: "Application submitted", note: "league admin notified" },
               { status: "current", title: "Admin reviews your application and approves or denies it" },
-              { status: "future", title: "If approved — you'll be directed to invite your players and set up dues" },
-              { status: "future", title: "Once deposits collected — your team is confirmed and listed in the division" }
+              { status: "future", title: "If approved, you'll invite your players and set up dues" },
+              { status: "future", title: "Once deposits are collected, your team is confirmed and listed in the division" }
             ]}
           />
         </div>
@@ -583,7 +583,7 @@ function StepList({ steps }: { steps: Step[] }) {
             >
               {s.title}
               {s.note && (
-                <span className="ml-1 font-normal text-fg-muted">— {s.note}</span>
+                <span className="ml-1 font-normal text-fg-muted">({s.note})</span>
               )}
             </p>
           </div>

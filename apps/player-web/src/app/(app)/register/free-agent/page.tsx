@@ -8,7 +8,7 @@ import { FreeAgentForm } from "./free-agent-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Join free-agent pool — SportsPulse" };
+export const metadata = { title: "Join free-agent pool · Player" };
 
 /**
  * Player-side entry point to advertise themselves to captains. Backend

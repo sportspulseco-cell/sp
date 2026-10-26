@@ -19,7 +19,7 @@ import { iam, leagueMgmt, loadMeScope, roster } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Roster - Team Admin" };
+export const metadata = { title: "Roster · Team Admin" };
 
 function ageFromDob(dob: string | null | undefined): number | null {
   if (!dob) return null;

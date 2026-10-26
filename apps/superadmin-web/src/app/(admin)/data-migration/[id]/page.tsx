@@ -9,7 +9,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 
-export const metadata = { title: "Import job — SportsPulse" };
+export const metadata = { title: "Import job · Super Admin" };
 
 function fmt(iso: string | null) {
   return <LocalDate iso={iso} format="dateTime" fallback="—" />;

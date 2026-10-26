@@ -93,7 +93,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
 
         <SectionHeader title="Display" hint="What teammates + captains see." />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Preferred name" hint="Optional — overrides legal first name in friendly contexts.">
+          <Field label="Preferred name" hint="Optional. Used instead of your legal first name in friendly places.">
             <input
               value={preferredName}
               onChange={(e) => setPreferredName(e.target.value)}
@@ -101,7 +101,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               className="input"
             />
           </Field>
-          <Field label="Display name" hint="Optional — what the chrome shows in the top bar.">
+          <Field label="Display name" hint="Optional. The name shown in the top bar.">
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}

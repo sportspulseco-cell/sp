@@ -9,7 +9,7 @@ import { FindTeamClient } from "./find-team-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Find a team — SportsPulse" };
+export const metadata = { title: "Find a team · Player" };
 
 export default async function FindTeamPage({
   params
@@ -114,7 +114,7 @@ export default async function FindTeamPage({
         title="Find a team"
         description={
           r.divisionName
-            ? `Teams in ${r.divisionName} — pick one and apply. The team's captain will accept or decline.`
+            ? `Teams in ${r.divisionName}. Pick one and apply. The team's captain will accept or decline.`
             : "Browse teams in your org and apply to one. The team's captain will accept or decline."
         }
       />

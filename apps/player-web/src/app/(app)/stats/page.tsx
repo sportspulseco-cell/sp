@@ -21,7 +21,7 @@ import { SeasonLeadersBlock } from "@sportspulse/ui";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Stats — SportsPulse" };
+export const metadata = { title: "Stats · Player" };
 
 
 function num(s: StatLine, key: string): number {
@@ -130,7 +130,7 @@ export default async function StatsPage({
       <PageHeader
         eyebrow="Stats"
         title="Stats"
-        description="Season totals and game-by-game log. Switch seasons via the selector below — totals + log re-aggregate on the fly."
+        description="Season totals and a game-by-game log. Switch seasons below to see that season."
       />
 
       {seasonIds.length > 1 ? (

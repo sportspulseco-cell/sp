@@ -7,7 +7,7 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Run history — Org Admin" };
+export const metadata = { title: "Run history · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -39,7 +39,7 @@ export default async function OrgAdminRunsPage({
       <PageHeader
         eyebrow="schedule"
         title={`Run history · ${season.name}`}
-        description="Every generation run for this season. Each row stores its full solution + seed + input hash — the answer to 'why did the engine put X here?'"
+        description="Every generation run for this season. Each row stores its full solution + seed + input hash: the answer to 'why did the engine put X here?'"
         action={
           <Link
             href={`/seasons/${season.id}`}

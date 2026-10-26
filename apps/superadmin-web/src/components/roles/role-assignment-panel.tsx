@@ -181,7 +181,7 @@ export function RoleAssignmentPanel({
         setCopied(ok);
         setFlash(
           result.created
-            ? `Invite sent to ${result.email}. Message ${ok ? "copied to clipboard" : "ready below"} — paste anywhere if email delivery is delayed.`
+            ? `Invite sent to ${result.email}. Message ${ok ? "copied to clipboard" : "ready below"}. Paste anywhere if email delivery is delayed.`
             : `${result.email} already had an account. Role assigned. Message ${ok ? "copied" : "ready below"}.`
         );
         setEmail("");
@@ -216,7 +216,7 @@ export function RoleAssignmentPanel({
       {/* Existing assignments */}
       {assignments.length === 0 ? (
         <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-4 text-center text-[13px] text-fg-muted">
-          No admins assigned to this {scopeType} yet — use the form below to
+          No admins assigned to this {scopeType} yet. Use the form below to
           add one.
         </p>
       ) : (
@@ -297,7 +297,7 @@ export function RoleAssignmentPanel({
               const def = SYSTEM_ROLE_BY_CODE[code];
               return (
                 <option key={code} value={code}>
-                  {code} {def ? `— ${def.name}` : ""}
+                  {code} {def ? `(${def.name})` : ""}
                 </option>
               );
             })}
@@ -322,7 +322,7 @@ export function RoleAssignmentPanel({
                   Only show users who already have <span className="font-mono text-[11px]">{roleCode}</span>
                 </span>
                 <span className="ml-1 text-fg-muted">
-                  — turn off to search across all users.
+                  Turn off to search across all users.
                 </span>
               </span>
             </label>
@@ -331,9 +331,9 @@ export function RoleAssignmentPanel({
               label="User"
               hint={
                 selectedUser
-                  ? "Selected — clear to pick another."
+                  ? "Selected. Clear to pick another."
                   : filterToRole
-                  ? `${roleHolders?.length ?? 0} existing ${roleCode}${(roleHolders?.length ?? 0) === 1 ? "" : "s"} below — or type to filter.`
+                  ? `${roleHolders?.length ?? 0} existing ${roleCode}${(roleHolders?.length ?? 0) === 1 ? "" : "s"} below, or type to filter.`
                   : "Type a name or email; results appear below."
               }
             >

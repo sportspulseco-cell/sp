@@ -23,7 +23,7 @@ import { ComplianceSweepBar } from "@/components/eligibility/compliance-sweep-ba
 import { DocumentReviewQueue } from "@/components/eligibility/document-review-queue";
 import type { EligibilityStatus } from "@/lib/api/types";
 
-export const metadata = { title: "Eligibility — SportsPulse" };
+export const metadata = { title: "Eligibility · Super Admin" };
 
 const STATUS_FILTERS: Array<{
   key: EligibilityStatus | "all";

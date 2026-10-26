@@ -200,7 +200,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
         <div className="flex items-center gap-2">
           {isOverdue ? (
             <Badge tone="danger" mono>
-              Overdue — {daysPastDue} day{daysPastDue === 1 ? "" : "s"}
+              Overdue {daysPastDue} day{daysPastDue === 1 ? "" : "s"}
             </Badge>
           ) : (
             <Badge status={invoice.status} />
@@ -883,7 +883,7 @@ function IssueWalletCreditDialog({
       open={open}
       onClose={onClose}
       title="Issue wallet credit"
-      description="Adds a credit to the recipient's wallet — applied automatically to the next invoice."
+      description="Adds a credit to the recipient's wallet, applied automatically to the next invoice."
     >
       <div className="space-y-3 text-[13px]">
         <label className="block space-y-1">
@@ -1032,7 +1032,7 @@ function MarkPaidOfflineDialog({
       open={open}
       onClose={onClose}
       title="Mark as paid (offline)"
-      description="Record a manual payment — cash, check, e-transfer."
+      description="Record a manual payment: cash, check or e-transfer."
     >
       <div className="space-y-3 text-[13px]">
         <label className="block space-y-1">

@@ -6,7 +6,7 @@ import { admin, orgs, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { NewTeamForm } from "./new-team-form";
 
-export const metadata = { title: "New team — SportsPulse" };
+export const metadata = { title: "New team · Super Admin" };
 export const dynamic = "force-dynamic";
 
 /**

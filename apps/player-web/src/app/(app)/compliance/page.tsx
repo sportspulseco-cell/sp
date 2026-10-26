@@ -17,7 +17,7 @@ import { UploadDocuments } from "./upload-documents";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Compliance — SportsPulse" };
+export const metadata = { title: "Compliance · Player" };
 
 function fmtDate(value: string): string {
   return formatCalendarDate(value, DATE_FORMATS.date);
@@ -35,7 +35,7 @@ const STATUS_COPY: Record<
   pending: {
     label: "Pending",
     tone: "warning",
-    description: "Verification in progress — admin will follow up if anything is missing."
+    description: "Verification in progress. Your admin will follow up if anything is missing."
   },
   ineligible: {
     label: "Ineligible",

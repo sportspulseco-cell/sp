@@ -8,7 +8,7 @@ import { CaptainAssignment } from "./captain-assignment";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Team — Org admin" };
+export const metadata = { title: "Team · Org Admin" };
 
 /**
  * Org-admin's team detail. Body is the shared @sportspulse/admin-pages

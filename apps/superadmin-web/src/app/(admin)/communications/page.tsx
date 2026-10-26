@@ -24,7 +24,7 @@ import {
 } from "@/components/communications/flush-queued-button";
 import type { NotificationStatus } from "@/lib/api/types";
 
-export const metadata = { title: "Communications — SportsPulse" };
+export const metadata = { title: "Communications · Super Admin" };
 
 const STATUS_FILTERS: Array<{ key: NotificationStatus | "all"; label: string }> = [
   { key: "all", label: "All" },

@@ -41,12 +41,12 @@ const CLOCK_TYPES: { value: ClockType; label: string }[] = [
 
 const BODY_CHECKING: { value: BodyChecking; label: string }[] = [
   { value: "permitted", label: "Permitted" },
-  { value: "not_permitted_penalty", label: "Not permitted — penalty" },
-  { value: "not_permitted_no_penalty", label: "Not permitted — no penalty" }
+  { value: "not_permitted_penalty", label: "Not permitted, penalty" },
+  { value: "not_permitted_no_penalty", label: "Not permitted, no penalty" }
 ];
 
 const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
-  { value: "none", label: "None — score is final" },
+  { value: "none", label: "None: score is final" },
   { value: "sudden_death", label: "Sudden death (first goal wins)" },
   { value: "shootout", label: "Penalty shootout (skip OT)" },
   { value: "5_min", label: "5 min overtime period" },
@@ -62,19 +62,19 @@ const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
   },
   {
     value: "best_of_3",
-    label: "Best of 3 — first to win 2 games",
+    label: "Best of 3: first to win 2 games",
     description:
       "Max 3 games per matchup. Catches a single-game fluke. Requires roughly double the ice time of single-game format. Most common in rec leagues."
   },
   {
     value: "best_of_5",
-    label: "Best of 5 — first to win 3 games",
+    label: "Best of 5: first to win 3 games",
     description:
       "Max 5 games. Produces the most meaningful result. Used in competitive A divisions and finals. Significant ice-time commitment."
   },
   {
     value: "best_of_7",
-    label: "Best of 7 — first to win 4 games",
+    label: "Best of 7: first to win 4 games",
     description:
       "Max 7 games per round. NHL-style. Rare in rec leagues but available for competitive top divisions with long seasons."
   }
@@ -156,7 +156,7 @@ export function DivisionCard({
           </button>
           <p className="text-[14px] font-semibold tracking-tight text-fg">
             Division {index + 1}
-            {division.name ? ` — ${division.name}` : ""}
+            {division.name ? `: ${division.name}` : ""}
           </p>
           <Badge mono>{division.tier ?? "—"}</Badge>
           <Badge mono tone="info">
@@ -343,7 +343,7 @@ function IdentityBlock({
 
       <Field
         label="Age group label"
-        hint='Friendly label shown on registration pages — e.g. "18+ adult", "U15", "Open age".'
+        hint='Friendly label shown on registration pages, e.g. "18+ adult", "U15", "Open age".'
       >
         <input
           type="text"

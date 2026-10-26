@@ -33,7 +33,7 @@ import {
 import { GameClock, ProgressBar, BarChart } from "./live-widgets";
 import { SeasonFlow } from "@/components/dashboard/season-flow";
 
-export const metadata = { title: "Dashboard — SportsPulse Super Admin" };
+export const metadata = { title: "Dashboard · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

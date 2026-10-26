@@ -6,7 +6,7 @@ import { LoadError } from "@sportspulse/ui";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Register — SportsPulse" };
+export const metadata = { title: "Register · Player" };
 
 interface OpenSeason {
   seasonId: string;

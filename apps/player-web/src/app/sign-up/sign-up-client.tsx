@@ -34,7 +34,7 @@ export function SignUpClient() {
   return (
     <SignUpFunnel
       appName="Player"
-      roleLabel="Player / Free Agent"
+      roleLabel="Player / Free agent"
       signInHref="/sign-in"
       onboardingHref="/onboarding"
       api={api}

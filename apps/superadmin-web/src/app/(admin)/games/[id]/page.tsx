@@ -28,7 +28,7 @@ import { AppendEventButton } from "@/components/games/append-event-button";
 import { IssueSuspensionButton } from "@/components/discipline/suspension-buttons";
 import { getConsoleViewer } from "@/lib/console-mode";
 
-export const metadata = { title: "Game — SportsPulse" };
+export const metadata = { title: "Game · Super Admin" };
 
 // In the game's own zone (shown beside it), never the server's.
 function fmtTime(iso: string, tz: string) {

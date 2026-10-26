@@ -8,7 +8,7 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Playoffs — Org Admin" };
+export const metadata = { title: "Playoffs · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

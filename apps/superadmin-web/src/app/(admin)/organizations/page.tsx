@@ -17,7 +17,7 @@ import {
 import { CreateOrgButton } from "@/components/orgs/create-org-button";
 import type { Org } from "@/lib/api/types";
 
-export const metadata = { title: "Organizations — SportsPulse" };
+export const metadata = { title: "Organizations · Super Admin" };
 
 /**
  * Filters live in the URL (?search=&status=&type=&country=). `search`

@@ -1361,7 +1361,7 @@ function AccountStep({
                 required
               />
             </Field>
-            <Field label="Phone number" hint="Optional — used for SMS reminders">
+            <Field label="Phone number" hint="Optional. Used for SMS reminders.">
               <Input
                 type="tel"
                 value={phone}
@@ -1632,7 +1632,7 @@ function WaiversStep({
       state: ageFail ? "fail" : "pass",
       body: ageFail
         ? flags.includes("dob_missing")
-          ? "Date of birth is missing — go back and add it in the Account step."
+          ? "Date of birth is missing. Go back and add it in the Account step."
           : "Age may not match the configured division range. Admin will review."
         : "You're within the allowed age range for this division."
     },
@@ -1640,7 +1640,7 @@ function WaiversStep({
       label: "No duplicate account",
       state: flags.includes("duplicate_subject") ? "fail" : "pass",
       body: flags.includes("duplicate_subject")
-        ? "Possible duplicate found — admin will review manually."
+        ? "Possible duplicate found. An admin will review it."
         : "No existing profile with matching name + DOB found."
     }
   ];
@@ -1651,7 +1651,7 @@ function WaiversStep({
       label: "USA Hockey ID",
       state: idMissing || idInvalid ? "fail" : "pass",
       body: idMissing
-        ? "USA Hockey ID is missing — add it on the Player details step."
+        ? "USA Hockey ID is missing. Add it on the Player details step."
         : idInvalid
           ? "USA Hockey ID format is invalid (6–12 alphanumeric)."
           : "Format valid."
@@ -2234,7 +2234,7 @@ function QuestionsStep({
           Player details
         </p>
         <p className="mt-1 text-[12px] text-fg-muted">
-          Answers are saved against the question key — labels can be reworded
+          Answers are saved against the question key, so labels can be reworded
           in /forms without losing data. Configure these fields from the
           Form builder section in /forms/[id].
         </p>
@@ -2262,7 +2262,7 @@ function QuestionsStep({
           <p className="mt-1 text-[12px] text-fg-muted">
             {submissionType === "free_agent"
               ? "Captains in your division use this to evaluate fit before claiming you. All four are required."
-              : "Your skill level, position, and availability — used by your team's captain to slot you in lineups."}
+              : "Your skill level, position, and availability. Your team's captain uses them to set lineups."}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
@@ -2501,7 +2501,7 @@ function ReviewStep({
             ))}
           </ul>
           <p className="mt-1">
-            Per spec §6.3 these don't block payment — admin will review
+            Per spec §6.3 these don't block payment. An admin will review
             asynchronously and may request resubmission.
           </p>
         </Alert>
@@ -2658,14 +2658,14 @@ function PaymentStep({
                   <li className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
                     <span className="text-fg-muted">
-                      Today (deposit) — {fmt(depositCents)}
+                      Today (deposit): {fmt(depositCents)}
                     </span>
                   </li>
                   {installments.map((p) => (
                     <li key={p.installmentNumber} className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-blue-500" />
                       <span className="text-fg-muted">
-                        Installment {p.installmentNumber} — {fmt(p.amountCents)}, in {p.dueInDays} days
+                        Installment {p.installmentNumber}: {fmt(p.amountCents)}, in {p.dueInDays} days
                       </span>
                     </li>
                   ))}
@@ -2962,7 +2962,7 @@ function DoneStep({
             Once admin approves your team registration we'll generate a
             shareable invite link for your roster. Check the My
             registrations tab in your player dashboard, or watch your
-            email — the link will land there too.
+            email. The link will land there too.
           </p>
         </section>
       ) : null}
@@ -3039,7 +3039,7 @@ function guidanceFor(
       return {
         headline: (r) => (r ? "Welcome back" : "Almost there"),
         body: isMinor
-          ? "We've flagged you as under 18. Next step: parental consent — we'll send a link to your parent / guardian. (Email delivery wires up next pass; for now look for the in-app prompt.)"
+          ? "We've flagged you as under 18. Next step: parental consent. We'll send a link to your parent / guardian. (Email delivery wires up next pass; for now look for the in-app prompt.)"
           : "We need parental consent before payment can proceed."
       };
     case "pending_payment":
@@ -3099,36 +3099,36 @@ function phaseHeadingFor(step: Step): {
     case "division":
       return {
         title: "Pick a division",
-        subtitle: "Step 1b — Which division you're registering for"
+        subtitle: "Step 1b: Which division you're registering for"
       };
     case "account":
       return {
         title: "Create your account",
-        subtitle: "Step 2 — Account creation & authentication"
+        subtitle: "Step 2: Account creation & authentication"
       };
     case "questions":
       return {
         title: "Your details",
-        subtitle: "Step 3 — Player & team information"
+        subtitle: "Step 3: Player & team information"
       };
     case "consent":
     case "waivers":
       return {
         title: "Compliance & waivers",
         subtitle:
-          "Step 4 — Documents, eligibility checks, and digital signatures"
+          "Step 4: Documents, eligibility checks, and digital signatures"
       };
     case "tier":
     case "review":
     case "payment":
       return {
         title: "Payment",
-        subtitle: "Step 5 — Invoice & payment selection"
+        subtitle: "Step 5: Invoice & payment selection"
       };
     case "done":
       return {
         title: "Registration submitted",
-        subtitle: "Step 6 — Confirmation & activation"
+        subtitle: "Step 6: Confirmation & activation"
       };
   }
 }

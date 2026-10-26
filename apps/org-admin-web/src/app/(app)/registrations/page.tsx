@@ -12,7 +12,7 @@ import { FreeAgentPoolSection } from "./free-agent-pool-section";
 import { DocumentReviewQueue } from "@/components/compliance/document-review-queue";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Registrations - Org Admin" };
+export const metadata = { title: "Registrations · Org Admin" };
 
 const PENDING_PREFIX = "pending_";
 

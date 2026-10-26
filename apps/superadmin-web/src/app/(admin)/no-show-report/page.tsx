@@ -4,7 +4,7 @@ import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { NoShowReport } from "./report";
 
-export const metadata = { title: "No-show report — SportsPulse" };
+export const metadata = { title: "No-show report · Super Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function NoShowReportPage() {

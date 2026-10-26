@@ -22,7 +22,7 @@ import { LegacyDivisionPrompt } from "./legacy-division-prompt";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Registration — SportsPulse" };
+export const metadata = { title: "Registration · Player" };
 
 function fmt(iso: string | null | undefined): ReactNode {
   return <LocalDate iso={iso} format="date" fallback="—" />;
@@ -143,7 +143,7 @@ export default async function RegistrationDetailPage({
               </>
             ) : (
               <>
-                {headline} — see the next-steps timeline below to finish your
+                {headline}. See the next steps below to finish your
                 registration.
               </>
             )}
@@ -187,7 +187,7 @@ export default async function RegistrationDetailPage({
                 <StepDone>You're on {r.teamName}</StepDone>
               ) : (
                 <StepCurrent index={3}>
-                  Waiting for team assignment by your admin — they'll add you
+                  Waiting for your admin to assign a team. They'll add you
                   to a roster when one is set.
                 </StepCurrent>
               )}
@@ -204,7 +204,7 @@ export default async function RegistrationDetailPage({
             <ol className="space-y-2 text-[13px]">
               <StepDone>Registration submitted</StepDone>
               <StepCurrent index={2}>
-                Admin is reviewing — you'll get an email when there's an
+                Your admin is reviewing. You'll get an email when there's an
                 update.
               </StepCurrent>
               <StepFuture index={3}>

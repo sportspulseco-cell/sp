@@ -119,7 +119,7 @@ export function SignInForm() {
         </Button>
         <p className="text-xs text-fg-muted">
           This account is signed in but doesn't have super-admin access. Use
-          the matching app for your role — org-admin, team-admin, or player —
+          the matching app for your role (org-admin, team-admin, or player)
           or sign out above and sign in with a super-admin account.
         </p>
       </div>

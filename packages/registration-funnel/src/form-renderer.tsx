@@ -56,7 +56,7 @@ export function FormRenderer({
   if (visible.length === 0) {
     return (
       <p className="text-[13px] italic text-fg-muted">
-        No questions to show right now — the admin hasn't configured any
+        No questions to show right now. The admin hasn't configured any
         custom questions, or all questions are gated by conditional logic.
       </p>
     );

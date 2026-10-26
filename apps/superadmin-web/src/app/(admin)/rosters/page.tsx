@@ -18,7 +18,7 @@ import {
 import { AddMembershipButton } from "@/components/rosters/add-membership-button";
 import { DropMembershipButton } from "@/components/rosters/drop-membership-button";
 
-export const metadata = { title: "Memberships — SportsPulse" };
+export const metadata = { title: "Memberships · Super Admin" };
 
 export default async function RostersPage({
   searchParams
@@ -84,7 +84,7 @@ export default async function RostersPage({
         title="Rosters"
         description={
           activeOnly
-            ? "Active roster memberships across every team. Add and drop players via roster moves — moves are append-only, memberships are the projection."
+            ? "Active roster memberships across every team. Add and drop players via roster moves. Moves are append-only, memberships are the projection."
             : "Every membership including released and historical."
         }
         action={

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { TeamMessageForm } from "./message-form";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Message the team — SportsPulse" };
+export const metadata = { title: "Message the team · Team Admin" };
 
 const STAFF_ROLES = ["captain", "coach"];
 

@@ -156,7 +156,7 @@ export function SeasonStep({
 
           <Field
             label="Playoff start date"
-            hint="When playoffs begin. The day before is the implicit regular-season finale. Optional — leave blank for seasons with no separate playoff."
+            hint="When playoffs begin. The day before is the implicit regular-season finale. Optional. Leave blank for seasons with no separate playoff."
           >
             <input
               type="date"

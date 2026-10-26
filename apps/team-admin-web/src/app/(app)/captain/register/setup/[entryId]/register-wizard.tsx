@@ -250,7 +250,7 @@ export function RegisterWizard({
                 ? "today"
                 : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
             </span>
-            . You can save and exit any time — Sprint 4 will persist the
+            . You can save and exit any time. Sprint 4 will persist the
             draft server-side; for now stay on this tab to keep your
             progress.
           </p>
@@ -264,7 +264,7 @@ export function RegisterWizard({
           {step === 1 ? (
             <StepCard
               title="Confirm your team"
-              subtitle="Pre-filled from your team record. Click the pencil to edit a field — changes save immediately."
+              subtitle="Pre-filled from your team record. Click the pencil to edit a field. Changes save immediately."
             >
               <EditableRow
                 label="Team name"
@@ -310,7 +310,7 @@ export function RegisterWizard({
               <div className="mt-2 flex items-center gap-2 rounded-md border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
                 <Check className="h-3.5 w-3.5" strokeWidth={2} />
                 Captain: <span className="font-medium">that's you</span> ·
-                already assigned — no re-entry needed.
+                already assigned. No re-entry needed.
               </div>
             </StepCard>
           ) : null}
@@ -394,7 +394,7 @@ export function RegisterWizard({
                         addEmail();
                       }
                     }}
-                    placeholder="player@example.com — Enter or comma to add"
+                    placeholder="player@example.com (Enter or comma to add)"
                     type="email"
                   />
                   <Button
@@ -592,7 +592,7 @@ export function RegisterWizard({
                 </p>
               ) : (
                 <p className="rounded-md border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
-                  Threshold is $0 — your team auto-confirms the moment you
+                  Threshold is $0. Your team auto-confirms the moment you
                   submit. No deposit collection needed first.
                 </p>
               )}
@@ -612,7 +612,7 @@ export function RegisterWizard({
           {step === 4 && submittedDte ? (
             <StepCard
               title="Submitted"
-              subtitle="Your registration is in flight. Watch confirmation progress below — it polls every 10 seconds."
+              subtitle="Your registration is in flight. Watch confirmation progress below. It refreshes every 10 seconds."
             >
               <ConfirmationProgress dteId={submittedDte} teamName={team.name} />
             </StepCard>
@@ -1194,7 +1194,7 @@ function ConfirmationProgress({
               ? `${teamName} is confirmed for the season`
               : autoConfirm
                 ? "Auto-confirming…"
-                : `Collecting deposits — ${status.pct}%`}
+                : `Collecting deposits: ${status.pct}%`}
           </p>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
             status · {status.entryStatus}

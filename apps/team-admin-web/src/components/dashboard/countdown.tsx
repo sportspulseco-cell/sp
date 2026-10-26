@@ -30,7 +30,7 @@ export function Countdown({ targetIso }: { targetIso: string | null }) {
   if (diff === 0) {
     return (
       <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
-        Registration is now open — refresh the page
+        Registration is now open. Refresh the page
       </p>
     );
   }

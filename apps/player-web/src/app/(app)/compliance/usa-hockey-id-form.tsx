@@ -107,7 +107,7 @@ export function UsaHockeyIdForm() {
 
           {success ? (
             <Alert tone="success" role="status">
-              Submitted — pending admin verification.
+              Submitted. Your admin will verify it.
             </Alert>
           ) : null}
 

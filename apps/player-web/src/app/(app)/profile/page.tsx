@@ -16,7 +16,7 @@ function playerProfileRole(codes: string[]): string {
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Profile — SportsPulse" };
+export const metadata = { title: "Profile · Player" };
 
 export default async function Page() {
   const profileResult = await load(iam.me());

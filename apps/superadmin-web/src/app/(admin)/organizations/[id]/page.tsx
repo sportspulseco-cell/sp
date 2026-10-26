@@ -34,7 +34,7 @@ import { SYSTEM_ROLE_CODES, DATE_FORMATS, formatCalendarDate } from "@sportspuls
 import { RegionsSection } from "@/components/regions/regions-section";
 import { OrgActions } from "@/components/edit/detail-actions";
 
-export const metadata = { title: "Organization — SportsPulse" };
+export const metadata = { title: "Organization · Super Admin" };
 
 function fmtDate(iso: string | null): string {
   return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
@@ -177,7 +177,7 @@ export default async function OrgDetailPage({
       <Section
         eyebrow="Admins"
         title="Org admins + memberships"
-        description="Users with active roles scoped to this org. Every org should have at least one org_admin — assign one below or invite by email."
+        description="Users with active roles scoped to this org. Every org should have at least one org_admin. Assign one below or invite by email."
         icon={Users}
         tint="emerald"
       >

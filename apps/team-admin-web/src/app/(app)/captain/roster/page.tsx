@@ -6,7 +6,7 @@ import { RosterScreen } from "./roster-screen";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Manage roster — SportsPulse" };
+export const metadata = { title: "Manage roster · Team Admin" };
 
 export default async function CaptainRosterPage() {
   const scope = await loadMeScope();

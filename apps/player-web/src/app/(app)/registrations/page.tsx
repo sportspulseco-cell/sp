@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "My registrations — SportsPulse" };
+export const metadata = { title: "My registrations · Player" };
 
 type Row = Awaited<
   ReturnType<typeof registration.listMyRegistrations>
@@ -26,18 +26,18 @@ type Row = Awaited<
 function statusCopy(status: string): string {
   switch (status) {
     case "draft":
-      return "Started but not yet submitted — finish the funnel to submit.";
+      return "Started but not submitted yet. Finish the steps to submit.";
     case "submitted":
       return "Submitted. Admin will review shortly.";
     case "under_review":
     case "pending_review":
       return "An admin is currently reviewing.";
     case "approved":
-      return "Approved — you're cleared for the season.";
+      return "Approved. You're cleared for the season.";
     case "rejected":
       return "Rejected. Contact your admin or check the decision reason.";
     case "waitlisted":
-      return "Waitlisted — admin will reach out if a spot opens.";
+      return "Waitlisted. Your admin will reach out if a spot opens.";
     case "withdrawn":
       return "Withdrawn.";
     case "pending_verification":
@@ -45,9 +45,9 @@ function statusCopy(status: string): string {
     case "pending_consent":
       return "Awaiting parental consent.";
     case "pending_payment":
-      return "Payment outstanding — finish checkout to submit.";
+      return "Payment outstanding. Finish checkout to submit.";
     case "pending_offline":
-      return "Offline payment pending — admin will mark received.";
+      return "Offline payment pending. Your admin will mark it received.";
     case "incomplete":
       return "Resume the funnel to fill missing details.";
     case "cancelled":

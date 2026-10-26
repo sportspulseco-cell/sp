@@ -91,7 +91,7 @@ export function DisputesScreen({
             <div>
               <p className="text-[13px] font-medium text-fg">
                 {status === "pending"
-                  ? "No pending disputes — nice."
+                  ? "No pending disputes."
                   : "No items match this filter."}
               </p>
               <p className="mt-1 text-[12px] text-fg-muted">

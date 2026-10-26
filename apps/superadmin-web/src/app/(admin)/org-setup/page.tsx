@@ -6,7 +6,7 @@ import { OrgSetupShell } from "./org-setup-shell";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Org setup — SportsPulse" };
+export const metadata = { title: "Org setup · Super Admin" };
 
 export default async function OrgSetupPage() {
   // Bootstrap dropdown data once, on the server. Subsequent dependent

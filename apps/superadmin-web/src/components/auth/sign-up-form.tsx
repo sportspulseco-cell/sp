@@ -63,7 +63,7 @@ export function SignUpForm() {
           autoComplete="name"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Optional — shown across the platform"
+          placeholder="Optional. Shown across the platform"
         />
       </div>
       <div className="space-y-2">

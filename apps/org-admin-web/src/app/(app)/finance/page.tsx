@@ -19,7 +19,7 @@ import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceTable } from "./invoice-table";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Finance - Org Admin" };
+export const metadata = { title: "Finance · Org Admin" };
 
 
 export default async function FinancePage() {

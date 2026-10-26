@@ -15,7 +15,7 @@ import { SetPasswordButton } from "@/components/users/set-password-button";
 import { SendRecoveryEmailButton } from "@/components/users/send-recovery-email-button";
 import { resolvePrimaryRole, resolveProfileRoles } from "@/components/users/primary-role";
 
-export const metadata = { title: "User — SportsPulse" };
+export const metadata = { title: "User · Super Admin" };
 
 function fmtDate(iso: string | null) {
   return <LocalDate iso={iso} format="date" fallback="—" />;
@@ -121,7 +121,7 @@ export default async function UserDetailPage({
         {assignments.length === 0 ? (
           <p className="px-6 py-12 text-center text-sm text-fg-muted">
             {user.isSuperAdmin
-              ? "Super admin has implicit access to everything — no scoped roles needed."
+              ? "Super admin has implicit access to everything. No scoped roles needed."
               : "No active assignments. Use the panel below to grant a role."}
           </p>
         ) : (
@@ -241,7 +241,7 @@ export default async function UserDetailPage({
           <Eyebrow>Assign new role</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
             Pick a role + scope. Assigning the same (role, scope) twice is a
-            no-op — the existing active assignment is returned.
+            no-op: the existing active assignment is returned.
           </p>
         </header>
         <div className="p-6">

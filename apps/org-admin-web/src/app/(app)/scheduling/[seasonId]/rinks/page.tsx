@@ -7,7 +7,7 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Rink notifications — Org Admin" };
+export const metadata = { title: "Rink notifications · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -39,7 +39,7 @@ export default async function OrgAdminRinksPage({
       <PageHeader
         eyebrow="schedule"
         title={`Notifications · ${season.name}`}
-        description="OUTBOUND webhook delivery + retry tracker for rink partner systems. To configure venues, surfaces, and ice slots — the inputs the scheduler reads — use the Venues page."
+        description="Outbound webhook delivery and retries for rink partner systems. To configure venues, surfaces, and ice slots (the inputs the scheduler reads), use the Venues page."
         action={
           <Link
             href={`/seasons/${season.id}`}

@@ -34,7 +34,7 @@ async function fetchContext(token: string): Promise<ConsentContext | null> {
 }
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Parental consent — SportsPulse" };
+export const metadata = { title: "Parental consent · Player" };
 
 /**
  * Parent-facing consent portal. The parent clicks the URL we emailed
@@ -73,7 +73,7 @@ export default async function ParentalConsentPage({
             tone="amber"
             icon={<Clock className="h-6 w-6" strokeWidth={1.75} />}
             title="This link has expired"
-            body="Consent links expire 24 hours after they're sent. Ask the player to resend the consent email — they can do that from the registration funnel."
+            body="Consent links expire 24 hours after they're sent. Ask the player to resend the consent email from their registration."
           />
         ) : ctx.confirmedAt ? (
           <Card
@@ -113,7 +113,7 @@ export default async function ParentalConsentPage({
           You&apos;re seeing this page because someone listed you as the
           parent or guardian of a minor registering for a SportsPulse
           league. If you weren&apos;t expecting this, you can safely
-          ignore — no action means the registration won&apos;t advance.
+          ignore it. Without your consent the registration won&apos;t advance.
         </p>
       </div>
     </div>

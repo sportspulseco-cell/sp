@@ -64,7 +64,7 @@ export function DropMembershipButton({
           <Field
             label="Reason"
             htmlFor="dm-reason"
-            hint="Optional but recommended — appears in the audit trail."
+            hint="Optional but recommended. Appears in the audit trail."
           >
             <Input
               id="dm-reason"

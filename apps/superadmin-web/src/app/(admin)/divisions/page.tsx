@@ -18,7 +18,7 @@ import {
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Division, Season } from "@/lib/api/types";
 
-export const metadata = { title: "Divisions — SportsPulse" };
+export const metadata = { title: "Divisions · Super Admin" };
 
 /**
  * Post-flip hierarchy: Org → League → Season → Region → Division.

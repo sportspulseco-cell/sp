@@ -24,7 +24,7 @@ import { getActiveOrgId } from "@/lib/active-org";
 import { LeagueActions } from "@/components/edit/detail-actions";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Leagues - Org Admin" };
+export const metadata = { title: "Leagues · Org Admin" };
 
 /** Filters live in the URL (?q=&status=&sport=). */
 export default async function LeaguesPage({

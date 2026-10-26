@@ -59,7 +59,7 @@ export function UpsertFlagButton() {
           <Field
             label="Key"
             htmlFor="uf-key"
-            hint="Stable identifier — lowercase_snake_case."
+            hint="Stable identifier in lowercase_snake_case."
           >
             <Input
               id="uf-key"
@@ -82,7 +82,7 @@ export function UpsertFlagButton() {
           <Field
             label="Rollout %"
             htmlFor="uf-rollout"
-            hint="0–100. Hashed against actor ID — 50 = enabled for half of orgs."
+            hint="0–100. Hashed against actor ID: 50 = enabled for half of orgs."
           >
             <Input
               id="uf-rollout"

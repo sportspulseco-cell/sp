@@ -22,7 +22,7 @@ import { ProgressBar } from "../dashboard/live-widgets";
 import { FunnelClient } from "../../registration/[id]/funnel-client";
 import { FreeAgentPoolSection } from "./free-agent-pool-section";
 
-export const metadata = { title: "Registrations — SportsPulse" };
+export const metadata = { title: "Registrations · Super Admin" };
 export const dynamic = "force-dynamic";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
@@ -266,7 +266,7 @@ export default async function RegistrationsPage() {
               <p className="mt-1 text-[13px] text-fg-muted">
                 {ctx
                   ? `Rendering against ${ctx.season.name} · schema sourced from /forms`
-                  : "No season-bound form yet — configure one in /forms first."}
+                  : "No season-bound form yet. Configure one in /forms first."}
               </p>
             </div>
           </header>

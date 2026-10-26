@@ -25,7 +25,7 @@ import { CreateFormButton } from "@/components/forms/create-form-button";
 import { FormsFilters } from "@/components/forms/forms-filters";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Forms — SportsPulse" };
+export const metadata = { title: "Forms · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -185,7 +185,7 @@ export default async function FormsPage({
           }
           description={
             filterPurpose === "role_profile"
-              ? "Role-profile forms are surfaced when admins invite a user — the new user fills it out at first sign-in."
+              ? "Role-profile forms are surfaced when admins invite a user. The new user fills it out at first sign-in."
               : filterPurpose === "season_registration"
                 ? "Season-registration forms drive the /registration multistep wizard. Pick or create one to begin."
                 : "Create the first form for any organization."

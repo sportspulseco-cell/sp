@@ -397,7 +397,7 @@ export function OrgSetupWizard({
       !stepValidation[3] ||
       !stepValidation[4]
     ) {
-      setError("Some steps are incomplete — go back and finish them first.");
+      setError("Some steps are incomplete. Go back and finish them first.");
       return;
     }
     if (!state.orgId) return;

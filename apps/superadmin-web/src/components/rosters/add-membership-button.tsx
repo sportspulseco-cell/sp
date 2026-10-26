@@ -120,7 +120,7 @@ export function AddMembershipButton({
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Jersey #" htmlFor="am-jersey">
+            <Field label="Jersey number" htmlFor="am-jersey">
               <Input
                 id="am-jersey"
                 type="number"

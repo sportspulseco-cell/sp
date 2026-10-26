@@ -76,7 +76,7 @@ function CreateSeasonDialog({
       open={open}
       onClose={onClose}
       title="Create season"
-      description="A season is a time-bounded instance of a league — divisions and registrations live inside it."
+      description="A season is a time-bounded instance of a league. Divisions and registrations live inside it."
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-4">

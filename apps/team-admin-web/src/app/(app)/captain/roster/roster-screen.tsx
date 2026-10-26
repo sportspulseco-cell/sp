@@ -305,7 +305,7 @@ export function RosterScreen({
         <EmptyState
           icon={Users}
           title="No guest appearances yet"
-          description="Guests are added from a specific game in the schedule view — they don't count against your roster cap."
+          description="Guests are added from a specific game in the schedule view. They don't count against your roster cap."
         />
       )}
 

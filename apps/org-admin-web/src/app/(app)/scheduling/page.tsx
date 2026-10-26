@@ -16,7 +16,7 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
-export const metadata = { title: "Schedule — Org Admin" };
+export const metadata = { title: "Schedule · Org Admin" };
 export const dynamic = "force-dynamic";
 
 /**

@@ -178,7 +178,7 @@ export function UpsertTemplateButton({
               id="ut-subject"
               value={form.subject}
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              placeholder="Registration approved — {{leagueName}}"
+              placeholder="Registration approved: {{leagueName}}"
             />
           </Field>
           <Field label="Body template" htmlFor="ut-body">
@@ -190,7 +190,7 @@ export function UpsertTemplateButton({
               onChange={(e) =>
                 setForm({ ...form, bodyTemplate: e.target.value })
               }
-              placeholder={"Hi {{personName}},\n\nGreat news — your registration for {{leagueName}} has been approved."}
+              placeholder={"Hi {{personName}},\n\nGreat news: your registration for {{leagueName}} has been approved."}
               className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 font-mono text-[12px] text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus"
             />
           </Field>

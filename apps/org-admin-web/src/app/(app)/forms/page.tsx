@@ -23,7 +23,7 @@ import { getActiveOrgId } from "@/lib/active-org";
 import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Forms - Org Admin" };
+export const metadata = { title: "Forms · Org Admin" };
 
 
 export default async function FormsPage() {
@@ -46,7 +46,7 @@ export default async function FormsPage() {
       <PageHeader
         eyebrow="Registration"
         title="Registration forms"
-        description="Forms bound to your org's seasons. Each form drives a chunk of the public registration funnel — questions, waivers, pricing tiers, and email templates."
+        description="Forms bound to your org's seasons. Each form drives a chunk of the public registration funnel: questions, waivers, pricing tiers, and email templates."
         action={
           activeOrg ? (
             <CreateFormButton
@@ -61,7 +61,7 @@ export default async function FormsPage() {
         <SectionRail
           index="01"
           label="Published"
-          subtitle="Open one to edit its questions, divisions, pricing, and email templates. New forms can be created here directly — no platform-admin handoff."
+          subtitle="Open one to edit its questions, divisions, pricing, and email templates. New forms can be created here directly. No platform admin handoff."
           meta={`${formsPage.items.length} total`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">

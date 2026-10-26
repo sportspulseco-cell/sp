@@ -27,7 +27,7 @@ import { ToggleSportButton } from "@/components/admin/toggle-sport-button";
 import { UpsertSettingButton } from "@/components/admin/upsert-setting-button";
 import { UpsertFlagButton } from "@/components/admin/upsert-flag-button";
 
-export const metadata = { title: "Admin Console — SportsPulse" };
+export const metadata = { title: "Admin Console · Super Admin" };
 
 type Tab = "settings" | "flags" | "sports" | "health";
 

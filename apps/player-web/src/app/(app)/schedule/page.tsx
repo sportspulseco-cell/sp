@@ -23,7 +23,7 @@ import { ICalExportButton } from "./ical-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Schedule — SportsPulse" };
+export const metadata = { title: "Schedule · Player" };
 
 // In the game's own zone.
 function fmtDateTime(iso: string, tz: string): string {

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { RecomputeStandingsButton } from "@/components/stats/recompute-standings-button";
 
-export const metadata = { title: "Stats — SportsPulse" };
+export const metadata = { title: "Stats · Super Admin" };
 
 type Tab = "lines" | "standings" | "leaderboards";
 

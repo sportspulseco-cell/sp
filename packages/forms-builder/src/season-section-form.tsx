@@ -180,7 +180,7 @@ export function SeasonSectionForm({
     <div className="space-y-6">
       <SectionHeader
         title="Season setup"
-        subtitle="Pick the season this registration runs against — created via Org setup"
+        subtitle="Pick the season this registration runs against (created in Org setup)"
       />
 
       {/* Rollover card */}
@@ -190,7 +190,7 @@ export function SeasonSectionForm({
             Roll over a previous season?
           </p>
           <p className="mt-0.5 text-[12px] text-fg-muted">
-            Copies pricing, divisions, questions, waivers — not dates
+            Copies pricing, divisions, questions and waivers, not dates
           </p>
         </div>
         {priorSeasons.length === 0 ? (

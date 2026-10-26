@@ -7,7 +7,7 @@ import { StoreClient } from "./store-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Team store — SportsPulse" };
+export const metadata = { title: "Team store · Player" };
 
 /**
  * Team store (UC-26): the roster's gear, ordered here and paid on

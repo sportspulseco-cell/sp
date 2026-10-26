@@ -7,7 +7,7 @@ import { adminTransfers, gameOps, leagueMgmt, registration, roster } from "@/lib
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
 
-export const metadata = { title: "Season — SportsPulse" };
+export const metadata = { title: "Season · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

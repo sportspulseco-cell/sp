@@ -177,7 +177,7 @@ export function DivisionsClient({
 
         {tiers.length === 0 ? (
           <p className="text-[12px] text-fg-muted">
-            No pricing tiers yet — create one in the Pricing section first.
+            No pricing tiers yet. Create one in the Pricing section first.
           </p>
         ) : (
           <>
@@ -283,7 +283,7 @@ export function DivisionsClient({
         />
         <ToggleRow
           label="Require liability waiver"
-          hint="Hard block — registration cannot complete without signature"
+          hint="Required: registration cannot complete without a signature"
           checked={requireLiabilityWaiver}
           onChange={setRequireLiabilityWaiver}
         />
@@ -297,7 +297,7 @@ export function DivisionsClient({
         ) : null}
         <ToggleRow
           label="Require code of conduct"
-          hint="Hard block — registrant must check the acknowledgment"
+          hint="Required: the registrant must check the acknowledgment"
           checked={requireCodeOfConduct}
           onChange={setRequireCodeOfConduct}
         />

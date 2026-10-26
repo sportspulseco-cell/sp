@@ -44,7 +44,7 @@ const STATUS_OPTIONS = [
     label: "Needs decision (pending_approval + applied)"
   },
   { value: "pending_approval", label: "Pending approval" },
-  { value: "applied", label: "Applied — awaiting threshold or admin" },
+  { value: "applied", label: "Applied (awaiting threshold or admin)" },
   { value: "accepted", label: "Accepted" },
   { value: "confirmed", label: "Confirmed" },
   { value: "rejected", label: "Rejected" },

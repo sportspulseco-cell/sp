@@ -13,7 +13,7 @@ import { MarkAllReadButton } from "./mark-all-read";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Notifications — SportsPulse" };
+export const metadata = { title: "Notifications · Player" };
 
 export default async function NotificationsPage() {
   const scope = await loadMeScope();

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { CreatePersonButton } from "@/components/persons/create-person-button";
 
-export const metadata = { title: "Persons — SportsPulse" };
+export const metadata = { title: "Persons · Super Admin" };
 
 export default async function PersonsPage() {
   const personsResult = await load(

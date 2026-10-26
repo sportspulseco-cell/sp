@@ -6,7 +6,7 @@ import { GenerateForm } from "@/components/scheduling/generate-form";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
-export const metadata = { title: "Generate schedule — SportsPulse" };
+export const metadata = { title: "Generate schedule · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

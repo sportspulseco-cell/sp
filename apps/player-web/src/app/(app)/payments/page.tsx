@@ -7,7 +7,7 @@ import { PaymentsClient } from "./payments-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Payments — SportsPulse" };
+export const metadata = { title: "Payments · Player" };
 
 export default async function PaymentsPage() {
   const [walletResult, invoicesResult] = await Promise.all([

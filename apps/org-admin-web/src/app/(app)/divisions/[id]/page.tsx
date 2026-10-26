@@ -8,7 +8,7 @@ import { getActiveOrgId } from "@/lib/active-org";
 import { DivisionRegionControl } from "@/components/divisions/division-region-control";
 import { PlaceTeam } from "@/components/divisions/place-team";
 
-export const metadata = { title: "Division — Org Admin" };
+export const metadata = { title: "Division · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

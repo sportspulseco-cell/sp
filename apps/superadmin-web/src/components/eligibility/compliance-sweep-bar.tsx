@@ -82,7 +82,7 @@ export function ComplianceSweepBar({
           }.`
         : "";
       setFlash(
-        `Eligibility sweep complete — ${res.evaluated} evaluated, ${res.flagged} need attention${byStatus ? ` (${byStatus})` : ""}.${kept}`
+        `Eligibility sweep complete: ${res.evaluated} evaluated, ${res.flagged} need attention${byStatus ? ` (${byStatus})` : ""}.${kept}`
       );
       await refresh();
       // The records table is server-rendered; refresh it too (COMP-6).
@@ -101,7 +101,7 @@ export function ComplianceSweepBar({
     try {
       const res = await compliance.runLockSweep(seasonId);
       setFlash(
-        `Lock sweep complete — ${res.expiring} expiring, ${res.expired} expired.`
+        `Lock sweep complete: ${res.expiring} expiring, ${res.expired} expired.`
       );
       await refresh();
       // The records table is server-rendered; refresh it too (COMP-6).
@@ -144,7 +144,7 @@ export function ComplianceSweepBar({
             Season
           </label>
           <Select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
-            <option value="">— pick a season —</option>
+            <option value="">Pick a season</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}

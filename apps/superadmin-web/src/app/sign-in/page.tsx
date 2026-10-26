@@ -3,13 +3,13 @@ import { ShieldCheck, Globe2, Activity, Users } from "lucide-react";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const metadata = { title: "Sign in — SportsPulse Super Admin" };
+export const metadata = { title: "Sign in · Super Admin" };
 
 const FEATURES = [
   {
     icon: Globe2,
     title: "Global, multi-sport",
-    body: "Hockey, soccer, basketball, cricket — multi-tenant from day one."
+    body: "Hockey, soccer, basketball, cricket. Multi-tenant from day one."
   },
   {
     icon: Activity,
@@ -95,7 +95,7 @@ export default function SignInPage() {
         </div>
 
         <p className="relative text-[11px] text-white/40">
-          © {new Date().getFullYear()} SportsPulse — All rights reserved
+          © {new Date().getFullYear()} SportsPulse. All rights reserved
         </p>
       </section>
 

@@ -14,7 +14,7 @@ import { ClaimFreeAgentButton } from "./claim-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Free agents — SportsPulse" };
+export const metadata = { title: "Free agents · Team Admin" };
 
 function ageFromDob(dob: string | null): number | null {
   if (!dob) return null;

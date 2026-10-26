@@ -16,7 +16,7 @@ import {
   Table
 } from "@/components/ui/table";
 
-export const metadata = { title: "Game events — SportsPulse" };
+export const metadata = { title: "Game events · Super Admin" };
 
 function fmtTime(iso: string) {
   return <LocalDate iso={iso} options={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }} />;

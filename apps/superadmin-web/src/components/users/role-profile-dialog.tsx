@@ -87,7 +87,7 @@ export function RoleProfileDialog({
       description={
         userType
           ? `Profile fields for the ${roleDef?.name ?? userType} role. Stored under profiles.metadata.roleProfile.${userType}.`
-          : "User has no role assigned yet — assign a type from the user row first."
+          : "User has no role assigned yet. Assign a type from the user row first."
       }
       size="lg"
     >

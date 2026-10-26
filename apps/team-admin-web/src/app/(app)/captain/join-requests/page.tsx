@@ -7,7 +7,7 @@ import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Join requests — SportsPulse" };
+export const metadata = { title: "Join requests · Team Admin" };
 
 export default async function CaptainJoinRequestsPage() {
   const scope = await loadMeScope();

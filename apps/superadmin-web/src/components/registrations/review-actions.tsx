@@ -112,7 +112,7 @@ export function ReviewActions({
         open={rejectOpen}
         onClose={() => setRejectOpen(false)}
         title="Reject registration"
-        description="Provide a reason — it will be recorded and visible to the registrant."
+        description="Provide a reason. It will be recorded and visible to the registrant."
         size="sm"
       >
         <Field label="Reason" htmlFor="reason">

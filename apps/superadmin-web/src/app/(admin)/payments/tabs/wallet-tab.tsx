@@ -111,7 +111,7 @@ export async function WalletTab({
           </ul>
         ) : (
           <p className="px-5 py-6 text-center text-[12px] text-fg-muted">
-            No ledger entries yet — issue a credit below to seed the audit log.
+            No ledger entries yet. Issue a credit below to seed the audit log.
           </p>
         )}
       </section>

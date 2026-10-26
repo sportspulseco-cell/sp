@@ -91,7 +91,7 @@ export function ApplicationsQueue({
     setError(null);
     try {
       await adminTransfers.approveApplication(t.id);
-      setFlash(`Approved ${t.teamName} — they're now applied to ${t.divisionName}.`);
+      setFlash(`Approved ${t.teamName}. They're now applied to ${t.divisionName}.`);
       await refresh();
       router.refresh();
     } catch (e) {
@@ -106,7 +106,7 @@ export function ApplicationsQueue({
     setError(null);
     try {
       await adminTransfers.rejectApplication(t.id, reason);
-      setFlash(`Rejected ${t.teamName} — captain notified.`);
+      setFlash(`Rejected ${t.teamName}. Captain notified.`);
       setRejectTarget(null);
       await refresh();
       router.refresh();
@@ -326,7 +326,7 @@ function ApplicationCard({
                 disabled={busy || full}
                 title={
                   full
-                    ? "This division is full — cannot approve until a slot opens."
+                    ? "This division is full. Approve once a slot opens."
                     : undefined
                 }
               >

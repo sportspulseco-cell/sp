@@ -51,7 +51,7 @@ export async function OffSeasonView({
           {team.name}
         </h1>
         <p className="mt-1 text-sm text-white/80">
-          {lastSeason?.name ?? state.seasonName ?? "Most recent season"} —
+          {lastSeason?.name ?? state.seasonName ?? "Most recent season"}:
           completed
         </p>
         <div className="mt-5">

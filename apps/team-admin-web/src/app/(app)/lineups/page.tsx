@@ -8,7 +8,7 @@ import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Lineups — SportsPulse" };
+export const metadata = { title: "Lineups · Team Admin" };
 
 // In the game's own zone.
 function fmt(iso: string, tz: string): string {

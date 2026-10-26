@@ -19,7 +19,7 @@ import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import type { League } from "@/lib/api/types";
 
-export const metadata = { title: "Leagues — SportsPulse" };
+export const metadata = { title: "Leagues · Super Admin" };
 
 /**
  * View-only listing — creation lives exclusively in /org-setup so the

@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Teams - Org Admin" };
+export const metadata = { title: "Teams · Org Admin" };
 
 export default async function TeamsPage({
   searchParams

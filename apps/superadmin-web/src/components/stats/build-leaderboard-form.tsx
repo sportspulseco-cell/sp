@@ -253,7 +253,7 @@ function ResultPanel({
       </header>
       {result.entries.length === 0 ? (
         <p className="px-6 py-12 text-center text-sm text-fg-muted">
-          No entries — no stat lines match this scope/metric yet.
+          No entries. No stat lines match this scope/metric yet.
         </p>
       ) : (
         <ol className="divide-y divide-border">

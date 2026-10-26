@@ -7,7 +7,7 @@ import { OrgActions } from "@/components/edit/detail-actions";
 import { RegionsSection } from "@/components/regions/regions-section";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Organisation - Org Admin" };
+export const metadata = { title: "Organisation · Org Admin" };
 
 /**
  * The org admin's own organisation: its details with Edit organisation

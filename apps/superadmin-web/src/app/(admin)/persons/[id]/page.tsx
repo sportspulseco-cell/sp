@@ -43,7 +43,7 @@ import {
   Table
 } from "@/components/ui/table";
 
-export const metadata = { title: "Person — SportsPulse" };
+export const metadata = { title: "Person · Super Admin" };
 
 function age(dob: string | null): number | null {
   if (!dob) return null;
@@ -185,7 +185,7 @@ export default async function PersonDetailPage({
               </li>
               <li className="inline-flex items-center gap-1.5">
                 <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                {person.countryCode ?? "country —"}
+                {person.countryCode ?? "No country"}
               </li>
               <li className="inline-flex items-center gap-1.5">
                 {person.userId ? (
@@ -419,7 +419,7 @@ export default async function PersonDetailPage({
         tint="blue"
         eyebrow="Communications"
         title="Recent notifications"
-        description="Outbound messages addressed to this person — newest first."
+        description="Outbound messages addressed to this person, newest first."
       >
         {notifications.length === 0 ? (
           <Empty message="No notifications sent to this person." />

@@ -4,7 +4,7 @@ import { adminTransfers } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { TransfersQueue } from "./transfers-queue";
 
-export const metadata = { title: "Transfers — SportsPulse" };
+export const metadata = { title: "Transfers · Super Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminTransfersPage() {

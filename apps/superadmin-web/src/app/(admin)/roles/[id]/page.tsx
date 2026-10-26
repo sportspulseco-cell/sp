@@ -20,7 +20,7 @@ import {
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 
-export const metadata = { title: "Role — SportsPulse" };
+export const metadata = { title: "Role · Super Admin" };
 
 function fmtDate(iso: string | null) {
   return <LocalDate iso={iso} format="date" fallback="—" />;

@@ -76,7 +76,7 @@ function countdown(iso: string, now: Date): string {
   if (days >= 1) return "Tomorrow";
   const hours = Math.floor(diff / hour);
   const mins = Math.floor((diff % hour) / minute);
-  return `Today — ${hours}h ${mins}m away`;
+  return `Today, ${hours}h ${mins}m away`;
 }
 
 /* ------------------------------ page ------------------------------- */

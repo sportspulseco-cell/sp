@@ -103,7 +103,7 @@ export function InitiateTransferModal({
             onChange={(e) => setToTeamId(e.target.value)}
             className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
           >
-            <option value="">— pick a team —</option>
+            <option value="">Pick a team</option>
             {teams.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}

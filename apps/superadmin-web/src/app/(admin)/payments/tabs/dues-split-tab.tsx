@@ -111,7 +111,7 @@ export async function DuesSplitTab({
         <EmptyState
           icon={Users}
           title="No splits for this invoice yet"
-          description="Use the Cover outstanding control after creating a split row per player. Splits divide an invoice's total across the roster — useful for team dues."
+          description="Use the Cover outstanding control after creating a split row per player. Splits divide an invoice's total across the roster, which suits team dues."
         />
       ) : (
         <DuesSplitClient

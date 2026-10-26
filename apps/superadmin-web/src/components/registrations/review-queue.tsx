@@ -371,7 +371,7 @@ function Row({
           <Badge status={row.status} />
           {isOffline && (
             <span
-              title="Player chose offline payment — verify receipt before approving."
+              title="Player chose offline payment. Verify receipt before approving."
               className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-300"
             >
               <Wallet className="h-2.5 w-2.5" />
@@ -471,7 +471,7 @@ function BulkEmailDialog({
       open={open}
       onClose={onClose}
       title={`Email ${count} registrant(s)`}
-      description="Sends via Resend (real or log-only based on RESEND_API_KEY). State is unchanged — this is purely communications."
+      description="Sends via Resend (real or log-only based on RESEND_API_KEY). State is unchanged. This only sends messages."
       size="lg"
     >
       <Field label="Subject">
@@ -583,7 +583,7 @@ function ReviewDialog({
                 {payment?.amountCents
                   ? ` (${formatMoney(payment.amountCents, payment.currency ?? "USD")})`
                   : ""}
-                . Verify receipt before approving — approving from here marks the registration final.
+                . Verify receipt before approving. Approving from here marks the registration final.
               </p>
             </div>
           </Alert>
@@ -672,13 +672,13 @@ function ReviewDialog({
         {flags.length > 0 && (
           <Field
             label="Override flag (optional)"
-            hint="Pick a flag to mark as overridden — admin justification goes in the reason field above."
+            hint="Pick a flag to mark as overridden. Admin justification goes in the reason field above."
           >
             <Select
               value={overrideFlag}
               onChange={(e) => setOverrideFlag(e.target.value)}
             >
-              <option value="">— none —</option>
+              <option value="">None</option>
               {flags.map((f) => (
                 <option key={f} value={f}>
                   {f}

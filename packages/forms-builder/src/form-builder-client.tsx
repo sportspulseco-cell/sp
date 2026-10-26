@@ -172,7 +172,7 @@ export function FormBuilderClient({
     <div className="space-y-6">
       <SectionHeader
         title="Form builder"
-        subtitle="Custom questions with conditional logic — drag to reorder. Edits auto-save as a draft."
+        subtitle="Custom questions with conditional logic. Drag to reorder. Edits auto-save as a draft."
         action={
           <div className="flex items-center gap-2">
             <AutosaveBadge status={autosaveStatus} />
@@ -216,7 +216,7 @@ export function FormBuilderClient({
         </div>
         <p className="text-[12px] text-fg-muted">
           Drag questions to reorder. Use conditional logic to show questions
-          only when specific answers are given — e.g. show "Glove side?" only
+          only when specific answers are given, e.g. show "Glove side?" only
           if position = Goalie.
         </p>
 
@@ -264,7 +264,7 @@ export function FormBuilderClient({
           <>
             <WaiverEditor
               title="Liability waiver"
-              subtitle="Digital signature required — registration blocked if skipped"
+              subtitle="Digital signature required. Registration is blocked if skipped."
               requiredHint="Required when enabled"
               editing={editing}
               config={waivers.liabilityWaiver}
@@ -284,7 +284,7 @@ export function FormBuilderClient({
 
         <WaiverEditor
           title="Photo / media release"
-          subtitle="Optional — player can decline without blocking"
+          subtitle="Optional. The player can decline without blocking."
           requiredHint="Always optional"
           editing={editing}
           config={waivers.photoRelease}
@@ -478,7 +478,7 @@ function WaiverEditor({
         <div className="mt-3">
           <label className="block">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              Document body — shown to the player
+              Document body (shown to the player)
             </span>
             <textarea
               value={config.content}

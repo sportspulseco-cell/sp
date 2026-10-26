@@ -6,7 +6,7 @@ import { LeagueActions } from "@/components/edit/detail-actions";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import { ResourceAdminsSection } from "@/components/layout/resource-admins-section";
 
-export const metadata = { title: "League — SportsPulse" };
+export const metadata = { title: "League · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

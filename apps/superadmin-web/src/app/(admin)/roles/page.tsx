@@ -22,7 +22,7 @@ import { DeleteRoleButton } from "@/components/roles/delete-role-button";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 
-export const metadata = { title: "Roles — SportsPulse" };
+export const metadata = { title: "Roles · Super Admin" };
 
 export default async function RolesPage() {
   const [rolesResult, orgList] = await Promise.all([
@@ -108,7 +108,7 @@ export default async function RolesPage() {
         <header>
           <Eyebrow>System roles</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Seeded with the platform. Read-only — names + permissions are
+            Seeded with the platform. Read-only: names + permissions are
             managed via migrations.
           </p>
         </header>

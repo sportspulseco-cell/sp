@@ -215,7 +215,7 @@ function VerifyResult({ result }: { result: VerifyResponse }) {
                   Rank {g.startingRank}–{g.startingRank + g.teamIds.length - 1}
                 </span>
                 <div className="mt-1 text-fg">
-                  {g.teamNames.join(" · ")} — ruleset exhausted, only the stable team-id sort separated them.
+                  {g.teamNames.join(" · ")}: ruleset exhausted, only the stable team-id sort separated them.
                 </div>
               </li>
             ))}

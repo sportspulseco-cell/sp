@@ -19,7 +19,7 @@ import {
 import { ImportRunner } from "@/components/data-migration/import-runner";
 import type { ImportStatus } from "@/lib/api/types";
 
-export const metadata = { title: "Data Migration — SportsPulse" };
+export const metadata = { title: "Data Migration · Super Admin" };
 
 function tintForStatus(s: ImportStatus): Tint {
   switch (s) {
@@ -101,7 +101,7 @@ export default async function DataMigrationPage() {
             </p>
             <p className="mt-0.5 text-[13px] text-fg-muted">
               Synchronous for ≤1k rows. The first line of the CSV is treated
-              as the header — column names map directly to entity fields.
+              as the header. Column names map directly to entity fields.
               Supported kinds: {supported.kinds.join(", ") || "(none)"}.
             </p>
           </div>

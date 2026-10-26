@@ -78,7 +78,7 @@ export function LinkPersonButton({ personId }: { personId: string }) {
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.email ?? u.displayName ?? "Unnamed user"}
-                  {u.email && u.displayName ? ` — ${u.displayName}` : ""}
+                  {u.email && u.displayName ? ` (${u.displayName})` : ""}
                 </option>
               ))}
             </Select>

@@ -134,7 +134,7 @@ export default async function OrgAdminHome() {
         <SectionRail
           index="01"
           label="Pulse"
-          subtitle="The four numbers that matter today — leagues, seasons, registrations waiting, and money outstanding."
+          subtitle="The four numbers that matter today: leagues, seasons, registrations waiting, and money outstanding."
         />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatTile

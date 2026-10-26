@@ -55,7 +55,7 @@ export function LegacyDivisionPrompt({
           <p className="mt-0.5 text-[12px] text-fg-muted">
             Your registration isn&apos;t tied to a specific division yet.
             Captains can only see your join request if it matches their
-            team&apos;s division — pick one to unlock the Find-a-team flow.
+            team&apos;s division. Pick one to unlock Find a team.
           </p>
         </div>
       </header>

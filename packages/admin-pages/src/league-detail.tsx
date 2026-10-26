@@ -6,9 +6,9 @@ import type { League, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
 const PRIVACY_LABEL: Record<string, string> = {
-  public: "Public — visible in league directory",
-  unlisted: "Unlisted — accessible via direct link only",
-  private: "Private — login required to view anything"
+  public: "Public: visible in league directory",
+  unlisted: "Unlisted: accessible via direct link only",
+  private: "Private: login required to view anything"
 };
 
 /**

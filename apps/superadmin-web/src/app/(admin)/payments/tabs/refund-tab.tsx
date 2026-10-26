@@ -21,7 +21,7 @@ export async function RefundTab({
       <EmptyState
         icon={Receipt}
         title="Pick an invoice to refund"
-        description="Open an invoice from the AR dashboard, then switch to this tab — the URL carries ?invoiceId=… so the form knows the target."
+        description="Open an invoice from the AR dashboard, then switch to this tab. The URL carries ?invoiceId=… so the form knows the target."
       />
     );
   }

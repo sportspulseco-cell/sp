@@ -27,7 +27,7 @@ import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Registration setup — Org Admin" };
+export const metadata = { title: "Registration setup · Org Admin" };
 
 const VALID_SECTIONS: SectionKey[] = [
   "season",

@@ -11,7 +11,7 @@ import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Disputes — Org admin" };
+export const metadata = { title: "Disputes · Org Admin" };
 
 export default async function DisputesPage({
   searchParams
@@ -51,7 +51,7 @@ export default async function DisputesPage({
       <PageHeader
         eyebrow="Disputes"
         title="Refund disputes"
-        description="When a player is dropped from a paid roster or a team's application is rejected, the system queues a refund assessment. Adjudicate them here — issue a refund, decline, or void."
+        description="When a player is dropped from a paid roster or a team's application is rejected, the system queues a refund assessment. Decide them here: issue a refund, decline, or void."
       />
 
       <section className="space-y-6">

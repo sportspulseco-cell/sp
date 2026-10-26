@@ -8,7 +8,7 @@ import { TeamMovementSection } from "@/components/teams/team-movement-section";
 import { CaptainAssignment } from "./captain-assignment";
 import { TeamActions } from "@/components/edit/detail-actions";
 
-export const metadata = { title: "Team — SportsPulse" };
+export const metadata = { title: "Team · Super Admin" };
 
 export default async function TeamDetailPage({
   params

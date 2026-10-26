@@ -60,7 +60,7 @@ export function RegistrationOpenView({
           <div className="mt-4 flex items-center gap-2">
             <Clock className="h-4 w-4 text-[var(--tint-amber-fg)]" />
             <span className="text-sm text-fg">
-              Registration submitted — awaiting confirmation
+              Registration submitted. Awaiting confirmation
             </span>
             <Badge tone="warning" mono>
               {state.entryStatus}

@@ -21,7 +21,7 @@ import { PastRosterInvite } from "./past-roster-invite";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Invites — SportsPulse" };
+export const metadata = { title: "Invites · Team Admin" };
 
 function fmtDate(iso: string | null) {
   return <LocalDate iso={iso} format="date" fallback="—" />;

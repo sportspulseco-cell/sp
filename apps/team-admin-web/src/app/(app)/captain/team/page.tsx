@@ -6,7 +6,7 @@ import { TeamProfileForm } from "./team-profile-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Manage team — SportsPulse" };
+export const metadata = { title: "Manage team · Team Admin" };
 
 export default async function CaptainTeamPage() {
   const scope = await loadMeScope();

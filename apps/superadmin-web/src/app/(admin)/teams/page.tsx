@@ -18,7 +18,7 @@ import {
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Team } from "@/lib/api/types";
 
-export const metadata = { title: "Teams — SportsPulse" };
+export const metadata = { title: "Teams · Super Admin" };
 
 export default async function TeamsPage({
   searchParams

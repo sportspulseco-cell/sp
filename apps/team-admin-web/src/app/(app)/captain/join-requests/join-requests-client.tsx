@@ -62,7 +62,7 @@ export function JoinRequestsClient({
       });
       setItems((arr) => arr.filter((i) => i.id !== item.id));
       setRejectTarget(null);
-      setFlash(`Denied ${item.playerName ?? "player"} — they'll be notified.`);
+      setFlash(`Denied ${item.playerName ?? "player"} . They'll be notified.`);
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
