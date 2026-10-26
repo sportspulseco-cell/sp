@@ -62,7 +62,7 @@ test("league admin: every console page loads with data, none says 404 or access 
   await expect(firstRole).toBeVisible({ timeout: 20_000 });
   await firstRole.click();
   await expect(page).toHaveURL(/\/roles\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole("link", { name: "All roles" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("navigation", { name: /breadcrumb/i }).getByRole("link", { name: /Roles/ })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Who holds this role/i)).toBeVisible();
 
   // Super-admin-only modules are not offered to a scoped admin.

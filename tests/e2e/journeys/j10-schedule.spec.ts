@@ -229,6 +229,11 @@ test.describe("J10 schedule generate and publish", () => {
       await stagingSql(`delete from playoff_brackets where metadata->>'j10' = $1 or (season_id = $2 and division_id = $3 and generated_at > now() - interval '3 hours' and slots::text like '%' || $4 || '%')`, [RUN_TAG, seasonId, divisionId, surfaceId || "none"]).catch(() => {});
       await stagingSql(`delete from ice_slots where metadata->>'j10' = $1`, [RUN_TAG]).catch(() => {});
       await stagingSql(`delete from schedule_blackouts where season_id = $1 and reason = $2`, [seasonId, `${RUN_TAG} holiday`]).catch(() => {});
+      // The team this run entered leaves the shared division again. Left in,
+      // every run added one more team and the solver timed out (35 teams).
+      if (newTeamId) {
+        await stagingSql(`update division_team_entries set left_at = now() where team_id = $1 and left_at is null`, [newTeamId]).catch(() => {});
+      }
     }
     console.log(`[J10] superadmin errors:\n  ${saErrors.join("\n  ")}`);
     await sa?.context.close();

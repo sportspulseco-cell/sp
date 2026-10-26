@@ -491,7 +491,8 @@ test.describe("J11 game day to stats", () => {
       const [gs] = await stagingSql<{ season_id: string | null }>(`select season_id from games where id = $1`, [gameId]);
       expect(gs?.season_id, "SCH-5 manual game carries a season (needed for season player stats)").not.toBeNull();
       expect(capText, "SCH-24 captain /stats lists the scorer").toContain(scorer?.name ?? "???");
-      await cap.page.goto(`${cap.app}/schedule`);
+      // The schedule opens on Upcoming (F-5); a final game is under Completed.
+      await cap.page.goto(`${cap.app}/schedule?filter=completed`);
       const capSched = await cap.page.locator("main").innerText();
       expect(capSched, "SCH-7 captain /schedule shows the completed game").toContain(oppName);
       await cap.context.close();

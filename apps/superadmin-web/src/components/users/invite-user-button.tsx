@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Check, Copy, Loader2, Mail, Plus } from "lucide-react";
 import {
   ROLE_GRANT_SCOPES,
@@ -89,12 +89,20 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
   // refreshes the list again: the refresh sent right after the invite was
   // sometimes dropped while the page's link prefetches were loading, and
   // the new user was missing from the list (J2, 26 Oct).
-  const [invitedSinceOpen, setInvitedSinceOpen] = useState(false);
+  const [invitedSinceOpen, setInvitedSinceOpen] = useState<string | null>(null);
+  const pathname = usePathname();
+  const params = useSearchParams();
   function close() {
     setOpen(false);
     if (invitedSinceOpen) {
-      setInvitedSinceOpen(false);
-      router.refresh();
+      // Navigate to ?invited=<id> rather than refresh: a URL change is a
+      // real navigation, which the router does not drop the way it dropped
+      // refreshes while the shell's links prefetched (J2 failed 2 of 3 runs
+      // on staging, 26 Oct). The list marks that row "Invited just now".
+      const next = new URLSearchParams(params.toString());
+      next.set("invited", invitedSinceOpen);
+      setInvitedSinceOpen(null);
+      router.replace(`${pathname}?${next}`);
     }
   }
   const [email, setEmail] = useState("");
@@ -241,7 +249,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
       setSetPwd(false);
       setSetupProfile(false);
       setProfileAnswers({});
-      setInvitedSinceOpen(true);
+      setInvitedSinceOpen(result.userId);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);

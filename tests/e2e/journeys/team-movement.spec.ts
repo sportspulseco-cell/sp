@@ -187,9 +187,9 @@ test("rule B: mid-season division shift closes the old instance and resets stand
   await expect(page.getByText(/Division changed · now in .* B 2026/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Standings restart at 0-0-0/)).toBeVisible();
   const oldRow = page.getByRole("row").filter({ has: page.getByRole("cell", { name: `${TAG} A 2026`, exact: true }) });
-  await expect(oldRow).toContainText("moved");
+  await expect(oldRow).toContainText(/moved/i);
   const newRow = page.getByRole("row").filter({ has: page.getByRole("cell", { name: `${TAG} B 2026`, exact: true }) });
-  await expect(newRow).toContainText("confirmed");
+  await expect(newRow).toContainText(/confirmed/i);
 
   const [src] = await stagingSql<{ entry_status: string; left_at: string | null }>(
     `select entry_status, left_at from division_team_entries where id = $1`,

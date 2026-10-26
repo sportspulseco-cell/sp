@@ -24,6 +24,8 @@ export default async function UsersPage({
     type?: string;
     region?: string;
     country?: string;
+    /** Set by the Invite dialog: the account just invited. */
+    invited?: string;
   }>;
 }) {
   const sp = (await searchParams) ?? {};
@@ -171,7 +173,7 @@ export default async function UsersPage({
                 [u.legalFirstName, u.legalLastName].filter(Boolean).join(" ") ||
                 "—";
               return (
-                <TR key={u.id}>
+                <TR key={u.id} className={u.id === sp.invited ? "bg-accent/5" : undefined}>
                   <TD className="font-medium">
                     <Link
                       href={`/users/${u.id}`}
@@ -179,6 +181,7 @@ export default async function UsersPage({
                     >
                       {name}
                     </Link>
+                    {u.id === sp.invited ? <Badge tone="info">Invited just now</Badge> : null}
                   </TD>
                   <TD className="text-muted-foreground">{u.email ?? "—"}</TD>
                   <TD className="text-muted-foreground">
