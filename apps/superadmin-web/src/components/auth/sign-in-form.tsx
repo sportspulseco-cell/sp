@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Info, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Input, Label } from "@sportspulse/ui";
+import { safeNextPath } from "@sportspulse/kernel";
 
 const ERROR_MESSAGES: Record<string, string> = {
   session_expired: "Your session expired. Sign in again to continue.",
@@ -21,7 +22,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/dashboard";
+  const next = safeNextPath(params.get("next"), "/dashboard");
   const errorCode = params.get("error");
   const banner = errorCode ? ERROR_MESSAGES[errorCode] : null;
 
@@ -61,8 +62,12 @@ export function SignInForm() {
       setError(err.message);
       return;
     }
-    router.replace(next);
-    router.refresh();
+    // A full page load, not router.replace + refresh: the console layout
+    // redirects game-day officials (and wrong pages) with redirect(), and a
+    // layout redirect during a client navigation re-fetched /games forever
+    // with a blank page (J22 on staging, 26 Oct). A fresh load also starts
+    // the console with the new session's cookies.
+    window.location.assign(next);
   }
 
   async function onSignOut() {

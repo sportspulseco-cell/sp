@@ -6,11 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Info, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Input, Label } from "@sportspulse/ui";
+import { safeNextPath } from "@sportspulse/kernel";
 
 export function SignUpForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/dashboard";
+  const next = safeNextPath(params.get("next"), "/dashboard");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -4,6 +4,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@sportspulse/kernel";
 
 /**
  * Team Admin sign-in.
@@ -56,7 +57,7 @@ function SignInForm() {
         setError(err.message);
         return;
       }
-      router.replace(sp.get("next") ?? "/");
+      router.replace(safeNextPath(sp.get("next"), "/"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
