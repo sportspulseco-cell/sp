@@ -1,4 +1,4 @@
-import { normalizeSkillLevel } from "@sportspulse/kernel";
+import { normalizeSkillLevel, requestedJerseyNumber } from "@sportspulse/kernel";
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { randomBytes } from "node:crypto";
@@ -14,6 +14,7 @@ import { withTierDivisions } from "./season-tiers";
 import { RosterEntryService } from "./roster-entry.service";
 import { FreeAgentOffersService } from "./free-agent-offers.service";
 import { teamNameVerdict } from "./team-names";
+import { pickJerseyNumber } from "./jersey-numbers";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -708,14 +709,59 @@ export class RegistrationV2Service {
       )
       .limit(1);
     if (!spot) {
-      await this.db.insert(schema.teamMemberships).values({
-        teamId, personId: input.captainPersonId, seasonId: input.seasonId,
-        membershipType: "primary", currentStatus: "active", effectiveFrom: new Date()
+      await this.insertCaptainSpot({
+        registrationId: input.registrationId,
+        teamId,
+        personId: input.captainPersonId,
+        seasonId: input.seasonId
       });
     }
     await this.db.update(schema.registrations).set({ teamId, updatedAt: new Date() }).where(eq(schema.registrations.id, input.registrationId));
     this.log.log(`[team registration] registration=${input.registrationId} re-entered returning team=${teamId} division=${input.divisionId ?? "-"}`);
     return { teamId, created: false };
+  }
+
+  /**
+   * The captain's own roster spot on an approved team registration, with
+   * a jersey number (FR-3.4.2): the one asked for on the form when free,
+   * else the lowest free from 1 to 99, picked under the team roster lock
+   * so a player approved at the same moment cannot take the same number.
+   */
+  private async insertCaptainSpot(input: {
+    registrationId: string;
+    teamId: string;
+    personId: string;
+    seasonId: string;
+    requested?: number | null;
+    positionCode?: string | null;
+  }): Promise<void> {
+    let requested = input.requested;
+    if (requested === undefined) {
+      const [reg] = await this.db
+        .select({ metadata: schema.registrations.metadata })
+        .from(schema.registrations)
+        .where(eq(schema.registrations.id, input.registrationId))
+        .limit(1);
+      const answers = ((reg?.metadata as Record<string, unknown> | null) ?? {}).answers as Record<string, unknown> | undefined;
+      requested = requestedJerseyNumber(answers?.jersey_number);
+    }
+    const jerseyNumber = await this.db.transaction(async (tx) => {
+      const n = await pickJerseyNumber(tx, input.teamId, input.seasonId, requested ?? null);
+      await tx.insert(schema.teamMemberships).values({
+        teamId: input.teamId,
+        personId: input.personId,
+        seasonId: input.seasonId,
+        membershipType: "primary",
+        currentStatus: "active",
+        effectiveFrom: new Date(),
+        jerseyNumber: n,
+        positionCode: input.positionCode ?? null
+      });
+      return n;
+    });
+    this.log.log(
+      `[team registration] registration=${input.registrationId} captain spot team=${input.teamId} jersey=${jerseyNumber ?? "none"} asked=${requested ?? "-"}`
+    );
   }
 
   async createTeamFromRegistration(input: {
@@ -819,22 +865,15 @@ export class RegistrationV2Service {
     const ans = ((regForAnswers?.metadata as Record<string, unknown> | null) ?? {}).answers as
       | Record<string, unknown>
       | undefined;
-    const jerseyRaw = ans?.jersey_number;
-    const jerseyNumber =
-      typeof jerseyRaw === "number" && Number.isFinite(jerseyRaw)
-        ? Math.max(0, Math.min(99, Math.floor(jerseyRaw)))
-        : null;
     const positions = Array.isArray(ans?.positions)
       ? (ans!.positions as string[])
       : [];
-    await this.db.insert(schema.teamMemberships).values({
+    await this.insertCaptainSpot({
+      registrationId: input.registrationId,
       teamId: team!.id,
       personId: input.captainPersonId,
       seasonId: input.seasonId,
-      membershipType: "primary",
-      currentStatus: "active",
-      effectiveFrom: new Date(),
-      jerseyNumber,
+      requested: requestedJerseyNumber(ans?.jersey_number),
       positionCode: positions[0] ?? null
     });
 

@@ -30,7 +30,7 @@ import { Type } from "class-transformer";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { pickCurrentSeason, planInstallments, resolveDivisionRules, teamTierForDivision, tierOffersPlan } from "@sportspulse/kernel";
+import { pickCurrentSeason, planInstallments, resolveDivisionRules, teamTierForPath, tierOffersPlan } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { playerWebUrl } from "../../../shared/app-urls";
@@ -39,6 +39,7 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 import { loadSeasonTiers } from "../../registration-v2/application/season-tiers";
+import { pickJerseyNumber } from "../../registration-v2/application/jersey-numbers";
 import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 
@@ -458,7 +459,7 @@ export class CaptainController {
     const tiers = await loadSeasonTiers(this.db, seasonId);
 
     function pricingFor(divisionId: string) {
-      const t = teamTierForDivision(tiers, divisionId);
+      const t = teamTierForPath(tiers, divisionId);
       if (!t) return null;
       return {
         tierId: t.id,
@@ -641,7 +642,7 @@ export class CaptainController {
 
     // Resolve the active pricing tier for this division — same lookup
     // as GET /captain/divisions.
-    const pricing = teamTierForDivision(await loadSeasonTiers(this.db, season.id), division.id);
+    const pricing = teamTierForPath(await loadSeasonTiers(this.db, season.id), division.id);
     if (!pricing) {
       throw new BadRequestException(
         "Division has no active pricing tier — league admin must configure one before registration."
@@ -916,17 +917,26 @@ export class CaptainController {
       }
 
       if (captainPerson) {
-        await this.db
-          .insert(schema.teamMemberships)
-          .values({
-            teamId: team.id,
-            personId: captainPerson.id,
-            seasonId: season.id,
-            membershipType: "primary",
-            effectiveFrom: now,
-            currentStatus: "active"
-          })
-          .onConflictDoNothing();
+        // The captain gets the lowest free number (FR-3.4.2), picked under
+        // the team roster lock; they can change it on the roster.
+        const personId = captainPerson.id;
+        await this.db.transaction(async (tx) => {
+          const jerseyNumber = await pickJerseyNumber(tx, team.id, season.id, null);
+          const added = await tx
+            .insert(schema.teamMemberships)
+            .values({
+              teamId: team.id,
+              personId,
+              seasonId: season.id,
+              membershipType: "primary",
+              effectiveFrom: now,
+              currentStatus: "active",
+              jerseyNumber
+            })
+            .onConflictDoNothing()
+            .returning({ id: schema.teamMemberships.id });
+          this.log.log(`captain self-roster team=${team.id} season=${season.id} added=${added.length} jersey=${jerseyNumber ?? "none"}`);
+        });
       }
 
       // Set the denormalised captain pointer on teams (only if unset

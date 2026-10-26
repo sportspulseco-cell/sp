@@ -13,6 +13,8 @@ import {
   REGISTRATION_ENDED_STATUSES,
   jerseyNumberClash,
   jerseyNumberRefusal,
+  assignJerseyNumber,
+  requestedJerseyNumber,
   resolveDivisionRules,
   rosterEntryReadiness,
   rosterOpeningRefusal,
@@ -23,6 +25,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { NotificationService } from "../../communications/application/notification.service";
 import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { FreeAgentOffersService } from "./free-agent-offers.service";
+import { jerseyNumbersInUse, lockTeamRoster } from "./jersey-numbers";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Exec = Database | Tx;
@@ -55,7 +58,13 @@ export interface RosterAddInput {
   personId: string;
   maxRosterSize: number;
   actorUserId: string | null;
+  /**
+   * The number asked for. Null: the lowest free number from 1 to 99 is
+   * assigned (FR-3.4.2). A number someone wears is refused, unless
+   * `jerseyFallback` is set, when the lowest free number is used instead.
+   */
   jerseyNumber: number | null;
+  jerseyFallback?: boolean;
   positionCode: string | null;
   /** roster_moves.reason: why the player joined (registration approved, invite...). */
   reason?: string | null;
@@ -361,6 +370,10 @@ export class RosterEntryService {
   async addToRoster(input: RosterAddInput) {
     const { teamId, seasonId, personId } = input;
     const result = await this.db.transaction(async (tx) => {
+      // One roster change per team and season at a time, so the cap count
+      // and the free numbers read below cannot go stale (also on an empty
+      // roster, which has no membership row to lock).
+      await lockTeamRoster(tx, teamId, seasonId);
       await tx.execute(sql`
         SELECT id FROM team_memberships
         WHERE team_id = ${teamId}
@@ -397,11 +410,10 @@ export class RosterEntryService {
           currentCount: current
         });
       }
-      await this.assertJerseyFree(tx, {
-        teamId,
-        seasonId,
-        jerseyNumber: input.jerseyNumber
-      });
+      if (input.jerseyNumber !== null && !input.jerseyFallback) {
+        await this.assertJerseyFree(tx, { teamId, seasonId, jerseyNumber: input.jerseyNumber });
+      }
+      const jerseyNumber = assignJerseyNumber(input.jerseyNumber, await jerseyNumbersInUse(tx, teamId, seasonId));
 
       const [move] = await tx
         .insert(schema.rosterMoves)
@@ -412,7 +424,7 @@ export class RosterEntryService {
           moveType: "add",
           membershipType: "primary",
           effectiveAt: new Date(),
-          jerseyNumber: input.jerseyNumber,
+          jerseyNumber,
           positionCode: input.positionCode,
           reason: input.reason ?? null,
           sourceEventId: input.sourceEventId ?? null,
@@ -427,7 +439,7 @@ export class RosterEntryService {
           seasonId,
           membershipType: "primary",
           effectiveFrom: new Date(),
-          jerseyNumber: input.jerseyNumber,
+          jerseyNumber,
           positionCode: input.positionCode,
           currentStatus: "active",
           lastMoveId: move!.id
@@ -437,7 +449,7 @@ export class RosterEntryService {
       return { move: move!, membership: membership! };
     });
     this.log.log(
-      `roster add team=${teamId} season=${seasonId} person=${personId} move=${result.move.id} membership=${result.membership.id} reason=${input.reason ?? "-"}`
+      `roster add team=${teamId} season=${seasonId} person=${personId} move=${result.move.id} membership=${result.membership.id} jersey=${result.membership.jerseyNumber ?? "none"} asked=${input.jerseyNumber ?? "-"} reason=${input.reason ?? "-"}`
     );
     return result;
   }
@@ -477,11 +489,7 @@ export class RosterEntryService {
       invite = inv && inv.teamId === teamId ? inv : null;
       inviteJersey = ((inv?.metadata as Record<string, unknown> | null) ?? {}).jerseyNumber ?? null;
     }
-    const jerseyRaw = inviteJersey ?? answers.jersey_number;
-    const wanted =
-      typeof jerseyRaw === "number" && Number.isInteger(jerseyRaw) && jerseyNumberRefusal(jerseyRaw) === null
-        ? jerseyRaw
-        : null;
+    const wanted = requestedJerseyNumber(inviteJersey ?? answers.jersey_number);
     const positions = Array.isArray(answers.positions) ? (answers.positions as string[]) : [];
 
     const record = async (placement: Record<string, unknown>) => {
@@ -526,15 +534,9 @@ export class RosterEntryService {
       void this.notifyCaptainNotPlaced(opening, personId, opening.refusal.message);
       return { status: "not_placed", reason: opening.refusal.message };
     }
-    // A number someone already wears is dropped, never a reason to refuse.
-    let jerseyNumber = wanted;
-    if (jerseyNumber !== null) {
-      try {
-        await this.assertJerseyFree(this.db, { teamId, seasonId, jerseyNumber });
-      } catch {
-        jerseyNumber = null;
-      }
-    }
+    // A number someone already wears is never a reason to refuse: the
+    // player gets the lowest free number instead (FR-3.4.2), picked under
+    // the team lock inside the add.
     try {
       const res = await this.addToRoster({
         teamId,
@@ -542,7 +544,8 @@ export class RosterEntryService {
         personId,
         maxRosterSize: opening.maxRosterSize,
         actorUserId,
-        jerseyNumber,
+        jerseyNumber: wanted,
+        jerseyFallback: true,
         positionCode: positions[0] ?? null,
         reason: "Registration approved",
         sourceEventId: `registration-${row.id}`,
