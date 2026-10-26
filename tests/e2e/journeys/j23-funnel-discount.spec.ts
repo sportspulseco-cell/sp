@@ -58,6 +58,8 @@ async function walkToPayment(page: Page, j3: Record<string, string>, who: { firs
   const level = page.locator("select").filter({ has: page.locator("option", { hasText: /Pick a level/ }) }).first();
   if (await level.count()) await level.selectOption("B");
   await page.getByRole("button", { name: /^Center$/ }).click().catch(() => {});
+  const avail = page.getByRole("button", { name: /^(mon|tue|wed|thu|fri|sat|sun)$/i }).first();
+  if (await avail.isVisible().catch(() => false)) await avail.click();
   const jersey = page.getByLabel(/Preferred jersey number/).first();
   if (await jersey.isVisible().catch(() => false)) await jersey.fill("23");
   await page.getByRole("button", { name: /Next: Compliance/ }).click();
@@ -112,9 +114,9 @@ test.describe.serial("J23 · discount code at registration", () => {
     await page.waitForURL(/\/finance\/discounts/);
     await page.goto(`${E2E_URLS.superadmin}/finance/discounts?season=${j3.seasonId}`);
     await page.getByRole("button", { name: /New code/ }).first().click();
-    await page.getByLabel(/^Code/).fill(CODE.toLowerCase());
-    await page.getByLabel(/^Percent off/).fill("10");
-    await page.getByLabel(/^Usage limit/).fill("1");
+    await page.getByRole("dialog").getByLabel(/^Code/).fill(CODE.toLowerCase());
+    await page.getByRole("dialog").getByLabel(/^Percent off/).fill("10");
+    await page.getByRole("dialog").getByLabel(/^Usage limit/).fill("1");
     await shot(page, "01-new-code");
     await page.getByRole("button", { name: /Create code/ }).click();
     await expect(page.getByText(`${CODE} created.`)).toBeVisible({ timeout: 30_000 });
