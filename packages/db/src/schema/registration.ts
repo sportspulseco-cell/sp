@@ -8,6 +8,7 @@ import {
   jsonb,
   boolean,
   timestamp,
+  date,
   index,
   uniqueIndex,
   unique,
@@ -575,5 +576,74 @@ export const complianceDocumentDecisions = pgTable(
       sql`${t.reason} IS NULL OR char_length(${t.reason}) <= 500`
     ),
     submissionIdx: index("cdd_submission_idx").on(t.submissionId, t.decidedAt)
+  })
+);
+
+// =====================================================================
+// COMPLIANCE ID CHECKS — UC-29 / FR-3.15.5. One row per licence barcode
+// an admin scanned (camera) or read from a photo against a submitted ID
+// document. Evidence only: the admin's approve / reject stays on
+// compliance_document_decisions. The licence number is never stored in
+// clear: last 4 characters plus an HMAC-SHA256 keyed by the API's
+// ID_CHECK_HASH_KEY (so the same licence on two people can be spotted
+// without keeping the number). Names and DOB from the card are not
+// stored either; mismatched_fields says what disagreed with the person
+// on file. Append-only (trigger). Migration 0085.
+// Enums: @sportspulse/kernel aamva.ts.
+// =====================================================================
+export const complianceIdChecks = pgTable(
+  "compliance_id_checks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => complianceDocumentSubmissions.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => persons.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    /** camera | photo */
+    method: text("method").notNull(),
+    /** match | mismatch */
+    result: text("result").notNull(),
+    mismatchedFields: text("mismatched_fields")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** DL | ID */
+    documentType: text("document_type").notNull(),
+    jurisdiction: text("jurisdiction"),
+    country: text("country"),
+    aamvaVersion: integer("aamva_version"),
+    licenceLast4: text("licence_last4").notNull(),
+    licenceHash: text("licence_hash").notNull(),
+    expiresOn: date("expires_on"),
+    checkedByUserId: uuid("checked_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    checkedAt: timestamp("checked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    methodCheck: check("cic_method_check", sql`${t.method} IN ('camera','photo')`),
+    resultCheck: check("cic_result_check", sql`${t.result} IN ('match','mismatch')`),
+    documentTypeCheck: check("cic_document_type_check", sql`${t.documentType} IN ('DL','ID')`),
+    last4Check: check("cic_last4_check", sql`${t.licenceLast4} ~ '^[A-Z0-9]{1,4}$'`),
+    hashCheck: check("cic_hash_check", sql`${t.licenceHash} ~ '^[0-9a-f]{64}$'`),
+    fieldsCheck: check(
+      "cic_fields_check",
+      sql`${t.mismatchedFields} <@ ARRAY['last_name','first_name','date_of_birth','date_of_birth_not_on_file','expired','expiry_unreadable','seen_on_another_person']::text[]`
+    ),
+    /** A match has nothing mismatched; a mismatch names at least one field. */
+    resultFieldsCheck: check(
+      "cic_result_fields_check",
+      sql`(${t.result} = 'match') = (cardinality(${t.mismatchedFields}) = 0)`
+    ),
+    submissionIdx: index("cic_submission_idx").on(t.submissionId, t.checkedAt),
+    hashIdx: index("cic_hash_idx").on(t.licenceHash),
+    personIdx: index("cic_person_idx").on(t.personId)
   })
 );
