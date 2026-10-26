@@ -94,6 +94,19 @@ export function invoicePayRange(input: { totalCents: number; paidCents: number; 
   return { minCents: balance, maxCents: balance, nextInstallment: null };
 }
 
+/**
+ * Why a captain cannot pay this amount toward a player's share (UC-16),
+ * or null when they can: any whole number of cents from one cent up to
+ * what the share still owes.
+ */
+export function coverAmountProblem(amountCents: number, owedCents: number): string | null {
+  if (!Number.isInteger(amountCents)) return "Enter an amount in dollars and cents.";
+  if (owedCents <= 0) return "This share is already paid.";
+  if (amountCents <= 0) return "Enter an amount of at least $0.01.";
+  if (amountCents > owedCents) return "That is more than this share still owes.";
+  return null;
+}
+
 export interface InvoiceLineInput {
   kind: string;
   quantity?: number;

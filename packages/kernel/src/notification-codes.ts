@@ -120,6 +120,8 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   "wallet.credited",
   "wallet.credit_expired",
   "captain.covered_dues",
+  // UC-16: the captain's receipt after paying part or all of a player's share.
+  "captain.cover_receipt",
   // Ad-hoc broadcast composed by an org-admin (Backlog #6 / #17).
   // subject + body are inline-rendered from the payload — no fixed body.
   "org.broadcast"

@@ -992,9 +992,25 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     code: "captain.covered_dues",
     channel: "email",
-    subject: "Your captain covered your dues",
-    body: "Your captain paid {{amountCents}} toward your team dues.",
-    variables: ["amountCents"]
+    subject: "Your captain paid {{amountLabel}} of your {{teamName}} dues",
+    body:
+      "{{captainName}} paid {{amountLabel}} toward your share of the {{teamName}} team dues (invoice {{invoiceNumber}}). You now owe {{owedLabel}}.",
+    variables: ["captainName", "amountLabel", "teamName", "invoiceNumber", "owedLabel"]
+  },
+  {
+    code: "captain.covered_dues",
+    channel: "in_app",
+    subject: "Your captain paid {{amountLabel}} of your dues",
+    body: "{{captainName}} paid {{amountLabel}} toward your {{teamName}} dues share. You now owe {{owedLabel}}.",
+    variables: ["captainName", "amountLabel", "teamName", "owedLabel"]
+  },
+  {
+    code: "captain.cover_receipt",
+    channel: "email",
+    subject: "Receipt: {{amountLabel}} for {{playerName}}'s {{teamName}} dues",
+    body:
+      "You paid {{amountLabel}} toward {{playerName}}'s share of the {{teamName}} team dues (invoice {{invoiceNumber}}). Their share now has {{owedLabel}} left to pay.",
+    variables: ["amountLabel", "playerName", "teamName", "invoiceNumber", "owedLabel"]
   },
   // -----------------------------------------------------------------
   // Free-agent pool offers (UC-03, CAP-9). Payload from
