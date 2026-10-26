@@ -49,6 +49,7 @@ import {
   isRegistrationSubmissionType,
   parentalConsentText,
   planInstallments,
+  registrationInvoiceDueAt,
   PARENTAL_CONSENT_TITLE,
   REGISTRATION_ACCEPTING_SEASON_STATUSES,
   REGISTRATION_STATE_LABELS,
@@ -2016,7 +2017,25 @@ export class PublicRegistrationController {
         .where(eq(schema.invoices.idempotencyKey, idempotencyKey))
         .limit(1)
         .then((r) => r[0] ?? null);
-    const createInvoice = async (tx: Tx, invoiceNumber: string, metadata: Record<string, unknown>) => {
+    // Every registration invoice has a due date (registration close, at
+    // least 14 days out; a plan's last installment at the latest), so an
+    // unpaid offline fee goes overdue and the daily sweep reminds the
+    // player. Before this the column stayed empty and the sweep, which
+    // only reads invoices with a due date, never saw these invoices.
+    const [seasonTerms] = row.seasonId
+      ? await this.db
+          .select({ registrationClosesAt: schema.seasons.registrationClosesAt })
+          .from(schema.seasons)
+          .where(eq(schema.seasons.id, row.seasonId))
+          .limit(1)
+      : [];
+    const dueAtFor = (planDueInDays?: number[]) =>
+      registrationInvoiceDueAt({
+        issuedAt: new Date(),
+        registrationClosesAt: seasonTerms?.registrationClosesAt ?? null,
+        planDueInDays
+      });
+    const createInvoice = async (tx: Tx, invoiceNumber: string, metadata: Record<string, unknown>, dueAt: Date) => {
       const [inv] = await tx
         .insert(schema.invoices)
         .values({
@@ -2031,6 +2050,7 @@ export class PublicRegistrationController {
           paidCents: 0,
           status: "sent",
           issuedAt: new Date(),
+          dueAt,
           idempotencyKey,
           metadata
         })
@@ -2057,7 +2077,7 @@ export class PublicRegistrationController {
         if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const invoice =
           existing ??
-          (await createInvoice(tx, invoiceNumber!, { paymentMethod: "offline", tierId }));
+          (await createInvoice(tx, invoiceNumber!, { paymentMethod: "offline", tierId }, dueAtFor()));
         await tx
           .update(schema.registrations)
           .set({
@@ -2114,7 +2134,12 @@ export class PublicRegistrationController {
         if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const invoice =
           existing ??
-          (await createInvoice(tx, invoiceNumber!, { mockStripe: true, tierId, ...(plan ? { paymentPlan: true } : {}) }));
+          (await createInvoice(
+            tx,
+            invoiceNumber!,
+            { mockStripe: true, tierId, ...(plan ? { paymentPlan: true } : {}) },
+            dueAtFor(plan?.map((p) => p.dueInDays))
+          ));
         // A second click finds the first click's invoice. If it is on a
         // plan, the deposit is paid and the job owns the rest; otherwise
         // whatever is still owed (an offline invoice paid by card) is due.
