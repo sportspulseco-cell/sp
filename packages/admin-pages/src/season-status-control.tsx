@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { Alert, Badge, statusTone } from "@sportspulse/ui";
@@ -58,9 +58,14 @@ export function SeasonStatusControl({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The status the server last confirmed. It changes the moment the POST
+  // succeeds, so the badge never waits on router.refresh(); a later render
+  // of the page brings the prop back in line.
+  const [shown, setShown] = useState(currentStatus);
+  useEffect(() => setShown(currentStatus), [currentStatus]);
 
   async function change(status: string) {
-    if (status === currentStatus) {
+    if (status === shown) {
       setOpen(false);
       return;
     }
@@ -68,6 +73,7 @@ export function SeasonStatusControl({
     setError(null);
     try {
       await changeStatus(seasonId, status);
+      setShown(status);
       setOpen(false);
       router.refresh();
     } catch (e) {
@@ -84,8 +90,8 @@ export function SeasonStatusControl({
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg px-2.5 py-1 text-[12px] text-fg hover:border-fg-muted"
       >
-        <Badge tone={statusTone(currentStatus)} mono>
-          {currentStatus.replace(/_/g, " ")}
+        <Badge tone={statusTone(shown)} mono>
+          {shown.replace(/_/g, " ")}
         </Badge>
         <ChevronDown className="h-3.5 w-3.5 text-fg-muted" strokeWidth={1.75} />
       </button>
@@ -95,10 +101,10 @@ export function SeasonStatusControl({
             {/* Current status plus only the moves the server allows. */}
             {STATUSES.filter(
               (s) =>
-                s.value === currentStatus ||
-                nextSeasonStatuses(currentStatus).includes(s.value as never)
+                s.value === shown ||
+                nextSeasonStatuses(shown).includes(s.value as never)
             ).map((s) => {
-              const active = s.value === currentStatus;
+              const active = s.value === shown;
               return (
                 <li key={s.value}>
                   <button
