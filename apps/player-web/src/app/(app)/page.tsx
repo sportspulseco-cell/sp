@@ -21,8 +21,9 @@ import type {
   Notification,
   Registration
 } from "@sportspulse/api-client";
-import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster } from "@/lib/api/server-api";
+import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster, subs } from "@/lib/api/server-api";
 import { TeamOffersCard } from "@/components/team-offers-card";
+import { SubRequestsCard } from "@/components/sub-requests-card";
 
 type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 import { RegistrationStateBanner } from "./registration-state-banner";
@@ -112,7 +113,7 @@ export default async function PlayerHome() {
   const openRegs = await fetchOpenRegistrations();
 
   // Single batch — Home view fetches everything in parallel.
-  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites] =
+  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites, mySubRequests] =
     await Promise.all([
       myTeamId
         ? gameOps
@@ -137,7 +138,9 @@ export default async function PlayerHome() {
             .catch(() => ({ items: [], nextCursor: null }))
         : Promise.resolve({ items: [], nextCursor: null }),
       // Team offers / invites waiting for this player's answer (CAP-9).
-      captain.myInvites().catch(() => ({ items: [] }))
+      captain.myInvites().catch(() => ({ items: [] })),
+      // Captains asking this player to sub for one game (UC-31).
+      subs.mine().catch(() => ({ items: [] }))
     ]);
 
   // -- Next game (chronologically earliest future scheduled game) --
@@ -261,6 +264,7 @@ export default async function PlayerHome() {
       {/* A team offered this player a spot (free-agent pool) or invited
           them: the one decision waiting on them, so it sits up top. */}
       <TeamOffersCard items={myInvites.items} />
+      <SubRequestsCard items={mySubRequests.items} />
 
       {/* Dual-role users (player + captain) get a single discoverable
           entry point into the captain console — which lives in

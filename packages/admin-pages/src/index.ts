@@ -89,3 +89,5 @@ export type {
   AnnouncementTargetType
 } from "./communications/announcement-composer";
 export * from "./live-score-refresh";
+export { CaptainSubsPanel, GameSubsAdminPanel } from "./subs/subs-panels";
+export type { AdminSubsApi, CaptainSubsApi } from "./subs/subs-panels";

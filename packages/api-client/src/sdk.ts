@@ -95,7 +95,10 @@ import type {
   TeamMembership,
   TeamStoreProduct,
   StoreOrder,
-  StoreOrderLineInput
+  StoreOrderLineInput,
+  AdminGameSubs,
+  CaptainGameSubs,
+  SubRequest
 } from "./types";
 
 const qs = (params: Record<string, string | number | boolean | undefined>) => {
@@ -4025,6 +4028,34 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body),
           headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined
+        })
+    },
+    /**
+     * Substitute requests (UC-31). Captain asks a player for one game,
+     * the player answers, a league admin may assign a sub directly.
+     */
+    subs: {
+      captainView: (teamId: string, gameId: string) =>
+        f<CaptainGameSubs>(`/captain/subs/${teamId}/games/${gameId}`),
+      request: (teamId: string, gameId: string, body: { personId: string; note?: string }) =>
+        f<{ request: SubRequest; created: boolean }>(`/captain/subs/${teamId}/games/${gameId}/requests`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      cancel: (teamId: string, requestId: string) =>
+        f<{ request: SubRequest; changed: boolean }>(`/captain/subs/${teamId}/requests/${requestId}/cancel`, {
+          method: "POST"
+        }),
+      mine: () => f<{ items: SubRequest[] }>("/subs/mine"),
+      accept: (requestId: string) =>
+        f<{ request: SubRequest; changed: boolean }>(`/subs/requests/${requestId}/accept`, { method: "POST" }),
+      decline: (requestId: string) =>
+        f<{ request: SubRequest; changed: boolean }>(`/subs/requests/${requestId}/decline`, { method: "POST" }),
+      adminView: (gameId: string) => f<AdminGameSubs>(`/admin/game-subs/${gameId}`),
+      assign: (gameId: string, body: { teamId: string; personId: string; note?: string }) =>
+        f<{ request: SubRequest; created: boolean }>(`/admin/game-subs/${gameId}/assign`, {
+          method: "POST",
+          body: JSON.stringify(body)
         })
     },
     adminTransfers: {

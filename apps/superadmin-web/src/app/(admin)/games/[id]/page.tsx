@@ -13,6 +13,7 @@ import {
 } from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
+import { GameSubs } from "@/components/games/game-subs";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   TBody,
@@ -238,6 +239,11 @@ export default async function GameDetailPage({
         personMap={Array.from(personMap.entries())}
         canEdit={can("game.assign_officials")}
       />
+
+      {/* Subs (UC-31): both teams' guests and sub requests; assign a sub
+          with an override. The API serves admins whose scope covers the
+          game and 404s everyone else, so a scorekeeper sees nothing. */}
+      {official ? null : <GameSubs gameId={game.id} />}
 
       {/* Event log + stat lines */}
       <section className="grid gap-6 lg:grid-cols-3">

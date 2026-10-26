@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import {
   CalendarRange,
@@ -72,6 +73,7 @@ export default async function TeamAdminSchedulePage() {
               <TH>Opponent</TH>
               <TH>Venue</TH>
               <TH>Status</TH>
+              <TH className="text-right">Subs</TH>
             </TR>
           </THead>
           <TBody>
@@ -97,6 +99,16 @@ export default async function TeamAdminSchedulePage() {
                       <Badge mono tone="info">Live {us ?? 0}-{them ?? 0}</Badge>
                     ) : (
                       <Badge mono tone={g.status === "scheduled" ? "info" : "neutral"}>{g.status.replace(/_/g, " ")}</Badge>
+                    )}
+                  </TD>
+                  <TD className="text-right">
+                    {/* UC-31: ask a sub for a game that has not started. */}
+                    {g.status === "scheduled" && new Date(g.scheduledStartTsUtc).getTime() > Date.now() ? (
+                      <Link href={`/schedule/${g.id}/subs`} className="text-[12px] font-medium text-accent underline">
+                        Find a sub
+                      </Link>
+                    ) : (
+                      <span className="text-[12px] text-fg-muted">-</span>
                     )}
                   </TD>
                 </TR>

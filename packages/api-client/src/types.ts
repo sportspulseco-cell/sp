@@ -1605,3 +1605,93 @@ export interface MisconductReport {
   }>;
   players: Array<{ personId: string; personName: string | null; teamName: string | null; count: number; ejections: number }>;
 }
+
+// ----- Substitute requests (UC-31, FR-3.3.1, FR-3.3.3) -----
+
+export type SubRequestStatus = "requested" | "accepted" | "declined" | "cancelled" | "expired";
+
+/** A player who may sub for a team in one game, with the reasons they cannot (kernel SUB_INELIGIBLE_REASONS). */
+export interface SubCandidate {
+  personId: string;
+  name: string;
+  source: "free_agent" | "league_player";
+  sourceTeamName: string | null;
+  level: string | null;
+  levelLabel: string | null;
+  positions: string[];
+  positionLabels: string[];
+  eligible: boolean;
+  reasons: string[];
+  reasonText: string;
+  adminOverridable: boolean;
+  openRequest: { id: string; teamId: string } | null;
+}
+
+export interface SubRequest {
+  id: string;
+  gameId: string;
+  teamId: string;
+  teamName: string;
+  personId: string;
+  personName: string;
+  status: SubRequestStatus;
+  statusLabel: string;
+  source: string | null;
+  rosterOverride: boolean;
+  note: string | null;
+  cancelReason: string | null;
+  cancelReasonText: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  attendanceId: string | null;
+  log: Array<{ at: string; status: SubRequestStatus; byUserId: string | null; note?: string }>;
+  game: {
+    startsAt: string;
+    tz: string;
+    status: string;
+    venueName: string | null;
+    homeTeamName: string;
+    awayTeamName: string;
+    opponentName: string;
+    when: string;
+  };
+}
+
+export interface SubGameSummary {
+  id: string;
+  startsAt: string;
+  tz: string;
+  when: string;
+  status: string;
+  venueName: string | null;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  opponentName: string | null;
+  started: boolean;
+}
+
+/** One team's subs for one game. */
+export interface TeamSubs {
+  teamId: string;
+  teamName: string;
+  division: { id: string; name: string; tier: string | null } | null;
+  rules: { maxGuestPlayersPerGame: number; guestPlayerSeasonLimit: number };
+  guestsThisGame: number;
+  guests: Array<{ attendanceId: string; personId: string; name: string; viaRequestId: string | null; rosterOverride: boolean }>;
+  requests: SubRequest[];
+  candidates: SubCandidate[];
+}
+
+export interface CaptainGameSubs extends TeamSubs {
+  game: SubGameSummary;
+  /** Why no new request can be sent, or null. */
+  closedReason: string | null;
+}
+
+export interface AdminGameSubs {
+  game: SubGameSummary;
+  teams: TeamSubs[];
+  assignClosedReason: string | null;
+}
