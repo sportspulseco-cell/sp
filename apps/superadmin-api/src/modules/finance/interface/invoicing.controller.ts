@@ -40,8 +40,13 @@ import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { invoiceVisible, visibleInvoicesWhere } from "../../../shared/auth/visibility";
+import { assertBulkTargetInScope } from "../application/services/finance-scope";
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { InvoicingService } from "../application/services/invoicing.service";
 import { RefundService } from "../application/services/refund.service";
@@ -94,12 +99,15 @@ export class FinanceInvoicingController {
   // GET /finance/dashboard-summary?orgId=…
   // -------------------------------------------------------------------
   @Get("dashboard-summary")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @UseGuards(JwtAuthGuard, ScopedAdminGuard)
   @ApiOperation({
     summary:
       "AR dashboard metric cards. Single aggregation query: total invoiced, collected, outstanding, overdue, counts. Omit orgId for platform-wide totals."
   })
-  async dashboardSummary(@Query("orgId") orgId?: string) {
+  async dashboardSummary(@UserScope() scope: UserScopeType, @Query("orgId") orgId?: string) {
+    // Scoped admins (org / league admins) see the totals of their own
+    // invoices only (visibleInvoicesWhere); super admins everything.
+    const visible = visibleInvoicesWhere(scope, "i");
     const [row] = await this.db.execute<{
       total_invoiced_cents: number | null;
       collected_cents: number | null;
@@ -123,6 +131,7 @@ export class FinanceInvoicingController {
         COUNT(*) FILTER (WHERE status = 'overdue')::int AS overdue_count
       FROM invoices i
       WHERE ${orgId ? sql`i.org_id = ${orgId}` : sql`true`}
+        AND ${visible ?? sql`true`}
         -- A team invoice with player shares is their container: count the
         -- shares, not the container as well (MON-23).
         AND NOT (
@@ -147,12 +156,13 @@ export class FinanceInvoicingController {
   // sibling `/invoices/:id` route, which tried to cast "list" as a UUID.)
   // -------------------------------------------------------------------
   @Get("admin/invoices")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @UseGuards(JwtAuthGuard, ScopedAdminGuard)
   @ApiOperation({
     summary:
       "Paginated invoices list with computed outstandingCents + recipient name join."
   })
   async listInvoices(
+    @UserScope() scope: UserScopeType,
     @Query("orgId") orgId?: string,
     @Query("status") status?: string,
     @Query("billingScope") billingScope?: string,
@@ -163,6 +173,8 @@ export class FinanceInvoicingController {
     const p = Math.max(1, parseInt(page, 10) || 1);
     const l = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
     const conds = [];
+    const visible = visibleInvoicesWhere(scope);
+    if (visible) conds.push(visible);
     if (orgId) conds.push(eq(schema.invoices.orgId, orgId));
     if (status) conds.push(eq(schema.invoices.status, status));
     if (billingScope) conds.push(eq(schema.invoices.billingScope, billingScope));
@@ -225,12 +237,14 @@ export class FinanceInvoicingController {
   // GET /finance/invoices/:id  (detail with items + payments + installments)
   // -------------------------------------------------------------------
   @Get("invoices/:id/detail")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @UseGuards(JwtAuthGuard, ScopedAdminGuard)
   @ApiOperation({
     summary:
       "Invoice detail bundle: invoice + items + payments + installments + refunds + server-computed refundable amounts."
   })
-  async invoiceDetail(@Param("id") id: string) {
+  async invoiceDetail(@Param("id", ParseUUIDPipe) id: string, @UserScope() scope: UserScopeType) {
+    // Outside the caller's scope is a 404, never a 403 (no existence leak).
+    if (!(await invoiceVisible(this.db, scope, id))) throw new NotFoundException("Invoice not found");
     const detail = await loadInvoiceDetail(this.db, id);
     if (!detail) throw new NotFoundException("Invoice not found");
     // Server-computed limits so no screen derives them from paid_cents.
@@ -242,16 +256,20 @@ export class FinanceInvoicingController {
   // POST /finance/invoices/bulk  (billingScope fanout)
   // -------------------------------------------------------------------
   @Post("invoices/bulk")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @UseGuards(JwtAuthGuard, ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Bulk-aware invoice creation. Resolves billingScope+targetId to a set of personIds and creates one invoice per person inside one transaction. Idempotent on X-Idempotency-Key header."
   })
   async createBulkInvoice(
-    @CurrentUser() _user: AuthPrincipal,
+    @CurrentUser() user: AuthPrincipal,
     @Headers("x-idempotency-key") idemKey: string,
-    @Body() body: BulkCreateInvoiceBodyDto
+    @Body() body: BulkCreateInvoiceBodyDto,
+    @UserScope() scope: UserScopeType
   ) {
+    // A scoped admin bills only inside their scope (404 outside it).
+    await assertBulkTargetInScope(this.db, scope, user.userId, body);
     return this.invoicing.createBulkInvoice(idemKey, body);
   }
 
@@ -268,7 +286,8 @@ export class FinanceInvoicingController {
   // PUT /finance/invoices/:id/note  (internal note, MON-18)
   // -------------------------------------------------------------------
   @Put("invoices/:id/note")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @UseGuards(JwtAuthGuard, ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Save the invoice's internal note (admins only; never shown to the payer). Stored on the invoice with who saved it and when."
@@ -276,8 +295,10 @@ export class FinanceInvoicingController {
   async saveNote(
     @Param("id", ParseUUIDPipe) invoiceId: string,
     @Body() body: InvoiceNoteBodyDto,
-    @CurrentUser() user: AuthPrincipal
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
   ) {
+    if (!(await invoiceVisible(this.db, scope, invoiceId))) throw new NotFoundException("Invoice not found");
     const note = body.note.trim();
     const meta = {
       internalNote: note,
@@ -304,15 +325,18 @@ export class FinanceInvoicingController {
   // PATCH /finance/invoices/:id  (extend due date)
   // -------------------------------------------------------------------
   @Patch("invoices/:id")
-  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @UseGuards(JwtAuthGuard, ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Extend due date. Strips overdue flag when new date is in the future."
   })
   async extendDueDate(
-    @Param("id") invoiceId: string,
-    @Body() body: PatchInvoiceBodyDto
+    @Param("id", ParseUUIDPipe) invoiceId: string,
+    @Body() body: PatchInvoiceBodyDto,
+    @UserScope() scope: UserScopeType
   ) {
+    if (!(await invoiceVisible(this.db, scope, invoiceId))) throw new NotFoundException("Invoice not found");
     const [inv] = await this.db
       .select()
       .from(schema.invoices)

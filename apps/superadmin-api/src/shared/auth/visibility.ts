@@ -238,6 +238,39 @@ export async function auditEventVisible(db: Database, v: Visibility, eventId: st
   return hasRows(rows);
 }
 
+/**
+ * WHERE fragment for `invoices` (finance for scoped admins): an org admin
+ * sees every invoice of their organisation; a league, season or division
+ * admin sees the invoices tied to their own league's seasons: billed to
+ * the league, a season or division of it, a registration into it, a team
+ * entered in one of its divisions (team dues and the players' shares), or
+ * a captain registration recorded against one of its seasons. `alias` is
+ * the table alias in the caller's query ("invoices" by default).
+ */
+export function visibleInvoicesWhere(scope: UserScope, alias = "invoices"): SQL | null {
+  if (unrestricted(scope)) return null;
+  const a = sql.raw(alias);
+  const seasons = visibleSeasonIds(scope)!;
+  const regs = visibleRegistrationsWhere(scope)!;
+  return sql`(
+    ${a}.org_id in (${uuidList(scope.orgWideOrgIds)})
+    or ${a}.league_id in (${uuidList(scope.leagueIds)})
+    or ${a}.season_id in ${seasons}
+    or ${a}.division_id in (select d.id from divisions d where d.season_id in ${seasons})
+    or ${a}.registration_id in (select registrations.id from registrations where ${regs})
+    or coalesce(${a}.team_id, (select par.team_id from invoices par where par.id = ${a}.parent_invoice_id))
+       in (select dte.team_id from division_team_entries dte join divisions d on d.id = dte.division_id where d.season_id in ${seasons})
+    or ${a}.metadata->>'seasonId' in (select s2.id::text from seasons s2 where s2.id in ${seasons})
+  )`;
+}
+
+export async function invoiceVisible(db: Database, scope: UserScope, invoiceId: string): Promise<boolean> {
+  const where = visibleInvoicesWhere(scope);
+  if (!where) return true;
+  const rows = await db.execute(sql`select 1 from invoices where invoices.id = ${invoiceId}::uuid and ${where} limit 1`);
+  return hasRows(rows);
+}
+
 export async function personVisible(db: Database, v: Visibility, personId: string): Promise<boolean> {
   const sub = visiblePersonIds(v);
   if (!sub) return true;
