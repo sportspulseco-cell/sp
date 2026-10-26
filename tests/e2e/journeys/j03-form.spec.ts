@@ -299,6 +299,11 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await num(/Installments/i).blur();
     await card.locator("div", { hasText: /^Payment plan/ }).getByRole("button").click();
     await expect(card.getByText(/Payment timeline/i)).toBeVisible();
+    // FR-3.1.6: a late fee on the price, copied to each registration invoice
+    // and added once by the overdue sweep (0060).
+    await num(/Late fee/i).fill("25");
+    await num(/Late fee/i).blur();
+    await expect.poll(async () => JSON.stringify(await stagingSql("select late_fee_cents from pricing_tiers where season_id = $1", [state.seasonId])), { timeout: 30_000 }).toContain(`"late_fee_cents":2500`);
     await shot(oa, "04-pricing");
     // Early-bird pricing / installment dates are not offered at all.
     // Early-bird (date-based) prices are not in PPHL's requirements or use

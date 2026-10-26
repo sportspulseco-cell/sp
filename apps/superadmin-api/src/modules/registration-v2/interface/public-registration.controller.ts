@@ -2051,6 +2051,8 @@ export class PublicRegistrationController {
           status: "sent",
           issuedAt: new Date(),
           dueAt,
+          // The price's late fee, added by the overdue sweep (0060).
+          lateFeeCents: pickedTier?.lateFeeCents ?? 0,
           idempotencyKey,
           metadata
         })

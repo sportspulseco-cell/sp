@@ -1066,6 +1066,8 @@ export function createApi(f: Fetcher) {
           }>;
           dueAt: string;
           feeScheduleId?: string | null;
+          /** Added once by the overdue sweep a day after the due date; 0 = none. */
+          lateFeeCents?: number;
           notes?: string | null;
           paymentPlanEnabled?: boolean;
           depositCents?: number;
@@ -3314,6 +3316,8 @@ export function createApi(f: Fetcher) {
           dueAt: string;
           notes?: string | null;
           feeScheduleId?: string;
+          /** Added once by the overdue sweep a day after the due date; 0 = none. */
+          lateFeeCents?: number;
           paymentPlanEnabled?: boolean;
           depositCents?: number;
           installmentCount?: number;

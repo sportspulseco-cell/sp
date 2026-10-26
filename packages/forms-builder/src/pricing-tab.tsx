@@ -192,7 +192,16 @@ function TierCard({
           value={tier.paymentPlanEnabled}
           onChange={(v) => onPatch({ paymentPlanEnabled: v })}
         />
+        <MoneyField
+          label={`Late fee (${tier.currency})`}
+          cents={tier.lateFeeCents ?? 0}
+          onCommit={(v) => onPatch({ lateFeeCents: v })}
+        />
       </div>
+      <p className="mt-2 text-[11px] text-fg-muted">
+        Late fee: added once to an unpaid registration fee a day after it is due. Registration fees are due when
+        registration closes, and at least 14 days after the player registers. 0 = no late fee.
+      </p>
 
       {tier.paymentPlanEnabled && (
         <PaymentTimeline tier={tier} />

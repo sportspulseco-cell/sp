@@ -92,6 +92,10 @@ export interface InvoiceComposerBody {
   }>;
   dueAt: string;
   notes?: string | null;
+  /** The saved price the lines came from, if one was picked. */
+  feeScheduleId?: string;
+  /** Added once by the overdue sweep a day after the due date; 0 = none. */
+  lateFeeCents?: number;
   paymentPlanEnabled?: boolean;
   depositCents?: number;
   installmentCount?: number;
@@ -223,6 +227,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feeScheduleId, setFeeScheduleId] = useState<string>("");
+  const [lateFeeDollars, setLateFeeDollars] = useState("");
 
   const orgSchedules = useMemo(
     () => (props.feeSchedules ?? []).filter((f) => f.orgId === orgId && f.isActive),
@@ -246,6 +251,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
       ...xs.slice(1).filter((x) => x.description.trim() || x.unitDollars)
     ]);
     setDueAt(addDaysIso(today, Math.max(0, f.dueOffsetDays)));
+    setLateFeeDollars(f.lateFeeCents > 0 ? (f.lateFeeCents / 100).toFixed(2) : "");
   }
 
   // Filter target picker by the selected org (so an admin with multi-org
@@ -295,6 +301,8 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
   }, 0);
   const totalDisplay = (totalCents / 100).toFixed(2);
   const depositCents = Math.round(Number(depositDollars) * 100) || 0;
+  const lateFeeCents = Math.round(Number(lateFeeDollars) * 100) || 0;
+  const lateFeeInvalid = lateFeeDollars.trim() !== "" && !(Number(lateFeeDollars) >= 0);
   const planInvalid =
     paymentPlan && billingScope !== "team" && (depositCents < 0 || depositCents >= totalCents);
 
@@ -311,7 +319,8 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         Number(it.unitDollars) > 0 &&
         it.quantity > 0
     ) &&
-    !planInvalid;
+    !planInvalid &&
+    !lateFeeInvalid;
 
   async function onSubmit(e: { preventDefault(): void }, asDraft = false) {
     e.preventDefault();
@@ -332,6 +341,8 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         dueAt,
         notes: notes.trim() ? notes.trim() : null,
         asDraft,
+        ...(feeScheduleId ? { feeScheduleId } : {}),
+        lateFeeCents,
         ...(paymentPlan && billingScope !== "team"
           ? {
               paymentPlanEnabled: true,
@@ -648,6 +659,23 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
               onChange={(e) => setDueAt(e.target.value)}
               min={today}
               required
+            />
+          </Field>
+          <Field
+            label="Late fee (USD)"
+            hint={
+              lateFeeInvalid
+                ? "Enter an amount of 0 or more."
+                : "Added once if the invoice is still unpaid a day after the due date. Leave blank for none."
+            }
+          >
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={lateFeeDollars}
+              onChange={(e) => setLateFeeDollars(e.target.value)}
+              placeholder="0.00"
             />
           </Field>
           <Field label="Notes" hint="Optional — surfaces on the invoice.">

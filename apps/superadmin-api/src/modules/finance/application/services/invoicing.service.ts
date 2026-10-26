@@ -110,6 +110,22 @@ export class InvoicingService {
         "The deposit must be less than the invoice total."
       );
     }
+    // A picked fee schedule must be this org's. The late fee is the one
+    // the admin entered, else the schedule's; the overdue sweep adds it
+    // once a day after the due date (0060).
+    let scheduleLateFeeCents = 0;
+    if (body.feeScheduleId) {
+      const [schedule] = await this.db
+        .select({ orgId: schema.feeSchedules.orgId, lateFeeCents: schema.feeSchedules.lateFeeCents })
+        .from(schema.feeSchedules)
+        .where(eq(schema.feeSchedules.id, body.feeScheduleId))
+        .limit(1);
+      if (!schedule || schedule.orgId !== body.orgId) {
+        throw new NotFoundException("Fee schedule not found in this org");
+      }
+      scheduleLateFeeCents = schedule.lateFeeCents;
+    }
+    const lateFeeCents = body.lateFeeCents ?? scheduleLateFeeCents;
     const isBulk = personIds.length > 1;
     const bulkJobId = isBulk ? randomUUID() : null;
     const currency = "USD";
@@ -160,6 +176,7 @@ export class InvoicingService {
               ? `${idempotencyKey}-${personId}`
               : idempotencyKey,
             feeScheduleId: body.feeScheduleId ?? null,
+            lateFeeCents,
             issuedAt: new Date()
           })
           .returning();

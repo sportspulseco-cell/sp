@@ -81,6 +81,8 @@ interface EscalationWithInvoiceDto extends EscalationDto {
     currency: string;
     dueAt: string | null;
     recipientPersonId: string | null;
+    /** Late fee the overdue sweep added (already inside totalCents). */
+    lateFeeAppliedCents: number;
   };
 }
 
@@ -120,7 +122,8 @@ export class FinanceEscalationsController {
           paidCents: schema.invoices.paidCents,
           currency: schema.invoices.currency,
           dueAt: schema.invoices.dueAt,
-          recipientPersonId: schema.invoices.recipientPersonId
+          recipientPersonId: schema.invoices.recipientPersonId,
+          lateFeeAppliedCents: schema.invoices.lateFeeAppliedCents
         }
       })
       .from(schema.invoiceEscalations)
