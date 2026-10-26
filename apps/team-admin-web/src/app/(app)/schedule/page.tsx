@@ -15,7 +15,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
-import { ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
+import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -56,6 +56,7 @@ export default async function TeamAdminSchedulePage() {
         title="Schedule"
         description="Every scheduled and completed game for your team."
       />
+      <LiveScoreRefresh active={games.some((g) => g.status === "in_play")} />
       {seasonIds.length > 0 && (
         <div className="flex justify-end">
           <ScheduleRealtimeBridge seasonIds={seasonIds} />
@@ -92,6 +93,8 @@ export default async function TeamAdminSchedulePage() {
                   <TD>
                     {isFinal ? (
                       <Badge mono tone={tone}>{result} {us}-{them}</Badge>
+                    ) : g.status === "in_play" ? (
+                      <Badge mono tone="info">Live {us ?? 0}-{them ?? 0}</Badge>
                     ) : (
                       <Badge mono tone={g.status === "scheduled" ? "info" : "neutral"}>{g.status.replace(/_/g, " ")}</Badge>
                     )}
