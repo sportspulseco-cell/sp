@@ -34,7 +34,7 @@ import {
   MaxLength
 } from "class-validator";
 import { Type } from "class-transformer";
-import { and, desc, eq, gt, ilike, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -506,7 +506,9 @@ export class FinanceInvoicingController {
           eq(schema.invoices.parentInvoiceId, masterInvoiceId),
           eq(schema.invoices.invoiceType, "sub_invoice")
         )
-      );
+      )
+      // Fixed order (the share numbers), as on the captain's dues screen.
+      .orderBy(asc(schema.invoices.invoiceNumber));
 
     const collectedCents = subs.reduce((a, s) => a + s.paidCents, 0);
     const confirmationThresholdCents = team.confirmationThresholdCents ?? 0;

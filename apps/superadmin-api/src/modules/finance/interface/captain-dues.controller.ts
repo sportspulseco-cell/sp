@@ -27,7 +27,7 @@ import {
   Min,
   ValidateNested
 } from "class-validator";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -229,7 +229,11 @@ export class CaptainDuesController {
           eq(schema.invoices.parentInvoiceId, masterInvoiceId),
           eq(schema.invoices.invoiceType, "sub_invoice")
         )
-      );
+      )
+      // A fixed order (the share numbers -01, -02, ...). Without one,
+      // Postgres returned the rows in storage order, which an update
+      // changes, so the captain's rows jumped after saving a split.
+      .orderBy(asc(schema.invoices.invoiceNumber));
 
     const totalCents = subs.reduce((a, s) => a + s.totalCents, 0);
     const collectedCents = subs.reduce((a, s) => a + s.paidCents, 0);

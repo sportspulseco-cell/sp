@@ -467,6 +467,16 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
     payer's paid invoice stays paid. verify-regpay 15/15 and verify-regplan 18/18 again on the same build.
   Not verified: the funnel tier cards in a browser on staging (next staging push).
 
+[MON-30] Captain's dues rows jumped to other players after "Save split" · minor
+  Found: J14 test 3 on staging f3db646 (26 Oct): $1.00 moved to the first row and saved ("Custom split saved."); the
+    first row then showed 46.15, a different player. The database had the right amounts on the right players
+    (captain 47.20, Staging Player 45.15).
+  Actual: the share list (captain dues breakdown, also returned by the split save) had no ORDER BY, so Postgres
+    returned rows in storage order, which the split's updates change. The admin team-invoice share list had the same
+    gap.
+  Fix: both lists order by the share number (-01, -02, ...).
+  Evidence: staging rows read back after the J14 save (13 shares, amounts on the intended players); J14 in the next run.
+
 ## Gaps
 
 Backend without UI
