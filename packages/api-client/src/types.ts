@@ -1488,3 +1488,35 @@ export interface ScheduleBlackout {
   reason: string | null;
   createdAt: string;
 }
+
+/** One leader row (FR-3.5.3). */
+export interface SeasonLeader {
+  personId: string;
+  personName: string | null;
+  teamId: string;
+  teamName: string | null;
+  gp: number;
+  goals: number;
+  assists: number;
+  points: number;
+}
+
+/** Leaders and standings of one division in one season. */
+export interface DivisionLeaders {
+  divisionId: string;
+  divisionName: string;
+  leaders: { points: SeasonLeader[]; goals: SeasonLeader[]; assists: SeasonLeader[] };
+  standings: Array<{
+    teamId: string;
+    teamName: string | null;
+    rank: number | null;
+    gp: number; w: number; l: number; t: number; otl: number;
+    points: number; gf: number; ga: number; gd: number;
+  }>;
+}
+
+export interface SeasonLeaders {
+  seasonId: string;
+  seasonName: string;
+  divisions: DivisionLeaders[];
+}

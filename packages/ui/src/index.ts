@@ -29,3 +29,4 @@ export * from "./url-filters";
 // Next.js). If we ever need a framework-neutral version, factor here.
 export { cn } from "./lib/cn";
 export * from "./season-switch";
+export * from "./season-leaders";

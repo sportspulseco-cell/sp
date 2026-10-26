@@ -1,6 +1,7 @@
 import type {
   AuditEvent,
   ScheduleBlackout,
+  SeasonLeaders,
   AuditFacets,
   CaptainDuesBreakdown,
   ConsentSignature,
@@ -2208,6 +2209,12 @@ export function createApi(f: Fetcher) {
     },
 
     stats: {
+      /**
+       * Points, goals and assists leaders and team standings per division
+       * for one season, from finalized games only (FR-3.5.3).
+       */
+      seasonLeaders: (seasonId: string, q: { divisionId?: string; limit?: number } = {}) =>
+        f<SeasonLeaders>(`/stats/seasons/${seasonId}/leaders${qs(q)}`),
       listLines: (
         q: {
           limit?: number;

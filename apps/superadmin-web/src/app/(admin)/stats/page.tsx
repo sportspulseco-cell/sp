@@ -1,5 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, SeasonLeadersBlock } from "@sportspulse/ui";
 import { BarChart3, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, stats } from "@/lib/api/server-api";
@@ -15,7 +15,6 @@ import {
   Table
 } from "@/components/ui/table";
 import { RecomputeStandingsButton } from "@/components/stats/recompute-standings-button";
-import { BuildLeaderboardForm } from "@/components/stats/build-leaderboard-form";
 
 export const metadata = { title: "Stats — SportsPulse" };
 
@@ -140,11 +139,7 @@ export default async function StatsPage({
         />
       ) : null}
       {tab === "leaderboards" ? (
-        <LeaderboardsTab
-          leagues={leaguesPage.items}
-          divisions={divisionsPage.items}
-          teamMap={teamMap}
-        />
+        <SeasonLeadersTab leagueId={leagueId} />
       ) : null}
     </div>
   );
@@ -367,31 +362,34 @@ async function StandingsTab({
   );
 }
 
-// ---------- Leaderboards tab ----------
-function LeaderboardsTab({
-  leagues,
-  divisions,
-  teamMap
-}: {
-  leagues: Array<{ id: string; name: string; sportCode: string }>;
-  divisions: Array<{ id: string; name: string; seasonId: string }>;
-  teamMap: Map<string, string>;
-}) {
-  if (leagues.length === 0) {
-    return (
-      <EmptyState
-        icon={BarChart3}
-        title="No leagues"
-        description="Create a league before building a leaderboard."
-      />
-    );
+// ---------- Leaders tab (FR-3.5.3) ----------
+/**
+ * Points, goals and assists leaders and standings per division for the
+ * league's current season (in progress or playoffs, else the latest),
+ * from finalized games only. Same block as the captain and player apps.
+ */
+async function SeasonLeadersTab({ leagueId }: { leagueId?: string }) {
+  if (!leagueId) {
+    return <EmptyState icon={BarChart3} title="Pick a league" description="Leaders are shown per league season. Pick a league above." />;
   }
+  const seasons = await fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor })).catch(() => ({ items: [] }));
+  const live = seasons.items.filter((s) => s.status === "in_progress" || s.status === "playoffs");
+  const pool = live.length ? live : seasons.items;
+  const current = [...pool].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+  if (!current) {
+    return <EmptyState icon={BarChart3} title="No season yet" description="This league has no season to show leaders for." />;
+  }
+  const result = await load(stats.seasonLeaders(current.id));
+  if (!result.ok) return <LoadError what="the leaders" status={result.status} message={result.message} />;
   return (
-    <BuildLeaderboardForm
-      leagues={leagues}
-      divisions={divisions}
-      teamMap={Array.from(teamMap.entries())}
-    />
+    <div className="space-y-8">
+      <p className="text-[13px] text-fg-muted">{result.data.seasonName} · finalized games only</p>
+      {result.data.divisions.length === 0 ? (
+        <EmptyState icon={BarChart3} title="No divisions" description="This season has no divisions yet." />
+      ) : (
+        result.data.divisions.map((d) => <SeasonLeadersBlock key={d.divisionId} data={d} />)
+      )}
+    </div>
   );
 }
 
