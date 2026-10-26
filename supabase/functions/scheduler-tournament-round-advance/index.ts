@@ -16,6 +16,7 @@ import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
 import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
+import { gameStartForSlot } from "../_shared/post-solve.ts";
 
 type Tier = "upper" | "middle" | "lower";
 const TIER_ORDER: Tier[] = ["upper", "middle", "lower"];
@@ -77,6 +78,7 @@ interface IceSlot {
   id: string;
   surface_id: string;
   start_ts_utc: string;
+  tz?: string | null;
   // deno-lint-ignore no-explicit-any
   surfaces: any;
 }
@@ -106,7 +108,7 @@ Deno.serve(async (req) => {
 
   const { data: season } = await sb
     .from("seasons")
-    .select("id, org_id, league_id, sport_code")
+    .select("id, org_id, league_id, sport_code, timezone")
     .eq("id", body.seasonId)
     .maybeSingle();
   if (!season) return json({ error: "season_not_found" }, 404);
@@ -299,7 +301,7 @@ Deno.serve(async (req) => {
   // filter out slots already pointed at by a non-cancelled game.
   let slotQ = sb
     .from("ice_slots")
-    .select(`id, surface_id, start_ts_utc, surfaces!inner ( id, label, venues!inner ( id, name ) )`)
+    .select(`id, surface_id, start_ts_utc, tz, surfaces!inner ( id, label, venues!inner ( id, name ) )`)
     .eq("season_id", body.seasonId)
     .eq("is_playoff_reservation", false)
     .eq("status", "available")
@@ -360,7 +362,9 @@ Deno.serve(async (req) => {
       sport_code: season.sport_code,
       home_team_id: m.teamA,
       away_team_id: m.teamB,
-      scheduled_start_ts_utc: chosenSlot.start_ts_utc,
+      // The slot instant in the rink zone (season zone for an unset slot).
+      scheduled_start_ts_utc: gameStartForSlot(chosenSlot.start_ts_utc, chosenSlot.tz, season.timezone as string).startTsUtc,
+      tz: gameStartForSlot(chosenSlot.start_ts_utc, chosenSlot.tz, season.timezone as string).tz,
       venue_name: chosenSlot.surfaces.venues.name,
       surface_label: chosenSlot.surfaces.label,
       slot_id: chosenSlot.id,

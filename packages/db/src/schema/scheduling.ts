@@ -10,7 +10,8 @@ import {
   timestamp,
   index,
   uniqueIndex,
-  check
+  check,
+  date
 } from "drizzle-orm/pg-core";
 import { authUsers } from "./auth";
 import { orgs } from "./iam";
@@ -147,6 +148,43 @@ export const iceSlots = pgTable(
       t.surfaceId,
       t.startTsUtc
     )
+  })
+);
+
+// ---------------------------------------------------------------------
+// SCHEDULE_BLACKOUTS - days the generator must not use (FR-3.8.4).
+// A row covers startDate..endDate (inclusive, the season's calendar)
+// for every rink in the season, or one rink when surfaceId is set.
+// scheduler-generate leaves those ice slots out before the solve.
+// Migration 0070.
+// ---------------------------------------------------------------------
+export const scheduleBlackouts = pgTable(
+  "schedule_blackouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seasonId: uuid("season_id")
+      .notNull()
+      .references(() => seasons.id, { onDelete: "cascade" }),
+    /** NULL = every rink. */
+    surfaceId: uuid("surface_id").references(() => surfaces.id, {
+      onDelete: "cascade"
+    }),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    reason: text("reason"),
+    createdByUserId: uuid("created_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    datesCheck: check(
+      "schedule_blackout_dates_check",
+      sql`${t.endDate} >= ${t.startDate}`
+    ),
+    seasonIdx: index("schedule_blackout_season_idx").on(t.seasonId)
   })
 );
 

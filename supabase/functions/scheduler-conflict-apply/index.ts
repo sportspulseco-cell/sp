@@ -23,6 +23,7 @@ import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv, type SchedulerEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
 import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
+import { gameStartForSlot } from "../_shared/post-solve.ts";
 
 const DEFAULT_OTHER_DURATION_MIN = 60;
 
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
 
   const { data: season, error: seasonErr } = await sb
     .from("seasons")
-    .select("id, org_id, league_id")
+    .select("id, org_id, league_id, timezone")
     .eq("id", body.seasonId)
     .maybeSingle();
   if (seasonErr || !season) return json({ error: "season_not_found" }, 404);
@@ -152,7 +153,7 @@ Deno.serve(async (req) => {
   const { data: slotRow, error: slotErr } = await sb
     .from("ice_slots")
     .select(`
-      id, surface_id, start_ts_utc, duration_min, band, status, is_playoff_reservation,
+      id, surface_id, start_ts_utc, tz, duration_min, band, status, is_playoff_reservation,
       surfaces!inner ( id, label, venues!inner ( id, name ) )
     `)
     .eq("id", body.toSlotId)
@@ -218,7 +219,8 @@ Deno.serve(async (req) => {
       surface_id: surface.id,
       surface_label: surface.label,
       venue_name: venue.name,
-      scheduled_start_ts_utc: slot.start_ts_utc,
+      scheduled_start_ts_utc: gameStartForSlot(slot.start_ts_utc, slot.tz, season.timezone).startTsUtc,
+      tz: gameStartForSlot(slot.start_ts_utc, slot.tz, season.timezone).tz,
       time_band: slot.band,
     })
     .eq("id", game.id)
