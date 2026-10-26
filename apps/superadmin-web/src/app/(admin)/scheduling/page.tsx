@@ -1,19 +1,20 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
-import { CalendarRange, Wand2 } from "lucide-react";
-import Link from "next/link";
-import { leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import {
+  Badge,
+  EmptyState,
+  LoadError,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  statusTone
+} from "@sportspulse/ui";
+import { CalendarRange, Wand2 } from "lucide-react";
+import Link from "next/link";
+import { leagueMgmt } from "@/lib/api/server-api";
 
 export const metadata = { title: "Schedule — SportsPulse" };
 

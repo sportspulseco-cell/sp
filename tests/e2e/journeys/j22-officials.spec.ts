@@ -105,8 +105,12 @@ test.describe("J22 game-day official", () => {
         const u = await adminAuth("POST", "users", { email, password, email_confirm: true });
         expect(u.status, "setup: keeper account created").toBeLessThan(300);
         w.userId = u.json.id;
-        const [kp] = await stagingSql(`insert into persons (user_id, legal_first_name, legal_last_name) values ($1, 'Keeper', $2) returning id`, [w.userId, tag]);
-        w.keeperPersonId = kp.id;
+        // A brand-new account with no tie to the league and no persons row:
+        // the Officials panel's "Add by email" makes the person (step 2).
+        const named = await stagingSql(`update profiles set legal_first_name = 'Keeper', legal_last_name = $2 where id = $1 returning id`, [w.userId, tag]);
+        expect(named.length, "setup: keeper profile named").toBe(1);
+        const none = await stagingSql(`select id from persons where user_id = $1`, [w.userId]);
+        expect(none, "setup: keeper has no persons row yet").toEqual([]);
       });
 
       await test.step("1 · before the crew spot the keeper is turned away", async () => {
@@ -126,16 +130,36 @@ test.describe("J22 game-day official", () => {
         await signIn(page, E2E_URLS.league, SMOKE_USERS.leagueAdmin);
         await page.goto(`${E2E_URLS.league}/games/${w.gameId}`);
         await page.getByRole("button", { name: /^Assign$/ }).click();
-        // The keeper has no referee/scorekeeper role, so the default list
-        // (FR-3.9) does not hold them: show everyone, like an assigner would.
+        // The keeper has no role and no tie to the league, so neither the
+        // default list (FR-3.9) nor "Show everyone" holds them: the admin
+        // adds them by their full account email.
         await expect(page.getByLabel("Person").locator("option").first()).toHaveText(/Pick an official|Loading officials/);
         await page.getByLabel("Show everyone").check();
-        await page.getByLabel("Person").selectOption({ label: `Keeper ${tag}` });
+        expect(
+          await page.getByLabel("Person").locator("option", { hasText: `Keeper ${tag}` }).count(),
+          "a brand-new account is not in the admin's people list"
+        ).toBe(0);
+        await page.getByLabel("Add by email").check();
         await page.getByLabel("Role").selectOption("scorekeeper");
-        const resp = page.waitForResponse((r) => r.url().includes(`/games/${w.gameId}/officials`) && r.request().method() === "POST");
-        await page.locator("form").filter({ has: page.getByLabel("Role") }).locator('button[type="submit"]').click();
+        const form = page.locator("form").filter({ has: page.getByLabel("Role") });
+        const post = () => page.waitForResponse((r) => r.url().includes(`/games/${w.gameId}/officials`) && r.request().method() === "POST");
+
+        // Unknown email: refused in words, nothing written.
+        await page.getByLabel("Account email").fill(`nobody-${tag.toLowerCase()}@sportspulse.us`);
+        let resp = post();
+        await form.locator('button[type="submit"]').click();
+        expect((await resp).status(), "unknown email refused").toBe(404);
+        await expect(page.getByText(/No account uses that email/)).toBeVisible({ timeout: 20_000 });
+
+        await page.getByLabel("Account email").fill(email.toUpperCase());
+        resp = post();
+        await form.locator('button[type="submit"]').click();
         expect((await resp).status(), "crew spot saved").toBe(201);
         await expect(page.getByText(`Keeper ${tag}`).first()).toBeVisible({ timeout: 20_000 });
+        const persons = await stagingSql(`select id, legal_first_name, legal_last_name from persons where user_id = $1`, [w.userId]);
+        expect(persons.length, "db: one persons row made for the account").toBe(1);
+        expect(persons[0].legal_first_name, "db: person named from the profile").toBe("Keeper");
+        w.keeperPersonId = persons[0].id;
         const rows = await stagingSql(`select role, status from game_officials where game_id = $1 and person_id = $2 and revoked_at is null`, [w.gameId, w.keeperPersonId]);
         expect(rows, "db: one live scorekeeper row").toEqual([{ role: "scorekeeper", status: "confirmed" }]);
         await ctx.close();

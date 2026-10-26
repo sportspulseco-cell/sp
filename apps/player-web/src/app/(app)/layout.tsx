@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ConsoleShell } from "@/components/layout/console-shell";
 import { iam } from "@/lib/api/server-api";
-import { NavProvider } from "@/components/layout/nav-context";
-import { Sidebar } from "@/components/layout/sidebar";
-import { TopBar } from "@/components/layout/top-bar";
 
 /**
  * Player app shell — sidebar + topbar + auth gate.
@@ -33,21 +31,13 @@ export default async function AppLayout({
     : "loading…";
 
   return (
-    <NavProvider>
-      <div className="flex min-h-screen bg-bg">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar
-            email={profile?.email ?? user.email ?? ""}
-            displayName={profile?.displayName ?? null}
-            roleLine={roleLine}
-            isCaptain={isCaptain}
-          />
-          <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-            <div className="mx-auto max-w-6xl">{children}</div>
-          </main>
-        </div>
-      </div>
-    </NavProvider>
+    <ConsoleShell
+      email={profile?.email ?? user.email ?? ""}
+      displayName={profile?.displayName ?? null}
+      roleLine={roleLine}
+      isCaptain={isCaptain}
+    >
+      {children}
+    </ConsoleShell>
   );
 }

@@ -173,7 +173,8 @@ async function RecentGames({ teamId }: { teamId: string }) {
             {outcomeLabel(g, teamId)}
           </Badge>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            {new Date(g.scheduledStartTsUtc).toLocaleDateString("en-CA")}
+            {/* The rink's date: a late game is not "tomorrow" on a UTC server. */}
+            {formatInZone(g.scheduledStartTsUtc, g.tz, { month: "short", day: "numeric" })}
           </span>
         </li>
       ))}

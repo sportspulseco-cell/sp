@@ -10,10 +10,7 @@ import type {
   Person,
   Season
 } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Select } from "@sportspulse/ui";
 
 const STATUSES: EligibilityStatus[] = [
   "pending",

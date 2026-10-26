@@ -4,9 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { compliance } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
+import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
 
 export function WaiveEligibilityButton({ id }: { id: string }) {
   const router = useRouter();

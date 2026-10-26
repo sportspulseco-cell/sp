@@ -1,5 +1,5 @@
 import { communications } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { SettingsClient } from "./settings-client";
 
 export const dynamic = "force-dynamic";

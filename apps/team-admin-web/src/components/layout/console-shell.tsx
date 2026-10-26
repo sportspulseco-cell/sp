@@ -1,0 +1,60 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
+import { UsersRound } from "lucide-react";
+import { AppShell, RolePill } from "@sportspulse/ui";
+import { createClient } from "@/lib/supabase/client";
+import type { RegistrationCall } from "@/lib/registration-call";
+import { RegistrationBanner } from "./registration-banner";
+import { RegistrationCta } from "./registration-cta";
+import { CAPTAIN_NAV, COACH_NAV, HOME, ROUTES } from "./nav-config";
+
+const BRAND = { name: "SportsPulse", console: "Team admin", icon: UsersRound };
+
+/**
+ * Team console chrome, from the shared shell.
+ *
+ * Registration call-to-action: the banner under the top bar and the
+ * sidebar CTA render from one value (`registrationCall`), never one
+ * without the other (CAP-6).
+ */
+export function ConsoleShell({
+  email,
+  displayName,
+  roleLine,
+  isCaptain,
+  registrationCall,
+  children
+}: {
+  email: string;
+  displayName: string | null;
+  roleLine: string;
+  isCaptain: boolean;
+  registrationCall: RegistrationCall | null;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+
+  async function signOut() {
+    await createClient().auth.signOut();
+    router.replace("/sign-in?error=signed_out");
+    router.refresh();
+  }
+
+  return (
+    <AppShell
+      brand={BRAND}
+      sections={isCaptain ? CAPTAIN_NAV : COACH_NAV}
+      routes={ROUTES}
+      home={HOME}
+      user={{ email, displayName, roleLine }}
+      badge={isCaptain ? <RolePill label="Captain" title="You hold the captain role for this team" /> : undefined}
+      sidebarTop={registrationCall ? <RegistrationCta call={registrationCall} /> : undefined}
+      banner={registrationCall ? <RegistrationBanner call={registrationCall} /> : undefined}
+      onSignOut={signOut}
+    >
+      {children}
+    </AppShell>
+  );
+}

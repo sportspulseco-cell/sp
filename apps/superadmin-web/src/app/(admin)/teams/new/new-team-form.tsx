@@ -19,11 +19,9 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Button, Field, Input, Select } from "@sportspulse/ui";
 import type { Org, Profile, Sport } from "@/lib/api/types";
 import { iam, leagueMgmt } from "@/lib/api/browser-api";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 
 /**
  * Workflow 7A Phase 1 · /teams/new client form.

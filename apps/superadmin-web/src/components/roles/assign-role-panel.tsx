@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 import {
+  formatInZone,
+  GAME_TIME_WITH_ZONE,
   SCOPE_TYPES,
   SCOPE_TYPE_LABELS,
   scopeTypeWithArticle
@@ -16,9 +18,7 @@ import {
   orgs as orgsApi
 } from "@/lib/api/browser-api";
 import type { Role, RoleScopeType } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Field, Select } from "@sportspulse/ui";
 
 // Scope codes and their human labels come from the kernel catalogue so
 // this panel and the invite dialog can never drift (SETUP-7).
@@ -145,10 +145,8 @@ export function AssignRolePanel({
         case "game": {
           const p = await gameOps.listGames({ limit: 100 });
           return p.items.map((g) => {
-            const d = new Date(g.scheduledStartTsUtc).toLocaleDateString(
-              undefined,
-              { month: "short", day: "numeric" }
-            );
+            // The rink's clock and zone, not the browser's (SCH-28).
+            const d = formatInZone(g.scheduledStartTsUtc, g.tz, GAME_TIME_WITH_ZONE);
             return {
               id: g.id,
               label: `${d} - ${g.venueName ?? "Venue to be confirmed"}`

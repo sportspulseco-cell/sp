@@ -14,6 +14,7 @@ import {
 import {
   Badge,
   EmptyState,
+  PageHeader,
   SectionRail,
   StatTile,
   TBody,
@@ -25,7 +26,6 @@ import {
 } from "@sportspulse/ui";
 import { ChannelStatusNotice } from "@sportspulse/admin-pages";
 import { communications, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";

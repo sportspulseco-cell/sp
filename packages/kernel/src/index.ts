@@ -42,4 +42,5 @@ export * from "./eligibility-evaluation";
 export * from "./roster-entry";
 export * from "./phone";
 export * from "./aamva";
+export * from "./substitutes";
 export * from "./notification-codes";

@@ -2,8 +2,7 @@
 
 import { VenuesPage, type VenuesApi } from "@sportspulse/admin-pages";
 import { useCallback, useEffect, useState } from "react";
-import { LoadError } from "@sportspulse/ui";
-import { PageHeader } from "@/components/layout/page-header";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import * as browser from "@/lib/api/browser-api";
 
 interface OrgRow { id: string; name: string; timezone: string }

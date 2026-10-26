@@ -98,3 +98,5 @@ export const schedulingInventory = api.schedulingInventory;
 export const orgAdminTeams = api.orgAdminTeams;
 export const teamMovement = api.teamMovement;
 export const orgAdminBroadcast = api.orgAdminBroadcast;
+// Substitute requests (UC-31).
+export const subs = api.subs;

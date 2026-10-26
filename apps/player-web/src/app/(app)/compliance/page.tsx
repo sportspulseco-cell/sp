@@ -6,10 +6,9 @@ import {
   ShieldCheck,
   Upload
 } from "lucide-react";
-import { Badge, EmptyState, Eyebrow, LoadError } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, LoadError, PageHeader } from "@sportspulse/ui";
 import { load, type EligibilityRecord } from "@sportspulse/api-client";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { UsaHockeyIdForm } from "./usa-hockey-id-form";
 import { DocumentsToSign } from "./documents-to-sign";
 import { UploadDocuments } from "./upload-documents";

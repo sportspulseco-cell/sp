@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Heartbeat, RouteProgress } from "@sportspulse/ui";
+import { Heartbeat, RouteProgress, ThemeProvider } from "@sportspulse/ui";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,11 +33,15 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-bg font-sans text-fg antialiased">
-        <Suspense fallback={null}>
-          <RouteProgress />
-        </Suspense>
-        {children}
-        <Heartbeat />
+        {/* Light by default, as before; the shared top bar now offers
+            the same theme toggle as the other consoles. */}
+        <ThemeProvider storageKey="sp-superadmin-theme" defaultTheme="light">
+          <Suspense fallback={null}>
+            <RouteProgress />
+          </Suspense>
+          {children}
+          <Heartbeat />
+        </ThemeProvider>
       </body>
     </html>
   );

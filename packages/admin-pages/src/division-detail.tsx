@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { POINTS_RULE_LABELS, resolvePointsRule } from "@sportspulse/kernel";
-import { ArrowLeft, Layers } from "lucide-react";
+
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, PageHeader, Reveal, statusTone } from "@sportspulse/ui";
 import type { Division, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -145,47 +145,42 @@ export function DivisionDetail({
 
   return (
     <div className="space-y-8">
-      <Link
-        href={backTo}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All divisions
-      </Link>
-
-      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={Layers} tint="cyan" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>DIVISION · {parentSeason?.name ?? "Unknown season"}</Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {division.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {division.tier ? <Badge mono>{division.tier}</Badge> : null}
-            <Badge mono>{division.genderEligibility}</Badge>
-            <Badge tone={statusTone(division.status)} mono>
-              {division.status}
-            </Badge>
-            {parentSeason ? (
+      <PageHeader
+        eyebrow={<>DIVISION · {parentSeason?.name ?? "Unknown season"}</>}
+        title={division.name}
+        description={
+          <>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {division.tier ? <Badge mono>{division.tier}</Badge> : null}
+              <Badge mono>{division.genderEligibility}</Badge>
+              <Badge tone={statusTone(division.status)} mono>
+                {division.status}
+              </Badge>
+              {parentSeason ? (
+                <Link
+                  href={`${seasonHref}/${parentSeason.id}`}
+                  className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
+                >
+                  {parentSeason.name} →
+                </Link>
+              ) : null}
+            </div>
+          </>
+        }
+        action={
+          <>
+            {actions ? <div className="">{actions}</div> : null}
+            {editHref ? (
               <Link
-                href={`${seasonHref}/${parentSeason.id}`}
-                className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
+                href={editHref}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
               >
-                {parentSeason.name} →
+                Edit in Org setup →
               </Link>
             ) : null}
-          </div>
-        </div>
-        {actions ? <div className="ml-auto">{actions}</div> : null}
-        {editHref ? (
-          <Link
-            href={editHref}
-            className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-          >
-            Edit in Org setup →
-          </Link>
-        ) : null}
-      </Reveal>
+          </>
+        }
+      />
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">

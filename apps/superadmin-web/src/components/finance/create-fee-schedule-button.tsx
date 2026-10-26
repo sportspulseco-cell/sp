@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { finance } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 
 const KINDS = [
   "registration",

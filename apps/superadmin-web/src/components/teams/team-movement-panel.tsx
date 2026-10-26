@@ -3,15 +3,26 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import { Alert, LocalDate } from "@sportspulse/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  Field,
+  Input,
+  LocalDate,
+  Select,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+  statusTone
+} from "@sportspulse/ui";
 import { leagueMgmt, teamMovement } from "@/lib/api/browser-api";
 import type { TeamEntry, TeamMovement, TeamMovementResult } from "@/lib/api/types";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 
 type Mode = "rollover" | "division_shift" | "league_migration" | "org_move";
 

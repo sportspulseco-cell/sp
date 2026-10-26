@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Receipt } from "lucide-react";
 import { finance } from "@/lib/api/browser-api";
 import type { PaymentMethod } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Field, Input, Select } from "@sportspulse/ui";
 
 const METHODS: PaymentMethod[] = [
   "cash",

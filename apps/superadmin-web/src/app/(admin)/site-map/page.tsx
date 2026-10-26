@@ -1,6 +1,5 @@
-import { SiteMap } from "@sportspulse/ui";
+import { PageHeader, SiteMap } from "@sportspulse/ui";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/layout/page-header";
 import { navGroups } from "@/components/layout/nav-config";
 
 export const dynamic = "force-dynamic";

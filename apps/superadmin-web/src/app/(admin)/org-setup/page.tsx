@@ -1,7 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, leagueMgmt, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { OrgSetupShell } from "./org-setup-shell";
 
 export const dynamic = "force-dynamic";

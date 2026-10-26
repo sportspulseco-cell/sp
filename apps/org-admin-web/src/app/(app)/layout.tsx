@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ConsoleShell } from "@/components/layout/console-shell";
 import { iam, orgs } from "@/lib/api/server-api";
-import { NavProvider } from "@/components/layout/nav-context";
-import { Sidebar } from "@/components/layout/sidebar";
-import { TopBar } from "@/components/layout/top-bar";
 import { getActiveOrgId } from "@/lib/active-org";
 
 /**
@@ -45,26 +43,18 @@ export default async function AppLayout({
   }));
 
   const roleLine = profile && scope
-    ? `org_admin · ${scope.orgIds.length} org${scope.orgIds.length === 1 ? "" : "s"}`
+    ? `org admin · ${scope.orgIds.length} org${scope.orgIds.length === 1 ? "" : "s"}`
     : "loading…";
 
   return (
-    <NavProvider>
-      <div className="flex min-h-screen bg-bg">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar
-            email={profile?.email ?? user.email ?? ""}
-            displayName={profile?.displayName ?? null}
-            roleLine={roleLine}
-            orgs={switcherOrgs}
-            activeOrgId={activeOrgId ?? ""}
-          />
-          <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-            <div className="mx-auto max-w-6xl">{children}</div>
-          </main>
-        </div>
-      </div>
-    </NavProvider>
+    <ConsoleShell
+      email={profile?.email ?? user.email ?? ""}
+      displayName={profile?.displayName ?? null}
+      roleLine={roleLine}
+      orgs={switcherOrgs}
+      activeOrgId={activeOrgId ?? ""}
+    >
+      {children}
+    </ConsoleShell>
   );
 }

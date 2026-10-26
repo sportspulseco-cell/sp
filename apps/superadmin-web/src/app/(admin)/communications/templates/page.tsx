@@ -1,20 +1,20 @@
 import { ArrowLeft, FileText } from "lucide-react";
 import Link from "next/link";
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
-import { communications, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
 import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  LoadError,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
   Table
-} from "@/components/ui/table";
+} from "@sportspulse/ui";
+import { communications, orgs } from "@/lib/api/server-api";
 import { UpsertTemplateButton } from "@/components/communications/upsert-template-button";
 import { DeleteTemplateButton } from "@/components/communications/delete-template-button";
 

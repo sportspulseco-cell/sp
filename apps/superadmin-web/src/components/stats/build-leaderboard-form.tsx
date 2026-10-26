@@ -4,10 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { stats } from "@/lib/api/browser-api";
 import type { Leaderboard } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Eyebrow } from "@/components/ui/eyebrow";
+import { Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
 
 interface LeagueLite {
   id: string;

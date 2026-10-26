@@ -1,4 +1,4 @@
-import { PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { PageHeaderSkeleton, Skeleton } from "@sportspulse/ui";
 
 export default function AuditLoading() {
   return (

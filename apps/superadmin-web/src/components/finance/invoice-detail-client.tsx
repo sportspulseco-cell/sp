@@ -15,10 +15,7 @@ import {
   Wallet
 } from "lucide-react";
 import { formatMoney } from "@/components/finance/money";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Badge, Button, Dialog, DialogActions, Eyebrow } from "@sportspulse/ui";
 import { RefundDialog } from "@/components/finance/refund-dialog";
 import { finance } from "@/lib/api/browser-api";
 import type { Invoice, Payment } from "@/lib/api/types";

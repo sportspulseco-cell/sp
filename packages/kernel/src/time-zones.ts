@@ -90,10 +90,20 @@ const GAME_TIME: Intl.DateTimeFormatOptions = {
 };
 
 /**
+ * A game time with the zone's short name: "Nov 4, 9:00 PM EST". For views
+ * that show times with no zone line beside them (the playoff bracket).
+ */
+export const GAME_TIME_WITH_ZONE: Intl.DateTimeFormatOptions = {
+  ...GAME_TIME,
+  timeZoneName: "short"
+};
+
+/**
  * `instant` as the clocks read in `timeZone` ("Nov 4, 9:00 PM"). Game and
  * slot times are shown in the rink's zone, so the text is the same on the
  * server and in every browser. An unknown or missing zone shows UTC and
- * says so, rather than guessing.
+ * says so, rather than guessing (once: with `timeZoneName` the text
+ * already ends in "UTC").
  */
 export function formatInZone(
   instant: Date | string,
@@ -105,7 +115,8 @@ export function formatInZone(
   if (timeZone && isValidTimeZone(timeZone)) {
     return new Intl.DateTimeFormat("en-US", { ...opts, timeZone }).format(d);
   }
-  return `${new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(d)} UTC`;
+  const utc = new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(d);
+  return opts.timeZoneName ? utc : `${utc} UTC`;
 }
 
 const CALENDAR_DATE: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };

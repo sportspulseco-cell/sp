@@ -3,6 +3,7 @@ import {
   Badge,
   EmptyState,
   Eyebrow,
+  PageHeader,
   TBody,
   TD,
   TH,
@@ -13,7 +14,6 @@ import {
 import type { TeamInvite } from "@sportspulse/api-client";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
 import { PastRosterInvite } from "./past-roster-invite";

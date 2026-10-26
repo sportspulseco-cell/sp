@@ -6,8 +6,7 @@ import {
   type PermissionString,
   type ScopeType
 } from "@sportspulse/kernel";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Input, Select } from "@sportspulse/ui";
 
 /**
  * Role-code picker for the create/edit role form.

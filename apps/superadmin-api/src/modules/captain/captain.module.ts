@@ -7,6 +7,8 @@ import { CaptainRosterController } from "./interface/captain-roster.controller";
 import { ComplianceController } from "./interface/compliance.controller";
 import { TeamJoinRequestsController } from "./interface/team-join-requests.controller";
 import { InviteRemindersCronController } from "./interface/invite-reminders-cron.controller";
+import { SubstituteRequestsController } from "./interface/substitute-requests.controller";
+import { SubstituteRequestsService } from "./application/substitute-requests.service";
 
 /**
  * Workflow 7A Phase 2 · captain console endpoints.
@@ -29,7 +31,10 @@ import { InviteRemindersCronController } from "./interface/invite-reminders-cron
     TeamJoinRequestsController,
     CaptainMessageController,
     // UC-04: automatic invite reminders, called hourly by pg_cron (0075).
-    InviteRemindersCronController
-  ]
+    InviteRemindersCronController,
+    // UC-31 substitute requests (captain, asked player, league admin).
+    SubstituteRequestsController
+  ],
+  providers: [SubstituteRequestsService]
 })
 export class CaptainModule {}

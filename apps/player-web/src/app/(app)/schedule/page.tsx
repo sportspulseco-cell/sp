@@ -4,20 +4,10 @@ import {
   Clock,
   MapPin
 } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { ICalExportButton } from "./ical-button";
 
 export const dynamic = "force-dynamic";

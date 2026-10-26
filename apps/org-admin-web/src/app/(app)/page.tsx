@@ -17,7 +17,7 @@ import {
 import {
   Badge,
   EmptyState,
-  Eyebrow,
+  PageHeader,
   SectionRail,
   StatTile,
   TBody,
@@ -28,7 +28,6 @@ import {
   Table
 } from "@sportspulse/ui";
 import { adminTransfers, gameOps, leagueMgmt, loadMeScope, orgAdminFinance, orgs, registration, registrationV2Admin, roster } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { SeasonFlow } from "@sportspulse/admin-pages";
 
@@ -295,11 +294,8 @@ function statusToneFor(
 
 function ShellWithoutOrg({ message }: { message: string }) {
   return (
-    <section className="mx-auto max-w-3xl space-y-6 px-6 py-16">
-      <Eyebrow>Organization</Eyebrow>
-      <h1 className="text-[36px] font-semibold tracking-tighter text-fg">
-        Org Admin
-      </h1>
+    <section className="space-y-6">
+      <PageHeader eyebrow="Organization" title="Org Admin" />
       <EmptyState
         icon={Building2}
         title="No organization yet"

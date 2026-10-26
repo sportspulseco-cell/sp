@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Shield, X } from "lucide-react";
 import { iam } from "@/lib/api/browser-api";
 import type { Role, RoleAssignment } from "@/lib/api/types";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog } from "@sportspulse/ui";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { resolvePrimaryRole } from "./primary-role";
 

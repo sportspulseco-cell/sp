@@ -81,3 +81,5 @@ export const compliance = api.compliance;
 export const finance = api.finance;
 export const gameOps = api.gameOps;
 export const teamStore = api.teamStore;
+// Substitute requests (UC-31).
+export const subs = api.subs;

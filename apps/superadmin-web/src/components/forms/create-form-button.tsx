@@ -7,13 +7,11 @@ import { fetchAll } from "@sportspulse/api-client";
  * Same shared component the org-admin-web app mounts — no parallel UI.
  */
 
-import { useRouter } from "next/navigation";
 import { CreateFormButton as SharedCreateFormButton } from "@sportspulse/admin-pages";
 import { leagueMgmt, registration } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
 
 export function CreateFormButton({ orgs, defaultOrgId }: { orgs: Org[]; defaultOrgId?: string }) {
-  const router = useRouter();
   return (
     <SharedCreateFormButton
       orgs={orgs.map((o) => ({ id: o.id, displayName: o.displayName }))}
@@ -31,11 +29,7 @@ export function CreateFormButton({ orgs, defaultOrgId }: { orgs: Org[]; defaultO
         return page.items.map((d) => ({ id: d.id, name: d.name }));
       }}
       createForm={(input) => registration.createForm(input)}
-      onCreated={(formId) => {
-        router.push(`/forms/${formId}`);
-        // No router.refresh() here: it can cancel the push and leave the
-        // user on this form (J11). The new page loads fresh server data.
-      }}
+      formHref={(formId) => `/forms/${formId}`}
     />
   );
 }
