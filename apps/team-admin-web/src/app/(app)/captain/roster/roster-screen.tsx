@@ -19,6 +19,7 @@ import {
   Button,
   EmptyState,
   Eyebrow,
+  PageHeader,
   Select,
   TBody,
   TD,
@@ -28,7 +29,6 @@ import {
   Table
 } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { AddPlayerModal } from "./add-player-modal";
 import { DropPlayerModal } from "./drop-player-modal";
 import { InitiateTransferModal } from "./initiate-transfer-modal";

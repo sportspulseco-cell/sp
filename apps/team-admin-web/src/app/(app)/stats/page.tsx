@@ -2,6 +2,8 @@
 import { ChartBar } from "lucide-react";
 import {
   EmptyState,
+  PageHeader,
+  SeasonLeadersBlock,
   TBody,
   TD,
   TH,
@@ -11,8 +13,6 @@ import {
 } from "@sportspulse/ui";
 import type { Standing, StatLine } from "@sportspulse/api-client";
 import { captain, leagueMgmt, loadMeScope, stats } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { SeasonLeadersBlock } from "@sportspulse/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Stats - Team Admin" };
