@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { signatureNameMatches } from "@sportspulse/kernel";
-import { Badge, Button, Field, Input, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, Button, Field, Input, LocalDate } from "@sportspulse/ui";
 import type { WaiverDoc } from "./types";
 
 /**
@@ -119,9 +119,9 @@ export function WaiverCard({
             </Button>
           </div>
           {signError ? (
-            <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+            <Alert tone="error" className="mt-2">
               Couldn't sign: {signError}
-            </p>
+            </Alert>
           ) : null}
         </>
       )}

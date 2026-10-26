@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocalDate } from "@sportspulse/ui";
+import { Alert, useLocalDate } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -109,14 +109,14 @@ export function DivisionPendingApplications({
       </header>
 
       {flash && (
-        <p className="mt-3 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" className="mt-3" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="mt-3 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="mt-3">
           {error}
-        </p>
+        </Alert>
       )}
 
       <ul className="mt-4 space-y-3">

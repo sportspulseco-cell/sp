@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 
 /**
@@ -70,14 +70,10 @@ export function ReviewActions({
       </div>
       <div className="flex items-center gap-2">
         {error ? (
-          <span className="font-mono text-[11px] text-rose-700 dark:text-rose-300">
-            {error}
-          </span>
+          <Alert tone="error" className="py-1">{error}</Alert>
         ) : null}
         {success ? (
-          <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400">
-            Published.
-          </span>
+          <Alert tone="success" role="status" className="py-1">Published.</Alert>
         ) : null}
         <Button type="button" onClick={publish} disabled={!publishable || busy}>
           {busy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}

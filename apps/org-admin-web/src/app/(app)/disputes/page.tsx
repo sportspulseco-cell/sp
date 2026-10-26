@@ -2,11 +2,12 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import { Gavel } from "lucide-react";
-import { EmptyState, SectionRail } from "@sportspulse/ui";
+import { EmptyState, SectionRail, LoadError } from "@sportspulse/ui";
 import { loadMeScope, orgAdminRefundAssessments } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { DisputesScreen } from "./disputes-screen";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,9 +43,8 @@ export default async function DisputesPage({
     );
   }
 
-  const data = await orgAdminRefundAssessments
-    .list({ orgId, status })
-    .catch(() => ({ items: [] }));
+  const dataResult = await load(orgAdminRefundAssessments.list({ orgId, status }));
+  const data = dataResult.ok ? dataResult.data : { items: [] };
 
   return (
     <div className="space-y-12">
@@ -61,11 +61,15 @@ export default async function DisputesPage({
           subtitle="Filtered by status. Decisions made here propagate to the player's wallet / refund channel via the same path Stripe webhooks travel."
           meta={`${data.items.length} ${status}`}
         />
-        <DisputesScreen
-          orgId={orgId}
-          status={status}
-          initialItems={data.items}
-        />
+        {dataResult.ok ? (
+          <DisputesScreen
+            orgId={orgId}
+            status={status}
+            initialItems={data.items}
+          />
+        ) : (
+          <LoadError what="refund disputes" status={dataResult.status} message={dataResult.message} />
+        )}
       </section>
     </div>
   );

@@ -4,7 +4,7 @@ import { centsToAmountInput } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button } from "@sportspulse/ui";
 import type { InvoiceRefundable, Refund } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/browser-api";
 import { fmtMoney, fmtDate } from "../lib/format";
@@ -199,14 +199,14 @@ export function RefundForm({
           </div>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           {success ? (
-            <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+            <Alert tone="success" role="status">
               {success}
-            </p>
+            </Alert>
           ) : null}
 
           <div className="flex items-center gap-2 border-t border-border pt-4">

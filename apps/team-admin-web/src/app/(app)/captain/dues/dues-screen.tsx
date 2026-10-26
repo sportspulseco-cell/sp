@@ -8,7 +8,7 @@ import {
   Download,
   Loader2
 } from "lucide-react";
-import { Badge, Button, Eyebrow } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 type Breakdown = Awaited<ReturnType<typeof finance.captainDuesBreakdown>>;
@@ -426,14 +426,14 @@ export function DuesScreen({
       </section>
 
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {data.subInvoices.length === 0 ? (

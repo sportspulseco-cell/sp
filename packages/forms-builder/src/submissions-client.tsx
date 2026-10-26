@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
-import { Badge, Button, useLocalDate } from "@sportspulse/ui";
+import { Alert, Badge, Button, useLocalDate } from "@sportspulse/ui";
 import type { FormSubmissionRow, FormSubmissions } from "@sportspulse/api-client";
 import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
 import { useFormsBuilderApi } from "./context";
@@ -118,14 +118,14 @@ export function SubmissionsClient({
       />
 
       {error ? (
-        <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {notice ? (
-        <p role="status" className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           {notice}
-        </p>
+        </Alert>
       ) : null}
       {submissions.truncated ? (
         <p className="text-[12px] text-fg-muted">Showing the newest 5,000 submissions.</p>

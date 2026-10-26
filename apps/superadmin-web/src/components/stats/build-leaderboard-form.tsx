@@ -1,6 +1,6 @@
 "use client";
 
-import { LocalDate } from "@sportspulse/ui";
+import { Alert, EmptyState, LocalDate } from "@sportspulse/ui";
 import { useMemo, useState, type FormEvent } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { stats } from "@/lib/api/browser-api";
@@ -198,9 +198,9 @@ export function BuildLeaderboardForm({
           </Field>
         </div>
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? (
@@ -219,17 +219,11 @@ export function BuildLeaderboardForm({
         {result ? (
           <ResultPanel result={result} teamLookup={teamLookup} />
         ) : (
-          <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-            <Sparkles
-              className="h-5 w-5 text-[var(--tint-violet-fg)]"
-              strokeWidth={1.5}
-            />
-            <p className="text-sm font-medium text-fg">No leaderboard yet</p>
-            <p className="max-w-sm text-sm text-fg-muted">
-              Pick a scope and metric, then build to rank players from
-              projected stat lines.
-            </p>
-          </div>
+          <EmptyState
+            icon={Sparkles}
+            title="No leaderboard yet"
+            description="Pick a scope and metric, then build to rank players from projected stat lines."
+          />
         )}
       </div>
     </div>

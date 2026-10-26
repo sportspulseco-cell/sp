@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
-import { Badge, Button, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, Button, LocalDate } from "@sportspulse/ui";
 import { gameOps } from "@/lib/api/browser-api";
 
 type Bucket = "starters" | "bench" | "scratches";
@@ -206,29 +206,29 @@ export function LineupEditor({
       </section>
 
       {suspendedOnRoster.length > 0 ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           Suspended for this game:{" "}
           {suspendedOnRoster.map((p) => `${p.name} (${suspended[p.personId]})`).join(", ")}. They can
           only be scratched.
           {suspendedInSaved.length > 0 && !locked
             ? " Your saved lineup still dresses them; save again to update it."
             : ""}
-        </p>
+        </Alert>
       ) : null}
       {!suspensionsChecked ? (
-        <p className="rounded-md bg-[var(--tint-amber-bg)] px-3 py-2 text-sm text-[var(--tint-amber-fg)]">
+        <Alert tone="warning">
           Could not check suspensions. The lineup is still checked when you save.
-        </p>
+        </Alert>
       ) : null}
       {error && (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface-1">

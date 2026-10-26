@@ -4,7 +4,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button, Skeleton } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import {
   SEASON_REGISTRATION_TYPES,
@@ -241,10 +241,7 @@ export function SeasonSectionForm({
           hint="Seasons are created in Org setup. Pick one to bind this registration form to it; the rest of the wizard reads its config from the selected season."
         >
           {seasonsLoading ? (
-            <div className="flex items-center gap-2 text-[12px] text-fg-muted">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Loading seasons…
-            </div>
+            <div role="status" aria-label="Loading seasons"><Skeleton className="h-9" /></div>
           ) : allSeasons.length === 0 ? (
             <p className="text-[12px] text-fg-muted">
               No seasons in this org yet.{" "}
@@ -352,14 +349,14 @@ export function SeasonSectionForm({
         </Field>
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         {saved ? (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+          <Alert tone="success" role="status">
             Saved.
-          </p>
+          </Alert>
         ) : null}
       </section>
 

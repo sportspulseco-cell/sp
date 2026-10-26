@@ -1,6 +1,6 @@
 "use client";
 
-import { LocalDate } from "@sportspulse/ui";
+import { Alert, LocalDate } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -124,14 +124,14 @@ export function ApplicationsQueue({
   return (
     <div className="space-y-4">
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex flex-wrap items-center gap-3">

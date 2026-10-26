@@ -22,11 +22,13 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  LoadError
 } from "@sportspulse/ui";
 import { communications, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Communications · Org Admin" };
@@ -35,11 +37,10 @@ export default async function CommunicationsPage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
-  const page = orgId
-    ? await communications
-        .listNotifications({ orgId, limit: 100 })
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  const pageResult = orgId
+    ? await load(communications.listNotifications({ orgId, limit: 100 }))
+    : null;
+  const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
 
   const counts = page.items.reduce(
     (acc, n) => {
@@ -121,7 +122,11 @@ export default async function CommunicationsPage() {
           meta={`${page.items.length} loaded`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {page.items.length === 0 ? (
+          {pageResult && !pageResult.ok ? (
+            <div className="p-6">
+              <LoadError what="messages" status={pageResult.status} message={pageResult.message} />
+            </div>
+          ) : page.items.length === 0 ? (
             <div className="px-6 py-12">
               <EmptyState
                 icon={Mail}

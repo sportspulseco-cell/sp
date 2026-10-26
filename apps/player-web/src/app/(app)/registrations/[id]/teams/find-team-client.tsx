@@ -7,7 +7,8 @@ import {
   Badge,
   Button,
   Dialog,
-  DialogActions
+  DialogActions,
+  Alert
 } from "@sportspulse/ui";
 import { registration } from "@/lib/api/browser-api";
 
@@ -63,9 +64,9 @@ export function FindTeamClient({
   return (
     <div className="space-y-3">
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
         {teams.map((t) => {
@@ -189,9 +190,9 @@ function ApplyDialog({
         </span>
       </label>
       {error && (
-        <p className="mt-2 rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[13px] text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="mt-2">
           {error}
-        </p>
+        </Alert>
       )}
       <DialogActions>
         <Button variant="ghost" onClick={onClose} disabled={busy}>

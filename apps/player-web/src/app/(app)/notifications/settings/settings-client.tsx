@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@sportspulse/ui";
 import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { communications } from "@/lib/api/browser-api";
@@ -90,9 +91,9 @@ export function SettingsClient({
   return (
     <div className="space-y-6">
       {error && (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {categories.map(([category, rows]) => (

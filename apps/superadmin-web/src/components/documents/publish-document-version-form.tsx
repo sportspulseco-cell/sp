@@ -6,6 +6,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { compliance } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
+import { Alert } from "@sportspulse/ui";
 
 export function PublishDocumentVersionForm({
   documentId
@@ -75,9 +76,9 @@ export function PublishDocumentVersionForm({
       </div>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <Button type="submit" disabled={loading || !contentHtml} className="w-full">

@@ -27,6 +27,7 @@ import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useOrgRinks } from "./use-org-rinks";
+import { Alert } from "@sportspulse/ui";
 
 /**
  * Game lifecycle actions. Each button shows only when the server says
@@ -84,9 +85,9 @@ export function GameActions({
   return (
     <div className="space-y-3">
       {isDraft ? (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-700 dark:text-amber-300">
+        <Alert tone="warning">
           Draft. Captains and players do not see this game until it is published.
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
@@ -234,14 +235,14 @@ export function GameActions({
       </div>
 
       {notice ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {notice}
-        </p>
+        </Alert>
       ) : null}
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <ApplyScoreDialog
@@ -356,9 +357,9 @@ function StopGameDialog({
             : "This game is a draft. Nobody has been told about it, so nobody is notified."}
         </p>
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         <DialogActions>
           <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
@@ -484,9 +485,9 @@ function FinalizeDialog({
         </fieldset>
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
 
         <DialogActions>
@@ -652,20 +653,20 @@ function RescheduleDialog({
         </Field>
 
         {conflicts.length > 0 ? (
-          <div className="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-800 dark:text-amber-300">
+          <Alert tone="warning" className="space-y-1">
             <p className="font-medium">This move clashes:</p>
             <ul className="list-disc pl-5">
               {conflicts.map((c, i) => (
                 <li key={`${c.gameId}-${i}`}>{c.message}</li>
               ))}
             </ul>
-          </div>
+          </Alert>
         ) : null}
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
 
         <DialogActions>
@@ -777,9 +778,9 @@ function ApplyScoreDialog({
           </Field>
         </div>
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         <DialogActions>
           <Button type="button" variant="ghost" onClick={onClose}>

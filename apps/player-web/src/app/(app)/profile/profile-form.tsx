@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
-import { Badge, Button, LocalDate } from "@sportspulse/ui";
+import { Badge, Button, LocalDate, Alert } from "@sportspulse/ui";
 import type { Profile } from "@sportspulse/api-client";
 import { iam } from "@/lib/api/browser-api";
 
@@ -154,14 +154,14 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         </div>
 
         {error ? (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         {saved ? (
-          <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
+          <Alert tone="success" role="status">
             Saved.
-          </p>
+          </Alert>
         ) : null}
 
         <div className="flex items-center justify-end border-t border-border pt-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, LocalDate, Skeleton } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -213,14 +213,14 @@ export function ReviewQueue() {
       )}
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {/* Table */}
@@ -574,7 +574,7 @@ function ReviewDialog({
     >
       <div className="space-y-4">
         {isOffline && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-800 dark:text-amber-200">
+          <Alert tone="warning" className="flex items-start gap-2">
             <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Offline payment claimed</p>
@@ -586,14 +586,14 @@ function ReviewDialog({
                 . Verify receipt before approving — approving from here marks the registration final.
               </p>
             </div>
-          </div>
+          </Alert>
         )}
         <dl className="divide-y divide-border rounded-md border border-border bg-surface-1 text-sm">
           <Row2 label="Email">{meta.email as string}</Row2>
           <Row2 label="Path">{(meta.submissionType as string) ?? "—"}</Row2>
           <Row2 label="DOB">{(meta.dobDate as string) ?? "—"}</Row2>
           <Row2 label="Tier">
-            {tierId ? (tierName ?? "Loading…") : "—"}
+            {tierId ? (tierName ?? <Skeleton className="inline-block h-3 w-24 align-middle" />) : "—"}
           </Row2>
           {placement ? (
             <Row2 label="Team">
@@ -689,9 +689,9 @@ function ReviewDialog({
         )}
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

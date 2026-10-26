@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type { RinkAddress, RinkRemoval, RinkUsage } from "@sportspulse/api-client";
 import { DATE_FORMATS, formatInZone, isValidTimeZone, utcToZonedWallTime } from "@sportspulse/kernel";
-import { Alert, Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Skeleton } from "@sportspulse/ui";
 import { TIMEZONES } from "../org-setup/steps/league-step";
 
 /**
@@ -212,10 +212,7 @@ export function VenuesPage({ api, orgId, ownableOrgs, loadSeasons }: VenuesPageP
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       {loading && venues.length === 0 ? (
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-          Loading venues…
-        </div>
+        <div role="status" aria-label="Loading venues" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : venues.length === 0 && !showCreate ? (
         <EmptyState
           icon={Building2}
@@ -328,10 +325,7 @@ function CreateVenueForm({
           </Field>
         ) : orgsLoading ? (
           <Field label="Organization">
-            <p className="flex h-9 items-center gap-2 text-[12px] text-fg-muted">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-              Loading organisations…
-            </p>
+            <div role="status" aria-label="Loading organizations"><Skeleton className="h-9" /></div>
           </Field>
         ) : null}
         <Field label="Rink name">
@@ -341,7 +335,7 @@ function CreateVenueForm({
           <TimeZoneSelect value={timezone} onChange={setTimezone} disabled={busy} />
         </Field>
       </div>
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
         <Button
@@ -455,7 +449,7 @@ function VenueRow({
               onSaved={(msg) => { setPanel(null); onNotice(msg); onChange(); void loadDetail(); }}
             />
           ) : (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading" className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           )}
         </div>
       ) : null}
@@ -490,9 +484,9 @@ function VenueRow({
             />
           ) : null}
           {loading && !surfaces ? (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading" className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           ) : surfaces && surfaces.length === 0 ? (
-            <p className="text-[12px] text-fg-muted">No surfaces yet. Add one above.</p>
+            <EmptyState icon={Snowflake} eyebrow="surfaces" title="No surfaces yet" description="Add a surface above. Ice slots and games attach to a surface." />
           ) : (
             <ul className="space-y-2">
               {(surfaces ?? []).map((s) => (
@@ -683,7 +677,7 @@ function AddSurfaceForm({
       <Field label="Surface label" hint='e.g. "Rink A", "Blue Sheet"'>
         <Input value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} autoFocus />
       </Field>
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
         <Button
@@ -836,9 +830,9 @@ function SurfaceRow({
             />
           ) : null}
           {loading && !slots ? (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading" className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           ) : !slots || slots.length === 0 ? (
-            <p className="text-[12px] text-fg-muted">No ice slots yet. Add a weekly recurrence to fill a season quickly.</p>
+            <EmptyState icon={Snowflake} eyebrow="ice slots" title="No ice slots yet" description="Add a weekly recurrence to fill a season quickly." />
           ) : (
             <ul className="space-y-1.5 max-h-72 overflow-y-auto">
               {slots.map((s) => (
@@ -1079,7 +1073,7 @@ function SingleSlotForm({
         <BandField value={band} onChange={setBand} disabled={busy} />
       </div>
       <PlayoffField checked={playoff} onChange={setPlayoff} disabled={busy} />
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
         <Button
@@ -1178,11 +1172,11 @@ function BulkSlotForm({
       </div>
       <PlayoffField checked={playoff} onChange={setPlayoff} disabled={busy} />
       {result ? (
-        <p className="text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           Created {result.created} slot{result.created === 1 ? "" : "s"}, skipped {result.skipped} (already existed).
-        </p>
+        </Alert>
       ) : null}
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Done</Button>
         <Button

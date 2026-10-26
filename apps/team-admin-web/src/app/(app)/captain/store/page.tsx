@@ -1,9 +1,10 @@
 import { Star } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import { loadMeScope, teamStore } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { StoreManager } from "./store-manager";
 import { StoreOrders } from "./store-orders";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,9 +33,8 @@ export default async function CaptainStorePage() {
     );
   }
 
-  const initial = await teamStore
-    .listForCaptain(myTeamId)
-    .catch(() => ({ items: [] }));
+  const initialResult = await load(teamStore.listForCaptain(myTeamId));
+  const initial = initialResult.ok ? initialResult.data : { items: [] };
 
   return (
     <div className="space-y-6">
@@ -43,7 +43,11 @@ export default async function CaptainStorePage() {
         title="Team store"
         description="Your team's gear. Players on the roster order it in their app and pay on their Payments page."
       />
-      <StoreManager teamId={myTeamId} initialItems={initial.items} />
+      {initialResult.ok ? (
+        <StoreManager teamId={myTeamId} initialItems={initial.items} />
+      ) : (
+        <LoadError what="your team store" status={initialResult.status} message={initialResult.message} />
+      )}
       <StoreOrders teamId={myTeamId} />
     </div>
   );

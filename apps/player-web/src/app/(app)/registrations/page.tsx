@@ -9,7 +9,8 @@ import {
   Trophy,
   Users
 } from "lucide-react";
-import { Badge, EmptyState, LocalDate } from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError, LocalDate } from "@sportspulse/ui";
+import { load } from "@sportspulse/api-client";
 import { registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -57,11 +58,8 @@ function statusCopy(status: string): string {
 }
 
 export default async function MyRegistrationsPage() {
-  const page = await registration
-    .listMyRegistrations()
-    .catch(() => ({ items: [] as Row[] }));
-
-  const items: Row[] = page.items ?? [];
+  const result = await load(registration.listMyRegistrations());
+  const items: Row[] = result.ok ? (result.data.items ?? []) : [];
   const sorted = items.slice().sort((a, b) => {
     const at = a.submittedAt ?? a.createdAt;
     const bt = b.submittedAt ?? b.createdAt;
@@ -76,7 +74,9 @@ export default async function MyRegistrationsPage() {
         description="Every registration you've submitted across leagues. Drafts can be resumed; approved ones unlock the rest of the dashboard."
       />
 
-      {sorted.length === 0 ? (
+      {!result.ok ? (
+        <LoadError what="your registrations" status={result.status} message={result.message} />
+      ) : sorted.length === 0 ? (
         <EmptyState
           icon={ScrollText}
           title="No registrations yet"

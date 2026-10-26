@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { fetchAll } from "@sportspulse/api-client";
-import { Combobox } from "@sportspulse/ui";
+import { Alert, Combobox } from "@sportspulse/ui";
 import { gameOps, leagueMgmt } from "@/lib/api/browser-api";
 import type { Division, League, Season, Team } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
@@ -454,13 +454,13 @@ function CreateGameDialog({
         </label>
 
         {loadError ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {loadError}
-          </p>
+          </Alert>
         ) : null}
 
         {clash ? (
-          <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-800 dark:text-amber-300">
+          <Alert tone="warning" className="space-y-2">
             <p>{clash}</p>
             <Field label="Reason" htmlFor="clashReason" hint="Required to schedule over the clash. Kept on the game.">
               <Input
@@ -471,13 +471,13 @@ function CreateGameDialog({
                 maxLength={500}
               />
             </Field>
-          </div>
+          </Alert>
         ) : null}
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
 
         <DialogActions>

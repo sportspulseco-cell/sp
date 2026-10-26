@@ -3,7 +3,7 @@ import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import { Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { ROSTER_DROP_REASON_MIN_CHARS } from "@sportspulse/kernel";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
@@ -131,9 +131,9 @@ export function InitiateTransferModal({
         </label>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@sportspulse/ui";
 
 const STATUSES: EligibilityStatus[] = [
   "pending",
@@ -165,9 +166,9 @@ export function CreateEligibilityButton({
           </Field>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

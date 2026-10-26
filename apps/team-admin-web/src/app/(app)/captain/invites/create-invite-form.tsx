@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, Mail, Plus } from "lucide-react";
-import { Button, Field, Input, Select } from "@sportspulse/ui";
+import { Alert, Button, Field, Input, Select } from "@sportspulse/ui";
 import { registrationV2 } from "@/lib/api/browser-api";
 
 /**
@@ -163,14 +163,14 @@ export function CreateInviteForm({
         </Button>
       </div>
       {err ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)] sm:col-span-4">
+        <Alert tone="error" className="sm:col-span-4">
           {err}
-        </p>
+        </Alert>
       ) : null}
       {okMsg ? (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)] sm:col-span-4">
+        <Alert tone="success" role="status" className="sm:col-span-4">
           {okMsg}
-        </p>
+        </Alert>
       ) : null}
     </form>
   );

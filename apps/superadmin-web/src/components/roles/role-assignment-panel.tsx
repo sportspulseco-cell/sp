@@ -1,6 +1,6 @@
 "use client";
 import { fetchAll } from "@sportspulse/api-client";
-import { LocalDate } from "@sportspulse/ui";
+import { Alert, LocalDate } from "@sportspulse/ui";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -486,14 +486,14 @@ export function RoleAssignmentPanel({
         )}
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
         {flash && (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-400">
+          <Alert tone="success" role="status">
             {flash}
-          </p>
+          </Alert>
         )}
 
         {renderedMessage && (

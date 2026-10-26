@@ -8,7 +8,18 @@ import {
   TrendingUp, XCircle
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, Field, Input, TBody, TD, TH, THead, TR, Table
+  Badge,
+  Button,
+  EmptyState,
+  Field,
+  Input,
+  Skeleton,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -120,10 +131,7 @@ export function SchedulingParityWindows({ seasonId }: Props) {
 
   if (loading && windows.length === 0) {
     return (
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-        Loading parity windows…
-      </div>
+      <div role="status" aria-label="Loading parity windows" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
 
@@ -371,10 +379,7 @@ function ReviewPane({ seasonId, windowId, readOnly, onApplied }: ReviewPaneProps
 
   if (loading) {
     return (
-      <div className="p-4 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        <Loader2 className="inline h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />{" "}
-        Loading recommendations…
-      </div>
+      <div role="status" aria-label="Loading recommendations" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
 

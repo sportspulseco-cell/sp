@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { iam } from "@/lib/api/browser-api";
@@ -86,9 +87,10 @@ export function UserTypeCell({
         size="lg"
       >
         {loadingDialog && (
-          <div className="flex items-center gap-2 py-6 text-[13px] text-fg-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading…
+          <div className="space-y-2 py-4" aria-busy="true">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
           </div>
         )}
         {!loadingDialog && roles !== null && (

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
-import { Badge, Button, Dialog, DialogActions, Eyebrow, LocalDate } from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, EmptyState, Eyebrow, LocalDate, Alert } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import {
   formatMoney,
@@ -126,9 +126,9 @@ export function StoreClient({
         </div>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       {cart.length > 0 ? (
@@ -205,7 +205,11 @@ export function StoreClient({
         <section className="space-y-3">
           <Eyebrow>Your orders</Eyebrow>
           {orders.length === 0 ? (
-            <p className="text-sm text-fg-muted">No orders yet.</p>
+            <EmptyState
+              icon={ShoppingBag}
+              title="No orders yet"
+              description="Items you order from the team store show here."
+            />
           ) : (
             <ul className="space-y-3">
               {orders.map((o) => (
@@ -342,7 +346,7 @@ function PickDialog({
           </p>
         ) : null}
         {error ? (
-          <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">{error}</p>
+          <Alert tone="error">{error}</Alert>
         ) : null}
         <DialogActions>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

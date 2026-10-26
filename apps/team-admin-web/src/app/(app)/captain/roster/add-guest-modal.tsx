@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
-import { Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions } from "@sportspulse/ui";
 import type { Person } from "@sportspulse/api-client";
 import { captain, iam } from "@/lib/api/browser-api";
 
@@ -180,9 +180,9 @@ export function AddGuestModal({
         </p>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

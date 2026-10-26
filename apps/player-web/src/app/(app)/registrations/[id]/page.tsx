@@ -15,7 +15,7 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { Badge, Eyebrow, LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError, LocalDate, Alert } from "@sportspulse/ui";
 import type { ReactNode } from "react";
 import { registration } from "@/lib/api/server-api";
 import { LegacyDivisionPrompt } from "./legacy-division-prompt";
@@ -196,10 +196,10 @@ export default async function RegistrationDetailPage({
               </StepFuture>
             </ol>
           ) : isRejected ? (
-            <p className="rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 py-2 text-[13px] text-fg dark:bg-[var(--tint-rose-bg)]">
+            <Alert tone="error">
               Contact your league admin to discuss the decision. You can submit
               a fresh registration for a different season.
-            </p>
+            </Alert>
           ) : (
             <ol className="space-y-2 text-[13px]">
               <StepDone>Registration submitted</StepDone>

@@ -1,7 +1,7 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
 import { formatCalendarDate, statusLabel } from "@sportspulse/kernel";
-import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, LoadError } from "@sportspulse/ui";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -32,10 +32,11 @@ export default async function CaptainCompliancePage() {
   }
 
   // Team-scoped endpoints: only this team's roster, with names.
-  const [records, suspended] = await Promise.all([
-    compliance.teamEligibility(myTeamId).catch(() => ({ items: [] })),
+  const [recordsResult, suspended] = await Promise.all([
+    load(compliance.teamEligibility(myTeamId)),
     load(compliance.teamSuspensions(myTeamId))
   ]);
+  const records = recordsResult.ok ? recordsResult.data : { items: [] };
   const suspendedItems = suspended.ok ? suspended.data.items : [];
 
   const counts = {
@@ -122,7 +123,9 @@ export default async function CaptainCompliancePage() {
         />
       </div>
 
-      {records.items.length === 0 ? (
+      {!recordsResult.ok ? (
+        <LoadError what="your team's eligibility" status={recordsResult.status} message={recordsResult.message} />
+      ) : records.items.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}
           title="No compliance records yet"

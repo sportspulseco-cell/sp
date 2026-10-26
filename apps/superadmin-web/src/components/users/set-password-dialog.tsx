@@ -6,6 +6,7 @@ import { iam } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
+import { Alert } from "@sportspulse/ui";
 
 export function SetPasswordDialog({
   open,
@@ -63,14 +64,14 @@ export function SetPasswordDialog({
           />
         </Field>
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
         {flash && (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+          <Alert tone="success" role="status">
             {flash}
-          </p>
+          </Alert>
         )}
         <DialogActions>
           <Button type="button" variant="ghost" onClick={onClose}>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 const AUDIENCES = [
@@ -110,12 +110,12 @@ export function TeamMessageForm({ teamId, teamName }: { teamId: string; teamName
         <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} rows={6} className={box} />
       </label>
       {error ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">{error}</p>
+        <Alert tone="error">{error}</Alert>
       ) : null}
       {result ? (
-        <p role="status" className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {result}
-        </p>
+        </Alert>
       ) : null}
       <div className="flex justify-end">
         <Button onClick={send} disabled={!valid || busy}>

@@ -46,10 +46,18 @@ export default async function FreeAgentPoolPage() {
   // has somewhere to start.
   let eligibleSeasons: Season[] = [];
   if (orgId) {
-    const seasonsPage = await fetchAll((cursor) => leagueMgmt
-      .listSeasons({ orgId, limit: 100, cursor }))
-      .catch(() => ({ items: [] as Season[], nextCursor: null }));
-    eligibleSeasons = (seasonsPage.items ?? [])
+    // A failed load is shown as an error, never as "No open seasons".
+    const seasonsResult = await load(fetchAll((cursor) => leagueMgmt
+      .listSeasons({ orgId, limit: 100, cursor })));
+    if (!seasonsResult.ok) {
+      return (
+        <div className="space-y-6">
+          <PageHeader eyebrow="Find a team" title="Join the free-agent pool" />
+          <LoadError what="open seasons" status={seasonsResult.status} message={seasonsResult.message} />
+        </div>
+      );
+    }
+    eligibleSeasons = (seasonsResult.data.items ?? [])
       .filter(
         (s) => s.status === "registration_open" || s.status === "in_progress"
       )

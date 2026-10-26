@@ -13,7 +13,7 @@ import {
   Sparkles,
   XCircle
 } from "lucide-react";
-import { Badge, EmptyState, Eyebrow, LocalDate } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, LocalDate, LoadError } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate, sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -22,6 +22,7 @@ import {
   rejectionOf
 } from "@/lib/registration-call";
 import { WithdrawButton } from "./withdraw-button";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -68,10 +69,13 @@ export default async function CaptainRegisterPage({
   const team = await leagueMgmt.getTeam(teamId).catch(() => null);
   const teamName = team?.name ?? "Your team";
 
-  const [openSeasons, applications] = await Promise.all([
-    captain.openSeasons(teamId).catch(() => ({ items: [] })),
-    captain.myApplications(teamId).catch(() => ({ items: [] }))
+  const [openResult, applicationsResult] = await Promise.all([
+    load(captain.openSeasons(teamId)),
+    load(captain.myApplications(teamId))
   ]);
+  const openSeasons = openResult.ok ? openResult.data : { items: [] };
+  const applications = applicationsResult.ok ? applicationsResult.data : { items: [] };
+  const loadFailure = !applicationsResult.ok ? applicationsResult : !openResult.ok ? openResult : null;
 
   if (submitted) {
     const justSubmitted = applications.items.find(
@@ -143,6 +147,14 @@ export default async function CaptainRegisterPage({
         description="Your applications by season, and the open seasons your team can still register for."
       />
 
+      {loadFailure ? (
+        <LoadError
+          what={!applicationsResult.ok ? "your applications" : "open seasons"}
+          status={loadFailure.status}
+          message={loadFailure.message}
+        />
+      ) : null}
+
       {approvedApps.map((a) => (
         <ApprovedDetailCard key={a.id} teamName={teamName} app={a} />
       ))}
@@ -157,7 +169,7 @@ export default async function CaptainRegisterPage({
       ))}
 
       {otherOpen.length === 0 ? (
-        !hasCards && (
+        !hasCards && !loadFailure && (
           <EmptyState
             icon={Sparkles}
             title="No open registrations"

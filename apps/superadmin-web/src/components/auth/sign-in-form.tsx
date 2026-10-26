@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@sportspulse/ui";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Info, Loader2 } from "lucide-react";
@@ -86,13 +87,10 @@ export function SignInForm() {
   ) {
     return (
       <div className="space-y-5">
-        <p
-          role="status"
-          className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
-        >
+        <Alert tone="warning" role="status" className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           {ERROR_MESSAGES.wrong_role}
-        </p>
+        </Alert>
         <div className="rounded-md border border-border bg-surface-1 px-4 py-3">
           <p className="text-[11px] font-mono uppercase tracking-wide text-fg-muted">
             Currently signed in as
@@ -131,13 +129,10 @@ export function SignInForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       {banner ? (
-        <p
-          role="status"
-          className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
-        >
+        <Alert tone="warning" role="status" className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
           {banner}
-        </p>
+        </Alert>
       ) : null}
       <div className="space-y-2">
         <Label

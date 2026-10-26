@@ -2,7 +2,7 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import { ScrollText } from "lucide-react";
-import { EmptyState, SectionRail } from "@sportspulse/ui";
+import { EmptyState, SectionRail, LoadError } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
 import { compliance, loadMeScope, registrationV2Admin } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,11 +20,10 @@ export default async function RegistrationsPage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
-  const page = orgId
-    ? await registrationV2Admin
-        .listSubmissions({ orgId, limit: 200 })
-        .catch(() => ({ items: [] }))
-    : { items: [] };
+  const pageResult = orgId
+    ? await load(registrationV2Admin.listSubmissions({ orgId, limit: 200 }))
+    : null;
+  const page = pageResult?.ok ? pageResult.data : { items: [] };
 
   // COMP-1: uploaded ID / eligibility documents waiting for a decision.
   const documentsResult = await load(compliance.listDocumentSubmissions({ status: "pending" }));
@@ -50,7 +49,11 @@ export default async function RegistrationsPage() {
           meta={`${pending} pending · ${page.items.length} total`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {page.items.length === 0 ? (
+          {pageResult && !pageResult.ok ? (
+            <div className="p-6">
+              <LoadError what="registrations" status={pageResult.status} message={pageResult.message} />
+            </div>
+          ) : page.items.length === 0 ? (
             <div className="px-6 py-12">
               <EmptyState
                 icon={ScrollText}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@sportspulse/ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Layers, Loader2 } from "lucide-react";
@@ -91,9 +92,9 @@ export function LegacyDivisionPrompt({
       </div>
 
       {error && (
-        <p className="mt-3 rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="mt-3">
           {error}
-        </p>
+        </Alert>
       )}
     </section>
   );

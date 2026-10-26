@@ -13,6 +13,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { adminTransfers } from "@/lib/api/browser-api";
+import { Alert } from "@sportspulse/ui";
 
 type Season = { id: string; name: string; leagueId: string; status: string };
 type Item = {
@@ -129,9 +130,9 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
       </div>
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {ran && items.length === 0 && !busy && (

@@ -15,6 +15,7 @@ import type { Role, RoleScopeType } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@sportspulse/ui";
 
 // Scope codes and their human labels come from the kernel catalogue so
 // this panel and the invite dialog can never drift (SETUP-7).
@@ -317,14 +318,14 @@ export function AssignRolePanel({
       </div>
 
       {error ? (
-        <p className="lg:col-span-4 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="lg:col-span-4">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {success ? (
-        <p className="lg:col-span-4 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" className="lg:col-span-4" role="status">
           {success}
-        </p>
+        </Alert>
       ) : null}
     </form>
   );

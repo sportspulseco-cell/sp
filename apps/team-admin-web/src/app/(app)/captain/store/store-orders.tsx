@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Package } from "lucide-react";
-import { Badge, Button, EmptyState, Eyebrow, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import { formatMoney } from "@sportspulse/kernel";
 import { teamStore } from "@/lib/api/browser-api";
@@ -63,10 +63,10 @@ export function StoreOrders({ teamId }: { teamId: string }) {
         ) : null}
       </div>
       {flash ? (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">{flash}</p>
+        <Alert tone="success" role="status">{flash}</Alert>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">{error}</p>
+        <Alert tone="error">{error}</Alert>
       ) : null}
       {orders === null ? (
         <p className="text-sm text-fg-muted">Loading orders…</p>

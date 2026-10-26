@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@sportspulse/ui";
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Info, Loader2 } from "lucide-react";
@@ -102,12 +103,7 @@ export function SignUpForm() {
       </div>
 
       {error ? (
-        <p
-          role="alert"
-          className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400"
-        >
-          {error}
-        </p>
+        <Alert tone="error">{error}</Alert>
       ) : null}
 
       <Button type="submit" disabled={loading} pill size="lg" className="w-full gap-2">

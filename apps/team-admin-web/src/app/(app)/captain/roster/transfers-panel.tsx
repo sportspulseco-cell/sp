@@ -2,19 +2,7 @@
 
 import { useState } from "react";
 import { ArrowRightLeft, Check, Loader2, X } from "lucide-react";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Eyebrow,
-  LocalDate,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate, Table, TBody, TD, TH, THead, TR } from "@sportspulse/ui";
 import type { TransferRequest } from "@sportspulse/api-client";
 import { ROSTER_DROP_REASON_MIN_CHARS, TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
 import { captain } from "@/lib/api/browser-api";
@@ -80,9 +68,9 @@ export function TransfersPanel({
   return (
     <div className="space-y-6">
       {error ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <section className="rounded-xl border border-border bg-surface-1">

@@ -19,7 +19,7 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button } from "@sportspulse/ui";
 import type { Org, Profile, Sport } from "@/lib/api/types";
 import { iam, leagueMgmt } from "@/lib/api/browser-api";
 import { Field, Input } from "@/components/ui/input";
@@ -236,7 +236,7 @@ export function NewTeamForm({
           </Field>
 
           {existingTeamId ? (
-            <div className="flex items-center justify-between gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+            <Alert tone="warning" className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
                 A team with this name already exists in this organisation.
@@ -248,7 +248,7 @@ export function NewTeamForm({
                 Use existing team
                 <ArrowRight className="h-3 w-3" strokeWidth={2} />
               </Link>
-            </div>
+            </Alert>
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -403,9 +403,9 @@ export function NewTeamForm({
         </Section>
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
 
         <footer className="flex items-center justify-end gap-3 border-t border-border pt-6">

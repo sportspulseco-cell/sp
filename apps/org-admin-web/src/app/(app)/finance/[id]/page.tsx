@@ -1,9 +1,9 @@
 import { formatCalendarDate, formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Receipt } from "lucide-react";
 import { isNotFound, load } from "@sportspulse/api-client";
-import { Badge, LoadError, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { orgAdminFinance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -81,7 +81,11 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
       <section className="space-y-2">
         <h2 className="text-[15px] font-semibold text-fg">Payments</h2>
         {payments.length === 0 ? (
-          <p className="text-[13px] text-fg-muted">No payments yet. Record an offline payment from the Finance list.</p>
+          <EmptyState
+            icon={Receipt}
+            title="No payments yet"
+            description="Record an offline payment from the Finance list."
+          />
         ) : (
           <Table>
             <THead>

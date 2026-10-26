@@ -7,6 +7,7 @@ import type { Role, RoleAssignment } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { resolvePrimaryRole } from "./primary-role";
+import { Alert, Skeleton } from "@sportspulse/ui";
 
 /**
  * Per-row role manager for /users.
@@ -86,15 +87,16 @@ export function ManageUserRolesCell({
         size="lg"
       >
         {loading && (
-          <div className="flex items-center gap-2 py-6 text-[13px] text-fg-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading…
+          <div className="space-y-2 py-4" aria-busy="true">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
           </div>
         )}
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
         {!loading && !error && assignments !== null && roles !== null && (
           <div className="space-y-5">

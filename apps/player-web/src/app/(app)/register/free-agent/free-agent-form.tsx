@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, ShieldCheck, Star } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Badge, Button, Alert } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
 import { registrationV2 } from "@/lib/api/browser-api";
 import {
@@ -365,15 +365,15 @@ export function FreeAgentForm({
       </fieldset>
 
       {error ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       {success ? (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {existing ? "Entry updated." : "You're in the pool — captains can see you now."}
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">

@@ -1,5 +1,5 @@
-import { ShieldAlert } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
@@ -19,21 +19,22 @@ export const revalidate = 0;
 export const metadata = { title: "Profile — SportsPulse" };
 
 export default async function Page() {
-  const profile = await iam.me().catch(() => null);
+  const profileResult = await load(iam.me());
+  const profile = profileResult.ok ? profileResult.data : null;
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
   const roleCode = playerProfileRole((user?.app_metadata?.role_codes ?? []) as string[]);
 
-  if (!profile) {
+  if (!profileResult.ok || !profile) {
     return (
       <div className="space-y-6">
         <PageHeader eyebrow="PROFILE" title="Profile" />
-        <EmptyState
-          icon={ShieldAlert}
-          title="Sign in expired"
-          description="Couldn't load your profile. Sign in again to continue."
+        <LoadError
+          what="your profile"
+          status={profileResult.ok ? null : profileResult.status}
+          message={profileResult.ok ? undefined : profileResult.message}
         />
       </div>
     );

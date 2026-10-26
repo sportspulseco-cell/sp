@@ -10,7 +10,7 @@ import {
   type FormDefinition,
   type FormQuestion
 } from "@sportspulse/kernel";
-import { Button, Eyebrow } from "@sportspulse/ui";
+import { Alert, Button, Eyebrow } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 
 /**
@@ -227,9 +227,9 @@ export function OnboardingFunnel({
               We'll save your profile and take you to the {roleDef?.name ?? "app"} home.
             </p>
             {error && (
-              <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+              <Alert tone="error">
                 {error}
-              </p>
+              </Alert>
             )}
             <div className="flex justify-center gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={back} disabled={submitting}>

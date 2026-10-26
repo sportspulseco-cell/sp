@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@sportspulse/ui";
+import { Alert, Badge } from "@sportspulse/ui";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Flag } from "lucide-react";
@@ -299,17 +299,17 @@ function AssignForm({
         </Button>
       </div>
       {clash ? (
-        <div className="md:col-span-5 flex flex-wrap items-center gap-3 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+        <Alert tone="warning" className="md:col-span-5 flex flex-wrap items-center gap-3">
           <span>{clash}</span>
           <Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void submit(true)}>
             Assign anyway
           </Button>
-        </div>
+        </Alert>
       ) : null}
       {error ? (
-        <p className="md:col-span-5 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="md:col-span-5">
           {error}
-        </p>
+        </Alert>
       ) : null}
     </form>
   );

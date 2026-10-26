@@ -7,6 +7,7 @@ import { iam } from "@/lib/api/browser-api";
 import type { RoleAssignment } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
+import { Alert } from "@sportspulse/ui";
 
 /**
  * In-row "Assign admin" cell for hierarchical list pages
@@ -91,9 +92,9 @@ export function AssignAdminCell({
           </div>
         )}
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
         {!loading && !error && assignments !== null && (
           <RoleAssignmentPanel

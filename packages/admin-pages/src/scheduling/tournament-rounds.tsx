@@ -6,7 +6,7 @@ import {
   ArrowDown, ArrowRight, ArrowUp, ChevronsRight, Layers,
   Loader2, RefreshCw, Trophy, XCircle, Zap
 } from "lucide-react";
-import { Badge, Button, EmptyState, Field, Input, Select } from "@sportspulse/ui";
+import { Badge, Button, EmptyState, Field, Input, Select, Skeleton } from "@sportspulse/ui";
 import {
   scheduler,
   type TournamentRoundView,
@@ -121,10 +121,7 @@ export function SchedulingTournament({ seasonId, divisions, teams }: Props) {
       )}
 
       {loading && rounds.length === 0 ? (
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-          Loading rounds…
-        </div>
+        <div role="status" aria-label="Loading rounds" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : rounds.length === 0 ? (
         <EmptyState
           icon={Trophy}

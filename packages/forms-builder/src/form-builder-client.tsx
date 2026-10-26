@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Plus, Send } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button } from "@sportspulse/ui";
 import {
   defaultWaiversConfig,
   emptyFormDefinition,
@@ -235,11 +235,13 @@ export function FormBuilderClient({
           <FormBuilder value={schema} onChange={setSchema} initialPreview={previewRequested} />
         </div>
         {issues.length > 0 ? (
-          <ul className="space-y-1 rounded-md bg-rose-500/10 px-4 py-3 text-[12px] text-rose-700 dark:text-rose-300">
-            {issues.slice(0, 5).map((iss, i) => (
-              <li key={i}>{iss}</li>
-            ))}
-          </ul>
+          <Alert tone="error">
+            <ul className="space-y-1">
+              {issues.slice(0, 5).map((iss, i) => (
+                <li key={i}>{iss}</li>
+              ))}
+            </ul>
+          </Alert>
         ) : null}
       </section>
 
@@ -291,14 +293,14 @@ export function FormBuilderClient({
       </section>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {success ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           {success}
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex items-center justify-end gap-3 border-t border-border pt-4">

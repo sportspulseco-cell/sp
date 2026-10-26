@@ -9,12 +9,13 @@ import {
   type LucideIcon
 } from "lucide-react";
 import {
+  Alert,
   Button,
+  cn,
   Eyebrow,
   Field,
   Input,
-  Select,
-  cn
+  Select
 } from "@sportspulse/ui";
 
 /**
@@ -476,12 +477,9 @@ function BulletItem({ children }: { children: React.ReactNode }) {
 function ErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p
-      role="alert"
-      className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400"
-    >
+    <Alert tone="error">
       {message}
-    </p>
+    </Alert>
   );
 }
 

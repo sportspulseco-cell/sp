@@ -11,12 +11,13 @@ import {
   LoadError,
   LocalDate,
   Select,
+  Skeleton,
+  Table,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table,
   useLocalDate
 } from "@sportspulse/ui";
 import {
@@ -197,7 +198,7 @@ export function DocumentReviewQueue({
       {error ? (
         <LoadError what="the documents to review" status={error.status} message={error.message} />
       ) : !page ? (
-        <p className="text-[13px] text-fg-muted">Loading…</p>
+        <div role="status" aria-label="Loading documents" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : page.items.length === 0 ? (
         <EmptyState
           icon={FileCheck2}

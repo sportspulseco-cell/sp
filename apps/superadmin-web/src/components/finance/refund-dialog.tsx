@@ -9,6 +9,7 @@ import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/components/finance/money";
 import { finance } from "@/lib/api/browser-api";
+import { Alert } from "@sportspulse/ui";
 
 type RefundKind = "gateway" | "wallet";
 
@@ -230,9 +231,9 @@ export function RefundDialog({
         </div>
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
       </div>
 

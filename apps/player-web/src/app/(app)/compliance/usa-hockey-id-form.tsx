@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
-import { Button, Dialog } from "@sportspulse/ui";
+import { Button, Dialog, Alert } from "@sportspulse/ui";
 import {
   GOVERNING_BODY_ID_RULES,
   validateGoverningBodyId
@@ -100,15 +100,15 @@ export function UsaHockeyIdForm() {
           </div>
 
           {error ? (
-            <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           {success ? (
-            <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
+            <Alert tone="success" role="status">
               Submitted — pending admin verification.
-            </p>
+            </Alert>
           ) : null}
 
           <div className="flex items-center justify-end gap-2 border-t border-border pt-3">

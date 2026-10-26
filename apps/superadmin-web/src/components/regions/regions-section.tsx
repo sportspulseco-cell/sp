@@ -1,4 +1,6 @@
 import { MapPin } from "lucide-react";
+import { LoadError } from "@sportspulse/ui";
+import { load } from "@sportspulse/api-client";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -10,7 +12,7 @@ import { RegionsPanel } from "./regions-panel";
  * season of the org; divisions point at them.
  */
 export async function RegionsSection({ orgId, orgName }: { orgId: string; orgName: string }) {
-  const regions = await leagueMgmt.listRegions({ orgId }).catch(() => ({ items: [] }));
+  const regionsResult = await load(leagueMgmt.listRegions({ orgId }));
   return (
     <section className="rounded-xl border border-border bg-surface-1">
       <header className="flex items-start gap-3 border-b border-border px-6 py-4">
@@ -26,7 +28,11 @@ export async function RegionsSection({ orgId, orgName }: { orgId: string; orgNam
         </div>
       </header>
       <div className="px-6 py-5">
-        <RegionsPanel orgId={orgId} initial={regions.items} />
+        {regionsResult.ok ? (
+          <RegionsPanel orgId={orgId} initial={regionsResult.data.items} />
+        ) : (
+          <LoadError what="regions" status={regionsResult.status} message={regionsResult.message} />
+        )}
       </div>
     </section>
   );

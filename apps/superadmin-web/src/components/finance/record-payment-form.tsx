@@ -9,6 +9,7 @@ import type { PaymentMethod } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@sportspulse/ui";
 
 const METHODS: PaymentMethod[] = [
   "cash",
@@ -102,9 +103,9 @@ export function RecordPaymentForm({
       </Field>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <Button type="submit" disabled={loading} className="w-full">

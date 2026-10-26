@@ -13,7 +13,7 @@ import {
   User,
   Users
 } from "lucide-react";
-import { Badge } from "@sportspulse/ui";
+import { Alert, Badge } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 type Division = {
@@ -91,9 +91,9 @@ export function DivisionPicker({
       </ul>
 
       {error && (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="sticky bottom-4 z-10 mt-6 flex flex-col gap-3 rounded-xl border border-border bg-surface-1/95 p-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">

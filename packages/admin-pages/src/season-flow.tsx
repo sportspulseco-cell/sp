@@ -1,5 +1,6 @@
 import { DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
+import { CalendarRange } from "lucide-react";
 import type {
   Division,
   Game,
@@ -11,7 +12,7 @@ import type {
   TeamMembership
 } from "@sportspulse/api-client";
 import { fetchAll } from "@sportspulse/api-client";
-import { Badge } from "@sportspulse/ui";
+import { Badge, EmptyState } from "@sportspulse/ui";
 
 /**
  * "Where each season stands": the operator's home in both admin apps.
@@ -311,16 +312,20 @@ export async function SeasonFlow({
       </div>
 
       {reads.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-surface-1 p-8 text-center">
-          <p className="text-sm font-semibold text-fg">No live season yet</p>
-          <p className="mt-1 text-sm text-fg-muted">Org setup creates the league, season and divisions in four steps.</p>
-          <Link
-            href={links.orgSetup}
-            className="mt-4 inline-flex rounded-md bg-fg px-3 py-1.5 text-[13px] font-medium text-bg"
-          >
-            Start a season
-          </Link>
-        </div>
+        <EmptyState
+          icon={CalendarRange}
+          eyebrow="seasons"
+          title="No live season yet"
+          description="Org setup creates the league, season and divisions in four steps."
+          action={
+            <Link
+              href={links.orgSetup}
+              className="inline-flex rounded-md bg-fg px-3 py-1.5 text-[13px] font-medium text-bg"
+            >
+              Start a season
+            </Link>
+          }
+        />
       ) : (
         <div className="grid gap-4">
           {reads.map((r) => (

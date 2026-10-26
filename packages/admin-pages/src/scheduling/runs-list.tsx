@@ -5,7 +5,18 @@ import {
   AlertTriangle, CheckCircle2, Clock, History, Loader2, Pause, XCircle
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table, statusLabel
+  Badge,
+  Button,
+  EmptyState,
+  LocalDate,
+  Skeleton,
+  statusLabel,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR
 } from "@sportspulse/ui";
 import {
   scheduler, type ScheduleRunListItem
@@ -60,10 +71,7 @@ export function SchedulingRunsList({ seasonId }: Props) {
 
   if (loading && runs.length === 0) {
     return (
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-        Loading runs…
-      </div>
+      <div role="status" aria-label="Loading runs" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
 

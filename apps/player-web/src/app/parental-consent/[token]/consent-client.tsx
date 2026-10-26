@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Field, Input } from "@sportspulse/ui";
+import { Field, Input, Alert } from "@sportspulse/ui";
 import { guardianNameAcceptable } from "@sportspulse/kernel";
 
 const API =
@@ -197,12 +197,9 @@ export function ParentalConsentClient({
       </label>
 
       {error && (
-        <p
-          role="alert"
-          className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]"
-        >
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">

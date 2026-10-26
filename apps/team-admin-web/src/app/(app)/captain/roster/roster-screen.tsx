@@ -14,21 +14,7 @@ import {
   UserPlus,
   Users
 } from "lucide-react";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Eyebrow,
-  LocalDate,
-  Select,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  useLocalDate
-} from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate, Select, Table, TBody, TD, TH, THead, TR, useLocalDate } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { AddPlayerModal } from "./add-player-modal";
@@ -206,9 +192,9 @@ export function RosterScreen({
       )}
 
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
 
       {/* Action bar — hidden ENTIRELY after rosterLockAt per spec §1.2 */}

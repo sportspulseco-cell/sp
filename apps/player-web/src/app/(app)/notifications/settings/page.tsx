@@ -1,3 +1,5 @@
+import { load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
 import { communications } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { SettingsClient } from "./settings-client";
@@ -7,9 +9,9 @@ export const revalidate = 0;
 export const metadata = { title: "Notification settings — SportsPulse" };
 
 export default async function NotificationSettingsPage() {
-  const prefs = await communications
-    .myPreferences()
-    .catch(() => ({ items: [], topics: [], channels: ["email", "in_app"] as Array<"email" | "in_app">, templates: [] }));
+  // A failed load shows an error instead of a form of defaults, so a
+  // save can never overwrite settings we could not read.
+  const prefs = await load(communications.myPreferences());
 
   return (
     <div className="space-y-6">
@@ -19,11 +21,15 @@ export default async function NotificationSettingsPage() {
         description="Choose what reaches you by email and in the app. Everything is on until you switch it off. In-app covers your Notifications inbox."
       />
 
-      <SettingsClient
-        topics={prefs.topics}
-        channels={prefs.channels}
-        initialItems={prefs.items}
-      />
+      {prefs.ok ? (
+        <SettingsClient
+          topics={prefs.data.topics}
+          channels={prefs.data.channels}
+          initialItems={prefs.data.items}
+        />
+      ) : (
+        <LoadError what="your notification settings" status={prefs.status} message={prefs.message} />
+      )}
     </div>
   );
 }

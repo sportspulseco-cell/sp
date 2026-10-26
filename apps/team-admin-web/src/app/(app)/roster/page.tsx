@@ -1,4 +1,4 @@
-﻿import { fetchAll } from "@sportspulse/api-client";
+﻿import { fetchAll, load } from "@sportspulse/api-client";
 import { Users } from "lucide-react";
 import {
   Badge,
@@ -10,7 +10,8 @@ import {
   TR,
   Table,
   SeasonSwitch,
-  LocalDate
+  LocalDate,
+  LoadError
 } from "@sportspulse/ui";
 import type { TeamMembership } from "@sportspulse/api-client";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
@@ -55,9 +56,10 @@ export default async function TeamAdminRosterPage({
   ]);
   // Every page of memberships: the team has dozens across seasons and the
   // first page alone missed newly added players (J8).
-  const allPage = await fetchAll((cursor) =>
-    roster.listMemberships({ teamId, activeOnly: true, limit: 100, cursor })
-  ).catch(() => ({ items: [] as TeamMembership[], nextCursor: null }));
+  const allResult = await load(
+    fetchAll((cursor) => roster.listMemberships({ teamId, activeOnly: true, limit: 100, cursor }))
+  );
+  const allPage = allResult.ok ? allResult.data : { items: [] as TeamMembership[], nextCursor: null };
   // One season's roster (CAP-19): the current season unless another is picked.
   // Same season rule as the captain roster (team's live seasons).
   const seasonRows: Array<{
@@ -121,7 +123,9 @@ export default async function TeamAdminRosterPage({
         description={`${page.items.length} active ${page.items.length === 1 ? "player" : "players"}${selectedSeason ? ` in ${selectedSeason.name}` : ""}.`}
       />
       <SeasonSwitch seasons={seasonOptions} selectedId={selectedSeason?.id ?? null} />
-      {page.items.length === 0 ? (
+      {!allResult.ok ? (
+        <LoadError what="the roster" status={allResult.status} message={allResult.message} />
+      ) : page.items.length === 0 ? (
         <EmptyState icon={Users} title="Empty roster" description="Add players from the captain console or super-admin." />
       ) : (
         <Table>

@@ -3,7 +3,7 @@
 import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
 import type { TeamStoreProduct } from "@sportspulse/api-client";
 import { teamStore } from "@/lib/api/browser-api";
 import { GenerateStore } from "./generate-store";
@@ -195,7 +195,7 @@ export function StoreManager({
         }}
       />
       {flash ? (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">{flash}</p>
+        <Alert tone="success" role="status">{flash}</Alert>
       ) : null}
       {error ? (
         <div className="rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-4 py-2 text-sm text-[var(--tint-rose-fg)]">

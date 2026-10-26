@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Send, Star, UserPlus, X } from "lucide-react";
-import { Alert, Badge, Button, EmptyState, Table, TBody, TD, TH, THead, TR } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Skeleton, Table, TBody, TD, TH, THead, TR } from "@sportspulse/ui";
 import type {
   FreeAgentOffer,
   FreeAgentOfferTeam,
@@ -363,9 +363,7 @@ function AssignToTeam({
         </button>
       </div>
       {teams === null && !error ? (
-        <p className="flex items-center gap-2 text-[12px] text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading teams…
-        </p>
+        <div role="status" aria-label="Loading teams" className="space-y-2"><Skeleton className="h-9" /><Skeleton className="h-9" /></div>
       ) : teams && teams.length === 0 ? (
         <p className="text-[12px] text-fg-muted">
           No team plays {row.seasonName ?? "this season"} yet. Place a team in one of its

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Alert } from "@sportspulse/ui";
 
 const TEXTAREA =
   "w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus";
@@ -184,9 +185,9 @@ export function IssueSuspensionButton({
             />
           </Field>
           {error ? (
-            <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -292,9 +293,9 @@ export function ChangeSuspensionGamesButton({
             />
           </Field>
           {error ? (
-            <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -383,9 +384,9 @@ export function LiftSuspensionButton({
             />
           </Field>
           {error ? (
-            <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

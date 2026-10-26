@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, LocalDate } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
@@ -115,14 +115,14 @@ export function TransfersQueue({
       </div>
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {items.length === 0 ? (

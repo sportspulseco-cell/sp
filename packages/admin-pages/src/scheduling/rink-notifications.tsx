@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, CheckCircle2, Clock, Loader2, RefreshCw,
-  Radio, Send, XCircle, ZapOff
+  AlertTriangle, CheckCircle2, Clock, RefreshCw, Radio, Send, XCircle, ZapOff
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table, statusLabel
+  Badge,
+  Button,
+  EmptyState,
+  LocalDate,
+  Skeleton,
+  statusLabel,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -57,10 +67,7 @@ export function SchedulingRinkNotifications({ seasonId }: Props) {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-        Loading rink notifications…
-      </div>
+      <div role="status" aria-label="Loading rink notifications" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
 

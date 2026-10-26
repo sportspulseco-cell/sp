@@ -26,11 +26,8 @@ export default async function FinancePage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
-  const invoicesPage = orgId
-    ? await orgAdminFinance
-        .listInvoices({ orgId })
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  const invoicesResult = orgId ? await load(orgAdminFinance.listInvoices({ orgId })) : null;
+  const invoicesPage = invoicesResult?.ok ? invoicesResult.data : { items: [], nextCursor: null };
 
   // Owed = issued and not fully paid. Drafts (unsent, or the team invoice a
   // captain's shares roll up to) are not owed, so they are not counted on
@@ -107,7 +104,11 @@ export default async function FinancePage() {
           subtitle="Every invoice issued for this org. Record an offline payment inline; the same path Stripe webhooks follow downstream."
           meta={`${invoicesPage.items.length} total`}
         />
-        <InvoiceTable invoices={invoicesPage.items} />
+        {invoicesResult && !invoicesResult.ok ? (
+          <LoadError what="invoices" status={invoicesResult.status} message={invoicesResult.message} />
+        ) : (
+          <InvoiceTable invoices={invoicesPage.items} />
+        )}
       </section>
 
       {orgId && balancesResult ? (

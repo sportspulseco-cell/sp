@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { CalendarOff, Loader2, Plus, Trash2 } from "lucide-react";
-import { Button, Field, Input, Select } from "@sportspulse/ui";
+import { Button, EmptyState, Field, Input, Select, Skeleton } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 
 export interface BlackoutRow {
@@ -99,9 +99,9 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
       </div>
 
       {rows === null ? (
-        <p className="text-[13px] text-fg-muted">Loading blackout dates…</p>
+        <div role="status" aria-label="Loading blackout dates" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : rows.length === 0 ? (
-        <p className="text-[13px] text-fg-muted">No blackout dates yet.</p>
+        <EmptyState icon={CalendarOff} eyebrow="blackouts" title="No blackout dates yet" description="Add a date above and the scheduler keeps games off it." />
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border" aria-label="Blackout dates">
           {rows.map((b) => (

@@ -4,7 +4,7 @@ import { SEASON_CONFIG_DEFAULTS } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button } from "@sportspulse/ui";
 import type {
   Division,
   PricingTier,
@@ -323,14 +323,14 @@ export function DivisionsClient({
         />
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         {configSaved ? (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+          <Alert tone="success" role="status">
             Eligibility rules saved.
-          </p>
+          </Alert>
         ) : null}
 
         <div className="flex justify-end border-t border-border pt-4">

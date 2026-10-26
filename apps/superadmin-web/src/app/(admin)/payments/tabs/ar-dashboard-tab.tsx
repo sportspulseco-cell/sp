@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { load } from "@sportspulse/api-client";
 import { ArrowRight, ScrollText } from "lucide-react";
-import { Badge, EmptyState } from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError } from "@sportspulse/ui";
 import type { Invoice } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/server-api";
 import { fmtMoney, fmtDate, daysPastDue } from "../lib/format";
@@ -20,14 +21,19 @@ const AGING_BUCKETS: { key: string; label: string; min: number; max: number }[] 
  * endpoint; the new finance-extension tables aren't required here.
  */
 export async function ArDashboardTab({ orgId }: { orgId: string }) {
-  const [openPage, paidPage] = await Promise.all([
-    finance
-      .listInvoices({ orgId, limit: 100 })
-      .catch(() => ({ items: [] as Invoice[], nextCursor: null })),
-    finance
-      .listInvoices({ orgId, status: "paid", limit: 50 })
-      .catch(() => ({ items: [] as Invoice[], nextCursor: null }))
+  const [openResult, paidResult] = await Promise.all([
+    load(finance.listInvoices({ orgId, limit: 100 })),
+    load(finance.listInvoices({ orgId, status: "paid", limit: 50 }))
   ]);
+  // Totals from a partial list would be wrong, so either failure shows the error.
+  if (!openResult.ok) {
+    return <LoadError what="invoices" status={openResult.status} message={openResult.message} />;
+  }
+  if (!paidResult.ok) {
+    return <LoadError what="paid invoices" status={paidResult.status} message={paidResult.message} />;
+  }
+  const openPage: { items: Invoice[] } = openResult.data;
+  const paidPage: { items: Invoice[] } = paidResult.data;
 
   const all = [...openPage.items, ...paidPage.items];
   const outstanding = all.reduce((sum, i) => sum + (i.totalCents - i.paidCents), 0);

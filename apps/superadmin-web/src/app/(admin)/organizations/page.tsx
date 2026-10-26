@@ -1,11 +1,10 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Badge, Alert, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, LocalDate } from "@sportspulse/ui";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
 import { UrlFilters } from "@/components/ui/url-filters";
 import {
   TBody,
@@ -193,18 +192,11 @@ export default async function OrganizationsPage({
 
 function EmptyOrgs() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card/50 p-12 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-        <Building2 className="h-5 w-5 text-muted-foreground" />
-      </div>
-      <h3 className="text-base font-semibold">No organizations yet</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Create your first organization — it can be a club, federation,
-        league operator, association, or school.
-      </p>
-      <div className="mt-4">
-        <CreateOrgButton />
-      </div>
-    </div>
+    <EmptyState
+      icon={Building2}
+      title="No organizations yet"
+      description="Create your first organization. It can be a club, federation, league operator, association or school."
+      action={<CreateOrgButton />}
+    />
   );
 }

@@ -1,5 +1,6 @@
 import { ShoppingBag, UsersRound } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { load } from "@sportspulse/api-client";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import { loadMeScope, teamStore } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { StoreClient } from "./store-client";
@@ -34,9 +35,21 @@ export default async function StorePage() {
     );
   }
 
-  const data = await teamStore
-    .listForTeam(myTeamId)
-    .catch(() => ({ team: { id: myTeamId, name: "Your team" }, items: [] }));
+  // A failed load is shown as an error, never as an empty store.
+  const result = await load(teamStore.listForTeam(myTeamId));
+  if (!result.ok) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Team store"
+          title="Team store"
+          description="Merch from your team's captain."
+        />
+        <LoadError what="your team store" status={result.status} message={result.message} />
+      </div>
+    );
+  }
+  const data = result.data;
 
   if (data.items.length === 0) {
     return (

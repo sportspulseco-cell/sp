@@ -1,15 +1,6 @@
 import { Star } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  LocalDate,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError, LocalDate, Table, TBody, TD, TH, THead, TR } from "@sportspulse/ui";
+import { load } from "@sportspulse/api-client";
 import type { FreeAgentOffer, FreeAgentPoolEntry } from "@sportspulse/api-client";
 import {
   FREE_AGENT_OFFER_STATUS_LABELS,
@@ -73,21 +64,19 @@ export default async function CaptainFreeAgentsPage() {
 
   // forTeamId: the server resolves every season the team is live in and
   // returns only those pools, each entry with this team's latest offer.
-  const [team, raw, offersRaw] = await Promise.all([
+  const [team, pool, offersResult] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
-    registrationV2
-      .listFreeAgentPool({ forTeamId: myTeamId })
-      .then((r) => ({ ok: true as const, rows: r }))
-      .catch((e: Error) => ({ ok: false as const, error: e.message, rows: [] as FreeAgentPoolEntry[] })),
-    registrationV2.listFreeAgentOffers({ teamId: myTeamId }).catch(() => null)
+    load(registrationV2.listFreeAgentPool({ forTeamId: myTeamId })),
+    load(registrationV2.listFreeAgentOffers({ teamId: myTeamId }))
   ]);
 
-  const list: FreeAgentPoolEntry[] = Array.isArray(raw.rows)
-    ? raw.rows
-    : ((raw.rows as unknown as { items?: FreeAgentPoolEntry[] }).items ?? []);
+  const poolRows = pool.ok ? pool.data : [];
+  const list: FreeAgentPoolEntry[] = Array.isArray(poolRows)
+    ? poolRows
+    : ((poolRows as unknown as { items?: FreeAgentPoolEntry[] }).items ?? []);
   const active = list.filter((e: FreeAgentPoolEntry) => e.status === "active");
   const teamName = team?.name ?? "your team";
-  const offers = offersRaw ?? [];
+  const offers = offersResult.ok ? offersResult.data : [];
 
   return (
     <div className="space-y-8">
@@ -97,10 +86,8 @@ export default async function CaptainFreeAgentsPage() {
         description={`Players looking for a team. Offer one a spot on ${teamName}: they get an email, accept or decline, and join your roster when they accept.`}
       />
 
-      {!raw.ok ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
-          Could not load the free-agent pool: {raw.error}
-        </p>
+      {!pool.ok ? (
+        <LoadError what="the free-agent pool" status={pool.status} message={pool.message} />
       ) : active.length === 0 ? (
         <EmptyState
           icon={Star}
@@ -187,10 +174,14 @@ export default async function CaptainFreeAgentsPage() {
             What happened to each offer {teamName} made. Accepted players are on your roster.
           </p>
         </div>
-        {offersRaw === null ? (
-          <p className="text-[12px] text-[var(--tint-rose-fg)]">Could not load your offers.</p>
+        {!offersResult.ok ? (
+          <LoadError what="your offers" status={offersResult.status} message={offersResult.message} />
         ) : offers.length === 0 ? (
-          <p className="text-[12px] text-fg-muted">No offers yet.</p>
+          <EmptyState
+            icon={Star}
+            title="No offers yet"
+            description="Offers you send to free agents show up here with their answer."
+          />
         ) : (
           <Table>
             <THead>

@@ -17,7 +17,7 @@ import {
   Users,
   X
 } from "lucide-react";
-import { Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
 import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import type { Team } from "@sportspulse/api-client";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
@@ -598,13 +598,13 @@ export function RegisterWizard({
               )}
 
               {submitError ? (
-                <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+                <Alert tone="error">
                   <AlertCircle
                     className="mr-1 inline h-3.5 w-3.5 align-text-bottom"
                     strokeWidth={1.75}
                   />
                   {submitError}
-                </p>
+                </Alert>
               ) : null}
             </StepCard>
           ) : null}
@@ -1165,9 +1165,9 @@ function ConfirmationProgress({
   }
   if (err) {
     return (
-      <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+      <Alert tone="error">
         {err}
-      </p>
+      </Alert>
     );
   }
   if (!status) return null;

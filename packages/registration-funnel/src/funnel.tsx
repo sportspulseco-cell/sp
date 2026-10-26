@@ -22,7 +22,7 @@ import {
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
-import { Badge, Button, Chip, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Chip, Field, Input, LoadError, Skeleton } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 import { WaiverCard } from "./waiver-card";
 
@@ -1423,14 +1423,14 @@ function AccountStep({
       )}
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {mode === "create" && !pwMatches && confirmPassword.length > 0 ? (
-        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+        <Alert tone="warning">
           Passwords don't match.
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex items-center justify-between">
@@ -1542,9 +1542,9 @@ function ConsentStep({
       )}
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex items-center justify-between">
@@ -1716,18 +1716,18 @@ function WaiversStep({
       {documents === null ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
           {loadError ? (
-            <div className="space-y-3">
-              <p role="alert" className="text-[13px] text-rose-700 dark:text-rose-300">
-                Could not load the documents you need to sign: {loadError}
-              </p>
-              <Button type="button" variant="secondary" onClick={onRetryLoad}>
-                Try again
-              </Button>
-            </div>
+            <LoadError
+              what="the documents you need to sign"
+              status={null}
+              message={loadError}
+              action={
+                <Button type="button" variant="secondary" onClick={onRetryLoad}>
+                  Try again
+                </Button>
+              }
+            />
           ) : (
-            <p className="flex items-center gap-2 text-[13px] text-fg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading the documents to sign…
-            </p>
+            <div role="status" aria-label="Loading the documents to sign" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
           )}
         </section>
       ) : null}
@@ -1789,12 +1789,9 @@ function WaiversStep({
       ) : null}
 
       {error ? (
-        <p
-          role="alert"
-          className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[13px] text-rose-700 dark:text-rose-300"
-        >
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       {outstanding.length > 0 ? (
@@ -1880,9 +1877,9 @@ function AcknowledgeCard({
         )}
       </label>
       {err ? (
-        <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error" className="mt-2">
           Couldn't record your acceptance: {err}
-        </p>
+        </Alert>
       ) : null}
     </section>
   );
@@ -2494,7 +2491,7 @@ function ReviewStep({
       </dl>
 
       {eligibilityFlags && eligibilityFlags.length > 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+        <Alert tone="warning" role="status">
           <p className="font-medium">Eligibility flags raised:</p>
           <ul className="ml-4 list-disc">
             {eligibilityFlags.map((f) => (
@@ -2507,13 +2504,13 @@ function ReviewStep({
             Per spec §6.3 these don't block payment — admin will review
             asynchronously and may request resubmission.
           </p>
-        </div>
+        </Alert>
       )}
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex items-center justify-between">
@@ -2742,9 +2739,9 @@ function PaymentStep({
       ) : null}
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

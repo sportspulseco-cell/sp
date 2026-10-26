@@ -12,12 +12,14 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  LoadError
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Schedule - Team Admin" };
@@ -33,9 +35,10 @@ export default async function TeamAdminSchedulePage() {
   const scope = await loadMeScope();
   const teamId = scope?.teamIds[0] ?? null;
 
-  const page = teamId
-    ? await gameOps.listGames({ teamId, limit: 100, publishedOnly: true }).catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  const pageResult = teamId
+    ? await load(gameOps.listGames({ teamId, limit: 100, publishedOnly: true }))
+    : null;
+  const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
 
   const games = (page.items as Game[]).slice().sort(
     (a, b) => new Date(b.scheduledStartTsUtc).getTime() - new Date(a.scheduledStartTsUtc).getTime()
@@ -62,7 +65,9 @@ export default async function TeamAdminSchedulePage() {
           <ScheduleRealtimeBridge seasonIds={seasonIds} />
         </div>
       )}
-      {games.length === 0 ? (
+      {pageResult && !pageResult.ok ? (
+        <LoadError what="your schedule" status={pageResult.status} message={pageResult.message} />
+      ) : games.length === 0 ? (
         <EmptyState icon={CalendarRange} title="No games scheduled" description="Games appear once the league publishes the season schedule." />
       ) : (
         <Table>

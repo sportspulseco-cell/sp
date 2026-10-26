@@ -17,7 +17,8 @@ import {
   Dialog,
   DialogActions,
   Eyebrow,
-  useLocalDate
+  useLocalDate,
+  Alert
 } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
@@ -72,9 +73,9 @@ export function PaymentsClient({
   return (
     <div className="space-y-6">
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
 
       {/* Wallet card — mock 3 */}
@@ -231,7 +232,7 @@ function InvoiceCard({
       </header>
 
       {oldestFailed && (
-        <div className="mx-5 mb-3 flex items-start gap-2 rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)] dark:bg-[var(--tint-rose-bg)] dark:text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="mx-5 mb-3 flex items-start gap-2">
           <AlertOctagon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <span>
             Your{" "}
@@ -241,7 +242,7 @@ function InvoiceCard({
             payment of {formatMoney(oldestFailed.amountCents, invoice.currency)} failed.
             Update your card and retry.
           </span>
-        </div>
+        </Alert>
       )}
 
       {/* Line items breakdown — mock 3 */}
@@ -728,9 +729,9 @@ function PayDialog({
         )}
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>
@@ -818,9 +819,9 @@ function RetryDialog({
         </label>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>
