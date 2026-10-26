@@ -22,7 +22,7 @@ import {
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
-import { Alert, Badge, Button, Chip, Field, Input, LoadError, Skeleton } from "@sportspulse/ui";
+import { Alert, Badge, Button, Chip, Field, Input, LoadError, Skeleton, Select } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 import { WaiverCard } from "./waiver-card";
 
@@ -2196,12 +2196,11 @@ function QuestionsStep({
                   : "Pick the division your team will play in."
               }
             >
-              <select
+              <Select
                 value={teamDivision}
                 onChange={(e) => onTeamDivisionChange(e.target.value)}
                 required
                 disabled={divisions.length === 0}
-                className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent disabled:opacity-50"
               >
                 <option value="">
                   {divisions.length === 0
@@ -2214,7 +2213,7 @@ function QuestionsStep({
                     {d.tier ? ` · ${d.tier}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Team colour">
               <input
@@ -2315,11 +2314,10 @@ function QuestionsStep({
               label="Skill level *"
               hint="The same levels the league uses for divisions. Admins check your level against the division."
             >
-              <select
+              <Select
                 value={skillLevel}
                 onChange={(e) => patchAnswers({ skill_level: e.target.value })}
                 required
-                className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent"
               >
                 <option value="">Pick a level…</option>
                 {SKILL_LEVELS.map((l) => (
@@ -2327,7 +2325,7 @@ function QuestionsStep({
                     {SKILL_LEVEL_LABELS[l]} ({SKILL_LEVEL_HINTS[l].toLowerCase()})
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field
               label="Preferred positions *"
@@ -2937,17 +2935,17 @@ function DoneStep({
             <code className="flex-1 truncate rounded-md border border-border bg-bg-subtle px-3 py-2 font-mono text-[11px] text-[var(--tint-blue-fg)]">
               {splitPayLink}
             </code>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 if (typeof navigator !== "undefined" && navigator.clipboard) {
                   navigator.clipboard.writeText(splitPayLink).catch(() => undefined);
                 }
               }}
-              className="inline-flex h-9 items-center rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+              variant="outline" size="md" className="h-9"
             >
               Copy
-            </button>
+            </Button>
           </div>
         </section>
       ) : splitPayPending ? (

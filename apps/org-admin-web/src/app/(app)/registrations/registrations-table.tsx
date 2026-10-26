@@ -3,18 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, X } from "lucide-react";
-import {
-  Alert,
-  Badge,
-  Button,
-  LocalDate,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Alert, Badge, Button, LocalDate, TBody, TD, TH, THead, TR, Table, Input } from "@sportspulse/ui";
 import { orgAdminRegistrations } from "@/lib/api/browser-api";
 
 interface Item {
@@ -151,14 +140,14 @@ function RejectReason({
   const [reason, setReason] = useState("");
   return (
     <div className="flex items-center justify-end gap-2">
-      <input
+      <Input
         type="text"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason (optional)"
         disabled={busy}
         maxLength={500}
-        className="h-8 w-48 rounded-md border border-border bg-surface-1 px-2 text-[12px] text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
+        className="h-8 w-48 px-2 text-[12px]"
       />
       <Button
         size="sm"

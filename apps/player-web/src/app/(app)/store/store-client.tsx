@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
-import { Badge, Button, Dialog, DialogActions, EmptyState, Eyebrow, LocalDate, Alert } from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, EmptyState, Eyebrow, LocalDate, Alert, Input, Select } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import {
   formatMoney,
@@ -303,40 +303,39 @@ function PickDialog({
     onAdd(line);
   }
 
-  const field = "w-full rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-fg focus:border-accent focus:outline-none";
   return (
     <Dialog open onClose={onClose} title={product.name} description={`${formatMoney(product.priceCents, product.currency)} each`}>
       <div className="space-y-3">
         {o.sizes.length > 0 ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Size</span>
-            <select aria-label="Size" value={size} onChange={(e) => setSize(e.target.value)} className={field}>
+            <Select aria-label="Size" value={size} onChange={(e) => setSize(e.target.value)}>
               <option value="">Pick a size</option>
               {o.sizes.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
         <label className="grid gap-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Quantity</span>
-          <select aria-label="Quantity" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className={field}>
+          <Select aria-label="Quantity" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))}>
             {Array.from({ length: STORE_LINE_MAX_QTY }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
-          </select>
+          </Select>
         </label>
         {o.personalization.name ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Name on the back</span>
-            <input aria-label="Name on the back" value={name} maxLength={STORE_NAME_MAX} onChange={(e) => setName(e.target.value)} className={field} />
+            <Input aria-label="Name on the back" value={name} maxLength={STORE_NAME_MAX} onChange={(e) => setName(e.target.value)} />
             <span className="text-[11px] text-fg-muted">From your roster entry. Leave blank for none.</span>
           </label>
         ) : null}
         {o.personalization.number ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Number on the back</span>
-            <input aria-label="Number on the back" inputMode="numeric" value={num} onChange={(e) => setNum(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))} className={field} />
+            <Input aria-label="Number on the back" inputMode="numeric" value={num} onChange={(e) => setNum(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))} />
             <span className="text-[11px] text-fg-muted">{jerseyNumber != null ? "Your roster number." : "0 to 99. Leave blank for none."}</span>
           </label>
         ) : null}

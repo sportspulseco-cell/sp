@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, LocalDate } from "@sportspulse/ui";
+import { Alert, LocalDate, Select } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -394,17 +394,17 @@ function FilterSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <select
+    <Select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg focus:border-accent focus:outline-none"
+      className="text-[13px]"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 

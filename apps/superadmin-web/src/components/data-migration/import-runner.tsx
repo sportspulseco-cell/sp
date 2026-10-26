@@ -172,13 +172,15 @@ export function ImportRunner({
             placeholder={`${SAMPLE_HEADERS[entityKind].join(",")}\nJohn,Smith,Johnny,1990-01-15,US`}
             className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 font-mono text-[12px] text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus"
           />
-          <button
+          <Button
             type="button"
             onClick={loadSample}
-            className="font-mono text-[10px] uppercase tracking-wide text-fg-muted hover:text-fg"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
           >
             Insert sample header
-          </button>
+          </Button>
         </div>
       </Field>
 

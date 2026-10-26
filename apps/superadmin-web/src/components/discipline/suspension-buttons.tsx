@@ -105,14 +105,16 @@ export function IssueSuspensionButton({
   return (
     <>
       {compact ? (
-        <button
+        <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-1 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
           <Gavel className="h-3 w-3" strokeWidth={1.75} />
           {triggerLabel}
-        </button>
+        </Button>
       ) : (
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Gavel className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
@@ -264,13 +266,15 @@ export function ChangeSuspensionGamesButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         Change games
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -358,13 +362,15 @@ export function LiftSuspensionButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         Lift
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}

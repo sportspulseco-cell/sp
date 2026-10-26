@@ -7,7 +7,7 @@ import { iam } from "@/lib/api/browser-api";
 import type { RoleAssignment } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
-import { Alert } from "@sportspulse/ui";
+import { Alert, Button } from "@sportspulse/ui";
 
 /**
  * In-row "Assign admin" cell for hierarchical list pages
@@ -56,11 +56,13 @@ export function AssignAdminCell({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
         title={`Manage admins for ${resourceLabel}`}
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         {count === null ? (
           <ShieldPlus className="h-3 w-3" strokeWidth={2} />
@@ -76,7 +78,7 @@ export function AssignAdminCell({
             ? "Assign"
             : `${count} admin${count === 1 ? "" : "s"}`}
         </span>
-      </button>
+      </Button>
 
       <Dialog
         open={open}

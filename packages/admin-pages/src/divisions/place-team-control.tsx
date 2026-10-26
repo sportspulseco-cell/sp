@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
-import { Alert, Button } from "@sportspulse/ui";
+import { Alert, Button, Input } from "@sportspulse/ui";
 
 /**
  * "Add a team" on a division page (SCH-4). Captains reach a division
@@ -57,11 +57,11 @@ export function PlaceTeamControl({
       <p className="text-[13px] font-medium text-fg">Add a team to {divisionName}</p>
       <label className="block space-y-1">
         <span className="text-[12px] text-fg-muted">Team</span>
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Type a team name"
-          className="h-9 w-full rounded-md border border-border bg-bg px-2 text-[13px] text-fg sm:max-w-sm"
+          className="sm:max-w-sm"
           aria-label="Search teams"
         />
       </label>

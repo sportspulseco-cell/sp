@@ -8,7 +8,7 @@ import {
   Download,
   Loader2
 } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Select } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 type Breakdown = Awaited<ReturnType<typeof finance.captainDuesBreakdown>>;
@@ -304,18 +304,18 @@ export function DuesScreen({
             {data.masters.length > 1 ? (
               <label className="flex items-center gap-1.5 text-[12px] text-fg-muted">
                 Team invoice
-                <select
+                <Select
                   value={data.masterInvoiceId ?? ""}
                   onChange={(e) => void openInvoice(e.target.value)}
                   disabled={busy !== null}
-                  className="h-8 max-w-[22rem] rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                  className="h-8 max-w-[22rem] text-[12px]"
                 >
                   {data.masters.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.label} · {m.invoiceNumber} · {formatMoney(m.totalCents, currency)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             ) : null}
             {data.masterInvoiceNumber && (
@@ -443,14 +443,14 @@ export function DuesScreen({
             <div className="flex flex-wrap items-center gap-3 text-[12px]">
               <label className="flex items-center gap-1.5 text-fg-muted">
                 Split:
-                <select
+                <Select
                   value={splitMode}
                   onChange={(e) => setSplitMode(e.target.value as SplitMode)}
-                  className="h-8 rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                  className="h-8 text-[12px]"
                 >
                   <option value="even">Even split</option>
                   <option value="custom">Custom split</option>
-                </select>
+                </Select>
               </label>
               {splitMode === "even" ? (
                 <label className="inline-flex items-center gap-1.5 text-fg-muted">
@@ -550,14 +550,14 @@ export function DuesScreen({
           <div className="flex flex-wrap items-center gap-3 text-[12px]">
             <label className="flex items-center gap-1.5 text-fg-muted">
               Split:
-              <select
+              <Select
                 value={splitMode}
                 onChange={(e) => setSplitMode(e.target.value as SplitMode)}
-                className="h-8 rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                className="h-8 text-[12px]"
               >
                 <option value="even">Even split</option>
                 <option value="custom">Custom split</option>
-              </select>
+              </Select>
             </label>
             {splitMode === "even" ? (
               <label className="inline-flex items-center gap-1.5 text-fg-muted">

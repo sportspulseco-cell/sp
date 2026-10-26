@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
-import { Alert, Badge, Button, useLocalDate } from "@sportspulse/ui";
+import { Alert, Badge, Button, useLocalDate, Select } from "@sportspulse/ui";
 import type { FormSubmissionRow, FormSubmissions } from "@sportspulse/api-client";
 import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
 import { useFormsBuilderApi } from "./context";
@@ -93,18 +93,17 @@ export function SubmissionsClient({
         subtitle={`${counts.all ?? 0} total · ${counts.pending_review ?? 0} pending review · ${counts.pending_payment ?? 0} pending payment · ${counts.approved ?? 0} approved · ${counts.rejected ?? 0} rejected`}
         action={
           <div className="flex items-center gap-2">
-            <select
+            <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value as SubmissionStatusFilter)}
               aria-label="Filter by status"
-              className="h-9 rounded-md border border-border bg-surface-1 px-2 text-[12px] text-fg"
             >
               {SUBMISSION_STATUS_FILTERS.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label} ({counts[f.value] ?? 0})
                 </option>
               ))}
-            </select>
+            </Select>
             <Button type="button" variant="ghost" size="sm" onClick={exportCsv} disabled={exporting || filtered.length === 0}>
               {exporting ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

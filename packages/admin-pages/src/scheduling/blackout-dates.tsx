@@ -112,15 +112,15 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
               </span>
               <span className="text-fg-muted">{b.surfaceId ? b.rinkLabel ?? "One rink" : "All rinks"}</span>
               {b.reason ? <span className="truncate text-fg-muted">· {b.reason}</span> : null}
-              <button
+              <Button
                 type="button"
                 onClick={() => onRemove(b.id)}
                 disabled={busy || disabled}
-                className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-[12px] text-fg-muted hover:bg-bg-subtle hover:text-fg disabled:opacity-50"
+                variant="ghost" size="sm" className="ml-auto gap-1 text-fg-muted"
                 aria-label={`Remove blackout ${b.startDate}`}
               >
                 <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} /> Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

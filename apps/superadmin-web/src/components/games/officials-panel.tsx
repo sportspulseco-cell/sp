@@ -319,7 +319,7 @@ function RevokeOfficialBtn({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   return (
-    <button
+    <Button
       type="button"
       disabled={loading}
       onClick={async () => {
@@ -334,9 +334,11 @@ function RevokeOfficialBtn({ id }: { id: string }) {
           setLoading(false);
         }
       }}
-      className="rounded-md border border-border bg-surface-1 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-rose-500/50 hover:text-rose-600 disabled:opacity-50 dark:hover:text-rose-400"
+      variant="outline"
+      size="sm"
+      className="gap-1.5 hover:border-[var(--tint-rose-fg)]/50 hover:text-[var(--tint-rose-fg)]"
     >
       {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Revoke"}
-    </button>
+    </Button>
   );
 }

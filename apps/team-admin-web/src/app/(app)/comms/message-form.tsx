@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
-import { Alert, Button } from "@sportspulse/ui";
+import { Alert, Button, Input } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 const AUDIENCES = [
@@ -102,7 +102,7 @@ export function TeamMessageForm({ teamId, teamName }: { teamId: string; teamName
       </fieldset>
       <label className="grid gap-1">
         <span className="text-[13px] font-medium text-fg">Subject</span>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} className={box} placeholder="Practice moved to 8 PM" />
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} placeholder="Practice moved to 8 PM" />
         <span className="text-[12px] text-fg-muted">Players see it as “{teamName}: {subject.trim() || "your subject"}”.</span>
       </label>
       <label className="grid gap-1">

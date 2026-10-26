@@ -502,16 +502,18 @@ export function RoleAssignmentPanel({
               <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                 // Invite message · {renderedMessage.recipient}
               </p>
-              <button
+              <Button
                 type="button"
                 onClick={async () => {
                   const ok = await copyInviteToClipboard(renderedMessage);
                   setCopied(ok);
                 }}
-                className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-surface-1 px-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
               >
                 {copied ? "Copied" : "Copy again"}
-              </button>
+              </Button>
             </div>
             <p className="text-[12px] font-medium text-fg">
               Subject: {renderedMessage.subject}

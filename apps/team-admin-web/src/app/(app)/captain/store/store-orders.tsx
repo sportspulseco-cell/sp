@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Package } from "lucide-react";
-import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate, Input } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import { formatMoney } from "@sportspulse/kernel";
 import { teamStore } from "@/lib/api/browser-api";
@@ -102,12 +102,11 @@ export function StoreOrders({ teamId }: { teamId: string }) {
                 <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
                   <label className="grid gap-1">
                     <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Note for {o.buyer.name} (optional)</span>
-                    <input
+                    <Input
                       value={note}
                       maxLength={300}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="e.g. Pick up at Thursday's game"
-                      className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-fg focus:border-accent focus:outline-none"
                     />
                   </label>
                   <div className="flex gap-2">

@@ -479,7 +479,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
               What are they being billed for?
             </h2>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() =>
               setItems((xs) => [
@@ -492,11 +492,11 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                 }
               ])
             }
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-2.5 py-1 text-[12px] font-medium text-fg-muted hover:border-border-strong hover:text-fg"
+            variant="outline" size="sm" className="gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
             Add line
-          </button>
+          </Button>
         </div>
         {props.feeSchedules ? (
           <div className="space-y-1">
@@ -509,11 +509,11 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
               </p>
             ) : (
               <>
-                <select
+                <Select
                   id="ic-fee-schedule"
                   value={feeScheduleId}
                   onChange={(e) => (e.target.value ? applySchedule(e.target.value) : setFeeScheduleId(""))}
-                  className="h-9 w-full rounded-md border border-border bg-bg px-2 text-[13px] text-fg sm:max-w-md"
+                  className="sm:max-w-md"
                 >
                   <option value="">None, I will enter the lines</option>
                   {orgSchedules.map((f) => (
@@ -521,7 +521,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                       {f.name} · {formatMoney(f.baseAmountCents, f.currency)}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {pickedSchedule ? (
                   <p className="text-[12px] text-fg-muted">
                     Due {pickedSchedule.dueOffsetDays} day{pickedSchedule.dueOffsetDays === 1 ? "" : "s"} after

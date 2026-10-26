@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Alert, Button } from "@sportspulse/ui";
+import { Alert, Button, Input } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 /**
@@ -77,33 +77,32 @@ export function WalletForm({
       </header>
 
       <Field label="Player">
-        <input
+        <Input
           type="text"
           value={personId}
           readOnly
           disabled
-          className="input cursor-not-allowed bg-bg-subtle font-mono text-fg-muted"
+          className="cursor-not-allowed bg-bg-subtle font-mono text-fg-muted"
         />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Credit amount ($)" required>
-          <input
+          <Input
             type="number"
             min="0.01"
             step="0.01"
             value={amountStr}
             onChange={(e) => setAmountStr(e.target.value)}
-            className="input font-mono"
             required
+            className="font-mono"
           />
         </Field>
         <Field label="Expires (optional)">
-          <input
+          <Input
             type="date"
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
-            className="input"
           />
         </Field>
       </div>

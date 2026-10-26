@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
-import { Badge, Button, LocalDate, Alert } from "@sportspulse/ui";
+import { Badge, Button, LocalDate, Alert, Input, Select } from "@sportspulse/ui";
 import type { Profile } from "@sportspulse/api-client";
 import { iam } from "@/lib/api/browser-api";
 
@@ -72,20 +72,18 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <SectionHeader title="Legal identity" hint="Used on registration forms + waivers." />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Legal first name">
-            <input
+            <Input
               value={legalFirstName}
               onChange={(e) => setLegalFirstName(e.target.value)}
               maxLength={120}
-              className="input"
               required
             />
           </Field>
           <Field label="Legal last name">
-            <input
+            <Input
               value={legalLastName}
               onChange={(e) => setLegalLastName(e.target.value)}
               maxLength={120}
-              className="input"
               required
             />
           </Field>
@@ -94,19 +92,17 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <SectionHeader title="Display" hint="What teammates + captains see." />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Preferred name" hint="Optional. Used instead of your legal first name in friendly places.">
-            <input
+            <Input
               value={preferredName}
               onChange={(e) => setPreferredName(e.target.value)}
               maxLength={120}
-              className="input"
             />
           </Field>
           <Field label="Display name" hint="Optional. The name shown in the top bar.">
-            <input
+            <Input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={120}
-              className="input"
             />
           </Field>
         </div>
@@ -114,32 +110,30 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <SectionHeader title="Locale + timezone" hint="Times + dates on schedules respect these." />
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Country" hint="ISO-2 code (CA, US, GB…).">
-            <input
+            <Input
               value={countryCode}
               onChange={(e) => setCountryCode(e.target.value.toUpperCase().slice(0, 2))}
               maxLength={2}
               placeholder="US"
-              className="input font-mono uppercase"
+              className="font-mono uppercase"
             />
           </Field>
           <Field label="Locale">
-            <select
+            <Select
               value={locale}
               onChange={(e) => setLocale(e.target.value)}
-              className="input"
             >
               {LOCALES.map((l) => (
                 <option key={l.value} value={l.value}>
                   {l.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Timezone">
-            <select
+            <Select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              className="input"
             >
               {TIMEZONES.includes(timezone) ? null : (
                 <option value={timezone}>{timezone}</option>
@@ -149,7 +143,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                   {tz}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
 

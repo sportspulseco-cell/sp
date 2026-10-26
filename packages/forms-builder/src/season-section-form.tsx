@@ -4,7 +4,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { Alert, Button, Skeleton } from "@sportspulse/ui";
+import { Alert, Button, Skeleton, Select } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import {
   SEASON_REGISTRATION_TYPES,
@@ -251,11 +251,10 @@ export function SeasonSectionForm({
               .
             </p>
           ) : (
-            <select
+            <Select
               value={seasonId}
               onChange={(e) => bindSeason(e.target.value)}
               disabled={busy !== "none"}
-              className="input"
               required
             >
               <option value="" disabled>
@@ -266,7 +265,7 @@ export function SeasonSectionForm({
                   {s.name} · {s.startDate} → {s.endDate}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         </Field>
 
@@ -316,21 +315,20 @@ export function SeasonSectionForm({
           hint="Decides which paths players see. Team: captains register teams and players join from their captain's invite link. Individual: players register themselves, and as free agents when that is allowed under Divisions & eligibility. Saved on the season."
         >
           <div className="flex items-center gap-2">
-            <select
+            <Select
               aria-label="Registration type"
               value={registrationType}
               onChange={(e) =>
                 setRegistrationType(e.target.value as SeasonRegistrationType)
               }
               disabled={!seasonId || busy !== "none"}
-              className="input"
             >
               {SEASON_REGISTRATION_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {SEASON_REGISTRATION_TYPE_LABELS[t]}
                 </option>
               ))}
-            </select>
+            </Select>
             <Button
               type="button"
               variant="ghost"
@@ -362,7 +360,6 @@ export function SeasonSectionForm({
 
       <EligibilityPanel form={form} />
 
-      <FieldStyle />
     </div>
   );
 }
@@ -473,20 +470,3 @@ function ReadOnly({
   );
 }
 
-function FieldStyle() {
-  return (
-    <style>{`
-      .input {
-        height: 2.5rem;
-        width: 100%;
-        border-radius: 0.375rem;
-        border: 1px solid var(--border);
-        background: var(--surface-1);
-        padding: 0 0.75rem;
-        color: var(--fg);
-        font-size: 13px;
-      }
-      .input:focus { outline: none; border-color: var(--accent); }
-    `}</style>
-  );
-}

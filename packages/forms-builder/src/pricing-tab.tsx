@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Division, PricingTier } from "@sportspulse/api-client";
 import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
-import { LocalDate } from "@sportspulse/ui";
+import { LocalDate, Input, Button } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 
 export function PricingTab({
@@ -79,15 +79,15 @@ export function PricingTab({
             (deposit + N installments). Auto-saves on blur.
           </p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={addTier}
           disabled={creating}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-fg px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-widest text-bg disabled:opacity-50"
+          variant="primary" size="sm" className="gap-1.5"
         >
           <Plus className="h-3 w-3" strokeWidth={2.25} />
           New tier
-        </button>
+        </Button>
       </header>
 
       {error && (
@@ -276,7 +276,7 @@ function MoneyField({
       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         {label}
       </span>
-      <input
+      <Input
         type="number"
         inputMode="decimal"
         step="0.01"
@@ -288,7 +288,7 @@ function MoneyField({
           const next = Math.round(dollars * 100);
           if (next !== cents) onCommit(next);
         }}
-        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-fg focus:border-fg-muted focus:outline-none"
+        className="mt-1 bg-bg-elev font-mono tabular-nums"
       />
     </label>
   );
@@ -314,7 +314,7 @@ function NumberField({
       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         {label}
       </span>
-      <input
+      <Input
         type="number"
         defaultValue={defaultValue}
         min={min}
@@ -324,7 +324,7 @@ function NumberField({
           const v = Number(e.target.value);
           if (Number.isFinite(v) && v !== defaultValue) onCommit(v);
         }}
-        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-fg focus:border-fg-muted focus:outline-none"
+        className="mt-1 bg-bg-elev font-mono tabular-nums"
       />
     </label>
   );

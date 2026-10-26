@@ -4,7 +4,7 @@ import { centsToAmountInput } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
-import { Alert, Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button, Select, Input } from "@sportspulse/ui";
 import type { InvoiceRefundable, Refund } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/browser-api";
 import { fmtMoney, fmtDate } from "../lib/format";
@@ -139,14 +139,13 @@ export function RefundForm({
 
         <div className="mt-4 space-y-4">
           <Field label="Refund to" required>
-            <select
+            <Select
               value={dest}
               onChange={(e) => {
                 const d = e.target.value as Destination;
                 setDest(d);
                 if (amountCents > maxFor(d)) setAmountStr(centsToAmountInput(maxFor(d)));
               }}
-              className="input"
             >
               <option value="card" disabled={refundable.cardCents === 0}>
                 {refundable.cardCents > 0
@@ -154,7 +153,7 @@ export function RefundForm({
                   : "The card it was paid with (no card payment on this invoice)"}
               </option>
               <option value="wallet">SportsPulse wallet credit</option>
-            </select>
+            </Select>
           </Field>
 
           <Field
@@ -162,15 +161,15 @@ export function RefundForm({
             required
             hint={`Maximum refundable: ${fmtMoney(maxRefundableCents, currency)}`}
           >
-            <input
+            <Input
               type="number"
               min="0.01"
               step="0.01"
               max={centsToAmountInput(maxRefundableCents)}
               value={amountStr}
               onChange={(e) => setAmountStr(e.target.value)}
-              className="input font-mono"
               required
+              className="font-mono"
             />
           </Field>
 

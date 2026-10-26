@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Mail, Search, UserPlus } from "lucide-react";
-import { Alert, Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions, Input } from "@sportspulse/ui";
 import type { Person } from "@sportspulse/api-client";
 import { captain, iam } from "@/lib/api/browser-api";
 
@@ -179,11 +179,11 @@ function SearchPanel({
         </span>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-fg-muted" />
-          <input
+          <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="e.g. jane smith"
-            className="w-full rounded-md border border-border bg-surface-1 py-2 pl-8 pr-3 text-sm text-fg focus:border-accent focus:outline-none"
+            className="pl-8"
             autoFocus
           />
         </div>
@@ -319,12 +319,11 @@ function InvitePanel({
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           Email
         </span>
-        <input
+        <Input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="player@example.com"
-          className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
           autoFocus
         />
       </label>
@@ -434,13 +433,13 @@ function JerseyField({ value, onChange }: { value: string; onChange: (v: string)
       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         Jersey number (optional)
       </span>
-      <input
+      <Input
         type="number"
         min={0}
         max={99}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-24 rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+        className="w-24"
       />
       {bad ? <span className="text-[11px] text-[var(--tint-rose-fg)]">Use a whole number from 0 to 99.</span> : null}
     </label>

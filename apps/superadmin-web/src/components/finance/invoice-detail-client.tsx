@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Badge, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, LocalDate, Select, Input } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate, centsToAmountInput } from "@sportspulse/kernel";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -739,11 +739,10 @@ function ExtendDueDialog({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             New due date
           </span>
-          <input
+          <Input
             type="date"
             value={newDueAt}
             onChange={(e) => setNewDueAt(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           />
         </label>
         <label className="space-y-1 block">
@@ -890,13 +889,12 @@ function IssueWalletCreditDialog({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Amount ($)
           </span>
-          <input
+          <Input
             type="number"
             min={0}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           />
         </label>
         <label className="block space-y-1">
@@ -1039,30 +1037,28 @@ function MarkPaidOfflineDialog({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Amount ($)
           </span>
-          <input
+          <Input
             type="number"
             min={0}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           />
         </label>
         <label className="block space-y-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Method
           </span>
-          <select
+          <Select
             value={method}
             onChange={(e) => setMethod(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           >
             <option value="cash">Cash</option>
             <option value="check">Check</option>
             <option value="etransfer">E-transfer</option>
             <option value="bank_transfer">Bank transfer</option>
             <option value="manual">Other / manual</option>
-          </select>
+          </Select>
         </label>
         <label className="block space-y-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">

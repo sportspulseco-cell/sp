@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Alert, Button } from "@sportspulse/ui";
+import { Alert, Button, Select } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 
 /**
@@ -59,14 +59,13 @@ export function ReviewActions({
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           Visibility
         </p>
-        <select
+        <Select
           value={visibility}
           onChange={(e) => setVisibility(e.target.value as "draft" | "live")}
-          className="h-9 rounded-md border border-border bg-surface-1 px-2 text-[12px] text-fg"
         >
           <option value="draft">Draft</option>
           <option value="live">Live</option>
-        </select>
+        </Select>
       </div>
       <div className="flex items-center gap-2">
         {error ? (

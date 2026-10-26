@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@sportspulse/ui";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -12,7 +13,7 @@ export function ToggleFlagButton({ flag }: { flag: FeatureFlag }) {
   const next = !flag.isEnabled;
 
   return (
-    <button
+    <Button
       type="button"
       disabled={pending}
       onClick={() => {
@@ -32,7 +33,9 @@ export function ToggleFlagButton({ flag }: { flag: FeatureFlag }) {
           }
         });
       }}
-      className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg disabled:opacity-50"
+      variant="outline"
+      size="sm"
+      className="gap-1.5"
     >
       {pending ? (
         <span className="flex items-center gap-1">
@@ -44,6 +47,6 @@ export function ToggleFlagButton({ flag }: { flag: FeatureFlag }) {
       ) : (
         "Disable"
       )}
-    </button>
+    </Button>
   );
 }

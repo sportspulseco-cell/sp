@@ -7,7 +7,7 @@ import type { Role, RoleAssignment } from "@/lib/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { resolvePrimaryRole } from "./primary-role";
-import { Alert, Skeleton } from "@sportspulse/ui";
+import { Alert, Button, Skeleton } from "@sportspulse/ui";
 
 /**
  * Per-row role manager for /users.
@@ -63,11 +63,13 @@ export function ManageUserRolesCell({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
         title={`Manage roles for ${display}`}
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         <Shield className="h-3 w-3" strokeWidth={2} />
         <span>
@@ -77,7 +79,7 @@ export function ManageUserRolesCell({
             ? "Add role"
             : `${count} role${count === 1 ? "" : "s"}`}
         </span>
-      </button>
+      </Button>
 
       <Dialog
         open={open}

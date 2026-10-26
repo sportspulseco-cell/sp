@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
-import { cn } from "@sportspulse/ui";
+import { cn, Input, Select } from "@sportspulse/ui";
 import {
   slugify,
   type LeagueDraft,
@@ -99,13 +99,12 @@ export function LeagueStep({
             required
             hint="Public-facing name shown on all registration pages, emails, and dashboards. Max 80 chars."
           >
-            <input
+            <Input
               type="text"
               value={draft.name}
               onChange={(e) => onChange({ name: e.target.value.slice(0, 80) })}
               maxLength={80}
               placeholder="e.g. New Hampshire AHL"
-              className="input"
               required
             />
           </Field>
@@ -115,12 +114,12 @@ export function LeagueStep({
             required
             hint="URL-safe identifier. Auto-generated from the league name. Used in API paths and registration URLs. Cannot be changed after first season is published."
           >
-            <input
+            <Input
               type="text"
               value={draft.slug}
               onChange={(e) => onChange({ slug: slugify(e.target.value) })}
               placeholder="auto-generated"
-              className="input font-mono"
+              className="font-mono"
               required
             />
           </Field>
@@ -130,10 +129,9 @@ export function LeagueStep({
             required
             hint="Determines which stat types, period models, and governing bodies are available downstream."
           >
-            <select
+            <Select
               value={draft.sportCode}
               onChange={(e) => onChange({ sportCode: e.target.value, governingBodyId: null })}
-              className="input"
               required
             >
               {draft.sportCode === "" ? (
@@ -146,7 +144,7 @@ export function LeagueStep({
                   {s.name ?? s.code}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
 
           <Field
@@ -154,29 +152,27 @@ export function LeagueStep({
             required
             hint="Regular season = scheduled games + standings. Tournament = bracket event. This drives how the scheduler and standings engine behave."
           >
-            <select
+            <Select
               value={draft.format}
               onChange={(e) => onChange({ format: e.target.value as LeagueFormat })}
-              className="input"
             >
               {FORMATS.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
 
           <Field
             label="Governing body"
             hint="Drives ID verification rules and SafeSport requirements for all seasons in this league. Leave blank if your league isn't sanctioned by one."
           >
-            <select
+            <Select
               value={draft.governingBodyId ?? ""}
               onChange={(e) =>
                 onChange({ governingBodyId: e.target.value || null })
               }
-              className="input"
             >
               <option value="">None (unsanctioned)</option>
               {filteredBodies.map((b) => (
@@ -184,7 +180,7 @@ export function LeagueStep({
                   {b.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
 
           <Field
@@ -192,10 +188,9 @@ export function LeagueStep({
             required
             hint="All game times, registration windows, and notification sends are expressed in this time zone. Set it to where the games physically take place."
           >
-            <select
+            <Select
               value={draft.timezone}
               onChange={(e) => onChange({ timezone: e.target.value })}
-              className="input"
             >
               {TIMEZONES.includes(draft.timezone) ? null : (
                 <option value={draft.timezone}>{draft.timezone}</option>
@@ -205,7 +200,7 @@ export function LeagueStep({
                   {tz}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
 
@@ -213,12 +208,12 @@ export function LeagueStep({
           label="Organisation"
           hint="Locked to the organisation selected in step 1. Cannot be changed after creation."
         >
-          <input
+          <Input
             type="text"
             value={org?.displayName ?? org?.legalName ?? ""}
             readOnly
             disabled
-            className="input cursor-not-allowed bg-bg-subtle text-fg-muted"
+            className="cursor-not-allowed text-fg-muted"
           />
         </Field>
       </section>
@@ -233,7 +228,7 @@ export function LeagueStep({
             {/* Upload UI is a follow-up — Storage isn't wired yet. The
                 input accepts a URL for now so this field still threads
                 through to the stored branding payload. */}
-            <input
+            <Input
               type="url"
               value={draft.branding.logoUrl ?? ""}
               onChange={(e) =>
@@ -242,7 +237,6 @@ export function LeagueStep({
                 })
               }
               placeholder="https://… (paste logo URL)"
-              className="input"
             />
           </Field>
 
@@ -320,7 +314,6 @@ export function LeagueStep({
         </ul>
       </section>
 
-      <FieldStyle />
     </div>
   );
 }
@@ -350,30 +343,3 @@ export function Field({
   );
 }
 
-export function FieldStyle() {
-  return (
-    <style>{`
-      .input {
-        height: 2.5rem;
-        width: 100%;
-        border-radius: 0.375rem;
-        border: 1px solid var(--border);
-        background: var(--surface-1);
-        padding: 0 0.75rem;
-        color: var(--fg);
-        font-size: 13px;
-      }
-      .input:focus {
-        outline: none;
-        border-color: var(--accent);
-      }
-      .input:disabled, .input[readonly] {
-        opacity: 0.7;
-      }
-      textarea.input {
-        height: auto;
-        padding: 0.5rem 0.75rem;
-      }
-    `}</style>
-  );
-}

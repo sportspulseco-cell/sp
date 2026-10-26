@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@sportspulse/ui";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -15,10 +16,9 @@ export function PublishVersionButton({
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <button
+    <Button
       type="button"
       disabled={pending}
-      className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg transition-colors duration-fast ease-ease hover:border-border-strong disabled:opacity-50"
       onClick={() => {
         start(async () => {
           try {
@@ -29,6 +29,9 @@ export function PublishVersionButton({
           }
         });
       }}
+      variant="outline"
+      size="sm"
+      className="gap-1.5"
     >
       {pending ? (
         <span className="flex items-center gap-1">
@@ -38,6 +41,6 @@ export function PublishVersionButton({
       ) : (
         "Publish"
       )}
-    </button>
+    </Button>
   );
 }

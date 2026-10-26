@@ -13,7 +13,7 @@ import {
   User,
   Users
 } from "lucide-react";
-import { Alert, Badge } from "@sportspulse/ui";
+import { Alert, Badge, Button } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 type Division = {
@@ -129,11 +129,11 @@ export function DivisionPicker({
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
             Back
           </Link>
-          <button
+          <Button
             type="button"
             onClick={apply}
             disabled={!picked || busy}
-            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-[13px] font-medium text-bg disabled:cursor-not-allowed disabled:opacity-50"
+            className="gap-1.5"
           >
             {busy ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
@@ -141,7 +141,7 @@ export function DivisionPicker({
               <Send className="h-3.5 w-3.5" strokeWidth={2} />
             )}
             Apply for this division
-          </button>
+          </Button>
         </div>
       </div>
     </div>

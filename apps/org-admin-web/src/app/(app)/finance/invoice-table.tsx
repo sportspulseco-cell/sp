@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
 import type { Invoice } from "@sportspulse/api-client";
 import { orgAdminFinance } from "@/lib/api/browser-api";
 
@@ -195,18 +195,17 @@ function RecordPaymentForm({
           />
         </Field>
         <Field label="Method">
-          <select
+          <Select
             value={method}
             onChange={(e) => setMethod(e.target.value as Method)}
             disabled={busy}
-            className="flex h-9 w-full rounded-md border border-border bg-surface-1 px-3 text-sm text-fg focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50"
           >
             {METHOD_OPTIONS.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Received on" hint="Leave blank for now.">
           <Input

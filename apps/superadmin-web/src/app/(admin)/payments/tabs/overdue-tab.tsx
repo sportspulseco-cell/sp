@@ -1,5 +1,5 @@
 import { AlertTriangle, ExternalLink } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { Button, EmptyState } from "@sportspulse/ui";
 import type {
   InvoiceEscalationWithInvoice,
   QuickbooksSyncStatus
@@ -55,12 +55,14 @@ export async function OverdueTab({ orgId }: { orgId: string }) {
               automated reminders {qbStatus.connected ? "active" : "manual"}
             </p>
           </div>
-          <button
+          <Button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
           >
             Job status
-          </button>
+          </Button>
         </header>
         {escalations.length === 0 ? (
           <EmptyState
@@ -106,13 +108,15 @@ export async function OverdueTab({ orgId }: { orgId: string }) {
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
           >
             <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
             View in QB
-          </button>
+          </Button>
         </header>
 
         <div className="mt-4">

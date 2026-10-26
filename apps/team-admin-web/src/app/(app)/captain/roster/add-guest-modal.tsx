@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
-import { Alert, Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions, Input } from "@sportspulse/ui";
 import type { Person } from "@sportspulse/api-client";
 import { captain, iam } from "@/lib/api/browser-api";
 
@@ -122,11 +122,10 @@ export function AddGuestModal({
       <div className="space-y-3 pt-3">
         {mode === "user" ? (
           <>
-            <input
+            <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search by name…"
-              className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
               autoFocus
             />
             {results.length > 0 && !picked && (
@@ -165,11 +164,10 @@ export function AddGuestModal({
             )}
           </>
         ) : (
-          <input
+          <Input
             value={walkInName}
             onChange={(e) => setWalkInName(e.target.value)}
             placeholder="Guest's full name"
-            className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
             autoFocus
           />
         )}

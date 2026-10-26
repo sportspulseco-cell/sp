@@ -464,7 +464,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                 <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                   // Invite message · {renderedMessage.recipient}
                 </p>
-                <button
+                <Button
                   type="button"
                   onClick={async () => {
                     const ok = await copyToClipboard(
@@ -472,7 +472,9 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                     );
                     setCopied(ok);
                   }}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
                 >
                   {copied ? (
                     <>
@@ -483,7 +485,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                       <Copy className="h-3 w-3" strokeWidth={2} /> Copy again
                     </>
                   )}
-                </button>
+                </Button>
               </div>
               <p className="text-[12px] font-medium text-fg">
                 Subject: {renderedMessage.subject}

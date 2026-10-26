@@ -11,15 +11,7 @@ import {
   RefreshCw,
   Wallet as WalletIcon
 } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogActions,
-  Eyebrow,
-  useLocalDate,
-  Alert
-} from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, Eyebrow, useLocalDate, Alert, Input, Select } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 type Wallet = Awaited<ReturnType<typeof finance.myWallet>>;
@@ -644,7 +636,7 @@ function PayDialog({
                 Or another amount between {formatMoney(range.minCents, invoice.currency)} and{" "}
                 {formatMoney(range.maxCents, invoice.currency)}
               </span>
-              <input
+              <Input
                 aria-label="Amount to pay now"
                 type="number"
                 step="0.01"
@@ -652,7 +644,6 @@ function PayDialog({
                 max={centsToAmountInput(range.maxCents)}
                 value={amountText}
                 onChange={(e) => setAmountText(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
               />
             </label>
             {!amountOk ? (
@@ -672,7 +663,7 @@ function PayDialog({
                 invoice.currency
               )})
             </span>
-            <input
+            <Input
               type="number"
               step="0.01"
               min="0"
@@ -680,7 +671,6 @@ function PayDialog({
               value={walletAmount}
               onChange={(e) => setWalletAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
             />
           </label>
         ) : (
@@ -715,16 +705,15 @@ function PayDialog({
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               Test payment: no real card is charged while the league is testing. Pick the outcome to simulate
             </span>
-            <select
+            <Select
               value={mockOutcome}
               onChange={(e) =>
                 setMockOutcome(e.target.value as "succeeded" | "failed")
               }
-              className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg"
             >
               <option value="succeeded">Succeeds</option>
               <option value="failed">Fails (test decline path)</option>
-            </select>
+            </Select>
           </label>
         )}
 
@@ -806,16 +795,15 @@ function RetryDialog({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Mock outcome (Stripe wires later)
           </span>
-          <select
+          <Select
             value={mockOutcome}
             onChange={(e) =>
               setMockOutcome(e.target.value as "succeeded" | "failed")
             }
-            className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg"
           >
             <option value="succeeded">Card succeeds</option>
             <option value="failed">Card declines again</option>
-          </select>
+          </Select>
         </label>
 
         {error && (

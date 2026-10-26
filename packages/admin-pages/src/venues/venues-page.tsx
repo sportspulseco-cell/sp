@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type { RinkAddress, RinkRemoval, RinkUsage } from "@sportspulse/api-client";
 import { DATE_FORMATS, formatInZone, isValidTimeZone, utcToZonedWallTime } from "@sportspulse/kernel";
-import { Alert, Badge, Button, EmptyState, Field, Input, Skeleton } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Skeleton, Select } from "@sportspulse/ui";
 import { TIMEZONES } from "../org-setup/steps/league-step";
 
 /**
@@ -136,7 +136,6 @@ export interface SeasonOption {
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SELECT_CLASS = "h-9 w-full rounded-md border border-border bg-bg px-2 text-fg";
 const ADDRESS_FIELDS: Array<{ key: keyof RinkAddress; label: string }> = [
   { key: "line1", label: "Street address" },
   { key: "line2", label: "Address line 2" },
@@ -258,12 +257,11 @@ function TimeZoneSelect({
     [value]
   );
   return (
-    <select
+    <Select
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={SELECT_CLASS}
     >
       {value ? null : <option value="">Pick a time zone</option>}
       {options.map((tz) => (
@@ -271,7 +269,7 @@ function TimeZoneSelect({
           {tz}{isValidTimeZone(tz) ? "" : " (not a real time zone)"}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -313,15 +311,14 @@ function CreateVenueForm({
       <div className="grid gap-3 sm:grid-cols-3">
         {!defaultOrgId && ownableOrgs && ownableOrgs.length > 0 ? (
           <Field label="Organization">
-            <select
+            <Select
               value={orgId}
               onChange={(e) => { setOrgId(e.target.value); setTimezone(orgZone(e.target.value) || timezone); }}
               disabled={busy}
-              className={SELECT_CLASS}
             >
               {orgId ? null : <option value="">Select an organization…</option>}
               {ownableOrgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            </Select>
           </Field>
         ) : orgsLoading ? (
           <Field label="Organization">
@@ -1010,17 +1007,16 @@ function BandField({
 }) {
   return (
     <Field label={label}>
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value as "" | Band)}
         disabled={disabled}
-        className={SELECT_CLASS}
       >
         <option value="">—</option>
         <option value="early">early</option>
         <option value="mid">mid</option>
         <option value="late">late</option>
-      </select>
+      </Select>
     </Field>
   );
 }
@@ -1224,17 +1220,17 @@ function SeasonField({
       label="Season"
       hint={seasons.length === 0 ? "This venue's organisation has no seasons yet. Create one first." : "The scheduler only uses slots tagged with its season."}
     >
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || seasons.length === 0}
-        className="h-9 w-full rounded-md border border-border bg-bg px-2 text-fg sm:w-72"
+        className="sm:w-72"
       >
         <option value="">Pick a season</option>
         {seasons.map((s) => (
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
-      </select>
+      </Select>
     </Field>
   );
 }

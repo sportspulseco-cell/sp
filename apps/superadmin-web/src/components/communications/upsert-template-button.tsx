@@ -88,14 +88,16 @@ export function UpsertTemplateButton({
   return (
     <>
       {isEdit ? (
-        <button
+        <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-md border border-border bg-surface-1 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
           <Pencil className="mr-1 inline h-3 w-3" strokeWidth={1.75} />
           Edit
-        </button>
+        </Button>
       ) : (
         <Button onClick={() => setOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />

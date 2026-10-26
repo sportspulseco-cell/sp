@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Field, Input, Alert } from "@sportspulse/ui";
+import { Field, Input, Alert, Button } from "@sportspulse/ui";
 import { guardianNameAcceptable } from "@sportspulse/kernel";
 
 const API =
@@ -203,11 +203,12 @@ export function ParentalConsentClient({
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <button
+        <Button
           type="button"
+          size="lg"
           onClick={() => submit("confirm")}
           disabled={busy !== null || !nameOk || !agreed}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[var(--success)] px-4 py-2.5 text-[14px] font-medium text-white hover:bg-[var(--success)] disabled:opacity-50"
+          className="flex-1 gap-2"
         >
           {busy === "confirm" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -217,12 +218,14 @@ export function ParentalConsentClient({
               Sign and confirm registration
             </>
           )}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="lg"
           onClick={() => submit("decline")}
           disabled={busy !== null}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 py-2.5 text-[14px] font-medium text-fg hover:bg-bg-subtle disabled:opacity-50"
+          className="gap-2"
         >
           {busy === "decline" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -232,7 +235,7 @@ export function ParentalConsentClient({
               Decline
             </>
           )}
-        </button>
+        </Button>
       </div>
       {!nameOk || !agreed ? (
         <p className="text-[11px] text-fg-muted">
