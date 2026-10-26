@@ -26,7 +26,7 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
-import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
+import { userIsTeamStaff } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 import {
   ANNOUNCEMENT_CHANNELS,
@@ -60,7 +60,8 @@ class TeamMessageBodyDto {
  * app. Same delivery path as the league announcement: the server
  * resolves recipients from the team (never from the client), one
  * notification per person per channel, idempotent on the message key.
- * A team the caller does not captain is a 404.
+ * Coaches of the team may write too (FR-3.17.2). A team the caller does
+ * not captain or coach is a 404.
  */
 @ApiTags("captain/message")
 @ApiBearerAuth()
@@ -84,7 +85,8 @@ export class CaptainMessageController {
     @Body() body: TeamMessageBodyDto,
     @CurrentUser() user: AuthPrincipal
   ) {
-    if (!(await userIsCaptainOfTeam(this.db, user.userId, teamId))) {
+    // Captains and coaches of the team (FR-3.17.2); anyone else gets a 404.
+    if (!(await userIsTeamStaff(this.db, user.userId, teamId))) {
       throw new NotFoundException(`Team not found: ${teamId}`);
     }
     const [team] = await this.db

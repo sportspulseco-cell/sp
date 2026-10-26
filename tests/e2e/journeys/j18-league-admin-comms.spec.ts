@@ -100,6 +100,31 @@ test("2. league admin invites only within their league and never above their lev
   await context.close();
 });
 
+test("4. captain @ team-admin /comms writes to the team they are looking at; a ?teamId they do not run falls back", async ({ browser }) => {
+  const { page, context, app } = await signedInAs(browser, "teamAdmin");
+  const staffed = await stagingSql<{ id: string; name: string }>(
+    `select distinct t.id, t.name from user_role_assignments a join roles r on r.id = a.role_id join profiles p on p.id = a.user_id
+       join teams t on t.id = a.scope_id where p.email = 'staging-team@sportspulse.us' and a.scope_type = 'team'
+        and r.code in ('captain','coach') and a.revoked_at is null`
+  );
+  await page.goto(`${app}/comms`);
+  await expect(page.getByRole("heading", { name: "Message the team" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Captain or coach role required")).toHaveCount(0);
+  const desc = await mainText(page);
+  expect(staffed.some((t) => desc.includes(`Write to ${t.name}'s players`)), "the form names one of the user's teams").toBe(true);
+  if (staffed.length > 1) {
+    const picker = page.getByRole("navigation", { name: "Team to write to" });
+    await expect(picker.getByRole("link")).toHaveCount(staffed.length);
+    const second = staffed[1]!;
+    await picker.getByRole("link", { name: second.name }).click();
+    await expect(page.getByText(`Write to ${second.name}'s players`)).toBeVisible();
+  }
+  // A team id they do not run is ignored, never messaged.
+  await page.goto(`${app}/comms?teamId=00000000-0000-4000-8000-000000000000`);
+  await expect(page.getByRole("heading", { name: "Message the team" })).toBeVisible();
+  await context.close();
+});
+
 test("3. league admin sees an org page's admin list read-only", async ({ browser }) => {
   const { page, context } = await signedInAs(browser, "leagueAdmin", { app: E2E_URLS.superadmin });
   const [la] = await stagingSql<{ org_id: string }>(
