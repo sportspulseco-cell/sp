@@ -97,3 +97,4 @@ export const orgAdminPersons = api.orgAdminPersons;
 export const schedulingInventory = api.schedulingInventory;
 export const orgAdminTeams = api.orgAdminTeams;
 export const teamMovement = api.teamMovement;
+export const orgAdminBroadcast = api.orgAdminBroadcast;

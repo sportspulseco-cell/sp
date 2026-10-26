@@ -42,6 +42,30 @@ export async function canInOrg(
   });
 }
 
+/**
+ * True when the caller holds an active assignment of one of `roleCodes`
+ * anywhere inside `orgId` (the org itself, one of its leagues, seasons
+ * or divisions). For choosing 403 (in the org, missing the right) over
+ * 404 (outside the org) after a permission check fails.
+ */
+export async function holdsRoleInOrg(
+  db: Database,
+  userId: string,
+  orgId: string,
+  roleCodes: readonly string[]
+): Promise<boolean> {
+  const assignments = (await loadActiveAssignments(db, userId)).filter((a) =>
+    roleCodes.includes(a.roleCode)
+  );
+  if (assignments.length === 0) return false;
+  const orgOf = await orgsOfScopes(db, assignments);
+  return assignments.some((a) => {
+    if (!a.scopeId) return false;
+    if (a.scopeType === "org") return a.scopeId === orgId;
+    return orgOf.get(`${a.scopeType}:${a.scopeId}`) === orgId;
+  });
+}
+
 async function orgsOfScopes(
   db: Database,
   assignments: ActiveAssignment[]

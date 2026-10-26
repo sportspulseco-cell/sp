@@ -391,7 +391,9 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
     // League Admin "Submit/Finalize scoresheet (override)", "Create
     // season/division/schedule" and "Assign refs" (SCH-12). UC-14 names
     // League Admin as the actor who issues, overrides and lifts
-    // suspensions (COMP-10).
+    // suspensions (COMP-10). PPHL 2.2 gives League Admin "league-wide
+    // communication" and UC-19 names League Admin as the sender of a
+    // league announcement, inside their own league only.
     defaultPermissions: [
       "league.*",
       "division.*",
@@ -400,7 +402,8 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
       "game.*",
       "game_event.*",
       "score.*",
-      "suspension.*"
+      "suspension.*",
+      "communication.send"
     ]
   },
   {

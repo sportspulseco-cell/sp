@@ -107,6 +107,17 @@ export type Fetcher = <T>(path: string, init?: RequestInit) => Promise<T>;
 // Factory: build the SDK against any fetcher.
 // Server components bind to the cookie-based fetcher (server-api.ts);
 // client components bind to the browser-supabase fetcher (browser-api.ts).
+/** Parts of one org a caller may send an announcement to (UC-19). */
+export interface AnnouncementReach {
+  orgId: string;
+  /** May send to the whole org. */
+  wholeOrg: boolean;
+  leagues: Array<{ id: string; name: string }>;
+  seasons: Array<{ id: string; name: string; leagueId: string }>;
+  divisions: Array<{ id: string; name: string; seasonId: string }>;
+  teams: Array<{ id: string; name: string }>;
+}
+
 export function createApi(f: Fetcher) {
   return {
     iam: {
@@ -3320,6 +3331,17 @@ export function createApi(f: Fetcher) {
     // League announcement (UC-19). The server resolves recipients from
     // the target inside the org; one notification per person per channel.
     orgAdminBroadcast: {
+      /**
+       * Where the caller may send (same rule as `send`): the orgs they
+       * reach and, for one org (default the first), its leagues,
+       * seasons, divisions and teams. Org and super admins reach the
+       * whole org; a league admin only their leagues and below.
+       */
+      targets: (q: { orgId?: string } = {}) =>
+        f<{
+          orgs: Array<{ id: string; name: string }>;
+          reach: AnnouncementReach | null;
+        }>(`/org-admin/broadcast/targets${qs(q)}`),
       send: (body: {
         orgId: string;
         audiences: Array<

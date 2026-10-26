@@ -3,10 +3,12 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   Inject,
   Logger,
   NotFoundException,
   Post,
+  Query,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -31,7 +33,14 @@ import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-w
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
-import { userHasOrgAdminOnOrg } from "../../../shared/auth/org-admin";
+import { holdsRoleInOrg } from "../../../shared/auth/org-permission";
+import { ADMIN_SCOPE_ROLE_CODES } from "../../../shared/auth/scope";
+import {
+  announcementOrgs,
+  announcementReach,
+  reachHolds,
+  reachIsEmpty
+} from "../../../shared/audience/announcement-reach";
 import {
   assertTargetInOrg,
   ORG_TARGET_TYPES,
@@ -85,14 +94,22 @@ class BroadcastBodyDto {
 
 type TargetScope = AnnouncementTarget;
 
+class TargetsQueryDto {
+  /** The org to list targets for. Default: the first org the caller can reach. */
+  @IsOptional() @IsUUID() orgId?: string;
+}
+
 /**
- * League announcement (UC-19). An org admin picks who (captains,
- * coaches, players, referees, admins), where in the org (whole org, a
- * league, season, division or team: real entities picked from lists,
- * never typed ids), and how (email, in-app, or both).
+ * League announcement (UC-19). An org admin or a league admin (any role
+ * granting `communication.send`) picks who (captains, coaches, players,
+ * referees, admins), where (whole org, a league, season, division or
+ * team: real entities picked from lists, never typed ids), and how
+ * (email, in-app, or both).
  *
- * The server owns the recipient list: the target is checked against the
- * caller's org (404 when it is not in it), and every recipient is
+ * The server owns the recipient list: the target must sit in the org
+ * (404 otherwise) and inside the caller's reach (announcement-reach.ts:
+ * a league admin reaches their own leagues and below, never the whole
+ * org or a sibling league; 404 outside it). Every recipient is
  * resolved from that target inside the org. Each recipient gets one
  * notification per channel, idempotent on
  * `broadcast-<key>-<personId>-<channel>`.
@@ -111,6 +128,25 @@ export class OrgAdminBroadcastController {
     private readonly notify: NotificationService
   ) {}
 
+  @Get("targets")
+  @ApiOperation({
+    summary:
+      "Where the caller may send an announcement: the orgs they reach and, for one org, the leagues, seasons, divisions and teams. Same rule as the send check."
+  })
+  async targets(@Query() q: TargetsQueryDto, @CurrentUser() user: AuthPrincipal) {
+    const orgs = await announcementOrgs(this.db, user.userId);
+    const orgId = q.orgId ?? orgs[0]?.id ?? null;
+    if (!orgId) return { orgs, reach: null };
+    if (q.orgId && !orgs.some((o) => o.id === q.orgId)) {
+      throw new NotFoundException("Org not found");
+    }
+    const reach = await announcementReach(this.db, user.userId, orgId);
+    this.log.log(
+      `broadcast.targets user=${user.userId} org=${orgId} wholeOrg=${reach.wholeOrg} leagues=${reach.leagues.length} teams=${reach.teams.length}`
+    );
+    return { orgs, reach };
+  }
+
   @Post()
   @AllowScopedWrite()
   @ApiOperation({
@@ -122,23 +158,31 @@ export class OrgAdminBroadcastController {
     @CurrentUser() user: AuthPrincipal,
     @UserScope() scope: UserScopeType
   ) {
-    if (!scope.isSuperAdmin) {
-      if (scope.orgIds !== null && !scope.orgIds.includes(body.orgId)) {
-        throw new NotFoundException("Org not found");
-      }
-      if (!(await userHasOrgAdminOnOrg(this.db, user.userId, body.orgId))) {
-        throw new ForbiddenException(
-          "Requires org_admin (or super_admin) on this org"
-        );
-      }
-    }
-
     const targetType: OrgTargetType = body.targetType ?? "org";
     const targetId = targetType === "org" ? body.orgId : body.targetId;
     if (!targetId) {
       throw new BadRequestException(`Pick the ${targetType} to send to.`);
     }
     await assertTargetInOrg(this.db, targetType, targetId, body.orgId);
+    if (!scope.isSuperAdmin) {
+      const reach = await announcementReach(this.db, user.userId, body.orgId);
+      if (reachIsEmpty(reach)) {
+        if (await holdsRoleInOrg(this.db, user.userId, body.orgId, ADMIN_SCOPE_ROLE_CODES)) {
+          throw new ForbiddenException(
+            "Your role cannot send announcements here. Ask your org admin."
+          );
+        }
+        throw new NotFoundException("Org not found");
+      }
+      if (!reachHolds(reach, targetType, targetId)) {
+        if (targetType === "org") {
+          throw new ForbiddenException(
+            "You can send to your own leagues, not the whole organisation. Pick one of your leagues."
+          );
+        }
+        throw new NotFoundException("Target not found");
+      }
+    }
 
     const channels: Channel[] = Array.from(
       new Set(body.channels ?? (body.channel ? [body.channel] : []))
