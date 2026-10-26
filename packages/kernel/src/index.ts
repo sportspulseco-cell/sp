@@ -41,4 +41,7 @@ export * from "./invoice-terms";
 export * from "./eligibility-evaluation";
 export * from "./roster-entry";
 export * from "./discounts";
+export * from "./phone";
+export * from "./aamva";
+export * from "./substitutes";
 export * from "./notification-codes";

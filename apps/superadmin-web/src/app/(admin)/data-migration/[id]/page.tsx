@@ -1,12 +1,9 @@
-import { ArrowLeft, Database } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError, PageHeader } from "@sportspulse/ui";
 import { dataMigration } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
-import { IconTile } from "@/components/ui/icon-tile";
 
 export const metadata = { title: "Import job — SportsPulse" };
 
@@ -53,31 +50,23 @@ export default async function ImportJobDetailPage({
 
   return (
     <div className="space-y-8">
-      <Link
-        href="/data-migration"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All imports
-      </Link>
-
-      <header className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={Database} tint="violet" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>IMPORT · {job.id.slice(0, 8)}</Eyebrow>
-          <h1 className="font-mono text-[36px] font-semibold uppercase tracking-tight text-fg">
-            {job.entityKind}
-          </h1>
-          <div className="flex items-center gap-2 pt-1">
+      <PageHeader
+        className="mb-0"
+        eyebrow={`Import · ${job.id.slice(0, 8)}`}
+        title={job.entityKind}
+        description={
+          <span className="flex items-center gap-2">
             <Badge mono>{job.status}</Badge>
             {job.sourceFilename ? (
               <span className="font-mono text-[11px] text-fg-muted">
                 {job.sourceFilename}
               </span>
             ) : null}
-          </div>
-        </div>
-        <div className="ml-auto grid grid-cols-3 gap-3 text-right">
+          </span>
+        }
+      />
+
+      <section className="grid grid-cols-3 gap-3 sm:max-w-md">
           <Stat label="Total" value={job.totalRows} />
           <Stat
             label="OK"
@@ -89,8 +78,7 @@ export default async function ImportJobDetailPage({
             value={job.failedRows}
             tone={job.failedRows > 0 ? "danger" : undefined}
           />
-        </div>
-      </header>
+      </section>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <DetailRow label="Started" value={fmt(job.startedAt)} />

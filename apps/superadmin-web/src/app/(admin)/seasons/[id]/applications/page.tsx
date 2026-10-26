@@ -1,5 +1,5 @@
 import { adminTransfers } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { CrumbName, PageHeader } from "@sportspulse/ui";
 import { ApplicationsQueue } from "./applications-queue";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,7 @@ export default async function SeasonApplicationsPage({
 
   return (
     <div className="space-y-6">
+      <CrumbName id={seasonId} name={initial.season.name} />
       <PageHeader
         eyebrow={`// admin · ${initial.season.name}`}
         title="Team applications"

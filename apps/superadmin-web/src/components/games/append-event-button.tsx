@@ -14,10 +14,7 @@ import {
   validateHockeyEvent
 } from "@sportspulse/kernel";
 import { gameOps } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 
 // Assists ride on the goal (Assist 1 / Assist 2), never as their own
 // event, so each one is counted once (SCH-13). Penalties carry an

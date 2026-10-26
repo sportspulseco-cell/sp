@@ -1,8 +1,4 @@
-import {
-  PageHeaderSkeleton,
-  Skeleton,
-  TableSkeleton
-} from "@/components/ui/skeleton";
+import { PageHeaderSkeleton, Skeleton, TableSkeleton } from "@sportspulse/ui";
 
 export default function GamesLoading() {
   return (

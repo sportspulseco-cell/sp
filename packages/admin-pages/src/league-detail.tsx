@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, Trophy } from "lucide-react";
+
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, PageHeader, Reveal, statusTone } from "@sportspulse/ui";
 import type { League, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -68,40 +68,35 @@ export function LeagueDetail({
 
   return (
     <div className="space-y-8">
-      <Link
-        href={backTo}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All leagues
-      </Link>
-
-      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={Trophy} tint="amber" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>LEAGUE · {org ? org.displayName ?? org.legalName : "Unknown org"}</Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {league.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Badge mono>{league.sportCode}</Badge>
-            <Badge mono>{league.format}</Badge>
-            <Badge tone={statusTone(league.status)} mono>
-              {league.status}
-            </Badge>
-            {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
-          </div>
-        </div>
-        {actions ? <div className="ml-auto">{actions}</div> : null}
-        {editHref ? (
-          <Link
-            href={editHref}
-            className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-          >
-            Edit in Org setup →
-          </Link>
-        ) : null}
-      </Reveal>
+      <PageHeader
+        eyebrow={<>LEAGUE · {org ? org.displayName ?? org.legalName : "Unknown org"}</>}
+        title={league.name}
+        description={
+          <>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Badge mono>{league.sportCode}</Badge>
+              <Badge mono>{league.format}</Badge>
+              <Badge tone={statusTone(league.status)} mono>
+                {league.status}
+              </Badge>
+              {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
+            </div>
+          </>
+        }
+        action={
+          <>
+            {actions ? <div className="">{actions}</div> : null}
+            {editHref ? (
+              <Link
+                href={editHref}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+              >
+                Edit in Org setup →
+              </Link>
+            ) : null}
+          </>
+        }
+      />
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">

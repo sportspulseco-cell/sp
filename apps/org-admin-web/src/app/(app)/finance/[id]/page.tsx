@@ -3,9 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { isNotFound, load } from "@sportspulse/api-client";
-import { Badge, LoadError, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Badge, LoadError, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { orgAdminFinance } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice — SportsPulse" };

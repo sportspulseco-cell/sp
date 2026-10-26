@@ -2,16 +2,7 @@
 
 import { useState } from "react";
 import { Download, Loader2, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
+import { Button, Select, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 type Season = { id: string; name: string; leagueId: string; status: string };

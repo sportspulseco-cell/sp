@@ -120,6 +120,16 @@ export class DrizzleNotificationRepository
       .where(eq(schema.notifications.id, id));
   }
 
+  async exhaustAttempts(id: string): Promise<void> {
+    await this.db
+      .update(schema.notifications)
+      .set({
+        attemptCount: sql`GREATEST(${schema.notifications.attemptCount}, 3)`,
+        updatedAt: sql`NOW()`
+      })
+      .where(eq(schema.notifications.id, id));
+  }
+
   async recentForPerson(
     personId: string,
     limit = 20
@@ -194,10 +204,12 @@ export class DrizzleNotificationRepository
  * One message, one inbox row (FR-3.17.2). A message sent on several
  * channels is stored once per channel, keyed `...-<channel>` (broadcasts,
  * the overdue sweep). The inbox keeps the in-app row and drops its email,
- * SMS and push copies; a message sent by email only still shows.
+ * SMS and push copies; a message sent by email only still shows. Text and
+ * push rows are always copies of an email or in-app message (the API's
+ * fan-out writes them), so they never show on their own either.
  */
 export function notInboxDuplicate() {
-  return sql`NOT (
+  return sql`${schema.notifications.channel} NOT IN ('sms','push') AND NOT (
     ${schema.notifications.channel} <> 'in_app'
     AND ${schema.notifications.idempotencyKey} ~ '-(email|sms|push)$'
     AND EXISTS (

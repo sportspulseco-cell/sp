@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw } from "lucide-react";
 import { stats } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
+import { Button } from "@sportspulse/ui";
 
 export function RecomputeStandingsButton({ leagueId }: { leagueId: string }) {
   const router = useRouter();

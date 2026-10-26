@@ -2,9 +2,8 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import { Gavel } from "lucide-react";
-import { EmptyState, SectionRail } from "@sportspulse/ui";
+import { EmptyState, PageHeader, SectionRail } from "@sportspulse/ui";
 import { loadMeScope, orgAdminRefundAssessments } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { DisputesScreen } from "./disputes-screen";
 

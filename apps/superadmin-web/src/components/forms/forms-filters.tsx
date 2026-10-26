@@ -1,6 +1,6 @@
 "use client";
 
-import { UrlFilters } from "@/components/ui/url-filters";
+import { UrlFilters } from "@sportspulse/ui";
 
 /** /forms name search + Organisation / Division / Scope filters (?q=&org=&division=&scope=). */
 export function FormsFilters({

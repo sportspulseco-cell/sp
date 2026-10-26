@@ -15,14 +15,15 @@ import {
   Wallet,
   type LucideIcon
 } from "lucide-react";
-import { Badge, Eyebrow, EmptyState, IconTile } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, IconTile, PageHeader } from "@sportspulse/ui";
 import type {
   Game,
   Notification,
   Registration
 } from "@sportspulse/api-client";
-import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster } from "@/lib/api/server-api";
+import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster, subs } from "@/lib/api/server-api";
 import { TeamOffersCard } from "@/components/team-offers-card";
+import { SubRequestsCard } from "@/components/sub-requests-card";
 
 type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 import { RegistrationStateBanner } from "./registration-state-banner";
@@ -112,7 +113,7 @@ export default async function PlayerHome() {
   const openRegs = await fetchOpenRegistrations();
 
   // Single batch — Home view fetches everything in parallel.
-  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites] =
+  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites, mySubRequests] =
     await Promise.all([
       myTeamId
         ? gameOps
@@ -137,7 +138,9 @@ export default async function PlayerHome() {
             .catch(() => ({ items: [], nextCursor: null }))
         : Promise.resolve({ items: [], nextCursor: null }),
       // Team offers / invites waiting for this player's answer (CAP-9).
-      captain.myInvites().catch(() => ({ items: [] }))
+      captain.myInvites().catch(() => ({ items: [] })),
+      // Captains asking this player to sub for one game (UC-31).
+      subs.mine().catch(() => ({ items: [] }))
     ]);
 
   // -- Next game (chronologically earliest future scheduled game) --
@@ -233,17 +236,12 @@ export default async function PlayerHome() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
-        <div className="space-y-1">
-          <Eyebrow>Home</Eyebrow>
-          <h1 className="text-[28px] font-semibold leading-tight tracking-tighter text-fg">
-            Hey {firstName}.
-          </h1>
-          <p className="text-[13px] text-fg-muted">
-            Your team, your registrations, and what's next on the schedule.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        className="mb-4"
+        eyebrow="Player"
+        title={`Hey ${firstName}.`}
+        description="Your team, your registrations, and what's next on the schedule."
+        action={
           <Link
             href="/schedule"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
@@ -251,8 +249,8 @@ export default async function PlayerHome() {
             <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />
             My schedule
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       {/* Workflow 5 §3 — registration state banner above the hero so the
           player knows whether they're new / returning / mid-funnel. */}
@@ -261,6 +259,7 @@ export default async function PlayerHome() {
       {/* A team offered this player a spot (free-agent pool) or invited
           them: the one decision waiting on them, so it sits up top. */}
       <TeamOffersCard items={myInvites.items} />
+      <SubRequestsCard items={mySubRequests.items} />
 
       {/* Dual-role users (player + captain) get a single discoverable
           entry point into the captain console — which lives in

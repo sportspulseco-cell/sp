@@ -1,7 +1,6 @@
 import { Building2 } from "lucide-react";
-import { CopyLink, EmptyState, SectionRail } from "@sportspulse/ui";
+import { CopyLink, EmptyState, PageHeader, SectionRail } from "@sportspulse/ui";
 import { loadMeScope, orgs, publicRegistration } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { OrgActions } from "@/components/edit/detail-actions";
 import { RegionsSection } from "@/components/regions/regions-section";

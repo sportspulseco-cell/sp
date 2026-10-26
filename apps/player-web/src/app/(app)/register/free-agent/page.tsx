@@ -1,9 +1,8 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import { ShieldAlert, UserPlus } from "lucide-react";
-import { EmptyState, LoadError } from "@sportspulse/ui";
+import { EmptyState, LoadError, PageHeader } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
 import { leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { FreeAgentForm } from "./free-agent-form";
 
 export const dynamic = "force-dynamic";

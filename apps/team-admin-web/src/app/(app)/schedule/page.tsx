@@ -1,23 +1,14 @@
+import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import {
   CalendarRange,
   Clock,
   MapPin
 } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Schedule - Team Admin" };
@@ -72,6 +63,7 @@ export default async function TeamAdminSchedulePage() {
               <TH>Opponent</TH>
               <TH>Venue</TH>
               <TH>Status</TH>
+              <TH className="text-right">Subs</TH>
             </TR>
           </THead>
           <TBody>
@@ -97,6 +89,16 @@ export default async function TeamAdminSchedulePage() {
                       <Badge mono tone="info">Live {us ?? 0}-{them ?? 0}</Badge>
                     ) : (
                       <Badge mono tone={g.status === "scheduled" ? "info" : "neutral"}>{g.status.replace(/_/g, " ")}</Badge>
+                    )}
+                  </TD>
+                  <TD className="text-right">
+                    {/* UC-31: ask a sub for a game that has not started. */}
+                    {g.status === "scheduled" && new Date(g.scheduledStartTsUtc).getTime() > Date.now() ? (
+                      <Link href={`/schedule/${g.id}/subs`} className="text-[12px] font-medium text-accent underline">
+                        Find a sub
+                      </Link>
+                    ) : (
+                      <span className="text-[12px] text-fg-muted">-</span>
                     )}
                   </TD>
                 </TR>

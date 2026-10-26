@@ -94,6 +94,15 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   "FREE_AGENT_OFFER_DECLINED",
   // FR-3.4.7: a new free agent who fits a team with open spots, to its captains.
   "FREE_AGENT_PITCH",
+  // UC-31 substitute requests: a captain asks a player to sub for one
+  // game, the player answers, a league admin may assign one directly.
+  "SUB_REQUEST",
+  "SUB_REQUEST_CANCELLED",
+  "SUB_REQUEST_ACCEPTED",
+  "SUB_REQUEST_DECLINED",
+  "SUB_ASSIGNED",
+  "SUB_ASSIGNED_CAPTAIN",
+  "SUB_ADDED_ADMIN",
   // Payments & Invoicing
   "INVOICE_OVERDUE_STAGE_1",
   "INVOICE_OVERDUE_STAGE_2",

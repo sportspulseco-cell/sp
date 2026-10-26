@@ -1,7 +1,6 @@
 import { ShoppingBag, UsersRound } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { loadMeScope, teamStore } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { StoreClient } from "./store-client";
 
 export const dynamic = "force-dynamic";

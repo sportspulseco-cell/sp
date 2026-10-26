@@ -1,4 +1,9 @@
 import type {
+  BroadcastAttachment,
+  LicenceIdCheck,
+  NotificationChannelStatus,
+  NotificationPreferenceChannel,
+  ScheduledBroadcast,
   AuditEvent,
   ScheduleBlackout,
   SeasonLeaders,
@@ -101,7 +106,10 @@ import type {
   TeamMembership,
   TeamStoreProduct,
   StoreOrder,
-  StoreOrderLineInput
+  StoreOrderLineInput,
+  AdminGameSubs,
+  CaptainGameSubs,
+  SubRequest
 } from "./types";
 
 const qs = (params: Record<string, string | number | boolean | undefined>) => {
@@ -687,7 +695,13 @@ export function createApi(f: Fetcher) {
           body: JSON.stringify(body)
         }),
       documentSubmissionFile: (id: string) =>
-        f<ComplianceFileLink>(`/compliance/document-submissions/${id}/file`)
+        f<ComplianceFileLink>(`/compliance/document-submissions/${id}/file`),
+      /** UC-29: send the decoded licence barcode text; the server parses and compares. */
+      licenceCheck: (id: string, body: { barcodeText: string; method: "camera" | "photo" }) =>
+        f<{ id: string; orgId: string; check: LicenceIdCheck; submission: AdminComplianceDocument }>(
+          `/compliance/document-submissions/${id}/licence-check`,
+          { method: "POST", body: JSON.stringify(body) }
+        )
     },
 
     audit: {
@@ -1374,12 +1388,33 @@ export function createApi(f: Fetcher) {
             category: string;
             codes: string[];
           }>;
-          channels: Array<"email" | "in_app">;
+          channels: NotificationPreferenceChannel[];
+          /** With no saved row: email, in-app, push on; SMS off (opt-in). */
+          channelDefaults: Record<NotificationPreferenceChannel, boolean>;
+          channelStatus: NotificationChannelStatus;
+          sms: { phoneMasked: string | null; hasPhone: boolean };
           templates: string[];
         }>("/notifications/me/preferences"),
+      /** Which channels are set up (any signed-in user). */
+      channelStatus: () => f<NotificationChannelStatus>("/notifications/channels"),
+      /** Save (or with "" remove) the caller's mobile number for texts. */
+      setSmsNumber: (body: { phone: string | null }) =>
+        f<{ hasPhone: boolean; phoneMasked: string | null; smsTopicsOff?: number }>(
+          "/notifications/me/sms-number",
+          { method: "PUT", body: JSON.stringify(body) }
+        ),
+      /** VAPID public key for the browser's PushManager.subscribe. */
+      pushConfig: () =>
+        f<{ available: boolean; publicKey: string | null }>(`/communications/push/config`),
+      /** Remove this browser's subscription by endpoint (own rows only). */
+      pushUnsubscribeEndpoint: (endpoint: string) =>
+        f<{ deleted: boolean }>(`/communications/push/unsubscribe`, {
+          method: "POST",
+          body: JSON.stringify({ endpoint })
+        }),
       setTopicPreference: (
         topicKey: string,
-        channel: "email" | "in_app",
+        channel: NotificationPreferenceChannel,
         body: { enabled: boolean }
       ) =>
         f<{ topicKey: string; channel: string; enabled: boolean; codes: string[] }>(
@@ -2344,8 +2379,11 @@ export function createApi(f: Fetcher) {
         f<GameOfficial[]>(`/game-officials/for-person/${personId}`),
       assignOfficial: (
         gameId: string,
-        body: {
-          personId: string;
+        body: (
+          | { personId: string; email?: never }
+          /** An existing account's full email (exact match), not part of one. */
+          | { email: string; personId?: never }
+        ) & {
           role: GameOfficialRole;
           slot?: string | null;
           status?: GameOfficialStatus;
@@ -3609,6 +3647,10 @@ export function createApi(f: Fetcher) {
         channels: Array<"email" | "in_app">;
         /** One per composed announcement; a retry with it does not resend. */
         idempotencyKey?: string;
+        /** ISO time to send later instead of now (needs idempotencyKey). */
+        sendAt?: string;
+        /** Ids from uploadAttachment. */
+        attachmentIds?: string[];
       }) =>
         f<{
           broadcastId: string;
@@ -3620,9 +3662,28 @@ export function createApi(f: Fetcher) {
           failed: number;
           noEmail: number;
           channels: Array<"email" | "in_app">;
+          /** Present when sendAt was given: the stored scheduled announcement. */
+          scheduled?: ScheduledBroadcast;
+          attachments?: number;
         }>(`/org-admin/broadcast`, {
           method: "POST",
           body: JSON.stringify(body)
+        }),
+      scheduled: (orgId: string) =>
+        f<{ items: ScheduledBroadcast[] }>(`/org-admin/broadcast/scheduled${qs({ orgId })}`),
+      cancelScheduled: (id: string) =>
+        f<{ id: string; orgId: string; scheduled: ScheduledBroadcast }>(
+          `/org-admin/broadcast/scheduled/${id}/cancel`,
+          { method: "POST" }
+        ),
+      uploadAttachment: (body: { orgId: string; fileName: string; dataBase64: string }) =>
+        f<BroadcastAttachment>(`/org-admin/broadcast/attachments`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      removeAttachment: (id: string) =>
+        f<{ id: string; deleted: boolean }>(`/org-admin/broadcast/attachments/${id}`, {
+          method: "DELETE"
         })
     },
 
@@ -4060,6 +4121,34 @@ export function createApi(f: Fetcher) {
           method: "POST",
           body: JSON.stringify(body),
           headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined
+        })
+    },
+    /**
+     * Substitute requests (UC-31). Captain asks a player for one game,
+     * the player answers, a league admin may assign a sub directly.
+     */
+    subs: {
+      captainView: (teamId: string, gameId: string) =>
+        f<CaptainGameSubs>(`/captain/subs/${teamId}/games/${gameId}`),
+      request: (teamId: string, gameId: string, body: { personId: string; note?: string }) =>
+        f<{ request: SubRequest; created: boolean }>(`/captain/subs/${teamId}/games/${gameId}/requests`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      cancel: (teamId: string, requestId: string) =>
+        f<{ request: SubRequest; changed: boolean }>(`/captain/subs/${teamId}/requests/${requestId}/cancel`, {
+          method: "POST"
+        }),
+      mine: () => f<{ items: SubRequest[] }>("/subs/mine"),
+      accept: (requestId: string) =>
+        f<{ request: SubRequest; changed: boolean }>(`/subs/requests/${requestId}/accept`, { method: "POST" }),
+      decline: (requestId: string) =>
+        f<{ request: SubRequest; changed: boolean }>(`/subs/requests/${requestId}/decline`, { method: "POST" }),
+      adminView: (gameId: string) => f<AdminGameSubs>(`/admin/game-subs/${gameId}`),
+      assign: (gameId: string, body: { teamId: string; personId: string; note?: string }) =>
+        f<{ request: SubRequest; created: boolean }>(`/admin/game-subs/${gameId}/assign`, {
+          method: "POST",
+          body: JSON.stringify(body)
         })
     },
     adminTransfers: {

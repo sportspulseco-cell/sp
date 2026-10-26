@@ -1,4 +1,4 @@
-import { Skeleton, StatCardSkeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton } from "@sportspulse/ui";
 
 export default function DashboardLoading() {
   return (

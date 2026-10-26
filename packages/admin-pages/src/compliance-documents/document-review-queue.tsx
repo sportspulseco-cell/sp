@@ -27,8 +27,11 @@ import {
 import type {
   AdminComplianceDocument,
   ComplianceDocumentQueuePage,
-  ComplianceFileLink
+  ComplianceFileLink,
+  LicenceIdCheck
 } from "@sportspulse/api-client";
+import { LICENCE_CHECK_FIELD_LABELS } from "@sportspulse/kernel";
+import { LicenceScan } from "./licence-scan";
 
 /** Transport injected by the consuming app (sa-web / org-admin-web). Scope is enforced by the API. */
 export interface DocumentReviewApi {
@@ -38,6 +41,11 @@ export interface DocumentReviewApi {
     body: { decision: ComplianceDocumentDecision; reason?: string | null }
   ) => Promise<{ alreadyDecided: boolean; notified: number; submission: AdminComplianceDocument }>;
   fileUrl: (id: string) => Promise<ComplianceFileLink>;
+  /** UC-29 licence barcode check. Without it the scan section is hidden. */
+  licenceCheck?: (
+    id: string,
+    body: { barcodeText: string; method: "camera" | "photo" }
+  ) => Promise<{ check: LicenceIdCheck }>;
 }
 
 type Filter = ComplianceDocumentStatus | "all";
@@ -321,6 +329,7 @@ function ReviewDialog({
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<ComplianceDocumentDecision | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [idChecks, setIdChecks] = useState<LicenceIdCheck[]>(doc.idChecks ?? []);
   const rule = useMemo(() => divisionRule(doc), [doc]);
   // The consuming app builds `api` inline; keep the latest without
   // re-running the link fetch (each fetch is an audited file view).
@@ -431,6 +440,31 @@ function ReviewDialog({
             </div>
           )}
         </div>
+
+        {doc.kind === "government_id" && api.licenceCheck ? (
+          <LicenceScan
+            api={{ licenceCheck: (body) => api.licenceCheck!(doc.id, body) }}
+            onChecked={(c) => setIdChecks((prev) => [...prev, c])}
+          />
+        ) : null}
+
+        {idChecks.length > 0 ? (
+          <div>
+            <p className="text-[12px] font-medium text-fg-muted">Licence checks</p>
+            <ul className="mt-1 space-y-1 text-[12px] text-fg-muted" data-testid="licence-check-history">
+              {idChecks.map((c) => (
+                <li key={c.id}>
+                  {fmtDateTime(c.checkedAt)} · {c.result === "match" ? "Matched the record" : "Did not match"}
+                  {c.mismatchedFields.length
+                    ? ` (${c.mismatchedFields.map((f) => LICENCE_CHECK_FIELD_LABELS[f].toLowerCase()).join("; ")})`
+                    : ""}
+                  {` · ${c.jurisdiction ?? ""} ending ${c.licenceLast4}`}
+                  {c.checkedByName ? ` · ${c.checkedByName}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {doc.decisions.length > 0 ? (
           <div>

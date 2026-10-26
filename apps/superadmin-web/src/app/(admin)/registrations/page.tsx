@@ -1,16 +1,10 @@
 import { load } from "@sportspulse/api-client";
 import Link from "next/link";
-import {
-  ExternalLink,
-  FileSignature,
-  Inbox,
-  Sparkles,
-  TrendingUp
-} from "lucide-react";
+import { ExternalLink, FileSignature, Inbox, TrendingUp } from "lucide-react";
 import type { PublicSeasonContext } from "@sportspulse/registration-funnel";
 import { ReviewQueue } from "@/components/registrations/review-queue";
 import { publicRegistration, registration } from "@/lib/api/server-api";
-import { Reveal, LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader, Reveal } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
   EkgLine,
@@ -126,6 +120,39 @@ export default async function RegistrationsPage() {
 
   return (
     <div className="space-y-12">
+      <PageHeader
+        eyebrow="Review · queue"
+        eyebrowDot={pending > 0}
+        title="Registrations"
+        description="Player and team registrations for every season. Review the queue below: approve, ask for changes, or reject with a reason. Further down you can see the form exactly as players see it."
+        action={
+          <>
+            {activeForm?.seasonId && playerWebUrl ? (
+              <a
+                // Absolute URL into this environment's player-web
+                // (BUG-044a; REG-12: origin from the API, no production
+                // fallback).
+                href={`${playerWebUrl}/register/${activeForm.seasonId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface-1 px-4 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+              >
+                <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
+                Public funnel
+              </a>
+            ) : null}
+            {activeForm ? (
+              <Link
+                href={`/forms/${activeForm.id}`}
+                className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-[var(--accent-hover)]"
+              >
+                <FileSignature className="h-4 w-4" strokeWidth={1.75} />
+                Edit form
+              </Link>
+            ) : null}
+          </>
+        }
+      />
       {!regsResult.ok ? (
         <LoadError
           what="registrations"
@@ -133,7 +160,7 @@ export default async function RegistrationsPage() {
           message={regsResult.message}
         />
       ) : null}
-      {/* HERO with kinetic strip embedded */}
+      {/* Live queue strip on the landing-style backdrop. */}
       <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-surface-1">
         <div
           aria-hidden
@@ -148,59 +175,9 @@ export default async function RegistrationsPage() {
           className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[820px] -translate-x-1/2 animate-pulse-slow rounded-full bg-[--accent]/10 blur-[140px]"
         />
 
-        <div className="relative px-7 pb-10 pt-12 lg:px-10 lg:pb-14 lg:pt-16">
-          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
-            <LiveDot tone={pending > 0 ? "accent" : "success"} />
-            <span className="text-fg/80">review</span>
-            <span className="text-fg-subtle">·</span>
-            <span>queue</span>
-          </div>
-
-          <h1 className="mt-5 max-w-[18ch] text-balance font-sans text-[clamp(36px,5vw,64px)] font-semibold leading-[0.96] tracking-tighter text-fg">
-            Registrations
-          </h1>
-
-          <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
-            Player and team registrations for every season. Review the queue
-            below: approve, ask for changes, or reject with a reason. Further
-            down you can see the form exactly as players see it.
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center gap-2.5">
-            {activeForm ? (
-              <Link
-                href={`/forms/${activeForm.id}`}
-                className="group inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02] active:scale-100"
-              >
-                <FileSignature className="h-3.5 w-3.5" strokeWidth={1.75} />
-                Edit form
-              </Link>
-            ) : null}
-            {activeForm?.seasonId && playerWebUrl ? (
-              <a
-                // Absolute URL into this environment's player-web
-                // (BUG-044a; REG-12: origin from the API, no production
-                // fallback).
-                href={`${playerWebUrl}/register/${activeForm.seasonId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-bg-subtle px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
-              >
-                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-                Public funnel
-              </a>
-            ) : null}
-            <Link
-              href="/forms"
-              className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-bg-subtle px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
-            >
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
-              All forms
-            </Link>
-          </div>
-
+        <div className="relative p-5 lg:p-8">
           {/* KINETIC STRIP — 3 specialised cards */}
-          <Reveal delay={0.18} y={32} className="mt-14 lg:mt-20">
+          <Reveal delay={0.18} y={32}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <InboxCard pending={pending} total={total} />
               <ThroughputCard

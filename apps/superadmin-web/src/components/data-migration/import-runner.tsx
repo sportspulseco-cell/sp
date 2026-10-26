@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Upload } from "lucide-react";
 import { dataMigration } from "@/lib/api/browser-api";
 import type { ImportEntityKind, Org } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Field, Input, Select } from "@sportspulse/ui";
 
 const SAMPLE_HEADERS: Record<ImportEntityKind, string[]> = {
   persons: [

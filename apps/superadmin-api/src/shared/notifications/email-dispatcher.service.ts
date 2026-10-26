@@ -58,6 +58,11 @@ export class EmailDispatcherService {
     return this.client;
   }
 
+  /** True when an email provider key is configured. */
+  isConfigured(): boolean {
+    return !!this.config.get<string>("RESEND_API_KEY");
+  }
+
   private getFrom(override?: string): string {
     return (
       override ??

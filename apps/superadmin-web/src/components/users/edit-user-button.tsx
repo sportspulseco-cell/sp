@@ -10,9 +10,7 @@ import {
 } from "@sportspulse/registration-funnel";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
+import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
 
 const transport = {
   getRoleProfile: (id: string, code: string) => iam.getRoleProfile(id, code),

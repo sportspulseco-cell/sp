@@ -1,6 +1,6 @@
 "use client";
 
-import { UrlFilters } from "@/components/ui/url-filters";
+import { UrlFilters } from "@sportspulse/ui";
 
 /**
  * /users search + Status / Type / Region / Country filters

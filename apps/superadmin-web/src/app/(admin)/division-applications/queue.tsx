@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
-import { LocalDate } from "@sportspulse/ui";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  Field,
+  Input,
+  LocalDate,
+  Select,
   TBody,
   TD,
   TH,
   THead,
   TR,
   Table
-} from "@/components/ui/table";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+} from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 type DteItem = {

@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Info, Loader2, Wallet } from "lucide-react";
 import type { InvoiceRefundable } from "@sportspulse/api-client";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, Dialog, DialogActions } from "@sportspulse/ui";
 import { formatMoney } from "@/components/finance/money";
 import { finance } from "@/lib/api/browser-api";
 

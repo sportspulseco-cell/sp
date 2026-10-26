@@ -40,3 +40,5 @@ export const registrationV2 = api.registrationV2;
 export const publicRegistration = api.publicRegistration;
 export const captain = api.captain;
 export const teamStore = api.teamStore;
+// Substitute requests (UC-31).
+export const subs = api.subs;

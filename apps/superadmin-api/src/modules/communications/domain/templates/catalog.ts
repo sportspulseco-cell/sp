@@ -11,8 +11,20 @@ export const TEMPLATE_CODES = NOTIFICATION_TEMPLATE_CODES;
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
 
 /** Channels a person can switch on or off per topic. */
-export const PREFERENCE_CHANNELS = ["email", "in_app"] as const;
+export const PREFERENCE_CHANNELS = ["email", "in_app", "sms", "push"] as const;
 export type PreferenceChannel = (typeof PREFERENCE_CHANNELS)[number];
+
+/**
+ * A channel with no preference row: email, in-app and push are on until
+ * switched off (push also needs a subscribed device); text messages are
+ * off until the person turns them on, because texts need consent.
+ */
+export const CHANNEL_DEFAULT_ON: Record<PreferenceChannel, boolean> = {
+  email: true,
+  in_app: true,
+  sms: false,
+  push: true
+};
 
 /**
  * The notifications a person can turn off, one row per topic in the
@@ -38,6 +50,7 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
   { key: "game.reminder", category: "Games", label: "Game reminder", description: "A reminder about a day before each of your games.", codes: ["game.reminder"] },
   { key: "game.rescheduled", category: "Games", label: "Game moved", description: "When a game's time or rink changes.", codes: ["game.rescheduled"] },
   { key: "game.postponed", category: "Games", label: "Game postponed or cancelled", description: "When a game is postponed or cancelled.", codes: ["game.postponed", "game.cancelled"] },
+  { key: "game.official_assigned", category: "Games", label: "Officiating assignment", description: "When you are put on a game's crew as a referee or scorekeeper.", codes: ["game.official_assigned"] },
   { key: "game.finalized", category: "Games", label: "Final score", description: "When a game is final and stats are in.", codes: ["game.finalized"] },
   // Announcements (UC-19, UC-20)
   { key: "org.broadcast", category: "Announcements", label: "Announcements", description: "Messages from your league, organization, captain or coach.", codes: ["org.broadcast"] },
@@ -49,6 +62,7 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
   { key: "PLAYER_JOIN_APPROVED", category: "Team activity", label: "Captain accepted you", description: "When a captain accepts your request to join.", codes: ["PLAYER_JOIN_APPROVED"] },
   { key: "PLAYER_JOIN_REJECTED", category: "Team activity", label: "Captain declined you", description: "When a captain declines your request to join.", codes: ["PLAYER_JOIN_REJECTED"] },
   { key: "FREE_AGENT_OFFER", category: "Team activity", label: "Team offer", description: "When a captain or admin offers you a spot.", codes: ["FREE_AGENT_OFFER"] },
+  { key: "SUB_REQUEST", category: "Team activity", label: "Sub requests", description: "When a captain asks you to sub, cancels the ask, or a league admin puts you on a game.", codes: ["SUB_REQUEST", "SUB_REQUEST_CANCELLED", "SUB_ASSIGNED"] },
   { key: "DROP_CONFIRMED", category: "Team activity", label: "Removed from roster", description: "When you are dropped from a roster.", codes: ["DROP_CONFIRMED"] },
   { key: "suspension", category: "Team activity", label: "Suspensions", description: "When a suspension is issued or lifted.", codes: ["suspension.issued", "suspension.lifted"] },
   // Payments
@@ -63,6 +77,8 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
   { key: "compliance.document.decided", category: "Compliance", label: "Document reviewed", description: "When an admin accepts or rejects a document you uploaded.", codes: ["compliance.document.decided", "eligibility.waived"] },
   // Running a team (captains and coaches)
   { key: "PLAYER_JOIN_REQUEST", category: "Running a team", label: "Join requests", description: "When a player asks to join your team.", codes: ["PLAYER_JOIN_REQUEST"] },
+  { key: "SUB_REQUEST_REPLY", category: "Running a team", label: "Sub replies", description: "When a player accepts or declines your sub request, or a league admin adds a sub to your game.", codes: ["SUB_REQUEST_ACCEPTED", "SUB_REQUEST_DECLINED", "SUB_ASSIGNED_CAPTAIN"] },
+  { key: "SUB_ADDED_ADMIN", category: "Running a league", label: "Subs added to games", description: "For league admins: when a sub joins a game in your league.", codes: ["SUB_ADDED_ADMIN"] },
   { key: "FREE_AGENT_OFFER_REPLY", category: "Running a team", label: "Offer replies", description: "When a player accepts or declines your offer.", codes: ["FREE_AGENT_OFFER_ACCEPTED", "FREE_AGENT_OFFER_DECLINED"] },
   { key: "TEAM_REGISTRATION", category: "Running a team", label: "Team registration", description: "When your team's registration is received, approved, declined or withdrawn.", codes: ["TEAM_REGISTRATION_APPLIED_CONFIRMATION", "TEAM_REGISTRATION_APPROVED", "TEAM_REGISTRATION_REJECTED", "TEAM_REGISTRATION_WITHDRAWN", "TEAM_CONFIRMED"] },
   { key: "team.compliance", category: "Running a team", label: "Player eligibility", description: "When a player's membership lapses or a document is decided.", codes: ["USA_HOCKEY_EXPIRED_CAPTAIN", "compliance.document.decided.captain", "eligibility.waived.captain", "INVITE_EXPIRED_CAPTAIN"] }
@@ -70,6 +86,13 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
 
 /** Every code a person may switch off. */
 export const PREFERENCE_CODES: ReadonlySet<string> = new Set(PREFERENCE_TOPICS.flatMap((t) => t.codes));
+
+/**
+ * Codes that also go by text and push (FR-3.10.2): the topics a person
+ * manages in notification settings, so every text or push they get is
+ * one they can switch off on the same page.
+ */
+export const MOBILE_CHANNEL_CODES: ReadonlySet<string> = PREFERENCE_CODES;
 
 export interface DefaultTemplate {
   code: TemplateCode;
@@ -1064,6 +1087,98 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "{{playerName}} declined your offer",
     body: "{{playerName}} declined the {{teamName}} offer for {{seasonName}}. They stay in the free-agent pool.",
     variables: ["playerName", "teamName", "seasonName"]
+  },
+  // -----------------------------------------------------------------
+  // Substitute requests (UC-31). Payload from SubstituteRequestsService:
+  // teamName, playerName, opponentName, gameWhen ("Mon, Nov 2, 7:30 PM
+  // at Rink"), playerAppUrl, note (a sentence or ""), reason (cancels).
+  // -----------------------------------------------------------------
+  {
+    code: "SUB_REQUEST",
+    channel: "email",
+    subject: "{{teamName}} asks you to sub: {{gameWhen}}",
+    body:
+      "{{teamName}} needs a sub against {{opponentName}} on {{gameWhen}}.\n\n" +
+      "{{note}}\n\nAccept or decline on your player home page:\n{{playerAppUrl}}\n\n" +
+      "The request closes when the game starts.",
+    variables: ["teamName", "opponentName", "gameWhen", "note", "playerAppUrl"]
+  },
+  {
+    code: "SUB_REQUEST",
+    channel: "in_app",
+    subject: "Sub request: {{teamName}}",
+    body: "{{teamName}} asks you to sub against {{opponentName}} on {{gameWhen}}. Accept or decline from your home page. {{note}}",
+    variables: ["teamName", "opponentName", "gameWhen", "note"]
+  },
+  {
+    code: "SUB_REQUEST_CANCELLED",
+    channel: "email",
+    subject: "Sub request closed: {{teamName}}, {{gameWhen}}",
+    body: "The {{teamName}} sub request for {{gameWhen}} is closed. {{reason}}. Nothing for you to do.",
+    variables: ["teamName", "gameWhen", "reason"]
+  },
+  {
+    code: "SUB_REQUEST_CANCELLED",
+    channel: "in_app",
+    subject: "Sub request closed: {{teamName}}",
+    body: "The {{teamName}} sub request for {{gameWhen}} is closed. {{reason}}.",
+    variables: ["teamName", "gameWhen", "reason"]
+  },
+  {
+    code: "SUB_REQUEST_ACCEPTED",
+    channel: "email",
+    subject: "{{playerName}} will sub for {{teamName}}",
+    body: "{{playerName}} accepted your sub request and is on the lineup for {{gameWhen}} against {{opponentName}}.",
+    variables: ["playerName", "teamName", "gameWhen", "opponentName"]
+  },
+  {
+    code: "SUB_REQUEST_ACCEPTED",
+    channel: "in_app",
+    subject: "{{playerName}} will sub",
+    body: "{{playerName}} accepted and is on the {{teamName}} lineup for {{gameWhen}}.",
+    variables: ["playerName", "teamName", "gameWhen"]
+  },
+  {
+    code: "SUB_REQUEST_DECLINED",
+    channel: "email",
+    subject: "{{playerName}} cannot sub for {{teamName}}",
+    body: "{{playerName}} declined your sub request for {{gameWhen}}. Ask another player from the game's Subs page.",
+    variables: ["playerName", "teamName", "gameWhen"]
+  },
+  {
+    code: "SUB_REQUEST_DECLINED",
+    channel: "in_app",
+    subject: "{{playerName}} declined",
+    body: "{{playerName}} cannot sub for {{teamName}} on {{gameWhen}}. Ask another player.",
+    variables: ["playerName", "teamName", "gameWhen"]
+  },
+  {
+    code: "SUB_ASSIGNED",
+    channel: "email",
+    subject: "You are subbing for {{teamName}}: {{gameWhen}}",
+    body: "A league admin added you to the {{teamName}} lineup as a sub against {{opponentName}} on {{gameWhen}}.",
+    variables: ["teamName", "opponentName", "gameWhen"]
+  },
+  {
+    code: "SUB_ASSIGNED",
+    channel: "in_app",
+    subject: "Subbing for {{teamName}}",
+    body: "A league admin added you as a sub for {{teamName}} against {{opponentName}} on {{gameWhen}}.",
+    variables: ["teamName", "opponentName", "gameWhen"]
+  },
+  {
+    code: "SUB_ASSIGNED_CAPTAIN",
+    channel: "email",
+    subject: "Sub added to your game: {{playerName}}",
+    body: "A league admin added {{playerName}} to the {{teamName}} lineup as a sub for {{gameWhen}} against {{opponentName}}.",
+    variables: ["playerName", "teamName", "gameWhen", "opponentName"]
+  },
+  {
+    code: "SUB_ADDED_ADMIN",
+    channel: "email",
+    subject: "Sub added: {{playerName}} for {{teamName}}",
+    body: "{{playerName}} {{how}} and subs for {{teamName}} against {{opponentName}} on {{gameWhen}}.",
+    variables: ["playerName", "how", "teamName", "opponentName", "gameWhen"]
   },
   {
     code: "FREE_AGENT_PITCH",

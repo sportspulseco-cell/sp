@@ -6,6 +6,7 @@ import { FileBarChart } from "lucide-react";
 import {
   Badge,
   EmptyState,
+  PageHeader,
   SectionRail,
   TBody,
   TD,
@@ -15,7 +16,6 @@ import {
   Table
 } from "@sportspulse/ui";
 import { audit, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";

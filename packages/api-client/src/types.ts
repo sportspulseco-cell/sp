@@ -476,6 +476,70 @@ export interface AdminComplianceDocument extends ComplianceDocumentSubmission {
   birthYearMax: number | null;
   sha256: string;
   decisions: ComplianceDocumentDecisionEntry[];
+  /** Licence barcode checks on this document, oldest first (UC-29). */
+  idChecks: LicenceIdCheck[];
+}
+
+/** One stored licence barcode check (UC-29). Never the full licence number. */
+export interface LicenceIdCheck {
+  id: string;
+  submissionId: string;
+  method: "camera" | "photo";
+  result: "match" | "mismatch";
+  mismatchedFields: Array<
+    | "last_name"
+    | "first_name"
+    | "date_of_birth"
+    | "date_of_birth_not_on_file"
+    | "expired"
+    | "expiry_unreadable"
+    | "seen_on_another_person"
+  >;
+  documentType: "DL" | "ID";
+  jurisdiction: string | null;
+  licenceLast4: string;
+  expiresOn: string | null;
+  checkedAt: string;
+  checkedByName: string | null;
+}
+
+/** Which delivery channels are set up (FR-3.10.2). No secrets. */
+export interface NotificationChannelStatus {
+  email: { available: boolean };
+  in_app: { available: true };
+  sms: { available: boolean; message: string | null };
+  push: { available: boolean; publicKey: string | null; message: string | null };
+}
+
+export type NotificationPreferenceChannel = "email" | "in_app" | "sms" | "push";
+
+/** UC-19 scheduled announcement. */
+export interface ScheduledBroadcast {
+  id: string;
+  orgId: string;
+  idempotencyKey: string;
+  sendAt: string;
+  status: "scheduled" | "sending" | "sent" | "cancelled" | "failed";
+  subject: string;
+  targetType: "org" | "league" | "season" | "division" | "team";
+  audiences: Array<"captains" | "coaches" | "players" | "referees" | "all_admins">;
+  channels: Array<"email" | "in_app">;
+  attachments: Array<{ id: string; fileName: string }>;
+  result: { recipients: number; queued: number; failed: number; noEmail: number } | null;
+  lastError: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  sentAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface BroadcastAttachment {
+  id: string;
+  orgId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
 }
 
 export interface ComplianceDocumentQueuePage {
@@ -1672,4 +1736,94 @@ export interface MisconductReport {
     suspension: { id: string; status: string; kind: string; nGames: number | null } | null;
   }>;
   players: Array<{ personId: string; personName: string | null; teamName: string | null; count: number; ejections: number }>;
+}
+
+// ----- Substitute requests (UC-31, FR-3.3.1, FR-3.3.3) -----
+
+export type SubRequestStatus = "requested" | "accepted" | "declined" | "cancelled" | "expired";
+
+/** A player who may sub for a team in one game, with the reasons they cannot (kernel SUB_INELIGIBLE_REASONS). */
+export interface SubCandidate {
+  personId: string;
+  name: string;
+  source: "free_agent" | "league_player";
+  sourceTeamName: string | null;
+  level: string | null;
+  levelLabel: string | null;
+  positions: string[];
+  positionLabels: string[];
+  eligible: boolean;
+  reasons: string[];
+  reasonText: string;
+  adminOverridable: boolean;
+  openRequest: { id: string; teamId: string } | null;
+}
+
+export interface SubRequest {
+  id: string;
+  gameId: string;
+  teamId: string;
+  teamName: string;
+  personId: string;
+  personName: string;
+  status: SubRequestStatus;
+  statusLabel: string;
+  source: string | null;
+  rosterOverride: boolean;
+  note: string | null;
+  cancelReason: string | null;
+  cancelReasonText: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  attendanceId: string | null;
+  log: Array<{ at: string; status: SubRequestStatus; byUserId: string | null; note?: string }>;
+  game: {
+    startsAt: string;
+    tz: string;
+    status: string;
+    venueName: string | null;
+    homeTeamName: string;
+    awayTeamName: string;
+    opponentName: string;
+    when: string;
+  };
+}
+
+export interface SubGameSummary {
+  id: string;
+  startsAt: string;
+  tz: string;
+  when: string;
+  status: string;
+  venueName: string | null;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  opponentName: string | null;
+  started: boolean;
+}
+
+/** One team's subs for one game. */
+export interface TeamSubs {
+  teamId: string;
+  teamName: string;
+  division: { id: string; name: string; tier: string | null } | null;
+  rules: { maxGuestPlayersPerGame: number; guestPlayerSeasonLimit: number };
+  guestsThisGame: number;
+  guests: Array<{ attendanceId: string; personId: string; name: string; viaRequestId: string | null; rosterOverride: boolean }>;
+  requests: SubRequest[];
+  candidates: SubCandidate[];
+}
+
+export interface CaptainGameSubs extends TeamSubs {
+  game: SubGameSummary;
+  /** Why no new request can be sent, or null. */
+  closedReason: string | null;
+}
+
+export interface AdminGameSubs {
+  game: SubGameSummary;
+  teams: TeamSubs[];
+  assignClosedReason: string | null;
 }

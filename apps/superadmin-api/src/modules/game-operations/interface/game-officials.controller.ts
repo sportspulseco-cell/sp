@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -35,6 +36,7 @@ import {
   requireGamePermission
 } from "../../../shared/auth/game-access";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { personForAccountEmail } from "../../../shared/auth/person-by-email";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import {
   AssignGameOfficialHandler,
@@ -196,7 +198,25 @@ export class GameOfficialsController {
       "game.assign_officials",
       "assign officials"
     );
-    const { force, ...assign } = body;
+    const { force, email, personId: givenPersonId, ...rest } = body;
+    if (!!email === !!givenPersonId) {
+      throw new BadRequestException("Give either a person or an account email.");
+    }
+    let personId = givenPersonId ?? null;
+    if (email) {
+      // Permission on this game is checked above, before any lookup.
+      // Exact email only; nothing is listed or suggested (privacy).
+      const found = await personForAccountEmail(this.db, email, "game-officials.add-by-email");
+      if (!found) {
+        log.warn(`add-by-email: no account game=${gameId} by=${user.userId}`);
+        throw new NotFoundException(
+          "No account uses that email. Check the spelling, or ask them to sign up first, then try again."
+        );
+      }
+      personId = found.personId;
+      log.log(`add-by-email: game=${gameId} person=${personId} created=${found.created} by=${user.userId}`);
+    }
+    const assign = { ...rest, personId: personId! };
     // Clash check (FR-3.9): one person cannot run two games at once.
     if (assign.status !== "declined") {
       const busy = (await this.clashes(gameId, [assign.personId])).get(assign.personId);

@@ -27,7 +27,9 @@ import { DRIZZLE } from "../../../../shared/database/database.tokens";
  * Queued rows nobody sent: rows written by database jobs (overdue sweep,
  * compliance sweep, invite expiry) never get the API's inline send. Only
  * the last 24 hours are sent: an older notice is stale and must never
- * reach a person late. SMS has no provider, so it is left alone.
+ * reach a person late. Every channel is sent: an SMS row with no
+ * provider configured ends `suppressed` ("not sent: SMS is not set up"),
+ * never `failed`, so it is not picked again.
  */
 function recentQueued(db: Database, limit: number, minAgeMinutes: number) {
   return db
@@ -36,7 +38,7 @@ function recentQueued(db: Database, limit: number, minAgeMinutes: number) {
     .where(
       and(
         eq(schema.notifications.status, "queued"),
-        inArray(schema.notifications.channel, ["email", "in_app", "push"]),
+        inArray(schema.notifications.channel, ["email", "in_app", "sms", "push"]),
         sql`${schema.notifications.createdAt} > now() - interval '24 hours'`,
         sql`${schema.notifications.createdAt} < now() - make_interval(mins => ${minAgeMinutes}::int)`
       )

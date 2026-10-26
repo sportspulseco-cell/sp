@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@sportspulse/ui";
 
 export default function GameDetailLoading() {
   return (

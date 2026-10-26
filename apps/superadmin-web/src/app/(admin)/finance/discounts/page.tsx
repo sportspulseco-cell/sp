@@ -1,7 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { DiscountsShell } from "./discounts-shell";
 
 export const dynamic = "force-dynamic";

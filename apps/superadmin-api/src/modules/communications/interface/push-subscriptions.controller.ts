@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -17,6 +18,11 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { PushDispatcherService } from "../../../shared/notifications/push-dispatcher.service";
+
+class UnsubscribeBodyDto {
+  @IsString() @MinLength(10) endpoint!: string;
+}
 
 class SubscribeBodyDto {
   @IsString() @MinLength(10) endpoint!: string;
@@ -40,7 +46,41 @@ class SubscribeBodyDto {
 @Controller("communications/push")
 @UseGuards(JwtAuthGuard)
 export class PushSubscriptionsController {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly push: PushDispatcherService
+  ) {}
+
+  @Get("config")
+  @ApiOperation({
+    summary:
+      "The VAPID public key browsers subscribe with, or available=false when push is not set up. No secrets."
+  })
+  config(): { available: boolean; publicKey: string | null } {
+    const publicKey = this.push.publicKey();
+    return { available: !!publicKey, publicKey };
+  }
+
+  @Post("unsubscribe")
+  @ApiOperation({
+    summary:
+      "Remove the caller's subscription for this browser by its endpoint. Only the caller's own row; another user's endpoint is left alone (deleted=false)."
+  })
+  async unsubscribe(
+    @CurrentUser() user: AuthPrincipal,
+    @Body() body: UnsubscribeBodyDto
+  ) {
+    const deleted = await this.db
+      .delete(schema.pushSubscriptions)
+      .where(
+        and(
+          eq(schema.pushSubscriptions.endpoint, body.endpoint),
+          eq(schema.pushSubscriptions.userId, user.userId)
+        )
+      )
+      .returning({ id: schema.pushSubscriptions.id });
+    return { deleted: deleted.length > 0 };
+  }
 
   @Post("subscribe")
   @ApiOperation({
@@ -52,6 +92,15 @@ export class PushSubscriptionsController {
     @Body() body: SubscribeBodyDto
   ) {
     const platform = body.platform ?? "web";
+    if (platform === "web") {
+      // A web push without its keys can never be encrypted to; refuse it now.
+      if (!body.p256dhKey || !body.authKey) {
+        throw new BadRequestException("A web push subscription needs its p256dh and auth keys.");
+      }
+      if (!/^https:\/\//.test(body.endpoint)) {
+        throw new BadRequestException("A web push endpoint must be an https URL.");
+      }
+    }
     const [existing] = await this.db
       .select({ id: schema.pushSubscriptions.id })
       .from(schema.pushSubscriptions)

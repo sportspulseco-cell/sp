@@ -46,9 +46,9 @@ export async function OffSeasonView({
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0C447C] to-[#185FA5] px-8 py-10 text-white">
         <Eyebrow className="text-white/70">off-season</Eyebrow>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
-          {team.name}
-        </h1>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
+          Season complete
+        </h2>
         <p className="mt-1 text-sm text-white/80">
           {lastSeason?.name ?? state.seasonName ?? "Most recent season"} —
           completed

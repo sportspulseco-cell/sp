@@ -10,6 +10,7 @@ export * from "./parity-windows";
 export * from "./playoff-brackets";
 export * from "./tournament-tiers";
 export * from "./game-officials";
+export * from "./substitutes";
 export * from "./stats";
 export * from "./registration";
 export * from "./registration-v2";

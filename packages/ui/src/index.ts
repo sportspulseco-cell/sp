@@ -33,3 +33,4 @@ export { cn } from "./lib/cn";
 export * from "./season-switch";
 export * from "./breadcrumbs";
 export * from "./season-leaders";
+export * from "./shell";
