@@ -5,14 +5,22 @@
  *
  * Transport-agnostic: the consuming app injects `listLeagues`,
  * `listSeasons`, `listDivisions`, and `createForm` callbacks (their
- * browser-api SDK). On success the dialog calls `onCreated(formId)` —
- * each app routes to its own `/forms/[id]`, so the sa-web URL never
+ * browser-api SDK). On success the dialog opens `formHref(formId)` —
+ * each app supplies its own `/forms/[id]`, so the sa-web URL never
  * leaks into org-admin.
+ *
+ * After the create the dialog stays open and says the editor is opening
+ * until the navigation commits (CONSOLE-23). It used to close first and
+ * then push: the URL changes only once the editor's server render
+ * arrives, so under a slow API the admin sat on the list with no sign
+ * the form existed, and could create it again. If the client navigation
+ * has not committed after 12 s the browser loads the editor directly.
  *
  * Pattern mirrors OrgSetupWizard (commit b99de22).
  */
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, useTransition, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import {
   FORM_PURPOSES,
@@ -69,8 +77,8 @@ export interface CreateFormButtonProps {
   listSeasons: (leagueId: string) => Promise<CreateFormSeason[]>;
   listDivisions: (seasonId: string) => Promise<CreateFormDivision[]>;
   createForm: (input: CreateFormInput) => Promise<{ id: string }>;
-  /** Called with the new form's id after a successful create. */
-  onCreated: (formId: string) => void;
+  /** This console's editor URL for a form; opened after a create. */
+  formHref: (formId: string) => string;
   /** Hide the org picker (true when there's only one option). */
   lockOrg?: boolean;
   /**
@@ -109,7 +117,7 @@ function CreateFormDialog({
   listSeasons,
   listDivisions,
   createForm,
-  onCreated,
+  formHref,
   lockOrg,
   defaultOrgId
 }: CreateFormButtonProps & {
@@ -129,6 +137,23 @@ function CreateFormDialog({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  // Set once the form exists: the dialog then only says the editor is
+  // opening (no second create), until this page unmounts.
+  const [createdHref, setCreatedHref] = useState<string | null>(null);
+  const [, startNavigation] = useTransition();
+
+  useEffect(() => {
+    if (!createdHref) return;
+    // Navigation away unmounts this dialog and clears the timer. Still
+    // here after 12 s: load the editor directly rather than leave the
+    // admin on the list.
+    const t = setTimeout(() => {
+      console.warn(`[forms] client navigation to ${createdHref} not committed after 12 s; loading it directly`);
+      window.location.assign(createdHref);
+    }, 12_000);
+    return () => clearTimeout(t);
+  }, [createdHref]);
 
   const [leagues, setLeagues] = useState<CreateFormLeague[]>([]);
   const [seasons, setSeasons] = useState<CreateFormSeason[]>([]);
@@ -201,6 +226,7 @@ function CreateFormDialog({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (createdHref) return;
     setLoading(true);
     setError(null);
     try {
@@ -225,8 +251,12 @@ function CreateFormDialog({
         appliesToRoles: form.appliesToRoles,
         seasonId: needsSeason ? form.seasonId || null : null
       });
-      onClose();
-      onCreated(created.id);
+      const href = formHref(created.id);
+      console.info(`[forms] created ${created.id}; opening ${href}`);
+      setCreatedHref(href);
+      // No router.refresh(): it can supersede the push (J11). The editor
+      // loads fresh server data on its own.
+      startNavigation(() => router.push(href));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -237,7 +267,7 @@ function CreateFormDialog({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={createdHref ? () => undefined : onClose}
       title="New registration form"
       description="Create a form shell. Add a schema version next, then publish to make it active."
     >
@@ -412,15 +442,23 @@ function CreateFormDialog({
         </Field>
 
         {error ? <Alert tone="error">{error}</Alert> : null}
+        {createdHref ? (
+          <p role="status" className="text-[13px] text-fg">
+            Form created. Opening the editor…{" "}
+            <a href={createdHref} className="font-medium underline underline-offset-2">
+              Open it now
+            </a>
+          </p>
+        ) : null}
 
         <DialogActions>
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={!!createdHref}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? (
+          <Button type="submit" disabled={loading || !!createdHref}>
+            {loading || createdHref ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {createdHref ? "Opening…" : "Creating…"}
               </>
             ) : (
               "Create form"
