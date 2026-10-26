@@ -372,7 +372,14 @@ async function SeasonLeadersTab({ leagueId }: { leagueId?: string }) {
   if (!leagueId) {
     return <EmptyState icon={BarChart3} title="Pick a league" description="Leaders are shown per league season. Pick a league above." />;
   }
-  const seasons = await fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor })).catch(() => ({ items: [] }));
+  let seasons: Awaited<ReturnType<typeof leagueMgmt.listSeasons>>;
+  try {
+    seasons = await fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor }));
+  } catch (e) {
+    // A failed read is not "no season": say it could not load.
+    const err = e as { status?: number; message?: string };
+    return <LoadError what="the league's seasons" status={err.status ?? null} message={err.message} />;
+  }
   const live = seasons.items.filter((s) => s.status === "in_progress" || s.status === "playoffs");
   const pool = live.length ? live : seasons.items;
   const current = [...pool].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
