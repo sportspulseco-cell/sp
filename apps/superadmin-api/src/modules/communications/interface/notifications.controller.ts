@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  BadRequestException,
   ForbiddenException,
   Get,
   Inject,
@@ -13,8 +14,15 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { IsBoolean } from "class-validator";
-import { and, eq, isNull, sql } from "drizzle-orm";
-import { TEMPLATE_CODES } from "../domain/templates/catalog";
+import { and, eq, inArray, isNull, not, sql } from "drizzle-orm";
+import {
+  PREFERENCE_CHANNELS,
+  PREFERENCE_CODES,
+  PREFERENCE_TOPICS,
+  TEMPLATE_CODES,
+  type PreferenceChannel,
+  type PreferenceTopic
+} from "../domain/templates/catalog";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -133,11 +141,14 @@ export class NotificationsController {
   ): Promise<NotificationPageDto> {
     const personId = await this.resolvePersonId(user.userId);
     if (!personId) return { items: [], nextCursor: null } as NotificationPageDto;
+    // The inbox is the in-app channel: a code the person switched off
+    // in-app stays out of it, whichever channel the row went by.
     return this.listH.execute({
       limit: q.limit,
       cursor: q.cursor,
       status: q.status,
       templateCode: q.templateCode,
+      excludeTemplateCodes: await this.inAppMutedCodes(user.userId),
       recipientPersonId: personId,
       inbox: true
     });
@@ -153,6 +164,7 @@ export class NotificationsController {
   ): Promise<{ unread: number }> {
     const personId = await this.resolvePersonId(user.userId);
     if (!personId) return { unread: 0 };
+    const muted = await this.inAppMutedCodes(user.userId);
     const [row] = await this.db
       .select({ c: sql<number>`COUNT(*)::int` })
       .from(schema.notifications)
@@ -160,7 +172,8 @@ export class NotificationsController {
         and(
           eq(schema.notifications.recipientPersonId, personId),
           isNull(schema.notifications.readAt),
-          notInboxDuplicate()
+          notInboxDuplicate(),
+          ...(muted.length ? [not(inArray(schema.notifications.templateCode, muted))] : [])
         )
       );
     return { unread: Number(row?.c ?? 0) };
@@ -194,18 +207,21 @@ export class NotificationsController {
   }
 
   /**
-   * The signed-in user's notification preferences. Returns one row
-   * per (templateCode, channel) the user has *explicitly* set — the
-   * UI overlays this on the catalog of known codes and renders any
-   * missing combination as the default-on state.
+   * The signed-in user's notification preferences. `items` holds every
+   * (templateCode, channel) the user has explicitly set; anything missing
+   * is on. `topics` is the catalog the settings page renders (one row per
+   * topic, each covering one or more codes), so the page never carries
+   * its own copy of the code list.
    */
   @Get("me/preferences")
   @ApiOperation({
     summary:
-      "Return the caller's per-(templateCode, channel) opt-out preferences. Absence-of-row = enabled (default-on)."
+      "The caller's opt-outs plus the catalog of topics they can switch off per channel. Absence of a row = on."
   })
   async myPreferences(@CurrentUser() user: AuthPrincipal): Promise<{
     items: Array<{ templateCode: string; channel: string; enabled: boolean }>;
+    topics: PreferenceTopic[];
+    channels: readonly PreferenceChannel[];
     templates: string[];
   }> {
     const rows = await this.db
@@ -216,17 +232,45 @@ export class NotificationsController {
       })
       .from(schema.notificationPreferences)
       .where(eq(schema.notificationPreferences.userId, user.userId));
-    return { items: rows, templates: [...TEMPLATE_CODES] };
+    return {
+      items: rows,
+      topics: PREFERENCE_TOPICS,
+      channels: PREFERENCE_CHANNELS,
+      templates: [...TEMPLATE_CODES]
+    };
   }
 
   /**
-   * Upsert one preference cell. Absent row → row inserted with the
-   * supplied `enabled`. Existing row → updated to match.
+   * Switch one topic on or off for one channel: every code in the topic
+   * is written in one transaction, so the row never ends half on.
    */
+  @Put("me/preferences/topics/:topicKey/:channel")
+  @ApiOperation({
+    summary:
+      "Set one topic (all of its template codes) on or off for one channel. Body: { enabled }. Channel: email | in_app."
+  })
+  async setTopicPreference(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("topicKey") topicKey: string,
+    @Param("channel") channel: string,
+    @Body() body: SetPreferenceBodyDto
+  ): Promise<{ topicKey: string; channel: string; enabled: boolean; codes: string[] }> {
+    const topic = PREFERENCE_TOPICS.find((t) => t.key === topicKey);
+    if (!topic) throw new NotFoundException(`Unknown notification topic: ${topicKey}`);
+    this.assertChannel(channel);
+    await this.db.transaction(async (tx) => {
+      for (const code of topic.codes) {
+        await this.upsertPreference(tx as unknown as Database, user.userId, code, channel, body.enabled);
+      }
+    });
+    return { topicKey, channel, enabled: body.enabled, codes: topic.codes };
+  }
+
+  /** Upsert one (templateCode, channel) cell. Kept for single-code callers. */
   @Put("me/preferences/:templateCode/:channel")
   @ApiOperation({
     summary:
-      "Upsert a single preference cell. PUT body: { enabled: boolean }. Channel is one of email | in_app | sms."
+      "Upsert a single preference cell. PUT body: { enabled: boolean }. Channel: email | in_app. Code must be one a person can switch off."
   })
   async setPreference(
     @CurrentUser() user: AuthPrincipal,
@@ -234,26 +278,40 @@ export class NotificationsController {
     @Param("channel") channel: string,
     @Body() body: SetPreferenceBodyDto
   ): Promise<{ templateCode: string; channel: string; enabled: boolean }> {
-    if (!TEMPLATE_CODES.includes(templateCode as (typeof TEMPLATE_CODES)[number])) {
-      throw new NotFoundException(`Unknown template code: ${templateCode}`);
+    if (!PREFERENCE_CODES.has(templateCode)) {
+      throw new NotFoundException(`Unknown or required notification: ${templateCode}`);
     }
-    await this.db
+    this.assertChannel(channel);
+    await this.upsertPreference(this.db, user.userId, templateCode, channel, body.enabled);
+    return { templateCode, channel, enabled: body.enabled };
+  }
+
+  private assertChannel(channel: string): asserts channel is PreferenceChannel {
+    if (!(PREFERENCE_CHANNELS as readonly string[]).includes(channel)) {
+      throw new BadRequestException(
+        `channel must be one of ${PREFERENCE_CHANNELS.join(", ")}`
+      );
+    }
+  }
+
+  private async upsertPreference(
+    db: Database,
+    userId: string,
+    templateCode: string,
+    channel: string,
+    enabled: boolean
+  ) {
+    await db
       .insert(schema.notificationPreferences)
-      .values({
-        userId: user.userId,
-        templateCode,
-        channel,
-        enabled: body.enabled
-      })
+      .values({ userId, templateCode, channel, enabled })
       .onConflictDoUpdate({
         target: [
           schema.notificationPreferences.userId,
           schema.notificationPreferences.templateCode,
           schema.notificationPreferences.channel
         ],
-        set: { enabled: body.enabled, updatedAt: new Date() }
+        set: { enabled, updatedAt: new Date() }
       });
-    return { templateCode, channel, enabled: body.enabled };
   }
 
   // Get-one is open to recipients OR super_admin.
@@ -274,6 +332,21 @@ export class NotificationsController {
       .limit(1);
     if (profile?.isSuperAdmin) return dto;
     throw new NotFoundException("Notification");
+  }
+
+  /** Codes the user switched off for the in-app channel. */
+  private async inAppMutedCodes(userId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ code: schema.notificationPreferences.templateCode })
+      .from(schema.notificationPreferences)
+      .where(
+        and(
+          eq(schema.notificationPreferences.userId, userId),
+          eq(schema.notificationPreferences.channel, "in_app"),
+          eq(schema.notificationPreferences.enabled, false)
+        )
+      );
+    return rows.map((r) => r.code);
   }
 
   private async resolvePersonId(userId: string): Promise<string | null> {

@@ -31,3 +31,4 @@ export * from "./copy-link";
 // Next.js). If we ever need a framework-neutral version, factor here.
 export { cn } from "./lib/cn";
 export * from "./season-switch";
+export * from "./breadcrumbs";

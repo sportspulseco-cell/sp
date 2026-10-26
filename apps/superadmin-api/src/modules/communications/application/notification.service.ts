@@ -192,7 +192,16 @@ export class NotificationService {
 
     if (row.channel === "in_app") {
       // Delivery is implicit — the row itself IS the notification, the
-      // recipient reads it via /notifications/recent. Mark sent.
+      // recipient reads it via /notifications/me. Mark sent, unless the
+      // person switched this code off in-app (the inbox hides it too).
+      if (await this.isOptedOut(row.recipientPersonId, row.templateCode, "in_app")) {
+        await this.repo.incrementAttempt(row.id);
+        await this.repo.markStatus(row.id, "suppressed", {
+          lastError: "recipient opted out of this template/channel"
+        });
+        this.log.log(`suppressed in_app ${row.templateCode} ${row.id}: recipient opted out`);
+        return;
+      }
       await this.markSent(row.id);
       return;
     }

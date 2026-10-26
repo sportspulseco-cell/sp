@@ -4,11 +4,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2, Mail, Plus } from "lucide-react";
 import {
+  ROLE_GRANT_SCOPES,
   ROLE_PROFILE_SCHEMAS,
   SCOPE_TYPES,
   SCOPE_TYPE_LABELS,
   SYSTEM_ROLES,
   SYSTEM_ROLE_BY_CODE,
+  holdingManagesRoles,
+  roleGrantAllowed,
   scopeTypeWithArticle,
   type AnswerMap,
   type FormDefinition,
@@ -35,8 +38,54 @@ const ROLE_OPTIONS = [...SYSTEM_ROLES].sort((a, b) => a.rank - b.rank);
 /** Scope types an invite can grant. Game scope comes from the game page. */
 const INVITE_SCOPE_TYPES = SCOPE_TYPES.filter((s) => s !== "game");
 
-export function InviteUserButton() {
+/** The inviting admin's own roles (from viewerRoleGrants on the server). */
+export interface InviteGranter {
+  isSuperAdmin: boolean;
+  holdings: Array<{ roleCode: string; scopeType: string; scopeId: string | null; scopeName: string | null }>;
+}
+
+/**
+ * Roles and scope types an org or league admin may invite with (kernel
+ * role-grants rule; the API checks it again with the scope). Defaults
+ * reflect the inviter: their own role at their own org or league.
+ */
+function inviteChoices(granter: InviteGranter | undefined) {
+  if (!granter || granter.isSuperAdmin) {
+    return {
+      scoped: false,
+      roles: ROLE_OPTIONS,
+      scopeTypesFor: (_code: string): ScopeType[] => INVITE_SCOPE_TYPES,
+      start: { roleCode: "org_admin", scopeType: "org" as ScopeType, scopeId: "" },
+      scopeIdFor: (_t: ScopeType) => ""
+    };
+  }
+  const managers = granter.holdings.filter(holdingManagesRoles);
+  const scopeTypesFor = (code: string): ScopeType[] =>
+    (ROLE_GRANT_SCOPES[code] ?? []).filter((t) =>
+      managers.some((h) => roleGrantAllowed(h, code, t))
+    );
+  const roles = ROLE_OPTIONS.filter((r) => scopeTypesFor(r.code).length > 0);
+  const top = [...managers].sort(
+    (a, b) => (SYSTEM_ROLE_BY_CODE[a.roleCode]?.rank ?? 99) - (SYSTEM_ROLE_BY_CODE[b.roleCode]?.rank ?? 99)
+  )[0];
+  const scopeIdFor = (t: ScopeType) => {
+    const mine = managers.filter((h) => h.scopeType === t && h.scopeId);
+    return mine.length === 1 ? mine[0]!.scopeId! : "";
+  };
+  return {
+    scoped: true,
+    roles,
+    scopeTypesFor,
+    start: top
+      ? { roleCode: top.roleCode, scopeType: top.scopeType as ScopeType, scopeId: scopeIdFor(top.scopeType as ScopeType) }
+      : { roleCode: roles[0]?.code ?? "", scopeType: "team" as ScopeType, scopeId: "" },
+    scopeIdFor
+  };
+}
+
+export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) {
   const router = useRouter();
+  const choices = inviteChoices(granter);
   const [open, setOpen] = useState(false);
   // Set once an invite succeeds while the dialog is open. Closing then
   // refreshes the list again: the refresh sent right after the invite was
@@ -52,10 +101,11 @@ export function InviteUserButton() {
   }
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [grantRole, setGrantRole] = useState(false);
-  const [roleCode, setRoleCode] = useState<string>("org_admin");
-  const [scopeType, setScopeType] = useState<ScopeType>("org");
-  const [scopeId, setScopeId] = useState("");
+  // Org and league admins always invite with a role inside their scope.
+  const [grantRole, setGrantRole] = useState(choices.scoped);
+  const [roleCode, setRoleCode] = useState<string>(choices.start.roleCode);
+  const [scopeType, setScopeType] = useState<ScopeType>(choices.start.scopeType);
+  const [scopeId, setScopeId] = useState(choices.start.scopeId);
   const [setPwd, setSetPwd] = useState(false);
   const [password, setPassword] = useState("");
   // Phase 1.5 — also fill the role-profile fields right here, no
@@ -97,8 +147,10 @@ export function InviteUserButton() {
     setProfileAnswers({});
     const def = SYSTEM_ROLE_BY_CODE[code];
     if (def) {
-      setScopeType(def.scopeType);
-      setScopeId("");
+      const allowed = choices.scopeTypesFor(code);
+      const next = allowed.includes(def.scopeType) ? def.scopeType : (allowed[0] ?? def.scopeType);
+      setScopeType(next);
+      setScopeId(choices.scopeIdFor(next));
     }
   }
 
@@ -266,6 +318,7 @@ export function InviteUserButton() {
             </Field>
           )}
 
+          {choices.scoped ? null : (
           <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-subtle px-3 py-2 text-[13px] text-fg">
             <input
               type="checkbox"
@@ -280,6 +333,7 @@ export function InviteUserButton() {
               </span>
             </span>
           </label>
+          )}
 
           {grantRole && (
             <div className="grid gap-3 sm:grid-cols-2 rounded-md border border-border bg-bg-subtle p-3">
@@ -288,7 +342,7 @@ export function InviteUserButton() {
                   value={roleCode}
                   onChange={(e) => pickRole(e.target.value)}
                 >
-                  {ROLE_OPTIONS.map((r) => (
+                  {choices.roles.map((r) => (
                     <option key={r.code} value={r.code}>
                       {r.name}
                     </option>
@@ -299,11 +353,12 @@ export function InviteUserButton() {
                 <Select
                   value={scopeType}
                   onChange={(e) => {
-                    setScopeType(e.target.value as ScopeType);
-                    setScopeId("");
+                    const t = e.target.value as ScopeType;
+                    setScopeType(t);
+                    setScopeId(choices.scopeIdFor(t));
                   }}
                 >
-                  {INVITE_SCOPE_TYPES.map((s) => (
+                  {choices.scopeTypesFor(roleCode).map((s) => (
                     <option key={s} value={s}>
                       {SCOPE_TYPE_LABELS[s]}
                     </option>
@@ -333,6 +388,7 @@ export function InviteUserButton() {
                   />
                 </Field>
               )}
+              {choices.scoped ? null : (
               <div className="sm:col-span-2 space-y-3">
                 <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-surface-1 px-3 py-2 text-[13px] text-fg">
                   <input
@@ -386,6 +442,7 @@ export function InviteUserButton() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           )}
 

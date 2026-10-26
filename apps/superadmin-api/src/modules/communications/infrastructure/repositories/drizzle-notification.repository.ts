@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, not, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -52,6 +52,8 @@ export class DrizzleNotificationRepository
       cs.push(eq(schema.notifications.recipientPersonId, q.recipientPersonId));
     if (q.templateCode)
       cs.push(eq(schema.notifications.templateCode, q.templateCode));
+    if (q.excludeTemplateCodes?.length)
+      cs.push(not(inArray(schema.notifications.templateCode, q.excludeTemplateCodes)));
     if (q.channel) cs.push(eq(schema.notifications.channel, q.channel));
     if (q.inbox) cs.push(notInboxDuplicate());
     if (q.cursor)

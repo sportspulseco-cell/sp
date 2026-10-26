@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  Logger,
   NotFoundException,
   Body,
   Controller,
@@ -15,7 +17,13 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
-import { formVisible } from "../../../shared/auth/visibility";
+import { formVisible, visibleRegistrationsWhere } from "../../../shared/auth/visibility";
+import {
+  formSubmissionsCsv,
+  isStatusFilter,
+  loadFormSubmissions,
+  type FormSubmissions
+} from "../application/registration-forms/form-submissions";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import type { Database } from "@sportspulse/db";
@@ -47,6 +55,7 @@ import {
 // seasons). Writes: super admin only (guard write rule).
 @UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class RegistrationFormsController {
+  private readonly log = new Logger("FormSubmissions");
   constructor(
     private readonly listH: ListFormsHandler,
     private readonly getH: GetFormHandler,
@@ -141,5 +150,54 @@ export class RegistrationFormsController {
     @Param("versionId") versionId: string
   ): Promise<RegistrationFormDto> {
     return this.publishH.execute({ formId, versionId });
+  }
+  /**
+   * The form's submissions with every answer. Rows are the registrations
+   * made on any version of this form that the caller may read; columns
+   * label each answer. `status` takes the same filter values as the
+   * Submissions view.
+   */
+  @Get(":id/submissions")
+  @ApiOperation({
+    summary:
+      "Submissions of this form (any version) with answers, newest first. status: all | approved | pending_review | pending_payment | rejected."
+  })
+  async submissions(
+    @Param("id") formId: string,
+    @Query("status") status: string | undefined,
+    @UserScope() scope: UserScopeType
+  ): Promise<FormSubmissions> {
+    return this.loadSubmissions(formId, status, scope);
+  }
+
+  /**
+   * The same rows as CSV, returned as JSON `{ filename, csv }` so the web
+   * apps' authenticated fetcher can save it as a file.
+   */
+  @Get(":id/submissions/export")
+  @ApiOperation({
+    summary:
+      "CSV of this form's submissions with one column per answer, as { filename, csv, rows }. Same status filter as the view."
+  })
+  async exportSubmissions(
+    @Param("id") formId: string,
+    @Query("status") status: string | undefined,
+    @UserScope() scope: UserScopeType
+  ): Promise<{ filename: string; csv: string; rows: number; truncated: boolean }> {
+    const s = await this.loadSubmissions(formId, status, scope);
+    const out = formSubmissionsCsv(s);
+    this.log.log(`export form=${formId} status=${s.status} rows=${s.items.length} columns=${s.columns.length} truncated=${s.truncated}`);
+    return { ...out, rows: s.items.length, truncated: s.truncated };
+  }
+
+  private async loadSubmissions(formId: string, status: string | undefined, scope: UserScopeType) {
+    const filter = status ?? "all";
+    if (!isStatusFilter(filter)) {
+      throw new BadRequestException("status must be one of all, approved, pending_review, pending_payment, rejected");
+    }
+    if (!(await formVisible(this.db, scope, formId))) throw new NotFoundException("Form not found");
+    const s = await loadFormSubmissions(this.db, formId, filter, visibleRegistrationsWhere(scope));
+    if (!s) throw new NotFoundException("Form not found");
+    return s;
   }
 }

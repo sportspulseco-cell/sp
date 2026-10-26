@@ -32,7 +32,8 @@ const FIRST_MANUAL = 14;
 const STAGING_DEFERRED = new Set([
   "0034_cron_jobs.sql",
   "0036_compliance_lock_sweep_cron.sql",
-  "0043_season_auto_transition_cron.sql"
+  "0043_season_auto_transition_cron.sql",
+  "0093_game_reminders_cron.sql"
 ]);
 
 const args = process.argv.slice(2);

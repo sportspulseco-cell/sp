@@ -7,137 +7,34 @@ import { communications } from "@/lib/api/browser-api";
 type Channel = "email" | "in_app";
 
 type Item = { templateCode: string; channel: string; enabled: boolean };
-
-/**
- * Curated set of player-facing template codes — most catalog rows
- * are admin-only and shouldn't pollute the settings grid. The ones
- * listed here mirror what actually lands in a player's inbox.
- *
- * Display name + category exist purely to group + label rows; the
- * `code` is the canonical key under the hood.
- */
-const PLAYER_TEMPLATES: Array<{
-  code: string;
+type Topic = {
+  key: string;
   label: string;
   description: string;
   category: string;
-}> = [
-  // ── Registration lifecycle
-  {
-    code: "registration.approved",
-    label: "Registration approved",
-    description: "When an admin approves your season registration.",
-    category: "Registration"
-  },
-  {
-    code: "registration.rejected",
-    label: "Registration declined",
-    description: "When an admin denies your season registration.",
-    category: "Registration"
-  },
-  {
-    code: "registration.waitlisted",
-    label: "Waitlisted",
-    description: "When you're placed on a season waitlist.",
-    category: "Registration"
-  },
-  // ── Team join requests
-  {
-    code: "PLAYER_JOIN_APPROVED",
-    label: "Captain accepted you",
-    description: "When a team captain accepts your join request.",
-    category: "Team activity"
-  },
-  {
-    code: "PLAYER_JOIN_REJECTED",
-    label: "Captain declined you",
-    description: "When a team captain declines your join request.",
-    category: "Team activity"
-  },
-  {
-    code: "TEAM_INVITE_NEW",
-    label: "Team invite received",
-    description: "When a captain reserves a spot for you on their team.",
-    category: "Team activity"
-  },
-  {
-    code: "DROP_CONFIRMED",
-    label: "Removed from roster",
-    description: "When a captain drops you from a roster.",
-    category: "Team activity"
-  },
-  // ── Money
-  {
-    code: "invoice.created",
-    label: "New invoice",
-    description: "When an invoice is issued to you.",
-    category: "Payments"
-  },
-  {
-    code: "payment.confirmed",
-    label: "Payment received",
-    description: "When we successfully process a payment from you.",
-    category: "Payments"
-  },
-  {
-    code: "installment.failed",
-    label: "Installment failed",
-    description: "When a scheduled card payment fails.",
-    category: "Payments"
-  },
-  {
-    code: "invoice.overdue.r1",
-    label: "Overdue reminder · 1+ day",
-    description: "Friendly first reminder when an invoice goes past due.",
-    category: "Payments"
-  },
-  {
-    code: "invoice.overdue.r2",
-    label: "Overdue reminder · 7+ days",
-    description: "Second reminder a week into past-due.",
-    category: "Payments"
-  },
-  {
-    code: "invoice.overdue.r3",
-    label: "Overdue reminder · 14+ days",
-    description: "Urgent reminder two weeks past due.",
-    category: "Payments"
-  },
-  {
-    code: "refund.issued",
-    label: "Refund issued",
-    description: "When we send a refund your way.",
-    category: "Payments"
-  },
-  // ── Compliance
-  {
-    code: "USA_HOCKEY_EXPIRING_SOON",
-    label: "Membership expiring soon",
-    description: "Heads-up before your governing-body membership lapses.",
-    category: "Compliance"
-  },
-  {
-    code: "USA_HOCKEY_EXPIRED",
-    label: "Membership expired",
-    description: "After your governing-body membership lapses.",
-    category: "Compliance"
-  }
-];
+  codes: string[];
+};
 
-const CHANNELS: Channel[] = ["email", "in_app"];
+const CHANNEL_LABEL: Record<Channel, string> = { email: "Email", in_app: "In-app" };
 
+/**
+ * One row per topic from the API catalog (GET /notifications/me/preferences
+ * `topics`), so the page and the server always agree on which codes exist.
+ * A topic is on for a channel when every code in it is on; switching it
+ * writes all of its codes in one request.
+ */
 export function SettingsClient({
+  topics,
+  channels,
   initialItems
 }: {
-  initialTemplates: string[];
+  topics: Topic[];
+  channels: Channel[];
   initialItems: Item[];
 }) {
-  // Map from `${templateCode}|${channel}` → enabled.
   const initialMap = useMemo(() => {
     const m = new Map<string, boolean>();
-    for (const it of initialItems) {
-      m.set(`${it.templateCode}|${it.channel}`, it.enabled);
-    }
+    for (const it of initialItems) m.set(`${it.templateCode}|${it.channel}`, it.enabled);
     return m;
   }, [initialItems]);
 
@@ -145,92 +42,87 @@ export function SettingsClient({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function isEnabled(code: string, channel: Channel): boolean {
-    return state.get(`${code}|${channel}`) ?? true;
+  function isEnabled(topic: Topic, channel: Channel): boolean {
+    return topic.codes.every((c) => state.get(`${c}|${channel}`) ?? true);
   }
 
-  async function toggle(code: string, channel: Channel) {
-    const key = `${code}|${channel}`;
-    const current = isEnabled(code, channel);
-    const next = !current;
-    // Optimistic update
-    setState((prev) => {
-      const m = new Map(prev);
-      m.set(key, next);
-      return m;
-    });
+  function setTopic(m: Map<string, boolean>, topic: Topic, channel: Channel, on: boolean) {
+    const next = new Map(m);
+    for (const c of topic.codes) next.set(`${c}|${channel}`, on);
+    return next;
+  }
+
+  async function toggle(topic: Topic, channel: Channel) {
+    const key = `${topic.key}|${channel}`;
+    const before = state;
+    const next = !isEnabled(topic, channel);
+    setState((prev) => setTopic(prev, topic, channel, next));
     setBusy(key);
     setError(null);
     try {
-      await communications.setPreference(code, channel, { enabled: next });
+      await communications.setTopicPreference(topic.key, channel, { enabled: next });
     } catch (e) {
-      // Roll back
-      setState((prev) => {
-        const m = new Map(prev);
-        m.set(key, current);
-        return m;
-      });
-      setError((e as Error).message);
+      setState(before);
+      setError(`Could not save "${topic.label}": ${(e as Error).message}`);
     } finally {
       setBusy(null);
     }
   }
 
   const categories = useMemo(() => {
-    const grouped = new Map<string, typeof PLAYER_TEMPLATES>();
-    for (const t of PLAYER_TEMPLATES) {
+    const grouped = new Map<string, Topic[]>();
+    for (const t of topics) {
       const arr = grouped.get(t.category) ?? [];
       arr.push(t);
       grouped.set(t.category, arr);
     }
     return Array.from(grouped.entries());
-  }, []);
+  }, [topics]);
+
+  if (topics.length === 0) {
+    return (
+      <p className="rounded-md border border-border bg-surface-1 px-4 py-3 text-sm text-fg-muted">
+        Notification settings could not be loaded. Reload the page to try again.
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {error && (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
           {error}
         </p>
       )}
 
       {categories.map(([category, rows]) => (
-        <section
-          key={category}
-          className="rounded-xl border border-border bg-surface-1"
-        >
+        <section key={category} className="rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              // {category.toLowerCase()}
-            </p>
+            <h2 className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">{category}</h2>
             <div className="hidden gap-8 font-mono text-[10px] uppercase tracking-widest text-fg-muted sm:flex">
-              <span className="w-12 text-right">Email</span>
-              <span className="w-12 text-right">In-app</span>
+              {channels.map((c) => (
+                <span key={c} className="w-12 text-right">{CHANNEL_LABEL[c]}</span>
+              ))}
             </div>
           </header>
           <ul className="divide-y divide-border">
             {rows.map((t) => (
               <li
-                key={t.code}
+                key={t.key}
                 className="grid grid-cols-1 gap-3 px-5 py-3 sm:grid-cols-[1fr_auto] sm:items-center"
               >
                 <div>
                   <p className="text-[14px] font-medium text-fg">{t.label}</p>
-                  <p className="mt-0.5 text-[12px] text-fg-muted">
-                    {t.description}
-                  </p>
-                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    {t.code}
-                  </p>
+                  <p className="mt-0.5 text-[12px] text-fg-muted">{t.description}</p>
                 </div>
                 <div className="flex items-center gap-6 sm:gap-8">
-                  {CHANNELS.map((channel) => (
+                  {channels.map((channel) => (
                     <ToggleCell
                       key={channel}
-                      enabled={isEnabled(t.code, channel)}
-                      busy={busy === `${t.code}|${channel}`}
-                      onClick={() => toggle(t.code, channel)}
-                      ariaLabel={`${t.label} · ${channel}`}
+                      enabled={isEnabled(t, channel)}
+                      busy={busy === `${t.key}|${channel}`}
+                      onClick={() => toggle(t, channel)}
+                      ariaLabel={`${t.label} by ${CHANNEL_LABEL[channel].toLowerCase()}`}
                     />
                   ))}
                 </div>

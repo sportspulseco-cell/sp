@@ -104,11 +104,52 @@ const qs = (params: Record<string, string | number | boolean | undefined>) => {
   return s ? `?${s}` : "";
 };
 
+/** Status filter values shared with the API (kernel SUBMISSION_STATUS_FILTERS). */
+export type SubmissionStatusFilterValue = "all" | "approved" | "pending_review" | "pending_payment" | "rejected";
+
+export interface FormSubmissionRow {
+  id: string;
+  personName: string;
+  email: string | null;
+  dob: string | null;
+  status: string;
+  divisionId: string | null;
+  divisionName: string | null;
+  teamName: string | null;
+  submissionType: string | null;
+  versionNumber: number;
+  submittedAt: string | null;
+  createdAt: string;
+  /** Answer text by column key. */
+  answers: Record<string, string>;
+}
+
+export interface FormSubmissions {
+  formId: string;
+  formName: string;
+  status: SubmissionStatusFilterValue;
+  columns: Array<{ key: string; label: string }>;
+  items: FormSubmissionRow[];
+  total: number;
+  truncated: boolean;
+}
+
 export type Fetcher = <T>(path: string, init?: RequestInit) => Promise<T>;
 
 // Factory: build the SDK against any fetcher.
 // Server components bind to the cookie-based fetcher (server-api.ts);
 // client components bind to the browser-supabase fetcher (browser-api.ts).
+/** Parts of one org a caller may send an announcement to (UC-19). */
+export interface AnnouncementReach {
+  orgId: string;
+  /** May send to the whole org. */
+  wholeOrg: boolean;
+  leagues: Array<{ id: string; name: string }>;
+  seasons: Array<{ id: string; name: string; leagueId: string }>;
+  divisions: Array<{ id: string; name: string; seasonId: string }>;
+  teams: Array<{ id: string; name: string }>;
+}
+
 export function createApi(f: Fetcher) {
   return {
     iam: {
@@ -1265,8 +1306,26 @@ export function createApi(f: Fetcher) {
             channel: string;
             enabled: boolean;
           }>;
+          /** Topics the person can switch off, from the API catalog. */
+          topics: Array<{
+            key: string;
+            label: string;
+            description: string;
+            category: string;
+            codes: string[];
+          }>;
+          channels: Array<"email" | "in_app">;
           templates: string[];
         }>("/notifications/me/preferences"),
+      setTopicPreference: (
+        topicKey: string,
+        channel: "email" | "in_app",
+        body: { enabled: boolean }
+      ) =>
+        f<{ topicKey: string; channel: string; enabled: boolean; codes: string[] }>(
+          `/notifications/me/preferences/topics/${encodeURIComponent(topicKey)}/${channel}`,
+          { method: "PUT", body: JSON.stringify(body) }
+        ),
       setPreference: (
         templateCode: string,
         channel: "email" | "in_app" | "sms" | "push",
@@ -1761,6 +1820,14 @@ export function createApi(f: Fetcher) {
       listRegistrations: (
         q: { orgId?: string; status?: string; subjectPersonId?: string; limit?: number; cursor?: string } = {}
       ) => f<Page<Registration>>(`/registration/registrations${qs(q)}`),
+      /** A form's submissions with every answer, labelled by column. */
+      listFormSubmissions: (formId: string, q: { status?: SubmissionStatusFilterValue } = {}) =>
+        f<FormSubmissions>(`/registration/forms/${formId}/submissions${qs(q)}`),
+      /** The same rows as CSV text, to save as a file. */
+      exportFormSubmissions: (formId: string, q: { status?: SubmissionStatusFilterValue } = {}) =>
+        f<{ filename: string; csv: string; rows: number; truncated: boolean }>(
+          `/registration/forms/${formId}/submissions/export${qs(q)}`
+        ),
       /**
        * Self-scoped variant — returns only the caller's own
        * registrations. Backed by /registration/self/registrations,
@@ -3337,6 +3404,17 @@ export function createApi(f: Fetcher) {
     // League announcement (UC-19). The server resolves recipients from
     // the target inside the org; one notification per person per channel.
     orgAdminBroadcast: {
+      /**
+       * Where the caller may send (same rule as `send`): the orgs they
+       * reach and, for one org (default the first), its leagues,
+       * seasons, divisions and teams. Org and super admins reach the
+       * whole org; a league admin only their leagues and below.
+       */
+      targets: (q: { orgId?: string } = {}) =>
+        f<{
+          orgs: Array<{ id: string; name: string }>;
+          reach: AnnouncementReach | null;
+        }>(`/org-admin/broadcast/targets${qs(q)}`),
       send: (body: {
         orgId: string;
         audiences: Array<

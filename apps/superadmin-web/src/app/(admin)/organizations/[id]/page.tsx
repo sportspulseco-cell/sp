@@ -30,6 +30,8 @@ import { UnlinkRelationButton } from "@/components/orgs/unlink-relation-button";
 import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
+import { viewerRoleGrants } from "@/lib/role-grants";
+import { SYSTEM_ROLE_CODES } from "@sportspulse/kernel";
 import { RegionsSection } from "@/components/regions/regions-section";
 import { OrgActions } from "@/components/edit/detail-actions";
 
@@ -129,6 +131,10 @@ export default async function OrgDetailPage({
       leagueName: leagueMap.get(seasonById.get(d.seasonId)!.leagueId) ?? null
     }));
 
+  // Org admins may add org admins and registrars here; a league admin
+  // sees the list read-only (kernel role-grants rule, enforced by the API).
+  const viewer = await viewerRoleGrants();
+
   return (
     <div className="space-y-10">
       <Link
@@ -186,7 +192,10 @@ export default async function OrgDetailPage({
         <RoleAssignmentPanel
           scopeType="org"
           scopeId={org.id}
-          allowedRoleCodes={["org_admin", "registrar"]}
+          allowedRoleCodes={viewer.grantable("org", ["org_admin", "registrar"])}
+          revocableRoleCodes={
+            viewer.isSuperAdmin ? undefined : viewer.grantable("org", SYSTEM_ROLE_CODES)
+          }
           resourceLabel={org.displayName}
           initialAssignments={assignments.items}
         />

@@ -36,3 +36,12 @@ test("captain and player get no game operations", () => {
     }
   }
 });
+
+test("UC-19: org and league admins may send announcements; season, division and team roles may not", () => {
+  for (const role of ["org_admin", "league_admin"]) {
+    assert.equal(permissionGranted(perms(role), "communication.send"), true, role);
+  }
+  for (const role of ["season_admin", "division_admin", "captain", "coach", "player", "referee"]) {
+    assert.equal(permissionGranted(perms(role), "communication.send"), false, role);
+  }
+});

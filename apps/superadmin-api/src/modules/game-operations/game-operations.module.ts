@@ -7,6 +7,8 @@ import { EventsController } from "./interface/events.controller";
 import { LineupsController } from "./interface/lineups.controller";
 import { SuspensionsController } from "./interface/suspensions.controller";
 import { GameOfficialsController } from "./interface/game-officials.controller";
+import { GameRemindersCronController } from "./interface/game-reminders-cron.controller";
+import { CronSecretGuard } from "../../shared/auth/guards/cron-secret.guard";
 
 import {
   ListGamesHandler,
@@ -56,12 +58,14 @@ import { DrizzleGameOfficialRepository } from "./infrastructure/repositories/dri
   imports: [CommunicationsModule],
   controllers: [
     GamesController,
+    GameRemindersCronController,
     EventsController,
     LineupsController,
     SuspensionsController,
     GameOfficialsController
   ],
   providers: [
+    CronSecretGuard,
     // Games
     ListGamesHandler,
     GetGameHandler,

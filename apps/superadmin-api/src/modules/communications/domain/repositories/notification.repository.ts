@@ -51,6 +51,8 @@ export interface ListNotificationsQuery extends PageQuery {
   status?: NotificationStatus;
   recipientPersonId?: string;
   templateCode?: string;
+  /** Leave these codes out (the person's in-app opt-outs, for the inbox). */
+  excludeTemplateCodes?: string[];
   channel?: NotificationChannel;
 }
 

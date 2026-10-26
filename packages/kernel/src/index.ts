@@ -9,6 +9,7 @@ export * from "./repository";
 export * from "./use-case";
 export * from "./pagination";
 export * from "./permissions";
+export * from "./role-grants";
 export * from "./forms";
 export * from "./role-profiles";
 export * from "./role-profile-validation";

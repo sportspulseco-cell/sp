@@ -27,5 +27,6 @@ export const adminTransfers = api.adminTransfers;
 export const orgAdminTeams = api.orgAdminTeams;
 export const orgAdminPersons = api.orgAdminPersons;
 export const teamMovement = api.teamMovement;
+export const orgAdminBroadcast = api.orgAdminBroadcast;
 // Alias for cleaner read in season-setup pages.
 export const league = api.leagueMgmt;

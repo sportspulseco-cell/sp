@@ -1,6 +1,7 @@
 import { Users } from "lucide-react";
 import { iam } from "@/lib/api/server-api";
-import type { ScopeType } from "@sportspulse/kernel";
+import { SYSTEM_ROLE_CODES, type ScopeType } from "@sportspulse/kernel";
+import { viewerRoleGrants } from "@/lib/role-grants";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
@@ -26,9 +27,18 @@ export async function ResourceAdminsSection({
   allowedRoleCodes: string[];
   description?: string;
 }) {
-  const assignments = await iam
-    .listRoleAssignments({ scopeType, scopeId, activeOnly: true })
-    .catch(() => ({ items: [], nextCursor: null }));
+  const [assignments, viewer] = await Promise.all([
+    iam
+      .listRoleAssignments({ scopeType, scopeId, activeOnly: true })
+      .catch(() => ({ items: [], nextCursor: null })),
+    viewerRoleGrants()
+  ]);
+  // Offer only the roles this viewer may grant here (kernel rule; the
+  // API checks the same rule and the scope on every grant and revoke).
+  const grantable = viewer.grantable(scopeType, allowedRoleCodes);
+  const revocable = viewer.isSuperAdmin
+    ? undefined
+    : viewer.grantable(scopeType, SYSTEM_ROLE_CODES);
 
   return (
     <section className="rounded-xl border border-border bg-surface-1">
@@ -48,7 +58,8 @@ export async function ResourceAdminsSection({
         <RoleAssignmentPanel
           scopeType={scopeType}
           scopeId={scopeId}
-          allowedRoleCodes={allowedRoleCodes}
+          allowedRoleCodes={grantable}
+          revocableRoleCodes={revocable}
           resourceLabel={resourceLabel}
           initialAssignments={assignments.items}
         />

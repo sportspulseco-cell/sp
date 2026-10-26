@@ -25,6 +25,8 @@ import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator"
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { userVisible } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
+import { assertCanManageRole, requireInviteRole } from "../../../shared/auth/role-grant-access";
 import { loadUserScope } from "../../../shared/auth/scope";
 import { GetCurrentUserHandler } from "../application/queries/get-current-user.query";
 import { ListProfilesHandler } from "../application/queries/list-profiles.query";
@@ -438,15 +440,26 @@ export class IamController {
   }
 
   @Post("users/invite")
-  @UseGuards(SuperAdminGuard)
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
-      "Invite a user by email; optionally assign a role at the same time. Reused by every 'Assign admin' surface."
+      "Invite a user by email; optionally assign a role at the same time. Reused by every 'Assign admin' surface. Org / league admins must give a role they may grant inside their own org or league (same rule as role-assignments)."
   })
   async invite(
     @Body() body: InviteUserBodyDto,
-    @CurrentUser() principal: AuthPrincipal
+    @CurrentUser() principal: AuthPrincipal,
+    @UserScope() scope: UserScopeType
   ): Promise<InviteUserResult> {
+    const role = requireInviteRole(body.role, scope.isSuperAdmin);
+    if (role) {
+      await assertCanManageRole(
+        this.db,
+        principal.userId,
+        { roleCode: role.roleCode, scopeType: role.scopeType, scopeId: role.scopeId ?? null },
+        "grant"
+      );
+    }
     return this.inviteUser.execute({
       email: body.email,
       displayName: body.displayName ?? null,

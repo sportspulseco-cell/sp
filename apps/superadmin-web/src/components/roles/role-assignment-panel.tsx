@@ -35,12 +35,19 @@ export function RoleAssignmentPanel({
   scopeId,
   allowedRoleCodes,
   resourceLabel,
-  initialAssignments
+  initialAssignments,
+  revocableRoleCodes
 }: {
   scopeType: ScopeType;
   scopeId: string;
-  /** Role codes assignable at this scope, e.g. ['org_admin'] for the org page. */
+  /**
+   * Role codes the viewer may assign at this scope, e.g. ['org_admin'] for
+   * the org page. Callers pass the list already filtered for the viewer
+   * (kernel grantableRoleCodes); empty means read-only.
+   */
   allowedRoleCodes: string[];
+  /** Role codes whose assignments the viewer may revoke. Omit for all (super admin). */
+  revocableRoleCodes?: string[];
   /** Human label for the resource — used in microcopy. e.g. "PPHL · Adult League". */
   resourceLabel: string;
   initialAssignments: RoleAssignment[];
@@ -237,6 +244,7 @@ export function RoleAssignmentPanel({
                   · since <LocalDate iso={a.effectiveFrom} />
                 </p>
               </div>
+              {revocableRoleCodes && !revocableRoleCodes.includes(a.role?.code ?? "") ? null : (
               <button
                 type="button"
                 onClick={() => onRevoke(a.id)}
@@ -246,11 +254,18 @@ export function RoleAssignmentPanel({
               >
                 <X className="h-3.5 w-3.5" strokeWidth={1.75} />
               </button>
+              )}
             </li>
           ))}
         </ul>
       )}
 
+      {allowedRoleCodes.length === 0 ? (
+        <p className="text-[12px] text-fg-muted">
+          Your role cannot add admins here. Ask your org admin.
+        </p>
+      ) : (
+      <>
       {/* Mode toggle */}
       <div className="flex gap-1.5">
         <ModeChip
@@ -525,6 +540,8 @@ export function RoleAssignmentPanel({
           </Button>
         </div>
       </form>
+      </>
+      )}
     </div>
   );
 }

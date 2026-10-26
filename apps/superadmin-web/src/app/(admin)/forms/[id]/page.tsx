@@ -1,4 +1,4 @@
-import { fetchAll, load } from "@sportspulse/api-client";
+import { fetchAll, load, type FormSubmissions } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import type { Division, PricingTier, EmailTemplate } from "@sportspulse/api-client";
@@ -77,7 +77,7 @@ export default async function FormSetupPage({
 
   // Pull the data needed to compute section status pills + Submissions count.
   const seasonId = form.seasonId;
-  const [tiers, divisionsPage, templates, registrationsPage, versions] =
+  const [tiers, divisionsPage, templates, submissions, versions] =
     await Promise.all([
       seasonId
         ? registrationV2.listPricingTiers({ seasonId }).catch(
@@ -95,9 +95,18 @@ export default async function FormSetupPage({
             () => [] as EmailTemplate[]
           )
         : Promise.resolve([] as EmailTemplate[]),
+      // This form's submissions only, with answers (not every registration in the org).
       registration
-        .listRegistrations({ orgId: form.orgId })
-        .catch(() => ({ items: [], nextCursor: null })),
+        .listFormSubmissions(id)
+        .catch(() => ({
+          formId: id,
+          formName: form.name,
+          status: "all" as const,
+          columns: [],
+          items: [],
+          total: 0,
+          truncated: false
+        }) as FormSubmissions),
       registration.listFormVersions(id).catch(() => [])
     ]);
 
@@ -186,7 +195,7 @@ export default async function FormSetupPage({
       orgName={orgName}
       active={active}
       sections={sections}
-      submissionsCount={registrationsPage.items.length}
+      submissionsCount={submissions.total}
       draft={!form.activeVersionId}
       searchParams={sp}
       playerWebUrl={playerWebUrl}
@@ -239,7 +248,7 @@ export default async function FormSetupPage({
         />
       ) : null}
       {active === "submissions" ? (
-        <SubmissionsSection form={form} divisions={divisionsPage.items} />
+        <SubmissionsSection formId={id} submissions={submissions} />
       ) : null}
     </RegistrationSetupShell>
     </FormsBuilderProviderClient>

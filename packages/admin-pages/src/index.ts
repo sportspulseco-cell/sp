@@ -77,3 +77,12 @@ export type {
   InvoiceItemKind
 } from "./invoice-composer/invoice-composer";
 export { slugify } from "./org-setup/types";
+export { AnnouncementComposer } from "./communications/announcement-composer";
+export type {
+  AnnouncementComposerProps,
+  AnnouncementSendBody,
+  AnnouncementSendResult,
+  AnnouncementAudience,
+  AnnouncementChannel,
+  AnnouncementTargetType
+} from "./communications/announcement-composer";

@@ -3,6 +3,34 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 
 /**
+ * Captain (any of the captain signals below) or an active `coach`
+ * assignment on this team. Team staff who may write to the team
+ * (FR-3.17.2 "Announcements from captains/coaches", UC-20).
+ */
+export async function userIsTeamStaff(
+  db: Database,
+  userId: string,
+  teamId: string
+): Promise<boolean> {
+  if (await userIsCaptainOfTeam(db, userId, teamId)) return true;
+  const [coach] = await db
+    .select({ id: schema.userRoleAssignments.id })
+    .from(schema.userRoleAssignments)
+    .innerJoin(schema.roles, eq(schema.roles.id, schema.userRoleAssignments.roleId))
+    .where(
+      and(
+        eq(schema.userRoleAssignments.userId, userId),
+        eq(schema.userRoleAssignments.scopeType, "team"),
+        eq(schema.userRoleAssignments.scopeId, teamId),
+        eq(schema.roles.code, "coach"),
+        isNull(schema.userRoleAssignments.revokedAt)
+      )
+    )
+    .limit(1);
+  return !!coach;
+}
+
+/**
  * Returns true when the caller can act as captain of `teamId`.
  *
  * Three signals are OR-ed together, in increasing query cost:

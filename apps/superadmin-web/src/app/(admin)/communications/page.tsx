@@ -110,6 +110,13 @@ export default async function CommunicationsPage({
         action={
           <div className="flex items-center gap-2">
             <Link
+              href="/communications/compose"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-accent-fg hover:opacity-90"
+            >
+              <Send className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Send an announcement
+            </Link>
+            <Link
               href="/communications/templates"
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-3 py-1.5 text-[12px] font-medium text-fg-muted hover:border-border-strong hover:text-fg"
             >

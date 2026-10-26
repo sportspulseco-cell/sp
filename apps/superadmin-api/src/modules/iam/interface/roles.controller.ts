@@ -21,6 +21,12 @@ import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator"
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { userVisible } from "../../../shared/auth/visibility";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
+import {
+  assertCanManageRole,
+  assignmentTarget,
+  systemRoleCodeOf
+} from "../../../shared/auth/role-grant-access";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import type { Database } from "@sportspulse/db";
@@ -131,7 +137,9 @@ export class RolesController {
   }
 
   // ---- Role assignments: scoped admins see assignments of people
-  // inside their scope; granting and revoking stay super_admin. ----
+  // inside their scope. Org and league admins grant and revoke inside
+  // their own org or league, never above their own level (kernel
+  // role-grants.ts + shared/auth/role-grant-access.ts). ----
   @Get("role-assignments")
   @UseGuards(ScopedAdminGuard)
   async listAssignments(
@@ -146,12 +154,26 @@ export class RolesController {
     return { ...page, items: await this.withNames(page.items) };
   }
   @Post("role-assignments")
-  @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: "Assign a role to a user (idempotent on active match)" })
-  assign(
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Assign a role to a user (idempotent on active match). Super admin: any role. Org / league admin: system roles at or below their own level, inside their own org or league; 404 outside it, 403 above their level."
+  })
+  async assign(
     @Body() body: AssignRoleBodyDto,
     @CurrentUser() user: AuthPrincipal
   ): Promise<RoleAssignmentDto> {
+    await assertCanManageRole(
+      this.db,
+      user.userId,
+      {
+        roleCode: await systemRoleCodeOf(this.db, body.roleId),
+        scopeType: body.scopeType,
+        scopeId: body.scopeId ?? null
+      },
+      "grant"
+    );
     return this.assignH.execute({
       ...body,
       effectiveFrom: body.effectiveFrom ? new Date(body.effectiveFrom) : null,
@@ -160,11 +182,17 @@ export class RolesController {
     });
   }
   @Post("role-assignments/:id/revoke")
-  @UseGuards(SuperAdminGuard)
-  revoke(
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Revoke a role assignment. Same rule as assign. Takes effect on the user's next request: every guard reads live assignments."
+  })
+  async revoke(
     @Param("id") id: string,
     @CurrentUser() user: AuthPrincipal
   ): Promise<RoleAssignmentDto> {
+    await assertCanManageRole(this.db, user.userId, await assignmentTarget(this.db, id), "revoke");
     return this.revokeH.execute({ id, revokedByUserId: user.userId });
   }
   @Get("users/:id/roles")

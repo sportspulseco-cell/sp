@@ -1,19 +1,25 @@
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
-import { fetchAll } from "@sportspulse/api-client";
-import { EmptyState } from "@sportspulse/ui";
-import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
+import { load } from "@sportspulse/api-client";
+import { EmptyState, LoadError } from "@sportspulse/ui";
+import { iam, loadMeScope, orgAdminBroadcast } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
-import { ComposeForm, type ComposeTargets } from "./compose-form";
+import { ComposeForm } from "./compose-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Compose broadcast — Org admin" };
 
-const empty = { items: [], nextCursor: null };
+const TARGET_TYPES = ["org", "league", "season", "division", "team"] as const;
+type TargetType = (typeof TARGET_TYPES)[number];
 
-export default async function ComposePage() {
+export default async function ComposePage({
+  searchParams
+}: {
+  searchParams?: Promise<{ targetType?: string; targetId?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
@@ -30,55 +36,12 @@ export default async function ComposePage() {
     );
   }
 
-  // The org's leagues, seasons, divisions and teams: the "Send to"
-  // pickers list these, so an admin never types an id. Same reads as
-  // the invoice composer.
-  const [leaguesPage, seasonsPage, teamsPage] = await Promise.all([
-    fetchAll((cursor) => leagueMgmt.listLeagues({ orgId, limit: 100, cursor })).catch(
-      () => empty
-    ),
-    fetchAll((cursor) => leagueMgmt.listSeasons({ orgId, limit: 100, cursor })).catch(
-      () => empty
-    ),
-    fetchAll((cursor) => leagueMgmt.listTeams({ orgId, limit: 100, cursor })).catch(
-      () => empty
-    )
-  ]);
-  // One paged list (the API limits it to the caller's leagues), kept to
-  // this org's seasons; not one call per season (CONSOLE-22).
-  const orgSeasonIds = new Set(seasonsPage.items.map((s) => s.id));
-  const divisionLists = [
-    {
-      items: (
-        await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch(() => empty)
-      ).items.filter((d) => orgSeasonIds.has(d.seasonId))
-    }
-  ];
-
-  const leagueName = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
-  const seasonName = new Map(
-    seasonsPage.items.map((s) => [
-      s.id,
-      `${leagueName.get(s.leagueId) ?? "League"} · ${s.name}`
-    ])
-  );
-  const byLabel = (a: { label: string }, b: { label: string }) =>
-    a.label.localeCompare(b.label);
-  const targets: ComposeTargets = {
-    league: leaguesPage.items.map((l) => ({ id: l.id, label: l.name })).sort(byLabel),
-    season: seasonsPage.items
-      .map((s) => ({ id: s.id, label: seasonName.get(s.id) ?? s.name }))
-      .sort(byLabel),
-    division: divisionLists
-      .flatMap((p) =>
-        p.items.map((d) => ({
-          id: d.id,
-          label: `${seasonName.get(d.seasonId) ?? "Season"} · ${d.name}`
-        }))
-      )
-      .sort(byLabel),
-    team: teamsPage.items.map((t) => ({ id: t.id, label: t.name })).sort(byLabel)
-  };
+  // The parts of the org this admin may send to, from the same rule the
+  // server checks on send (shared with superadmin-web's compose page).
+  const res = await load(orgAdminBroadcast.targets({ orgId }));
+  const initialType = TARGET_TYPES.includes(sp.targetType as TargetType)
+    ? (sp.targetType as TargetType)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -94,7 +57,18 @@ export default async function ComposePage() {
         title="Send a broadcast"
         description="Send an announcement to people in the whole organisation or in one league, season, division or team."
       />
-      <ComposeForm orgId={orgId} targets={targets} />
+      {!res.ok || !res.data.reach ? (
+        <LoadError
+          what="the places you can send to"
+          status={res.ok ? 404 : res.status}
+          message={res.ok ? "No org you can send to" : res.message}
+        />
+      ) : (
+        <ComposeForm
+          reach={res.data.reach}
+          initialTarget={initialType ? { type: initialType, id: sp.targetId } : null}
+        />
+      )}
     </div>
   );
 }

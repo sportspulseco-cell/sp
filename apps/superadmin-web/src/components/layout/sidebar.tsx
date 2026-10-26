@@ -5,111 +5,11 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Users,
-  UserCircle2,
-  Building2,
-  Trophy,
-  Layers,
-  Network,
-  ListChecks,
-  CalendarClock,
-  CalendarRange,
-  ClipboardList,
-  ScrollText,
-  FileSignature,
-  ShieldCheck,
-  Activity,
-  Wand2,
-  BarChart3,
-  CircleDot,
-  Wallet,
-  MessageSquare,
-  FileBarChart,
-  Settings2,
-  Database,
-  X,
-  type LucideIcon
+  X
 } from "lucide-react";
 import { useNav } from "./nav-context";
 
-type NavItem =
-  | { href: string; label: string; icon: LucideIcon; superOnly?: boolean }
-  | { section: string };
-
-/**
- * Scoped admins (league / org / season / division) sign in here and see
- * a role-filtered console. Modules that only a super admin can use are
- * dropped from their navigation instead of opening to "Super admin
- * access required" (PPHL, 24 Oct 2026: "so many modules").
- */
-function navFor(items: NavItem[], isSuperAdmin: boolean): NavItem[] {
-  if (isSuperAdmin) return items;
-  const kept = items.filter((item) => "section" in item || !item.superOnly);
-  // Drop a section header whose every item was removed.
-  return kept.filter((item, i) => {
-    if (!("section" in item)) return true;
-    const next = kept[i + 1];
-    return next !== undefined && !("section" in next);
-  });
-}
-
-const PLATFORM_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard }
-];
-
-// Grouped the way a league operator works, and the way SportsEngine HQ
-// groups it (Season Management, Registration, Members, Financials,
-// Messages, Reports, Settings): doc/ux/competitor-ia.md, section F.
-// Labels are the page titles, word for word.
-const PROJECT_NAV: NavItem[] = [
-  { section: "Season" },
-  { href: "/org-setup", label: "Set up a season", icon: Wand2 },
-  { href: "/seasons", label: "Seasons", icon: CalendarRange },
-  { href: "/leagues", label: "Leagues", icon: Trophy },
-  { href: "/divisions", label: "Divisions", icon: Layers },
-  { href: "/scheduling", label: "Schedule", icon: CalendarClock },
-  { href: "/venues", label: "Rinks & ice time", icon: Building2 },
-
-  { section: "Teams" },
-  { href: "/teams", label: "Teams", icon: Network },
-  { href: "/division-applications", label: "Team applications", icon: ClipboardList },
-  { href: "/rosters", label: "Rosters", icon: ListChecks },
-  { href: "/transfers", label: "Transfers", icon: ShieldCheck },
-
-  { section: "Registration" },
-  { href: "/forms", label: "Registration forms", icon: FileSignature },
-  { href: "/registrations", label: "Registrations", icon: ClipboardList },
-  { href: "/eligibility", label: "Eligibility", icon: ShieldCheck },
-  { href: "/documents", label: "Waivers & documents", icon: FileSignature },
-
-  { section: "Games & results" },
-  { href: "/games", label: "Games", icon: CircleDot },
-  { href: "/game-events", label: "Game log", icon: Activity },
-  { href: "/stats", label: "Stats & standings", icon: BarChart3 },
-
-  { section: "Members" },
-  { href: "/users", label: "Users", icon: Users },
-  { href: "/persons", label: "People", icon: UserCircle2 },
-  { href: "/organizations", label: "Organizations", icon: Building2 },
-  { href: "/roles", label: "Roles & permissions", icon: ShieldCheck },
-
-  { section: "Financials" },
-  { href: "/finance", label: "Invoices", icon: Wallet },
-  { href: "/payments", label: "Payments & refunds", icon: Wallet },
-
-  { section: "Messages" },
-  { href: "/communications", label: "Messages", icon: MessageSquare },
-
-  { section: "Reports" },
-  { href: "/reports", label: "Reports", icon: FileBarChart },
-  { href: "/no-show-report", label: "Teams that did not return", icon: ClipboardList },
-  { href: "/audit", label: "Activity log", icon: ScrollText },
-
-  { section: "Settings" },
-  { href: "/admin", label: "Platform settings", icon: Settings2, superOnly: true },
-  { href: "/data-migration", label: "Import data", icon: Database, superOnly: true }
-];
+import { PLATFORM_NAV, PROJECT_NAV, navFor, type NavItem } from "./nav-config";
 
 export function Sidebar({ isSuperAdmin = true }: { isSuperAdmin?: boolean }) {
   const { open, setOpen } = useNav();
@@ -174,8 +74,11 @@ export function Sidebar({ isSuperAdmin = true }: { isSuperAdmin?: boolean }) {
 
 function SidebarFooter() {
   return (
-    <div className="border-t border-border px-4 py-3 text-xs text-fg-muted">
-      Platform administration
+    <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-fg-muted">
+      <span>Platform administration</span>
+      <Link href="/site-map" className="underline-offset-2 hover:text-fg hover:underline">
+        Site map
+      </Link>
     </div>
   );
 }
