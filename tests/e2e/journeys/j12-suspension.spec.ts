@@ -1,7 +1,7 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors } from "./_helpers";
+import { IS_STAGING, RUN_TAG, openNav, signedInAs, stagingSql, watchErrors } from "./_helpers";
 
 /**
  * J12 · Suspension blocks lineup (UC-14).
@@ -15,8 +15,9 @@ import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors } from "./_hel
  * MUTATES staging: one 1-game suspension on Staging Player (reason carries
  * RUN_TAG), lifted by the last step. It never clicks the account-level
  * "Suspend account" on /users (that locks the shared staging player out of
- * every app). COMP-11 (automatic proposals) stays a soft finding: it needs
- * a migration. Bug ids: doc/testing/bugs/compliance.md.
+ * every app). Step 2 checks COMP-11's league discipline rules and the
+ * penalty Ejection choice without saving or finalizing anything. Bug ids:
+ * doc/testing/bugs/compliance.md.
  */
 
 test.skip(!IS_STAGING, "J12 runs on staging only");
@@ -39,15 +40,6 @@ const REASON = `${RUN_TAG} J12 game misconduct`;
 
 function check(ok: boolean, msg: string) {
   if (!ok) findings.push(msg);
-}
-
-async function navClick(page: Page, link: RegExp, group?: string) {
-  const nav = page.getByRole("navigation").first();
-  const target = nav.getByRole("link", { name: link }).first();
-  if (!(await target.isVisible().catch(() => false)) && group) {
-    await nav.locator("summary", { hasText: group }).first().click({ timeout: 15_000 });
-  }
-  await target.click({ timeout: 15_000 });
 }
 
 async function snap(page: Page, name: string): Promise<string> {
@@ -83,7 +75,7 @@ test.afterAll(async () => {
 test("1 super_admin issues a 1-game suspension from the player's person page", async () => {
   const { page, app } = admin;
   await page.goto(app + "/dashboard");
-  await navClick(page, /^Persons$/);
+  await openNav(page, /^People$/);
   await expect(page).toHaveURL(/\/persons/);
   await page.getByRole("link", { name: new RegExp(PLAYER_NAME) }).first().click();
   await expect(page).toHaveURL(new RegExp(`/persons/${playerPersonId}`));
@@ -119,34 +111,109 @@ test("1 super_admin issues a 1-game suspension from the player's person page", a
   expect(rows).toEqual([{ status: "active", kind: "n_games", n_games: 1, served_count: 0 }]);
 });
 
+/** A UI check that must not stop the walk: step 6 lifts step 1's suspension. */
+async function checkUi(msg: string, fn: () => Promise<unknown>) {
+  try {
+    await fn();
+  } catch (e) {
+    findings.push(`${msg}: ${String((e as Error).message).split("\n")[0]}`);
+  }
+}
+
 test("2 super_admin: suspension from game events (penalties) path", async () => {
-  // UC-14 trigger: finalized scoresheet crosses an infraction threshold.
+  // UC-14 trigger: a finalized scoresheet crosses an infraction threshold.
+  // COMP-11 (26 Oct): the rules live on the league (Edit league >
+  // Discipline, leagues.metadata.discipline), a penalty records its
+  // ejection, and finalizing the game issues the suspension. J12 checks the
+  // rules the admin sees against the database and the Ejection choice on a
+  // penalty, and cancels both dialogs. It does not finalize a game: that
+  // changes shared staging games and would serve step 1's suspension.
+  const { page, app } = admin;
   const games = await stagingSql<{ id: string; status: string }>(
     `select id, status from games where $1 in (home_team_id, away_team_id)`,
     [teamId]
   );
   writeFileSync(`${OUT}/02-db-games.json`, JSON.stringify(games, null, 2));
-  const rules = await stagingSql(
-    `select column_name from information_schema.columns
-      where table_name in ('divisions','seasons','leagues') and column_name ilike '%suspen%'`
+  const leagueSql = `select l.id, l.name, l.metadata->'discipline' discipline
+       from leagues l join seasons s on s.league_id = l.id where s.name = $1`;
+  const [league] = await stagingSql<{ id: string; name: string; discipline: Record<string, unknown> | null }>(
+    leagueSql,
+    [SEASON_NAME]
   );
-  writeFileSync(`${OUT}/02-db-suspension-rule-columns.json`, JSON.stringify(rules, null, 2));
-  // Admins can suspend from a penalty on the game page now (COMP-10). The
-  // automatic proposal queue needs a migration ("proposed" status), so it
-  // stays a finding until that lands.
-  check(
-    false,
-    "COMP-11: no automatic suspension proposals from penalties yet: blocked on the suspensions 'proposed' status migration"
-  );
-  if (games.length === 0) {
-    blocked.push(`2: no games for ${TEAM_NAME} on staging (needs J10 schedule publish + J11 game finalize)`);
+  writeFileSync(`${OUT}/02-db-league-discipline.json`, JSON.stringify(league ?? null, null, 2));
+  expect(league, `the league of ${SEASON_NAME} exists`).toBeTruthy();
+  const enabled = league!.discipline?.enabled === true;
+
+  await page.goto(app + "/dashboard");
+  await openNav(page, /^Leagues$/);
+  await expect(page).toHaveURL(/\/leagues$/);
+  await page.locator(`main a[href="/leagues/${league!.id}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/leagues/${league!.id}`));
+  const dialog = page.getByRole("dialog");
+  await checkUi("COMP-11: Edit league has no Discipline section matching the saved rules", async () => {
+    await page.getByRole("button", { name: "Edit league" }).click();
+    await expect(dialog.locator("legend", { hasText: "Discipline" })).toBeVisible();
+    const auto = dialog.getByRole("checkbox", { name: "Suspend players automatically when a game is finalized" });
+    // Off until a league admin turns it on; the dialog shows what is saved.
+    if (enabled) {
+      await expect(auto).toBeChecked();
+      const saved = league!.discipline!.gameMisconductGames;
+      if (typeof saved === "number") {
+        await expect(dialog.getByLabel("Games for a game misconduct")).toHaveValue(String(saved));
+      }
+    } else {
+      await expect(auto).not.toBeChecked();
+      await expect(dialog.getByText("Admins can still suspend a player from a penalty on the game page.")).toBeVisible();
+      // Turning it on offers the rule fields (not saved: the dialog is cancelled).
+      await auto.check();
+      await expect(dialog.getByLabel("Games for a game misconduct")).toBeVisible();
+    }
+    await snap(page, "02-sa-edit-league-discipline");
+  });
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(dialog).toBeHidden();
   }
+  // Cancel saved nothing.
+  const [after] = await stagingSql<{ discipline: unknown }>(leagueSql, [SEASON_NAME]);
+  expect(after?.discipline ?? null, "Cancel on Edit league leaves the saved rules unchanged").toEqual(
+    league!.discipline ?? null
+  );
+
+  // A penalty records its ejection; the dialog offers the kernel's choices.
+  const live = games.find((g) => g.status === "in_play");
+  if (!live) {
+    blocked.push(`2: no in-play game for ${TEAM_NAME} on staging, so the penalty Ejection choice was not opened`);
+  } else {
+    await page.goto(`${app}/games/${live.id}`);
+    await checkUi("COMP-11: a penalty on the game page has no Ejection choice", async () => {
+      await page.getByRole("button", { name: /Log event/ }).click();
+      await expect(dialog).toBeVisible();
+      await dialog.locator("#eventType").selectOption("penalty");
+      expect(await dialog.locator("#ejection option").allInnerTexts()).toEqual([
+        "None",
+        "Game misconduct",
+        "Match penalty"
+      ]);
+      await snap(page, "02-sa-penalty-ejection");
+    });
+    if (await dialog.isVisible().catch(() => false)) {
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toBeHidden();
+    }
+  }
+  // Evidence only: automatic suspensions already on staging (finalize path).
+  const auto = await stagingSql(
+    `select id, status, n_games, served_count, reason, source_event_id from suspensions
+      where reason like 'Automatic:%' order by created_at desc limit 5`
+  ).catch((e) => [{ error: String(e) }]);
+  writeFileSync(`${OUT}/02-db-automatic-suspensions.json`, JSON.stringify(auto, null, 2));
 });
 
 test("3 captain /captain/compliance lists the suspended player", async () => {
   const { page, app } = captain;
   await page.goto(app + "/");
-  await navClick(page, /^Compliance$/);
+  await openNav(page, /^Waivers & documents$/);
   await expect(page).toHaveURL(/\/captain\/compliance$/);
   const txt = await snap(page, "03-captain-compliance");
   expect(txt).toMatch(/suspended players/i);
@@ -157,7 +224,7 @@ test("3 captain /captain/compliance lists the suspended player", async () => {
 test("4 captain lineup marks the suspended player Scratch-only", async () => {
   const { page, app } = captain;
   await page.goto(app + "/");
-  await navClick(page, /^Lineups$/);
+  await openNav(page, /^Game lineups$/);
   await expect(page).toHaveURL(/\/lineups$/);
   const txt = await snap(page, "04-captain-lineups");
   // The team's next published, not-yet-started game is the one a
@@ -206,7 +273,7 @@ test("4 captain lineup marks the suspended player Scratch-only", async () => {
 test("5 super_admin /no-show-report and /eligibility season sweep", async () => {
   const { page, app } = admin;
   await page.goto(app + "/dashboard");
-  await navClick(page, /^No-show report$/, "Compliance");
+  await openNav(page, /^Teams that did not return$/);
   await expect(page).toHaveURL(/\/no-show-report$/);
   const selects = page.locator("main select");
   await selects.nth(0).selectOption({ label: SEASON_NAME });

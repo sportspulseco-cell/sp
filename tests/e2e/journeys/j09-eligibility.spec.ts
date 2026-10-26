@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
-import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors } from "./_helpers";
+import { IS_STAGING, RUN_TAG, openNav, signedInAs, stagingSql, watchErrors } from "./_helpers";
 
 /**
  * J9 · Eligibility and documents (UC-05, UC-27, UC-29).
@@ -91,14 +91,16 @@ function check(ok: boolean, msg: string) {
   if (!ok) findings.push(msg);
 }
 
-/** Click a sidebar link, opening its collapsed group first if needed. */
-async function navClick(page: Page, link: RegExp, group?: string) {
-  const nav = page.getByRole("navigation").first();
-  const target = nav.getByRole("link", { name: link }).first();
-  if (!(await target.isVisible().catch(() => false)) && group) {
-    await nav.locator("summary", { hasText: group }).first().click({ timeout: 15_000 });
-  }
-  await target.click({ timeout: 15_000 });
+/**
+ * After a full page load, React can still hold a streamed segment in a
+ * hidden <div id="S:n"> at the end of <body> while the page already shows
+ * it, so the DOM briefly has a second, hidden copy with the same ids
+ * (26 Oct probe: org /registrations 3 of 12 loads, gone within 300 ms;
+ * J09 run 2 hit it on player /compliance). Users never see it; id
+ * locators do. Wait for it to be gone before selecting by id.
+ */
+async function streamed(page: Page) {
+  await expect(page.locator('body > div[hidden][id^="S:"]')).toHaveCount(0, { timeout: 15_000 });
 }
 
 async function snap(page: Page, name: string): Promise<string> {
@@ -200,7 +202,7 @@ test("3 super_admin finds the document review queue on /eligibility (UC-29)", as
   // /documents stays waiver-template authoring; the review queue sits on
   // Eligibility, where the operator decides whether a player is cleared.
   await page.goto(app + "/dashboard");
-  await navClick(page, /^Eligibility$/, "Compliance");
+  await openNav(page, /^Eligibility$/);
   await expect(page).toHaveURL(/\/eligibility/);
   await expect(page.getByRole("heading", { name: "Documents to review" })).toBeVisible();
   const elig = await snap(page, "03-sa-eligibility-before");
@@ -212,8 +214,23 @@ test("3a COMP-3 player uploads an ID document from /compliance", async () => {
   test.skip(!documentsTableReady, DOCUMENTS_SKIP_REASON);
   const { page, app } = player;
   await page.goto(app + "/compliance");
+  await streamed(page);
   await expect(page.getByRole("heading", { name: "ID and eligibility documents" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Upload a document" })).toBeVisible();
+
+  // One upload form once streaming is done (see streamed()). If a second
+  // #upload-target ever shows up after that, keep where each one sits.
+  const targets = await page.locator("#upload-target").evaluateAll((els) =>
+    els.map((el) => {
+      const path: string[] = [];
+      for (let n: Element | null = el; n && n.tagName !== "BODY"; n = n.parentElement) {
+        path.push(`${n.tagName.toLowerCase()}${n.id ? "#" + n.id : ""}${n.hasAttribute("hidden") ? "[hidden]" : ""}`);
+      }
+      return { path: path.join(" < "), visible: el.getClientRects().length > 0, options: el.textContent };
+    })
+  );
+  writeFileSync(`${OUT}/03a-upload-targets.json`, JSON.stringify({ url: page.url(), targets }, null, 2));
+  expect(targets.length, "player /compliance renders one upload form (one #upload-target)").toBe(1);
 
   // The season picker lists the player's own registrations and team seasons.
   const option = page.locator("#upload-target option", { hasText: SEASON_NAME }).first();
@@ -285,6 +302,7 @@ test("3b COMP-1 super_admin reviews the upload and rejects it with a reason", as
   test.skip(!documentsTableReady || !firstUploadId, DOCUMENTS_SKIP_REASON);
   const { page, app } = admin;
   await page.goto(app + "/eligibility");
+  await streamed(page);
   const row = page.locator(`tr[data-submission-id="${firstUploadId}"]`);
   await expect(row).toBeVisible({ timeout: 15_000 });
   await expect(row).toContainText(PLAYER_NAME);
@@ -342,6 +360,7 @@ test("3c COMP-3 player sees the reason and uploads a new file", async () => {
   test.skip(!documentsTableReady || !firstUploadId, DOCUMENTS_SKIP_REASON);
   const { page, app } = player;
   await page.goto(app + "/compliance");
+  await streamed(page);
   const li = page.locator(`li[data-submission-id="${firstUploadId}"]`);
   await expect(li).toContainText("Rejected");
   await expect(li).toContainText(`Reason from the admin: ${REJECT_REASON}`);
@@ -377,6 +396,7 @@ test("3d COMP-1 admin approves the new file; player sees Approved and a notifica
   test.skip(!documentsTableReady || !secondUploadId, DOCUMENTS_SKIP_REASON);
   const { page, app } = admin;
   await page.goto(app + "/eligibility");
+  await streamed(page);
   const row = page.locator(`tr[data-submission-id="${secondUploadId}"]`);
   await expect(row).toContainText("Waiting for review", { timeout: 15_000 });
   await row.getByRole("button", { name: /^Review$/ }).click();
@@ -395,10 +415,16 @@ test("3d COMP-1 admin approves the new file; player sees Approved and a notifica
 
   const p = player.page;
   await p.goto(player.app + "/compliance");
+  await streamed(p);
   await expect(p.locator(`li[data-submission-id="${secondUploadId}"]`)).toContainText("Approved");
   await snap(p, "03d-player-approved");
+  const navStart = Date.now();
   await p.getByRole("link", { name: /^Notifications$/ }).first().click();
   await expect(p).toHaveURL(/\/notifications/);
+  // The URL changes while the loading skeleton shows; read the inbox once
+  // the page itself has rendered, and keep how long that took.
+  await expect(p.getByRole("heading", { name: /Notifications/ }).first()).toBeVisible({ timeout: 30_000 });
+  writeFileSync(`${OUT}/03d-notifications-load-ms.txt`, String(Date.now() - navStart));
   const inbox = await snap(p, "03d-player-notifications");
   expect(inbox, "player inbox shows the document decision").toMatch(/Birth certificate/);
 });
@@ -407,6 +433,7 @@ test("3e COMP-1 league_admin and org_admin see the queue for their scope", async
   test.skip(!documentsTableReady || !secondUploadId, DOCUMENTS_SKIP_REASON);
   const la = await signedInAs(browser, "leagueAdmin");
   await la.page.goto(la.app + "/eligibility");
+  await streamed(la.page);
   await la.page.locator("#document-queue-filter").selectOption("all");
   await expect(la.page.locator(`tr[data-submission-id="${secondUploadId}"]`)).toContainText("Approved", {
     timeout: 15_000
@@ -416,6 +443,7 @@ test("3e COMP-1 league_admin and org_admin see the queue for their scope", async
 
   const oa = await signedInAs(browser, "orgAdmin");
   await oa.page.goto(oa.app + "/registrations");
+  await streamed(oa.page);
   await expect(oa.page.getByRole("heading", { name: "Documents to review" })).toBeVisible();
   await oa.page.locator("#document-queue-filter").selectOption("all");
   await expect(oa.page.locator(`tr[data-submission-id="${secondUploadId}"]`)).toContainText("Approved", {
@@ -466,6 +494,7 @@ test("4 super_admin creates and publishes a waiver template (UC-27 precondition)
 test("5 super_admin runs the season eligibility sweep, then decides on the player", async () => {
   const { page, app } = admin;
   await page.goto(app + "/eligibility");
+  await streamed(page);
   // The season picker is the select that offers the season (the page also
   // has a document-status filter select now).
   await page
@@ -514,6 +543,7 @@ AFTER ${rowTextAfter}`);
   }
 
   await page.reload();
+  await streamed(page);
   const row = playerRow().filter({ hasText: SEASON_NAME }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
   const statusBefore = await row.innerText();
@@ -529,19 +559,33 @@ AFTER ${rowTextAfter}`);
   const newRecordEnabled = await page.getByRole("button", { name: /New record/ }).isEnabled();
   check(newRecordEnabled, "COMP-9: /eligibility 'New record' button is disabled (person list failed to load)");
 
-  await row.getByRole("button", { name: /^Waive$/ }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.locator("#waive-reason").fill(`${RUN_TAG} ID verified offline`);
-  await dialog.getByRole("button", { name: /Waive eligibility/i }).click();
-  await expect(dialog).toBeHidden({ timeout: 15_000 });
-  const sameSurface = await expect
-    .poll(async () => playerRow().filter({ hasText: SEASON_NAME }).first().innerText(), { timeout: 10_000 })
-    .toMatch(/waived/i)
-    .then(() => true)
-    .catch(() => false);
-  const statusAfter = await playerRow().filter({ hasText: SEASON_NAME }).first().innerText();
-  writeFileSync(`${OUT}/05-row.txt`, `BEFORE ${statusBefore}\nAFTER ${statusAfter}`);
-  check(sameSurface, "J9-step5: /eligibility row still not 'waived' 10s after Waive (stale until reload)");
+  if (recs[0]?.status === "waived") {
+    // An earlier run's waiver stands (COMP-17), and a waived row offers no
+    // Waive action (there is no "revoke waiver" in the console), so the
+    // decision is already on record: check the row shows it, do not click.
+    test.info().annotations.push({
+      type: "note",
+      description: "J9-step5: record already waived by an earlier run; checked the standing decision, Waive not clicked"
+    });
+    await expect(row).toContainText(/waived/i);
+    await expect(row).toContainText(/verified offline/);
+    await expect(row.getByRole("button", { name: /^Waive$/ })).toHaveCount(0);
+    writeFileSync(`${OUT}/05-row.txt`, `ALREADY WAIVED ${statusBefore}`);
+  } else {
+    await row.getByRole("button", { name: /^Waive$/ }).click({ timeout: 15_000 });
+    const dialog = page.getByRole("dialog");
+    await dialog.locator("#waive-reason").fill(`${RUN_TAG} ID verified offline`);
+    await dialog.getByRole("button", { name: /Waive eligibility/i }).click();
+    await expect(dialog).toBeHidden({ timeout: 15_000 });
+    const sameSurface = await expect
+      .poll(async () => playerRow().filter({ hasText: SEASON_NAME }).first().innerText(), { timeout: 10_000 })
+      .toMatch(/waived/i)
+      .then(() => true)
+      .catch(() => false);
+    const statusAfter = await playerRow().filter({ hasText: SEASON_NAME }).first().innerText();
+    writeFileSync(`${OUT}/05-row.txt`, `BEFORE ${statusBefore}\nAFTER ${statusAfter}`);
+    check(sameSurface, "J9-step5: /eligibility row still not 'waived' 10s after Waive (stale until reload)");
+  }
   await snap(page, "05-sa-eligibility-after-waive");
   const after = await stagingSql<{ status: string; waiver_reason: string }>(
     `select status, waiver_reason from eligibility_records where person_id = $1 and season_id = $2`,
@@ -554,7 +598,7 @@ AFTER ${rowTextAfter}`);
 test("6 captain sees the player's status on /captain/compliance (cross-app)", async () => {
   const { page, app } = captain;
   await page.goto(app + "/");
-  await navClick(page, /^Compliance$/, "Captain");
+  await openNav(page, /^Waivers & documents$/);
   await expect(page).toHaveURL(/\/captain\/compliance$/);
   const txt = await snap(page, "06-captain-compliance");
   check(
@@ -567,9 +611,11 @@ test("6 captain sees the player's status on /captain/compliance (cross-app)", as
 test("7 player sees the decision on /compliance and a notification", async () => {
   const { page, app } = player;
   await page.goto(app + "/compliance");
+  await streamed(page);
   const txt = await snap(page, "07-player-compliance-after");
   check(
-    !/No requirements yet/.test(txt) && /Waived/.test(txt),
+    // The status badge is upper-case on screen, so innerText reads "WAIVED".
+    !/No requirements yet/.test(txt) && /\bwaived\b/i.test(txt),
     "COMP-5: player /compliance shows 'No requirements yet' although the DB has a waived record for them"
   );
   await page.getByRole("link", { name: /^Notifications$/ }).first().click();
@@ -583,6 +629,7 @@ test("8 league_admin reaches /eligibility (UC-05/UC-29 actor)", async ({ browser
   const la = await signedInAs(browser, "leagueAdmin");
   const e = watchErrors(la.page);
   await la.page.goto(la.app + "/eligibility");
+  await streamed(la.page);
   const txt = await snap(la.page, "08-league-admin-eligibility");
   writeFileSync(`${OUT}/08-errors.txt`, e.join("\n"));
   check(
