@@ -27,6 +27,8 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { NotificationService } from "../../communications/application/notification.service";
+import { RegistrationV2Service } from "../../registration-v2/application/registration-v2.service";
+import { closeRegistrationMoney } from "../../registration-v2/application/seats";
 
 class ReviewBodyDto {
   @IsIn(["approve", "reject"]) action!: "approve" | "reject";
@@ -49,7 +51,8 @@ class ReviewBodyDto {
 export class OrgAdminRegistrationsController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly notify: NotificationService
+    private readonly notify: NotificationService,
+    private readonly v2: RegistrationV2Service
   ) {}
 
   @Post(":id/review")
@@ -113,16 +116,23 @@ export class OrgAdminRegistrationsController {
     const personName = (meta.personName as string | undefined) ?? "there";
     const leagueName = (meta.leagueName as string | undefined) ?? "the league";
 
-    await this.db
-      .update(schema.registrations)
-      .set({
-        status: next,
-        reviewedAt: new Date(),
-        reviewedByUserId: user.userId,
-        decisionReason: body.reason?.trim() || null,
-        updatedAt: new Date()
-      })
-      .where(eq(schema.registrations.id, id));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(schema.registrations)
+        .set({
+          status: next,
+          reviewedAt: new Date(),
+          reviewedByUserId: user.userId,
+          decisionReason: body.reason?.trim() || null,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.registrations.id, id));
+      // Same seat and invoice rule as the super admin's reject (MON-29).
+      if (next === "rejected") await closeRegistrationMoney(tx, row, "Registration rejected");
+    });
+    // Same hooks as the super admin's approve: player role, free-agent
+    // pool entry, the team for a team registration.
+    if (next === "approved") await this.v2.applyApprovalSideEffects(row);
 
     // Notify via the catalog template — same path the super-admin
     // flow uses, gets the per-org overrides if any are configured.

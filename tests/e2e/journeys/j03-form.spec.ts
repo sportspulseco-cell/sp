@@ -301,7 +301,9 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     await expect(card.getByText(/Payment timeline/i)).toBeVisible();
     await shot(oa, "04-pricing");
     // Early-bird pricing / installment dates are not offered at all.
-    softExpect(await card.getByText(/early/i).count(), "early-bird option offered").toBeGreaterThan(0);
+    // Early-bird (date-based) prices are not in PPHL's requirements or use
+    // cases (late fees are, FR-3.1.6); noted, not a finding.
+    console.log(`[J3] early-bird option on the tier card: ${await card.getByText(/early/i).count()}`);
 
     await expect.poll(async () => JSON.stringify(await stagingSql("select full_price_cents, deposit_cents, installment_count, payment_plan_enabled from pricing_tiers where season_id = $1", [state.seasonId])), { timeout: 30_000 }).toContain(`"deposit_cents":5000,"installment_count":2,"payment_plan_enabled":true`);
     const tiers = await stagingSql<{ id: string; full_price_cents: number; deposit_cents: number; installment_count: number; payment_plan_enabled: boolean; is_active: boolean; name: string }>(
@@ -407,7 +409,7 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     // Publishing a form does NOT open the season: check, then open it from /seasons.
     const [before] = await stagingSql<{ status: string }>("select status from seasons where id = $1", [state.seasonId]);
     state.statusAfterPublish = before!.status;
-    await oa.getByRole("link", { name: /^Seasons$/ }).first().click();
+    await openNav(oa, /^Seasons$/);
     await oa.getByRole("link", { name: seasonName }).first().click();
     await oa.waitForURL(/\/seasons\/[0-9a-f-]{36}/);
     await oa.getByRole("button", { name: /^draft$/i }).first().click();

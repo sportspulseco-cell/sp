@@ -251,7 +251,7 @@ export class AdminReviewController {
           updatedAt: new Date()
         })
         .where(eq(schema.registrations.id, id));
-      await this.applyApprovalSideEffects(row, meta);
+      await this.v2.applyApprovalSideEffects(row);
       if (recipient) {
         await this.email.send({
           to: recipient,
@@ -463,7 +463,7 @@ export class AdminReviewController {
       applied++;
       const meta = (r.metadata as Record<string, unknown>) ?? {};
       if (target === "approved") {
-        await this.applyApprovalSideEffects(r, meta);
+        await this.v2.applyApprovalSideEffects(r);
       }
       const recipient = meta.email as string | undefined;
       if (recipient) {
@@ -480,86 +480,6 @@ export class AdminReviewController {
     return { matched: rows.length, applied, skipped, emailDelivered };
   }
 
-  /**
-   * Hooks that fire after a registration row flips to `approved` —
-   * single approve, bulk approve, anywhere a row enters that state.
-   *
-   *   1. Grant the `player` role (scope = division when known, else
-   *      org). Idempotent. Pushed into Supabase JWT app_metadata so
-   *      the player can sign into the player app without a 'wrong
-   *      role' bounce.
-   *   2. For free-agent submissions: upsert a free_agent_pool_entries
-   *      row from metadata.answers (positions / availability /
-   *      skill_level / fa_note). Without this the player never
-   *      surfaces on the captain's Free agents list.
-   *
-   * Failures are logged but don't roll back the approval — the
-   * approval is the binding decision; side-effects are mechanical
-   * sync.
-   */
-  private async applyApprovalSideEffects(
-    row: typeof schema.registrations.$inferSelect,
-    meta: Record<string, unknown>
-  ): Promise<void> {
-    try {
-      if (row.submittedByUserId && row.orgId) {
-        await this.v2.ensurePlayerRoleForRegistration({
-          userId: row.submittedByUserId,
-          divisionId: row.divisionId ?? null,
-          orgId: row.orgId
-        });
-      }
-      const submissionType = meta.submissionType as string | undefined;
-      if (
-        submissionType === "free_agent" &&
-        row.seasonId &&
-        row.subjectPersonId
-      ) {
-        const answers =
-          (meta.answers as Record<string, unknown> | undefined) ?? {};
-        await this.v2.upsertFreeAgentPoolFromRegistration({
-          registrationId: row.id,
-          seasonId: row.seasonId,
-          playerPersonId: row.subjectPersonId,
-          answers
-        });
-      }
-      if (
-        submissionType === "team" &&
-        row.submittedByUserId &&
-        row.subjectPersonId &&
-        row.seasonId &&
-        row.orgId
-      ) {
-        const team =
-          (meta.team as { name?: string; color?: string } | undefined) ?? {};
-        const teamName = team.name?.trim();
-        if (teamName) {
-          await this.v2.createTeamFromRegistration({
-            registrationId: row.id,
-            submitterUserId: row.submittedByUserId,
-            captainPersonId: row.subjectPersonId,
-            orgId: row.orgId,
-            seasonId: row.seasonId,
-            divisionId: row.divisionId ?? null,
-            teamName,
-            teamColor: team.color ?? null
-          });
-        } else {
-          console.warn(
-            `[applyApprovalSideEffects] team-registration ${row.id} has no metadata.team.name; skipping team creation`
-          );
-        }
-      }
-    } catch (e) {
-      // Don't fail the approval if a side-effect stumbles — admin can
-      // re-trigger via override_flag or re-approve. Log loudly.
-      console.error(
-        `[AdminReviewController.applyApprovalSideEffects] registration=${row.id}`,
-        (e as Error).message
-      );
-    }
-  }
 }
 
 function approvedBody(meta: Record<string, unknown>): string {

@@ -158,12 +158,13 @@ test.describe.serial("J4 · player registers and pays", () => {
     await page.goto(`${E2E_URLS.player}/register`);
     await page.waitForLoadState("networkidle").catch(() => {});
     await shot(page, "01-anon-register");
-    softExpect(new URL(page.url()).pathname, "anonymous /register is reachable (not bounced to sign-in)").toBe("/register");
-    const listed = await page.getByText(j3.seasonName!).count();
-    // Direct funnel link works anonymously?
+    // /register lists open seasons for the signed-in player's own orgs; it is
+    // not an anonymous directory of every org's seasons (a signed-in player
+    // once saw other orgs' seasons there). Anonymous players arrive by the
+    // season's own link, which the league shares.
+    softExpect(new URL(page.url()).pathname, "anonymous /register asks the visitor to sign in").toBe("/sign-in");
     await page.goto(`${E2E_URLS.player}/register/${j3.seasonId}`);
     await expect(page.getByRole("button", { name: /Register as a player/i })).toBeVisible({ timeout: 30_000 });
-    softExpect(listed, "anonymous visitor sees the open RUN_TAG season on /register").toBeGreaterThan(0);
     softExpect(errs.filter((e) => /http 5/.test(e)), "5xx on anonymous /register").toEqual([]);
     await ctx.close();
   });
@@ -177,8 +178,10 @@ test.describe.serial("J4 · player registers and pays", () => {
     const [win] = await stagingSql<{ opens: Date }>("select registration_opens_at opens from seasons where id = $1", [j3.seasonId]);
     const openNow = new Date(win!.opens) <= new Date();
     test.info().annotations.push({ type: "season-window", description: `registration_opens_at=${new Date(win!.opens).toISOString()} openNow=${openNow}` });
-    const homeHas = await page.getByText(j3.seasonName!).count();
-    softExpect(homeHas, `player home shows the open RUN_TAG season (openNow=${openNow})`).toBeGreaterThan(0);
+    // The home card previews three open seasons and links to all of them;
+    // staging has many test seasons, so this one may sit behind "See all".
+    const card = page.getByText(/accepting registrations/i);
+    softExpect(await card.count(), `player home shows the open registrations card (openNow=${openNow})`).toBeGreaterThan(0);
     await page.goto(`${E2E_URLS.player}/register`);
     await expect(page.getByRole("heading", { name: /find a team/i })).toBeVisible();
     await shot(page, "02-player-register");
@@ -388,7 +391,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     await page.goto(`${E2E_URLS.orgAdmin}/`);
     await openNavLink(page, /^Registrations$/);
     await page.waitForLoadState("networkidle").catch(() => {});
-    const row = page.locator("tr", { hasText: submissionId.slice(0, 8) });
+    const row = page.locator("tr", { hasText: email });
     const visible = await row.isVisible({ timeout: 15_000 }).catch(() => false);
     await shot(page, "07-oa-registrations");
     const [cnt] = await stagingSql<{ n: string }>("select count(*) n from registrations where org_id = (select org_id from registrations where id = $1)", [submissionId]);
@@ -463,7 +466,8 @@ test.describe.serial("J4 · player registers and pays", () => {
     await page.waitForTimeout(5000);
     await shot(page, "10-signin-wrong-password");
     const advanced = await page.getByRole("button", { name: /Next: Compliance/ }).isVisible().catch(() => false);
-    const leakedDob = await page.locator("input[type=date]").first().inputValue().catch(() => "");
+    // No date field when sign-in is refused; do not wait for one.
+    const leakedDob = await page.locator("input[type=date]").first().inputValue({ timeout: 2_000 }).catch(() => "");
     softExpect(advanced, "wrong password still advances to Details (account takeover)").toBe(false);
     softExpect(leakedDob, "stranger sees the player's DOB").not.toBe("1990-05-05");
     await ctx.close();

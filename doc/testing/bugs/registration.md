@@ -252,6 +252,8 @@ shared file was touched.
   Evidence: findings "price field label asks admin for cents", "early-bird option offered: 0"; screenshot j03/04-pricing.png
   Root cause: packages/forms-builder/src/pricing-tab.tsx:166-190, :27 (isActive:false); seasons/handlers.ts ChangeSeasonStatusHandler.
   Proposed fix: money input in dollars (shared MoneyInput), installment interval/dates fields, create tier active when the season is already open.
+  Scope note (26 Oct): early-bird (date-based) prices are not in PPHL's requirements or use cases; J3 now logs the
+    option instead of reporting it. Not built.
 
 [REG-20] New form dialog: no season picker; org_admin offered "Super Admin" audience · minor
   Journey: J3
@@ -372,3 +374,20 @@ Runs: J3 full runs E2EMVK85UUY and E2EMVK8ZS8T (11/12 passed each; test 12 lists
   Evidence: local API against staging as the org admin: 200 with 40 forms for orgId + limit + cursor (database: 40); another
     org 404; limit 0 rejected (400). Browser on the local org app: Home and the season page show no "Could not load", and step
     2 reads "No form published", which the database confirms for that season (0 forms).
+
+[REG-28] An org admin's approval skipped what approval sets up; the approved row kept saying "pending review" · major
+  Found: J4 on staging (26 Oct, ae16c22). Step 7 clicked Approve as the org admin; the row did not change and step 8
+    found the registration still pending_review. A direct repeat showed the approval was saved (201, approved) but the
+    row kept "PENDING REVIEW" for 6 s once, when the click landed while the page's link prefetches were still loading
+    (the same click a second time updated in 1 s).
+  Actual: the org admin's /org-admin/registrations/:id/review was its own copy of the review: it changed the status and
+    queued the notice, but did not run the approval hooks the super admin's approve runs (free agent into the pool,
+    team for a team registration), and its reject did not give back the price seat or void the unpaid invoice (MON-29).
+    Org admins are the ones who approve in PPHL.
+  Fix: the hooks moved to RegistrationV2Service.applyApprovalSideEffects, called by super admin single and bulk approve
+    and by the org admin's approve; the org admin's reject uses closeRegistrationMoney in its transaction. The org
+    admin's queue shows the status the server returned at once and still refreshes.
+  Evidence: regfa/verify-oa-review.mjs on the local API against staging 3/3 (deployed old code 1/3): free agent approved
+    by the org admin is in the pool; org admin reject gives the seat back (3 -> 2) and voids the unpaid invoice.
+    regfa/repro-oa-approve.mjs: approve 201 and the row reads APPROVED without a reload.
+  Not verified: the org admin queue update in a browser on the new build (J4 step 7 after the next staging push).

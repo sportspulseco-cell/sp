@@ -49,12 +49,17 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The status the server returned for a decision, shown at once. A
+  // refresh that started while the page's link prefetches were in flight
+  // was sometimes dropped, leaving "pending review" on an approved row.
+  const [decided, setDecided] = useState<Record<string, string>>({});
 
   async function decide(id: string, action: "approve" | "reject", reason?: string) {
     setError(null);
     setBusy(id);
     try {
-      await orgAdminRegistrations.review(id, { action, reason });
+      const res = await orgAdminRegistrations.review(id, { action, reason });
+      setDecided((d) => ({ ...d, [id]: res.status }));
       setOpenId(null);
       router.refresh();
     } catch (e) {
@@ -78,7 +83,9 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
           </TR>
         </THead>
         <TBody>
-          {items.map((r) => (
+          {items.map((row) => {
+            const r = decided[row.id] ? { ...row, status: decided[row.id]! } : row;
+            return (
             <TR key={r.id}>
               <TD className="text-[13px] font-medium text-fg">
                 {r.name ?? "Unnamed"}
@@ -133,7 +140,8 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
                 )}
               </TD>
             </TR>
-          ))}
+            );
+          })}
         </TBody>
       </Table>
     </div>
