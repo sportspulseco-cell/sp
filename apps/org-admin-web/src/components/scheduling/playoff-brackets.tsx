@@ -16,6 +16,7 @@ export function PlayoffBrackets(props: Props) {
     <SchedulingPlayoffBrackets
       {...props}
       publishPlayoffGames={(req) => gameOps.publishSchedule({ ...req, gameType: "playoff" })}
+      gameHref={(id) => `/games/${id}`}
     />
   );
 }

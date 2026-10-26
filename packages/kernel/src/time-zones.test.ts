@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatInZone, isValidTimeZone, utcToZonedWallTime, zonedWallTimeToUtc } from "./time-zones";
+import { formatInZone, GAME_TIME_WITH_ZONE, isValidTimeZone, utcToZonedWallTime, zonedWallTimeToUtc } from "./time-zones";
 
 test("rink-local winter time converts with the standard offset", () => {
   assert.equal(zonedWallTimeToUtc("2026-12-05T20:00", "America/New_York").toISOString(), "2026-12-06T01:00:00.000Z");
@@ -64,6 +64,17 @@ test("game display takes extra format options", () => {
 test("an unknown or missing zone shows UTC and says so", () => {
   assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "Mars/Olympus"), "Nov 5, 2:00 AM UTC");
   assert.equal(formatInZone("2026-11-05T02:00:00.000Z", null), "Nov 5, 2:00 AM UTC");
+});
+
+test("a game time can carry the zone's short name, through daylight saving time", () => {
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "America/New_York", GAME_TIME_WITH_ZONE), "Nov 4, 9:00 PM EST");
+  assert.equal(formatInZone("2026-10-25T01:00:00.000Z", "America/New_York", GAME_TIME_WITH_ZONE), "Oct 24, 9:00 PM EDT");
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "America/Chicago", GAME_TIME_WITH_ZONE), "Nov 4, 8:00 PM CST");
+});
+
+test("with the zone's short name, an unknown or missing zone says UTC once", () => {
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "Mars/Olympus", GAME_TIME_WITH_ZONE), "Nov 5, 2:00 AM UTC");
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", null, GAME_TIME_WITH_ZONE), "Nov 5, 2:00 AM UTC");
 });
 
 test("a bad instant shows nothing", () => {
