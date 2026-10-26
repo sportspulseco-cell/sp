@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatInZone, isValidTimeZone, utcToZonedWallTime, zonedWallTimeToUtc } from "./time-zones";
+import { DATE_FORMATS, formatCalendarDate, formatInZone, isValidTimeZone, utcToZonedWallTime, zonedWallTimeToUtc } from "./time-zones";
 
 test("rink-local winter time converts with the standard offset", () => {
   assert.equal(zonedWallTimeToUtc("2026-12-05T20:00", "America/New_York").toISOString(), "2026-12-06T01:00:00.000Z");
@@ -68,4 +68,19 @@ test("an unknown or missing zone shows UTC and says so", () => {
 
 test("a bad instant shows nothing", () => {
   assert.equal(formatInZone("not a date", "America/New_York"), "");
+});
+
+test("shared date shapes print the same text for every reader", () => {
+  assert.equal(formatCalendarDate("2026-11-22", DATE_FORMATS.date), "Nov 22, 2026");
+  assert.equal(formatCalendarDate("2026-11-22", DATE_FORMATS.monthDay), "Nov 22");
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "America/New_York", DATE_FORMATS.dateTime), "Nov 4, 2026, 9:00 PM");
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "America/New_York", DATE_FORMATS.time), "9:00 PM");
+  assert.equal(formatInZone("2026-11-05T02:00:00.000Z", "America/New_York", DATE_FORMATS.gameTime), "Nov 4, 9:00 PM");
+});
+
+test("a calendar date never slips to the day before", () => {
+  assert.equal(formatCalendarDate("2026-01-01"), "Jan 1, 2026");
+  assert.equal(formatCalendarDate("2026-11-22T00:00:00.000Z"), "Nov 22, 2026");
+  assert.equal(formatCalendarDate(""), "");
+  assert.equal(formatCalendarDate("not a date"), "");
 });
