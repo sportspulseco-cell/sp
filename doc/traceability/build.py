@@ -362,6 +362,19 @@ FIXED_IN_CODE = {
     "CONSOLE-16": "commit 5ed4be7: 28 locale-less format calls pin en-US; no #418 in en-US or en-IN across 4 apps (browser 32/32)",
     "CONSOLE-15": "commit 6e57b35: retry job sends queued rows from the last 24h; flush skips stale; local API on staging 14/14",
     "MON-19": "commit af83078: org admins open an invoice (read-only; refunds wait for the refund decision); API 404 for other orgs; browser 2/2",
+    "CAP-26": "commit 6d71de2: duplicate check before the cap; a full roster says 'The roster is full: 20 of 20 players'; local API on staging at 20/20 2/2",
+    "CONSOLE-19": "commit 6936692: loadMeScope retries once, then the error screen; 55 call sites; with the API stopped /leagues shows the error screen, not 'No leagues yet'",
+    "CONSOLE-20": "commit 22c8ea0: each response keeps the API instance awake until the pool idle timeout closes its connections; staging held pooler slots 177 idle before, 0 after a 600-call burst and 0 after the full suite",
+    "MON-26": "commit fb9ad45: registration card pay writes a credit_card payment in one transaction with the invoice; refund to card works; numbers from the org sequence; local API 15/15 (old code 8/15), transfer numbering 3/3",
+    "MON-27": "commit 64bade4 + migration 0057 (staging): the installment job charges only plans the payer chose, never more than owed; payments by hand settle the plan; local API 18/18",
+    "MON-28": "commit 64bade4: funnel plan charges the deposit and schedules installments (kernel planInstallments); discount stub and Simulate decline removed; local API 18/18",
+    "REG-28": "commit 090984e: org admin approve runs the shared approval hooks (free-agent pool, team), reject gives the seat back and voids the unpaid invoice, queue shows the decided status; local API 3/3 (old code 1/3)",
+    "REG-29": "review queues list waiting decisions first (oldest first), then newest; rows name the season; local API 5/5 (old code 3/5)",
+    "CAP-27": "running seasons first in /captain/applications (limit 200); the team's open season is back in the invite and roster pickers",
+    "CONSOLE-21": "the invite dialog refreshes the users list again on close after an invite",
+    "MON-30": "captain dues and admin share lists ordered by share number; rows no longer jump after a save",
+    "CONSOLE-22": "per-season and per-org fan-outs replaced by one paged list or six at a time; not yet on staging (deploy cap)",
+    "MON-29": "commit d2d4888: seat limits counted and enforced at the price step and payment; reject and cancel give the seat back and void unpaid invoices; local API 11/11",
 }
 
 # Not bugs to fix now: decisions the founder made, with the date.
