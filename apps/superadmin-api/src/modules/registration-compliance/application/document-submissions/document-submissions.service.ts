@@ -7,7 +7,8 @@ import {
   NotFoundException,
   ServiceUnavailableException
 } from "@nestjs/common";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
+import { ConfigService } from "@nestjs/config";
 import { and, asc, desc, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -18,7 +19,13 @@ import {
   COMPLIANCE_FILE_URL_TTL_SECONDS,
   checkComplianceDecision,
   checkComplianceUpload,
+  compareLicenceToPerson,
   complianceFileExtension,
+  licenceLast4,
+  parseAamva,
+  type LicenceCheckField,
+  type LicenceCheckMethod,
+  type LicenceCheckResult,
   type ComplianceDocumentDecision,
   type ComplianceDocumentKind,
   type ComplianceDocumentStatus
@@ -115,7 +122,25 @@ export interface AdminComplianceDocumentDto extends ComplianceDocumentSubmission
   birthYearMax: number | null;
   sha256: string;
   decisions: ComplianceDocumentDecisionDto[];
+  /** Licence barcode checks on this document, oldest first (UC-29). */
+  idChecks: LicenceIdCheckDto[];
 }
+
+/** One stored licence check: no full number, no card name or DOB. */
+export interface LicenceIdCheckDto {
+  id: string;
+  submissionId: string;
+  method: LicenceCheckMethod;
+  result: LicenceCheckResult;
+  mismatchedFields: LicenceCheckField[];
+  documentType: "DL" | "ID";
+  jurisdiction: string | null;
+  licenceLast4: string;
+  expiresOn: string | null;
+  checkedAt: string;
+  checkedByName: string | null;
+}
+
 
 export interface UploadComplianceDocumentInput {
   personId: string;
@@ -167,6 +192,12 @@ function personName(r: { first: string; last: string; preferred?: string | null 
   return `${r.preferred?.trim() || r.first} ${r.last}`.trim();
 }
 
+function groupBySubmission(rows: LicenceIdCheckDto[]): Map<string, LicenceIdCheckDto[]> {
+  const out = new Map<string, LicenceIdCheckDto[]>();
+  for (const r of rows) out.set(r.submissionId, [...(out.get(r.submissionId) ?? []), r]);
+  return out;
+}
+
 function encodeCursor(createdAt: Date, id: string): string {
   return Buffer.from(`${createdAt.toISOString()}|${id}`, "utf8").toString("base64url");
 }
@@ -188,7 +219,8 @@ export class ComplianceDocumentSubmissionsService {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly storage: SupabaseAdminService,
     private readonly notify: NotificationService,
-    private readonly audit: AuditWriterService
+    private readonly audit: AuditWriterService,
+    private readonly config: ConfigService
   ) {}
 
   // ------------------------------------------------------------------
@@ -476,6 +508,7 @@ export class ComplianceDocumentSubmissionsService {
     const rows = await this.selectAdminRows(where.length ? and(...where)! : sql`true`, limit + 1);
     const page = rows.slice(0, limit);
     const decisions = await this.decisionsFor(page.map((r) => r.id));
+    const checks = groupBySubmission(await this.idChecksFor(page.map((r) => r.id)));
 
     const countRows = await this.db
       .select({ status: cds.status, n: sql<number>`count(*)::int` })
@@ -492,7 +525,7 @@ export class ComplianceDocumentSubmissionsService {
 
     const last = page[page.length - 1];
     return {
-      items: page.map((r) => this.toAdminDto(r, decisions.get(r.id) ?? [])),
+      items: page.map((r) => this.toAdminDto(r, decisions.get(r.id) ?? [], checks.get(r.id) ?? [])),
       nextCursor: rows.length > limit && last ? encodeCursor(last.createdAt, last.id) : null,
       counts
     };
@@ -505,7 +538,8 @@ export class ComplianceDocumentSubmissionsService {
     const [row] = await this.selectAdminRows(vis ? and(eq(cds.id, id), vis)! : eq(cds.id, id), 1);
     if (!row) throw new NotFoundException("Document not found");
     const decisions = await this.decisionsFor([row.id]);
-    return this.toAdminDto(row, decisions.get(row.id) ?? []);
+    const checks = await this.idChecksFor([row.id]);
+    return this.toAdminDto(row, decisions.get(row.id) ?? [], checks);
   }
 
   /**
@@ -603,6 +637,138 @@ export class ComplianceDocumentSubmissionsService {
     });
     if (!row) throw new NotFoundException("Document not found");
     return this.signFor(row, actorUserId, "admin");
+  }
+
+  // ------------------------------------------------------------------
+  // Licence barcode check (UC-29 / FR-3.15.5)
+  // ------------------------------------------------------------------
+
+  /**
+   * Record one licence barcode check against a government ID submission.
+   * The browser only decodes the PDF417 image to text; parsing and the
+   * comparison with the person on file run here, so the client cannot
+   * claim a match. Scope first (404 outside). Stored: result, the fields
+   * that disagreed, jurisdiction, expiry, last 4 of the licence number
+   * and an HMAC of it. Never the full number, the card's name or DOB.
+   * The admin still approves or rejects through `decide`.
+   */
+  async recordLicenceCheck(input: {
+    scope: UserScope;
+    actorUserId: string;
+    id: string;
+    barcodeText: string;
+    method: LicenceCheckMethod;
+  }): Promise<{ check: LicenceIdCheckDto }> {
+    const doc = await this.getForAdmin(input.scope, input.id);
+    if (doc.kind !== "government_id") {
+      throw new BadRequestException("Licence scans are for government ID documents.");
+    }
+    const key = this.config.get<string>("ID_CHECK_HASH_KEY")?.trim();
+    if (!key || key.length < 32) {
+      this.log.error("licence check refused: ID_CHECK_HASH_KEY unset or shorter than 32 characters");
+      throw new ServiceUnavailableException(
+        "Licence checks are not set up on our side yet (no hashing key). Check the card by eye and decide as usual."
+      );
+    }
+    const parsed = parseAamva(input.barcodeText);
+    if (!parsed.ok) throw new BadRequestException(parsed.message);
+    const licence = parsed.licence;
+
+    const [person] = await this.db
+      .select({
+        first: schema.persons.legalFirstName,
+        last: schema.persons.legalLastName,
+        preferred: schema.persons.preferredName,
+        dob: schema.persons.dobDate
+      })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, doc.personId))
+      .limit(1);
+    if (!person) throw new NotFoundException("Document not found");
+
+    const today = new Date().toISOString().slice(0, 10);
+    const cmp = compareLicenceToPerson(
+      licence,
+      { legalFirstName: person.first, legalLastName: person.last, preferredName: person.preferred, dobDate: person.dob },
+      today
+    );
+    const hash = createHmac("sha256", key)
+      .update(`${licence.jurisdiction ?? ""}:${licence.licenceNumber}`)
+      .digest("hex");
+    const fields: LicenceCheckField[] = [...cmp.mismatchedFields];
+    const cic = schema.complianceIdChecks;
+    const [other] = await this.db
+      .select({ id: cic.id })
+      .from(cic)
+      .where(and(eq(cic.licenceHash, hash), ne(cic.personId, doc.personId)))
+      .limit(1);
+    if (other) fields.push("seen_on_another_person");
+    const result: LicenceCheckResult = fields.length === 0 ? "match" : "mismatch";
+
+    const inserted = await this.db
+      .insert(cic)
+      .values({
+        submissionId: doc.id,
+        personId: doc.personId,
+        orgId: doc.orgId,
+        method: input.method,
+        result,
+        mismatchedFields: fields,
+        documentType: licence.documentType,
+        jurisdiction: licence.jurisdiction?.slice(0, 3) ?? null,
+        country: licence.country,
+        aamvaVersion: licence.version,
+        licenceLast4: licenceLast4(licence.licenceNumber),
+        licenceHash: hash,
+        expiresOn: licence.expiresOn,
+        checkedByUserId: input.actorUserId
+      })
+      .returning({ id: cic.id });
+    if (inserted.length !== 1) throw new Error(`licence check insert wrote ${inserted.length} rows for ${doc.id}`);
+    const [check] = await this.idChecksFor([doc.id], inserted[0]!.id);
+    if (!check) throw new Error(`licence check ${inserted[0]!.id} not read back`);
+    this.log.log(
+      `licence check id=${check.id} submission=${doc.id} result=${result} fields=${fields.join(",") || "-"} method=${input.method} by=${input.actorUserId}`
+    );
+    return { check };
+  }
+
+  /** Licence checks for these submissions, oldest first (or one by id). */
+  private async idChecksFor(submissionIds: string[], onlyId?: string): Promise<LicenceIdCheckDto[]> {
+    if (submissionIds.length === 0) return [];
+    const cic = schema.complianceIdChecks;
+    const rows = await this.db
+      .select({
+        id: cic.id,
+        submissionId: cic.submissionId,
+        method: cic.method,
+        result: cic.result,
+        mismatchedFields: cic.mismatchedFields,
+        documentType: cic.documentType,
+        jurisdiction: cic.jurisdiction,
+        licenceLast4: cic.licenceLast4,
+        expiresOn: cic.expiresOn,
+        checkedAt: cic.checkedAt,
+        checkedByName: schema.profiles.displayName,
+        checkedByEmail: schema.profiles.email
+      })
+      .from(cic)
+      .leftJoin(schema.profiles, eq(schema.profiles.id, cic.checkedByUserId))
+      .where(onlyId ? eq(cic.id, onlyId) : inArray(cic.submissionId, submissionIds))
+      .orderBy(asc(cic.checkedAt), asc(cic.id));
+    return rows.map((r) => ({
+      id: r.id,
+      submissionId: r.submissionId,
+      method: r.method as LicenceCheckMethod,
+      result: r.result as LicenceCheckResult,
+      mismatchedFields: (r.mismatchedFields ?? []) as LicenceCheckField[],
+      documentType: r.documentType as "DL" | "ID",
+      jurisdiction: r.jurisdiction,
+      licenceLast4: r.licenceLast4,
+      expiresOn: r.expiresOn,
+      checkedAt: r.checkedAt.toISOString(),
+      checkedByName: r.checkedByName ?? r.checkedByEmail ?? null
+    }));
   }
 
   // ------------------------------------------------------------------
@@ -825,7 +991,11 @@ export class ComplianceDocumentSubmissionsService {
     };
   }
 
-  private toAdminDto(r: AdminRow, decisions: ComplianceDocumentDecisionDto[]): AdminComplianceDocumentDto {
+  private toAdminDto(
+    r: AdminRow,
+    decisions: ComplianceDocumentDecisionDto[],
+    idChecks: LicenceIdCheckDto[] = []
+  ): AdminComplianceDocumentDto {
     const base = this.toDto(r, decisions);
     return {
       ...base,
@@ -838,7 +1008,8 @@ export class ComplianceDocumentSubmissionsService {
       birthYearMin: r.birthYearMin ?? null,
       birthYearMax: r.birthYearMax ?? null,
       sha256: r.sha256,
-      decisions
+      decisions,
+      idChecks
     };
   }
 

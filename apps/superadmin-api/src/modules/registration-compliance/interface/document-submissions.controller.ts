@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
 import {
+  LICENCE_CHECK_METHODS,
+  type LicenceCheckMethod,
   COMPLIANCE_DECISION_REASON_MAX,
   COMPLIANCE_DOCUMENT_DECISIONS,
   COMPLIANCE_DOCUMENT_STATUSES,
@@ -37,6 +39,17 @@ class ListDocumentSubmissionsQueryDto {
   @IsString()
   @MaxLength(200)
   cursor?: string;
+}
+
+class LicenceCheckBodyDto {
+  /** The text the browser decoded from the licence's PDF417 barcode. Parsed on the server, never stored. */
+  @IsString()
+  @MinLength(10)
+  @MaxLength(4000)
+  barcodeText!: string;
+
+  @IsIn([...LICENCE_CHECK_METHODS])
+  method!: LicenceCheckMethod;
 }
 
 class DecideDocumentSubmissionBodyDto {
@@ -112,6 +125,32 @@ export class DocumentSubmissionsController {
       notified: result.notified,
       submission: result.submission
     };
+  }
+
+  @Post(":id/licence-check")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "UC-29: record a driver's licence barcode check on a government ID submission. The server parses the AAMVA text, compares name, DOB and expiry with the person on file and stores an evidence row (last 4 + keyed hash of the number, never the number). 404 outside scope. The admin still decides through /decision."
+  })
+  async licenceCheck(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body: LicenceCheckBodyDto,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() principal: AuthPrincipal
+  ) {
+    const res = await this.documents.recordLicenceCheck({
+      scope,
+      actorUserId: principal.userId,
+      id,
+      barcodeText: body.barcodeText,
+      method: body.method
+    });
+    const submission = await this.documents.getForAdmin(scope, id);
+    // `id` and `orgId` at the top level for the audit interceptor. The
+    // interceptor stores this response, so it carries no card name, DOB
+    // or number: the browser shows those from its own decode.
+    return { id, orgId: submission.orgId, check: res.check, submission };
   }
 
   @Get(":id/file")
