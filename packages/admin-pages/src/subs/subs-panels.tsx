@@ -418,7 +418,7 @@ export function GameSubsAdminPanel({ api, gameId }: { api: AdminSubsApi; gameId:
       <div className="space-y-4 px-6 py-5">
         {loadError ? <Alert tone="error">Could not load subs: {loadError}</Alert> : null}
         {!view && !loadError ? <p className="text-[13px] text-fg-muted">Loading subs…</p> : null}
-        {view?.assignClosedReason ? <Alert tone="info">{view.assignClosedReason} Subs can no longer be assigned.</Alert> : null}
+        {view?.assignClosedReason ? <Alert tone="info">{view.assignClosedReason}</Alert> : null}
         {error ? <Alert tone="error">{error}</Alert> : null}
         {done ? <Alert tone="success">{done}</Alert> : null}
         {view ? (

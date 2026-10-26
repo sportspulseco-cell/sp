@@ -186,7 +186,7 @@ export class SubstituteRequestsService {
   // Loading and access
   // ===================================================================
 
-  private async loadGame(gameId: string, exec: Exec = this.db): Promise<GameCtx | null> {
+  private async loadGame(gameId: string, exec: Exec = this.db, opts: { allowSeasonless?: boolean } = {}): Promise<GameCtx | null> {
     const home = sql<string>`(select name from teams where id = ${schema.games.homeTeamId})`;
     const away = sql<string>`(select name from teams where id = ${schema.games.awayTeamId})`;
     const [g] = await exec
@@ -213,12 +213,13 @@ export class SubstituteRequestsService {
       .limit(1);
     if (!g) return null;
     const seasonId = g.gameSeasonId ?? g.divisionSeasonId ?? null;
-    if (!seasonId) return null;
+    // Older games carry no season; only the admin view reads them ("" = none).
+    if (!seasonId && !opts.allowSeasonless) return null;
     return {
       id: g.id,
       leagueId: g.leagueId,
       orgId: g.orgId,
-      seasonId,
+      seasonId: seasonId ?? "",
       homeTeamId: g.homeTeamId,
       awayTeamId: g.awayTeamId,
       homeTeamName: g.homeTeamName ?? "Home",
@@ -250,8 +251,8 @@ export class SubstituteRequestsService {
   }
 
   /** A league / org admin whose admin scope covers the game; 404 otherwise. */
-  async requireAdminGame(userId: string, gameId: string): Promise<GameCtx> {
-    const game = await this.loadGame(gameId);
+  async requireAdminGame(userId: string, gameId: string, opts: { allowSeasonless?: boolean } = {}): Promise<GameCtx> {
+    const game = await this.loadGame(gameId, this.db, opts);
     const scope = await loadAdminScope(this.db, userId);
     const inScope =
       !!game &&
@@ -662,10 +663,15 @@ export class SubstituteRequestsService {
   }
 
   async adminView(userId: string, gameId: string) {
-    const game = await this.requireAdminGame(userId, gameId);
+    const game = await this.requireAdminGame(userId, gameId, { allowSeasonless: true });
+    // A game outside any season (older data) can have no subs: nobody is in
+    // its pool. Say so instead of answering 404 on the game page.
+    if (!game.seasonId) {
+      return { game: this.gameSummary(game), teams: [], assignClosedReason: "This game is not in a season, so subs cannot be added to it." };
+    }
     const teams = await Promise.all([this.teamView(game, game.homeTeamId), this.teamView(game, game.awayTeamId)]);
     const assignOpen =
-      ADMIN_ASSIGN_STATUSES.includes(game.status) ? null : `This game is ${game.status.replace(/_/g, " ")}.`;
+      ADMIN_ASSIGN_STATUSES.includes(game.status) ? null : `This game is ${game.status.replace(/_/g, " ")}, so subs can no longer be assigned.`;
     return { game: this.gameSummary(game), teams, assignClosedReason: assignOpen };
   }
 
