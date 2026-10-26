@@ -242,8 +242,15 @@ export class CaptainApplicationsController {
         eq(schema.leagues.id, schema.seasons.leagueId)
       )
       .where(eq(schema.divisionTeamEntries.teamId, teamId))
-      .orderBy(desc(schema.divisionTeamEntries.createdAt))
-      .limit(50);
+      // Seasons still running first, then history, newest first. Newest
+      // first alone cut a team's older but still-running season once it
+      // had 50 entries, and that season vanished from the captain's
+      // invite and roster pickers (staging, 26 Oct).
+      .orderBy(
+        sql`(${schema.seasons.status} in ('completed', 'archived'))`,
+        desc(schema.divisionTeamEntries.createdAt)
+      )
+      .limit(200);
 
     if (rows.length === 0) return { items: [] };
 

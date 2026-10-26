@@ -299,3 +299,11 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: probe script opens pooler clients until Supavisor refuses, then closes them; held = 200 - opened.
   Not verified: production. The same code and pooler limits apply there; the probe was not run on production because
     it briefly fills the pooler.
+
+[CONSOLE-21] After "Invite user", the new user was sometimes missing from /users until a reload · minor
+  Found: J2.2 on staging, 2 of 4 runs (26 Oct): invite 201, "Account created for ...", Close, and no row for the new
+    user within 15 s. 3 direct repeats showed the row in 1.3-1.8 s.
+  Actual: the dialog refreshes the list right after the invite; when that refresh is sent while the page's link
+    prefetches are still loading it can be dropped (the same pattern REG-28 found on the org admin's queue).
+  Fix: the dialog refreshes the list again when it closes after an invite.
+  Evidence: regfa/repro-invite-refresh.mjs 3/3 before the change; J2 in the next staging run.

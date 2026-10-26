@@ -38,6 +38,18 @@ const INVITE_SCOPE_TYPES = SCOPE_TYPES.filter((s) => s !== "game");
 export function InviteUserButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Set once an invite succeeds while the dialog is open. Closing then
+  // refreshes the list again: the refresh sent right after the invite was
+  // sometimes dropped while the page's link prefetches were loading, and
+  // the new user was missing from the list (J2, 26 Oct).
+  const [invitedSinceOpen, setInvitedSinceOpen] = useState(false);
+  function close() {
+    setOpen(false);
+    if (invitedSinceOpen) {
+      setInvitedSinceOpen(false);
+      router.refresh();
+    }
+  }
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [grantRole, setGrantRole] = useState(false);
@@ -179,6 +191,7 @@ export function InviteUserButton() {
       setSetPwd(false);
       setSetupProfile(false);
       setProfileAnswers({});
+      setInvitedSinceOpen(true);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -195,7 +208,7 @@ export function InviteUserButton() {
       </Button>
       <Dialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={close}
         title="Invite user"
         description="Sends a Supabase magic-link invite. If the email already has an account, the role grant (if selected) is added immediately."
         size="lg"
@@ -432,7 +445,7 @@ export function InviteUserButton() {
           )}
 
           <DialogActions>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={close}>
               Close
             </Button>
             <Button

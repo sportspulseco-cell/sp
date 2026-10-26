@@ -452,3 +452,13 @@ Counts (journey steps above): 19 pass (some with defects), 7 fail, 4 blocked/par
 
   Evidence: local API against staging with the team at 20/20: re-add 409 "already on the active roster"; new player 409
     "The roster is full: 20 of 20 players", count unchanged (2/2).
+
+[CAP-27] A team's running season disappeared from the captain's pickers once the team had 50 division entries · major
+  Found: J8.1 on staging b915f43 (26 Oct): the Invites season picker listed 28 test seasons but not "Staging 2026-27",
+    where Staging Skaters is confirmed and the season is open.
+  Actual: GET /captain/applications returned the team's 50 newest division entries. Journeys enter the team into a new
+    season every run; at 51 entries the oldest, still-running season fell off, and with it the season in the invite and
+    roster pickers that read this list.
+  Fix: entries of seasons still running (not completed or archived) come first, then history newest first; limit 200.
+  Evidence: staging data: team has 51 entries, the Staging 2026-27 entry is "confirmed" and the oldest (23 Sep).
+  Not verified: J8.1 on the new build (next staging run).
