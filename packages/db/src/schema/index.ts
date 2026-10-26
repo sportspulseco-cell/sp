@@ -17,6 +17,7 @@ export * from "./notifications";
 export * from "./finance";
 export * from "./finance-extensions";
 export * from "./team-store";
+export * from "./discounts";
 export * from "./admin";
 export * from "./migrations";
 export * from "./audit";

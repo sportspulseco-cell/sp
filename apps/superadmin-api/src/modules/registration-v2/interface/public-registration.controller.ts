@@ -50,7 +50,9 @@ import {
   isRegistrationDocumentKey,
   isRegistrationState,
   isRegistrationSubmissionType,
+  normalizeDiscountCode,
   parentalConsentText,
+  signedLineAmount,
   planInstallments,
   registrationInvoiceDueAt,
   PARENTAL_CONSENT_TITLE,
@@ -77,6 +79,7 @@ import { RosterEntryService } from "../application/roster-entry.service";
 import { loadSeasonTiers, type SeasonTier } from "../application/season-tiers";
 import { reserveInvoiceNumbers } from "../../finance/application/services/invoice-number";
 import { closeRegistrationMoney, takeSeat } from "../application/seats";
+import { lockFamily, quoteRegistration, takeCodeUse, type RegistrationQuote } from "../application/discounts";
 import { PAYMENT_PROCESSOR, PaymentProcessor } from "../../../shared/payments/payment-processor";
 import {
   RegistrationRequirementsService,
@@ -2062,6 +2065,57 @@ export class PublicRegistrationController {
     return { balanceCents: a && !a.frozen ? a.balanceCents : 0, currency: a?.currency ?? "USD", frozen: a?.frozen ?? false };
   }
 
+  @Get("submissions/:id/quote")
+  @ApiOperation({
+    summary:
+      "What the pay step will bill, worked out on the server: the price, a sibling discount, the applied discount code and the family maximum, as invoice lines. A read; the pay step prices again under a lock and never takes a total from the client."
+  })
+  async quote(@Param("id") submissionId: string, @Query("email") email: string) {
+    const row = await this.loadAndAuthorize(submissionId, email);
+    return this.quoteFor(row);
+  }
+
+  @Post("submissions/:id/discount-code")
+  @ApiOperation({
+    summary:
+      "Apply (or with code null, remove) a discount code on a registration before payment. Validated on the server against the season, dates, divisions, prices and uses left; case and spaces do not matter. Applying the same code again changes nothing. The use is counted when the invoice is written at pay. Returns the new quote."
+  })
+  async applyDiscountCode(
+    @Param("id") submissionId: string,
+    @Body() body: { email: string; code?: string | null }
+  ) {
+    const row = await this.loadAndAuthorize(submissionId, body?.email ?? "");
+    if (row.status !== "pending_payment" && !EDITABLE_STATES.has(row.status)) {
+      this.log.log(`refused code on submitted registration=${row.id} status=${row.status}`);
+      throw alreadySubmitted(row);
+    }
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const typed = typeof body?.code === "string" ? body.code : "";
+    const code = normalizeDiscountCode(typed);
+    if (code && code.length > 40) throw new UnprocessableEntityException("That code is not valid for this season.");
+    if (code) {
+      // Validate before saving: a refused code is never stored.
+      const q = await this.quoteFor({ ...row, metadata: { ...meta, discountCode: code } });
+      if (q.codeRefusal) {
+        this.log.log(`refused code registration=${row.id} code=${code}: ${q.codeRefusal.error}`);
+        throw new UnprocessableEntityException({ error: q.codeRefusal.error, message: q.codeRefusal.message });
+      }
+    }
+    if ((meta.discountCode ?? null) !== (code || null)) {
+      const updated = await this.db
+        .update(schema.registrations)
+        .set({ metadata: mergeMetadata(meta, { discountCode: code || null }), updatedAt: new Date() })
+        .where(and(eq(schema.registrations.id, row.id), eq(schema.registrations.status, row.status)))
+        .returning({ id: schema.registrations.id });
+      if (updated.length !== 1) {
+        throw new ConflictException("This registration changed while you were saving. Reload the page and sign in again.");
+      }
+      this.log.log(`registration=${row.id} discount code ${code ? `set ${code}` : "removed"}`);
+    }
+    const [fresh] = await this.db.select().from(schema.registrations).where(eq(schema.registrations.id, row.id)).limit(1);
+    return this.quoteFor(fresh!);
+  }
+
   @Post("submissions/:id/pay")
   @ApiOperation({
     summary:
@@ -2149,30 +2203,9 @@ export class PublicRegistrationController {
     // registration's division, re-checked here (REG-18). With prices on
     // offer one must be picked; only a season with no price for the
     // division registers at no charge.
-    let amountCents = 0;
-    let currency = "USD";
-    let tierName = "Registration fee";
-    let pickedTier: SeasonTier | null = null;
-    const seasonTiers = row.seasonId ? await loadSeasonTiers(this.db, row.seasonId) : [];
-    const offeredTiers = tiersForDivision(seasonTiers, row.divisionId ?? null);
-    const tierId = (meta.pricingTierId as string | null | undefined) ?? null;
-    if (tierId) {
-      const tier = offeredTiers.find((t) => t.id === tierId);
-      if (!tier) {
-        this.log.log(`refused pay: registration=${row.id} tier=${tierId} not offered for division=${row.divisionId}`);
-        throw new ConflictException({
-          error: "tier_not_offered",
-          message: "Your price is not offered for your division. Go back to the price step and pick again."
-        });
-      }
-      amountCents = tier.fullPriceCents;
-      currency = tier.currency;
-      tierName = tier.name;
-      pickedTier = tier;
-    } else if (offeredTiers.length > 0) {
-      this.log.log(`refused pay: registration=${row.id} no tier picked, ${offeredTiers.length} offered`);
-      throw new ConflictException({ error: "tier_required", message: "Pick a price before paying." });
-    }
+    const { amountCents, currency, tierName, pickedTier, tierId } = await this.resolvePrice(row);
+    /** What the invoice bills after discounts (set when it is written or found). */
+    let billedCents = 0;
 
     // The invoice, its line, any payment and the registration state are
     // written in one transaction. The number comes from the org sequence
@@ -2198,7 +2231,7 @@ export class PublicRegistrationController {
     // only reads invoices with a due date, never saw these invoices.
     const [seasonTerms] = row.seasonId
       ? await this.db
-          .select({ registrationClosesAt: schema.seasons.registrationClosesAt })
+          .select({ registrationClosesAt: schema.seasons.registrationClosesAt, timezone: schema.seasons.timezone })
           .from(schema.seasons)
           .where(eq(schema.seasons.id, row.seasonId))
           .limit(1)
@@ -2209,7 +2242,34 @@ export class PublicRegistrationController {
         registrationClosesAt: seasonTerms?.registrationClosesAt ?? null,
         planDueInDays
       });
-    const createInvoice = async (tx: Tx, invoiceNumber: string, metadata: Record<string, unknown>, dueAt: Date) => {
+    // The price with the family and code discounts, worked out inside the
+    // pay transaction under a per-family lock, so two siblings paying at
+    // once are priced one after the other (family maximum, sibling
+    // discount). Never from the client: the funnel only shows the quote.
+    const quoteArgs = () => this.quoteInput(row, pickedTier, amountCents, tierName, currency, seasonTerms?.timezone ?? null);
+    const priceInTx = async (tx: Tx): Promise<RegistrationQuote> => {
+      let q = await quoteRegistration(tx, quoteArgs());
+      if (q.familyKey && row.seasonId) {
+        await lockFamily(tx, row.seasonId, q.familyKey);
+        q = await quoteRegistration(tx, quoteArgs());
+      }
+      if (q.codeRefusal) {
+        this.log.log(`refused pay: registration=${row.id} code=${String(meta.discountCode)}: ${q.codeRefusal.error}`);
+        throw new ConflictException({
+          error: q.codeRefusal.error,
+          message: `${q.codeRefusal.message} Remove the code to pay the full price.`
+        });
+      }
+      return q;
+    };
+    const createInvoice = async (
+      tx: Tx,
+      invoiceNumber: string,
+      metadata: Record<string, unknown>,
+      dueAt: Date,
+      quote: RegistrationQuote
+    ) => {
+      const priced = quote.price;
       const [inv] = await tx
         .insert(schema.invoices)
         .values({
@@ -2219,8 +2279,9 @@ export class PublicRegistrationController {
           recipientPersonId: row.subjectPersonId,
           recipientEmail: meta.email as string,
           currency,
-          subtotalCents: amountCents,
-          totalCents: amountCents,
+          subtotalCents: priced.chargesCents,
+          discountCents: priced.discountCents,
+          totalCents: priced.totalCents,
           paidCents: 0,
           status: "sent",
           issuedAt: new Date(),
@@ -2228,18 +2289,43 @@ export class PublicRegistrationController {
           // The price's late fee, added by the overdue sweep (0060).
           lateFeeCents: pickedTier?.lateFeeCents ?? 0,
           idempotencyKey,
-          metadata
+          metadata: {
+            ...metadata,
+            pricing: {
+              lines: priced.lines,
+              familyKey: quote.familyKey,
+              familyPosition: priced.familyPosition,
+              discountCodeId: quote.code?.id ?? null
+            }
+          }
         })
         .returning({ id: schema.invoices.id });
-      await tx.insert(schema.invoiceItems).values({
-        invoiceId: inv!.id,
-        kind: "registration_fee",
-        description: tierName,
-        quantity: 1,
-        unitAmountCents: amountCents,
-        amountCents
-      });
-      return { id: inv!.id, totalCents: amountCents, paidCents: 0 };
+      // Discount lines are stored negative, so the lines add up to the
+      // total (the invoice composer's rule, kernel signedLineAmount).
+      await tx.insert(schema.invoiceItems).values(
+        priced.lines.map((l) => ({
+          invoiceId: inv!.id,
+          kind: l.kind,
+          description: l.description,
+          quantity: 1,
+          unitAmountCents: l.amountCents,
+          amountCents: signedLineAmount(l.kind, l.amountCents),
+          metadata: { source: l.source }
+        }))
+      );
+      if (quote.code && priced.codeCents > 0) {
+        await takeCodeUse(tx, {
+          codeId: quote.code.id,
+          registrationId: submissionId,
+          invoiceId: inv!.id,
+          personId: row.subjectPersonId,
+          amountCents: priced.codeCents
+        });
+      }
+      this.log.log(
+        `priced registration=${submissionId} invoice=${inv!.id} charges=${priced.chargesCents} sibling=${priced.siblingCents} code=${priced.codeCents} familyMax=${priced.familyMaxCents} total=${priced.totalCents} family#${priced.familyPosition}`
+      );
+      return { id: inv!.id, totalCents: priced.totalCents, paidCents: 0 };
     };
 
     // Offline: no card charge; the admin marks it paid later. The invoice
@@ -2259,13 +2345,14 @@ export class PublicRegistrationController {
         if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const invoice =
           existing ??
-          (await createInvoice(tx, invoiceNumber!, { paymentMethod: "offline", tierId }, dueAtFor()));
+          (await createInvoice(tx, invoiceNumber!, { paymentMethod: "offline", tierId }, dueAtFor(), await priceInTx(tx)));
+        billedCents = invoice.totalCents;
         await tx
           .update(schema.registrations)
           .set({
             status: "pending_offline",
             metadata: mergeMetadata(meta, {
-              payment: { outcome: "offline", amountCents, currency, invoiceId: invoice.id },
+              payment: { outcome: "offline", amountCents: invoice.totalCents, listPriceCents: amountCents, currency, invoiceId: invoice.id },
               ...(!existing && tierId ? { seat: { tierId } } : {})
             }),
             updatedAt: new Date()
@@ -2273,12 +2360,12 @@ export class PublicRegistrationController {
           .where(eq(schema.registrations.id, submissionId));
         return invoice.id;
       });
-      this.log.log(`pay offline: registration=${submissionId} invoice=${offlineInvoiceId} amount=${amountCents}`);
+      this.log.log(`pay offline: registration=${submissionId} invoice=${offlineInvoiceId} amount=${billedCents}`);
       return {
         id: submissionId,
         status: "pending_offline" as const,
         invoiceId: offlineInvoiceId,
-        amountCents,
+        amountCents: billedCents,
         currency,
         mock: true
       };
@@ -2296,11 +2383,15 @@ export class PublicRegistrationController {
     // (UC-15); the daily installment job charges each one when it falls
     // due. Before this the funnel said "Pay $50 deposit" and the server
     // charged the full price.
-    const plan =
-      body.paymentOption === "plan" && pickedTier && tierOffersPlan(pickedTier)
-        ? planInstallments(amountCents, pickedTier.depositCents, pickedTier.installmentCount, pickedTier.installmentIntervalDays)
+    const planOffered = body.paymentOption === "plan" && !!pickedTier && tierOffersPlan(pickedTier);
+    // The plan splits what the player is billed after discounts; a
+    // registration discounted to nothing has no plan to run.
+    const planFor = (totalCents: number) =>
+      planOffered && totalCents > 0
+        ? planInstallments(totalCents, pickedTier!.depositCents, pickedTier!.installmentCount, pickedTier!.installmentIntervalDays)
         : null;
-    if (body.paymentOption === "plan" && !plan) {
+    let plan: ReturnType<typeof planFor> = null;
+    if (body.paymentOption === "plan" && !planOffered) {
       this.log.log(`refused pay: registration=${row.id} plan asked, tier=${tierId} has none`);
       throw new ConflictException({
         error: "plan_not_offered",
@@ -2314,14 +2405,18 @@ export class PublicRegistrationController {
         const existing = await findInvoice(tx);
         // A seat on a limited price is taken before any charge.
         if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
+        const quote = existing ? null : await priceInTx(tx);
+        plan = quote ? planFor(quote.price.totalCents) : null;
         const invoice =
           existing ??
           (await createInvoice(
             tx,
             invoiceNumber!,
             { mockStripe: true, tierId, ...(plan ? { paymentPlan: true } : {}) },
-            dueAtFor(plan?.map((p) => p.dueInDays))
+            dueAtFor(plan?.map((p) => p.dueInDays)),
+            quote!
           ));
+        billedCents = invoice.totalCents;
         // A second click finds the first click's invoice. If it is on a
         // plan, the deposit is paid and the job owns the rest; otherwise
         // whatever is still owed (an offline invoice paid by card) is due.
@@ -2437,7 +2532,8 @@ export class PublicRegistrationController {
               payment: {
                 outcome: "succeeded",
                 paidAt: new Date().toISOString(),
-                amountCents,
+                amountCents: invoice.totalCents,
+                listPriceCents: amountCents,
                 paidTodayCents: due,
                 walletAppliedCents: walletApplied,
                 option: plan ? "plan" : "full",
@@ -2473,12 +2569,12 @@ export class PublicRegistrationController {
         declineReason: e.message
       };
     }
-    this.log.log(`pay card: registration=${submissionId} invoice=${invoiceId} amount=${amountCents} plan=${plan ? plan.length - 1 : 0}`);
+    this.log.log(`pay card: registration=${submissionId} invoice=${invoiceId} amount=${billedCents} plan=${((plan as unknown[] | null)?.length ?? 1) - 1}`);
     return {
       id: submissionId,
       status: "pending_review" as const,
       invoiceId,
-      amountCents,
+      amountCents: billedCents,
       currency,
       mock: true
     };
@@ -2718,6 +2814,105 @@ export class PublicRegistrationController {
       registrationId: existing.id,
       status: existing.status
     });
+  }
+
+  /**
+   * The price a registration pays before discounts: a tier this season
+   * offers for its division, re-checked here (REG-18). With prices on
+   * offer one must be picked; only a season with no price for the
+   * division registers at no charge.
+   */
+  private async resolvePrice(row: { id: string; seasonId: string | null; divisionId: string | null; metadata: unknown }) {
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    let amountCents = 0;
+    let currency = "USD";
+    let tierName = "Registration fee";
+    let pickedTier: SeasonTier | null = null;
+    const seasonTiers = row.seasonId ? await loadSeasonTiers(this.db, row.seasonId) : [];
+    const offeredTiers = tiersForDivision(seasonTiers, row.divisionId ?? null);
+    const tierId = (meta.pricingTierId as string | null | undefined) ?? null;
+    if (tierId) {
+      const tier = offeredTiers.find((t) => t.id === tierId);
+      if (!tier) {
+        this.log.log(`refused price: registration=${row.id} tier=${tierId} not offered for division=${row.divisionId}`);
+        throw new ConflictException({
+          error: "tier_not_offered",
+          message: "Your price is not offered for your division. Go back to the price step and pick again."
+        });
+      }
+      amountCents = tier.fullPriceCents;
+      currency = tier.currency;
+      tierName = tier.name;
+      pickedTier = tier;
+    } else if (offeredTiers.length > 0) {
+      this.log.log(`refused price: registration=${row.id} no tier picked, ${offeredTiers.length} offered`);
+      throw new ConflictException({ error: "tier_required", message: "Pick a price before paying." });
+    }
+    return { amountCents, currency, tierName, pickedTier, tierId };
+  }
+
+  private quoteInput(
+    row: { id: string; seasonId: string | null; divisionId: string | null; metadata: unknown },
+    tier: SeasonTier | null,
+    priceCents: number,
+    priceDescription: string,
+    currency: string,
+    timeZone: string | null
+  ) {
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    return {
+      registrationId: row.id,
+      seasonId: row.seasonId ?? "",
+      divisionId: row.divisionId ?? null,
+      pricingTierId: tier?.id ?? null,
+      priceCents,
+      priceDescription,
+      currency,
+      typedCode: typeof meta.discountCode === "string" && meta.discountCode ? meta.discountCode : null,
+      timeZone
+    };
+  }
+
+  /** The funnel's view of the bill. An invoice already written is shown as written. */
+  private async quoteFor(row: typeof schema.registrations.$inferSelect) {
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const [inv] = await this.db
+      .select({ id: schema.invoices.id, subtotalCents: schema.invoices.subtotalCents, discountCents: schema.invoices.discountCents, totalCents: schema.invoices.totalCents, currency: schema.invoices.currency })
+      .from(schema.invoices)
+      .where(eq(schema.invoices.idempotencyKey, `submission:${row.id}`))
+      .limit(1);
+    if (inv) {
+      const items = await this.db
+        .select({ kind: schema.invoiceItems.kind, description: schema.invoiceItems.description, amountCents: schema.invoiceItems.amountCents })
+        .from(schema.invoiceItems)
+        .where(eq(schema.invoiceItems.invoiceId, inv.id))
+        .orderBy(schema.invoiceItems.createdAt);
+      return {
+        invoiceId: inv.id,
+        currency: inv.currency,
+        lines: items.map((i) => ({ kind: i.kind, description: i.description, amountCents: Math.abs(i.amountCents) })),
+        chargesCents: inv.subtotalCents,
+        discountCents: inv.discountCents,
+        totalCents: inv.totalCents,
+        discountCode: (meta.discountCode as string | null | undefined) ?? null,
+        codeRefusal: null
+      };
+    }
+    const { amountCents, currency, tierName, pickedTier } = await this.resolvePrice(row);
+    const [season] = row.seasonId
+      ? await this.db.select({ timezone: schema.seasons.timezone }).from(schema.seasons).where(eq(schema.seasons.id, row.seasonId)).limit(1)
+      : [];
+    const q = await quoteRegistration(this.db, this.quoteInput(row, pickedTier, amountCents, tierName, currency, season?.timezone ?? null));
+    return {
+      invoiceId: null,
+      currency,
+      lines: q.price.lines.map((l) => ({ kind: l.kind, description: l.description, amountCents: l.amountCents })),
+      chargesCents: q.price.chargesCents,
+      discountCents: q.price.discountCents,
+      totalCents: q.price.totalCents,
+      discountCode: q.code?.code ?? null,
+      codeRefusal: q.codeRefusal
+    };
   }
 
   private async loadAndAuthorize(id: string, email: string) {
