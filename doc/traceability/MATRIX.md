@@ -371,7 +371,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 169 total, 0 still open
+## Logged findings: 170 total, 1 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -441,6 +441,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | CONSOLE-20 | major | API instances keep pooler connections after use; staging pages fail with EMAXCONN |  | fixed in code, not deployed | commit 22c8ea0: each response keeps the API instance awake until the pool idle timeout closes its connections; staging held pooler slots 177 idle before, 0 after a 600-call burst and 0 after the full suite |
 | CONSOLE-21 | minor | After "Invite user", the new user was sometimes missing from /users until a reload |  | fixed in code, not deployed | the invite dialog refreshes the users list again on close after an invite |
 | CONSOLE-22 | major | Pages that fetch one list per season or per org ran the database pooler out of connections |  | fixed in code, not deployed | per-season and per-org fan-outs replaced by one paged list or six at a time; not yet on staging (deploy cap) |
+| CONSOLE-23 | minor | After "Create" in the New form dialog the page sometimes stays on the forms list |  | open |  |
 | MON-1 | blocker | Admin invoice creation always fails (500) | J13, J14 · UC-15, UC-16, UC-17 | fixed | journey matrix 3a |
 | MON-2 | blocker | No notification can be written or listed on staging (notifications.read_at missing) | J15, J14, J13 · UC-15, UC-16, UC-18, UC-19, UC-20, UC-21 | fixed | migration 0048 on prod; notifications list/mark-read (journey matrix 3a) |
 | MON-3 | blocker | Players can never see their notifications (list endpoint is super-admin only) | J15 · UC-19, UC-21 | fixed | journey matrix 3a |

@@ -325,3 +325,10 @@ Crawl totals (pages visited / pages with a problem):
   Not verified: the change on staging (deploy cap: 96 of 100 deployments in 24 h at 07:45 UTC; next push after
     11:56 UTC).
 
+[CONSOLE-23] After "Create" in the New form dialog the page sometimes stays on the forms list · minor · open
+  Found: J7.3 on staging, 2 of 6 full runs on 26 Oct (ceddb07, c043a5a). The form was created (row in the database)
+    but the browser did not move to /forms/<id> within 30 s.
+  Not reproduced: the form page loads in about 1 s and a router push to it takes 845 ms (regfa/time-form.mjs). The
+    c043a5a failure ran in the same suite as the CONSOLE-22 pooler bursts; whether they are the same cause is not known.
+  Next step: re-run J7 after CONSOLE-22 reaches staging; if it repeats, record the push request and its response.
+
