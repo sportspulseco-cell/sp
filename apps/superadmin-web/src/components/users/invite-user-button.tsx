@@ -95,14 +95,15 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
   function close() {
     setOpen(false);
     if (invitedSinceOpen) {
-      // Navigate to ?invited=<id> rather than refresh: a URL change is a
-      // real navigation, which the router does not drop the way it dropped
-      // refreshes while the shell's links prefetched (J2 failed 2 of 3 runs
-      // on staging, 26 Oct). The list marks that row "Invited just now".
+      // Load ?invited=<id> as a full page. Both router.refresh and
+      // router.replace were sometimes dropped while the shell's links
+      // prefetched, and the new user was missing from the list (J2 failed
+      // 2 of 3 runs with refresh, 1 of 3 with replace, 26 Oct). A page load
+      // cannot be dropped. The list marks that row "Invited just now".
       const next = new URLSearchParams(params.toString());
       next.set("invited", invitedSinceOpen);
       setInvitedSinceOpen(null);
-      router.replace(`${pathname}?${next}`);
+      window.location.assign(`${pathname}?${next}`);
     }
   }
   const [email, setEmail] = useState("");

@@ -69,6 +69,17 @@ test.afterAll(async () => {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(`${OUT}/errors.json`, JSON.stringify(errs, null, 2));
   writeFileSync(`${OUT}/findings.txt`, [...findings, "", "BLOCKED:", ...blocked].join("\n"));
+  // A run that fails before step 6 leaves the shared Staging Player
+  // suspended, and every later lineup (J11) can only scratch them. Lift
+  // what any J12 run left standing, the way the product's lift does.
+  if (IS_STAGING && playerPersonId) {
+    await stagingSql(
+      `update suspensions set status = 'lifted', end_at = now(), updated_at = now(),
+         reason = reason || ' | Lifted: J12 test cleanup'
+       where person_id = $1 and status = 'active' and reason like '% J12 game misconduct'`,
+      [playerPersonId]
+    );
+  }
   await Promise.all([admin?.context.close(), captain?.context.close()]);
 });
 
@@ -332,7 +343,7 @@ test("6 super_admin lifts the suspension with a reason (also cleans up)", async 
   await dialog.locator("textarea").fill(`${RUN_TAG} J12 cleanup`);
   await dialog.getByRole("button", { name: "Lift suspension" }).click();
   await expect(dialog).toBeHidden({ timeout: 30_000 });
-  await expect(row.getByText("lifted", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(row.getByText(/^lifted$/i).first()).toBeVisible({ timeout: 30_000 });
   await expect(row.getByRole("button", { name: "Lift" })).toHaveCount(0);
   await snap(page, "06-sa-person-after-lift");
   const rows = await stagingSql<{ status: string }>(

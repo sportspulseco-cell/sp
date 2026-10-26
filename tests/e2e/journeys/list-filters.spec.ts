@@ -40,7 +40,12 @@ async function exercise(page: Page, app: string, c: Check, failures: string[]) {
   try {
     await expect(count).toBeVisible({ timeout: 20_000 });
   } catch {
-    failures.push(`${c.path}: no "Showing N of M ${c.noun}" line`);
+    // Say what was on screen instead: a slow page, a load error and a
+    // wrong page need different fixes.
+    const seen = (await page.locator("main").first().innerText().catch(() => "(no main)"))
+      .replace(/\s+/g, " ")
+      .slice(0, 300);
+    failures.push(`${c.path}: no "Showing N of M ${c.noun}" line at ${page.url()}; page showed: ${seen}`);
     return;
   }
   const before = await count.innerText();
