@@ -12,6 +12,7 @@ import { NotificationService } from "../../communications/application/notificati
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 import { withTierDivisions } from "./season-tiers";
 import { RosterEntryService } from "./roster-entry.service";
+import { FreeAgentOffersService } from "./free-agent-offers.service";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -27,7 +28,8 @@ export class RegistrationV2Service {
     private readonly supabase: SupabaseAdminService,
     private readonly notify: NotificationService,
     private readonly config: ConfigService,
-    private readonly rosterEntry: RosterEntryService
+    private readonly rosterEntry: RosterEntryService,
+    private readonly faOffers: FreeAgentOffersService
   ) {}
 
   // ================= PRICING TIERS =================
@@ -472,6 +474,8 @@ export class RegistrationV2Service {
         }
       })
       .returning();
+    // FR-3.4.7: captains of teams this player fits hear about them, once per team.
+    if (row?.status === "active") await this.faOffers.pitchToCaptains(row.id);
     return row;
   }
 
@@ -965,6 +969,21 @@ export class RegistrationV2Service {
               );
           }
         }
+      }
+      // FR-3.4.7: an approved free agent still in the pool (not placed on
+      // a team just now) is pitched to captains of teams they fit.
+      if (submissionType === "free_agent" && row.seasonId && row.subjectPersonId) {
+        const [entry] = await this.db
+          .select({ id: schema.freeAgentPoolEntries.id, status: schema.freeAgentPoolEntries.status })
+          .from(schema.freeAgentPoolEntries)
+          .where(
+            and(
+              eq(schema.freeAgentPoolEntries.playerPersonId, row.subjectPersonId),
+              eq(schema.freeAgentPoolEntries.seasonId, row.seasonId)
+            )
+          )
+          .limit(1);
+        if (entry?.status === "active") await this.faOffers.pitchToCaptains(entry.id);
       }
     } catch (e) {
       // Don't fail the approval if a side-effect stumbles — admin can

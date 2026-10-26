@@ -87,6 +87,8 @@ export const TEMPLATE_CODES = [
   "FREE_AGENT_OFFER",
   "FREE_AGENT_OFFER_ACCEPTED",
   "FREE_AGENT_OFFER_DECLINED",
+  // FR-3.4.7: a new free agent who fits a team with open spots, to its captains.
+  "FREE_AGENT_PITCH",
   // Payments & Invoicing
   "INVOICE_OVERDUE_STAGE_1",
   "INVOICE_OVERDUE_STAGE_2",
@@ -1064,6 +1066,15 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "{{playerName}} declined your offer",
     body: "{{playerName}} declined the {{teamName}} offer for {{seasonName}}. They stay in the free-agent pool.",
     variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
+    code: "FREE_AGENT_PITCH",
+    channel: "email",
+    subject: "Free agent for {{teamName}}: {{playerName}}",
+    body:
+      "{{playerName}} joined the free-agent pool for {{seasonName}}. Level: {{level}}. Positions: {{positions}}. " +
+      "{{teamName}} has {{openSpots}} open roster spots. Open Free agents in your captain console to offer a spot.",
+    variables: ["playerName", "teamName", "seasonName", "level", "positions", "openSpots"]
   },
   {
     code: "org.broadcast",

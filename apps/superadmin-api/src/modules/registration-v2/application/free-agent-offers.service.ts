@@ -14,12 +14,17 @@ import { schema } from "@sportspulse/db";
 import {
   FREE_AGENT_OFFER_SOURCE,
   freeAgentOfferExpiry,
+  freeAgentLevelLabel,
   freeAgentOfferStatus,
+  freeAgentPositionLabel,
+  rankFreeAgentPitch,
+  resolveDivisionRules,
   type FreeAgentOfferStatus
 } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { playerWebUrl } from "../../../shared/app-urls";
 import { NotificationService } from "../../communications/application/notification.service";
+import { notifyAudience } from "../../../shared/audience/notify-audience";
 import {
   formatInviteExpiry,
   teamInviteUrl
@@ -485,6 +490,137 @@ export class FreeAgentOffersService {
       `free-agent offer accepted invite=${invite.id} entry=${entry.id} team=${invite.teamId} withdrew=${withdrawn.length} other offers`
     );
     return { entryId: entry.id, withdrawnOffers: withdrawn.length };
+  }
+
+  /**
+   * FR-3.4.7 / UC-03 "Captains of eligible teams receive notifications of
+   * available free agents": when a player joins the pool, tell the
+   * captains of the teams in their division (all of the season's
+   * divisions when the registration names none) that have an open roster
+   * spot and the roster is not locked, best fits first
+   * (kernel rankFreeAgentPitch). Once per player per team: the team is
+   * claimed on the entry (metadata.pitchedTeamIds) before the notice,
+   * which is also idempotent per entry and team. Never throws.
+   */
+  async pitchToCaptains(entryId: string): Promise<{ pitched: string[] }> {
+    try {
+      const [entry] = await this.db
+        .select()
+        .from(schema.freeAgentPoolEntries)
+        .where(eq(schema.freeAgentPoolEntries.id, entryId))
+        .limit(1);
+      if (!entry || entry.status !== "active") return { pitched: [] };
+      const [season] = await this.db
+        .select({ id: schema.seasons.id, name: schema.seasons.name, rosterLockAt: schema.seasons.rosterLockAt })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, entry.seasonId))
+        .limit(1);
+      if (!season || (season.rosterLockAt && season.rosterLockAt < new Date())) return { pitched: [] };
+      const [reg] = await this.db
+        .select({ divisionId: schema.registrations.divisionId })
+        .from(schema.registrations)
+        .where(
+          and(
+            eq(schema.registrations.subjectPersonId, entry.playerPersonId),
+            eq(schema.registrations.seasonId, entry.seasonId),
+            sql`${schema.registrations.status} NOT IN ('rejected','cancelled','withdrawn')`
+          )
+        )
+        .orderBy(desc(schema.registrations.createdAt))
+        .limit(1);
+      const live = (await this.liveTeamsInSeason(entry.seasonId)).filter(
+        (t) => !reg?.divisionId || t.divisionId === reg.divisionId
+      );
+      if (live.length === 0) return { pitched: [] };
+      const already = new Set(
+        (((entry.metadata as Record<string, unknown> | null) ?? {}).pitchedTeamIds as string[] | undefined) ?? []
+      );
+      const teamIds = live.map((t) => t.teamId);
+      const [divs, members] = await Promise.all([
+        this.db
+          .select({ id: schema.divisions.id, tier: schema.divisions.tier, rules: schema.divisions.ruleSetOverrides })
+          .from(schema.divisions)
+          .where(inArray(schema.divisions.id, live.map((t) => t.divisionId))),
+        this.db
+          .select({ teamId: schema.teamMemberships.teamId, personId: schema.teamMemberships.personId, position: schema.teamMemberships.positionCode })
+          .from(schema.teamMemberships)
+          .where(
+            and(
+              inArray(schema.teamMemberships.teamId, teamIds),
+              eq(schema.teamMemberships.seasonId, entry.seasonId),
+              eq(schema.teamMemberships.currentStatus, "active")
+            )
+          )
+      ]);
+      const divById = new Map(divs.map((d) => [d.id, d]));
+      const candidates = live
+        .filter((t) => !already.has(t.teamId))
+        .filter((t) => !members.some((m) => m.teamId === t.teamId && m.personId === entry.playerPersonId))
+        .map((t) => {
+          const div = divById.get(t.divisionId);
+          const max = resolveDivisionRules((div?.rules as Record<string, unknown>) ?? null).maxRosterSize;
+          const roster = members.filter((m) => m.teamId === t.teamId);
+          return {
+            ...t,
+            divisionTier: div?.tier ?? null,
+            openSpots: max - roster.length,
+            rosterPositions: roster.map((m) => m.position)
+          };
+        });
+      const ranked = rankFreeAgentPitch(
+        { level: entry.levelPrimary, positions: entry.positions ?? [] },
+        candidates
+      );
+      if (ranked.length === 0) return { pitched: [] };
+      const [player] = await this.db
+        .select({ first: schema.persons.legalFirstName, last: schema.persons.legalLastName, preferred: schema.persons.preferredName })
+        .from(schema.persons)
+        .where(eq(schema.persons.id, entry.playerPersonId))
+        .limit(1);
+      const playerName = (player && personName(player)) ?? "A free agent";
+      const pitched: string[] = [];
+      for (const [i, t] of ranked.entries()) {
+        // Claim the team on the entry first: a second run never pitches it again.
+        const claimed = await this.db
+          .update(schema.freeAgentPoolEntries)
+          .set({
+            metadata: sql`jsonb_set(coalesce(${schema.freeAgentPoolEntries.metadata}, '{}'::jsonb), '{pitchedTeamIds}', coalesce(${schema.freeAgentPoolEntries.metadata}->'pitchedTeamIds', '[]'::jsonb) || ${JSON.stringify([t.teamId])}::jsonb)`,
+            updatedAt: new Date()
+          })
+          .where(
+            and(
+              eq(schema.freeAgentPoolEntries.id, entry.id),
+              sql`NOT (coalesce(${schema.freeAgentPoolEntries.metadata}->'pitchedTeamIds', '[]'::jsonb) ? ${t.teamId})`
+            )
+          )
+          .returning({ id: schema.freeAgentPoolEntries.id });
+        if (claimed.length !== 1) continue;
+        await notifyAudience(this.db, this.notify, {
+          orgId: t.orgId,
+          target: { teamIds: [t.teamId] },
+          audiences: ["captains"],
+          templateCode: "FREE_AGENT_PITCH",
+          key: `fa-pitch-${entry.id}-${t.teamId}`,
+          excludePersonIds: [entry.playerPersonId],
+          payload: {
+            playerName,
+            teamName: t.teamName,
+            seasonName: season.name,
+            seasonId: season.id,
+            level: entry.levelPrimary ? freeAgentLevelLabel(entry.levelPrimary) : "Not set",
+            positions: (entry.positions ?? []).map(freeAgentPositionLabel).join(", ") || "Any",
+            openSpots: t.openSpots,
+            fitRank: i + 1
+          }
+        });
+        pitched.push(t.teamId);
+      }
+      this.log.log(`free-agent pitch entry=${entry.id} candidates=${candidates.length} pitched=${pitched.length}`);
+      return { pitched };
+    } catch (err) {
+      this.log.error(`free-agent pitch failed entry=${entryId}: ${(err as Error).message}`);
+      return { pitched: [] };
+    }
   }
 
   /** Tell the person who made the offer that the player answered. Fire-and-forget. */
