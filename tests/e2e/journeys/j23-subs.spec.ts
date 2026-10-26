@@ -111,6 +111,10 @@ test.describe("J23 substitute requests", () => {
         }
         const [capRole] = await stagingSql(`select id from roles where code = 'captain' limit 1`);
         await stagingSql(`insert into user_role_assignments (user_id, role_id, scope_type, scope_id) values ($1, $2, 'team', $3)`, [w.cap.userId, capRole.id, w.teams[0]]);
+        // The captain app's gate reads role_codes from the token; the product's
+        // role grant keeps it in sync, a direct insert does not.
+        const ac = await adminAuth("PUT", `users/${w.cap.userId}`, { app_metadata: { role_codes: ["captain"], profile_complete: true } });
+        expect(ac.status, "setup: captain role code on the account").toBeLessThan(300);
         const [{ day, ts }] = await stagingSql(
           `select to_char((current_date + 3)::timestamp, 'Dy') as day, ((current_date + 3)::timestamp + time '19:30') at time zone $1 as ts`,
           [TZ]
