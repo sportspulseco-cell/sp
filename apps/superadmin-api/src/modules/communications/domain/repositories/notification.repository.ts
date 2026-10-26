@@ -45,6 +45,8 @@ export interface QueueNotificationInput {
 }
 
 export interface ListNotificationsQuery extends PageQuery {
+  /** The person's inbox: one row per message across channels. */
+  inbox?: boolean;
   orgId?: string;
   status?: NotificationStatus;
   recipientPersonId?: string;

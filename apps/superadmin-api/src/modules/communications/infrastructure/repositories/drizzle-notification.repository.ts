@@ -53,6 +53,7 @@ export class DrizzleNotificationRepository
     if (q.templateCode)
       cs.push(eq(schema.notifications.templateCode, q.templateCode));
     if (q.channel) cs.push(eq(schema.notifications.channel, q.channel));
+    if (q.inbox) cs.push(notInboxDuplicate());
     if (q.cursor)
       cs.push(afterCursor(schema.notifications.createdAt, schema.notifications.id, q.cursor, "desc"));
 
@@ -185,4 +186,23 @@ export class DrizzleNotificationRepository
       updatedAt: r.updatedAt
     };
   }
+}
+
+/**
+ * One message, one inbox row (FR-3.17.2). A message sent on several
+ * channels is stored once per channel, keyed `...-<channel>` (broadcasts,
+ * the overdue sweep). The inbox keeps the in-app row and drops its email,
+ * SMS and push copies; a message sent by email only still shows.
+ */
+export function notInboxDuplicate() {
+  return sql`NOT (
+    ${schema.notifications.channel} <> 'in_app'
+    AND ${schema.notifications.idempotencyKey} ~ '-(email|sms|push)$'
+    AND EXISTS (
+      SELECT 1 FROM notifications twin
+       WHERE twin.recipient_person_id = ${schema.notifications.recipientPersonId}
+         AND twin.channel = 'in_app'
+         AND twin.idempotency_key = regexp_replace(${schema.notifications.idempotencyKey}, '-(email|sms|push)$', '-in_app')
+    )
+  )`;
 }

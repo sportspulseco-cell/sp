@@ -42,6 +42,7 @@ import {
   RetryNotificationHandler
 } from "../application/handlers/retry.handler";
 import { ListNotificationsQueryDto } from "./dto/notification.dto";
+import { notInboxDuplicate } from "../infrastructure/repositories/drizzle-notification.repository";
 
 class SetPreferenceBodyDto {
   @IsBoolean() enabled!: boolean;
@@ -137,7 +138,8 @@ export class NotificationsController {
       cursor: q.cursor,
       status: q.status,
       templateCode: q.templateCode,
-      recipientPersonId: personId
+      recipientPersonId: personId,
+      inbox: true
     });
   }
 
@@ -157,7 +159,8 @@ export class NotificationsController {
       .where(
         and(
           eq(schema.notifications.recipientPersonId, personId),
-          isNull(schema.notifications.readAt)
+          isNull(schema.notifications.readAt),
+          notInboxDuplicate()
         )
       );
     return { unread: Number(row?.c ?? 0) };
