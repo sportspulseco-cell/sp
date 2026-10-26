@@ -17,7 +17,6 @@ import {
 import {
   Badge,
   EmptyState,
-  Eyebrow,
   PageHeader,
   SectionRail,
   StatTile,
@@ -295,11 +294,8 @@ function statusToneFor(
 
 function ShellWithoutOrg({ message }: { message: string }) {
   return (
-    <section className="mx-auto max-w-3xl space-y-6 px-6 py-16">
-      <Eyebrow>Organization</Eyebrow>
-      <h1 className="text-[36px] font-semibold tracking-tighter text-fg">
-        Org Admin
-      </h1>
+    <section className="space-y-6">
+      <PageHeader eyebrow="Organization" title="Org Admin" />
       <EmptyState
         icon={Building2}
         title="No organization yet"

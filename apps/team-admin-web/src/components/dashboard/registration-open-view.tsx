@@ -32,9 +32,9 @@ export function RegistrationOpenView({
         <Eyebrow className="text-[var(--tint-emerald-fg)]">
           // registration open
         </Eyebrow>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-fg md:text-3xl">
-          {team.name}
-        </h1>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-fg md:text-3xl">
+          Registration is open
+        </h2>
         <p className="mt-1 text-sm text-fg-muted">
           {state.leagueName} · {state.seasonName}
         </p>
