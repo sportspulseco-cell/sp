@@ -27,6 +27,14 @@ export async function configureApp(app: INestApplication): Promise<void> {
     }
   );
 
+  // UC-19 announcement attachments: same 3 MiB file, same larger limit.
+  app.use(
+    "/api/org-admin/broadcast/attachments",
+    function broadcastAttachmentJsonParser(req: Request, res: Response, next: NextFunction) {
+      complianceUploadJson(req, res, next);
+    }
+  );
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
