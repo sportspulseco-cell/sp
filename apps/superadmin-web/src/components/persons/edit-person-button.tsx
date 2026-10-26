@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Pencil } from "lucide-react";
 import { iam } from "@/lib/api/browser-api";
 import type { Person } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
+import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
 
 export function EditPersonButton({ person }: { person: Person }) {
   const router = useRouter();

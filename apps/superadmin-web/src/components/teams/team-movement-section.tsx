@@ -1,8 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { ArrowRightLeft } from "lucide-react";
 import { leagueMgmt, orgs, teamMovement } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
+import { Eyebrow, IconTile } from "@sportspulse/ui";
 import { TeamMovementPanel } from "./team-movement-panel";
 
 /**

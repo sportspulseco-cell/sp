@@ -1,14 +1,5 @@
 import { Star } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import type { FreeAgentOffer, FreeAgentPoolEntry } from "@sportspulse/api-client";
 import {
   FREE_AGENT_OFFER_STATUS_LABELS,
@@ -17,7 +8,6 @@ import {
   freeAgentPositionLabel
 } from "@sportspulse/kernel";
 import { leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { ClaimFreeAgentButton } from "./claim-button";
 
 export const dynamic = "force-dynamic";

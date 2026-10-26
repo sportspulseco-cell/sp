@@ -1,5 +1,5 @@
 import type { RoleScopeType } from "@/lib/api/types";
-import type { Tint } from "@/components/ui/icon-tile";
+import { type Tint } from "@sportspulse/ui";
 
 /** Map scope type → tint so the hierarchy reads at a glance. */
 export function tintForScope(scope: RoleScopeType): Tint {

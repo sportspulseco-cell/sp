@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { iam, loadMeScope, leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { TeamMessageForm } from "./message-form";
 
 export const dynamic = "force-dynamic";

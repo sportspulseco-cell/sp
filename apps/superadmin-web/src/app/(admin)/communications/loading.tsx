@@ -1,9 +1,4 @@
-import {
-  PageHeaderSkeleton,
-  Skeleton,
-  StatCardSkeleton,
-  TableSkeleton
-} from "@/components/ui/skeleton";
+import { PageHeaderSkeleton, Skeleton, StatCardSkeleton, TableSkeleton } from "@sportspulse/ui";
 
 export default function CommunicationsLoading() {
   return (

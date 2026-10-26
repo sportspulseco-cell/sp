@@ -5,8 +5,7 @@ import { Loader2 } from "lucide-react";
 import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
 import { RoleProfileFields, useRoleProfile } from "@sportspulse/registration-funnel";
 import { iam } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
+import { Button, Dialog, DialogActions } from "@sportspulse/ui";
 
 /**
  * Role-specific profile editor.

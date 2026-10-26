@@ -1,7 +1,6 @@
 import { Inbox, ShieldAlert } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { loadMeScope, registration } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { JoinRequestsClient } from "./join-requests-client";
 
 export const dynamic = "force-dynamic";

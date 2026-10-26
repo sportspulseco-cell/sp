@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@sportspulse/ui";
 import type { NotificationStatus } from "@/lib/api/types";
 
 const TONE: Record<

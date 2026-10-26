@@ -9,9 +9,8 @@ import {
   Trophy,
   Users
 } from "lucide-react";
-import { Badge, EmptyState } from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader } from "@sportspulse/ui";
 import { registration } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

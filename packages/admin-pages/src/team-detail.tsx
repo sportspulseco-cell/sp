@@ -1,8 +1,7 @@
 import { formatMoney } from "@sportspulse/kernel";
 import type { ReactNode } from "react";
-import { ArrowLeft, Network } from "lucide-react";
-import Link from "next/link";
-import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
+
+import { Badge, PageHeader, Reveal, statusTone } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -35,31 +34,26 @@ export function TeamDetail({
 
   return (
     <div className="space-y-8">
-      <Link
-        href={backHref ?? "/teams"}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All teams
-      </Link>
-
-      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={Network} tint="rose" size="lg" />
-        <div className="flex-1 space-y-2">
-          <Eyebrow dot>TEAM · {team.ownerOrgName ?? "Unknown org"}</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {team.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {team.shortName ? <Badge mono>{team.shortName}</Badge> : null}
-            <Badge mono>{team.sportCode}</Badge>
-            <Badge tone={statusTone(team.status)} mono>
-              {team.status}
-            </Badge>
-          </div>
-        </div>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
-      </Reveal>
+      <PageHeader
+        eyebrow={<>TEAM · {team.ownerOrgName ?? "Unknown org"}</>}
+        title={team.name}
+        description={
+          <>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {team.shortName ? <Badge mono>{team.shortName}</Badge> : null}
+              <Badge mono>{team.sportCode}</Badge>
+              <Badge tone={statusTone(team.status)} mono>
+                {team.status}
+              </Badge>
+            </div>
+          </>
+        }
+        action={
+          <>
+            {actions ? <div className="shrink-0">{actions}</div> : null}
+          </>
+        }
+      />
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">

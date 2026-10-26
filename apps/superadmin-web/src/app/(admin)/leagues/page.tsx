@@ -1,21 +1,22 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert } from "@sportspulse/ui";
-import { Trophy, Wand2, Network, Archive, Layers } from "lucide-react";
-import Link from "next/link";
-import { leagueMgmt, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { UrlFilters } from "@/components/ui/url-filters";
 import {
+  Alert,
+  Badge,
+  EmptyState,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  UrlFilters,
+  statusTone
+} from "@sportspulse/ui";
+import { Trophy, Wand2, Network, Archive, Layers } from "lucide-react";
+import Link from "next/link";
+import { leagueMgmt, orgs } from "@/lib/api/server-api";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import type { League } from "@/lib/api/types";

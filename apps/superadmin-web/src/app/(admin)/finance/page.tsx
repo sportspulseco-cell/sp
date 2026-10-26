@@ -1,9 +1,8 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { finance, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { ArDashboardClient } from "@/components/finance/ar-dashboard-client";
 import { FinanceReports } from "@/components/finance/finance-reports";
 

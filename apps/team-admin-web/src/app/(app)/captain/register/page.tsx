@@ -13,10 +13,9 @@ import {
   Sparkles,
   XCircle
 } from "lucide-react";
-import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import {
   latestApplicationPerSeason,
   rejectionOf

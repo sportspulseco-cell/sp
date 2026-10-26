@@ -8,7 +8,7 @@ import {
   UserPlus,
   Users
 } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { publicRegistration } from "@/lib/api/server-api";
 import { registrationClosesLabel } from "@sportspulse/kernel";
 

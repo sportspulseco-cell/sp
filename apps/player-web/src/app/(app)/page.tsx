@@ -15,7 +15,7 @@ import {
   Wallet,
   type LucideIcon
 } from "lucide-react";
-import { Badge, Eyebrow, EmptyState, IconTile } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, IconTile, PageHeader } from "@sportspulse/ui";
 import type {
   Game,
   Notification,
@@ -236,17 +236,12 @@ export default async function PlayerHome() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
-        <div className="space-y-1">
-          <Eyebrow>Home</Eyebrow>
-          <h1 className="text-[28px] font-semibold leading-tight tracking-tighter text-fg">
-            Hey {firstName}.
-          </h1>
-          <p className="text-[13px] text-fg-muted">
-            Your team, your registrations, and what's next on the schedule.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        className="mb-4"
+        eyebrow="Player"
+        title={`Hey ${firstName}.`}
+        description="Your team, your registrations, and what's next on the schedule."
+        action={
           <Link
             href="/schedule"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
@@ -254,8 +249,8 @@ export default async function PlayerHome() {
             <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />
             My schedule
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       {/* Workflow 5 §3 — registration state banner above the hero so the
           player knows whether they're new / returning / mid-funnel. */}

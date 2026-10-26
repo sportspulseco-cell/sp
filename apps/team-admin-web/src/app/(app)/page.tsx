@@ -1,7 +1,6 @@
 import { Star, Users } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { OffSeasonView } from "@/components/dashboard/off-season-view";
 import { RegistrationOpenView } from "@/components/dashboard/registration-open-view";
 import { RegistrationCallCard } from "@/components/dashboard/registration-call-card";

@@ -1,7 +1,6 @@
 import { MapPin } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
+import { Eyebrow, IconTile } from "@sportspulse/ui";
 import { RegionsPanel } from "./regions-panel";
 
 /**

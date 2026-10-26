@@ -1,8 +1,7 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

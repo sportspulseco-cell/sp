@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@sportspulse/ui";
 import type { GameStatus } from "@/lib/api/types";
 
 const TONE: Record<GameStatus, "info" | "success" | "warning" | "danger" | "neutral"> = {

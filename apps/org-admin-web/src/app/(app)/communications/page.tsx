@@ -14,6 +14,7 @@ import {
 import {
   Badge,
   EmptyState,
+  PageHeader,
   SectionRail,
   StatTile,
   TBody,
@@ -24,7 +25,6 @@ import {
   Table
 } from "@sportspulse/ui";
 import { communications, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";

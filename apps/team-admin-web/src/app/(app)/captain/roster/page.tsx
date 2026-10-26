@@ -1,7 +1,6 @@
 import { Star, Users } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { captain, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { RosterScreen } from "./roster-screen";
 
 export const dynamic = "force-dynamic";

@@ -4,11 +4,19 @@
 import { useTransition } from "react";
 import { Button } from "./button";
 
-export function ErrorFallback({ reset }: { reset: () => void }) {
+export function ErrorFallback({
+  reset,
+  embedded = false
+}: {
+  reset: () => void;
+  /** True inside the console shell: no full-page <main>. */
+  embedded?: boolean;
+}) {
+  const Wrapper = embedded ? "div" : "main";
   const [pending, startTransition] = useTransition();
 
   return (
-    <main className="flex min-h-[60vh] items-center justify-center bg-bg px-5 py-12 text-fg">
+    <Wrapper className="flex min-h-[60vh] items-center justify-center bg-bg px-5 py-12 text-fg">
       <div role="alert" className="w-full max-w-lg rounded-xl border border-border bg-surface-1 p-7 shadow-sm sm:p-10">
         <p className="font-mono text-[11px] uppercase tracking-widest text-accent">SportsPulse</p>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">We couldn&apos;t load this page</h1>
@@ -23,6 +31,6 @@ export function ErrorFallback({ reset }: { reset: () => void }) {
           {pending ? "Trying again…" : "Try again"}
         </Button>
       </div>
-    </main>
+    </Wrapper>
   );
 }

@@ -1,19 +1,20 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError, SeasonLeadersBlock } from "@sportspulse/ui";
-import { BarChart3, Trophy, Users } from "lucide-react";
-import Link from "next/link";
-import { leagueMgmt, stats } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
+  EmptyState,
+  Eyebrow,
+  LoadError,
+  PageHeader,
+  SeasonLeadersBlock,
   TBody,
   TD,
   TH,
   THead,
   TR,
   Table
-} from "@/components/ui/table";
+} from "@sportspulse/ui";
+import { BarChart3, Trophy, Users } from "lucide-react";
+import Link from "next/link";
+import { leagueMgmt, stats } from "@/lib/api/server-api";
 import { RecomputeStandingsButton } from "@/components/stats/recompute-standings-button";
 
 export const metadata = { title: "Stats — SportsPulse" };

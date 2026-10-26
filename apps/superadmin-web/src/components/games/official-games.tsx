@@ -1,12 +1,9 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { formatInZone } from "@sportspulse/kernel";
-import { Alert } from "@sportspulse/ui";
+import { Alert, EmptyState, PageHeader, UrlFilters } from "@sportspulse/ui";
 import { CalendarRange, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { gameOps } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UrlFilters } from "@/components/ui/url-filters";
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import type { Game, GameStatus } from "@/lib/api/types";
 

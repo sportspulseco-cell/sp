@@ -2,9 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import { loadMeScope, subs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { SubsClient } from "./subs-client";
 
 export const dynamic = "force-dynamic";
