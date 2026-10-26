@@ -118,7 +118,7 @@ function AccountMenu({
       >
         <span className="hidden min-w-0 text-right sm:block">
           <span className="block max-w-[18ch] truncate text-[13px] font-medium leading-none text-fg">{name}</span>
-          <span className="mt-1 block max-w-[22ch] truncate font-mono text-[9px] uppercase tracking-[0.18em] text-fg-muted">
+          <span className="mt-1 block max-w-[28ch] truncate font-mono text-[9px] uppercase tracking-[0.18em] text-fg-muted">
             {user.roleLine}
           </span>
         </span>
