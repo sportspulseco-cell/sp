@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { STANDINGS_TIEBREAKERS, ValidationError, parseTiebreakers, pointsRuleProblem } from "@sportspulse/kernel";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -154,6 +155,7 @@ export class CreateDivisionHandler
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
   async execute(input: CreateDivisionInput): Promise<DivisionDto> {
+    assertRuleSet(input.ruleSetOverrides);
     if (input.regionId) await assertRegionInSeasonOrg(this.db, input.seasonId, input.regionId);
     const division = Division.create({
       id: DivisionId.of(randomUUID()),
@@ -206,7 +208,10 @@ export class UpdateDivisionHandler
     }
     if (input.genderEligibility !== undefined) d.setGenderEligibility(input.genderEligibility);
     if (input.maxTeams !== undefined) d.setMaxTeams(input.maxTeams);
-    if (input.ruleSetOverrides !== undefined) d.setRuleSetOverrides(input.ruleSetOverrides);
+    if (input.ruleSetOverrides !== undefined) {
+      assertRuleSet(input.ruleSetOverrides);
+      d.setRuleSetOverrides(input.ruleSetOverrides);
+    }
     if (input.playoffConfig !== undefined) d.setPlayoffConfig(input.playoffConfig);
     await this.divisions.save(d);
     return DivisionDto.fromDomain(d);
@@ -224,5 +229,25 @@ export class ArchiveDivisionHandler
     d.archive();
     await this.divisions.save(d);
     return DivisionDto.fromDomain(d);
+  }
+}
+
+/**
+ * Standings points and tie-break order are read by every recompute
+ * (FR-3.13.1), so a bad value is refused here in words, never stored.
+ */
+function assertRuleSet(rules: Record<string, unknown> | undefined): void {
+  if (!rules) return;
+  const pr = rules.pointsRule;
+  if (pr !== undefined && pr !== null) {
+    if (typeof pr !== "object") throw new ValidationError("Standings points must be five whole numbers.");
+    const problem = pointsRuleProblem(pr as Record<string, unknown>);
+    if (problem) throw new ValidationError(problem);
+  }
+  const tb = rules.tiebreakers;
+  if (tb !== undefined && tb !== null) {
+    if (!Array.isArray(tb) || parseTiebreakers(tb).length !== tb.length) {
+      throw new ValidationError(`Tiebreakers must be listed once each from: ${STANDINGS_TIEBREAKERS.join(", ")}.`);
+    }
   }
 }

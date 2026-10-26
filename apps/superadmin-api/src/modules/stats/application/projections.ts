@@ -8,9 +8,13 @@ import {
   NotFoundError,
   STANDINGS_GAME_STATUSES,
   isGameEnding,
+  parseTiebreakers,
   rankTalliesByBucket,
+  resolvePointsRule,
   tallyStandings,
-  type PointsRule
+  type PointsRule,
+  type StandingsGame,
+  type StandingsTiebreaker
 } from "@sportspulse/kernel";
 import type { StatsRepository } from "../domain/repositories/stats.repository";
 import { DrizzleStatsRepository } from "../infrastructure/repositories/drizzle-stats.repository";
@@ -130,8 +134,10 @@ export interface StandingsResult {
   leagueId: string;
   teamsRanked: number;
   gamesCounted: number;
+  /** The request override, or the default; per-division rules in `divisionRules`. */
   pointsRule: PointsRule;
-  pointsRuleSource: "default" | "request";
+  pointsRuleSource: "default" | "request" | "division" | "season";
+  divisionRules: Record<string, { pointsRule: PointsRule; source: string; tiebreakers: string[] }>;
 }
 
 /**
@@ -156,9 +162,30 @@ export async function recomputeLeagueStandings(
   if (!league) throw new NotFoundError("League", leagueId);
 
   const hasOverride = !!override && Object.values(override).some((v) => v !== undefined);
-  // No division stores a points rule yet (benchmark C.1 R1); a request
-  // body may still pass one (the manual Recompute API).
+  // A request body may pass a rule for the whole league (manual Recompute
+  // API). Otherwise each division's stored rule applies (FR-3.13.1):
+  // division rule_set_overrides.pointsRule, else season config.pointsRule,
+  // else the default. Tie-breaks follow the division's org-setup order.
   const pointsRule: PointsRule = { ...DEFAULT_POINTS_RULE, ...stripUndefined(override ?? {}) };
+  const divisionRows = await tx
+    .select({
+      id: schema.divisions.id,
+      rules: schema.divisions.ruleSetOverrides,
+      seasonConfig: schema.seasons.config
+    })
+    .from(schema.divisions)
+    .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
+    .where(eq(schema.seasons.leagueId, leagueId));
+  const perDivision = new Map<string, { rule: PointsRule; source: "division" | "season" | "default" | "request"; tiebreakers: StandingsTiebreaker[] }>();
+  for (const d of divisionRows) {
+    const r = resolvePointsRule(d.seasonConfig, d.rules);
+    perDivision.set(d.id, {
+      rule: hasOverride ? pointsRule : r.rule,
+      source: hasOverride ? "request" : r.source,
+      tiebreakers: parseTiebreakers((d.rules as { tiebreakers?: unknown } | null)?.tiebreakers)
+    });
+  }
+  const ruleFor = (bucket: string | null): PointsRule => (bucket ? perDivision.get(bucket)?.rule : undefined) ?? pointsRule;
 
   const games = await tx
     .select({
@@ -213,24 +240,24 @@ export async function recomputeLeagueStandings(
     return d;
   };
 
-  const ranked = rankTalliesByBucket(
-    tallyStandings(
-      games.map((g) => {
-        const endedIn = (g.metadata as Record<string, unknown> | null)?.endedIn;
-        return {
-          status: g.status,
-          homeTeamId: g.homeTeamId,
-          awayTeamId: g.awayTeamId,
-          homeBucket: bucketFor(g.homeTeamId, g.divisionId),
-          awayBucket: bucketFor(g.awayTeamId, g.divisionId),
-          homeScore: g.homeScore,
-          awayScore: g.awayScore,
-          endedIn: isGameEnding(endedIn) ? endedIn : null
-        };
-      }),
-      pointsRule
-    )
-  );
+  const standingsGames: StandingsGame[] = games.map((g) => {
+    const endedIn = (g.metadata as Record<string, unknown> | null)?.endedIn;
+    return {
+      status: g.status,
+      homeTeamId: g.homeTeamId,
+      awayTeamId: g.awayTeamId,
+      homeBucket: bucketFor(g.homeTeamId, g.divisionId),
+      awayBucket: bucketFor(g.awayTeamId, g.divisionId),
+      homeScore: g.homeScore,
+      awayScore: g.awayScore,
+      endedIn: isGameEnding(endedIn) ? endedIn : null
+    };
+  });
+  const ranked = rankTalliesByBucket(tallyStandings(standingsGames, ruleFor), {
+    tiebreakers: (bucket) => (bucket ? perDivision.get(bucket)?.tiebreakers : undefined) ?? [],
+    games: standingsGames,
+    rules: ruleFor
+  });
 
   const repo = statsRepo(tx);
   await repo.deleteStandingsForLeague(leagueId);
@@ -250,21 +277,27 @@ export async function recomputeLeagueStandings(
       gd: t.gf - t.ga,
       rank: t.rank,
       tiebreakers: {
-        method: "points,gd,gf",
-        pointsRule,
-        pointsRuleSource: hasOverride ? "request" : "default"
+        method: ["points", ...((t.bucket ? perDivision.get(t.bucket)?.tiebreakers : undefined)?.length
+          ? perDivision.get(t.bucket!)!.tiebreakers
+          : ["goal_diff", "goals_for"])].join(","),
+        pointsRule: ruleFor(t.bucket),
+        pointsRuleSource: (t.bucket ? perDivision.get(t.bucket)?.source : undefined) ?? (hasOverride ? "request" : "default"),
+        tiedAfterTiebreakers: t.tiedAfterTiebreakers
       }
     });
   }
   log.log(
-    `recomputeLeagueStandings league=${leagueId} games=${games.length} rowsWritten=${ranked.length} rule=${JSON.stringify(pointsRule)}`
+    `recomputeLeagueStandings league=${leagueId} games=${games.length} rowsWritten=${ranked.length} override=${hasOverride} divisionRules=${[...perDivision.values()].filter((d) => d.source === "division").length}`
   );
   return {
     leagueId,
     teamsRanked: ranked.length,
     gamesCounted: games.length,
     pointsRule,
-    pointsRuleSource: hasOverride ? "request" : "default"
+    pointsRuleSource: hasOverride ? "request" : "default",
+    divisionRules: Object.fromEntries(
+      [...perDivision.entries()].map(([id, d]) => [id, { pointsRule: d.rule, source: d.source, tiebreakers: d.tiebreakers }])
+    )
   };
 }
 

@@ -1,3 +1,5 @@
+import { pointsRuleForm, type PointsRuleForm } from "../divisions/points-rule";
+import type { StandingsTiebreaker } from "@sportspulse/kernel";
 /**
  * Wizard state shape — mirrors mockup field-for-field. Submitted to:
  *   - leagues.metadata for { slug, branding, privacy }
@@ -34,13 +36,8 @@ export type OvertimeRule =
   | "shootout"
   | "5_min"
   | "10_min";
-export type TiebreakerCode =
-  | "wins"
-  | "head_to_head"
-  | "goal_diff"
-  | "goals_for"
-  | "goals_against"
-  | "coin_flip";
+/** Canonical list: @sportspulse/kernel STANDINGS_TIEBREAKERS (used by standings). */
+export type TiebreakerCode = StandingsTiebreaker;
 
 export interface LeagueDraft {
   name: string;
@@ -115,6 +112,8 @@ export interface DivisionDraft {
   maxTeams: number;
   gameRules: GameRules;
   tiebreakers: TiebreakerCode[];
+  /** Standings points per result (FR-3.13.1); stored as ruleSetOverrides.pointsRule. */
+  points?: PointsRuleForm;
   playoffConfig: PlayoffConfig;
 }
 
@@ -168,6 +167,7 @@ export function emptyDivision(uid: string): DivisionDraft {
       maxRosterSize: 20
     },
     tiebreakers: [...DEFAULT_TIEBREAKERS],
+    points: pointsRuleForm(null),
     playoffConfig: {
       enabled: true,
       playoffSpots: 8,

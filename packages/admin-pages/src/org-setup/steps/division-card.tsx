@@ -1,5 +1,6 @@
 "use client";
 
+import { PointsRuleFields, pointsRuleForm } from "../../divisions/points-rule-fields";
 import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from "@sportspulse/kernel";
 import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@sportspulse/ui";
@@ -178,6 +179,10 @@ export function DivisionCard({
         <div className="space-y-6 px-5 py-5">
           <IdentityBlock division={division} regions={regions} onPatch={onPatch} />
           <GameRulesBlock division={division} onPatch={onPatch} />
+          <PointsRuleFields
+            value={division.points ?? pointsRuleForm(null)}
+            onChange={(points) => onPatch({ points })}
+          />
           <TiebreakersBlock division={division} onPatch={onPatch} />
           <PostSeasonBlock division={division} onPatch={onPatch} />
         </div>

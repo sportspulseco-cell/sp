@@ -1,5 +1,6 @@
 "use client";
 
+import { pointsRuleForm, pointsRuleFromForm } from "../divisions/points-rule-fields";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
@@ -496,6 +497,10 @@ export function OrgSetupWizard({
           ruleSetOverrides: {
             gameRules: d.gameRules,
             tiebreakers: d.tiebreakers,
+            ...(() => {
+              const pts = pointsRuleFromForm(d.points ?? pointsRuleForm(null));
+              return "rule" in pts ? { pointsRule: pts.rule } : {};
+            })(),
             ageRange: {
               min: d.ageRangeMin,
               max: d.ageRangeMax,

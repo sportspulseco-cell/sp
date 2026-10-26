@@ -5,9 +5,11 @@
  * both call these, so the rule lives in one place and has unit tests
  * (game-results.test.ts).
  *
- * What this does NOT do yet (benchmark doc/traceability/benchmark.md C.1):
- * configurable tie-break order (R5), goal-differential caps (R6),
- * head-to-head. Ranking stays points, then goal difference, then goals for.
+ * Points per result come from the division (rule_set_overrides.pointsRule),
+ * else the season (config.pointsRule), else DEFAULT_POINTS_RULE
+ * (FR-3.13.1). Ties on points are broken in the order set in org setup
+ * (rule_set_overrides.tiebreakers), else goal difference then goals for.
+ * Not done: goal-differential caps (benchmark C.1 R6).
  */
 
 /** How a game ended. Drives OT-loss points (benchmark C.1 R2). */
@@ -48,6 +50,78 @@ export const DEFAULT_POINTS_RULE: PointsRule = {
   tie: 1
 };
 
+/** Labels for the five numbers, word for word on every screen. */
+export const POINTS_RULE_LABELS: Record<keyof PointsRule, string> = {
+  win: "Points per win",
+  overtimeWin: "Points per overtime or shootout win",
+  loss: "Points per loss",
+  overtimeLoss: "Points per overtime or shootout loss",
+  tie: "Points per tie"
+};
+
+const POINTS_KEYS = Object.keys(DEFAULT_POINTS_RULE) as Array<keyof PointsRule>;
+
+/**
+ * The valid part of a stored points rule: whole numbers 0 to 10 only.
+ * Anything else is dropped (never guessed), so the next level applies.
+ */
+export function parsePointsRule(raw: unknown): Partial<PointsRule> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Partial<PointsRule> = {};
+  for (const k of POINTS_KEYS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 10) out[k] = v;
+  }
+  return out;
+}
+
+/** Problem with a points rule an admin typed, or null when it is fine. */
+export function pointsRuleProblem(rule: Partial<Record<keyof PointsRule, unknown>>): string | null {
+  for (const k of POINTS_KEYS) {
+    const v = rule[k];
+    if (v === undefined || v === null || v === "") continue;
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 10) {
+      return `${POINTS_RULE_LABELS[k]} must be a whole number from 0 to 10.`;
+    }
+  }
+  return null;
+}
+
+/** Division rule over season rule over the default; says where it came from. */
+export function resolvePointsRule(
+  seasonConfig: unknown,
+  divisionRules: unknown
+): { rule: PointsRule; source: "division" | "season" | "default" } {
+  const season = parsePointsRule((seasonConfig as { pointsRule?: unknown } | null)?.pointsRule);
+  const division = parsePointsRule((divisionRules as { pointsRule?: unknown } | null)?.pointsRule);
+  const source = Object.keys(division).length ? "division" : Object.keys(season).length ? "season" : "default";
+  return { rule: { ...DEFAULT_POINTS_RULE, ...season, ...division }, source };
+}
+
+/** Tie-break steps an admin can order in org setup (after points). */
+export const STANDINGS_TIEBREAKERS = [
+  "wins",
+  "head_to_head",
+  "goal_diff",
+  "goals_for",
+  "goals_against",
+  "coin_flip"
+] as const;
+export type StandingsTiebreaker = (typeof STANDINGS_TIEBREAKERS)[number];
+
+/** Used when a division has no order set (the order standings always used). */
+export const DEFAULT_STANDINGS_TIEBREAKERS: StandingsTiebreaker[] = ["goal_diff", "goals_for"];
+
+export function parseTiebreakers(raw: unknown): StandingsTiebreaker[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  return raw.filter((c): c is StandingsTiebreaker => {
+    if (typeof c !== "string" || seen.has(c)) return false;
+    seen.add(c);
+    return (STANDINGS_TIEBREAKERS as readonly string[]).includes(c);
+  });
+}
+
 /** Game statuses that count in standings. */
 export const STANDINGS_GAME_STATUSES = ["completed", "forfeited"] as const;
 
@@ -83,8 +157,9 @@ export interface StandingsTally {
  */
 export function tallyStandings(
   games: readonly StandingsGame[],
-  rule: PointsRule = DEFAULT_POINTS_RULE
+  rules: PointsRule | ((bucket: string | null) => PointsRule) = DEFAULT_POINTS_RULE
 ): StandingsTally[] {
+  const ruleFor = typeof rules === "function" ? rules : () => rules;
   const tallies = new Map<string, StandingsTally>();
   const get = (teamId: string, bucket: string | null): StandingsTally => {
     const key = `${bucket ?? "_league_"}:${teamId}`;
@@ -107,24 +182,29 @@ export function tallyStandings(
     away.gf += g.awayScore;
     away.ga += g.homeScore;
 
+    // Each side scores by its own division's rule.
+    const homeRule = ruleFor(g.homeBucket);
+    const awayRule = ruleFor(g.awayBucket);
     if (g.homeScore === g.awayScore) {
       home.t += 1;
       away.t += 1;
-      home.points += rule.tie;
-      away.points += rule.tie;
+      home.points += homeRule.tie;
+      away.points += awayRule.tie;
       continue;
     }
     const extraTime =
       g.status !== "forfeited" && (g.endedIn === "overtime" || g.endedIn === "shootout");
-    const [winner, loser] = g.homeScore > g.awayScore ? [home, away] : [away, home];
+    const homeWon = g.homeScore > g.awayScore;
+    const [winner, loser] = homeWon ? [home, away] : [away, home];
+    const [winRule, loseRule] = homeWon ? [homeRule, awayRule] : [awayRule, homeRule];
     winner.w += 1;
-    winner.points += extraTime ? rule.overtimeWin : rule.win;
+    winner.points += extraTime ? winRule.overtimeWin : winRule.win;
     if (extraTime) {
       loser.otl += 1;
-      loser.points += rule.overtimeLoss;
+      loser.points += loseRule.overtimeLoss;
     } else {
       loser.l += 1;
-      loser.points += rule.loss;
+      loser.points += loseRule.loss;
     }
   }
   return [...tallies.values()];
@@ -132,10 +212,29 @@ export function tallyStandings(
 
 export interface RankedTally extends StandingsTally {
   rank: number;
+  /** True when only a coin flip (or nothing) separates this team from another. */
+  tiedAfterTiebreakers: boolean;
 }
 
-/** Rank inside each bucket: points, then goal difference, then goals for. */
-export function rankTalliesByBucket(tallies: readonly StandingsTally[]): RankedTally[] {
+export interface RankOptions {
+  /** Tie-break order per bucket after points; default goal difference, goals for. */
+  tiebreakers?: (bucket: string | null) => readonly StandingsTiebreaker[];
+  /** Games for head-to-head, with the same rule per bucket as the tally. */
+  games?: readonly StandingsGame[];
+  rules?: (bucket: string | null) => PointsRule;
+}
+
+/**
+ * Rank inside each bucket: points first, then the bucket's tie-break order.
+ * Each step splits only the teams still tied. Head-to-head is the points
+ * the tied teams took from games among themselves. A coin flip cannot be
+ * computed: teams still tied keep a stable order (team id) and are marked
+ * tiedAfterTiebreakers so an admin settles it.
+ */
+export function rankTalliesByBucket(
+  tallies: readonly StandingsTally[],
+  opts: RankOptions = {}
+): RankedTally[] {
   const buckets = new Map<string, StandingsTally[]>();
   for (const t of tallies) {
     const key = t.bucket ?? "_league_";
@@ -144,13 +243,56 @@ export function rankTalliesByBucket(tallies: readonly StandingsTally[]): RankedT
   }
   const out: RankedTally[] = [];
   for (const arr of buckets.values()) {
-    arr.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      const gd = b.gf - b.ga - (a.gf - a.ga);
-      if (gd !== 0) return gd;
-      return b.gf - a.gf;
-    });
-    arr.forEach((t, i) => out.push({ ...t, rank: i + 1 }));
+    const bucket = arr[0]!.bucket;
+    const order = opts.tiebreakers?.(bucket) ?? DEFAULT_STANDINGS_TIEBREAKERS;
+    const steps = order.length ? order : DEFAULT_STANDINGS_TIEBREAKERS;
+    const rule = opts.rules?.(bucket) ?? DEFAULT_POINTS_RULE;
+    const h2h = (group: StandingsTally[]): Map<string, number> => {
+      const ids = new Set(group.map((t) => t.teamId));
+      const pts = new Map<string, number>(group.map((t) => [t.teamId, 0]));
+      for (const g of opts.games ?? []) {
+        if (!(STANDINGS_GAME_STATUSES as readonly string[]).includes(g.status)) continue;
+        if (!ids.has(g.homeTeamId) || !ids.has(g.awayTeamId)) continue;
+        if (g.homeBucket !== bucket || g.awayBucket !== bucket) continue;
+        const [one] = tallyStandings([g], rule).filter((x) => x.teamId === g.homeTeamId);
+        const [two] = tallyStandings([g], rule).filter((x) => x.teamId === g.awayTeamId);
+        pts.set(g.homeTeamId, pts.get(g.homeTeamId)! + (one?.points ?? 0));
+        pts.set(g.awayTeamId, pts.get(g.awayTeamId)! + (two?.points ?? 0));
+      }
+      return pts;
+    };
+    const keyOf = (step: StandingsTiebreaker | "points", group: StandingsTally[]) => {
+      if (step === "head_to_head") {
+        const m = h2h(group);
+        return (t: StandingsTally) => m.get(t.teamId) ?? 0;
+      }
+      return (t: StandingsTally) =>
+        step === "points" ? t.points
+        : step === "wins" ? t.w
+        : step === "goal_diff" ? t.gf - t.ga
+        : step === "goals_for" ? t.gf
+        : step === "goals_against" ? -t.ga
+        : 0; // coin_flip: nothing to compute
+    };
+    const sorted: Array<{ t: StandingsTally; tied: boolean }> = [];
+    const split = (group: StandingsTally[], i: number) => {
+      if (group.length === 1) { sorted.push({ t: group[0]!, tied: false }); return; }
+      const allSteps: Array<StandingsTiebreaker | "points"> = ["points", ...steps];
+      if (i >= allSteps.length || allSteps[i] === "coin_flip") {
+        for (const t of [...group].sort((a, b) => (a.teamId < b.teamId ? -1 : 1))) sorted.push({ t, tied: true });
+        return;
+      }
+      const key = keyOf(allSteps[i]!, group);
+      const byKey = new Map<number, StandingsTally[]>();
+      for (const t of group) {
+        const k = key(t);
+        if (!byKey.has(k)) byKey.set(k, []);
+        byKey.get(k)!.push(t);
+      }
+      for (const k of [...byKey.keys()].sort((a, b) => b - a)) split(byKey.get(k)!, i + 1);
+    };
+    split(arr, 0);
+    sorted.forEach(({ t, tied }, i) => out.push({ ...t, rank: i + 1, tiedAfterTiebreakers: tied }));
   }
   return out;
 }

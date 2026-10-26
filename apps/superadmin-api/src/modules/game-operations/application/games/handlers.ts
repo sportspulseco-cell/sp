@@ -944,7 +944,7 @@ export interface FinalizeSummary {
   statLinesWritten: number;
   standingsTeamsRanked: number;
   standingsGamesCounted: number;
-  pointsRuleSource: "default" | "request";
+  pointsRuleSource: "default" | "request" | "division" | "season";
   notificationRecipients: number;
   notificationsQueued: number;
   /** Game-count suspensions of players on either team that counted this game (COMP-10). */

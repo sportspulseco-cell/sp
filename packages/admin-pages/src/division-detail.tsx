@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { POINTS_RULE_LABELS, resolvePointsRule } from "@sportspulse/kernel";
 import { ArrowLeft, Layers } from "lucide-react";
 import Link from "next/link";
 import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
@@ -124,6 +125,7 @@ export function DivisionDetail({
     tiebreakers?: string[];
     ageRange?: { min?: number | null; max?: number | null; label?: string };
   };
+  const pointsRule = resolvePointsRule(null, division.ruleSetOverrides);
   const playoff = (division.playoffConfig ?? {}) as {
     enabled?: boolean;
     playoffSpots?: number;
@@ -282,6 +284,26 @@ export function DivisionDetail({
             {rules.gameRules?.maxRosterSize ?? "—"}
           </Field>
         </dl>
+      </Reveal>
+
+      <Reveal as="section" delay={0.12} className="rounded-xl border border-border bg-surface-1 p-5">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          // Standings points
+        </p>
+        <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {(Object.keys(POINTS_RULE_LABELS) as Array<keyof typeof POINTS_RULE_LABELS>).map((k) => (
+            <Field key={k} label={POINTS_RULE_LABELS[k]} mono>
+              {pointsRule.rule[k]}
+            </Field>
+          ))}
+        </dl>
+        <p className="mt-2 text-[12px] text-fg-muted">
+          {pointsRule.source === "division"
+            ? "Set for this division."
+            : pointsRule.source === "season"
+              ? "From the season. Edit the division to set its own."
+              : "Default points. Edit the division to change them."}
+        </p>
       </Reveal>
 
       <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
