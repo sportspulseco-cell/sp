@@ -1,5 +1,6 @@
 "use client";
 
+import { useSlotTime } from "./time-zone";
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle, CheckCircle2, Loader2, Lock, RefreshCw, XCircle
@@ -12,16 +13,9 @@ import {
 } from "./scheduler-client";
 import { ResolveConflictDialog } from "./resolve-conflict-dialog";
 
-function fmtTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso; }
-}
 
 export function SchedulingConflictsClient({ seasonId }: { seasonId: string }) {
+  const fmtTime = useSlotTime();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [conflicts, setConflicts] = useState<ConflictPair[]>([]);

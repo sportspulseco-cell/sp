@@ -1,5 +1,6 @@
 "use client";
 
+import { useSlotTime } from "./time-zone";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Lock, XCircle } from "lucide-react";
 import {
@@ -16,18 +17,11 @@ interface Props {
   onResolved: () => void;
 }
 
-function fmtTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso; }
-}
 
 export function ResolveConflictDialog({
   seasonId, conflict, onClose, onResolved
 }: Props) {
+  const fmtTime = useSlotTime();
   const [proposing, setProposing] = useState(true);
   const [proposeError, setProposeError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<ResolveResponse | null>(null);
@@ -213,6 +207,7 @@ function ConflictCard({
 }: {
   heading: string; home: string; away: string; startTs: string; locked: boolean;
 }) {
+  const fmtTime = useSlotTime();
   return (
     <div className="rounded-md border border-border bg-bg-subtle p-3">
       <div className="flex items-center justify-between">

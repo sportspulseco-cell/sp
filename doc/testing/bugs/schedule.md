@@ -505,6 +505,10 @@ staging is no longer near-empty, which is also what PPHL production looks like.
     "8:00 PM EST"); identical text in both browser zones; no hydration errors.
   Not changed: the scheduling views that load in the browser (conflicts, brackets, tournament rounds) show the
     viewer's local time; audit and communications stamps still use the server's clock.
+  Follow-up 26 Oct: the conflicts, resolve-conflict, playoff bracket and tournament round views now print game and
+    slot times in the season's zone (ScheduleTimeZoneProvider from the page, useSlotTime in the cards; kernel
+    formatInZone), in both consoles. Dev server probe of the three pages: no console errors. Not exercised with data:
+    the staging season has no conflicts, bracket slots or tournament rounds.
 ```
 
 ## Gaps

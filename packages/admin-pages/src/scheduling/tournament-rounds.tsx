@@ -1,5 +1,6 @@
 "use client";
 
+import { useSlotTime } from "./time-zone";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUp, ChevronsRight, Layers,
@@ -22,14 +23,6 @@ interface Props {
 
 const TIER_ORDER: TournamentTier[] = ["upper", "middle", "lower"];
 
-function fmtTs(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso ?? "—"; }
-}
 
 function tierBadgeTone(t: TournamentTier): "success" | "info" | "neutral" {
   if (t === "upper") return "success";
@@ -303,6 +296,7 @@ function RoundCard({
   onAdvanced: () => void | Promise<void>;
   seasonId: string;
 }) {
+  const fmtTs = useSlotTime();
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const allComplete =
     round.fixtureCount > 0 && round.completedCount === round.fixtureCount;

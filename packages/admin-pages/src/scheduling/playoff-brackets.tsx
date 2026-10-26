@@ -1,5 +1,6 @@
 "use client";
 
+import { useSlotTime } from "./time-zone";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import {
   AlertTriangle, CheckCircle2, ChevronRight, Loader2, RefreshCw,
@@ -17,14 +18,6 @@ import {
 interface Division { id: string; name: string }
 interface Props { seasonId: string; divisions: Division[] }
 
-function fmtTs(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso ?? "—"; }
-}
 
 function bracketStateTone(s: string): "success" | "info" | "neutral" {
   if (s === "complete") return "success";
@@ -249,6 +242,7 @@ function SlotCard({
   slot: BracketSlotView;
   onAdvanced: () => void;
 }) {
+  const fmtTs = useSlotTime();
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

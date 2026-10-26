@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
-import { SchedulingTournament } from "@sportspulse/admin-pages";
+import { SchedulingTournament, ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -65,11 +65,13 @@ export default async function TournamentPage({
           </Link>
         }
       />
-      <SchedulingTournament
-        seasonId={season.id}
-        divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
-        teams={teams}
-      />
+      <ScheduleTimeZoneProvider timeZone={season.timezone}>
+        <SchedulingTournament
+          seasonId={season.id}
+          divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
+          teams={teams}
+        />
+      </ScheduleTimeZoneProvider>
     </div>
   );
 }

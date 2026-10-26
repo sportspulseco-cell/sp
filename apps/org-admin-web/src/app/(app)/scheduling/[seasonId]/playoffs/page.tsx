@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
-import { SchedulingPlayoffBrackets } from "@sportspulse/admin-pages";
+import { SchedulingPlayoffBrackets, ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { iam, leagueMgmt } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { PageHeader } from "@/components/layout/page-header";
@@ -53,10 +53,12 @@ export default async function OrgAdminPlayoffsPage({
           </Link>
         }
       />
-      <SchedulingPlayoffBrackets
-        seasonId={season.id}
-        divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
-      />
+      <ScheduleTimeZoneProvider timeZone={season.timezone}>
+        <SchedulingPlayoffBrackets
+          seasonId={season.id}
+          divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
+        />
+      </ScheduleTimeZoneProvider>
     </div>
   );
 }
