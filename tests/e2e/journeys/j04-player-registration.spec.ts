@@ -158,11 +158,17 @@ test.describe.serial("J4 · player registers and pays", () => {
     await page.goto(`${E2E_URLS.player}/register`);
     await page.waitForLoadState("networkidle").catch(() => {});
     await shot(page, "01-anon-register");
-    // /register lists open seasons for the signed-in player's own orgs; it is
-    // not an anonymous directory of every org's seasons (a signed-in player
-    // once saw other orgs' seasons there). Anonymous players arrive by the
-    // season's own link, which the league shares.
-    softExpect(new URL(page.url()).pathname, "anonymous /register asks the visitor to sign in").toBe("/sign-in");
+    // No directory across leagues: anonymous /register opens the public
+    // registration page, which lists nothing until a league is named.
+    softExpect(new URL(page.url()).pathname, "anonymous /register opens the public registration page").toBe("/join");
+    softExpect(await page.locator("a[href^='/register/']").count(), "no seasons listed without a league").toBe(0);
+    // The league's own registration link lists its open seasons, anonymously.
+    const [o] = await stagingSql<{ slug: string }>(
+      "select o.slug from seasons s join leagues l on l.id = s.league_id join orgs o on o.id = l.org_id where s.id = $1",
+      [j3.seasonId]
+    );
+    await page.goto(`${E2E_URLS.player}/join?org=${o!.slug}`);
+    softExpect(await page.getByText(j3.seasonName!).count(), "anonymous visitor sees the open RUN_TAG season on the league's page").toBeGreaterThan(0);
     await page.goto(`${E2E_URLS.player}/register/${j3.seasonId}`);
     await expect(page.getByRole("button", { name: /Register as a player/i })).toBeVisible({ timeout: 30_000 });
     softExpect(errs.filter((e) => /http 5/.test(e)), "5xx on anonymous /register").toEqual([]);

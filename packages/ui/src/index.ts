@@ -25,6 +25,7 @@ export * from "./theme-provider";
 export * from "./theme-toggle";
 export * from "./url-filters";
 export * from "./local-date";
+export * from "./copy-link";
 // section-rail + command-palette stay in each app (they import
 // next/link + next/navigation, which would couple this package to
 // Next.js). If we ever need a framework-neutral version, factor here.

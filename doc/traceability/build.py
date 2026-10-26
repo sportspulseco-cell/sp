@@ -374,6 +374,7 @@ FIXED_IN_CODE = {
     "CONSOLE-21": "the invite dialog refreshes the users list again on close after an invite",
     "MON-30": "captain dues and admin share lists ordered by share number; rows no longer jump after a save",
     "CONSOLE-22": "per-season and per-org fan-outs replaced by one paged list or six at a time; not yet on staging (deploy cap)",
+    "REG-30": "public registration page per league (/join?org=<slug>), no list across leagues; local 15/15",
     "MON-29": "commit d2d4888: seat limits counted and enforced at the price step and payment; reject and cancel give the seat back and void unpaid invoices; local API 11/11",
 }
 

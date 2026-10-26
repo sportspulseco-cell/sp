@@ -1,4 +1,4 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatMoney, registrationClosesLabel } from "@sportspulse/kernel";
 import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import {
@@ -828,16 +828,6 @@ async function fetchOpenRegistrations(): Promise<OpenRegistration[]> {
   }
 }
 
-function relClosesCopy(iso: string | null): string | null {
-  if (!iso) return null;
-  const days = Math.ceil(
-    (new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-  );
-  if (days < 0) return "closed";
-  if (days === 0) return "closes today";
-  if (days === 1) return "closes tomorrow";
-  return `closes in ${days} days`;
-}
 
 function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
   if (items.length === 0) return null;
@@ -886,7 +876,7 @@ function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
               <div className="mt-auto flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
                   <CalendarRange className="h-3 w-3" strokeWidth={1.75} />
-                  {relClosesCopy(r.registrationClosesAt) ?? "open"}
+                  {registrationClosesLabel(r.registrationClosesAt) ?? "open"}
                 </span>
                 <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tint-emerald-fg)]">
                   Sign up{" "}

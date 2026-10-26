@@ -2594,13 +2594,14 @@ export function createApi(f: Fetcher) {
           "/public/registration/app-links"
         ),
       /**
-       * List every season currently open for public registration that
-       * also has a published form attached. Drives the player-web
-       * discovery list at /register so players can find a season to
-       * sign up for without needing a captain's invite URL.
+       * One league's public registration page: the seasons of the
+       * organisation `org` (slug or id, from the league's registration
+       * link) that are open with a published form. Anonymous; there is no
+       * list across organisations.
        */
-      listOpen: () =>
+      listOpen: (org: string) =>
         f<{
+          org: { id: string; slug: string; name: string };
           items: Array<{
             seasonId: string;
             seasonName: string;
@@ -2614,7 +2615,7 @@ export function createApi(f: Fetcher) {
             registrationOpensAt: string | null;
             registrationClosesAt: string | null;
           }>;
-        }>(`/public/registration/open`),
+        }>(`/public/registration/open${qs({ org })}`),
       /**
        * Authenticated variant — server filters by the caller's
        * scope.orgIds so a signed-in player only sees registrations

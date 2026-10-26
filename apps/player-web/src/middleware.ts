@@ -20,8 +20,15 @@ const PUBLIC_PATHS = [
   "/register",
   // Captain invite landing (UC-04). Shows the team to anyone; joining
   // needs a session, which the page sends through /sign-in.
-  "/invite"
+  "/invite",
+  // A league's public registration page (/join?org=<slug>).
+  "/join"
 ];
+
+/** A Supabase session cookie (sb-<ref>-auth-token, possibly chunked). */
+function hasSessionCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name));
+}
 
 /**
  * Player app middleware.
@@ -32,6 +39,18 @@ const PUBLIC_PATHS = [
  * Supabase JWT app_metadata; super_admin bypasses both checks.
  */
 export async function middleware(request: NextRequest) {
+  // /register lists the seasons open in the signed-in player's leagues.
+  // A league link (/register?org=) opens that league's public page for
+  // anyone; a visitor without a session goes there too instead of a
+  // sign-in wall.
+  if (
+    request.nextUrl.pathname === "/register" &&
+    (request.nextUrl.searchParams.get("org")?.trim() || !hasSessionCookie(request))
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/join";
+    return NextResponse.redirect(url);
+  }
   const response = NextResponse.next({ request });
   return requireRole({
     url: process.env.NEXT_PUBLIC_SUPABASE_URL!,

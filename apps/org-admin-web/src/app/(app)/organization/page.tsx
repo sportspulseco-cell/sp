@@ -1,6 +1,6 @@
 import { Building2 } from "lucide-react";
-import { EmptyState, SectionRail } from "@sportspulse/ui";
-import { loadMeScope, orgs } from "@/lib/api/server-api";
+import { CopyLink, EmptyState, SectionRail } from "@sportspulse/ui";
+import { loadMeScope, orgs, publicRegistration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { OrgActions } from "@/components/edit/detail-actions";
@@ -17,7 +17,11 @@ export const metadata = { title: "Organisation - Org Admin" };
 export default async function OrganizationPage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
-  const org = orgId ? await orgs.get(orgId).catch(() => null) : null;
+  const [org, appLinks] = await Promise.all([
+    orgId ? orgs.get(orgId).catch(() => null) : Promise.resolve(null),
+    // This environment's player app, as configured on the API (REG-12).
+    publicRegistration.appLinks().catch(() => null)
+  ]);
 
   if (!org) {
     return (
@@ -62,6 +66,18 @@ export default async function OrganizationPage() {
           ))}
         </dl>
       </section>
+      {appLinks?.playerWebUrl ? (
+        <section className="space-y-6">
+          <SectionRail
+            index="02"
+            label="Registration page"
+            subtitle="One link for your league's open seasons. Share it on your website or by email; players can look without an account."
+          />
+          <div className="rounded-xl border border-border bg-surface-1 p-6">
+            <CopyLink label="Public registration page" value={`${appLinks.playerWebUrl}/join?org=${org.slug}`} />
+          </div>
+        </section>
+      ) : null}
       <RegionsSection orgId={org.id} orgName={org.displayName} />
     </div>
   );

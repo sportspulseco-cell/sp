@@ -13,12 +13,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { CopyLink, LoadError } from "@sportspulse/ui";
 import {
   crossOrgGrants,
   iam,
   leagueMgmt,
   orgs,
+  publicRegistration,
   registration
 } from "@/lib/api/server-api";
 import { Badge, statusTone } from "@/components/ui/badge";
@@ -82,7 +83,8 @@ export default async function OrgDetailPage({
     leaguesPage,
     teamsPage,
     registrationsPage,
-    allOrgsPage
+    allOrgsPage,
+    appLinks
   ] = await Promise.all([
     orgs.listChildren(id).catch(() => []),
     orgs.listParents(id).catch(() => []),
@@ -101,7 +103,9 @@ export default async function OrgDetailPage({
     registration
       .listRegistrations({ orgId: id })
       .catch(() => ({ items: [], nextCursor: null })),
-    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
+    fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    // This environment's player app, as configured on the API (REG-12).
+    publicRegistration.appLinks().catch(() => null)
   ]);
 
   const orgMap = new Map(allOrgsPage.items.map((o) => [o.id, o.displayName]));
@@ -164,6 +168,12 @@ export default async function OrgDetailPage({
         </div>
         </div>
       </header>
+
+      {appLinks?.playerWebUrl ? (
+        <div className="rounded-xl border border-border bg-surface-1 p-5">
+          <CopyLink label="Public registration page" value={`${appLinks.playerWebUrl}/join?org=${org.slug}`} />
+        </div>
+      ) : null}
 
       {/* Org-scoped role assignments */}
       <Section

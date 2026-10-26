@@ -129,6 +129,7 @@ shared file was touched.
   Evidence: findings "anonymous /register is reachable: Received /sign-in"; screenshots j04/01-anon-register.png, j04/02-player-register.png
   Root cause: apps/player-web/src/app/(app)/register/page.tsx sits in the authenticated (app) group and calls listOpenForMe; GET /public/registration/open-for-me (public-registration.controller.ts:242-260) returns [] when scope.orgIds is empty, i.e. for every new player. The anonymous GET /public/registration/open has no UI caller.
   Proposed fix: move the open-registrations list out of (app) to a public route that uses /public/registration/open (it only exposes published, open seasons), and keep open-for-me for the signed-in home card.
+  Resolved by REG-30 (26 Oct): a public page per league, /join?org=<slug>.
 
 [REG-10] Admin cannot open registration "today" in the US evening; failed setup leaves an orphan league · major
   Journey: J3 · UC-01 precondition
@@ -405,3 +406,20 @@ Runs: J3 full runs E2EMVK85UUY and E2EMVK8ZS8T (11/12 passed each; test 12 lists
   Evidence: regfa/verify-queue-order.mjs on the local API against staging 5/5 (deployed old code 3/5: waiting rows not
     first, rest not newest first, no season name).
   Not verified: more than 200 registrations in one org (staging has 48); the queues have no paging yet.
+
+[REG-30] Anonymous players could not find a league's registrations; the anonymous API listed every league · major · decision
+  Found: J4 step 1 (26 Oct): an anonymous visitor on /register was sent to sign-in with "session expired"; a brand-new
+    player saw "Nothing's open right now" (open-for-me lists only orgs the player already belongs to). Meanwhile
+    GET /public/registration/open (no caller) listed every organisation's open seasons to anyone.
+  Decision (owner left it to me, 26 Oct; keep the visitor anonymous and keep leagues apart): each league has one public
+    registration page, /join?org=<slug>. A visitor sees that league's open seasons without signing in and signs in or
+    creates an account only when registering. There is no list across leagues: the API refuses a request that names
+    no league (400) and answers 404 for an unknown one. /register without a session, or with a league link, opens the
+    league page; a signed-in player keeps their own /register. The org admin's Organisation page and the super admin's
+    org page show the link to copy and share (one stable link, like a SportsEngine registration page).
+  Evidence: regfa/verify-join.mjs 15/15 on the local build against staging: 400 with no league, 404 for an unknown one,
+    18 seasons for pphl-staging and none from another org, slug and id give the same list; anonymous /register ->
+    /join with no seasons; /register?org= -> the league page with 18 seasons; a season opens the funnel without
+    signing in; signed-in /register unchanged; both admin pages show .../join?org=pphl-staging.
+  Not verified: staging and production (next push).
+

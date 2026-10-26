@@ -125,3 +125,17 @@ export function registrationWindowMessage(
       return `${what} is closed. This season is no longer taking registrations.`;
   }
 }
+
+/**
+ * "closes in 3 days" for a registration window's close, for the player's
+ * open-registration lists. Null when there is no close date.
+ */
+export function registrationClosesLabel(closesAt: string | null, now: Date = new Date()): string | null {
+  if (!closesAt) return null;
+  const days = Math.ceil((new Date(closesAt).getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  if (days < 0) return "closed";
+  if (days === 0) return "closes today";
+  if (days === 1) return "closes tomorrow";
+  return `closes in ${days} days`;
+}
+

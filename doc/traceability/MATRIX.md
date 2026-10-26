@@ -371,7 +371,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 - **staging-v2 / superAdmin** `/registrations?orgId=0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f` → error — reached from `/organizations/0e92a59c-8d62-4ab1-ad60-4f5347ae7d5f`
 - **staging-v2 / superAdmin** `/registrations?orgId=10fdeae6-1292-4301-9f18-b4d9b697a210` → error — reached from `/organizations/10fdeae6-1292-4301-9f18-b4d9b697a210`
 
-## Logged findings: 170 total, 1 still open
+## Logged findings: 171 total, 1 still open
 
 | ID | Severity | Title | Journey | Status | Evidence |
 |---|---|---|---|---|---|
@@ -501,6 +501,7 @@ PPHL (24 Oct): "pin down the major components of our first release". Modules mar
 | REG-27 | major | Org console season overview always says "Could not load forms for this season" | staging crawl as org admin (25 Oct, build c226f96; also on 24355fb): org Home and every season page flagged. | fixed in code, not deployed | commit 52d6726: /org-admin/forms accepts limit + cursor; org season overview loads forms; API 200 (40 = db), browser 2/2 |
 | REG-28 | major | An org admin's approval skipped what approval sets up; the approved row kept saying "pending review" |  | fixed in code, not deployed | commit 090984e: org admin approve runs the shared approval hooks (free-agent pool, team), reject gives the seat back and voids the unpaid invoice, queue shows the decided status; local API 3/3 (old code 1/3) |
 | REG-29 | major | Review queues listed the oldest registrations first and cut the newest; rows did not name the season |  | fixed in code, not deployed | review queues list waiting decisions first (oldest first), then newest; rows name the season; local API 5/5 (old code 3/5) |
+| REG-30 | major | Anonymous players could not find a league's registrations; the anonymous API listed every league |  | fixed in code, not deployed | public registration page per league (/join?org=<slug>), no list across leagues; local 15/15 |
 | SCH-1 | blocker | Scheduler (generate, publish, conflicts, runs, fairness, verify, playoffs, tournament, parity, notifications) | J10 · UC-06, UC-07, UC-08, UC-09 | fixed | journey matrix 3a |
 | SCH-2 | blocker | Ice slots created on /venues are invisible to the scheduler | J10 · UC-06 | fixed | journey matrix 3a |
 | SCH-18 | blocker | Creating a team without a home rink returns 500 but still creates the team | J10, J11 · UC-06 precondition (need 2+ teams) | fixed | same bug as SETUP-6 (team create with blank rink), fixed and journey-verified |

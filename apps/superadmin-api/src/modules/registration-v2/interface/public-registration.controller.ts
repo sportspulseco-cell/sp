@@ -271,9 +271,10 @@ export class PublicRegistrationController {
   @Get("open")
   @ApiOperation({
     summary:
-      "List every season whose registration window is currently open AND has a published season_registration form. Powers the player-web 'Open registrations' discovery list — a player needs to find the season id before they can hit /register/:id. Anonymous; no auth required."
+      "One league's public registration page: the seasons of that organisation whose registration window is open and that have a published season_registration form. Anonymous. `org` (the organisation's slug or id, from the league's registration link) is required: there is no list across organisations, so no visitor can enumerate other leagues."
   })
-  async listOpenRegistrations(): Promise<{
+  async listOpenRegistrations(@Query("org") orgKey?: string): Promise<{
+    org: { id: string; slug: string; name: string };
     items: Array<{
       seasonId: string;
       seasonName: string;
@@ -288,6 +289,25 @@ export class PublicRegistrationController {
       registrationClosesAt: string | null;
     }>;
   }> {
+    const key = orgKey?.trim().toLowerCase() ?? "";
+    if (!key) {
+      throw new BadRequestException({
+        error: "org_required",
+        message: "Open your league's registration link; it names the league."
+      });
+    }
+    const [org] = await this.db
+      .select({ id: schema.orgs.id, slug: schema.orgs.slug, name: schema.orgs.displayName })
+      .from(schema.orgs)
+      .where(
+        and(
+          UUID_RE.test(key) ? eq(schema.orgs.id, key) : eq(schema.orgs.slug, key),
+          eq(schema.orgs.status, "active")
+        )
+      )
+      .limit(1);
+    if (!org) throw new NotFoundException("No league found for that registration link.");
+
     const now = new Date();
     const rows = await this.db
       .select({
@@ -321,6 +341,7 @@ export class PublicRegistrationController {
       )
       .where(
         and(
+          eq(schema.leagues.orgId, org.id),
           lte(schema.seasons.registrationOpensAt, now),
           gte(schema.seasons.registrationClosesAt, now),
           // The registration window governs; an admin moving the season to
@@ -364,7 +385,8 @@ export class PublicRegistrationController {
         registrationClosesAt: r.registrationClosesAt?.toISOString() ?? null
       });
     }
-    return { items };
+    this.log.log(`public registration page org=${org.slug} open=${items.length}`);
+    return { org, items };
   }
 
   @Get("open-for-me")

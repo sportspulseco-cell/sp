@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { publicRegistration } from "@/lib/api/server-api";
+import { registrationClosesLabel } from "@sportspulse/kernel";
 
 export const metadata = { title: "Find a team — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -37,18 +38,10 @@ async function listOpen(): Promise<OpenSeason[]> {
   }
 }
 
-function relCloses(iso: string | null): string | null {
-  if (!iso) return null;
-  const days = Math.ceil(
-    (new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-  );
-  if (days < 0) return "closed";
-  if (days === 0) return "closes today";
-  if (days === 1) return "closes tomorrow";
-  return `closes in ${days} days`;
-}
 
 export default async function FindATeamPage() {
+  // A league link (/register?org=) never reaches here: the middleware
+  // sends it to that league's public page.
   const open = await listOpen();
 
   return (
@@ -81,11 +74,11 @@ export default async function FindATeamPage() {
               strokeWidth={1.5}
             />
             <p className="mt-3 text-[14px] font-medium text-fg">
-              Nothing's open right now
+              Nothing open in your leagues right now
             </p>
             <p className="mt-1 text-[12px] text-fg-muted">
-              Open leagues will appear here the moment a league admin
-              publishes their registration form.
+              New to a league? Open the registration link your league
+              shares; its open seasons are listed there.
             </p>
           </div>
         ) : (
@@ -122,7 +115,7 @@ export default async function FindATeamPage() {
                         className="h-3 w-3"
                         strokeWidth={1.75}
                       />
-                      {relCloses(s.registrationClosesAt) ?? "open"}
+                      {registrationClosesLabel(s.registrationClosesAt) ?? "open"}
                     </span>
                     <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
                       Register <ArrowRight className="h-3 w-3" strokeWidth={2} />
