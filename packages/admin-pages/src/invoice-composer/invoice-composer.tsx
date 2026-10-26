@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { formatMoney, invoiceLineTotals } from "@sportspulse/kernel";
 /**
  * Shared InvoiceComposer used by both sa-web and org-admin-web.
  *
@@ -295,10 +295,16 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
     props.orgs
   ]);
 
-  const totalCents = items.reduce((sum, it) => {
-    const unit = Math.round(Number(it.unitDollars) * 100) || 0;
-    return sum + unit * (it.quantity || 1);
-  }, 0);
+  // Same rule as the server: a Discount line takes its amount off.
+  const lineTotals = invoiceLineTotals(
+    items.map((it) => ({
+      kind: it.kind,
+      quantity: it.quantity || 1,
+      unitAmountCents: Math.round(Number(it.unitDollars) * 100) || 0
+    }))
+  );
+  const discountTotalCents = lineTotals.discountCents;
+  const totalCents = lineTotals.ok ? lineTotals.totalCents : 0;
   const totalDisplay = (totalCents / 100).toFixed(2);
   const depositCents = Math.round(Number(depositDollars) * 100) || 0;
   const lateFeeCents = Math.round(Number(lateFeeDollars) * 100) || 0;
@@ -320,7 +326,8 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         it.quantity > 0
     ) &&
     !planInvalid &&
-    !lateFeeInvalid;
+    !lateFeeInvalid &&
+    lineTotals.ok;
 
   async function onSubmit(e: { preventDefault(): void }, asDraft = false) {
     e.preventDefault();
@@ -632,14 +639,29 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             </div>
           ))}
         </div>
+        {discountTotalCents > 0 ? (
+          <div className="flex items-center justify-between border-t border-border pt-3 text-[13px]">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              Discount
+            </span>
+            <span className="font-mono tabular-nums text-fg">
+              −{formatMoney(discountTotalCents)}
+            </span>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between border-t border-border pt-3 text-[13px]">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            Subtotal
+            Total
           </span>
           <span className="font-mono tabular-nums text-fg">
             ${totalDisplay}
           </span>
         </div>
+        {!lineTotals.ok ? (
+          <p className="text-[12px] text-[var(--tint-rose-fg)]">
+            The discount is larger than the charges. A total cannot go below zero.
+          </p>
+        ) : null}
       </section>
 
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">

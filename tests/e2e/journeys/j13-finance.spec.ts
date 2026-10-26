@@ -593,3 +593,38 @@ test("13. player pays only the next installment of the plan invoice; cards say w
   // Same page, no reload: the card now offers the following installment.
   await expect(card.getByRole("button", { name: /^Pay next installment/ })).toBeVisible();
 });
+
+test("14. composer: a Discount line lowers the total; a late fee is stored on the invoice", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  await composeTeamInvoice(p, "", "");
+  await p.locator("select#scope").selectOption("individual");
+  const playerOpt = (await p.locator("select#target option").allTextContents()).find((o) => /staging-player@/i.test(o));
+  expect(playerOpt, "composer lists the staging player").toBeTruthy();
+  await p.locator("select#target").selectOption({ label: playerOpt! });
+  await p.getByPlaceholder("e.g. 2026 Spring season registration").fill(`${TAG} J13 discounted fee`);
+  await p.getByPlaceholder("0.00").first().fill("100.00");
+  await p.getByRole("button", { name: "Add line" }).click();
+  const second = p.locator("form div.grid.grid-cols-12").nth(1);
+  await second.locator("select").selectOption("discount");
+  await second.locator("input").first().fill(`${TAG} sibling discount`);
+  await second.locator("input[type='number']").last().fill("10.00");
+  await expect(p.getByText("$90.00").first(), "total shows 100 - 10").toBeVisible();
+  await p.getByLabel(/Late fee \(USD\)/).fill("5.00");
+  // A discount over the charges blocks the form.
+  await second.locator("input[type='number']").last().fill("150.00");
+  await expect(p.getByText(/cannot go below zero/)).toBeVisible();
+  await expect(p.getByRole("button", { name: "Create and send" })).toBeDisabled();
+  await second.locator("input[type='number']").last().fill("10.00");
+  await p.locator("input[type='date']").first().fill(inTwoDaysIso());
+  await shot(p, "14-composer-discount");
+  const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
+  await p.getByRole("button", { name: "Create and send" }).click();
+  const resp = await respP;
+  expect(resp.status(), "discounted invoice created").toBeLessThan(300);
+  const rows = await stagingSql<{ total_cents: number; discount_cents: number; late_fee_cents: number }>(
+    `select i.total_cents, i.discount_cents, i.late_fee_cents from invoices i join invoice_items it on it.invoice_id = i.id
+      where it.description = $1 limit 1`,
+    [`${TAG} J13 discounted fee`]
+  );
+  expect(rows[0], "invoice total 90.00 with a 10.00 discount and a 5.00 late fee").toMatchObject({ total_cents: 9000, discount_cents: 1000, late_fee_cents: 500 });
+});

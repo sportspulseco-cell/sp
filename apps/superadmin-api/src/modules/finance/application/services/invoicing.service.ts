@@ -19,6 +19,7 @@ import {
 } from "../../../../shared/audience/org-targets";
 import type { BulkCreateInvoiceBodyDto } from "../../interface/dto/bulk-invoice.dto";
 import { reserveInvoiceNumbers } from "./invoice-number";
+import { invoiceLineTotals, signedLineAmount } from "@sportspulse/kernel";
 
 /**
  * Bulk invoice creation extracted from FinanceInvoicingController so the
@@ -95,11 +96,15 @@ export class InvoicingService {
       );
     }
 
-    const subtotalCents = body.items.reduce(
-      (a, i) => a + (i.unitAmountCents ?? 0) * (i.quantity ?? 1),
-      0
-    );
-    const totalCents = subtotalCents;
+    // A "discount" line takes its amount off the charges (kernel
+    // invoiceLineTotals). Before, every line was added, so a $100 fee
+    // with a $10 discount billed $110. A discount larger than the
+    // charges is refused: a total never goes below zero.
+    const totals = invoiceLineTotals(body.items);
+    if (!totals.ok) throw new BadRequestException(totals.reason);
+    const subtotalCents = totals.chargesCents;
+    const discountCents = totals.discountCents;
+    const totalCents = totals.totalCents;
     const planEnabled =
       !!body.paymentPlanEnabled &&
       body.installmentCount != null &&
@@ -164,6 +169,7 @@ export class InvoicingService {
             seasonId: body.billingScope === "season" ? body.targetId : null,
             bulkJobId,
             subtotalCents,
+            discountCents,
             totalCents,
             paidCents: 0,
             currency,
@@ -189,8 +195,9 @@ export class InvoicingService {
             kind: item.kind,
             description: item.description,
             quantity: qty,
-            unitAmountCents: item.unitAmountCents,
-            amountCents: item.unitAmountCents * qty,
+            // Discount lines are stored negative, so the lines add up to the total.
+            unitAmountCents: signedLineAmount(item.kind, item.unitAmountCents),
+            amountCents: signedLineAmount(item.kind, item.unitAmountCents * qty),
             feeScheduleId: body.feeScheduleId ?? null
           });
         }
