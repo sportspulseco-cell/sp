@@ -1,7 +1,7 @@
 import type { UserScope } from "../../../../shared/auth/scope";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -9,8 +9,7 @@ import {
   ConflictError,
   NotFoundError,
   type CommandHandler,
-  type QueryHandler,
-  normalizeSkillLevel
+  type QueryHandler
 } from "@sportspulse/kernel";
 import {
   REGISTRATION_REPOSITORY,
@@ -26,8 +25,8 @@ import { NotificationService } from "../../../communications/application/notific
 import type { TemplateCode } from "../../../communications/domain/templates/catalog";
 import { FinanceService } from "../../../finance/application/finance.service";
 import { RegistrationV2Service } from "../../../registration-v2/application/registration-v2.service";
-import { SupabaseAdminService } from "../../../../shared/auth/supabase-admin.service";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
+import { closeRegistrationMoney } from "../../../registration-v2/application/seats";
 
 export interface ListRegistrationsInput {
   /** Scoped admins: only registrations inside their scope (shared/auth/visibility.ts). */
@@ -149,7 +148,6 @@ export class ReviewRegistrationHandler
     private readonly notify: NotificationService,
     private readonly finance: FinanceService,
     private readonly regV2: RegistrationV2Service,
-    private readonly supabase: SupabaseAdminService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
   async execute(input: ReviewRegistrationInput): Promise<RegistrationDto> {
@@ -172,6 +170,15 @@ export class ReviewRegistrationHandler
         break;
     }
     await this.registrations.save(r);
+    // Same seat and invoice rule as every other reject (MON-29).
+    if (input.action === "reject") {
+      const [row] = await this.db
+        .select({ id: schema.registrations.id, metadata: schema.registrations.metadata })
+        .from(schema.registrations)
+        .where(eq(schema.registrations.id, input.id))
+        .limit(1);
+      if (row) await this.db.transaction((tx) => closeRegistrationMoney(tx, row, "Registration rejected"));
+    }
 
     const x = r.toSnapshot();
     const codeFor: Record<typeof input.action, TemplateCode | null> = {
@@ -214,155 +221,22 @@ export class ReviewRegistrationHandler
         feeSchedule: null,
         fallbackDescription: "Registration fee"
       });
-      // Free-agent + individual player paths: grant the `player` role at
-      // division scope so the player's dashboard surfaces correctly,
-      // and (for free agents) seed the free-agent pool row that
-      // captains in matching divisions browse. Both side-effects are
-      // best-effort — a failure here must not block approval, since
-      // the registration row itself already moved to approved.
-      await this.applyApprovalSideEffects(input.id).catch((err) =>
-        this.log.warn(
-          `[approve sideeffects] registration=${input.id}: ${(err as Error).message}`
-        )
-      );
+      // The shared approval hooks (player role, free-agent pool entry, the
+      // team for a team registration, the roster spot a team link or
+      // invite asked for), same as the org admin and v2 review. They log
+      // their own failures and never undo the approval.
+      const [row] = await this.db
+        .select()
+        .from(schema.registrations)
+        .where(eq(schema.registrations.id, input.id))
+        .limit(1);
+      if (row) {
+        const placement = await this.regV2.applyApprovalSideEffects(row, input.reviewerId);
+        this.log.log(`[approve] registration=${input.id} roster=${placement.roster?.status ?? "none"}`);
+      }
     }
 
     return RegistrationDto.fromDomain(r);
-  }
-
-  /**
-   * Post-approval bookkeeping:
-   *   1. Resolve the submitter's auth user + the registration's
-   *      division + season + metadata.
-   *   2. Assign the `player` role at scope=division (no-op when an
-   *      active assignment for the same role+scope already exists).
-   *   3. Refresh the Supabase JWT role_codes so middleware sees the
-   *      new code without an extra round-trip.
-   *   4. For free-agent submissions, upsert into freeAgentPoolEntries
-   *      with positions/availability/skill_level pulled from the
-   *      funnel's reserved `answers` keys.
-   */
-  private async applyApprovalSideEffects(registrationId: string): Promise<void> {
-    const [reg] = await this.db
-      .select({
-        id: schema.registrations.id,
-        submittedByUserId: schema.registrations.submittedByUserId,
-        subjectPersonId: schema.registrations.subjectPersonId,
-        seasonId: schema.registrations.seasonId,
-        divisionId: schema.registrations.divisionId,
-        metadata: schema.registrations.metadata
-      })
-      .from(schema.registrations)
-      .where(eq(schema.registrations.id, registrationId))
-      .limit(1);
-    if (!reg) return;
-    const meta = (reg.metadata as Record<string, unknown>) ?? {};
-    const submissionType = (meta.submissionType as string) ?? "individual";
-    const answers = (meta.answers as Record<string, unknown>) ?? {};
-    const userId = reg.submittedByUserId;
-    if (!userId) return; // can't assign a role without an auth user
-
-    // --- (1/2) player role assignment ---
-    if (reg.divisionId) {
-      const [playerRole] = await this.db
-        .select({ id: schema.roles.id })
-        .from(schema.roles)
-        .where(
-          and(eq(schema.roles.code, "player"), isNull(schema.roles.orgId))
-        )
-        .limit(1);
-      if (playerRole) {
-        // Idempotency — skip when an active player assignment for the
-        // same division already exists.
-        const existing = await this.db
-          .select({ id: schema.userRoleAssignments.id })
-          .from(schema.userRoleAssignments)
-          .where(
-            and(
-              eq(schema.userRoleAssignments.userId, userId),
-              eq(schema.userRoleAssignments.roleId, playerRole.id),
-              eq(schema.userRoleAssignments.scopeType, "division"),
-              eq(schema.userRoleAssignments.scopeId, reg.divisionId),
-              isNull(schema.userRoleAssignments.revokedAt)
-            )
-          )
-          .limit(1);
-        if (existing.length === 0) {
-          await this.db.insert(schema.userRoleAssignments).values({
-            userId,
-            roleId: playerRole.id,
-            scopeType: "division",
-            scopeId: reg.divisionId,
-            effectiveFrom: new Date()
-          });
-          // Mirror the new role_code into the Supabase JWT app_metadata
-          // so middleware sees `player` next refresh.
-          const rows = await this.db
-            .select({ code: schema.roles.code })
-            .from(schema.userRoleAssignments)
-            .innerJoin(
-              schema.roles,
-              eq(schema.roles.id, schema.userRoleAssignments.roleId)
-            )
-            .where(
-              and(
-                eq(schema.userRoleAssignments.userId, userId),
-                isNull(schema.userRoleAssignments.revokedAt)
-              )
-            );
-          const codes = Array.from(new Set(rows.map((r) => r.code)));
-          await this.supabase
-            .setRoleCodes(userId, codes)
-            .catch((err) =>
-              this.log.warn(
-                `[approve sideeffects] role_codes sync failed user=${userId}: ${(err as Error).message}`
-              )
-            );
-        }
-      }
-    }
-
-    // --- (3) free-agent pool entry ---
-    if (submissionType === "free_agent" && reg.seasonId) {
-      // A–D, older C1 / C2 / C3 answers mapped (REG-21).
-      const skillLevel = normalizeSkillLevel(answers.skill_level);
-      const positions = Array.isArray(answers.positions)
-        ? (answers.positions as unknown[]).filter(
-            (p): p is string => typeof p === "string" && p.trim().length > 0
-          )
-        : [];
-      const availability =
-        typeof answers.availability === "object" &&
-        answers.availability !== null
-          ? (answers.availability as Record<string, unknown>)
-          : {};
-      const note =
-        typeof answers.fa_note === "string" && answers.fa_note.trim().length > 0
-          ? (answers.fa_note as string).trim()
-          : null;
-      // Skip when the funnel didn't capture the required pool fields
-      // (e.g. legacy submissions made before BUG-058). The captain
-      // dashboard will still show the registration, just not as a
-      // pool entry.
-      if (
-        skillLevel &&
-        positions.length > 0
-      ) {
-        await this.regV2.upsertFreeAgentEntry({
-          playerPersonId: reg.subjectPersonId,
-          seasonId: reg.seasonId,
-          positions,
-          availability,
-          levelPrimary: skillLevel,
-          levelFlexibility: null,
-          note,
-          status: "active",
-          // Stash the divisionId in metadata so captains can filter
-          // by division until the table grows a typed column for it.
-          metadata: { divisionId: reg.divisionId ?? null }
-        });
-      }
-    }
   }
 
   /**
