@@ -401,10 +401,17 @@ test.describe.serial("J4 · player registers and pays", () => {
       // The queue must say WHO registered and for WHICH season, not a person-id prefix.
       softExpect(await row.innerText(), "OA registrations row shows the player's name").toContain(last);
       softExpect(await row.innerText(), "OA registrations row shows the season").toContain(j3.seasonName!);
-      const before = await row.locator("td").nth(2).innerText();
+      const before = await row.locator("td").nth(3).innerText();
+      const reviewed = page
+        .waitForResponse((r) => /\/review/.test(r.url()) && r.request().method() === "POST", { timeout: 20_000 })
+        .catch(() => null);
       await row.getByRole("button", { name: /approve/i }).click();
-      await expect(row.locator("td").nth(2)).not.toHaveText(before, { timeout: 30_000 });
-      softExpect((await row.locator("td").nth(2).innerText()).toLowerCase(), "OA row status after approve (no reload)").toContain("approved");
+      const rr = await reviewed;
+      console.log(`[J4] OA approve: status cell "${before}", review request ${rr ? rr.status() : "never sent"}`);
+      expect(rr?.status() ?? 0, "the OA Approve click sends the review and it succeeds").toBeLessThan(300);
+      await expect(row.locator("td").nth(3)).not.toHaveText(before, { timeout: 30_000 });
+      console.log(`[J4] OA row status after approve: "${await row.locator("td").nth(3).innerText()}"`);
+      softExpect((await row.locator("td").nth(3).innerText()).toLowerCase(), "OA row status after approve (no reload)").toContain("approved");
       approvedBy = "org_admin";
     }
     softExpect(errs.filter((e) => /http 5/.test(e)), "OA registrations 5xx").toEqual([]);
@@ -431,8 +438,11 @@ test.describe.serial("J4 · player registers and pays", () => {
       await expect(row).toHaveCount(0, { timeout: 30_000 });
       approvedBy = "super_admin";
     } else {
-      const sel = page.locator("main select").first();
-      await sel.selectOption({ label: "All" }).catch(() => {});
+      // The queue's own State filter (the page has other selects above it).
+      const sel = page.locator("select", { has: page.locator("option", { hasText: /^Needs decision/ }) }).first();
+      await sel.selectOption({ label: "All" });
+      await page.waitForLoadState("networkidle").catch(() => {});
+      await row.first().waitFor({ timeout: 20_000 }).catch(() => {});
       softExpect(await row.count(), "SA /registrations lists the approved submission").toBeGreaterThan(0);
       await shot(page, "08-sa-registrations");
     }

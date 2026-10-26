@@ -20,6 +20,7 @@ interface Item {
   id: string;
   name: string | null;
   email: string | null;
+  season: string | null;
   status: string;
   submittedAt: string | null;
 }
@@ -77,6 +78,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
           <TR>
             <TH>Player</TH>
             <TH>Email</TH>
+            <TH>Season</TH>
             <TH>Status</TH>
             <TH>Submitted</TH>
             <TH className="text-right">Actions</TH>
@@ -91,6 +93,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
                 {r.name ?? "Unnamed"}
               </TD>
               <TD className="text-[12px] text-fg-muted">{r.email ?? "Not provided"}</TD>
+              <TD className="text-[12px] text-fg-muted">{r.season ?? "No season"}</TD>
               <TD>
                 <Badge mono tone={statusTone(r.status)}>
                   {r.status.replace(/_/g, " ")}

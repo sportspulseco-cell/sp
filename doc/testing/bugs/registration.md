@@ -391,3 +391,17 @@ Runs: J3 full runs E2EMVK85UUY and E2EMVK8ZS8T (11/12 passed each; test 12 lists
     by the org admin is in the pool; org admin reject gives the seat back (3 -> 2) and voids the unpaid invoice.
     regfa/repro-oa-approve.mjs: approve 201 and the row reads APPROVED without a reload.
   Not verified: the org admin queue update in a browser on the new build (J4 step 7 after the next staging push).
+
+[REG-29] Review queues listed the oldest registrations first and cut the newest; rows did not name the season · major
+  Found: J4 on staging (26 Oct): the org admin's queue row had no season (finding "OA registrations row shows the
+    season"), and reading the queue API showed the order.
+  Actual: GET /registration-v2/admin/submissions ordered by created_at ascending and stopped at the limit (200 on the
+    org admin's page, 100 on the super admin's "All"). Staging has 48 rows, so nothing was cut yet; a PPHL season has
+    hundreds, and every new registration would have fallen past the end of the org admin's queue. The org admin page
+    says "Pending entries surface first", which the order did not do.
+  Fix: waiting decisions (pending review, pending offline) first, oldest first; then everything else, newest first.
+    Each row carries its season name; the org admin's queue has a Season column and the super admin's shows it under
+    the registrant.
+  Evidence: regfa/verify-queue-order.mjs on the local API against staging 5/5 (deployed old code 3/5: waiting rows not
+    first, rest not newest first, no season name).
+  Not verified: more than 200 registrations in one org (staging has 48); the queues have no paging yet.

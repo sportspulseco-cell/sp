@@ -40,6 +40,7 @@ interface Submission {
   submittedAt: string | null;
   reviewedAt: string | null;
   decisionReason: string | null;
+  seasonName: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -362,6 +363,7 @@ function Row({
       <TD className="font-medium">
         <p>{(meta.fullName as string) ?? "—"}</p>
         <p className="text-[11px] text-fg-muted">{meta.email as string}</p>
+        {row.seasonName ? <p className="text-[11px] text-fg-muted">{row.seasonName}</p> : null}
       </TD>
       <TD className="text-muted-foreground">
         <span className="font-mono text-[11px] uppercase">

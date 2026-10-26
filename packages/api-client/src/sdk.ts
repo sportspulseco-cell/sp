@@ -2396,6 +2396,8 @@ export function createApi(f: Fetcher) {
             submittedAt: string | null;
             reviewedAt: string | null;
             decisionReason: string | null;
+            seasonId: string | null;
+            seasonName: string | null;
             metadata: Record<string, unknown>;
           }>;
         }>(`/registration-v2/admin/submissions${qs(q)}`),

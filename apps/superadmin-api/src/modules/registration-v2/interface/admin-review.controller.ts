@@ -24,7 +24,7 @@ import {
   IsString,
   IsUUID
 } from "class-validator";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   REGISTRATION_STATES,
   assertValidTransition,
@@ -183,12 +183,24 @@ export class AdminReviewController {
     }
     const limit = Math.min(Math.max(Number(q.limit ?? 50) || 50, 1), 200);
 
-    const rows = await this.db
-      .select()
+    // Waiting decisions first, oldest first (first in, first reviewed);
+    // then everything else, newest first. Oldest-first across the board
+    // cut the list at the limit before the newest registrations, so a
+    // busy org's new submissions never showed.
+    const waiting = sql`${schema.registrations.status} in ('pending_review', 'pending_offline')`;
+    const joined = await this.db
+      .select({ r: schema.registrations, seasonName: schema.seasons.name })
       .from(schema.registrations)
+      .leftJoin(schema.seasons, eq(schema.seasons.id, schema.registrations.seasonId))
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(schema.registrations.createdAt)
+      .orderBy(
+        desc(waiting),
+        asc(sql`case when ${waiting} then ${schema.registrations.createdAt} end`),
+        desc(schema.registrations.createdAt)
+      )
       .limit(limit);
+    const seasonNameOf = new Map(joined.map((j) => [j.r.id, j.seasonName ?? null]));
+    const rows = joined.map((j) => j.r);
 
     // Free-text search runs in app code — small N from the limit above,
     // and the metadata columns aren't indexed.
@@ -210,6 +222,8 @@ export class AdminReviewController {
         submittedAt: r.submittedAt?.toISOString() ?? null,
         reviewedAt: r.reviewedAt?.toISOString() ?? null,
         decisionReason: r.decisionReason ?? null,
+        seasonId: r.seasonId ?? null,
+        seasonName: seasonNameOf.get(r.id) ?? null,
         metadata: r.metadata
       }))
     };

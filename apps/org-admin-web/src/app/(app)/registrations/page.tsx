@@ -66,6 +66,7 @@ export default async function RegistrationsPage() {
                   id: r.id,
                   name: m.fullName ?? null,
                   email: m.email ?? null,
+                  season: r.seasonName ?? null,
                   status: r.status,
                   submittedAt: r.submittedAt
                 };
