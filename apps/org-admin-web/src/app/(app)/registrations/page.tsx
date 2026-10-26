@@ -2,10 +2,9 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import { ScrollText } from "lucide-react";
-import { EmptyState, SectionRail } from "@sportspulse/ui";
+import { EmptyState, PageHeader, SectionRail } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
 import { compliance, loadMeScope, registrationV2Admin } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { RegistrationsTable } from "./registrations-table";
 import { FreeAgentPoolSection } from "./free-agent-pool-section";

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { EmptyState, LoadError } from "@sportspulse/ui";
+import { EmptyState, LoadError, PageHeader } from "@sportspulse/ui";
 import { iam, loadMeScope, orgAdminBroadcast } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { ComposeForm } from "./compose-form";
 

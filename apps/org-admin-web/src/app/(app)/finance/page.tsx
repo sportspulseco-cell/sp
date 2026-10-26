@@ -9,12 +9,10 @@ import {
   Receipt,
   Wallet
 } from "lucide-react";
-import { SectionRail, StatTile } from "@sportspulse/ui";
+import { LoadError, PageHeader, SectionRail, StatTile } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
 import { finance, loadMeScope, orgAdminFinance } from "@/lib/api/server-api";
 import { FinanceReports } from "./finance-reports";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceTable } from "./invoice-table";
 

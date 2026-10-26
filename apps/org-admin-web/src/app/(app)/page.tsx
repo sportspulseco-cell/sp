@@ -18,6 +18,7 @@ import {
   Badge,
   EmptyState,
   Eyebrow,
+  PageHeader,
   SectionRail,
   StatTile,
   TBody,
@@ -28,7 +29,6 @@ import {
   Table
 } from "@sportspulse/ui";
 import { adminTransfers, gameOps, leagueMgmt, loadMeScope, orgAdminFinance, orgs, registration, registrationV2Admin, roster } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { SeasonFlow } from "@sportspulse/admin-pages";
 

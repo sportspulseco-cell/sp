@@ -1,8 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { Building2 } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { leagueMgmt, loadMeScope, orgAdminPersons, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
 

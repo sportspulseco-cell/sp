@@ -1,11 +1,10 @@
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { SchedulingRinkNotifications } from "@sportspulse/admin-pages";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata = { title: "Rink notifications — Org Admin" };
 export const dynamic = "force-dynamic";
