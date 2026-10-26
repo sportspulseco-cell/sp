@@ -44,13 +44,16 @@ export default async function ComposePage() {
       () => empty
     )
   ]);
-  const divisionLists = await Promise.all(
-    seasonsPage.items.map((s) =>
-      fetchAll((cursor) =>
-        leagueMgmt.listDivisions({ seasonId: s.id, limit: 100, cursor })
-      ).catch(() => empty)
-    )
-  );
+  // One paged list (the API limits it to the caller's leagues), kept to
+  // this org's seasons; not one call per season (CONSOLE-22).
+  const orgSeasonIds = new Set(seasonsPage.items.map((s) => s.id));
+  const divisionLists = [
+    {
+      items: (
+        await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch(() => empty)
+      ).items.filter((d) => orgSeasonIds.has(d.seasonId))
+    }
+  ];
 
   const leagueName = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
   const seasonName = new Map(

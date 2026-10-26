@@ -1,4 +1,4 @@
-import { fetchAll, load } from "@sportspulse/api-client";
+import { fetchAll, load, mapLimit } from "@sportspulse/api-client";
 import { LoadError } from "@sportspulse/ui";
 import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
@@ -80,10 +80,11 @@ export default async function GameEventsPage({
     ])
   );
   // Label each game "Home vs Away" instead of printing its id.
-  const gameEntries = await Promise.all(
-    Array.from(new Set(page.items.map((e) => e.gameId))).map(
-      async (gid) => [gid, await gameOps.getGame(gid).catch(() => null)] as const
-    )
+  // Six at a time, not one request per game at once (CONSOLE-22).
+  const gameEntries = await mapLimit(
+    Array.from(new Set(page.items.map((e) => e.gameId))),
+    6,
+    async (gid) => [gid, await gameOps.getGame(gid).catch(() => null)] as const
   );
   const gameLabel = new Map(
     gameEntries.map(([gid, g]) => [

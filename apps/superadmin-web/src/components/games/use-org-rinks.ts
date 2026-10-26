@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { schedulingInventory } from "@/lib/api/browser-api";
+import { mapLimit } from "@sportspulse/api-client";
 
 /** One bookable rink: a surface of a venue, with the venue's time zone. */
 export interface RinkOption {
@@ -38,9 +39,8 @@ export function useOrgRinks(orgId: string | null | undefined): {
     (async () => {
       try {
         const venues = await schedulingInventory.listVenues({ orgId });
-        const details = await Promise.all(
-          venues.items.map((v) => schedulingInventory.getVenue(v.id))
-        );
+        // Six at a time, not one request per venue at once (CONSOLE-22).
+        const details = await mapLimit(venues.items, 6, (v) => schedulingInventory.getVenue(v.id));
         const opts: RinkOption[] = details
           .flatMap((d) =>
             d.surfaces.map((s) => ({

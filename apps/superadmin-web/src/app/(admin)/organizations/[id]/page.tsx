@@ -109,23 +109,21 @@ export default async function OrgDetailPage({
   const orgLeagues = leaguesPage.items.filter((l) => l.orgId === id);
   const leagueMap = new Map(orgLeagues.map((l) => [l.id, l.name]));
 
-  // Divisions live under seasons; fan out one fetch per season in this
-  // org so we can render the cross-season division roll-up.
-  const divisionsPerSeason = await Promise.all(
-    seasonsPage.items.map((s) =>
-      fetchAll((cursor) => leagueMgmt
-        .listDivisions({ seasonId: s.id, limit: 100, cursor }))
-        .catch(() => ({ items: [], nextCursor: null }))
-    )
-  );
-  const allDivisions = divisionsPerSeason.flatMap((page, idx) =>
-    page.items.map((d) => ({
-      ...d,
-      seasonName: seasonsPage.items[idx]!.name,
-      leagueName:
-        leagueMap.get(seasonsPage.items[idx]!.leagueId) ?? null
+  // One paged divisions list kept to this org's seasons, for the
+  // cross-season roll-up; not one call per season (CONSOLE-22).
+  const seasonById = new Map(seasonsPage.items.map((s) => [s.id, s]));
+  const allDivisions = (
+    await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch(() => ({
+      items: [],
+      nextCursor: null
     }))
-  );
+  ).items
+    .filter((d) => seasonById.has(d.seasonId))
+    .map((d) => ({
+      ...d,
+      seasonName: seasonById.get(d.seasonId)!.name,
+      leagueName: leagueMap.get(seasonById.get(d.seasonId)!.leagueId) ?? null
+    }));
 
   return (
     <div className="space-y-10">

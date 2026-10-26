@@ -307,3 +307,21 @@ Crawl totals (pages visited / pages with a problem):
     prefetches are still loading it can be dropped (the same pattern REG-28 found on the org admin's queue).
   Fix: the dialog refreshes the list again when it closes after an invite.
   Evidence: regfa/repro-invite-refresh.mjs 3/3 before the change; J2 in the next staging run.
+
+[CONSOLE-22] Pages that fetch one list per season or per org ran the database pooler out of connections · major
+  Found: list-filters on staging c043a5a (26 Oct), 2 of 5 runs: the org admin's /teams or /seasons page showed "We
+    couldn't load this page". Live API logs during a repeat (07:32 UTC) showed dozens of /api/league/divisions calls in
+    the same second and "PostgresError: (EMAXCONN) max client connections reached, limit: 200", then the next pages
+    failed.
+  Actual: the org admin's Divisions, Compose and New invoice pages and the super admin's org detail and New invoice
+    pages called listDivisions once per season, all at once (staging: 104 seasons in the org, 163 in total); the super
+    admin's New invoice page also listed people once per org (73 orgs). Each request could start its own API instance
+    with its own pool. CONSOLE-20 stopped idle instances holding connections; this was a burst.
+  Fix: those pages read divisions with one paged call (the API already limits it to the caller's leagues) and keep the
+    org's seasons; per-org people, the game labels on Game events and the venue details for rinks go six at a time
+    (api-client mapLimit).
+  Evidence: before the change the org admin's /divisions showed "Showing 147 of 147 divisions" (database: 147 in the
+    org). Typecheck of both admin apps.
+  Not verified: the change on staging (deploy cap: 96 of 100 deployments in 24 h at 07:45 UTC; next push after
+    11:56 UTC).
+

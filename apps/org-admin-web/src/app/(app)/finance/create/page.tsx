@@ -48,17 +48,15 @@ export default async function NewInvoicePage() {
       orgAdminPersons.list({ orgId: activeOrgId }).catch(() => [])
     ]);
 
-  // Divisions are filtered by seasonId; fan out across the org's
-  // seasons. Caps at 100 seasons since the listSeasons call already
-  // does — anything beyond that is a separate paging concern.
-  const divisionsLists = await Promise.all(
-    seasonsPage.items.map((s) =>
-      fetchAll((cursor) => leagueMgmt
-        .listDivisions({ seasonId: s.id, limit: 100, cursor }))
-        .catch(() => ({ items: [], nextCursor: null }))
-    )
-  );
-  const divisions = divisionsLists.flatMap((p) => p.items);
+  // One paged list (the API limits it to the caller's leagues), kept to
+  // this org's seasons; not one call per season (CONSOLE-22).
+  const orgSeasonIds = new Set(seasonsPage.items.map((s) => s.id));
+  const divisions = (
+    await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch(() => ({
+      items: [],
+      nextCursor: null
+    }))
+  ).items.filter((d) => orgSeasonIds.has(d.seasonId));
 
   return (
     <div className="space-y-6">

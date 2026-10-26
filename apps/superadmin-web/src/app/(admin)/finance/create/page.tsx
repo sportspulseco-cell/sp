@@ -1,4 +1,4 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, mapLimit } from "@sportspulse/api-client";
 import { finance, leagueMgmt, orgAdminPersons, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
@@ -28,21 +28,19 @@ export default async function NewInvoicePage() {
       .catch(() => ({ items: [], nextCursor: null }))
   ]);
 
-  // Divisions fan out across every season — capped by listSeasons's
-  // pagination. For sa this is the platform-wide set.
-  const divisionsLists = await Promise.all(
-    seasonsPage.items.map((s) =>
-      fetchAll((cursor) => leagueMgmt
-        .listDivisions({ seasonId: s.id, limit: 100, cursor }))
-        .catch(() => ({ items: [], nextCursor: null }))
-    )
-  );
+  // Every division in one paged list (platform-wide for super admin), not
+  // one call per season (CONSOLE-22).
+  const divisionsLists = [
+    await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch(() => ({
+      items: [],
+      nextCursor: null
+    }))
+  ];
   // Individual scope needs each org's people. Same endpoint org-admin-web
-  // uses; super_admin passes its scope check.
-  const personsLists = await Promise.all(
-    orgsPage.items.map((o) =>
-      orgAdminPersons.list({ orgId: o.id }).catch(() => [])
-    )
+  // uses; super_admin passes its scope check. Six at a time, not one
+  // request per org at once (CONSOLE-22).
+  const personsLists = await mapLimit(orgsPage.items, 6, (o) =>
+    orgAdminPersons.list({ orgId: o.id }).catch(() => [])
   );
   const persons = personsLists.flat().map((p) => ({
     id: p.id,

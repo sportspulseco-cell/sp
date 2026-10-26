@@ -21,3 +21,27 @@ export async function fetchAll<T>(
   } while (cursor && items.length < cap);
   return { items, nextCursor: null };
 }
+
+/**
+ * Map over items with at most `limit` calls in flight. A page that fired
+ * one request per org or per season all at once sent 70-160 requests in
+ * the same second; each could land on a fresh API instance with its own
+ * database pool, and together they ran the pooler out of connections
+ * (CONSOLE-22). Results keep the input order.
+ */
+export async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!, i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+  return out;
+}

@@ -36,7 +36,6 @@ export default async function DivisionsPage({
   const orgId = await getActiveOrgId(scope);
 
   let loadFailed = false;
-  // Divisions are filtered by seasonId; fan out across the org's seasons.
   const seasonsPage = orgId
     ? await fetchAll((cursor) => leagueMgmt.listSeasons({ orgId, limit: 100, cursor })).catch((e) => {
         console.error("[divisions] listSeasons failed", e);
@@ -45,17 +44,18 @@ export default async function DivisionsPage({
       })
     : { items: [] as Season[], nextCursor: null };
 
-  const divisionsLists = await Promise.all(
-    seasonsPage.items.map((s) =>
-      fetchAll((cursor) => leagueMgmt.listDivisions({ seasonId: s.id, limit: 100, cursor })).catch((e) => {
-        console.error(`[divisions] listDivisions season=${s.id} failed`, e);
+  // One paged list, which the API limits to the caller's leagues, kept to
+  // this org's seasons. One call per season sent ~100 requests at once on
+  // staging and ran the database pooler out of connections (CONSOLE-22).
+  const seasonMap = new Map(seasonsPage.items.map((s) => [s.id, s]));
+  const divisionsPage = seasonsPage.items.length
+    ? await fetchAll((cursor) => leagueMgmt.listDivisions({ limit: 100, cursor })).catch((e) => {
+        console.error("[divisions] listDivisions failed", e);
         loadFailed = true;
         return { items: [] as Division[], nextCursor: null };
       })
-    )
-  );
-  const all: Division[] = divisionsLists.flatMap((p) => p.items);
-  const seasonMap = new Map(seasonsPage.items.map((s) => [s.id, s]));
+    : { items: [] as Division[], nextCursor: null };
+  const all: Division[] = divisionsPage.items.filter((d) => seasonMap.has(d.seasonId));
 
   const q = sp.q?.trim().toLowerCase() ?? "";
   const shown = all.filter((d) => {
