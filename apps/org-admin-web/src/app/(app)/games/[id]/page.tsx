@@ -1,11 +1,10 @@
 import { load, type GameStatus } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Badge, LoadError } from "@sportspulse/ui";
+import { Badge, LoadError, PageHeader } from "@sportspulse/ui";
 import { formatInZone, GAME_ENDING_LABELS } from "@sportspulse/kernel";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata = { title: "Game — Org Admin" };
 export const dynamic = "force-dynamic";
