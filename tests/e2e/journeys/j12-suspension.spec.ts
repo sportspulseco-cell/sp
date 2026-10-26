@@ -278,7 +278,7 @@ test("5 super_admin /no-show-report and /eligibility season sweep", async () => 
   const selects = page.locator("main select");
   await selects.nth(0).selectOption({ label: SEASON_NAME });
   const opts = await selects.nth(1).locator("option").allInnerTexts();
-  const other = opts.find((o) => o !== SEASON_NAME && !/pick/.test(o));
+  const other = opts.find((o) => o !== SEASON_NAME && !/pick/i.test(o));
   if (other) {
     await selects.nth(1).selectOption({ label: other });
     await page.getByRole("button", { name: /Run report/i }).click();

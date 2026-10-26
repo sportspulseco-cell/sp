@@ -24,7 +24,7 @@ import { IS_STAGING, RUN_TAG, stagingSql, watchErrors } from "./_helpers";
  */
 
 const J3_STATE = `${OUTPUT_DIR}-state/registration-j03.json`;
-const SHOTS = `${OUTPUT_DIR}/j23`;
+const SHOTS = `${OUTPUT_DIR}/j25`;
 const PASSWORD = "E2e!Pass-2026x";
 const CODE = `J25${RUN_TAG.slice(-6)}`;
 
@@ -156,7 +156,9 @@ test.describe.serial("J25 · discount code at registration", () => {
     submissionId = reg!.id;
     const payBtn = page.getByRole("button", { name: /^Pay \$/ });
     await payBtn.click();
-    await expect(page.getByRole("button", { name: /^Pay \$/ })).toHaveCount(0, { timeout: 60_000 });
+    // The Pay button turns into a spinner while paying; wait for the funnel
+    // to leave the Payment step (as J4 does) before reading the invoice.
+    await expect(page.getByRole("heading", { name: "Payment", level: 1 })).toHaveCount(0, { timeout: 60_000 });
     await shot(page, "02-paid");
     const [inv] = await stagingSql<{ id: string; subtotal_cents: number; discount_cents: number; total_cents: number; paid_cents: number }>(
       "select id, subtotal_cents, discount_cents, total_cents, paid_cents from invoices where registration_id = $1",
