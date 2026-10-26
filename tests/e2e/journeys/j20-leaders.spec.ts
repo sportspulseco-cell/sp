@@ -60,6 +60,12 @@ test.describe("J20 season leaders", () => {
          join teams t on t.id = e.team_id
         where t.name = 'Staging Skaters' and e.left_at is null and e.entry_status in ('applied','accepted','confirmed')
         order by s.start_date desc limit 1`);
+    // The league admin looks at their own league (the team may play elsewhere).
+    const [la0] = await stagingSql<{ league_id: string }>(
+      `select a.scope_id league_id from user_role_assignments a join profiles pr on pr.id = a.user_id
+        where pr.email = $1 and a.scope_type = 'league' and a.revoked_at is null limit 1`,
+      [SMOKE_USERS.leagueAdmin]
+    );
     test.skip(!ctx, "Staging Skaters is not entered in a division");
     const [leader] = await stagingSql<{ name: string; pts: number }>(
       `select coalesce(p.preferred_name, p.legal_first_name || ' ' || p.legal_last_name) name, sum((sl.core->>'points')::int)::int pts
@@ -78,7 +84,7 @@ test.describe("J20 season leaders", () => {
     await expect(pl.page.getByRole("table", { name: /^Standings / }).or(pl.page.getByText("No finalized games yet.")).first(), "player sees team standings").toBeVisible();
     await pl.ctx.close();
 
-    const la = await open(browser, E2E_URLS.league, SMOKE_USERS.leagueAdmin, `/stats?tab=leaderboards&leagueId=${ctx!.league_id}`);
+    const la = await open(browser, E2E_URLS.league, SMOKE_USERS.leagueAdmin, `/stats?tab=leaderboards&leagueId=${la0?.league_id ?? ctx!.league_id}`);
     await expect(la.page.getByText(/finalized games only/).first(), "league admin sees the season's leaders").toBeVisible({ timeout: 30_000 });
     await expect(la.page.getByRole("heading", { name: /Points leaders/ }).first()).toBeVisible();
     await la.ctx.close();

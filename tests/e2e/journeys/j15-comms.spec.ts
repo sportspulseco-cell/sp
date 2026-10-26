@@ -90,7 +90,7 @@ test("1. org_admin finds Communications → Compose and sees the UC-19 fields", 
   log("OA /communications:", (await mainText(p)).slice(0, 500));
   await p.locator("a[href='/communications/compose']").first().click();
   await p.waitForURL(/\/communications\/compose/);
-  await expect(p.getByPlaceholder("Roster lock moves to Friday")).toBeVisible({ timeout: 30_000 });
+  await expect(p.getByPlaceholder("Roster lock moves to Friday", { exact: true })).toBeVisible({ timeout: 30_000 });
   const t = await mainText(p);
   log("compose form:", t.slice(0, 900));
   await shot(p, "01-compose");
@@ -121,13 +121,13 @@ test("2. org_admin sends an in-app announcement to Players + Captains", async ({
   const p = (await as(browser, "orgAdmin")).page;
   if (!/compose/.test(p.url())) {
     await p.goto(`${new URL(p.url()).origin}/communications/compose`);
-    await expect(p.getByPlaceholder("Roster lock moves to Friday")).toBeVisible({ timeout: 60_000 });
+    await expect(p.getByPlaceholder("Roster lock moves to Friday", { exact: true })).toBeVisible({ timeout: 60_000 });
   }
   const players = p.locator("label", { hasText: "Players" }).locator("input");
   if (!(await players.isChecked())) await players.check();
   const caps = p.locator("label", { hasText: "Captains" }).locator("input");
   if (!(await caps.isChecked())) await caps.check();
-  await p.getByPlaceholder("Roster lock moves to Friday").fill(SUBJECT);
+  await p.getByPlaceholder("Roster lock moves to Friday", { exact: true }).fill(SUBJECT);
   await p.locator("main textarea").first().fill(BODY);
   // In-app only: Email off, In-app on (both start on).
   const emailBtn = p.getByRole("button", { name: "Email" });
@@ -217,15 +217,21 @@ test("4. player notification settings toggle persists", async ({ browser }) => {
   const resp = await respP;
   log(`toggle ${label} ${was} →`, resp.status(), resp.url());
   expect(resp.status(), "preference PUT accepted").toBeLessThan(300);
-  // Durable record: the row the PUT wrote for this player.
-  const [, code, channel] = decodeURIComponent(new URL(resp.url()).pathname).match(/me\/preferences\/([^/]+)\/([^/]+)$/) ?? [];
-  const stored = await stagingSql<{ enabled: boolean }>(
-    `select np.enabled from notification_preferences np join profiles pr on pr.id = np.user_id
-      where pr.email = $1 and np.template_code = $2 and np.channel = $3`,
-    [PLAYER_EMAIL, code, channel]
-  );
-  log(`db preference ${code}/${channel}:`, JSON.stringify(stored));
-  expect.soft(stored[0]?.enabled, "preference row stored with the new value").toBe(was !== "true");
+  // Durable record: the rows the PUT wrote for this player. A topic switch
+  // writes one row per template code in the topic; the response lists them.
+  const put = (await resp.json()) as { channel: string; codes?: string[]; templateCode?: string };
+  const codes = put.codes ?? (put.templateCode ? [put.templateCode] : []);
+  const channel = put.channel;
+  expect(codes.length, "the PUT names the codes it wrote").toBeGreaterThan(0);
+  const readPrefs = () =>
+    stagingSql<{ template_code: string; enabled: boolean }>(
+      `select np.template_code, np.enabled from notification_preferences np join profiles pr on pr.id = np.user_id
+        where pr.email = $1 and np.template_code = any($2::text[]) and np.channel = $3`,
+      [PLAYER_EMAIL, codes, channel]
+    );
+  const stored = await readPrefs();
+  log(`db preference ${codes.join(",")}/${channel}:`, JSON.stringify(stored));
+  expect.soft(stored.length === codes.length && stored.every((r) => r.enabled === (was !== "true")), "preference rows stored with the new value").toBe(true);
   await p.reload();
   await expect(p.locator("button[aria-pressed]").first()).toBeVisible({ timeout: 30_000 });
   const now = await p.locator(`button[aria-label="${label}"]`).getAttribute("aria-pressed");
@@ -235,13 +241,9 @@ test("4. player notification settings toggle persists", async ({ browser }) => {
   const restoreP = putPref();
   await p.locator(`button[aria-label="${label}"]`).click();
   expect((await restoreP).status(), "preference restored").toBeLessThan(300);
-  const restored = await stagingSql<{ enabled: boolean }>(
-    `select np.enabled from notification_preferences np join profiles pr on pr.id = np.user_id
-      where pr.email = $1 and np.template_code = $2 and np.channel = $3`,
-    [PLAYER_EMAIL, code, channel]
-  );
-  log(`db preference ${code}/${channel} after restore:`, JSON.stringify(restored));
-  expect(restored[0]?.enabled, "preference row back to its original value").toBe(was === "true");
+  const restored = await readPrefs();
+  log(`db preference ${codes.join(",")}/${channel} after restore:`, JSON.stringify(restored));
+  expect(restored.every((r) => r.enabled === (was === "true")), "preference rows back to their original value").toBe(true);
 });
 
 test("5. super_admin @ /communications outbox shows the broadcast; templates page renders", async ({ browser }) => {
