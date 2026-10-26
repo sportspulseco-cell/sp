@@ -99,6 +99,19 @@ test.afterAll(async () => {
   );
   await sa?.context.close();
   await cap?.context.close();
+  // The run's throwaway season must not stay the captain's team's current
+  // season: withdraw Staging Skaters' entries in it (J20 and the captain
+  // and player consoles pick the newest season the team is entered in).
+  if (ids.seasonId) {
+    const left = await stagingSql<{ id: string }>(
+      `update division_team_entries e set left_at = now()
+         from divisions d
+        where d.id = e.division_id and d.season_id = $1 and e.team_id = $2 and e.left_at is null
+        returning e.id`,
+      [ids.seasonId, TEAM_ID]
+    );
+    console.log(`[J7] withdrew ${left.length} entries of the team from ${SEASON_NAME}`);
+  }
 });
 
 async function loadIds() {

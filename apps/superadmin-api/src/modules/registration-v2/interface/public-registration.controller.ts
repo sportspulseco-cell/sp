@@ -84,6 +84,7 @@ import {
   requestUserAgent,
   seasonRegistrationFormMatch
 } from "../application/registration-requirements.service";
+import { teamNameVerdict } from "../application/team-names";
 
 /** Statuses in which a funnel registration has not been submitted yet. */
 const PRE_SUBMISSION_STATES = new Set<string>([
@@ -714,6 +715,7 @@ export class PublicRegistrationController {
         );
       }
     }
+    await this.assertTeamNameFree(season.orgId, submissionType, body.teamName, userId);
 
     // Phase 1.3 — minor evaluation (kernel rule). The Account step
     // collects the DOB; an unknown DOB is treated as adult here and the
@@ -1895,6 +1897,25 @@ export class PublicRegistrationController {
     return { passed: flags.length === 0, flags };
   }
 
+  /**
+   * A team registration may not take a name another captain's team holds
+   * in this organization (refused here, before payment). The same
+   * captain's own team of that name is a returning team and passes.
+   */
+  private async assertTeamNameFree(
+    orgId: string,
+    submissionType: string,
+    teamName: string | null | undefined,
+    userId: string
+  ): Promise<void> {
+    if (submissionType !== "team" || !teamName?.trim()) return;
+    const verdict = await teamNameVerdict(this.db, orgId, teamName, userId);
+    if (verdict.kind === "taken") {
+      this.log.log(`refused team name "${teamName.trim()}" org=${orgId} user=${userId}`);
+      throw new ConflictException(verdict.message);
+    }
+  }
+
   @Patch("submissions/:id")
   @ApiOperation({
     summary:
@@ -1950,6 +1971,9 @@ export class PublicRegistrationController {
       dob = next;
       patch.dobDate = next;
       patch.isMinor = isMinorOn(next);
+    }
+    if (has("teamName") && row.submittedByUserId) {
+      await this.assertTeamNameFree(row.orgId, String(meta.submissionType ?? ""), body.teamName, row.submittedByUserId);
     }
     if (has("teamName") || has("teamColor")) {
       const existingTeam =
