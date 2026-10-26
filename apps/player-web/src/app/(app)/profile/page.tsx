@@ -1,7 +1,6 @@
 import { ShieldAlert } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { RoleProfileSection } from "./role-profile-section";
