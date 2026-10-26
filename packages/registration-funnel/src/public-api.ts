@@ -152,6 +152,11 @@ export interface PublicRegistrationApi {
     teamId: string | null;
     divisionId: string | null;
   }>;
+  /** FR-3.4.5: store the file for one file-upload question (base64, 3 MB max). */
+  uploadFormFile(
+    submissionId: string,
+    body: { email: string; questionKey: string; fileName: string; dataBase64: string }
+  ): Promise<{ value: string; fileName: string; contentType: string; sizeBytes: number }>;
   cancelSubmission(
     id: string,
     email: string
@@ -300,6 +305,11 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
       }),
     getSubmission: (id, email) =>
       f(`/public/registration/submissions/${id}${qs({ email })}`),
+    uploadFormFile: (id, body) =>
+      f(`/public/registration/submissions/${id}/files`, {
+        method: "POST",
+        body: JSON.stringify(body)
+      }),
     cancelSubmission: (id, email) =>
       f(`/public/registration/submissions/${id}/cancel`, {
         method: "POST",

@@ -791,6 +791,20 @@ export function RegistrationFunnel({
             onTeamColorChange={setTeamColor}
             onBack={back}
             onNext={submitDetails}
+            uploadFile={
+              submissionId
+                ? async (file, questionKey) => {
+                    const dataBase64 = await fileToBase64(file);
+                    const res = await api.uploadFormFile(submissionId, {
+                      email: email.trim(),
+                      questionKey,
+                      fileName: file.name,
+                      dataBase64
+                    });
+                    return res.value;
+                  }
+                : undefined
+            }
           />
         )}
 
@@ -840,6 +854,16 @@ export function RegistrationFunnel({
       </p>
     </div>
   );
+}
+
+/** Base64 of a chosen file (no data: prefix), for the JSON upload. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).replace(/^data:[^,]*,/, ""));
+    r.onerror = () => reject(new Error("Could not read the file. Choose it again."));
+    r.readAsDataURL(file);
+  });
 }
 
 function fmtDate(s: string, timeZone?: string) {
@@ -2043,9 +2067,12 @@ function QuestionsStep({
   onTeamDivisionChange,
   onTeamColorChange,
   onBack,
-  onNext
+  onNext,
+  uploadFile
 }: {
   definition: PublicSeasonContext["formDefinition"];
+  /** FR-3.4.5: stores a file answer privately on the registration; resolves with the answer value. */
+  uploadFile?: (file: File, questionKey: string) => Promise<string>;
   initialAnswers: AnswerMap;
   onChange: (next: AnswerMap) => void;
   submissionType: SubmissionType | null;
@@ -2222,6 +2249,8 @@ function QuestionsStep({
             definition={definition}
             initialAnswers={initialAnswers}
             onChange={onChange}
+            uploadFile={uploadFile}
+            uploadAccept="application/pdf,image/png,image/jpeg,image/webp"
           />
         </div>
       </section>

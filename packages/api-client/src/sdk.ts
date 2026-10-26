@@ -2425,10 +2425,17 @@ export function createApi(f: Fetcher) {
           status: string | null;
           error?: string;
           flagOverridden?: string;
+          /** Roster placement when the registration carries a team (FR-3.4.1). */
+          roster?: { status: string; reason?: string } | null;
         }>(`/registration-v2/admin/submissions/${id}/review`, {
           method: "POST",
           body: JSON.stringify(body)
         }),
+      /** FR-3.4.5: short-lived link to a file the registrant uploaded for a form question. */
+      fileLink: (id: string, questionKey: string) =>
+        f<{ url: string; fileName: string; contentType: string; expiresAt: string }>(
+          `/registration-v2/admin/submissions/${id}/files/${encodeURIComponent(questionKey)}`
+        ),
       bulkApprove: (ids: string[]) =>
         f<{
           matched: number;

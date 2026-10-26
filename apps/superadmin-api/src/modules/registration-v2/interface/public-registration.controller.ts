@@ -13,11 +13,12 @@ import {
   Post,
   Query,
   Req,
+  ServiceUnavailableException,
   UnauthorizedException,
   UnprocessableEntityException,
   UseGuards
 } from "@nestjs/common";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
@@ -41,6 +42,8 @@ import type { AuthPrincipal } from "@sportspulse/auth";
 import {
   assertValidTransition,
   canTransition,
+  checkComplianceUpload,
+  complianceFileExtension,
   guardianNameAcceptable,
   initialFunnelRegistrationState,
   isMinorOn,
@@ -2379,6 +2382,87 @@ export class PublicRegistrationController {
       currency,
       mock: true
     };
+  }
+
+  @Post("submissions/:id/files")
+  @ApiOperation({
+    summary:
+      "Upload the file for one file-upload question of the registration form (FR-3.4.5: ID / proof uploads). Base64 PDF/PNG/JPG/WebP, 3 MB max, type checked by its bytes; stored in the private compliance-documents bucket. Records metadata.files[questionKey] and the answer; admins open it through GET /registration-v2/admin/submissions/:id/files/:key. Only while the registration can still be edited."
+  })
+  async uploadFormFile(
+    @Param("id") id: string,
+    @Body() body: { email: string; questionKey: string; fileName?: string; dataBase64: string }
+  ) {
+    const row = await this.loadAndAuthorize(id, body?.email ?? "");
+    if (!EDITABLE_STATES.has(row.status)) throw alreadySubmitted(row);
+    const key = typeof body.questionKey === "string" ? body.questionKey.trim() : "";
+    if (!/^[A-Za-z0-9_.-]{1,80}$/.test(key)) throw new BadRequestException("questionKey is not a question of this form.");
+    // The question must be a file upload on the form version this registration is bound to.
+    const [version] = row.formVersionId
+      ? await this.db
+          .select({ schema: schema.registrationFormVersions.schema })
+          .from(schema.registrationFormVersions)
+          .where(eq(schema.registrationFormVersions.id, row.formVersionId))
+          .limit(1)
+      : [];
+    const questions = (((version?.schema as Record<string, unknown> | undefined)?.questions ?? []) as Array<{
+      key?: string;
+      type?: string;
+    }>);
+    if (!questions.some((q) => q.key === key && q.type === "file_upload")) {
+      throw new BadRequestException("This registration form has no file question with that key.");
+    }
+    const bytes = Buffer.from(typeof body.dataBase64 === "string" ? body.dataBase64 : "", "base64");
+    const checked = checkComplianceUpload(bytes);
+    if (!checked.ok) throw new BadRequestException(checked.reason);
+    const fileName = (typeof body.fileName === "string" && body.fileName.trim() ? body.fileName.trim() : `upload.${complianceFileExtension(checked.contentType)}`)
+      .replace(/[\\/\r\n]/g, "_")
+      .slice(0, 120);
+    let stored: { bucket: string; path: string };
+    try {
+      stored = await this.supabase.uploadComplianceDocument({
+        personId: row.subjectPersonId,
+        contentType: checked.contentType,
+        extension: complianceFileExtension(checked.contentType),
+        bytes
+      });
+    } catch (err) {
+      this.log.error(`registration file store failed registration=${id} key=${key}: ${(err as Error).message}`);
+      throw new ServiceUnavailableException(
+        "We could not store the file. This is a problem on our side, not your file. Try again in a few minutes."
+      );
+    }
+    const meta = (row.metadata as Record<string, unknown>) ?? {};
+    const previous = ((meta.files ?? {}) as Record<string, { bucket: string; path: string }>)[key];
+    const value = `registration-file:${fileName}`;
+    const entry = {
+      bucket: stored.bucket,
+      path: stored.path,
+      fileName,
+      contentType: checked.contentType,
+      sizeBytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      uploadedAt: new Date().toISOString()
+    };
+    const updated = await this.db
+      .update(schema.registrations)
+      .set({
+        metadata: sql`jsonb_set(jsonb_set(${schema.registrations.metadata}, '{files}', coalesce(${schema.registrations.metadata}->'files', '{}'::jsonb) || ${JSON.stringify({ [key]: entry })}::jsonb), '{answers}', coalesce(${schema.registrations.metadata}->'answers', '{}'::jsonb) || ${JSON.stringify({ [key]: value })}::jsonb)`,
+        updatedAt: new Date()
+      })
+      .where(and(eq(schema.registrations.id, id), eq(schema.registrations.status, row.status)))
+      .returning({ id: schema.registrations.id });
+    if (updated.length !== 1) {
+      await this.supabase.removeComplianceDocument(stored.bucket, stored.path).catch(() => {});
+      throw new ConflictException("This registration changed while the file was uploading. Reload the page and try again.");
+    }
+    if (previous?.path && previous.path !== stored.path) {
+      await this.supabase.removeComplianceDocument(previous.bucket, previous.path).catch((e) =>
+        this.log.warn(`old registration file not removed ${previous.path}: ${(e as Error).message}`)
+      );
+    }
+    this.log.log(`registration file stored registration=${id} key=${key} bytes=${bytes.length} type=${checked.contentType}`);
+    return { value, fileName, contentType: checked.contentType, sizeBytes: bytes.length };
   }
 
   @Post("submissions/:id/cancel")
