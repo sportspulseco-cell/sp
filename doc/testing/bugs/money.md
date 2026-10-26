@@ -415,7 +415,9 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
     with one payment; offline gives one sent invoice with no payment; two pay clicks at once give one invoice and one
     payment, both answers 201; four numbers distinct and increasing. regfa/verify-transfer-number.mjs 3/3: destination
     sub-invoice INV-2026-01107 under the destination team invoice. Cleanup verified (0 rows left).
-  Not verified: the funnel pay step in a browser on staging (runs in the next staging journey pass, j04).
+  Verified in a browser: J4 on staging (26 Oct) 26/26, plan payment rows read back.
+  Data correction (0058): registration invoices paid by card with no payment row get their card payment. Staging: 13.
+    Production: none; its one such invoice is a $0 registration, correctly without a payment.
 
 [MON-27] The installment job marked plans paid that nobody paid · blocker (money shown as received that was not)
   Found: designing registration payment plans (26 Oct). sp_installment_auto_charge (daily 06:00 UTC) charged every
@@ -436,7 +438,16 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
     one with consent) and left a due row without consent; 50 other due staging rows untouched; the player paying the
     last 50.00 by hand marked the last row paid and the next job run charged nothing; after a 70.00 cheque the job
     charged only the 30.00 still owed (not 50.00) and the invoice reached 150.00 paid. Drift check: no drift.
-  Not verified: production (0057 not applied there).
+  Production (26 Oct, owner's standing approval): 0057 applied with the runner; drift check clean; the job function
+    reads the consent flag (readback).
+  Data correction, migration 0058 (staging, then production): the payments the job made without consent are marked
+    failed with the reason (history kept), their unsent "installment paid" notices withdrawn, the invoices recomputed
+    from real payments and their plan rows set by the money. Production: 8 payments on 3 May invoices reversed;
+    INV-6F821832-MASTER-01 overdue 0 of 1,000.00, INV-B6BA582E-MASTER-01 partial 100.00 of 260.00 (its 50.00 wallet
+    refund stays), INV-B6BA582E-MASTER-02 overdue 0 of 260.00. So the correction itself sends no collection email
+    about May records, the final notice for those just reopened is recorded as not sent with the reason; they stay
+    overdue in Finance for an admin to remind or void. Staging: 44 payments on 34 invoices reversed; afterwards 0
+    unconsented charges and 0 touched invoices whose paid amount differs from their payments.
 
 [MON-28] The funnel's payment plan charged the full price; the discount box gave a discount it never charged · major
   Found: same walk. The funnel showed "Payment plan: $50 deposit today" and a "Pay $50" button, but the pay step
