@@ -344,6 +344,7 @@ export class GamesController {
       seasonId: body.seasonId,
       divisionId: body.divisionId,
       scheduleRunId: body.scheduleRunId,
+      gameType: body.gameType,
       userId: user.userId,
       authorization
     });

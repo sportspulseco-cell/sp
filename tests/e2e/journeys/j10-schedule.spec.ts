@@ -473,6 +473,7 @@ test.describe("J10 schedule generate and publish", () => {
     const hadBracket = !(await gen.isVisible({ timeout: 10_000 }).catch(() => false));
     if (!hadBracket) {
       await page.getByLabel("Division").selectOption(divisionId).catch(() => {});
+      await page.getByLabel("Teams in the bracket").fill("4");
       const r = await edgeCall(page, "scheduler-bracket-generate", () => gen.click());
       console.log(`[J10] bracket generate → ${r}`);
       expect(r, "bracket generated (2xx)").toMatch(/^http 2/);
@@ -483,7 +484,19 @@ test.describe("J10 schedule generate and publish", () => {
     console.log(`[J10] bracket row: ${JSON.stringify(br)} (existed before: ${hadBracket})`);
     expect(br?.id, "db: an active bracket for the division").toBeTruthy();
     expect(br?.n ?? 0, "db: the bracket's first-round games exist").toBeGreaterThan(0);
-    if (!hadBracket) await stagingSql(`update playoff_brackets set metadata = metadata || jsonb_build_object('j10', $2::text) where id = $1`, [br!.id, RUN_TAG]);
+    if (!hadBracket) {
+      await stagingSql(`update playoff_brackets set metadata = metadata || jsonb_build_object('j10', $2::text) where id = $1`, [br!.id, RUN_TAG]);
+      // FR-3.13.2: the bracket links its games and publishes them to team schedules.
+      await page.reload();
+      await expect(page.getByRole("link", { name: /^Open game/ }).first(), "bracket links to its games").toBeVisible({ timeout: 20_000 });
+      const pubResp = page.waitForResponse((x) => /\/api\/games\/publish-schedule$/.test(x.url()), { timeout: 60_000 });
+      await page.getByRole("button", { name: /^Publish \d+ playoff games?$/ }).first().click();
+      expect((await pubResp).status(), "playoff publish accepted").toBeLessThan(300);
+      await expect(page.getByText(/playoff games? published to team schedules/).first()).toBeVisible({ timeout: 20_000 });
+      const [{ n: draftsLeft }] = await stagingSql<{ n: number }>(
+        `select count(*)::int n from games where season_id = $1 and division_id = $2 and game_type = 'playoff' and published_at is null and status <> 'cancelled'`, [seasonId, divisionId]);
+      expect(draftsLeft, "db: bracket games published").toBe(0);
+    }
     console.log(`[J10] tab failures:\n  ${failures.join("\n  ")}`);
     expect.soft(failures, "SCH-1 scheduling tabs load").toEqual([]);
   });

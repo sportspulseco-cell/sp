@@ -387,6 +387,10 @@ export interface BracketSlotView {
   awayScore: number | null;
   seedA: number | null;
   seedB: number | null;
+  /** One side has no opponent: the team went through without a game. */
+  bye?: boolean;
+  /** The slot's game is on team schedules. */
+  published?: boolean;
   teamAId: string | null;
   teamBId: string | null;
   teamAName: string | null;
@@ -421,20 +425,24 @@ export interface GenerateBracketRequest {
   seasonId: string;
   divisionId: string;
   format?: "single_elim";
-  topN?: 4 | 8 | 16;
+  /** Teams in the bracket, 2 or more (top seeds get byes). */
+  teamCount?: number;
+  topN?: number;
 }
 
 export interface GenerateBracketResponse {
   bracketId: string;
   state: string;
   topN: number;
+  gamesCreated?: number;
   slots: BracketSlotView[];
 }
 
 export interface AdvanceBracketRequest {
   bracketId: string;
   gameId: string;
-  winnerTeamId: string;
+  /** Optional check: the server takes the winner from the final score. */
+  winnerTeamId?: string;
 }
 
 export interface AdvanceBracketResponse {

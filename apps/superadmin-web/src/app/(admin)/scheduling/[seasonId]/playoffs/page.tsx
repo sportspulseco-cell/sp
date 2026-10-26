@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
-import { SchedulingPlayoffBrackets } from "@sportspulse/admin-pages";
+import { PlayoffBrackets } from "@/components/scheduling/playoff-brackets";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -55,7 +55,7 @@ export default async function PlayoffsPage({
           </Link>
         }
       />
-      <SchedulingPlayoffBrackets
+      <PlayoffBrackets
         seasonId={season.id}
         divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
       />

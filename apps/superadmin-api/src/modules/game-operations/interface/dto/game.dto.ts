@@ -71,6 +71,9 @@ export class PublishScheduleBodyDto {
   @ApiProperty() @IsUUID() seasonId!: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() divisionId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() scheduleRunId?: string;
+  /** Only this kind of game, e.g. "playoff" from the bracket page. */
+  @ApiPropertyOptional({ enum: ["regular", "playoff", "exhibition"] })
+  @IsOptional() @IsIn(["regular", "playoff", "exhibition"]) gameType?: "regular" | "playoff" | "exhibition";
 }
 
 export class RescheduleGameBodyDto {

@@ -2028,7 +2028,7 @@ export function createApi(f: Fetcher) {
        * Publish a generated schedule (SCH-8): flips the scope's games to
        * published and sends each team's people one "schedule is out" notice.
        */
-      publishSchedule: (body: { seasonId: string; divisionId?: string; scheduleRunId?: string }) =>
+      publishSchedule: (body: { seasonId: string; divisionId?: string; scheduleRunId?: string; gameType?: "regular" | "playoff" | "exhibition" }) =>
         f<{
           seasonId: string;
           divisionId: string | null;
