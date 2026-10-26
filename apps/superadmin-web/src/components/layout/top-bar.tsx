@@ -1,13 +1,14 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LogOut, Menu, Search } from "lucide-react";
 import { useNav } from "./nav-context";
+import { BreadcrumbTrail } from "./breadcrumb-trail";
 import { LiveDot } from "@/components/motion/kinetic";
 
 /**
- * Editorial top bar — minimal mono breadcrumb on the left, account
+ * Editorial top bar — clickable breadcrumb trail on the left, account
  * cluster on the right. Matches the landing-site DNA: no heavy chrome,
  * the page hero does the visual work.
  */
@@ -19,7 +20,6 @@ export function TopBar({
   displayName: string | null;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { setOpen } = useNav();
 
   async function signOut() {
@@ -30,7 +30,6 @@ export function TopBar({
   }
 
   const initials = (displayName ?? email).slice(0, 2).toUpperCase();
-  const breadcrumb = pathToBreadcrumb(pathname);
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-bg/60 sm:px-6">
@@ -44,10 +43,9 @@ export function TopBar({
           <Menu className="h-4 w-4" strokeWidth={1.75} />
         </button>
 
-        {/* Mono breadcrumb — editorial location indicator */}
-        <div className="hidden min-w-0 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-fg-muted sm:flex">
-          <span className="text-fg-subtle">//</span>
-          <span className="truncate text-fg">{breadcrumb}</span>
+        {/* Clickable trail (FR-3.12.2): names from the sidebar and the record. */}
+        <div className="hidden min-w-0 sm:flex">
+          <BreadcrumbTrail />
         </div>
 
         {/* Search — minimal inline, no boxed surface */}
@@ -107,19 +105,4 @@ export function TopBar({
       </div>
     </header>
   );
-}
-
-/**
- * Render the current path as a breadcrumb string with `·` separators.
- * "/forms/abc-123/setup" → "forms · setup".
- * Drops UUID-shaped segments: an id fragment means nothing to people,
- * and the page header already names the record.
- */
-function pathToBreadcrumb(pathname: string): string {
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length === 0) return "platform";
-  return parts
-    .filter((p) => !/^[0-9a-f-]{16,}$/i.test(p))
-    .map((p) => p.replace(/-/g, " "))
-    .join(" · ");
 }
