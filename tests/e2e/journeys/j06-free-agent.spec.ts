@@ -91,6 +91,14 @@ test.afterAll(async () => {
   writeFileSync(`${OUT}/errors.json`, JSON.stringify({ captain: cap?.errors, freeAgent: fa?.errors, poolSeason }, null, 2));
   await cap?.context.close();
   await fa?.context.close();
+  // Release this run's players from every roster they joined, so runs do
+  // not fill the staging team to its cap (20/20 on 26 Oct broke J6.5/J8.2).
+  await stagingSql(
+    `update team_memberships set current_status = 'released', effective_to = now(), updated_at = now()
+      where current_status = 'active'
+        and person_id in (select p.id from persons p join profiles pr on pr.id = p.user_id where pr.email = any($1::text[]))`,
+    [[FA_EMAIL, SIGNUP_EMAIL]]
+  ).catch((e) => console.log("[cleanup] release failed", String(e).slice(0, 160)));
 });
 
 test("J6.0 a brand-new visitor signs up on player-web and looks for the free-agent form", async ({ browser }) => {

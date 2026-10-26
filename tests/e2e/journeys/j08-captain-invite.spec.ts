@@ -104,6 +104,14 @@ test.afterAll(async () => {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(`${OUT}/errors.json`, JSON.stringify({ captain: cap?.errors, genericToken }, null, 2));
   await cap?.context.close();
+  // Release this run's players from every roster they joined, so runs do
+  // not fill the staging team to its cap (20/20 on 26 Oct broke J6.5/J8.2).
+  await stagingSql(
+    `update team_memberships set current_status = 'released', effective_to = now(), updated_at = now()
+      where current_status = 'active'
+        and person_id in (select p.id from persons p join profiles pr on pr.id = p.user_id where pr.email = any($1::text[]))`,
+    [[PLAIN_EMAIL, INVITEE_EMAIL]]
+  ).catch((e) => console.log("[cleanup] release failed", String(e).slice(0, 160)));
 });
 
 test("J8.0 fixture: plain player gets the player role from super_admin and onboards on player-web", async ({ browser }) => {

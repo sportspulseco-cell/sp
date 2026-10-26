@@ -356,6 +356,7 @@ FIXED_IN_CODE = {
     "REG-18": "commits 25e4898 + c86c90b (+ bda4634, 88f4fa7): prices offered only to their divisions, checked at the price step and at payment; one waiver editor; local API 10/10, browser 6/6 + 5/5",
     "MON-15": "commit 8663a4a + migration 0056: generate store from roster, cart, order with name/number, invoice paid on Payments (mock), captain fulfilment; local API 21/21, browser 13/13",
     "MON-25": "commit a9c2fd2: invoice numbers from one helper under a per-org lock (bulk composer failed once any invoice was deleted); 3/3 with the gap, MON-23 walk 17/17",
+    "CONSOLE-18": "commit dcc29cc: calendar dates as written (kernel formatCalendarDate), moments via LocalDate; 0 hydration mismatches on 19 admin pages in dev (5 had one)",
     "SETUP-18": "commit e49ba5c: league API returns metadata so Edit league opens with saved values; API PATCH readback",
     "SCH-27": "commit fdae576: bracket refusal says team count, size needed and next step; browser 3/3",
     "CONSOLE-16": "commit 5ed4be7: 28 locale-less format calls pin en-US; no #418 in en-US or en-IN across 4 apps (browser 32/32)",
@@ -367,6 +368,12 @@ FIXED_IN_CODE = {
 ACCEPTED = {
     "MON-10": "Founder decision 25 Oct 2026: keep the mock processor so PPHL can test without cards; the pay dialog says no card is charged",
     "REG-3": "Founder decision 25 Oct 2026: mock payments while PPHL tests (see MON-10)",
+}
+
+# Requirements the May-2026 sheet marks not started that have since been
+# built and verified on staging (evidence in the bug log).
+BUILT_SINCE = {
+    "FR-3.7.1": "MON-15 commit 8663a4a: captain generates jersey, hoodie and cap from the roster at their prices; players order with roster name and number; staging browser 13/13 (1e6290e). Shopify sync (FR-3.7.2) not built",
 }
 
 # Logged, then shown to be an artifact of the local test stack rather than
@@ -584,6 +591,8 @@ def compute_status(fr_id, tier, module_id, crawls, logs, claimed):
     broken_prod = [(a, r) for a, r, cell in routes if bad_in(cell, {LATEST_PROD["env"]} if LATEST_PROD["env"] else set(), ("404", "error"))]
     loads = [(a, r) for a, r, cell in routes if bad_in(cell, {latest}, ("could-not-load", "api-fail"))]
     seen_routes = [(a, r) for a, r, cell in routes if cell]
+    if fr_id in BUILT_SINCE:
+        return "Fixed on staging, pending production", BUILT_SINCE[fr_id]
     if tier == "later" and claimed in ("Not Started", "In Progress"):
         return "Not built", "Deferred to a later release; no screen claimed."
     if broken:
