@@ -48,11 +48,13 @@ import {
   isRegistrationState,
   isRegistrationSubmissionType,
   parentalConsentText,
+  planInstallments,
   PARENTAL_CONSENT_TITLE,
   REGISTRATION_ACCEPTING_SEASON_STATUSES,
   REGISTRATION_STATE_LABELS,
   submissionTypeRefusal,
   tierOffersDivision,
+  tierOffersPlan,
   tiersForDivision,
   type RegistrationDocumentKey,
   type RegistrationState,
@@ -65,7 +67,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { RegistrationV2Service } from "../application/registration-v2.service";
-import { loadSeasonTiers } from "../application/season-tiers";
+import { loadSeasonTiers, type SeasonTier } from "../application/season-tiers";
 import { reserveInvoiceNumbers } from "../../finance/application/services/invoice-number";
 import { PAYMENT_PROCESSOR, PaymentProcessor } from "../../../shared/payments/payment-processor";
 import {
@@ -1882,6 +1884,8 @@ export class PublicRegistrationController {
     body: {
       email: string;
       mockOutcome?: "succeeded" | "failed" | "offline";
+      /** "plan": deposit today, the rest in installments (UC-15). */
+      paymentOption?: "full" | "plan";
     }
   ) {
     try {
@@ -1901,6 +1905,8 @@ export class PublicRegistrationController {
     body: {
       email: string;
       mockOutcome?: "succeeded" | "failed" | "offline";
+      /** "plan": deposit today, the rest in installments (UC-15). */
+      paymentOption?: "full" | "plan";
     }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
@@ -1942,6 +1948,7 @@ export class PublicRegistrationController {
     let amountCents = 0;
     let currency = "USD";
     let tierName = "Registration fee";
+    let pickedTier: SeasonTier | null = null;
     const seasonTiers = row.seasonId ? await loadSeasonTiers(this.db, row.seasonId) : [];
     const offeredTiers = tiersForDivision(seasonTiers, row.divisionId ?? null);
     const tierId = (meta.pricingTierId as string | null | undefined) ?? null;
@@ -1957,6 +1964,7 @@ export class PublicRegistrationController {
       amountCents = tier.fullPriceCents;
       currency = tier.currency;
       tierName = tier.name;
+      pickedTier = tier;
     } else if (offeredTiers.length > 0) {
       this.log.log(`refused pay: registration=${row.id} no tier picked, ${offeredTiers.length} offered`);
       throw new ConflictException({ error: "tier_required", message: "Pick a price before paying." });
@@ -2049,14 +2057,43 @@ export class PublicRegistrationController {
     // the whole transaction back and leaves the registration in
     // pending_payment.
     assertValidTransition(row.status, "pending_review");
+    // A payment plan charges the deposit today and schedules the rest
+    // (UC-15); the daily installment job charges each one when it falls
+    // due. Before this the funnel said "Pay $50 deposit" and the server
+    // charged the full price.
+    const plan =
+      body.paymentOption === "plan" && pickedTier && tierOffersPlan(pickedTier)
+        ? planInstallments(amountCents, pickedTier.depositCents, pickedTier.installmentCount, pickedTier.installmentIntervalDays)
+        : null;
+    if (body.paymentOption === "plan" && !plan) {
+      this.log.log(`refused pay: registration=${row.id} plan asked, tier=${tierId} has none`);
+      throw new ConflictException({
+        error: "plan_not_offered",
+        message: "This price has no payment plan. Choose full payment."
+      });
+    }
     let invoiceId: string;
     try {
       invoiceId = await this.db.transaction(async (tx) => {
         const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
+        const existing = await findInvoice(tx);
         const invoice =
-          (await findInvoice(tx)) ??
-          (await createInvoice(tx, invoiceNumber!, { mockStripe: true, tierId }));
-        const due = invoice.totalCents - invoice.paidCents;
+          existing ??
+          (await createInvoice(tx, invoiceNumber!, { mockStripe: true, tierId, ...(plan ? { paymentPlan: true } : {}) }));
+        // A second click finds the first click's invoice. If it is on a
+        // plan, the deposit is paid and the job owns the rest; otherwise
+        // whatever is still owed (an offline invoice paid by card) is due.
+        const scheduled = existing
+          ? (await tx
+              .select({ id: schema.installmentSchedules.id })
+              .from(schema.installmentSchedules)
+              .where(eq(schema.installmentSchedules.invoiceId, existing.id))
+              .limit(1)).length > 0
+          : false;
+        const due = existing
+          ? scheduled ? 0 : invoice.totalCents - invoice.paidCents
+          : plan ? plan[0]!.amountCents : invoice.totalCents;
+        let intentId: string | null = null;
         if (due > 0) {
           const charge = await this.processor.charge({
             amountCents: due,
@@ -2067,6 +2104,7 @@ export class PublicRegistrationController {
           if (charge.status !== "succeeded") {
             throw new CardDeclined(charge.failureMessage ?? "Your card was declined. Update your card and try again.");
           }
+          intentId = charge.intentId;
           await tx.insert(schema.payments).values({
             orgId: row.orgId,
             invoiceId: invoice.id,
@@ -2078,9 +2116,25 @@ export class PublicRegistrationController {
             metadata: { source: "card", registrationId: submissionId }
           });
         }
+        if (plan && !existing) {
+          const now = Date.now();
+          await tx.insert(schema.installmentSchedules).values(
+            plan
+              .filter((p) => p.installmentNumber > 0 || p.amountCents > 0)
+              .map((p) =>
+                // The player chose this plan with a card, so the daily job
+                // charges each installment when due (autoCharge, 0057).
+                p.installmentNumber === 0
+                  ? { invoiceId: invoice.id, installmentNumber: 0, dueDate: new Date(now), amountCents: p.amountCents, status: "succeeded", chargedAt: new Date(now), paidAt: new Date(now), stripePaymentIntentId: intentId, metadata: { source: "registration_plan" } }
+                  : { invoiceId: invoice.id, installmentNumber: p.installmentNumber, dueDate: new Date(now + p.dueInDays * 86400000), amountCents: p.amountCents, status: "scheduled", metadata: { source: "registration_plan", autoCharge: true } }
+              )
+          );
+        }
+        const paidCents = invoice.paidCents + due;
+        const settled = paidCents >= invoice.totalCents;
         await tx
           .update(schema.invoices)
-          .set({ paidCents: invoice.totalCents, status: "paid", paidAt: new Date(), updatedAt: new Date() })
+          .set({ paidCents, status: settled ? "paid" : "partial", paidAt: settled ? new Date() : null, updatedAt: new Date() })
           .where(eq(schema.invoices.id, invoice.id));
         await tx
           .update(schema.registrations)
@@ -2092,6 +2146,8 @@ export class PublicRegistrationController {
                 outcome: "succeeded",
                 paidAt: new Date().toISOString(),
                 amountCents,
+                paidTodayCents: due,
+                option: plan ? "plan" : "full",
                 currency,
                 invoiceId: invoice.id,
                 mockStripe: true
@@ -2123,7 +2179,7 @@ export class PublicRegistrationController {
         declineReason: e.message
       };
     }
-    this.log.log(`pay card: registration=${submissionId} invoice=${invoiceId} amount=${amountCents}`);
+    this.log.log(`pay card: registration=${submissionId} invoice=${invoiceId} amount=${amountCents} plan=${plan ? plan.length - 1 : 0}`);
     return {
       id: submissionId,
       status: "pending_review" as const,

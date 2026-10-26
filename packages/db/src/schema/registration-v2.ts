@@ -169,6 +169,10 @@ export const installmentSchedules = pgTable(
     lastErrorMessage: text("last_error_message"),
     attemptCount: integer("attempt_count").notNull().default(0),
     chargedAt: timestamp("charged_at", { withTimezone: true }),
+    /** When it was paid, by the card job or by the payer (0029 added the column). */
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** autoCharge: true = the payer chose this plan with a card at checkout,
+     *  so the daily job charges it when due (0057). */
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

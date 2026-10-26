@@ -21,6 +21,7 @@ import type {
 } from "../../domain/repositories/finance.repository";
 import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
 import { reserveInvoiceNumbers } from "../../application/services/invoice-number";
+import { settleInstallments } from "../../application/services/installments";
 
 @Injectable()
 export class DrizzleFinanceRepository implements FinanceRepository {
@@ -315,6 +316,7 @@ export class DrizzleFinanceRepository implements FinanceRepository {
         updatedAt: sql`NOW()`
       })
       .where(eq(schema.invoices.id, id));
+    await settleInstallments(this.db, id);
 
     const found = await this.findInvoice(id);
     if (!found) throw new Error("invoice not found");

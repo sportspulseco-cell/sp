@@ -11,6 +11,8 @@ import {
   SKILL_LEVEL_LABELS,
   SKILL_LEVELS,
   tiersForDivision,
+  tierOffersPlan,
+  planInstallments,
   formatMoney
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
@@ -527,14 +529,15 @@ export function RegistrationFunnel({
     next();
   }
 
-  async function pay(outcome: "succeeded" | "failed" | "offline") {
+  async function pay(outcome: "succeeded" | "offline", paymentOption?: "full" | "plan") {
     if (!submissionId) return;
     setSubmitting(true);
     setError(null);
     try {
       const res = await api.pay(submissionId, {
         email,
-        mockOutcome: outcome
+        mockOutcome: outcome,
+        ...(paymentOption ? { paymentOption } : {})
       });
       setSubmissionStatus(res.status);
       if (res.status === "pending_review" || res.status === "pending_offline") {
@@ -762,8 +765,7 @@ export function RegistrationFunnel({
             tier={tiers.find((t) => t.id === pricingTierId) ?? null}
             submitting={submitting}
             error={error}
-            onPay={() => pay("succeeded")}
-            onSimulateDecline={() => pay("failed")}
+            onPay={(paymentOption) => pay("succeeded", paymentOption)}
             onPayOffline={() => pay("offline")}
             onBack={back}
           />
@@ -1918,7 +1920,7 @@ function TierStep({
                   </p>
                 )}
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {t.paymentPlanEnabled && (
+                  {tierOffersPlan(t) && (
                     <Chip>Payment plan · {t.installmentCount}x</Chip>
                   )}
                   {t.isReturningTeamPricing && <Chip>Returning teams</Chip>}
@@ -2452,12 +2454,11 @@ function ReviewStep({
 }
 
 /**
- * Phase 4 (Payment). Three-card mockup layout:
- *   1. Your invoice — line items (registration fee + optional discount)
- *      + Total due + discount-code input.
- *   2. Choose a payment option — Full / Payment plan / Offline. The
- *      payment plan card paints the deposit + N installments timeline
- *      when the tier has paymentPlanEnabled.
+ * Phase 4 (Payment). Three cards:
+ *   1. Your invoice: the price and the total due.
+ *   2. Choose a payment option: Full / Payment plan / Offline. The plan
+ *      card lists the deposit and each installment from the kernel plan
+ *      rule, the same amounts the server schedules (UC-15).
  *   3. Card details — Stripe-style card / expiry / CVC inputs. Real
  *      tokenisation is a separate ticket; the inputs are presentational
  *      until the Stripe Elements integration ships.
@@ -2469,58 +2470,40 @@ function PaymentStep({
   submitting,
   error,
   onPay,
-  onSimulateDecline,
   onPayOffline,
   onBack
 }: {
   tier: PricingTier | null;
   submitting: boolean;
   error: string | null;
-  onPay: () => void;
-  onSimulateDecline: () => void;
+  onPay: (paymentOption: "full" | "plan") => void;
   onPayOffline: () => void;
   onBack: () => void;
 }) {
-  const [option, setOption] = useState<"full" | "plan" | "offline">(
-    tier?.paymentPlanEnabled ? "plan" : "full"
-  );
-  const [discountCode, setDiscountCode] = useState("");
-  const [appliedDiscountPct, setAppliedDiscountPct] = useState(0);
+  // Full payment is selected first; a plan is the player's choice.
+  const [option, setOption] = useState<"full" | "plan" | "offline">("full");
 
   const free = !tier || tier.isFree || tier.fullPriceCents === 0;
   const currency = tier?.currency ?? "USD";
   const fullPriceCents = tier?.fullPriceCents ?? 0;
-  const discountCents = Math.round(fullPriceCents * (appliedDiscountPct / 100));
-  const totalCents = fullPriceCents - discountCents;
-  const depositCents = tier?.depositCents ?? 0;
-  const installmentCount = tier?.installmentCount ?? 0;
-  const installmentAmountCents =
-    installmentCount > 0
-      ? Math.round((totalCents - depositCents) / installmentCount)
-      : 0;
+  const totalCents = fullPriceCents;
   const intervalDays = tier?.installmentIntervalDays ?? 30;
+  const plan =
+    tier && tierOffersPlan(tier)
+      ? planInstallments(totalCents, tier.depositCents, tier.installmentCount, intervalDays)
+      : null;
+  const depositCents = plan?.[0]?.amountCents ?? 0;
+  const installments = plan?.slice(1) ?? [];
 
   const fmt = (cents: number) => formatMoney(cents, currency);
-
-  function applyDiscount() {
-    // Visual stub — real coupon resolution lands when the discount-code
-    // table ships. For now treat any non-empty code as 10% off so the
-    // UI demonstrates the line-item math.
-    if (discountCode.trim().length === 0) {
-      setAppliedDiscountPct(0);
-    } else {
-      setAppliedDiscountPct(10);
-    }
-  }
 
   // What actually fires on the primary CTA — pick handler by option.
   function handlePay() {
     if (option === "offline") onPayOffline();
-    else onPay();
+    else onPay(option === "plan" && plan ? "plan" : "full");
   }
 
-  const ctaAmount =
-    option === "plan" && depositCents > 0 ? depositCents : totalCents;
+  const ctaAmount = option === "plan" && plan ? depositCents : totalCents;
 
   return (
     <div className="space-y-5">
@@ -2539,16 +2522,6 @@ function PaymentStep({
                 {fmt(fullPriceCents)}
               </td>
             </tr>
-            {appliedDiscountPct > 0 ? (
-              <tr>
-                <td className="py-2 pr-3 text-[13px] text-fg-muted">
-                  Discount code {discountCode.toUpperCase()} ({appliedDiscountPct}%)
-                </td>
-                <td className="py-2 text-right font-mono text-[13px] tabular-nums text-emerald-700 dark:text-emerald-400">
-                  -{fmt(discountCents)}
-                </td>
-              </tr>
-            ) : null}
             <tr className="border-t-2 border-border">
               <td className="py-2 pr-3 text-[13px] font-medium text-fg">
                 Total due
@@ -2560,20 +2533,6 @@ function PaymentStep({
           </tbody>
         </table>
 
-        <div className="mt-4">
-          <Field label="Discount code">
-            <div className="flex gap-2">
-              <Input
-                value={discountCode}
-                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                placeholder="EARLYBIRD10"
-              />
-              <Button type="button" variant="secondary" onClick={applyDiscount}>
-                Apply
-              </Button>
-            </div>
-          </Field>
-        </div>
       </section>
 
       {/* Card 2 — Payment options */}
@@ -2588,12 +2547,12 @@ function PaymentStep({
             title={`Full payment — ${fmt(totalCents)} today`}
             body="Single charge. No further payments."
           />
-          {tier?.paymentPlanEnabled ? (
+          {plan ? (
             <PaymentOption
               active={option === "plan"}
               onSelect={() => setOption("plan")}
               title={`Payment plan — ${fmt(depositCents)} deposit today`}
-              body={`then ${installmentCount} installment${installmentCount === 1 ? "" : "s"} of ${fmt(installmentAmountCents)} every ${intervalDays} days`}
+              body={`then ${installments.length} installment${installments.length === 1 ? "" : "s"}, one every ${intervalDays} days`}
               extra={
                 <ul className="mt-3 space-y-1.5 text-[12px]">
                   <li className="flex items-center gap-2">
@@ -2602,11 +2561,11 @@ function PaymentStep({
                       Today (deposit) — {fmt(depositCents)}
                     </span>
                   </li>
-                  {Array.from({ length: installmentCount }).map((_, i) => (
-                    <li key={i} className="flex items-center gap-2">
+                  {installments.map((p) => (
+                    <li key={p.installmentNumber} className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-blue-500" />
                       <span className="text-fg-muted">
-                        Installment {i + 1} — {fmt(installmentAmountCents)}
+                        Installment {p.installmentNumber} — {fmt(p.amountCents)}, in {p.dueInDays} days
                       </span>
                     </li>
                   ))}
@@ -2673,15 +2632,6 @@ function PaymentStep({
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onSimulateDecline}
-            disabled={submitting}
-            className="rounded-md border border-border bg-bg-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg disabled:opacity-50"
-            title="Dev affordance — simulate Stripe declining the charge so the state machine moves to pending_payment."
-          >
-            Simulate decline
-          </button>
           <Button onClick={handlePay} disabled={submitting}>
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -2689,7 +2639,9 @@ function PaymentStep({
               <>
                 {option === "offline"
                   ? "Submit for offline payment"
-                  : `Pay ${fmt(ctaAmount)}`}
+                  : ctaAmount > 0
+                    ? `Pay ${fmt(ctaAmount)}`
+                    : "Start payment plan"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}

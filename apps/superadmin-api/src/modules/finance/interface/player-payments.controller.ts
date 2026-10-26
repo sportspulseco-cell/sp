@@ -24,6 +24,7 @@ import {
   type PaymentProcessor
 } from "../../../shared/payments/payment-processor";
 import { NotificationService } from "../../communications/application/notification.service";
+import { settleInstallments } from "../application/services/installments";
 
 function fmtMoneyCents(cents: number, currency: string): string {
   const amount = (cents / 100).toFixed(2);
@@ -367,6 +368,8 @@ export class PlayerPaymentsController {
           updatedAt: new Date()
         })
         .where(eq(schema.invoices.id, invoiceId));
+      // The plan follows the money (MON-27).
+      await settleInstallments(tx, invoiceId);
 
       return {
         invoiceId,

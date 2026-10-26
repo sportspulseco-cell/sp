@@ -38,3 +38,67 @@ export function teamTierForDivision<T extends TierForDivision>(tiers: readonly T
   const active = tiers.filter((t) => t.isActive);
   return active.find((t) => t.divisionIds.includes(divisionId)) ?? active.find((t) => t.divisionIds.length === 0) ?? null;
 }
+
+/** One charge in a payment plan. Number 0 is the deposit, due today. */
+export interface PlanInstallment {
+  installmentNumber: number;
+  amountCents: number;
+  dueInDays: number;
+}
+
+/**
+ * A payment plan for one invoice: the deposit today, then the rest in
+ * equal installments at the interval, the last one taking the rounding
+ * so the plan adds up to the total exactly. The funnel shows these
+ * amounts; the registration pay step and captain team registration write
+ * them to installment_schedules; the daily installment job charges each
+ * one when it falls due. With no installments the whole total is due
+ * today. Every amount is zero or more.
+ */
+export function planInstallments(
+  totalCents: number,
+  depositCents: number,
+  installmentCount: number,
+  intervalDays: number
+): PlanInstallment[] {
+  const total = Math.max(0, Math.round(totalCents));
+  const count = Math.max(0, Math.floor(installmentCount));
+  if (count === 0) return [{ installmentNumber: 0, amountCents: total, dueInDays: 0 }];
+  const deposit = Math.min(total, Math.max(0, Math.round(depositCents)));
+  const rest = total - deposit;
+  const each = Math.floor(rest / count);
+  const plan: PlanInstallment[] = [{ installmentNumber: 0, amountCents: deposit, dueInDays: 0 }];
+  for (let n = 1; n <= count; n++) {
+    plan.push({ installmentNumber: n, amountCents: n === count ? rest - each * (count - 1) : each, dueInDays: intervalDays * n });
+  }
+  return plan;
+}
+
+/** Whether a tier offers a payment plan the pay step can honour. */
+export function tierOffersPlan(tier: { paymentPlanEnabled: boolean; installmentCount: number; fullPriceCents: number }): boolean {
+  return tier.paymentPlanEnabled && tier.installmentCount > 0 && tier.fullPriceCents > 0;
+}
+
+export interface PlanRow {
+  installmentNumber: number;
+  amountCents: number;
+  status: string;
+}
+
+/**
+ * The open installments an invoice's paid amount now covers, earliest
+ * first. Paid installments count against the paid amount; cancelled ones
+ * are skipped. After a payer pays by hand, these are marked paid, so the
+ * plan on screen matches the money and the card job never charges them.
+ */
+export function coveredInstallments<T extends PlanRow>(rows: readonly T[], paidCents: number): T[] {
+  let left = paidCents;
+  const covered: T[] = [];
+  for (const r of [...rows].sort((a, b) => a.installmentNumber - b.installmentNumber)) {
+    if (r.status === "cancelled") continue;
+    if (left < r.amountCents) break;
+    left -= r.amountCents;
+    if (r.status !== "succeeded") covered.push(r);
+  }
+  return covered;
+}

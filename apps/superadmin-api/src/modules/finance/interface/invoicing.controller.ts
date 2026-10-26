@@ -46,6 +46,7 @@ import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { InvoicingService } from "../application/services/invoicing.service";
 import { RefundService } from "../application/services/refund.service";
 import { BulkCreateInvoiceBodyDto } from "./dto/bulk-invoice.dto";
+import { settleInstallments } from "../application/services/installments";
 
 // =====================================================================
 // DTOs
@@ -419,6 +420,7 @@ export class FinanceInvoicingController {
             updatedAt: new Date()
           })
           .where(eq(schema.invoices.id, o.sub.id));
+        await settleInstallments(tx, o.sub.id);
         if (o.sub.recipientPersonId) {
           playersCovered.push(o.sub.recipientPersonId);
           await tx

@@ -256,7 +256,12 @@ export interface PublicRegistrationApi {
   ): Promise<{ passed: boolean; flags: string[] }>;
   pay(
     submissionId: string,
-    body: { email: string; mockOutcome?: "succeeded" | "failed" | "offline" }
+    body: {
+      email: string;
+      mockOutcome?: "succeeded" | "failed" | "offline";
+      /** "plan": deposit today, the rest in installments. */
+      paymentOption?: "full" | "plan";
+    }
   ): Promise<{
     id: string;
     status: "pending_review" | "pending_payment" | "pending_offline";

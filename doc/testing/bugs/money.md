@@ -417,6 +417,40 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
     sub-invoice INV-2026-01107 under the destination team invoice. Cleanup verified (0 rows left).
   Not verified: the funnel pay step in a browser on staging (runs in the next staging journey pass, j04).
 
+[MON-27] The installment job marked plans paid that nobody paid · blocker (money shown as received that was not)
+  Found: designing registration payment plans (26 Oct). sp_installment_auto_charge (daily 06:00 UTC) charged every
+    scheduled installment that fell due, on any invoice. Team dues shares and admin invoices with a plan are written as
+    scheduled installments with the deposit due the same day, for the player to pay; no card was entered and no one
+    agreed to automatic charges. The job still recorded a credit_card payment and moved the invoice to partial or paid.
+  Exposure (read-only queries, 26 Oct): production 8 installments on team dues shares charged this way (3 deposits,
+    5 installments); staging 44, and 50 more due. Left as they are; reversing them is a production data change.
+  Also: two installments of one invoice due in the same run both started from the same paid amount, so the second
+    overwrote the first; a payment by hand (player Pay, captain cover, admin cheque) left the plan rows "scheduled",
+    so the plan kept showing paid money as due and the job could charge an installment already paid.
+  Fix: migration 0057 (staging applied 26 Oct; production pending owner approval): the job charges only rows with
+    metadata.autoCharge = true (a plan the payer chose with a card at checkout), never more than the invoice still
+    owes, and reads the invoice per row; the paid notice has a subject and the payer's email. API: settleInstallments
+    (finance/application/services/installments.ts, kernel coveredInstallments) marks covered rows paid after every
+    payment by hand: player invoice pay, both captain cover paths, admin record payment.
+  Evidence: regfa/verify-regplan.mjs 18/18 on the local API against staging with 0057: the job charged 1 row (the due
+    one with consent) and left a due row without consent; 50 other due staging rows untouched; the player paying the
+    last 50.00 by hand marked the last row paid and the next job run charged nothing; after a 70.00 cheque the job
+    charged only the 30.00 still owed (not 50.00) and the invoice reached 150.00 paid. Drift check: no drift.
+  Not verified: production (0057 not applied there).
+
+[MON-28] The funnel's payment plan charged the full price; the discount box gave a discount it never charged · major
+  Found: same walk. The funnel showed "Payment plan: $50 deposit today" and a "Pay $50" button, but the pay step
+    charged $150 and wrote no installments (UC-15 asks for installments). Any non-empty discount code showed 10% off
+    on the invoice card ("Visual stub"); the charge ignored it. Players also saw a "Simulate decline" developer button.
+  Fix: the funnel sends the chosen option; the pay step charges the deposit, sets the invoice partial and writes the
+    installments from one kernel rule (planInstallments, also used by captain team registration and the funnel's
+    plan card), marked for the card job. A plan asked on a price without one is refused (409 "This price has no payment
+    plan. Choose full payment."). Full payment is selected first. The discount box and the decline button are removed;
+    discount codes (FR-3.1.5) are not built.
+  Evidence: regfa/verify-regplan.mjs checks 0-8 (deposit 50.00 paid of 150.00, invoice partial, one card payment,
+    installments of 50.00 at 30 and 60 days marked for the job, double click makes one of each). Kernel tests 9/9.
+  Not verified: the funnel in a browser on staging (j04 after the next staging push).
+
 ## Gaps
 
 Backend without UI

@@ -30,7 +30,7 @@ import { Type } from "class-transformer";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { pickCurrentSeason, resolveDivisionRules, teamTierForDivision } from "@sportspulse/kernel";
+import { pickCurrentSeason, planInstallments, resolveDivisionRules, teamTierForDivision, tierOffersPlan } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { playerWebUrl } from "../../../shared/app-urls";
@@ -791,9 +791,9 @@ export class CaptainController {
         });
       }
 
-      // STEP 4 — installment_schedules per sub-invoice.
-      const hasPlan =
-        pricing.paymentPlanEnabled && pricing.installmentCount > 0;
+      // STEP 4 — installment_schedules per sub-invoice, from the kernel
+      // plan rule the registration funnel uses too (0 = deposit, today).
+      const hasPlan = tierOffersPlan(pricing);
       for (const sub of subInvoices) {
         // Player's share of the deposit, proportional to their split.
         const playerDeposit = hasPlan
@@ -801,37 +801,20 @@ export class CaptainController {
               (pricing.depositCents * sub.amountCents) / pricing.fullPriceCents
             )
           : sub.amountCents;
-        const remaining = sub.amountCents - playerDeposit;
-        const perInstallment = hasPlan && pricing.installmentCount > 0
-          ? Math.round(remaining / pricing.installmentCount)
-          : 0;
-
-        // installmentNumber = 0 → deposit (due today)
-        await tx.insert(schema.installmentSchedules).values({
-          invoiceId: sub.id,
-          installmentNumber: 0,
-          dueDate: now,
-          amountCents: playerDeposit,
-          status: "scheduled"
-        });
-
-        if (hasPlan) {
-          for (let n = 1; n <= pricing.installmentCount; n++) {
-            const dueDays = pricing.installmentIntervalDays * n;
-            const dueDate = new Date(now.getTime() + dueDays * 86400000);
-            // Last installment absorbs rounding remainder.
-            const amount =
-              n === pricing.installmentCount
-                ? remaining - perInstallment * (pricing.installmentCount - 1)
-                : perInstallment;
-            await tx.insert(schema.installmentSchedules).values({
-              invoiceId: sub.id,
-              installmentNumber: n,
-              dueDate,
-              amountCents: amount,
-              status: "scheduled"
-            });
-          }
+        const plan = planInstallments(
+          sub.amountCents,
+          playerDeposit,
+          hasPlan ? pricing.installmentCount : 0,
+          pricing.installmentIntervalDays
+        );
+        for (const p of plan) {
+          await tx.insert(schema.installmentSchedules).values({
+            invoiceId: sub.id,
+            installmentNumber: p.installmentNumber,
+            dueDate: new Date(now.getTime() + p.dueInDays * 86400000),
+            amountCents: p.amountCents,
+            status: "scheduled"
+          });
         }
       }
 

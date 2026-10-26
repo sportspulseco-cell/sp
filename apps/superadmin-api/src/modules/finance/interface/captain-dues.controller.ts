@@ -41,6 +41,7 @@ import {
 } from "../../../shared/payments/payment-processor";
 import { activeMemberPersonIds } from "../../../shared/audience/org-targets";
 import { InvoiceNoticesService } from "../application/services/invoice-notices";
+import { settleInstallments } from "../application/services/installments";
 
 class CoverOutstandingBodyDto {
   @IsOptional()
@@ -761,6 +762,7 @@ export class CaptainDuesController {
             updatedAt: new Date()
           })
           .where(eq(schema.invoices.id, o.invoice.id));
+        await settleInstallments(tx, o.invoice.id);
 
         await tx
           .insert(schema.notifications)
