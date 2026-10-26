@@ -68,6 +68,8 @@ export interface NotificationRepository {
     fields?: { lastError?: string | null; sentAt?: Date | null }
   ): Promise<NotificationRow>;
   incrementAttempt(id: string): Promise<void>;
+  /** Use up the retry budget (attempt_count = 3) after a permanent refusal. */
+  exhaustAttempts(id: string): Promise<void>;
   recentForPerson(personId: string, limit?: number): Promise<NotificationRow[]>;
   /** Mark a single notification as read for the given person. */
   markRead(id: string, personId: string): Promise<NotificationRow | null>;

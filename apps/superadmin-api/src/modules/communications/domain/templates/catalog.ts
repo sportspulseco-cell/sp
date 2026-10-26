@@ -127,8 +127,20 @@ export const TEMPLATE_CODES = [
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
 
 /** Channels a person can switch on or off per topic. */
-export const PREFERENCE_CHANNELS = ["email", "in_app"] as const;
+export const PREFERENCE_CHANNELS = ["email", "in_app", "sms", "push"] as const;
 export type PreferenceChannel = (typeof PREFERENCE_CHANNELS)[number];
+
+/**
+ * A channel with no preference row: email, in-app and push are on until
+ * switched off (push also needs a subscribed device); text messages are
+ * off until the person turns them on, because texts need consent.
+ */
+export const CHANNEL_DEFAULT_ON: Record<PreferenceChannel, boolean> = {
+  email: true,
+  in_app: true,
+  sms: false,
+  push: true
+};
 
 /**
  * The notifications a person can turn off, one row per topic in the
@@ -154,6 +166,7 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
   { key: "game.reminder", category: "Games", label: "Game reminder", description: "A reminder about a day before each of your games.", codes: ["game.reminder"] },
   { key: "game.rescheduled", category: "Games", label: "Game moved", description: "When a game's time or rink changes.", codes: ["game.rescheduled"] },
   { key: "game.postponed", category: "Games", label: "Game postponed or cancelled", description: "When a game is postponed or cancelled.", codes: ["game.postponed", "game.cancelled"] },
+  { key: "game.official_assigned", category: "Games", label: "Officiating assignment", description: "When you are put on a game's crew as a referee or scorekeeper.", codes: ["game.official_assigned"] },
   { key: "game.finalized", category: "Games", label: "Final score", description: "When a game is final and stats are in.", codes: ["game.finalized"] },
   // Announcements (UC-19, UC-20)
   { key: "org.broadcast", category: "Announcements", label: "Announcements", description: "Messages from your league, organization, captain or coach.", codes: ["org.broadcast"] },
@@ -186,6 +199,13 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
 
 /** Every code a person may switch off. */
 export const PREFERENCE_CODES: ReadonlySet<string> = new Set(PREFERENCE_TOPICS.flatMap((t) => t.codes));
+
+/**
+ * Codes that also go by text and push (FR-3.10.2): the topics a person
+ * manages in notification settings, so every text or push they get is
+ * one they can switch off on the same page.
+ */
+export const MOBILE_CHANNEL_CODES: ReadonlySet<string> = PREFERENCE_CODES;
 
 export interface DefaultTemplate {
   code: TemplateCode;

@@ -9,12 +9,19 @@ import {
   type NotificationRow
 } from "../domain/repositories/notification.repository";
 import {
+  CHANNEL_DEFAULT_ON,
+  MOBILE_CHANNEL_CODES,
   findDefaultTemplate,
   renderTemplate,
   type TemplateCode
 } from "../domain/templates/catalog";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { PushDispatcherService } from "../../../shared/notifications/push-dispatcher.service";
+import {
+  SMS_NOT_SET_UP,
+  SmsDispatcherService
+} from "../../../shared/notifications/sms-dispatcher.service";
+import { normalizePhoneE164, smsText } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 
 /**
@@ -78,6 +85,8 @@ export class NotificationService {
     private readonly dispatcher: EmailDispatcherService,
     @Inject(PushDispatcherService)
     private readonly pushDispatcher: PushDispatcherService,
+    @Inject(SmsDispatcherService)
+    private readonly smsDispatcher: SmsDispatcherService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
@@ -183,22 +192,34 @@ export class NotificationService {
   }
 
   /**
-   * Route a queued row to the right provider and mark sent/failed.
-   * Centralised so the inline path (`queue`) and the bulk path
-   * (`FlushQueuedHandler`) share the same delivery rules.
+   * Route a queued row to the right provider and mark its final state.
+   * Centralised so the inline path (`queue`), the flush endpoint and the
+   * cron sweep share the same delivery rules.
+   *
+   * Final states a row can end in:
+   *   sent        provider accepted it (email, SMS, push) or the inbox holds it (in_app)
+   *   suppressed  deliberately not sent, with the reason in last_error:
+   *               opted out, SMS / push not set up, no number, no device
+   *   failed      provider refused or was unreachable; the cron retries
+   *               up to 3 attempts, a permanent refusal uses all 3 at once
    */
   async dispatch(row: NotificationRow): Promise<void> {
     if (row.status === "sent") return;
+
+    // A message to a person on the email or in-app channel also goes by
+    // text and push when they have those on (FR-3.10.2).
+    if ((row.channel === "email" || row.channel === "in_app") && row.recipientPersonId) {
+      await this.fanOutMobile(row).catch((err) =>
+        this.log.error(`fan-out failed for ${row.id}: ${(err as Error).message}`)
+      );
+    }
 
     if (row.channel === "in_app") {
       // Delivery is implicit — the row itself IS the notification, the
       // recipient reads it via /notifications/me. Mark sent, unless the
       // person switched this code off in-app (the inbox hides it too).
       if (await this.isOptedOut(row.recipientPersonId, row.templateCode, "in_app")) {
-        await this.repo.incrementAttempt(row.id);
-        await this.repo.markStatus(row.id, "suppressed", {
-          lastError: "recipient opted out of this template/channel"
-        });
+        await this.markSuppressed(row.id, "recipient opted out of this template/channel");
         this.log.log(`suppressed in_app ${row.templateCode} ${row.id}: recipient opted out`);
         return;
       }
@@ -214,16 +235,8 @@ export class NotificationService {
       // Honor opt-outs in notification_preferences (P4-2). Marks
       // `suppressed` rather than `failed` so admins can tell the
       // delivery was skipped intentionally vs the provider rejecting.
-      const optedOut = await this.isOptedOut(
-        row.recipientPersonId,
-        row.templateCode,
-        "email"
-      );
-      if (optedOut) {
-        await this.repo.incrementAttempt(row.id);
-        await this.repo.markStatus(row.id, "suppressed", {
-          lastError: "recipient opted out of this template/channel"
-        });
+      if (await this.isOptedOut(row.recipientPersonId, row.templateCode, "email")) {
+        await this.markSuppressed(row.id, "recipient opted out of this template/channel");
         return;
       }
       const result = await this.dispatcher.send({
@@ -240,66 +253,180 @@ export class NotificationService {
       return;
     }
 
-    if (row.channel === "push") {
-      if (!row.recipientPersonId) {
-        await this.markFailed(row.id, "no recipientPersonId on row");
-        return;
-      }
-      const optedOut = await this.isOptedOut(
-        row.recipientPersonId,
-        row.templateCode,
-        "push"
-      );
-      if (optedOut) {
-        await this.repo.incrementAttempt(row.id);
-        await this.repo.markStatus(row.id, "suppressed", {
-          lastError: "recipient opted out of this template/channel"
-        });
-        return;
-      }
-      // Resolve persons.user_id → auth.users.id for push lookup.
-      const [person] = await this.db
-        .select({ userId: schema.persons.userId })
-        .from(schema.persons)
-        .where(eq(schema.persons.id, row.recipientPersonId))
-        .limit(1);
-      if (!person?.userId) {
-        await this.markFailed(row.id, "person has no linked auth user");
-        return;
-      }
-      const result = await this.pushDispatcher.send({
-        userId: person.userId,
-        title: row.subject ?? row.templateCode,
-        body: row.body,
-        channel: row.templateCode
-      });
-      if (result.delivered) {
-        await this.markSent(row.id);
-      } else {
-        await this.markFailed(row.id, result.reason ?? "no delivery");
-      }
+    if (row.channel === "sms") {
+      await this.dispatchSms(row);
       return;
     }
 
-    // SMS provider not wired yet — leave queued.
-    this.log.warn(
-      `no provider for channel=${row.channel} (notification ${row.id})`
-    );
+    if (row.channel === "push") {
+      await this.dispatchPush(row);
+      return;
+    }
+
+    this.log.warn(`no provider for channel=${row.channel} (notification ${row.id})`);
+    await this.markSuppressed(row.id, `not sent: unknown channel ${row.channel}`);
   }
 
   /**
-   * Has the recipient opted out of this (templateCode, channel)?
-   * Resolves the recipient's auth.users.id via persons.user_id, then
-   * checks notification_preferences. Absence of a row = opted-in
-   * (default-on). DB errors fall back to "not opted out" so a glitch
-   * never silently swallows mission-critical mail.
+   * One text message. Order of refusals, each final and named:
+   * not opted in -> SMS not set up -> no person / account -> no number or
+   * a number that is not a mobile in E.164 -> provider answer.
+   */
+  private async dispatchSms(row: NotificationRow): Promise<void> {
+    if (!row.recipientPersonId) {
+      await this.markSuppressed(row.id, "not sent: no person on the row");
+      return;
+    }
+    if (await this.isOptedOut(row.recipientPersonId, row.templateCode, "sms")) {
+      await this.markSuppressed(row.id, "recipient has not turned on text messages for this topic");
+      return;
+    }
+    if (!this.smsDispatcher.isConfigured()) {
+      await this.markSuppressed(row.id, SMS_NOT_SET_UP);
+      this.log.log(`sms ${row.id} ${row.templateCode}: ${SMS_NOT_SET_UP}`);
+      return;
+    }
+    const [p] = await this.db
+      .select({ phone: schema.profiles.phoneE164, country: schema.profiles.countryCode })
+      .from(schema.persons)
+      .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
+      .where(eq(schema.persons.id, row.recipientPersonId))
+      .limit(1);
+    if (!p?.phone) {
+      await this.markSuppressed(row.id, "not sent: no mobile number on file");
+      return;
+    }
+    const norm = normalizePhoneE164(p.phone, p.country ?? "US");
+    if (!norm.ok) {
+      await this.markSuppressed(row.id, `not sent: the number on file is not valid (${norm.reason})`);
+      return;
+    }
+    const result = await this.smsDispatcher.send({
+      to: norm.e164,
+      body: smsText(row.subject, row.body),
+      channel: row.templateCode
+    });
+    await this.logDelivery(row.id, "twilio", {
+      status: result.delivered ? "sent" : "failed",
+      providerMessageId: result.providerMessageId,
+      statusCode: result.statusCode ?? null,
+      response: { failure: result.failure ?? null, providerCode: result.providerCode ?? null, reason: result.reason ?? null }
+    });
+    if (result.delivered) {
+      await this.markSent(row.id);
+    } else if (result.failure === "not_configured") {
+      await this.markSuppressed(row.id, SMS_NOT_SET_UP);
+    } else if (result.failure === "permanent") {
+      await this.markFailed(row.id, result.reason ?? "provider refused", { final: true });
+    } else {
+      await this.markFailed(row.id, result.reason ?? "provider unreachable");
+    }
+  }
+
+  private async dispatchPush(row: NotificationRow): Promise<void> {
+    if (!row.recipientPersonId) {
+      await this.markSuppressed(row.id, "not sent: no person on the row");
+      return;
+    }
+    if (await this.isOptedOut(row.recipientPersonId, row.templateCode, "push")) {
+      await this.markSuppressed(row.id, "recipient opted out of this template/channel");
+      return;
+    }
+    // Resolve persons.user_id → auth.users.id for push lookup.
+    const [person] = await this.db
+      .select({ userId: schema.persons.userId })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, row.recipientPersonId))
+      .limit(1);
+    if (!person?.userId) {
+      await this.markSuppressed(row.id, "not sent: person has no account");
+      return;
+    }
+    const result = await this.pushDispatcher.send({
+      userId: person.userId,
+      title: row.subject ?? row.templateCode,
+      body: smsText(null, row.body, 240),
+      url: pushUrl(row.payload),
+      channel: row.templateCode,
+      notificationId: row.id
+    });
+    if (result.attempts.length > 0) {
+      await this.logDelivery(row.id, "web-push", {
+        status: result.delivered ? "sent" : "failed",
+        providerMessageId: null,
+        statusCode: result.attempts[0]?.statusCode ?? null,
+        response: { attempts: result.attempts, removed: result.removed }
+      });
+    }
+    if (result.delivered) await this.markSent(row.id);
+    else if (result.failure === "transient") await this.markFailed(row.id, result.reason ?? "push service refused");
+    else await this.markSuppressed(row.id, result.reason ?? "not sent");
+  }
+
+  /**
+   * Text and push copies of an email / in-app message for a person. Keys
+   * follow the multi-channel convention (`<base>-sms`, `<base>-push`), so
+   * the email and in-app twins of one message share one SMS and one push,
+   * and the inbox shows none of them. Only topics a person can manage in
+   * notification settings fan out. A copy is written only when it could
+   * matter: SMS when the person turned text on for that topic (opt-in),
+   * push when they have a device subscribed and have not switched it off.
+   * Each copy is written once; a retry of the email does not resend it.
+   */
+  private async fanOutMobile(row: NotificationRow): Promise<void> {
+    if (!MOBILE_CHANNEL_CODES.has(row.templateCode) || !row.recipientPersonId) return;
+    const base = row.idempotencyKey.replace(/-(email|in_app)$/, "");
+    const [person] = await this.db
+      .select({ userId: schema.persons.userId })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, row.recipientPersonId))
+      .limit(1);
+    if (!person?.userId) return;
+
+    const wants: Array<"sms" | "push"> = [];
+    if (!(await this.isOptedOut(row.recipientPersonId, row.templateCode, "sms"))) wants.push("sms");
+    if (
+      !(await this.isOptedOut(row.recipientPersonId, row.templateCode, "push")) &&
+      (await this.pushDispatcher.hasActiveSubscription(person.userId))
+    ) {
+      wants.push("push");
+    }
+    for (const channel of wants) {
+      const key = `${base}-${channel}`;
+      if (await this.repo.findByIdempotencyKey(key)) continue;
+      const copy = await this.repo.enqueue({
+        orgId: row.orgId,
+        idempotencyKey: key,
+        templateCode: row.templateCode,
+        channel,
+        subject: row.subject,
+        body: row.body,
+        recipientPersonId: row.recipientPersonId,
+        recipientEmail: null,
+        payload: row.payload,
+        sourceEvent: row.sourceEvent
+      });
+      this.log.log(`fan-out ${row.id} -> ${channel} ${copy.id} (${row.templateCode})`);
+      if (copy.status === "queued") await this.dispatch(copy);
+    }
+  }
+
+  /**
+   * Is this (templateCode, channel) off for the recipient? Resolves the
+   * recipient's auth.users.id via persons.user_id, then reads
+   * notification_preferences. With no row the channel default applies:
+   * email, in-app and push are on until switched off; SMS is off until
+   * the person turns it on (consent to texts is opt-in). A lookup error
+   * falls back to the default, so a glitch never silently swallows mail
+   * and never sends a text nobody asked for.
    */
   private async isOptedOut(
     recipientPersonId: string | null,
     templateCode: string,
     channel: "email" | "in_app" | "sms" | "push"
   ): Promise<boolean> {
-    if (!recipientPersonId) return false;
+    const defaultOn = CHANNEL_DEFAULT_ON[channel];
+    if (!recipientPersonId) return !defaultOn;
     try {
       const [row] = await this.db
         .select({ enabled: schema.notificationPreferences.enabled })
@@ -316,12 +443,32 @@ export class NotificationService {
           )
         )
         .limit(1);
-      return row ? row.enabled === false : false;
+      return row ? row.enabled === false : !defaultOn;
     } catch (err) {
       this.log.warn(
         `prefs lookup failed for person=${recipientPersonId} tpl=${templateCode}: ${(err as Error).message}`
       );
-      return false;
+      return !defaultOn;
+    }
+  }
+
+  /** Append one provider attempt to notification_delivery_logs. Never throws. */
+  private async logDelivery(
+    notificationId: string,
+    provider: string,
+    a: { status: string; providerMessageId: string | null; statusCode: number | null; response: Record<string, unknown> }
+  ): Promise<void> {
+    try {
+      await this.db.insert(schema.notificationDeliveryLogs).values({
+        notificationId,
+        provider,
+        providerMessageId: a.providerMessageId,
+        status: a.status,
+        statusCode: a.statusCode,
+        response: a.response
+      });
+    } catch (err) {
+      this.log.warn(`delivery log write failed for ${notificationId}: ${(err as Error).message}`);
     }
   }
 
@@ -365,17 +512,36 @@ export class NotificationService {
     }
   }
 
-  /** Mark queued → sent (used by stub provider for now). */
+  /** Mark queued → sent. */
   async markSent(id: string) {
     await this.repo.incrementAttempt(id);
     return this.repo.markStatus(id, "sent", { sentAt: new Date() });
   }
 
-  /** Mark queued → failed. */
-  async markFailed(id: string, error: string) {
+  /**
+   * Mark failed. `final` uses up the retry budget at once: the provider
+   * refused this message for good, so the cron must not try again.
+   */
+  async markFailed(id: string, error: string, opts: { final?: boolean } = {}) {
     await this.repo.incrementAttempt(id);
+    if (opts.final) await this.repo.exhaustAttempts(id);
     return this.repo.markStatus(id, "failed", { lastError: error });
   }
+
+  /** Deliberately not sent; final, never retried. `reason` says why. */
+  async markSuppressed(id: string, reason: string) {
+    await this.repo.incrementAttempt(id);
+    return this.repo.markStatus(id, "suppressed", { lastError: reason });
+  }
+}
+
+/** Where a push opens: a link in the payload when it is ours, else the inbox. */
+function pushUrl(payload: Record<string, unknown>): string {
+  for (const k of ["url", "invoiceUrl", "link"]) {
+    const v = payload[k];
+    if (typeof v === "string" && (v.startsWith("/") || v.startsWith("https://"))) return v;
+  }
+  return "/notifications";
 }
 
 export const NOTIFICATION_SERVICE = NotificationService;

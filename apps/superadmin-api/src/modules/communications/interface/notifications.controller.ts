@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Get,
   Inject,
@@ -13,9 +14,14 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsBoolean } from "class-validator";
+import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
+import { maskPhoneE164, normalizePhoneE164 } from "@sportspulse/kernel";
+import { SmsDispatcherService } from "../../../shared/notifications/sms-dispatcher.service";
+import { PushDispatcherService } from "../../../shared/notifications/push-dispatcher.service";
+import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { and, eq, inArray, isNull, not, sql } from "drizzle-orm";
 import {
+  CHANNEL_DEFAULT_ON,
   PREFERENCE_CHANNELS,
   PREFERENCE_CODES,
   PREFERENCE_TOPICS,
@@ -56,6 +62,19 @@ class SetPreferenceBodyDto {
   @IsBoolean() enabled!: boolean;
 }
 
+class SetSmsNumberBodyDto {
+  /** What the person typed; null or "" removes the number. */
+  @IsOptional() @IsString() @MaxLength(40) phone?: string | null;
+}
+
+/** Which channels can actually deliver right now (FR-3.10.2). */
+export interface ChannelStatusDto {
+  email: { available: boolean };
+  in_app: { available: true };
+  sms: { available: boolean; message: string | null };
+  push: { available: boolean; publicKey: string | null; message: string | null };
+}
+
 /**
  * Two surfaces:
  *   - super-admin outbox views (list / get / retry / flush) — locked
@@ -77,8 +96,35 @@ export class NotificationsController {
     private readonly flushH: FlushQueuedHandler,
     @Inject(NOTIFICATION_REPOSITORY)
     private readonly repo: NotificationRepository,
-    @Inject(DRIZZLE) private readonly db: Database
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly sms: SmsDispatcherService,
+    private readonly push: PushDispatcherService,
+    private readonly email: EmailDispatcherService
   ) {}
+
+  private channelStatus(): ChannelStatusDto {
+    const smsOn = this.sms.isConfigured();
+    const pushKey = this.push.publicKey();
+    return {
+      email: { available: this.email.isConfigured() },
+      in_app: { available: true },
+      sms: { available: smsOn, message: smsOn ? null : "Text messages are not set up." },
+      push: {
+        available: !!pushKey,
+        publicKey: pushKey,
+        message: pushKey ? null : "Push notifications are not set up."
+      }
+    };
+  }
+
+  @Get("channels")
+  @ApiOperation({
+    summary:
+      "Which delivery channels are set up (email provider, SMS provider, web push keys). Any signed-in user; no secrets, only the push public key."
+  })
+  channels(): ChannelStatusDto {
+    return this.channelStatus();
+  }
 
   // -------- super-admin outbox surfaces --------
 
@@ -222,8 +268,16 @@ export class NotificationsController {
     items: Array<{ templateCode: string; channel: string; enabled: boolean }>;
     topics: PreferenceTopic[];
     channels: readonly PreferenceChannel[];
+    channelDefaults: Record<PreferenceChannel, boolean>;
+    channelStatus: ChannelStatusDto;
+    sms: { phoneMasked: string | null; hasPhone: boolean };
     templates: string[];
   }> {
+    const [profile] = await this.db
+      .select({ phone: schema.profiles.phoneE164 })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
     const rows = await this.db
       .select({
         templateCode: schema.notificationPreferences.templateCode,
@@ -236,6 +290,12 @@ export class NotificationsController {
       items: rows,
       topics: PREFERENCE_TOPICS,
       channels: PREFERENCE_CHANNELS,
+      channelDefaults: CHANNEL_DEFAULT_ON,
+      channelStatus: this.channelStatus(),
+      sms: {
+        phoneMasked: profile?.phone ? maskPhoneE164(profile.phone) || null : null,
+        hasPhone: !!profile?.phone
+      },
       templates: [...TEMPLATE_CODES]
     };
   }
@@ -247,7 +307,7 @@ export class NotificationsController {
   @Put("me/preferences/topics/:topicKey/:channel")
   @ApiOperation({
     summary:
-      "Set one topic (all of its template codes) on or off for one channel. Body: { enabled }. Channel: email | in_app."
+      "Set one topic (all of its template codes) on or off for one channel. Body: { enabled }. Channel: email | in_app | sms | push. Turning sms on needs SMS set up and a number on file."
   })
   async setTopicPreference(
     @CurrentUser() user: AuthPrincipal,
@@ -258,6 +318,7 @@ export class NotificationsController {
     const topic = PREFERENCE_TOPICS.find((t) => t.key === topicKey);
     if (!topic) throw new NotFoundException(`Unknown notification topic: ${topicKey}`);
     this.assertChannel(channel);
+    if (channel === "sms" && body.enabled) await this.assertCanText(user.userId);
     await this.db.transaction(async (tx) => {
       for (const code of topic.codes) {
         await this.upsertPreference(tx as unknown as Database, user.userId, code, channel, body.enabled);
@@ -282,8 +343,79 @@ export class NotificationsController {
       throw new NotFoundException(`Unknown or required notification: ${templateCode}`);
     }
     this.assertChannel(channel);
+    if (channel === "sms" && body.enabled) await this.assertCanText(user.userId);
     await this.upsertPreference(this.db, user.userId, templateCode, channel, body.enabled);
     return { templateCode, channel, enabled: body.enabled };
+  }
+
+  /**
+   * The caller's mobile number for text messages, normalised to E.164
+   * with the kernel helper (the profile's country, US by default). Empty
+   * removes it and switches every text topic off, so nothing is sent to a
+   * number the person took away.
+   */
+  @Put("me/sms-number")
+  @ApiOperation({
+    summary:
+      "Save or remove the caller's mobile number for text messages. Body: { phone }. 400 when not a valid number, 409 when another account already uses it."
+  })
+  async setSmsNumber(
+    @CurrentUser() user: AuthPrincipal,
+    @Body() body: SetSmsNumberBodyDto
+  ): Promise<{ hasPhone: boolean; phoneMasked: string | null; smsTopicsOff?: number }> {
+    const raw = (body.phone ?? "").trim();
+    if (!raw) {
+      await this.db
+        .update(schema.profiles)
+        .set({ phoneE164: null, updatedAt: new Date() })
+        .where(eq(schema.profiles.id, user.userId));
+      const off = await this.db
+        .update(schema.notificationPreferences)
+        .set({ enabled: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.notificationPreferences.userId, user.userId),
+            eq(schema.notificationPreferences.channel, "sms"),
+            eq(schema.notificationPreferences.enabled, true)
+          )
+        )
+        .returning({ id: schema.notificationPreferences.id });
+      return { hasPhone: false, phoneMasked: null, smsTopicsOff: off.length };
+    }
+    const [profile] = await this.db
+      .select({ country: schema.profiles.countryCode })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
+    if (!profile) throw new NotFoundException("Profile");
+    const norm = normalizePhoneE164(raw, profile.country ?? "US");
+    if (!norm.ok) throw new BadRequestException(norm.message);
+    const [taken] = await this.db
+      .select({ id: schema.profiles.id })
+      .from(schema.profiles)
+      .where(and(eq(schema.profiles.phoneE164, norm.e164), not(eq(schema.profiles.id, user.userId))))
+      .limit(1);
+    if (taken) throw new ConflictException("Another account already uses this number.");
+    const saved = await this.db
+      .update(schema.profiles)
+      .set({ phoneE164: norm.e164, updatedAt: new Date() })
+      .where(eq(schema.profiles.id, user.userId))
+      .returning({ phone: schema.profiles.phoneE164 });
+    if (saved[0]?.phone !== norm.e164) throw new Error("phone save read back a different value");
+    return { hasPhone: true, phoneMasked: maskPhoneE164(norm.e164) };
+  }
+
+  /** Texts need a provider and a number before any topic can be turned on. */
+  private async assertCanText(userId: string): Promise<void> {
+    if (!this.sms.isConfigured()) {
+      throw new ConflictException("Text messages are not set up for this league.");
+    }
+    const [p] = await this.db
+      .select({ phone: schema.profiles.phoneE164 })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, userId))
+      .limit(1);
+    if (!p?.phone) throw new BadRequestException("Add a mobile number before turning on text messages.");
   }
 
   private assertChannel(channel: string): asserts channel is PreferenceChannel {
