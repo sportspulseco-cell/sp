@@ -4,17 +4,25 @@
  * League announcement composer (UC-19), shared by superadmin-web (super,
  * org and league admins) and org-admin-web. Who (audiences), where (a
  * part of the org the caller reaches, picked from lists the server built
- * with the same rule it checks on send), how (email, in-app or both).
+ * with the same rule it checks on send), how (email, in-app or both;
+ * people who turned on text or push for Announcements also get those),
+ * when (now, or a scheduled time the server's job honours, cancellable
+ * until it goes) and with what (up to 5 files, linked by signed links).
  *
  * Transport-agnostic: the app injects `send` (its own browser SDK) and
  * the `reach` from GET /org-admin/broadcast/targets. Never sends an id
  * typed by hand.
  */
 
-import { useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { Alert, Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
-import type { AnnouncementReach } from "@sportspulse/api-client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Paperclip, X } from "lucide-react";
+import { Alert, Badge, Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
+import type {
+  AnnouncementReach,
+  BroadcastAttachment,
+  NotificationChannelStatus,
+  ScheduledBroadcast
+} from "@sportspulse/api-client";
 
 export type AnnouncementAudience = "captains" | "coaches" | "players" | "referees" | "all_admins";
 export type AnnouncementChannel = "email" | "in_app";
@@ -29,6 +37,9 @@ export interface AnnouncementSendBody {
   body: string;
   channels: AnnouncementChannel[];
   idempotencyKey: string;
+  /** ISO time to send later. */
+  sendAt?: string;
+  attachmentIds?: string[];
 }
 
 export interface AnnouncementSendResult {
@@ -37,6 +48,8 @@ export interface AnnouncementSendResult {
   failed: number;
   noEmail: number;
   idempotent: boolean;
+  /** Present when the announcement was scheduled instead of sent. */
+  scheduled?: ScheduledBroadcast;
 }
 
 export interface AnnouncementComposerProps {
@@ -49,6 +62,14 @@ export interface AnnouncementComposerProps {
   send: (body: AnnouncementSendBody) => Promise<AnnouncementSendResult>;
   onSent?: () => void;
   onCancel?: () => void;
+  /** Attachments (UC-19). Without it the attach control is hidden. */
+  uploadAttachment?: (body: { orgId: string; fileName: string; dataBase64: string }) => Promise<BroadcastAttachment>;
+  removeAttachment?: (id: string) => Promise<unknown>;
+  /** Scheduled announcements of this org, with cancel. Without it the list is hidden. */
+  listScheduled?: (orgId: string) => Promise<{ items: ScheduledBroadcast[] }>;
+  cancelScheduled?: (id: string) => Promise<{ scheduled: ScheduledBroadcast }>;
+  /** Which channels can deliver, to say so next to the channel picker. */
+  loadChannelStatus?: () => Promise<NotificationChannelStatus>;
 }
 
 const AUDIENCE_OPTIONS: Array<{ value: AnnouncementAudience; label: string; hint: string }> = [
@@ -82,6 +103,31 @@ const CHANNEL_OPTIONS: Array<{ value: AnnouncementChannel; label: string }> = [
   { value: "email", label: "Email" },
   { value: "in_app", label: "In-app" }
 ];
+
+/** "2026-10-27T09:30" in the browser's zone for an input[type=datetime-local]. */
+function localInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtWhen(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+const SCHEDULED_LABEL: Record<ScheduledBroadcast["status"], string> = {
+  scheduled: "Scheduled",
+  sending: "Sending",
+  sent: "Sent",
+  cancelled: "Cancelled",
+  failed: "Could not send"
+};
 
 function newKey(): string {
   return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -139,7 +185,12 @@ export function AnnouncementComposer({
   initialTarget,
   send,
   onSent,
-  onCancel
+  onCancel,
+  uploadAttachment,
+  removeAttachment,
+  listScheduled,
+  cancelScheduled,
+  loadChannelStatus
 }: AnnouncementComposerProps) {
   const lists = useMemo(() => targetLists(reach), [reach]);
   const start = useMemo(() => defaultTarget(reach, lists, initialTarget), [reach, lists, initialTarget]);
@@ -163,6 +214,73 @@ export function AnnouncementComposer({
   // send it twice. Renewed after a successful send.
   const [idemKey, setIdemKey] = useState<string>(newKey);
   const [result, setResult] = useState<AnnouncementSendResult | null>(null);
+  const [when, setWhen] = useState<"now" | "later">("now");
+  const [sendAt, setSendAt] = useState<string>("");
+  const [files, setFiles] = useState<BroadcastAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement | null>(null);
+  const [scheduled, setScheduled] = useState<ScheduledBroadcast[] | null>(null);
+  const [scheduledError, setScheduledError] = useState<string | null>(null);
+
+  async function loadScheduled() {
+    if (!listScheduled) return;
+    try {
+      const res = await listScheduled(reach.orgId);
+      setScheduled(res.items);
+      setScheduledError(null);
+    } catch (e) {
+      setScheduledError((e as Error).message);
+    }
+  }
+
+  const [channelStatus, setChannelStatus] = useState<NotificationChannelStatus | null>(null);
+  useEffect(() => {
+    loadChannelStatus?.().then(setChannelStatus).catch(() => setChannelStatus(null));
+    // Once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void loadScheduled();
+    // Reload when the org changes; listScheduled is rebuilt by the parent each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reach.orgId]);
+
+  async function onFiles(list: FileList | null) {
+    if (!list || !uploadAttachment) return;
+    setError(null);
+    const picked = Array.from(list);
+    if (files.length + picked.length > 5) return setError("Attach up to 5 files.");
+    setUploading(true);
+    try {
+      for (const f of picked) {
+        if (f.size > 3 * 1024 * 1024) throw new Error(`${f.name} is over 3 MB.`);
+        const saved = await uploadAttachment({ orgId: reach.orgId, fileName: f.name, dataBase64: await fileToBase64(f) });
+        setFiles((prev) => [...prev, saved]);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function dropFile(id: string) {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+    await removeAttachment?.(id).catch(() => undefined);
+  }
+
+  async function cancel(id: string) {
+    if (!cancelScheduled) return;
+    setScheduledError(null);
+    try {
+      const res = await cancelScheduled(id);
+      setScheduled((prev) => (prev ?? []).map((x) => (x.id === id ? res.scheduled : x)));
+    } catch (e) {
+      setScheduledError((e as Error).message);
+      void loadScheduled();
+    }
+  }
 
   const targetList = targetType === "org" ? [] : lists[targetType];
   const orgName = orgs.find((o) => o.id === reach.orgId)?.name ?? "this organisation";
@@ -179,6 +297,13 @@ export function AnnouncementComposer({
     if (channels.length === 0) return setError("Pick at least one channel.");
     if (subject.trim().length < 1) return setError("Subject is required.");
     if (body.trim().length < 1) return setError("Body is required.");
+    let sendAtIso: string | undefined;
+    if (when === "later") {
+      const t = sendAt ? new Date(sendAt) : null;
+      if (!t || Number.isNaN(t.getTime())) return setError("Pick the date and time to send.");
+      if (t.getTime() < Date.now() + 2 * 60 * 1000) return setError("Pick a time at least 2 minutes from now, or send it now.");
+      sendAtIso = t.toISOString();
+    }
     setBusy(true);
     try {
       const res = await send({
@@ -189,12 +314,18 @@ export function AnnouncementComposer({
         subject: subject.trim(),
         body: body.trim(),
         channels,
-        idempotencyKey: idemKey
+        idempotencyKey: idemKey,
+        ...(sendAtIso ? { sendAt: sendAtIso } : {}),
+        ...(files.length ? { attachmentIds: files.map((f) => f.id) } : {})
       });
       setResult(res);
       setSubject("");
       setBody("");
+      setFiles([]);
+      setSendAt("");
+      setWhen("now");
       setIdemKey(newKey());
+      if (res.scheduled) void loadScheduled();
       onSent?.();
     } catch (e) {
       setError((e as Error).message);
@@ -347,9 +478,91 @@ export function AnnouncementComposer({
           })}
         </div>
       </Field>
+      <p className="text-[12px] text-fg-muted" data-testid="compose-mobile-note">
+        People who turned on text messages or push for Announcements in their settings also get it that way.
+        {channelStatus && !channelStatus.sms.available ? " Text messages are not set up." : ""}
+        {channelStatus && !channelStatus.push.available ? " Push notifications are not set up." : ""}
+      </p>
+
+      {uploadAttachment ? (
+        <Field label="Attachments" hint="Up to 5 files: PDF, PNG, JPEG or WebP, 3 MB each. The message links to them.">
+          <div className="space-y-2">
+            {files.length ? (
+              <ul className="space-y-1" data-testid="compose-attachments">
+                {files.map((f) => (
+                  <li key={f.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-1.5 text-[13px] text-fg">
+                    <span className="truncate">{f.fileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => void dropFile(f.id)}
+                      disabled={busy}
+                      aria-label={`Remove ${f.fileName}`}
+                      className="text-fg-muted hover:text-fg"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <Button size="sm" variant="outline" disabled={busy || uploading || files.length >= 5} onClick={() => fileInput.current?.click()}>
+              {uploading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Paperclip className="mr-1 h-3.5 w-3.5" />}
+              {uploading ? "Uploading…" : "Attach a file"}
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept="application/pdf,image/png,image/jpeg,image/webp"
+              className="sr-only"
+              aria-label="Attach files"
+              data-testid="compose-attach-input"
+              onChange={(e) => {
+                const l = e.target.files;
+                void onFiles(l).finally(() => {
+                  e.target.value = "";
+                });
+              }}
+            />
+          </div>
+        </Field>
+      ) : null}
+
+      <Field label="When" htmlFor="compose-when">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Select
+            id="compose-when"
+            value={when}
+            disabled={busy}
+            onChange={(e) => {
+              const v = e.target.value as "now" | "later";
+              setWhen(v);
+              if (v === "later" && !sendAt) setSendAt(localInputValue(new Date(Date.now() + 60 * 60 * 1000)));
+            }}
+          >
+            <option value="now">Send now</option>
+            <option value="later">Schedule for later</option>
+          </Select>
+          {when === "later" ? (
+            <Input
+              type="datetime-local"
+              aria-label="Send at"
+              data-testid="compose-send-at"
+              value={sendAt}
+              min={localInputValue(new Date(Date.now() + 2 * 60 * 1000))}
+              onChange={(e) => setSendAt(e.target.value)}
+              disabled={busy}
+            />
+          ) : null}
+        </div>
+      </Field>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
-      {result ? (
+      {result?.scheduled ? (
+        <Alert tone="success">
+          {result.idempotent ? "Already scheduled. " : ""}Scheduled for {fmtWhen(result.scheduled.sendAt)}. You can cancel it below until it goes.
+        </Alert>
+      ) : result ? (
         <Alert tone={result.failed > 0 ? "warning" : "success"}>
           {result.idempotent ? "Already sent. " : ""}
           {result.queued} message{result.queued === 1 ? "" : "s"} queued for {result.recipients} recipient
@@ -370,9 +583,47 @@ export function AnnouncementComposer({
         ) : null}
         <Button size="sm" onClick={handleSend} disabled={busy || targetTypes.length === 0}>
           {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" strokeWidth={2} /> : null}
-          Send broadcast
+          {when === "later" ? "Schedule broadcast" : "Send broadcast"}
         </Button>
       </div>
+
+      {listScheduled ? (
+        <div className="space-y-2 border-t border-border pt-4" data-testid="scheduled-broadcasts">
+          <Eyebrow>Scheduled</Eyebrow>
+          {scheduledError ? <Alert tone="error">{scheduledError}</Alert> : null}
+          {scheduled === null ? (
+            <p className="text-[12px] text-fg-muted">Loading…</p>
+          ) : scheduled.length === 0 ? (
+            <p className="text-[12px] text-fg-muted">Nothing scheduled.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {scheduled.map((x) => (
+                <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-2" data-scheduled-id={x.id}>
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-fg">{x.subject}</p>
+                    <p className="text-[12px] text-fg-muted">
+                      {x.status === "sent" && x.sentAt ? `Sent ${fmtWhen(x.sentAt)}` : `For ${fmtWhen(x.sendAt)}`}
+                      {x.attachments.length ? ` · ${x.attachments.length} file${x.attachments.length === 1 ? "" : "s"}` : ""}
+                      {x.status === "sent" && x.result ? ` · ${x.result.queued} queued` : ""}
+                      {x.status === "failed" && x.lastError ? ` · ${x.lastError}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge mono tone={x.status === "sent" ? "success" : x.status === "failed" ? "danger" : x.status === "cancelled" ? "neutral" : "info"}>
+                      {SCHEDULED_LABEL[x.status]}
+                    </Badge>
+                    {x.status === "scheduled" && cancelScheduled ? (
+                      <Button size="sm" variant="outline" onClick={() => void cancel(x.id)}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

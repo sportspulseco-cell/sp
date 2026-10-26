@@ -2,6 +2,7 @@ import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
 import { fetchAll, load } from "@sportspulse/api-client";
 import { LoadError } from "@sportspulse/ui";
+import { ChannelStatusNotice } from "@sportspulse/admin-pages";
 import { communications, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
@@ -93,6 +94,7 @@ export default async function CommunicationsPage({
     ])
   );
 
+  const channelStatus = await communications.channelStatus().catch(() => null);
   const allItems = (allPage ?? filteredPage).items;
   const counts = {
     queued: allItems.filter((n) => n.status === "queued").length,
@@ -126,6 +128,8 @@ export default async function CommunicationsPage({
           </div>
         }
       />
+
+      <ChannelStatusNotice status={channelStatus} />
 
       <KineticStrip
         cards={[

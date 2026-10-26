@@ -23,6 +23,7 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
+import { ChannelStatusNotice } from "@sportspulse/admin-pages";
 import { communications, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -48,6 +49,7 @@ export default async function CommunicationsPage() {
         .listNotifications({ orgId, limit: 100 })
         .catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
+  const channelStatus = await communications.channelStatus().catch(() => null);
 
   const counts = page.items.reduce(
     (acc, n) => {
@@ -80,6 +82,8 @@ export default async function CommunicationsPage() {
           </Link>
         }
       />
+
+      <ChannelStatusNotice status={channelStatus} />
 
       <section className="space-y-6">
         <SectionRail

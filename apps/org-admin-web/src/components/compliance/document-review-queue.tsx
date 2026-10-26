@@ -23,7 +23,8 @@ export function DocumentReviewQueue({
       api={{
         list: (q) => compliance.listDocumentSubmissions(q),
         decide: (id, body) => compliance.decideDocumentSubmission(id, body),
-        fileUrl: (id) => compliance.documentSubmissionFile(id)
+        fileUrl: (id) => compliance.documentSubmissionFile(id),
+        licenceCheck: (id, body) => compliance.licenceCheck(id, body)
       }}
     />
   );

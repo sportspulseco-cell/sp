@@ -146,3 +146,5 @@ export const teamMovement = api.teamMovement;
 // Review queue of uploaded ID / eligibility documents (COMP-1). Scoped
 // server-side by ScopedAdminGuard + visibility.
 export const compliance = api.compliance;
+// Channel status for the compose page (FR-3.10.2).
+export const communications = api.communications;
