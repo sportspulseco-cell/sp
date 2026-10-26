@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Clock, Loader2 } from "lucide-react";
 import {
   allowedSubmissionTypes,
+  joinTeamSubmissionType,
   resolveRegistrationWaivers,
   type AnswerMap,
   normalizeSkillLevel,
@@ -83,7 +84,8 @@ const PATHS: {
  */
 export function RegistrationFunnel({
   context,
-  api
+  api,
+  inviteToken = null
 }: {
   context: PublicSeasonContext;
   /**
@@ -92,11 +94,23 @@ export function RegistrationFunnel({
    * passes it in. This package never reads `process.env` directly.
    */
   api: PublicRegistrationApi;
+  /** The captain invite the player followed (?invite=), settled on approval. */
+  inviteToken?: string | null;
 }) {
+  // FR-3.4.1: /register/<season>?team=<team> registers onto that team.
+  const joinTeam = context.joinTeam ?? null;
+  const joinPath = joinTeam?.available
+    ? joinTeamSubmissionType(allowedSubmissionTypes(context.season.config ?? {}))
+    : null;
   const [step, setStep] = useState<Step>("path");
   const [submissionType, setSubmissionType] = useState<SubmissionType | null>(
-    null
+    joinPath
   );
+  /** The team this registration joins: only on a player path, never a team registration. */
+  const teamToJoin =
+    joinTeam?.available && submissionType && submissionType !== "team" && submissionType !== "free_agent"
+      ? joinTeam.id
+      : undefined;
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -117,7 +131,11 @@ export function RegistrationFunnel({
   // P2-2 — division-bound submissions. Auto-picks when there's
   // exactly one division; null until the player picks otherwise.
   const [divisionId, setDivisionId] = useState<string | null>(
-    context.divisions?.length === 1 ? context.divisions[0]!.id : null
+    joinTeam?.available && joinTeam.divisionId
+      ? joinTeam.divisionId
+      : context.divisions?.length === 1
+        ? context.divisions[0]!.id
+        : null
   );
   const [answers, setAnswers] = useState<AnswerMap>({});
   // Phase 2 team-info card state (only shown when path=team).
@@ -216,7 +234,8 @@ export function RegistrationFunnel({
   // to pick from. One auto-picks at state init; zero means the
   // season has no divisions and the field stays NULL (registration
   // is org-only, falls through to org-wide listings downstream).
-  const showDivisionStep = divisions.length >= 2;
+  // A team link fixes the division (the team's), so there is nothing to pick.
+  const showDivisionStep = divisions.length >= 2 && !teamToJoin;
 
   const stepOrder: Step[] = useMemo(() => {
     // Order must match the PhaseStepper labels (1 Path · 2 Account ·
@@ -421,7 +440,9 @@ export function RegistrationFunnel({
               ? teamName.trim()
               : undefined,
           teamColor:
-            submissionType === "team" && teamColor ? teamColor : undefined
+            submissionType === "team" && teamColor ? teamColor : undefined,
+          teamId: teamToJoin,
+          inviteToken: teamToJoin && inviteToken ? inviteToken : undefined
         }
       );
       setSubmissionId(result.id);
@@ -487,7 +508,9 @@ export function RegistrationFunnel({
         email: useEmail,
         password,
         submissionType,
-        formVersionId: context.formVersionId ?? undefined
+        formVersionId: context.formVersionId ?? undefined,
+        teamId: teamToJoin,
+        inviteToken: teamToJoin && inviteToken ? inviteToken : undefined
       });
       setSubmissionId(result.id);
       setResumed(result.resumed);
@@ -586,10 +609,31 @@ export function RegistrationFunnel({
       />
     );
   }
+  // A team link to a team that is full, locked or not in the season says
+  // so before the player creates an account or pays.
+  if (joinTeam && !joinTeam.available) {
+    return (
+      <RegistrationClosed
+        seasonName={context.season.name}
+        title={joinTeam.name ? `${joinTeam.name} cannot take new players` : "This team link does not work"}
+        message={joinTeam.message ?? "This team cannot take new players right now."}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <PhaseStepper activePhase={activePhase} />
+      {teamToJoin && joinTeam?.name ? (
+        <p
+          data-testid="funnel-join-team"
+          className="mt-6 rounded-lg border border-accent/40 bg-accent/5 px-4 py-3 text-[13px] text-fg"
+        >
+          You are registering to join <strong>{joinTeam.name}</strong>
+          {joinTeam.divisionName ? ` (${joinTeam.divisionName})` : ""}. You join the roster when the
+          league approves your registration.
+        </p>
+      ) : null}
 
       <header className="mt-8 space-y-1">
         <h1 className="text-[28px] font-semibold tracking-tight text-fg">
@@ -611,7 +655,11 @@ export function RegistrationFunnel({
             value={submissionType}
             onChange={setSubmissionType}
             onNext={next}
-            offeredPaths={offeredPaths}
+            offeredPaths={
+              joinTeam?.available
+                ? offeredPaths.filter((p) => p === "individual" || p === "captain_invite")
+                : offeredPaths
+            }
           />
         )}
 
@@ -744,6 +792,20 @@ export function RegistrationFunnel({
             onTeamColorChange={setTeamColor}
             onBack={back}
             onNext={submitDetails}
+            uploadFile={
+              submissionId
+                ? async (file, questionKey) => {
+                    const dataBase64 = await fileToBase64(file);
+                    const res = await api.uploadFormFile(submissionId, {
+                      email: email.trim(),
+                      questionKey,
+                      fileName: file.name,
+                      dataBase64
+                    });
+                    return res.value;
+                  }
+                : undefined
+            }
           />
         )}
 
@@ -794,6 +856,16 @@ export function RegistrationFunnel({
       </p>
     </div>
   );
+}
+
+/** Base64 of a chosen file (no data: prefix), for the JSON upload. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).replace(/^data:[^,]*,/, ""));
+    r.onerror = () => reject(new Error("Could not read the file. Choose it again."));
+    r.readAsDataURL(file);
+  });
 }
 
 function fmtDate(s: string, timeZone?: string) {
@@ -1997,9 +2069,12 @@ function QuestionsStep({
   onTeamDivisionChange,
   onTeamColorChange,
   onBack,
-  onNext
+  onNext,
+  uploadFile
 }: {
   definition: PublicSeasonContext["formDefinition"];
+  /** FR-3.4.5: stores a file answer privately on the registration; resolves with the answer value. */
+  uploadFile?: (file: File, questionKey: string) => Promise<string>;
   initialAnswers: AnswerMap;
   onChange: (next: AnswerMap) => void;
   submissionType: SubmissionType | null;
@@ -2176,6 +2251,8 @@ function QuestionsStep({
             definition={definition}
             initialAnswers={initialAnswers}
             onChange={onChange}
+            uploadFile={uploadFile}
+            uploadAccept="application/pdf,image/png,image/jpeg,image/webp"
           />
         </div>
       </section>

@@ -546,6 +546,10 @@ function ReviewDialog({
     (meta.payment as { outcome?: string; amountCents?: number; currency?: string } | undefined) ??
     undefined;
   const isOffline = submission.status === "pending_offline";
+  // FR-3.4.5: files the registrant uploaded, opened through a signed link.
+  const files = ((meta.files as Record<string, { fileName?: string }> | undefined) ?? {});
+  const fileKeys = Object.keys(files);
+  const placement = meta.rosterPlacement as { status: string; reason?: string } | undefined;
 
   async function apply(
     action: "approve" | "reject" | "request_resubmission" | "override_flag"
@@ -597,6 +601,40 @@ function ReviewDialog({
           <Row2 label="Tier">
             {tierId ? (tierName ?? "Loading…") : "—"}
           </Row2>
+          {placement ? (
+            <Row2 label="Team">
+              {placement.status === "rostered"
+                ? "On the team roster"
+                : placement.status === "not_placed"
+                  ? `Not on the roster: ${placement.reason ?? "see the team"}`
+                  : placement.status}
+            </Row2>
+          ) : meta.joinTeam ? (
+            <Row2 label="Team">Joins the team on approval</Row2>
+          ) : null}
+          {fileKeys.length > 0 && (
+            <Row2 label="Uploaded files">
+              <div className="flex flex-col items-end gap-1">
+                {fileKeys.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className="text-[12px] text-accent underline"
+                    onClick={async () => {
+                      try {
+                        const link = await registrationV2Admin.fileLink(submission!.id, k);
+                        window.open(link.url, "_blank", "noopener");
+                      } catch (e) {
+                        setError((e as Error).message);
+                      }
+                    }}
+                  >
+                    Open {files[k]?.fileName ?? k}
+                  </button>
+                ))}
+              </div>
+            </Row2>
+          )}
           {flags.length > 0 && (
             <Row2 label="Eligibility flags">
               <div className="flex flex-wrap justify-end gap-1">

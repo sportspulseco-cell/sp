@@ -68,6 +68,16 @@ export async function resolveAnnouncementRecipients(
       );
     for (const r of rows) userIds.add(r.userId);
   }
+  // teams.captain_user_id is the other captain record (userIsCaptainOfTeam
+  // accepts it); a team whose captain has no team-scoped role row used to
+  // get no captain notices at all.
+  if (audiences.includes("captains") && target.teamIds.length) {
+    const rows = await db
+      .select({ userId: schema.teams.captainUserId })
+      .from(schema.teams)
+      .where(inArray(schema.teams.id, target.teamIds));
+    for (const r of rows) if (r.userId) userIds.add(r.userId);
+  }
 
   if (audiences.includes("referees") && target.leagueIds.length) {
     const rows = await db

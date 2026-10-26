@@ -8,8 +8,10 @@ import {
   ForbiddenException,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -18,11 +20,15 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   Min,
   MinLength
 } from "class-validator";
@@ -39,7 +45,8 @@ import {
   freeAgentOfferStatus,
   pickCurrentSeason,
   resolveDivisionRules,
-  sortSeasonsByCurrency
+  sortSeasonsByCurrency,
+  teamRegistrationPath
 } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -51,9 +58,12 @@ import { NotificationService } from "../../communications/application/notificati
 import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 import { FreeAgentOffersService } from "../../registration-v2/application/free-agent-offers.service";
+import { RosterEntryService } from "../../registration-v2/application/roster-entry.service";
 
 /** Invite statuses that can still be accepted or declined (`extended` = reminded with a new expiry). */
 const OPEN_INVITE_STATUSES = ["pending", "extended"];
+
+type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 /**
  * Workflow 7B · Sprint 5 — captain roster management (cases 1–5).
@@ -95,6 +105,20 @@ class InviteBodyDto {
    * anyone (CAP-16). Shares are set on the captain's Dues page.
    */
   @IsOptional() @IsInt() @Min(0) splitAmountCents?: number;
+  /** Optional sweater number the player gets when they join (FR-3.11.2). */
+  @IsOptional() @IsInt() @Min(0) @Max(99) jerseyNumber?: number;
+}
+
+class InviteManyBodyDto {
+  @IsUUID() seasonId!: string;
+  @IsArray() @ArrayNotEmpty() @ArrayMaxSize(60) @IsUUID("4", { each: true }) personIds!: string[];
+}
+
+class JerseyBodyDto {
+  @IsUUID() seasonId!: string;
+  @IsUUID() personId!: string;
+  /** null clears the number. */
+  @IsOptional() @IsInt() @Min(0) @Max(99) jerseyNumber!: number | null;
 }
 
 class GuestBodyDto {
@@ -113,11 +137,14 @@ class GuestBodyDto {
 @Controller("captain/roster")
 @UseGuards(JwtAuthGuard)
 export class CaptainRosterController {
+  private readonly log = new Logger(CaptainRosterController.name);
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notify: NotificationService,
     private readonly config: ConfigService,
-    private readonly faOffers: FreeAgentOffersService
+    private readonly faOffers: FreeAgentOffersService,
+    private readonly rosterEntry: RosterEntryService
   ) {}
 
   // -------------------------------------------------------------------
@@ -192,6 +219,9 @@ export class CaptainRosterController {
         personFirstName: schema.persons.legalFirstName,
         personLastName: schema.persons.legalLastName,
         personEmail: schema.profiles.email,
+        // FR-3.11.2: captains see their players' contact details (read only;
+        // players edit their own on /profile).
+        personPhone: schema.profiles.phoneE164,
         personDob: schema.persons.dobDate
       })
       .from(schema.teamMemberships)
@@ -237,6 +267,34 @@ export class CaptainRosterController {
       )
       .orderBy(desc(schema.teamInvites.createdAt));
 
+    // Players registering onto this team (FR-3.4.1, UC-04): they join the
+    // roster when the league approves the registration.
+    const joining = await this.db
+      .select({
+        registrationId: schema.registrations.id,
+        status: schema.registrations.status,
+        personId: schema.registrations.subjectPersonId,
+        firstName: schema.persons.legalFirstName,
+        lastName: schema.persons.legalLastName,
+        metadata: schema.registrations.metadata
+      })
+      .from(schema.registrations)
+      .innerJoin(schema.persons, eq(schema.persons.id, schema.registrations.subjectPersonId))
+      .where(
+        and(
+          eq(schema.registrations.teamId, teamId),
+          eq(schema.registrations.seasonId, season.id),
+          inArray(schema.registrations.status, [
+            "pending_consent",
+            "pending_payment",
+            "pending_offline",
+            "pending_review",
+            "incomplete"
+          ])
+        )
+      )
+      .orderBy(desc(schema.registrations.createdAt));
+
     return {
       team: { id: team.id, name: team.name },
       season: {
@@ -260,11 +318,197 @@ export class CaptainRosterController {
         lastSentAt: i.lastSentAt?.toISOString() ?? null,
         createdAt: i.createdAt.toISOString()
       })),
+      joining: joining
+        .filter((j) => (j.metadata as Record<string, unknown> | null)?.submissionType !== "team")
+        .map((j) => ({
+          registrationId: j.registrationId,
+          personId: j.personId,
+          name: [j.firstName, j.lastName].filter(Boolean).join(" ").trim() || null,
+          status: j.status,
+          stage: ["pending_review", "pending_offline", "incomplete"].includes(j.status)
+            ? ("awaiting_approval" as const)
+            : ("registering" as const)
+        })),
       rosterLockAt: season.rosterLockAt?.toISOString() ?? null,
       isLocked: season.rosterLockAt
         ? new Date() > season.rosterLockAt
         : false
     };
+  }
+
+  // -------------------------------------------------------------------
+  // GET /captain/roster/:teamId/past-players  (FR-3.4.3)
+  // -------------------------------------------------------------------
+  @Get(":teamId/past-players")
+  @ApiOperation({
+    summary:
+      "Players who were on this team in other seasons, for inviting them to `seasonId` in one go (FR-3.4.3, UC-04 'selects from past roster'). Marks who is already on the season's roster or has an open invite, and who has no email."
+  })
+  async pastPlayers(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Query("seasonId") seasonId: string
+  ) {
+    await this.requireCaptainTeam(user.userId, teamId);
+    if (!seasonId) throw new BadRequestException("seasonId is required");
+    const rows = (await this.db.execute(sql`
+      SELECT DISTINCT ON (tm.person_id)
+             tm.person_id, p.legal_first_name AS first, p.legal_last_name AS last, p.preferred_name AS preferred,
+             lower(coalesce(pr.email, p.external_ids->>'email')) AS email,
+             s.name AS season_name, s.start_date AS season_start, tm.jersey_number
+        FROM team_memberships tm
+        JOIN persons p ON p.id = tm.person_id
+        JOIN seasons s ON s.id = tm.season_id
+        LEFT JOIN profiles pr ON pr.id = p.user_id
+       WHERE tm.team_id = ${teamId} AND tm.season_id <> ${seasonId}
+       ORDER BY tm.person_id, s.start_date DESC NULLS LAST
+    `)) as unknown as Array<{
+      person_id: string; first: string | null; last: string | null; preferred: string | null;
+      email: string | null; season_name: string; season_start: string | null; jersey_number: number | null;
+    }>;
+    const ids = rows.map((r) => r.person_id);
+    const [onRoster, openInvites] = ids.length
+      ? await Promise.all([
+          this.db
+            .select({ personId: schema.teamMemberships.personId })
+            .from(schema.teamMemberships)
+            .where(
+              and(
+                eq(schema.teamMemberships.teamId, teamId),
+                eq(schema.teamMemberships.seasonId, seasonId),
+                eq(schema.teamMemberships.currentStatus, "active"),
+                inArray(schema.teamMemberships.personId, ids)
+              )
+            ),
+          this.db
+            .select({ email: schema.teamInvites.inviteeEmail })
+            .from(schema.teamInvites)
+            .where(
+              and(
+                eq(schema.teamInvites.teamId, teamId),
+                eq(schema.teamInvites.seasonId, seasonId),
+                inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
+              )
+            )
+        ])
+      : [[], []];
+    const rostered = new Set(onRoster.map((r) => r.personId));
+    const invited = new Set(openInvites.map((r) => (r.email ?? "").toLowerCase()));
+    return {
+      items: rows
+        .map((r) => ({
+          personId: r.person_id,
+          name: (r.preferred && r.preferred.trim()) || [r.first, r.last].filter(Boolean).join(" ").trim() || "Unnamed player",
+          email: r.email,
+          lastSeasonName: r.season_name,
+          lastJerseyNumber: r.jersey_number,
+          state: rostered.has(r.person_id)
+            ? ("on_roster" as const)
+            : r.email && invited.has(r.email)
+              ? ("invited" as const)
+              : !r.email
+                ? ("no_email" as const)
+                : ("can_invite" as const)
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /captain/roster/:teamId/invite-many  (FR-3.4.3)
+  // -------------------------------------------------------------------
+  @Post(":teamId/invite-many")
+  @ApiOperation({
+    summary:
+      "Invite several past players to a season in one go. Each must have been on this team before; players already on the roster, already invited or without an email are skipped and named. Same invite as one by email (14-day expiry, email with the link)."
+  })
+  async inviteMany(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Body() body: InviteManyBodyDto
+  ) {
+    const team = await this.requireCaptainTeam(user.userId, teamId);
+    const season = await this.loadSeason(body.seasonId);
+    if (!season) throw new NotFoundException("Season not found");
+    this.assertRosterUnlocked(season);
+    const past = await this.pastPlayers(user, teamId, season.id);
+    const byId = new Map(past.items.map((p) => [p.personId, p]));
+    const results: Array<{ personId: string; name: string | null; outcome: string }> = [];
+    for (const personId of Array.from(new Set(body.personIds))) {
+      const p = byId.get(personId);
+      if (!p) {
+        results.push({ personId, name: null, outcome: "not_a_past_player" });
+        continue;
+      }
+      if (p.state !== "can_invite") {
+        results.push({ personId, name: p.name, outcome: p.state === "invited" ? "already_invited" : p.state });
+        continue;
+      }
+      await this.createInvite(team, season, p.email!, user.userId, {
+        source: "past_roster",
+        personId,
+        jerseyNumber: p.lastJerseyNumber ?? null
+      });
+      results.push({ personId, name: p.name, outcome: "invited" });
+    }
+    const invited = results.filter((r) => r.outcome === "invited").length;
+    this.log.log(`invite-many team=${teamId} season=${season.id} asked=${body.personIds.length} invited=${invited}`);
+    return { invited, results };
+  }
+
+  // -------------------------------------------------------------------
+  // PATCH /captain/roster/:teamId/jersey  (FR-3.11.2)
+  // -------------------------------------------------------------------
+  @Patch(":teamId/jersey")
+  @ApiOperation({
+    summary:
+      "Captain sets or clears a rostered player's jersey number. Unique per team and season (409 naming who wears it). Allowed after the roster lock: a number is not a roster move."
+  })
+  async setJersey(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Body() body: JerseyBodyDto
+  ) {
+    await this.requireCaptainTeam(user.userId, teamId);
+    const jerseyNumber = body.jerseyNumber ?? null;
+    const [m] = await this.db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, teamId),
+          eq(schema.teamMemberships.seasonId, body.seasonId),
+          eq(schema.teamMemberships.personId, body.personId),
+          eq(schema.teamMemberships.currentStatus, "active")
+        )
+      )
+      .limit(1);
+    if (!m) throw new NotFoundException("This player is not on the active roster.");
+    await this.rosterEntry.assertJerseyFree(this.db, {
+      teamId,
+      seasonId: body.seasonId,
+      jerseyNumber,
+      exceptPersonId: body.personId
+    });
+    try {
+      const updated = await this.db
+        .update(schema.teamMemberships)
+        .set({ jerseyNumber, updatedAt: new Date() })
+        .where(eq(schema.teamMemberships.id, m.id))
+        .returning({ id: schema.teamMemberships.id, jerseyNumber: schema.teamMemberships.jerseyNumber });
+      if (updated.length !== 1) throw new Error(`jersey update touched ${updated.length} rows membership=${m.id}`);
+      this.log.log(`jersey team=${teamId} person=${body.personId} -> ${jerseyNumber ?? "none"}`);
+      return { membershipId: m.id, jerseyNumber: updated[0]!.jerseyNumber };
+    } catch (e) {
+      // Two captains saving the same number at once: the unique index decides.
+      if ((e as { code?: string }).code === "23505") {
+        throw new ConflictException({
+          error: "jersey_number_taken",
+          message: `Number ${jerseyNumber} was just taken by another player. Pick another number.`
+        });
+      }
+      throw e;
+    }
   }
 
   // -------------------------------------------------------------------
@@ -280,7 +524,7 @@ export class CaptainRosterController {
     @Param("teamId") teamId: string,
     @Body() body: AddPlayerBodyDto
   ) {
-    await this.requireCaptainTeam(user.userId, teamId);
+    const team = await this.requireCaptainTeam(user.userId, teamId);
     const season = await this.loadSeason(body.seasonId);
     if (!season) throw new NotFoundException("Season not found");
     this.assertRosterUnlocked(season);
@@ -290,23 +534,85 @@ export class CaptainRosterController {
     );
 
     const [person] = await this.db
-      .select({ id: schema.persons.id })
+      .select({
+        id: schema.persons.id,
+        first: schema.persons.legalFirstName,
+        last: schema.persons.legalLastName,
+        externalIds: schema.persons.externalIds,
+        email: schema.profiles.email
+      })
       .from(schema.persons)
+      .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
       .where(eq(schema.persons.id, body.personId))
       .limit(1);
     if (!person) throw new NotFoundException("Person not found");
+    const name = [person.first, person.last].filter(Boolean).join(" ").trim() || "This player";
 
     await this.assertNotActiveInOtherSeason(teamId, body.personId, season.id);
-
-    return this.addToRoster({
+    await this.rosterEntry.assertJerseyFree(this.db, {
       teamId,
       seasonId: season.id,
-      personId: body.personId,
-      maxRosterSize: rules.maxRosterSize,
-      actorUserId: user.userId,
-      jerseyNumber: body.jerseyNumber ?? null,
-      positionCode: body.positionCode ?? null
+      jerseyNumber: body.jerseyNumber ?? null
     });
+
+    // A player joins a roster through the season's registration (form,
+    // waivers, payment) and the league's approval. Registered players
+    // join now; a submitted registration records the team and joins on
+    // approval; anyone else gets an invite to register onto the team.
+    const reg = await this.rosterEntry.seasonRegistration(body.personId, season.id);
+    const readiness = reg?.readiness ?? "register";
+    this.log.log(
+      `captain add team=${teamId} season=${season.id} person=${body.personId} registration=${reg?.id ?? "-"}:${reg?.status ?? "-"} -> ${readiness}`
+    );
+    if (readiness === "ready") {
+      const res = await this.rosterEntry.addToRoster({
+        teamId,
+        seasonId: season.id,
+        personId: body.personId,
+        maxRosterSize: rules.maxRosterSize,
+        actorUserId: user.userId,
+        jerseyNumber: body.jerseyNumber ?? null,
+        positionCode: body.positionCode ?? null,
+        reason: "Added by captain"
+      });
+      return {
+        status: "rostered" as const,
+        message: `${name} is on the roster.`,
+        move: res.move,
+        membership: res.membership
+      };
+    }
+    const opening = await this.rosterEntry.opening(teamId, season.id);
+    if (opening?.refusal) {
+      throw new ConflictException({ error: opening.refusal.reason, message: opening.refusal.message });
+    }
+    if (readiness === "awaiting_approval" && reg) {
+      await this.rosterEntry.recordTeamOnRegistration(reg, teamId, { source: "captain_add" });
+      return {
+        status: "awaiting_approval" as const,
+        message: `${name} registered for ${season.name} and is waiting for the league to approve it. They join ${team.name} when it is approved.`
+      };
+    }
+    const ext = (person.externalIds as Record<string, unknown> | null) ?? {};
+    const email = (person.email ?? (typeof ext.email === "string" ? ext.email : "") ?? "")
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      throw new ConflictException({
+        error: "player_has_no_email",
+        message: `${name} has not registered for ${season.name} and has no email on file, so they cannot be invited. Ask them to register for the season, or invite them by email.`
+      });
+    }
+    const invite = await this.createInvite(team, season, email, user.userId, {
+      source: "captain_add",
+      personId: body.personId,
+      jerseyNumber: body.jerseyNumber ?? null
+    });
+    return {
+      status: "invited" as const,
+      message: `${name} has not registered for ${season.name} yet. We sent them an invite to register and join ${team.name}; they join the roster when the league approves their registration.`,
+      invite
+    };
   }
 
   // -------------------------------------------------------------------
@@ -372,41 +678,110 @@ export class CaptainRosterController {
     );
     const meta = (invite.metadata as Record<string, unknown>) ?? {};
     const isFreeAgentOffer = meta.source === FREE_AGENT_OFFER_SOURCE;
+    const personId = me.personId;
+    const metaJersey = typeof meta.jerseyNumber === "number" ? meta.jerseyNumber : null;
 
-    const result = await this.addToRoster({
+    // UC-04: the player accepts and completes registration (waivers,
+    // payment), then joins. Approved registration: join now. Submitted,
+    // waiting for the league: the team is recorded and they join on
+    // approval. No registration: register first, with the team set.
+    const reg = await this.rosterEntry.seasonRegistration(personId, season.id);
+    const readiness = reg?.readiness ?? "register";
+    this.log.log(
+      `invite accept invite=${invite.id} team=${invite.teamId} person=${personId} registration=${reg?.id ?? "-"}:${reg?.status ?? "-"} -> ${readiness}`
+    );
+    const markAccepted = async (tx: Tx, extra: Record<string, unknown> = {}) => {
+      const accepted = await tx
+        .update(schema.teamInvites)
+        .set({
+          status: "accepted",
+          acceptedByUserId: user.userId,
+          acceptedAt: new Date(),
+          updatedAt: new Date(),
+          ...(Object.keys(extra).length
+            ? { metadata: sql`${schema.teamInvites.metadata} || ${JSON.stringify(extra)}::jsonb` }
+            : {})
+        })
+        .where(
+          and(
+            eq(schema.teamInvites.id, invite.id),
+            inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
+          )
+        )
+        .returning({ id: schema.teamInvites.id });
+      if (accepted.length !== 1) {
+        throw new ConflictException("This invite was just used or withdrawn. Ask your captain for a new one.");
+      }
+    };
+
+    if (readiness === "register") {
+      const opening = await this.rosterEntry.opening(invite.teamId, season.id);
+      if (opening?.refusal) {
+        throw new ConflictException({ error: opening.refusal.reason, message: opening.refusal.message });
+      }
+      const [team] = await this.db
+        .select({ name: schema.teams.name })
+        .from(schema.teams)
+        .where(eq(schema.teams.id, invite.teamId))
+        .limit(1);
+      return {
+        status: "registration_required" as const,
+        teamId: invite.teamId,
+        seasonId: season.id,
+        teamName: team?.name ?? null,
+        seasonName: season.name,
+        registerPath: teamRegistrationPath(season.id, invite.teamId, invite.token),
+        message: `Register for ${season.name} to join ${team?.name ?? "the team"}. You join the roster when the league approves your registration.`
+      };
+    }
+
+    if (readiness === "awaiting_approval" && reg) {
+      const opening = await this.rosterEntry.opening(invite.teamId, season.id);
+      if (opening?.refusal) {
+        throw new ConflictException({ error: opening.refusal.reason, message: opening.refusal.message });
+      }
+      await this.db.transaction(async (tx) => {
+        await this.rosterEntry.recordTeamOnRegistration(reg, invite.teamId, {
+          inviteId: invite.id,
+          source: isFreeAgentOffer ? "free_agent_offer" : "team_invite",
+          exec: tx
+        });
+        await markAccepted(tx, { awaitingRegistrationId: reg.id });
+        await this.faOffers.placeOnAccept(tx, invite, personId);
+      });
+      if (isFreeAgentOffer) void this.faOffers.notifyOutcome(invite.id, "accepted");
+      return {
+        status: "awaiting_approval" as const,
+        teamId: invite.teamId,
+        seasonId: season.id,
+        registrationId: reg.id,
+        message: `Your registration for ${season.name} is waiting for the league. You join the roster when it is approved.`
+      };
+    }
+
+    const result = await this.rosterEntry.addToRoster({
       teamId: invite.teamId,
       seasonId: season.id,
-      personId: me.personId,
+      personId,
       maxRosterSize: rules.maxRosterSize,
       actorUserId: user.userId,
-      jerseyNumber: null,
+      jerseyNumber: metaJersey,
       positionCode: null,
+      reason: isFreeAgentOffer ? "Free-agent offer accepted" : "Invite accepted",
       inTx: async (tx) => {
-        const accepted = await tx
-          .update(schema.teamInvites)
-          .set({
-            status: "accepted",
-            acceptedByUserId: user.userId,
-            acceptedAt: new Date(),
-            updatedAt: new Date()
-          })
-          .where(
-            and(
-              eq(schema.teamInvites.id, invite.id),
-              inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
-            )
-          )
-          .returning({ id: schema.teamInvites.id });
-        if (accepted.length !== 1) {
-          throw new ConflictException("This invite was just used or withdrawn. Ask your captain for a new one.");
-        }
+        await markAccepted(tx);
         // Free-agent offer: the pool entry is placed in this same
         // transaction (CAP-9), so roster and pool never disagree.
-        await this.faOffers.placeOnAccept(tx, invite, me.personId!);
+        await this.faOffers.placeOnAccept(tx, invite, personId);
       }
     });
     if (isFreeAgentOffer) void this.faOffers.notifyOutcome(invite.id, "accepted");
-    return { teamId: invite.teamId, seasonId: season.id, membershipId: result.membership.id };
+    return {
+      status: "rostered" as const,
+      teamId: invite.teamId,
+      seasonId: season.id,
+      membershipId: result.membership.id
+    };
   }
 
   // -------------------------------------------------------------------
@@ -472,8 +847,54 @@ export class CaptainRosterController {
     const meta = (invite.metadata as Record<string, unknown>) ?? {};
     if (meta.source === FREE_AGENT_OFFER_SOURCE) {
       void this.faOffers.notifyOutcome(invite.id, "declined");
+    } else {
+      // UC-04 alternative flow: "Player declines invite -> System
+      // notifies captain" (FR-3.4.4). Before this nobody was told.
+      void this.notifyInviteDeclined(invite, user.userId);
     }
     return { id: invite.id, status: updated[0]!.status, teamId: invite.teamId, seasonId: invite.seasonId };
+  }
+
+  private async notifyInviteDeclined(
+    invite: typeof schema.teamInvites.$inferSelect,
+    declinerUserId: string
+  ): Promise<void> {
+    try {
+      const [ctx] = await this.db
+        .select({ teamName: schema.teams.name, orgId: schema.teams.orgId, seasonName: schema.seasons.name })
+        .from(schema.teams)
+        .leftJoin(schema.seasons, eq(schema.seasons.id, invite.seasonId))
+        .where(eq(schema.teams.id, invite.teamId))
+        .limit(1);
+      const [player] = await this.db
+        .select({
+          personId: schema.persons.id,
+          first: schema.persons.legalFirstName,
+          last: schema.persons.legalLastName,
+          preferred: schema.persons.preferredName
+        })
+        .from(schema.persons)
+        .where(eq(schema.persons.userId, declinerUserId))
+        .limit(1);
+      const playerName =
+        (player?.preferred && player.preferred.trim()) ||
+        [player?.first, player?.last].filter(Boolean).join(" ").trim() ||
+        invite.inviteeEmail ||
+        "The player";
+      if (!ctx) return;
+      const res = await notifyAudience(this.db, this.notify, {
+        orgId: ctx.orgId,
+        target: { teamIds: [invite.teamId] },
+        audiences: ["captains"],
+        templateCode: "TEAM_INVITE_DECLINED",
+        key: `invite-declined-${invite.id}`,
+        excludePersonIds: player?.personId ? [player.personId] : [],
+        payload: { playerName, teamName: ctx.teamName, seasonName: ctx.seasonName ?? "the season", seasonId: invite.seasonId }
+      });
+      this.log.log(`invite declined invite=${invite.id} team=${invite.teamId} captains queued=${res.queued}`);
+    } catch (e) {
+      this.log.error(`invite declined notice failed invite=${invite.id}: ${(e as Error).message}`);
+    }
   }
 
   // -------------------------------------------------------------------
@@ -536,116 +957,6 @@ export class CaptainRosterController {
           createdAt: r.createdAt.toISOString()
         }))
     };
-  }
-
-  private async addToRoster(input: {
-    teamId: string;
-    seasonId: string;
-    personId: string;
-    maxRosterSize: number;
-    actorUserId: string;
-    jerseyNumber: number | null;
-    positionCode: string | null;
-    /** Extra writes that must commit or roll back with the add. */
-    inTx?: (tx: Parameters<Parameters<Database["transaction"]>[0]>[0]) => Promise<void>;
-  }) {
-    const { teamId, personId, actorUserId } = input;
-    const season = { id: input.seasonId };
-    const rules = { maxRosterSize: input.maxRosterSize };
-    const body = {
-      personId,
-      jerseyNumber: input.jerseyNumber,
-      positionCode: input.positionCode
-    };
-    const user = { userId: actorUserId };
-    return await this.db.transaction(async (tx) => {
-      // Lock the active count for this team+season; the row-level lock
-      // serialises two competing adds at cap-1.
-      await tx.execute(sql`
-        SELECT id FROM team_memberships
-        WHERE team_id = ${teamId}
-          AND season_id = ${season.id}
-          AND current_status = 'active'
-        FOR UPDATE
-      `);
-
-      const counted = await tx
-        .select({ count: sql<number>`COUNT(*)::int` })
-        .from(schema.teamMemberships)
-        .where(
-          and(
-            eq(schema.teamMemberships.teamId, teamId),
-            eq(schema.teamMemberships.seasonId, season.id),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        );
-      const current = counted[0]?.count ?? 0;
-      // A player already on the roster takes no new slot, so that answer
-      // comes first; then the cap (counted under the lock above).
-      // Already on roster? Refuse the duplicate.
-      const existing = await tx
-        .select({ id: schema.teamMemberships.id })
-        .from(schema.teamMemberships)
-        .where(
-          and(
-            eq(schema.teamMemberships.teamId, teamId),
-            eq(schema.teamMemberships.seasonId, season.id),
-            eq(schema.teamMemberships.personId, body.personId),
-            eq(schema.teamMemberships.currentStatus, "active")
-          )
-        )
-        .limit(1);
-      if (existing[0]) {
-        throw new ConflictException({
-          error: "Already on roster",
-          message: "This player is already on the active roster."
-        });
-      }
-
-      if (current >= rules.maxRosterSize) {
-        throw new ConflictException({
-          error: "Roster is full",
-          message: `The roster is full: ${current} of ${rules.maxRosterSize} players. Drop a player before adding another.`,
-          maxRosterSize: rules.maxRosterSize,
-          currentCount: current
-        });
-      }
-
-      const moveRows = await tx
-        .insert(schema.rosterMoves)
-        .values({
-          teamId,
-          personId: body.personId,
-          seasonId: season.id,
-          moveType: "add",
-          membershipType: "primary",
-          effectiveAt: new Date(),
-          jerseyNumber: body.jerseyNumber ?? null,
-          positionCode: body.positionCode ?? null,
-          createdByUserId: user.userId
-        })
-        .returning();
-      const move = moveRows[0]!;
-
-      const membershipRows = await tx
-        .insert(schema.teamMemberships)
-        .values({
-          teamId,
-          personId: body.personId,
-          seasonId: season.id,
-          membershipType: "primary",
-          effectiveFrom: new Date(),
-          jerseyNumber: body.jerseyNumber ?? null,
-          positionCode: body.positionCode ?? null,
-          currentStatus: "active",
-          lastMoveId: move.id
-        })
-        .returning();
-      const membership = membershipRows[0]!;
-
-      if (input.inTx) await input.inTx(tx);
-      return { move, membership };
-    });
   }
 
   // -------------------------------------------------------------------
@@ -831,7 +1142,30 @@ export class CaptainRosterController {
     const season = await this.loadSeason(body.seasonId);
     if (!season) throw new NotFoundException("Season not found");
     this.assertRosterUnlocked(season);
+    await this.rosterEntry.assertJerseyFree(this.db, {
+      teamId,
+      seasonId: season.id,
+      jerseyNumber: body.jerseyNumber ?? null
+    });
+    const invite = await this.createInvite(team, season, body.email, user.userId, {
+      source: "captain_invite",
+      jerseyNumber: body.jerseyNumber ?? null
+    });
+    return { invite };
+  }
 
+  /**
+   * One personal invite + its email. The link opens /invite/<token>;
+   * accepting it sends a player with no season registration into the
+   * funnel with the team set (UC-04).
+   */
+  private async createInvite(
+    team: { id: string; orgId: string; name: string },
+    season: { id: string; name: string; registrationClosesAt: Date | null },
+    email: string,
+    actorUserId: string,
+    metadata: Record<string, unknown>
+  ) {
     const ttlMs = INVITE_DEFAULT_TTL_DAYS * 24 * 60 * 60 * 1000;
     const closeAt = season.registrationClosesAt;
     const expiresAt = new Date(
@@ -840,31 +1174,32 @@ export class CaptainRosterController {
         closeAt ? closeAt.getTime() : Date.now() + ttlMs
       )
     );
-
     const token = randomBytes(32).toString("base64url");
-
-    const inviteRows = await this.db
+    const cleanMeta = Object.fromEntries(
+      Object.entries(metadata).filter(([, v]) => v !== null && v !== undefined)
+    );
+    const [invite] = await this.db
       .insert(schema.teamInvites)
       .values({
-        teamId,
+        teamId: team.id,
         seasonId: season.id,
-        issuedByUserId: user.userId,
-        inviteeEmail: body.email.toLowerCase(),
+        issuedByUserId: actorUserId,
+        inviteeEmail: email.toLowerCase(),
         token,
         kind: "personal",
         status: "pending",
         expiresAt,
         lastSentAt: new Date(),
-        sendCount: 1
+        sendCount: 1,
+        metadata: cleanMeta
       })
       .returning();
-    const invite = inviteRows[0]!;
-
+    this.log.log(`invite created invite=${invite!.id} team=${team.id} season=${season.id} source=${String(metadata.source)}`);
     void this.notify.queue({
       orgId: team.orgId,
       templateCode: "TEAM_INVITE_NEW",
-      idempotencyKey: `invite-${invite.id}`,
-      recipientEmail: body.email,
+      idempotencyKey: `invite-${invite!.id}`,
+      recipientEmail: email,
       payload: buildTeamInvitePayload({
         teamName: team.name,
         seasonName: season.name,
@@ -874,8 +1209,7 @@ export class CaptainRosterController {
         playerWebUrl: playerWebUrl(this.config)
       })
     });
-
-    return { invite };
+    return invite!;
   }
 
   // -------------------------------------------------------------------
@@ -1097,7 +1431,9 @@ export class CaptainRosterController {
             and(
               eq(schema.gameAttendance.personId, body.personId),
               eq(schema.gameAttendance.teamId, teamId),
-              eq(schema.gameAttendance.isGuest, true)
+              eq(schema.gameAttendance.isGuest, true),
+              // The limit is per season; this counted every season before.
+              eq(schema.games.seasonId, season.id)
             )
           );
         const count = seasonGuests[0]?.count ?? 0;
@@ -1221,55 +1557,12 @@ export class CaptainRosterController {
     return row ?? null;
   }
 
-  /**
-   * One active membership per player per team across the team's live
-   * seasons (CAP-24). The per-season duplicate guard inside addToRoster
-   * cannot see a membership in another season of the same team; the
-   * roster page and the invite flow used to default to different seasons,
-   * so one player ended up active twice on one team. Used by the
-   * captain's Add player and by invite / free-agent offer accept.
-   */
-  private async assertNotActiveInOtherSeason(
-    teamId: string,
-    personId: string,
-    seasonId: string
-  ): Promise<void> {
-    const today = new Date().toISOString().slice(0, 10);
-    const [elsewhere] = await this.db
-      .select({ seasonName: schema.seasons.name })
-      .from(schema.teamMemberships)
-      .innerJoin(
-        schema.seasons,
-        eq(schema.seasons.id, schema.teamMemberships.seasonId)
-      )
-      .where(
-        and(
-          eq(schema.teamMemberships.teamId, teamId),
-          eq(schema.teamMemberships.personId, personId),
-          eq(schema.teamMemberships.currentStatus, "active"),
-          ne(schema.teamMemberships.seasonId, seasonId),
-          sql`${schema.seasons.status} NOT IN ('completed','archived')`,
-          sql`${schema.seasons.endDate} >= ${today}`
-        )
-      )
-      .limit(1);
-    if (elsewhere) {
-      throw new ConflictException({
-        error: "Already on roster",
-        message: `This player is already on this team's active roster for ${elsewhere.seasonName}. Switch the season to ${elsewhere.seasonName} to manage them, or drop them there first.`,
-        seasonName: elsewhere.seasonName
-      });
-    }
+  /** One active membership per player per team across live seasons (CAP-24); shared rule. */
+  private assertNotActiveInOtherSeason(teamId: string, personId: string, seasonId: string) {
+    return this.rosterEntry.assertNotActiveInOtherSeason(teamId, personId, seasonId);
   }
 
   private assertRosterUnlocked(season: { rosterLockAt: Date | null }) {
-    if (season.rosterLockAt && new Date() > season.rosterLockAt) {
-      throw new ConflictException({
-        error: "Roster locked",
-        message: "Roster is locked for this season.",
-        rosterLockAt: season.rosterLockAt.toISOString()
-      });
-    }
+    this.rosterEntry.assertUnlocked(season);
   }
-
 }

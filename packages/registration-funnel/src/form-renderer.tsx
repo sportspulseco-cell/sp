@@ -30,7 +30,8 @@ export function FormRenderer({
   initialAnswers,
   onChange,
   disabled = false,
-  uploadFile
+  uploadFile,
+  uploadAccept
 }: {
   definition: FormDefinition;
   initialAnswers?: AnswerMap;
@@ -41,7 +42,9 @@ export function FormRenderer({
    * Stores a chosen file and resolves with its URL. When absent, file
    * questions keep only the file name (forms without storage).
    */
-  uploadFile?: (file: File) => Promise<string>;
+  uploadFile?: (file: File, questionKey: string) => Promise<string>;
+  /** File types the upload accepts (default: images, for profile photos). */
+  uploadAccept?: string;
 }) {
   const answers = initialAnswers ?? {};
   const visible = visibleQuestions(definition, answers);
@@ -69,6 +72,7 @@ export function FormRenderer({
           onChange={(v) => setAnswer(q.key, v)}
           disabled={disabled}
           uploadFile={uploadFile}
+          uploadAccept={uploadAccept}
         />
       ))}
     </div>
@@ -80,13 +84,15 @@ function QuestionField({
   value,
   onChange,
   disabled,
-  uploadFile
+  uploadFile,
+  uploadAccept
 }: {
   q: FormQuestion;
   value: unknown;
   onChange: (next: unknown) => void;
   disabled: boolean;
-  uploadFile?: (file: File) => Promise<string>;
+  uploadFile?: (file: File, questionKey: string) => Promise<string>;
+  uploadAccept?: string;
 }) {
   const label = q.required ? `${q.label} *` : q.label;
 
@@ -180,7 +186,8 @@ function QuestionField({
             hint={q.helpText}
             value={typeof value === "string" ? value : null}
             disabled={disabled}
-            upload={uploadFile}
+            upload={(file) => uploadFile(file, q.key)}
+            accept={uploadAccept}
             onChange={onChange}
           />
         );
@@ -240,6 +247,7 @@ function UploadField({
   value,
   disabled,
   upload,
+  accept,
   onChange
 }: {
   label: string;
@@ -247,11 +255,14 @@ function UploadField({
   value: string | null;
   disabled: boolean;
   upload: (file: File) => Promise<string>;
+  accept?: string;
   onChange: (next: unknown) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isUrl = !!value && /^https?:\/\//.test(value);
+  // A registration document stored privately: the answer names the file.
+  const storedName = value && value.startsWith("registration-file:") ? value.slice("registration-file:".length) : null;
   return (
     <Field label={label} hint={hint}>
       <div className="flex items-center gap-3">
@@ -261,7 +272,7 @@ function UploadField({
         ) : null}
         <input
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept={accept ?? "image/png,image/jpeg,image/webp"}
           disabled={disabled || busy}
           aria-label={label}
           onChange={async (e) => {
@@ -283,7 +294,8 @@ function UploadField({
       </div>
       {busy ? <p className="mt-1 text-[12px] text-fg-muted">Uploading…</p> : null}
       {!busy && isUrl ? <p className="mt-1 text-[12px] text-fg-muted">Photo uploaded. Save to keep it.</p> : null}
-      {!isUrl && value ? <p className="mt-1 text-[12px] text-fg-muted">{value} (not uploaded yet; choose it again)</p> : null}
+      {!busy && storedName ? <p className="mt-1 text-[12px] text-fg-muted">{storedName} uploaded.</p> : null}
+      {!isUrl && !storedName && value ? <p className="mt-1 text-[12px] text-fg-muted">{value} (not uploaded yet; choose it again)</p> : null}
       {error ? <p className="mt-1 text-[12px] text-rose-600 dark:text-rose-400">{error}</p> : null}
     </Field>
   );

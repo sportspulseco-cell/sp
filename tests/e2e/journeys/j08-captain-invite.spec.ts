@@ -2,6 +2,7 @@ import { test, expect, type Page, type BrowserContext, type Browser } from "@pla
 import { mkdirSync, writeFileSync } from "node:fs";
 import { E2E_URLS } from "../fixtures";
 import { IS_STAGING, RUN_TAG, freshContext, signedInAs, stagingSql, supabaseFetch } from "./_helpers";
+import { registerOntoTeamAndApprove } from "./_register-team";
 
 /**
  * J8 · Captain invites a player (UC-04), join requests, roster add / drop,
@@ -231,7 +232,7 @@ test("J8.1 captain sends a personal invite from /captain/invites", async () => {
   finding((notes[0]?.n ?? 0) > 0, "CAP: 'Invite sent to <email>' but no email/notification row exists for the invitee (UC-04 'System sends invitation')");
 });
 
-test("J8.2 captain creates a team link; an invitee opens it and joins (UC-04)", async ({ browser }) => {
+test("J8.2 captain creates a team link; an invitee opens it, registers onto the team and joins on approval (UC-04)", async ({ browser }) => {
   const p = cap.page;
   await p.locator("#kind").selectOption("generic");
   await p.getByRole("button", { name: /create url/i }).click();
@@ -260,21 +261,45 @@ test("J8.2 captain creates a team link; an invitee opens it and joins (UC-04)", 
   const join = inv.page.getByRole("button", { name: /^Join / });
   await expect(join).toBeVisible({ timeout: 20_000 });
   await join.click();
-  await inv.page.waitForURL(/\/team/, { timeout: 30_000 }).catch(() => {});
+  // UC-04 / FR-3.4.1: the plain player has no season registration, so Join
+  // opens the season's funnel with the team set; nobody is rostered yet.
+  await inv.page.waitForURL(/\/register\/[0-9a-f-]{36}\?team=/, { timeout: 30_000 }).catch(() => {});
   await settle(inv.page);
-  await inv.page.screenshot({ path: `${OUT}/22-invite-joined.png` }).catch(() => {});
+  await inv.page.screenshot({ path: `${OUT}/22-invite-to-funnel.png` }).catch(() => {});
   const joinError = await inv.page.getByRole("alert").innerText().catch(() => "");
-  finding(/\/team/.test(inv.page.url()), `CAP: invitee did not land on /team after Join (${inv.page.url()} ${joinError})`);
-  const [inviteRow] = await stagingSql<{ status: string }>(`select status from team_invites where token = $1`, [genericToken]);
-  const members = await stagingSql<{ n: number }>(
-    `select count(*)::int n from team_memberships tm join persons p on p.id = tm.person_id
-       join profiles pr on pr.id = p.user_id
-      where pr.email = $1 and tm.current_status = 'active'`,
-    [PLAIN_EMAIL]
+  const funnelUrl = inv.page.url();
+  finding(
+    funnelUrl.includes(`/register/${SEASON_ID}`) && funnelUrl.includes(`team=${TEAM_ID}`) && funnelUrl.includes("invite="),
+    `CAP: Join without a registration did not open the funnel with the team set (${funnelUrl} ${joinError})`
   );
-  writeFileSync(`${OUT}/22-invite-accept-db.json`, JSON.stringify({ inviteRow, members, joinError }, null, 2));
-  finding(inviteRow?.status === "accepted", `CAP: invite status after Join is ${inviteRow?.status}`);
-  finding((members[0]?.n ?? 0) > 0, "CAP: invitee has no active team membership after Join");
+  const banner = await inv.page.getByTestId("funnel-join-team").innerText().catch(() => "");
+  finding(/Staging Skaters/.test(banner), `REG: the funnel does not say which team the player joins ("${banner.slice(0, 120)}")`);
+  const memberCountSql = `select count(*)::int n from team_memberships tm join persons p on p.id = tm.person_id
+       join profiles pr on pr.id = p.user_id
+      where pr.email = $1 and tm.team_id = $2 and tm.current_status = 'active'`;
+  const beforeReg = await stagingSql<{ n: number }>(memberCountSql, [PLAIN_EMAIL, TEAM_ID]);
+  finding((beforeReg[0]?.n ?? 0) === 0, "CAP: the invitee is on the roster before registering (no form, waivers or payment)");
+  // Finish the registration the way the funnel would (labelled fixture, see
+  // _register-team.ts) and let the league approve it.
+  const reg = await registerOntoTeamAndApprove({
+    email: PLAIN_EMAIL,
+    password: PLAIN_PASSWORD,
+    fullName: `${PLAIN_FIRST} Fixture`,
+    seasonId: SEASON_ID,
+    teamId: TEAM_ID,
+    inviteToken: genericToken
+  }).catch((e) => ({ registrationId: "", status: `error ${String(e).slice(0, 200)}`, roster: null, log: [] as string[] }));
+  const [inviteRow] = await stagingSql<{ status: string }>(`select status from team_invites where token = $1`, [genericToken]);
+  const members = await stagingSql<{ n: number }>(memberCountSql, [PLAIN_EMAIL, TEAM_ID]);
+  writeFileSync(`${OUT}/22-invite-accept-db.json`, JSON.stringify({ inviteRow, members, joinError, reg }, null, 2));
+  finding(reg.status === "approved", `REG: the invitee's registration from the team link was not approved (${reg.status})`);
+  finding(inviteRow?.status === "accepted", `CAP: invite status after the approved registration is ${inviteRow?.status}`);
+  finding((members[0]?.n ?? 0) > 0, "CAP: invitee has no active team membership after the league approved the registration");
+  // Destination: the player's own app shows the team.
+  await inv.page.goto(`${inv.app}/team`);
+  await settle(inv.page);
+  const team = await snap(inv.page, "23-invitee-team-after-approval");
+  finding(team.includes("Staging Skaters"), "CAP: player-web /team does not show the team after the registration was approved");
   await inv.context.close();
 });
 
@@ -369,6 +394,62 @@ test("J8.4 captain invites by email from /captain/roster", async () => {
   await p.waitForTimeout(4000);
   const notes = await stagingSql<{ n: number }>(`select count(*)::int n from notifications where recipient_email = $1`, [ROSTER_INVITEE]);
   finding((notes[0]?.n ?? 0) > 0, "CAP: roster 'Invite by email' queued no notification row for the invitee");
+});
+
+test("J8.4b a player declines a personal invite; the captain is told and /captain/invites says Declined (FR-3.4.4)", async ({ browser }) => {
+  const p = cap.page;
+  await p.goto(`${cap.app}/captain/invites`);
+  await settle(p);
+  await p.locator("#kind").selectOption("personal");
+  await p.locator("#email").fill(PLAIN_EMAIL);
+  await p.getByRole("button", { name: /send invite/i }).click();
+  const created = p.getByText(`Invite created for ${PLAIN_EMAIL}`);
+  await expect(created).toBeVisible({ timeout: 15_000 });
+  const link = (await created.innerText()).match(/https?:\/\/\S+\/invite\/\S+/)?.[0] ?? "";
+  const pl = await signedInAs(browser, "player", { email: PLAIN_EMAIL, password: PLAIN_PASSWORD });
+  await pl.page.goto(link);
+  await settle(pl.page);
+  await pl.page.getByRole("button", { name: /^decline$/i }).click();
+  await expect(pl.page.getByText(/You declined the/i)).toBeVisible({ timeout: 20_000 });
+  await snap(pl.page, "45-player-declined");
+  await pl.context.close();
+  const token = link.replace(/.*\/invite\//, "").trim();
+  const [row] = await stagingSql<{ id: string; status: string }>(`select id, status from team_invites where token = $1`, [token]);
+  expect(row?.status, "invite is declined in the database").toBe("declined");
+  await p.waitForTimeout(3000);
+  const notes = await stagingSql<{ n: number }>(
+    `select count(*)::int n from notifications where template_code = 'TEAM_INVITE_DECLINED' and idempotency_key like $1`,
+    [`invite-declined-${row!.id}%`]
+  );
+  finding((notes[0]?.n ?? 0) > 0, "CAP: the captain was not told the player declined (UC-04 alternative flow)");
+  await p.goto(`${cap.app}/captain/invites`);
+  await settle(p);
+  const closed = p.locator("section", { hasText: "Closed invites" }).getByRole("row").filter({ hasText: PLAIN_EMAIL }).first();
+  await expect(closed, "the declined invite reads Declined").toContainText(/Declined/, { timeout: 20_000 });
+  await snap(p, "46-captain-invites-declined");
+});
+
+test("J8.4c captain invites players from past rosters in one go (FR-3.4.3)", async () => {
+  const p = cap.page;
+  await p.goto(`${cap.app}/captain/invites`);
+  await settle(p);
+  const box = p.getByTestId("past-roster-invite");
+  await expect(box, "the invites page offers past-roster invites").toBeVisible({ timeout: 20_000 });
+  await expect(box.getByText(/Loading past players/)).toBeHidden({ timeout: 20_000 });
+  const picks = box.getByRole("checkbox", { disabled: false });
+  const n = await picks.count();
+  await snap(p, "47-past-roster-list");
+  if (n === 0) {
+    test.info().annotations.push({ type: "note", description: "no invitable past players for Staging Skaters on staging; list and empty state only" });
+    return;
+  }
+  const label = (await picks.first().getAttribute("aria-label")) ?? "";
+  await picks.first().check();
+  await box.getByRole("button", { name: /Invite 1 selected/ }).click();
+  await expect(box.getByText(/Invited 1 player/)).toBeVisible({ timeout: 20_000 });
+  await snap(p, "48-past-roster-invited");
+  const name = label.replace(/^Invite /, "");
+  await expect(box.getByRole("listitem").filter({ hasText: name }).first(), "the player now reads as invited").toContainText(/Invite already open/, { timeout: 20_000 });
 });
 
 test("J8.5 captain adds the plain player by name; player sees the team; captain drops him", async ({ browser }) => {

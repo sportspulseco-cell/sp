@@ -28,7 +28,16 @@ export const TEMPLATE_CODES = [
   "suspension.changed",
   "suspension.lifted",
   "roster.added",
+  // Registration approved with a team: the captain is told (FR-3.4.1).
+  "roster.added.captain",
+  // Approved, but the team filled up or locked meanwhile: not rostered.
+  "roster.not_placed.captain",
   "roster.dropped",
+  // An invite, offer, add or join request for a player with no season
+  // registration: register with the team set to join (UC-04).
+  "TEAM_JOIN_REGISTER",
+  // UC-04 alternative flow: the player declined, the captain is told.
+  "TEAM_INVITE_DECLINED",
   // Workflow 7A · captain rollover
   "TEAM_INVITE_NEW",
   "TEAM_INVITE_RETURNING",
@@ -82,6 +91,8 @@ export const TEMPLATE_CODES = [
   "FREE_AGENT_OFFER",
   "FREE_AGENT_OFFER_ACCEPTED",
   "FREE_AGENT_OFFER_DECLINED",
+  // FR-3.4.7: a new free agent who fits a team with open spots, to its captains.
+  "FREE_AGENT_PITCH",
   // Payments & Invoicing
   "INVOICE_OVERDUE_STAGE_1",
   "INVOICE_OVERDUE_STAGE_2",
@@ -455,6 +466,37 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     variables: ["personName", "teamName", "seasonName", "jerseyClause"]
   },
   {
+    code: "roster.added.captain",
+    channel: "email",
+    subject: "{{playerName}} joined {{teamName}}",
+    body: "{{playerName}} finished registering and is on the {{teamName}} roster for {{seasonName}}.",
+    variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
+    code: "roster.not_placed.captain",
+    channel: "email",
+    subject: "{{playerName}} could not join {{teamName}}",
+    body:
+      "The league approved the registration of {{playerName}} for {{seasonName}}, but they could not join the {{teamName}} roster: {{reason}}",
+    variables: ["playerName", "teamName", "seasonName", "reason"]
+  },
+  {
+    code: "TEAM_JOIN_REGISTER",
+    channel: "email",
+    subject: "Register to join {{teamName}}",
+    body:
+      "{{teamName}} wants you on the roster for {{seasonName}}. Players join a team by registering for the season (form, waivers and payment). " +
+      "Register here and you join {{teamName}} when the league approves it:\n{{registerUrl}}",
+    variables: ["teamName", "seasonName", "registerUrl"]
+  },
+  {
+    code: "TEAM_INVITE_DECLINED",
+    channel: "email",
+    subject: "{{playerName}} declined the {{teamName}} invite",
+    body: "{{playerName}} declined your invite to join {{teamName}} for {{seasonName}}. You can invite someone else from your Invites page.",
+    variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
     code: "roster.dropped",
     channel: "email",
     subject: "Removed from roster — {{teamName}}",
@@ -645,9 +687,9 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     code: "PLAYER_JOIN_APPROVED",
     channel: "email",
-    subject: "You're on {{teamName}}",
-    body: "{{teamName}} accepted your request to join. You are on the roster.",
-    variables: ["teamName"]
+    subject: "{{teamName}} accepted your request",
+    body: "{{teamName}} accepted your request to join. {{rosterClause}}",
+    variables: ["teamName", "rosterClause"]
   },
   {
     code: "PLAYER_JOIN_REJECTED",
@@ -1122,6 +1164,15 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "{{playerName}} declined your offer",
     body: "{{playerName}} declined the {{teamName}} offer for {{seasonName}}. They stay in the free-agent pool.",
     variables: ["playerName", "teamName", "seasonName"]
+  },
+  {
+    code: "FREE_AGENT_PITCH",
+    channel: "email",
+    subject: "Free agent for {{teamName}}: {{playerName}}",
+    body:
+      "{{playerName}} joined the free-agent pool for {{seasonName}}. Level: {{level}}. Positions: {{positions}}. " +
+      "{{teamName}} has {{openSpots}} open roster spots. Open Free agents in your captain console to offer a spot.",
+    variables: ["playerName", "teamName", "seasonName", "level", "positions", "openSpots"]
   },
   {
     code: "org.broadcast",

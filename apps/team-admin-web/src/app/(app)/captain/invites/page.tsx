@@ -16,6 +16,7 @@ import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/serv
 import { PageHeader } from "@/components/layout/page-header";
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
+import { PastRosterInvite } from "./past-roster-invite";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,11 +36,33 @@ const STATUS_TONE: Record<
   "info" | "success" | "danger" | "warning" | "neutral"
 > = {
   pending: "warning",
+  extended: "warning",
   accepted: "success",
   declined: "danger",
   expired: "neutral",
   revoked: "neutral"
 };
+
+/** Plain words for each invite state (FR-3.4.4: the captain sees Declined). */
+function statusLabel(inv: TeamInvite): string {
+  const waiting = typeof inv.metadata?.awaitingRegistrationId === "string";
+  switch (inv.status) {
+    case "pending":
+      return "Pending";
+    case "extended":
+      return "Reminded";
+    case "accepted":
+      return waiting ? "Accepted, joins on approval" : "Accepted";
+    case "declined":
+      return "Declined";
+    case "expired":
+      return "Expired";
+    case "revoked":
+      return "Withdrawn";
+    default:
+      return inv.status;
+  }
+}
 
 export default async function CaptainInvitesPage() {
   const scope = await loadMeScope();
@@ -116,8 +139,10 @@ export default async function CaptainInvitesPage() {
     ? invitesRaw
     : ((invitesRaw as unknown as { items?: TeamInvite[] }).items ?? []);
 
-  const pending = invites.filter((i: TeamInvite) => i.status === "pending");
-  const past = invites.filter((i: TeamInvite) => i.status !== "pending");
+  // A reminded invite (extended) is still open: it belongs with the pending ones.
+  const isOpen = (i: TeamInvite) => i.status === "pending" || i.status === "extended";
+  const pending = invites.filter(isOpen);
+  const past = invites.filter((i: TeamInvite) => !isOpen(i));
 
   return (
     <div className="space-y-6">
@@ -134,6 +159,20 @@ export default async function CaptainInvitesPage() {
         </p>
         <div className="mt-4">
           <CreateInviteForm
+            teamId={myTeamId}
+            seasons={teamSeasons.map((s) => ({ id: s.id, name: s.name }))}
+            defaultSeasonId={currentSeason?.id ?? null}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface-1 p-6">
+        <Eyebrow>Invite from past rosters</Eyebrow>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Players who were on {team?.name ?? "your team"} in earlier seasons. Pick them and invite them in one go.
+        </p>
+        <div className="mt-4">
+          <PastRosterInvite
             teamId={myTeamId}
             seasons={teamSeasons.map((s) => ({ id: s.id, name: s.name }))}
             defaultSeasonId={currentSeason?.id ?? null}
@@ -222,15 +261,15 @@ export default async function CaptainInvitesPage() {
                     )}
                   </TD>
                   <TD>
-                    <Badge mono tone={STATUS_TONE[inv.status]}>
-                      {inv.status}
+                    <Badge tone={STATUS_TONE[inv.status] ?? "neutral"}>
+                      {statusLabel(inv)}
                     </Badge>
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
                     {fmtDate(inv.createdAt)}
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
-                    {fmtDate(inv.acceptedAt ?? inv.revokedAt)}
+                    {fmtDate(inv.acceptedAt ?? inv.revokedAt ?? (inv.status === "declined" ? inv.updatedAt ?? null : null))}
                   </TD>
                 </TR>
               ))}

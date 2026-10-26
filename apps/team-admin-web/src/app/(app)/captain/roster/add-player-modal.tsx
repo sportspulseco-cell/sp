@@ -116,6 +116,7 @@ function SearchPanel({
   >(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jersey, setJersey] = useState("");
 
   useEffect(() => {
     if (!q.trim()) {
@@ -155,14 +156,14 @@ function SearchPanel({
     setBusy(true);
     setError(null);
     try {
-      await captain.roster.add(teamId, {
+      // A player joins through the season's registration: registered players
+      // join now, others get an invite to register onto the team (UC-04).
+      const res = await captain.roster.add(teamId, {
         seasonId,
-        personId: picked.id
+        personId: picked.id,
+        ...(jersey.trim() !== "" ? { jerseyNumber: Number(jersey) } : {})
       });
-      const name = [picked.legalFirstName, picked.legalLastName]
-        .filter(Boolean)
-        .join(" ");
-      onCreated(`Added ${name} to the roster.`);
+      onCreated(res.message);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -244,6 +245,11 @@ function SearchPanel({
           {precheck && (
             <PrecheckWarnings precheck={precheck} />
           )}
+          <JerseyField value={jersey} onChange={setJersey} />
+          <p className="mt-2 text-[12px] text-fg-muted">
+            Players join by registering for the season. A player who has not registered gets an
+            invite to register onto your team and joins when the league approves it.
+          </p>
         </div>
       )}
 
@@ -286,6 +292,7 @@ function InvitePanel({
   onCreated: (msg: string) => void;
 }) {
   const [email, setEmail] = useState("");
+  const [jersey, setJersey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -295,7 +302,8 @@ function InvitePanel({
     try {
       await captain.roster.invite(teamId, {
         seasonId,
-        email: email.trim().toLowerCase()
+        email: email.trim().toLowerCase(),
+        ...(jersey.trim() !== "" ? { jerseyNumber: Number(jersey) } : {})
       });
       onCreated(`Invite sent to ${email.trim()}.`);
     } catch (e) {
@@ -320,6 +328,8 @@ function InvitePanel({
           autoFocus
         />
       </label>
+
+      <JerseyField value={jersey} onChange={setJersey} />
 
       {/* The invite never billed anyone: the share typed here was dropped
           (CAP-16). Shares live on the Dues page, which re-splits the team's
@@ -412,5 +422,27 @@ async function getPrecheck(q: {
 }) {
   return await import("@/lib/api/browser-api").then((m) =>
     m.compliance.precheck(q)
+  );
+}
+
+/** Optional sweater number the player gets when they join (FR-3.11.2). */
+function JerseyField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const n = Number(value);
+  const bad = value.trim() !== "" && !(Number.isInteger(n) && n >= 0 && n <= 99);
+  return (
+    <label className="mt-3 grid gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+        Jersey number (optional)
+      </span>
+      <input
+        type="number"
+        min={0}
+        max={99}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-24 rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+      />
+      {bad ? <span className="text-[11px] text-[var(--tint-rose-fg)]">Use a whole number from 0 to 99.</span> : null}
+    </label>
   );
 }

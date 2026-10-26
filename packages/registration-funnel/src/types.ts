@@ -84,6 +84,18 @@ export interface PublicSeasonContext {
   /** The season's published form version; null when none is published. */
   formVersionId: string | null;
   formDefinition: FormDefinition;
+  /**
+   * FR-3.4.1: the team a /register/<season>?team=<team> link joins, with
+   * whether it can take the player now (full or locked says so here).
+   */
+  joinTeam?: {
+    id: string;
+    name: string | null;
+    divisionId: string | null;
+    divisionName: string | null;
+    available: boolean;
+    message: string | null;
+  } | null;
 }
 
 export type SubmissionType =

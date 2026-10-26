@@ -33,6 +33,42 @@ export const FREE_AGENT_LEVELS = SKILL_LEVELS.map((value) => ({
 export const FREE_AGENT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export type FreeAgentDay = (typeof FREE_AGENT_DAYS)[number];
 
+/**
+ * FR-3.4.7 auto-pitch: rank the teams a new free agent fits. Only teams
+ * with an open roster spot are pitched. Level: +2 when the division's
+ * tier is the player's level, +1 when it is one level away. Position:
+ * +1 for each of the player's positions nobody on the team plays. Ties
+ * go to the team with more open spots. At most `limit` teams.
+ */
+export function rankFreeAgentPitch<T extends {
+  teamId: string;
+  divisionTier: string | null;
+  openSpots: number;
+  rosterPositions: readonly (string | null)[];
+}>(
+  player: { level: string | null; positions: readonly string[] },
+  teams: readonly T[],
+  limit = 10
+): Array<T & { score: number }> {
+  const level = normalizeSkillLevel(player.level);
+  const order = SKILL_LEVELS as readonly string[];
+  return teams
+    .filter((t) => t.openSpots > 0)
+    .map((t) => {
+      const tier = normalizeSkillLevel(t.divisionTier);
+      let score = 0;
+      if (level && tier) {
+        const gap = Math.abs(order.indexOf(level) - order.indexOf(tier));
+        score += gap === 0 ? 2 : gap === 1 ? 1 : 0;
+      }
+      const have = new Set(t.rosterPositions.filter((p): p is string => !!p).map((p) => p.toUpperCase()));
+      for (const p of player.positions) if (!have.has(p.toUpperCase())) score += 1;
+      return { ...t, score };
+    })
+    .sort((a, b) => b.score - a.score || b.openSpots - a.openSpots || a.teamId.localeCompare(b.teamId))
+    .slice(0, limit);
+}
+
 export function freeAgentPositionLabel(code: string): string {
   return FREE_AGENT_POSITIONS.find((p) => p.value === code)?.label ?? code;
 }

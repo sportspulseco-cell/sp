@@ -3,6 +3,8 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Logger,
+  NotFoundException,
   Inject,
   Param,
   Post,
@@ -26,6 +28,7 @@ import {
 } from "class-validator";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
+  COMPLIANCE_FILE_URL_TTL_SECONDS,
   REGISTRATION_STATES,
   assertValidTransition,
   canTransition,
@@ -44,6 +47,7 @@ import { userHasOrgAdminOnOrg, userIsPeopleAdmin } from "../../../shared/auth/or
 import { orgVisible, visibleRegistrationsWhere } from "../../../shared/auth/visibility";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
+import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 import { closeRegistrationMoney } from "../application/seats";
 
 class ReviewActionBodyDto {
@@ -135,11 +139,54 @@ class ListSubmissionsQueryDto {
 @Controller("registration-v2/admin")
 @UseGuards(JwtAuthGuard)
 export class AdminReviewController {
+  private readonly log = new Logger(AdminReviewController.name);
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly email: EmailDispatcherService,
-    private readonly v2: RegistrationV2Service
+    private readonly v2: RegistrationV2Service,
+    private readonly supabase: SupabaseAdminService
   ) {}
+
+  @Get("submissions/:id/files/:key")
+  @ApiOperation({
+    summary:
+      "Short-lived signed link to a file the registrant uploaded on the registration form (question key). Super admin, or a scoped admin whose scope covers the registration (404 otherwise)."
+  })
+  async fileLink(
+    @Param("id") id: string,
+    @Param("key") key: string,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    const scope = await loadAdminScope(this.db, user.userId);
+    const conditions = [eq(schema.registrations.id, id)];
+    if (!scope.isSuperAdmin) {
+      if (!(await userIsPeopleAdmin(this.db, user.userId))) {
+        throw new ForbiddenException("Requires an admin role (org, league, season or division admin).");
+      }
+      const visible = visibleRegistrationsWhere(scope);
+      if (visible) conditions.push(visible);
+    }
+    const [row] = await this.db
+      .select({ id: schema.registrations.id, orgId: schema.registrations.orgId, metadata: schema.registrations.metadata })
+      .from(schema.registrations)
+      .where(and(...conditions))
+      .limit(1);
+    if (!row) throw new NotFoundException("Registration not found");
+    const files = ((row.metadata as Record<string, unknown>)?.files ?? {}) as Record<
+      string,
+      { bucket: string; path: string; fileName: string; contentType: string }
+    >;
+    const f = files[key];
+    if (!f) throw new NotFoundException("No file was uploaded for that question.");
+    const url = await this.supabase.signComplianceDocumentUrl(f.bucket, f.path, COMPLIANCE_FILE_URL_TTL_SECONDS);
+    this.log.log(`registration file link registration=${id} key=${key} by=${user.userId}`);
+    return {
+      url,
+      fileName: f.fileName,
+      contentType: f.contentType,
+      expiresAt: new Date(Date.now() + COMPLIANCE_FILE_URL_TTL_SECONDS * 1000).toISOString()
+    };
+  }
 
   @Get("submissions")
   @ApiOperation({
@@ -265,7 +312,7 @@ export class AdminReviewController {
           updatedAt: new Date()
         })
         .where(eq(schema.registrations.id, id));
-      await this.v2.applyApprovalSideEffects(row);
+      const placement = await this.v2.applyApprovalSideEffects(row, user.userId);
       if (recipient) {
         await this.email.send({
           to: recipient,
@@ -274,7 +321,7 @@ export class AdminReviewController {
           channel: "registration.approved"
         });
       }
-      return { id, status: "approved" as const };
+      return { id, status: "approved" as const, roster: placement.roster };
     }
 
     if (body.action === "reject") {
@@ -477,7 +524,7 @@ export class AdminReviewController {
       applied++;
       const meta = (r.metadata as Record<string, unknown>) ?? {};
       if (target === "approved") {
-        await this.v2.applyApprovalSideEffects(r);
+        await this.v2.applyApprovalSideEffects(r, reviewerUserId);
       }
       const recipient = meta.email as string | undefined;
       if (recipient) {

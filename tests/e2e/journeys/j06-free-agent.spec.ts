@@ -2,6 +2,7 @@ import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { E2E_URLS } from "../fixtures";
 import { IS_STAGING, RUN_TAG, freshContext, signedInAs, stagingSql, supabaseFetch } from "./_helpers";
+import { registerOntoTeamAndApprove } from "./_register-team";
 
 /**
  * J6 · Free agent placed on a team (UC-03).
@@ -298,7 +299,7 @@ test("J6.4 admins see the free agent and the open offer (SA and OA /registration
   }
 });
 
-test("J6.5 free agent accepts on player-web; joins the roster; the pool entry is placed", async () => {
+test("J6.5 free agent accepts on player-web; registers onto the team; joins on approval; the pool entry is placed", async () => {
   const p = fa.page;
   await p.goto(`${fa.app}/`);
   await settle(p);
@@ -307,8 +308,32 @@ test("J6.5 free agent accepts on player-web; joins the roster; the pool entry is
   expect(await card.innerText()).toContain("Staging Skaters");
   await snap(p, "38-fa-offer-card");
   await card.getByRole("button", { name: /^accept$/i }).first().click();
-  await expect(card.getByText(/You joined Staging Skaters/)).toBeVisible({ timeout: 30_000 });
-  expect(await faMemberships(), "active membership after accept").toBe(1);
+  // A pool listing is not a season registration (UC-03: "completes
+  // registration steps (personal info, waiver, payment)"). Accept opens the
+  // season's funnel with the team and the offer set; nobody is rostered yet.
+  await p.waitForURL(/\/register\/[0-9a-f-]{36}\?team=/, { timeout: 30_000 }).catch(() => {});
+  await settle(p);
+  const funnelUrl = p.url();
+  await snap(p, "39-fa-accept-to-funnel");
+  finding(funnelUrl.includes(`team=${TEAM_ID}`) && funnelUrl.includes("invite="), `CAP: accepting the offer did not open the funnel with the team set (${funnelUrl})`);
+  expect(await faMemberships(), "no membership before the registration is approved").toBe(0);
+  const [offer] = await stagingSql<{ token: string }>(
+    `select i.token from team_invites i join free_agent_pool_entries e on e.id::text = i.metadata->>'freeAgentPoolEntryId'
+       join persons pe on pe.id = e.player_person_id join profiles pr on pr.id = pe.user_id
+      where pr.email = $1 and i.team_id = $2 and i.status in ('pending','extended') order by i.created_at desc limit 1`,
+    [FA_EMAIL, TEAM_ID]
+  );
+  const reg = await registerOntoTeamAndApprove({
+    email: FA_EMAIL,
+    password: FA_PASSWORD,
+    fullName: `${FA_FIRST} Fixture`,
+    seasonId: SEASON_ID,
+    teamId: TEAM_ID,
+    inviteToken: offer?.token ?? null
+  });
+  writeFileSync(`${OUT}/39-fa-registration.json`, JSON.stringify(reg, null, 2));
+  expect(reg.status, "the free agent's registration onto the team is approved").toBe("approved");
+  expect(await faMemberships(), "active membership after the approved registration").toBe(1);
   const e = await faEntry();
   expect(e?.status, "pool entry placed after accept").toBe("placed");
   expect(e?.placed_team_id).toBe(TEAM_ID);

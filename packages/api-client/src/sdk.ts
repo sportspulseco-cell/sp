@@ -519,10 +519,12 @@ export function createApi(f: Fetcher) {
           totalPlayers: number;
           eligible: number;
           ineligible: number;
+          /** Games played could not be counted yet (no finalized games, or games with no lineup or stats): for review, nobody told. */
+          flagged?: number;
           breakdown: Array<{
             personId: string;
             teamId: string;
-            status: "eligible" | "ineligible";
+            status: "eligible" | "ineligible" | "flagged";
             failed: string[];
           }>;
         }>(`/compliance/eligibility/season/${seasonId}/playoff-sweep`, {
@@ -1989,7 +1991,12 @@ export function createApi(f: Fetcher) {
         id: string,
         body: { action: "approve" | "reject"; reason?: string }
       ) =>
-        f<{ id: string; status: "approved" | "rejected" }>(
+        f<{
+          id: string;
+          status: "approved" | "rejected";
+          roster?: "rostered" | "awaiting_approval" | "registration_required";
+          message?: string;
+        }>(
           `/captain/team-join-requests/${id}/decide`,
           { method: "POST", body: JSON.stringify(body) }
         ),
@@ -2556,10 +2563,17 @@ export function createApi(f: Fetcher) {
           status: string | null;
           error?: string;
           flagOverridden?: string;
+          /** Roster placement when the registration carries a team (FR-3.4.1). */
+          roster?: { status: string; reason?: string } | null;
         }>(`/registration-v2/admin/submissions/${id}/review`, {
           method: "POST",
           body: JSON.stringify(body)
         }),
+      /** FR-3.4.5: short-lived link to a file the registrant uploaded for a form question. */
+      fileLink: (id: string, questionKey: string) =>
+        f<{ url: string; fileName: string; contentType: string; expiresAt: string }>(
+          `/registration-v2/admin/submissions/${id}/files/${encodeURIComponent(questionKey)}`
+        ),
       bulkApprove: (ids: string[]) =>
         f<{
           matched: number;
@@ -2921,7 +2935,17 @@ export function createApi(f: Fetcher) {
         }>(`/captain/teams/${teamId}/message`, { method: "POST", body: JSON.stringify(body) }),
       /** Invited player joins the team from /invite/[token] (UC-04). */
       acceptInvite: (token: string) =>
-        f<{ teamId: string; seasonId: string; membershipId: string }>(
+        // UC-04: rostered (approved registration), awaiting_approval (team
+        // recorded on a submitted registration) or registration_required
+        // (open registerPath: the funnel with this team set).
+        f<{
+          status: "rostered" | "awaiting_approval" | "registration_required";
+          teamId: string;
+          seasonId: string;
+          membershipId?: string;
+          registerPath?: string;
+          message?: string;
+        }>(
           `/captain/roster/invites/${encodeURIComponent(token)}/accept`,
           { method: "POST" }
         ),
@@ -3156,6 +3180,8 @@ export function createApi(f: Fetcher) {
               personFirstName: string | null;
               personLastName: string | null;
               personEmail: string | null;
+              /** FR-3.11.2: contact details, read only for the captain. */
+              personPhone?: string | null;
               personDob: string | null;
             }>;
             invites: Array<{
@@ -3167,6 +3193,14 @@ export function createApi(f: Fetcher) {
               extensionCount: number;
               lastSentAt: string | null;
               createdAt: string;
+            }>;
+            /** Players registering onto the team; they join on the league's approval (FR-3.4.1). */
+            joining?: Array<{
+              registrationId: string;
+              personId: string;
+              name: string | null;
+              status: string;
+              stage: "awaiting_approval" | "registering";
             }>;
             rosterLockAt: string | null;
             isLocked: boolean;
@@ -3180,9 +3214,47 @@ export function createApi(f: Fetcher) {
             positionCode?: string;
           }
         ) =>
-          f<{ move: unknown; membership: unknown }>(
+          /**
+           * rostered: on the roster now (approved registration).
+           * awaiting_approval: registered, joins when the league approves.
+           * invited: no registration; an invite to register onto the team went out.
+           */
+          f<{
+            status: "rostered" | "awaiting_approval" | "invited";
+            message: string;
+            move?: unknown;
+            membership?: unknown;
+            invite?: { id: string; token: string };
+          }>(
             `/captain/roster/${teamId}/add`,
             { method: "POST", body: JSON.stringify(body) }
+          ),
+        /** FR-3.4.3: players from this team's other seasons, for inviting to `seasonId`. */
+        pastPlayers: (teamId: string, seasonId: string) =>
+          f<{
+            items: Array<{
+              personId: string;
+              name: string;
+              email: string | null;
+              lastSeasonName: string;
+              lastJerseyNumber: number | null;
+              state: "can_invite" | "on_roster" | "invited" | "no_email";
+            }>;
+          }>(`/captain/roster/${teamId}/past-players${qs({ seasonId })}`),
+        /** FR-3.4.3: invite several past players in one go; skipped ones are named. */
+        inviteMany: (teamId: string, body: { seasonId: string; personIds: string[] }) =>
+          f<{ invited: number; results: Array<{ personId: string; name: string | null; outcome: string }> }>(
+            `/captain/roster/${teamId}/invite-many`,
+            { method: "POST", body: JSON.stringify(body) }
+          ),
+        /** FR-3.11.2: set or clear a rostered player's jersey number (unique per team and season). */
+        setJersey: (
+          teamId: string,
+          body: { seasonId: string; personId: string; jerseyNumber: number | null }
+        ) =>
+          f<{ membershipId: string; jerseyNumber: number | null }>(
+            `/captain/roster/${teamId}/jersey`,
+            { method: "PATCH", body: JSON.stringify(body) }
           ),
         drop: (
           teamId: string,
@@ -3198,7 +3270,7 @@ export function createApi(f: Fetcher) {
           }),
         invite: (
           teamId: string,
-          body: { seasonId: string; email: string }
+          body: { seasonId: string; email: string; jerseyNumber?: number }
         ) =>
           f<{
             invite: {
@@ -4210,7 +4282,10 @@ export interface TeamInvite {
   inviteeEmail: string | null;
   token: string;
   kind: "personal" | "generic";
-  status: "pending" | "accepted" | "declined" | "expired" | "revoked";
+  /** `extended` = reminded with a new expiry; still open. */
+  status: "pending" | "extended" | "accepted" | "declined" | "expired" | "revoked";
+  updatedAt?: string;
+  metadata?: Record<string, unknown>;
   expiresAt: string | null;
   acceptedAt: string | null;
   revokedAt: string | null;

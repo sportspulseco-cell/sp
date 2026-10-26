@@ -20,12 +20,25 @@ export function AcceptInviteButton({
   const [busy, setBusy] = useState<"accept" | "decline" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [declined, setDeclined] = useState(false);
+  const [waiting, setWaiting] = useState<string | null>(null);
 
   async function accept() {
     setBusy("accept");
     setError(null);
     try {
-      await captain.acceptInvite(token);
+      const res = await captain.acceptInvite(token);
+      // UC-04: a player joins by completing the season's registration.
+      // No registration yet: the funnel opens with this team set.
+      if (res.status === "registration_required" && res.registerPath) {
+        router.push(res.registerPath);
+        return;
+      }
+      // Registered, waiting for the league: the team is recorded.
+      if (res.status === "awaiting_approval") {
+        setWaiting(res.message ?? "You join the roster when the league approves your registration.");
+        setBusy(null);
+        return;
+      }
       router.push("/team");
       // No router.refresh() here: it can cancel the push and leave the
       // user on this form (J11). The new page loads fresh server data.
@@ -46,6 +59,14 @@ export function AcceptInviteButton({
     } finally {
       setBusy(null);
     }
+  }
+
+  if (waiting) {
+    return (
+      <Alert tone="info" data-testid="invite-awaiting-approval">
+        {waiting}
+      </Alert>
+    );
   }
 
   if (declined) {

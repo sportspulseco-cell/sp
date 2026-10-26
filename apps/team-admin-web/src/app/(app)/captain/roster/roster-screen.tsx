@@ -248,12 +248,43 @@ export function RosterScreen({
 
       {/* Tab content */}
       {tab === "active" && (
-        <ActiveRosterTable
-          memberships={memberships}
-          isLocked={isLocked}
-          onDrop={(m) => setDropTarget(m)}
-          onTransfer={(m) => setTransferTarget(m)}
-        />
+        <>
+          <ActiveRosterTable
+            memberships={memberships}
+            isLocked={isLocked}
+            onDrop={(m) => setDropTarget(m)}
+            onTransfer={(m) => setTransferTarget(m)}
+            onJersey={async (m, n) => {
+              if (!data?.season) return;
+              await captain.roster.setJersey(teamId, {
+                seasonId: data.season.id,
+                personId: m.personId,
+                jerseyNumber: n
+              });
+              await refresh();
+            }}
+          />
+          {(data?.joining ?? []).length > 0 ? (
+            <div className="rounded-xl border border-border bg-surface-1" data-testid="roster-joining">
+              <header className="border-b border-border px-5 py-3">
+                <Eyebrow>Registering to join</Eyebrow>
+                <p className="mt-1 text-[12px] text-fg-muted">
+                  These players join the roster when the league approves their registration.
+                </p>
+              </header>
+              <ul className="divide-y divide-border">
+                {(data?.joining ?? []).map((j) => (
+                  <li key={j.registrationId} className="flex items-center justify-between px-5 py-2 text-[13px]">
+                    <span>{j.name ?? "A player"}</span>
+                    <Badge mono tone={j.stage === "awaiting_approval" ? "info" : "neutral"}>
+                      {j.stage === "awaiting_approval" ? "Waiting for league approval" : "Registering"}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
       )}
       {tab === "pending" && (
         <PendingInvitesTable
@@ -359,12 +390,15 @@ function ActiveRosterTable({
   memberships,
   isLocked,
   onDrop,
-  onTransfer
+  onTransfer,
+  onJersey
 }: {
   memberships: MembershipRow[];
   isLocked: boolean;
   onDrop: (m: MembershipRow) => void;
   onTransfer: (m: MembershipRow) => void;
+  /** FR-3.11.2: set or clear a number; throws with the API's message on a clash. */
+  onJersey: (m: MembershipRow, n: number | null) => Promise<void>;
 }) {
   if (memberships.length === 0) {
     return (
@@ -414,9 +448,16 @@ function ActiveRosterTable({
                       {m.personEmail}
                     </p>
                   )}
+                  {m.personPhone && (
+                    <p className="text-[11px] text-fg-muted">{m.personPhone}</p>
+                  )}
                 </TD>
                 <TD className="text-right font-mono tabular-nums">
-                  {m.jerseyNumber ?? "—"}
+                  <JerseyCell
+                    value={m.jerseyNumber}
+                    label={name}
+                    onSave={(n) => onJersey(m, n)}
+                  />
                 </TD>
                 <TD className="text-fg-muted">{m.positionCode ?? "—"}</TD>
                 <TD>
@@ -463,6 +504,80 @@ function ActiveRosterTable({
           })}
         </TBody>
       </Table>
+    </div>
+  );
+}
+
+/** Jersey number with an inline editor (FR-3.11.2). Unique per team and season; the API names a clash. */
+function JerseyCell({
+  value,
+  label,
+  onSave
+}: {
+  value: number | null;
+  label: string;
+  onSave: (n: number | null) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value === null ? "" : String(value));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="rounded px-1.5 py-0.5 hover:bg-bg-subtle"
+        aria-label={`Edit jersey number for ${label}`}
+        onClick={() => {
+          setDraft(value === null ? "" : String(value));
+          setError(null);
+          setEditing(true);
+        }}
+      >
+        {value ?? "—"}
+      </button>
+    );
+  }
+  const n = draft.trim() === "" ? null : Number(draft);
+  const valid = n === null || (Number.isInteger(n) && n >= 0 && n <= 99);
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center justify-end gap-1">
+        <input
+          type="number"
+          min={0}
+          max={99}
+          value={draft}
+          aria-label={`Jersey number for ${label}`}
+          onChange={(e) => setDraft(e.target.value)}
+          className="w-16 rounded-md border border-border bg-surface-1 px-2 py-1 text-right text-sm"
+          autoFocus
+        />
+        <Button
+          type="button"
+          size="sm"
+          disabled={!valid || busy}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              await onSave(n);
+              setEditing(false);
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Save
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={busy}>
+          Cancel
+        </Button>
+      </div>
+      {!valid ? <p className="text-[11px] text-[var(--tint-rose-fg)]">Use a whole number from 0 to 99.</p> : null}
+      {error ? <p className="max-w-xs text-[11px] text-[var(--tint-rose-fg)]">{error}</p> : null}
     </div>
   );
 }
