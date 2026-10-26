@@ -282,3 +282,20 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: local org app against staging: with the API up /leagues shows "Showing 85 of 85 leagues"; with the API
     stopped it shows the error screen, not "No leagues yet". Typecheck of the three apps.
   Not found: why the scope call failed during the staging run (no reproduction; pages load in about 1 s on their own).
+
+[CONSOLE-20] API instances keep pooler connections after use; staging pages fail with EMAXCONN · major
+  Found: staging journeys failed at random (list-filters, J7.3 pricing, J10 brackets). Vercel logs for sp-api on 26 Oct
+    showed "PostgresError: (EMAXCONN) max client connections reached, limit: 200" on /api/iam/me/scope, /api/games and
+    /api/league/teams. The org app then logged "[scope] meScope failed, retrying once" (CONSOLE-19).
+  Actual: the API runs on Vercel Fluid compute. An instance is suspended as soon as its last response ends, and a
+    suspended or discarded instance keeps its open sockets to the Supavisor pooler. The pool closes unused connections
+    after an idle timer, but that timer cannot run while the instance is suspended. The 23 Oct fix (4 per instance,
+    5 s idle, d248740) lowered the rate but not the cause. Measured on staging with no traffic: 177 of the 200 pooler
+    client slots held at 02:34 UTC, 87 at 02:38 UTC. The database itself had 6 backends, so the cap is the pooler
+    client count, not Postgres.
+  Fix: api/index.ts keeps each instance awake after a response (waitUntil from @vercel/functions) until the pool idle
+    timeout has closed the connections that request used. This is what Vercel attachDatabasePool does for pg; that
+    helper does not support postgres.js. Idle timeout lowered from 5 s to 2 s to keep the extra awake time short.
+  Evidence: probe script opens pooler clients until Supavisor refuses, then closes them; held = 200 - opened.
+  Not verified: production. The same code and pooler limits apply there; the probe was not run on production because
+    it briefly fills the pooler.
