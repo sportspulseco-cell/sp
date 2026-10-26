@@ -9,18 +9,19 @@ export const metadata = { title: "Notification settings — SportsPulse" };
 export default async function NotificationSettingsPage() {
   const prefs = await communications
     .myPreferences()
-    .catch(() => ({ items: [], templates: [] }));
+    .catch(() => ({ items: [], topics: [], channels: ["email", "in_app"] as Array<"email" | "in_app">, templates: [] }));
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Notifications · Settings"
-        title="Email preferences"
-        description="Turn off the emails and in-app cards you don't want. Anything you don't explicitly toggle off stays on by default. SMS lands in a future release."
+        title="Notification settings"
+        description="Choose what reaches you by email and in the app. Everything is on until you switch it off. In-app covers your Notifications inbox."
       />
 
       <SettingsClient
-        initialTemplates={prefs.templates}
+        topics={prefs.topics}
+        channels={prefs.channels}
         initialItems={prefs.items}
       />
     </div>

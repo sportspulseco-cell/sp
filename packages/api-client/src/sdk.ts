@@ -1268,8 +1268,26 @@ export function createApi(f: Fetcher) {
             channel: string;
             enabled: boolean;
           }>;
+          /** Topics the person can switch off, from the API catalog. */
+          topics: Array<{
+            key: string;
+            label: string;
+            description: string;
+            category: string;
+            codes: string[];
+          }>;
+          channels: Array<"email" | "in_app">;
           templates: string[];
         }>("/notifications/me/preferences"),
+      setTopicPreference: (
+        topicKey: string,
+        channel: "email" | "in_app",
+        body: { enabled: boolean }
+      ) =>
+        f<{ topicKey: string; channel: string; enabled: boolean; codes: string[] }>(
+          `/notifications/me/preferences/topics/${encodeURIComponent(topicKey)}/${channel}`,
+          { method: "PUT", body: JSON.stringify(body) }
+        ),
       setPreference: (
         templateCode: string,
         channel: "email" | "in_app" | "sms" | "push",

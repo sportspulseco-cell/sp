@@ -99,6 +99,66 @@ export const TEMPLATE_CODES = [
 
 export type TemplateCode = (typeof TEMPLATE_CODES)[number];
 
+/** Channels a person can switch on or off per topic. */
+export const PREFERENCE_CHANNELS = ["email", "in_app"] as const;
+export type PreferenceChannel = (typeof PREFERENCE_CHANNELS)[number];
+
+/**
+ * The notifications a person can turn off, one row per topic in the
+ * settings page. A topic covers every template code that sends the same
+ * kind of message (four overdue stages are one "Overdue reminder" row).
+ * The settings page renders this list as the API returns it, so a new
+ * code reaches the page by being added here, never by a copy in the UI.
+ * Codes not listed (admin-only, invites to people without an account)
+ * cannot be turned off.
+ */
+export interface PreferenceTopic {
+  key: string;
+  label: string;
+  description: string;
+  category: string;
+  codes: TemplateCode[];
+}
+
+export const PREFERENCE_TOPICS: PreferenceTopic[] = [
+  // Games (UC-21, SCH-6, SCH-8)
+  { key: "schedule.published", category: "Games", label: "Schedule published", description: "When your team's schedule is out.", codes: ["schedule.published"] },
+  { key: "game.scheduled", category: "Games", label: "New game", description: "When a game is added to your team's schedule.", codes: ["game.scheduled"] },
+  { key: "game.rescheduled", category: "Games", label: "Game moved", description: "When a game's time or rink changes.", codes: ["game.rescheduled"] },
+  { key: "game.postponed", category: "Games", label: "Game postponed or cancelled", description: "When a game is postponed or cancelled.", codes: ["game.postponed", "game.cancelled"] },
+  { key: "game.finalized", category: "Games", label: "Final score", description: "When a game is final and stats are in.", codes: ["game.finalized"] },
+  // Announcements (UC-19, UC-20)
+  { key: "org.broadcast", category: "Announcements", label: "Announcements", description: "Messages from your league, organization, captain or coach.", codes: ["org.broadcast"] },
+  // Registration
+  { key: "registration.approved", category: "Registration", label: "Registration approved", description: "When an admin approves your season registration.", codes: ["registration.approved"] },
+  { key: "registration.rejected", category: "Registration", label: "Registration declined", description: "When an admin declines your season registration.", codes: ["registration.rejected"] },
+  { key: "registration.waitlisted", category: "Registration", label: "Waitlisted", description: "When you're placed on a season waitlist.", codes: ["registration.waitlisted"] },
+  // Team activity
+  { key: "PLAYER_JOIN_APPROVED", category: "Team activity", label: "Captain accepted you", description: "When a captain accepts your request to join.", codes: ["PLAYER_JOIN_APPROVED"] },
+  { key: "PLAYER_JOIN_REJECTED", category: "Team activity", label: "Captain declined you", description: "When a captain declines your request to join.", codes: ["PLAYER_JOIN_REJECTED"] },
+  { key: "FREE_AGENT_OFFER", category: "Team activity", label: "Team offer", description: "When a captain or admin offers you a spot.", codes: ["FREE_AGENT_OFFER"] },
+  { key: "DROP_CONFIRMED", category: "Team activity", label: "Removed from roster", description: "When you are dropped from a roster.", codes: ["DROP_CONFIRMED"] },
+  { key: "suspension", category: "Team activity", label: "Suspensions", description: "When a suspension is issued or lifted.", codes: ["suspension.issued", "suspension.lifted"] },
+  // Payments
+  { key: "invoice.created", category: "Payments", label: "New invoice", description: "When an invoice or your share of team dues is issued.", codes: ["invoice.created", "SUB_INVOICE_SENT"] },
+  { key: "payment.confirmed", category: "Payments", label: "Payment received", description: "When a payment from you goes through.", codes: ["payment.confirmed"] },
+  { key: "installment.failed", category: "Payments", label: "Installment failed", description: "When a scheduled card payment fails.", codes: ["installment.failed"] },
+  { key: "invoice.overdue", category: "Payments", label: "Payment reminders", description: "Reminders when an invoice or your dues share is unpaid or past due.", codes: ["invoice.overdue.r1", "invoice.overdue.r2", "invoice.overdue.r3", "invoice.overdue.r4", "INVOICE_OVERDUE_STAGE_1", "INVOICE_OVERDUE_STAGE_2", "INVOICE_OVERDUE_STAGE_3", "INVOICE_OVERDUE_STAGE_4", "invoice.manual_reminder", "INVOICE_MANUAL_REMIND", "SUB_INVOICE_REMINDER"] },
+  { key: "captain.covered_dues", category: "Payments", label: "Dues covered by captain", description: "When your captain pays your share.", codes: ["captain.covered_dues", "DUES_COVERED_BY_CAPTAIN"] },
+  { key: "refund.issued", category: "Payments", label: "Refund issued", description: "When a refund is sent to you.", codes: ["refund.issued"] },
+  // Compliance
+  { key: "membership", category: "Compliance", label: "Membership expiring or expired", description: "Before and after your governing-body membership lapses.", codes: ["USA_HOCKEY_EXPIRING_SOON", "USA_HOCKEY_EXPIRED"] },
+  { key: "compliance.document.decided", category: "Compliance", label: "Document reviewed", description: "When an admin accepts or rejects a document you uploaded.", codes: ["compliance.document.decided", "eligibility.waived"] },
+  // Running a team (captains and coaches)
+  { key: "PLAYER_JOIN_REQUEST", category: "Running a team", label: "Join requests", description: "When a player asks to join your team.", codes: ["PLAYER_JOIN_REQUEST"] },
+  { key: "FREE_AGENT_OFFER_REPLY", category: "Running a team", label: "Offer replies", description: "When a player accepts or declines your offer.", codes: ["FREE_AGENT_OFFER_ACCEPTED", "FREE_AGENT_OFFER_DECLINED"] },
+  { key: "TEAM_REGISTRATION", category: "Running a team", label: "Team registration", description: "When your team's registration is received, approved, declined or withdrawn.", codes: ["TEAM_REGISTRATION_APPLIED_CONFIRMATION", "TEAM_REGISTRATION_APPROVED", "TEAM_REGISTRATION_REJECTED", "TEAM_REGISTRATION_WITHDRAWN", "TEAM_CONFIRMED"] },
+  { key: "team.compliance", category: "Running a team", label: "Player eligibility", description: "When a player's membership lapses or a document is decided.", codes: ["USA_HOCKEY_EXPIRED_CAPTAIN", "compliance.document.decided.captain", "eligibility.waived.captain", "INVITE_EXPIRED_CAPTAIN"] }
+];
+
+/** Every code a person may switch off. */
+export const PREFERENCE_CODES: ReadonlySet<string> = new Set(PREFERENCE_TOPICS.flatMap((t) => t.codes));
+
 export interface DefaultTemplate {
   code: TemplateCode;
   channel: "email" | "in_app";
