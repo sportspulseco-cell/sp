@@ -107,7 +107,7 @@ export class OrgsController {
         throw new NotFoundException(`Org ${id} not found`);
       }
       if (!(await userHasOrgAdminOnOrg(this.db, user.userId, id))) {
-        throw new ForbiddenException("Only this organisation's org admins can edit it.");
+        throw new ForbiddenException("Only this organization's org admins can edit it.");
       }
     }
     return this.updateH.execute({ id, ...body });

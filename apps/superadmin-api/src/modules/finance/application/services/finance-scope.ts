@@ -57,7 +57,7 @@ export async function assertBulkTargetInScope(
       ok = await personVisible(db, { scope, userId }, id);
       break;
     default:
-      ok = false; // "org": the whole organisation is an org admin's call
+      ok = false; // "org": the whole organization is an org admin's call
   }
   if (!ok) throw new NotFoundException("Target not found in your scope");
 }

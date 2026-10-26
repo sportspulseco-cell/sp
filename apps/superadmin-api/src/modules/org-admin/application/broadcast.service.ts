@@ -124,7 +124,7 @@ export class BroadcastService {
     if (!reachHolds(reach, targetType, targetId)) {
       if (targetType === "org") {
         throw new ForbiddenException(
-          "You can send to your own leagues, not the whole organisation. Pick one of your leagues."
+          "You can send to your own leagues, not the whole organization. Pick one of your leagues."
         );
       }
       throw new NotFoundException("Target not found");

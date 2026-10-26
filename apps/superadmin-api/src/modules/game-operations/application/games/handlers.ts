@@ -574,7 +574,7 @@ async function loadRinkForOrg(exec: Exec, surfaceId: string, orgId: string): Pro
   if (surface.venueOrgId !== orgId) {
     throw new DomainError(
       "GAME_RINK_OTHER_ORG",
-      "That rink belongs to another organisation. Pick one of this league's rinks."
+      "That rink belongs to another organization. Pick one of this league's rinks."
     );
   }
   return {

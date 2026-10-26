@@ -520,7 +520,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Refund assessment required",
     body:
       "A player drop on {{teamName}} requires a refund assessment. " +
-      "Decide it under Disputes in the organisation console.",
+      "Decide it under Disputes in the organization console.",
     variables: ["teamName", "refundAssessmentId"]
   },
   {

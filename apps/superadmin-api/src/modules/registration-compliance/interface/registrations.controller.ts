@@ -74,7 +74,7 @@ export class RegistrationsController {
         );
       }
       if (q.orgId && !orgVisible(scope, q.orgId)) {
-        throw new ForbiddenException("That organisation is outside the scope of your role.");
+        throw new ForbiddenException("That organization is outside the scope of your role.");
       }
     }
     const page = await this.listH.execute({ ...q, visibleTo: scope });

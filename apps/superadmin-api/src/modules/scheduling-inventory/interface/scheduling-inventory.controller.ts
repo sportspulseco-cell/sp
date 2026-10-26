@@ -1003,7 +1003,7 @@ export class SchedulingInventoryController {
       .where(and(eq(schema.seasons.id, seasonId), isNull(schema.seasons.deletedAt)))
       .limit(1);
     if (!season || season.orgId !== orgId) {
-      throw new UnprocessableEntityException("That season is not one of this rink's organisation. Pick another season.");
+      throw new UnprocessableEntityException("That season is not one of this rink's organization. Pick another season.");
     }
   }
 
@@ -1077,7 +1077,7 @@ export class SchedulingInventoryController {
     if (body.surfaceId) {
       const surface = await this.requireSurface(user, body.surfaceId, "read");
       if (surface.venue.orgId !== season.orgId) {
-        throw new UnprocessableEntityException("That rink is not one of this season's organisation. Pick another rink.");
+        throw new UnprocessableEntityException("That rink is not one of this season's organization. Pick another rink.");
       }
     }
     const [row] = await this.db
@@ -1137,7 +1137,7 @@ export class SchedulingInventoryController {
   private async requireOrgWrite(user: AuthPrincipal, orgId: string): Promise<void> {
     if (!(await canInOrg(this.db, user.userId, orgId, INVENTORY_WRITE))) {
       throw new ForbiddenException(
-        "Your role cannot change rinks or ice time for this organisation. Ask an org or league admin."
+        "Your role cannot change rinks or ice time for this organization. Ask an org or league admin."
       );
     }
   }

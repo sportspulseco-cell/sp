@@ -172,12 +172,12 @@ export class TeamsController {
       .limit(1);
     if (duplicate[0]) {
       throw new ConflictException({
-        message: "A team with this name already exists in this organisation.",
+        message: "A team with this name already exists in this organization.",
         errors: [
           {
             field: "name",
             message:
-              "A team with this name already exists in this organisation.",
+              "A team with this name already exists in this organization.",
             existingTeamId: duplicate[0].id
           }
         ]

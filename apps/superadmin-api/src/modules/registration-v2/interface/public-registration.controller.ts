@@ -299,7 +299,7 @@ export class PublicRegistrationController {
   @Get("open")
   @ApiOperation({
     summary:
-      "One league's public registration page: the seasons of that organisation whose registration window is open and that have a published season_registration form. Anonymous. `org` (the organisation's slug or id, from the league's registration link) is required: there is no list across organisations, so no visitor can enumerate other leagues."
+      "One league's public registration page: the seasons of that organization whose registration window is open and that have a published season_registration form. Anonymous. `org` (the organization's slug or id, from the league's registration link) is required: there is no list across organizations, so no visitor can enumerate other leagues."
   })
   async listOpenRegistrations(@Query("org") orgKey?: string): Promise<{
     org: { id: string; slug: string; name: string };

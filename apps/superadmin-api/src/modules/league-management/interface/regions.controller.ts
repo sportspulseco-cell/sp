@@ -79,7 +79,7 @@ export class RegionsController {
   private assertOrgInScope(scope: UserScopeType, orgId: string) {
     if (scope.isSuperAdmin) return;
     if (scope.orgIds === null) return;
-    if (!scope.orgIds.includes(orgId)) throw new NotFoundException("Organisation not found");
+    if (!scope.orgIds.includes(orgId)) throw new NotFoundException("Organization not found");
   }
 
   private async load(id: string, scope: UserScopeType) {
@@ -164,7 +164,7 @@ export class RegionsController {
       throw new ConflictException(
         dup.status === "archived"
           ? `A region named "${name}" exists but is archived. Restore it instead.`
-          : `A region named "${name}" already exists in this organisation.`
+          : `A region named "${name}" already exists in this organization.`
       );
     }
     const [row] = await this.db
@@ -193,7 +193,7 @@ export class RegionsController {
           and(eq(schema.regions.orgId, r.orgId), sql`lower(${schema.regions.name}) = lower(${name})`)
         )
         .limit(1);
-      if (dup) throw new ConflictException(`A region named "${name}" already exists in this organisation.`);
+      if (dup) throw new ConflictException(`A region named "${name}" already exists in this organization.`);
     }
     const [row] = await this.db
       .update(schema.regions)

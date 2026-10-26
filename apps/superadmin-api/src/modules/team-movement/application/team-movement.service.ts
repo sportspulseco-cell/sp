@@ -467,7 +467,7 @@ export class TeamMovementService {
     }
     if (target.league.orgId !== team.orgId) {
       throw new UnprocessableEntityException(
-        "The target league belongs to another organisation. Move the team to that organisation first (Rule D), then migrate."
+        "The target league belongs to another organization. Move the team to that organization first (Rule D), then migrate."
       );
     }
     this.assertSeasonOpenForEntries(target);
@@ -545,16 +545,16 @@ export class TeamMovementService {
 
     const team = await this.loadTeam(input.teamId);
     if (team.orgId === input.targetOrgId) {
-      throw new UnprocessableEntityException("The team already belongs to that organisation.");
+      throw new UnprocessableEntityException("The team already belongs to that organization.");
     }
     const [targetOrg] = await this.db
       .select({ id: schema.orgs.id, name: schema.orgs.displayName, status: schema.orgs.status })
       .from(schema.orgs)
       .where(eq(schema.orgs.id, input.targetOrgId))
       .limit(1);
-    if (!targetOrg) throw new NotFoundException("Target organisation not found");
+    if (!targetOrg) throw new NotFoundException("Target organization not found");
     if (targetOrg.status !== "active") {
-      throw new UnprocessableEntityException(`Organisation "${targetOrg.name}" is ${targetOrg.status}.`);
+      throw new UnprocessableEntityException(`Organization "${targetOrg.name}" is ${targetOrg.status}.`);
     }
 
     const liveInOldOrg = await this.db
@@ -573,7 +573,7 @@ export class TeamMovementService {
     const n = liveInOldOrg[0]?.n ?? 0;
     if (n > 0 && !input.force) {
       throw new ConflictException(
-        `The team still plays in ${n} live season(s) of its current organisation. Finish or move those first, or force the move.`
+        `The team still plays in ${n} live season(s) of its current organization. Finish or move those first, or force the move.`
       );
     }
 
@@ -598,8 +598,8 @@ export class TeamMovementService {
       `org_move team=${team.id} from=${team.orgId} to=${input.targetOrgId} live_left=${n} forced=${input.force} by=${input.actor.userId}`
     );
     return this.readback(result.movementId, null, [
-      ...(n > 0 ? [`${n} live season(s) stay under the old organisation's leagues; their admins no longer see this team.`] : []),
-      "Admins of the old organisation lose access; captain and coach roles are unchanged."
+      ...(n > 0 ? [`${n} live season(s) stay under the old organization's leagues; their admins no longer see this team.`] : []),
+      "Admins of the old organization lose access; captain and coach roles are unchanged."
     ]);
   }
 

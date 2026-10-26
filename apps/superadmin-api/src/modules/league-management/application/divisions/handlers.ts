@@ -129,7 +129,7 @@ async function assertRegionInSeasonOrg(
   if (!region) {
     throw new DomainError(
       "REGION_NOT_IN_ORG",
-      "Region must be an active region of the organisation that owns this season"
+      "Region must be an active region of the organization that owns this season"
     );
   }
 }

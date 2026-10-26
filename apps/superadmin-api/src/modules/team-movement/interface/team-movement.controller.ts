@@ -96,7 +96,7 @@ export class TeamMovementController {
   private async assertAdmin(user: AuthPrincipal, scope: UserScopeType) {
     if (scope.isSuperAdmin) return;
     if (!(await userIsPeopleAdmin(this.db, user.userId))) {
-      throw new ForbiddenException("Only league or organisation admins can move teams.");
+      throw new ForbiddenException("Only league or organization admins can move teams.");
     }
   }
 
@@ -214,7 +214,7 @@ export class TeamMovementController {
 
   @Post(":id/org-move")
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: "Rule D: move the master team to another organisation (super admin)" })
+  @ApiOperation({ summary: "Rule D: move the master team to another organization (super admin)" })
   async orgMove(
     @Param("id") id: string,
     @Body() body: OrgMoveBodyDto,

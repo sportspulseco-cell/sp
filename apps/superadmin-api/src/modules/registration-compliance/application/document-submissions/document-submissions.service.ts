@@ -387,7 +387,7 @@ export class ComplianceDocumentSubmissionsService {
         .where(eq(schema.documentVersions.id, input.documentVersionId))
         .limit(1);
       if (!version || (version.orgId !== null && version.orgId !== target.orgId)) {
-        throw new NotFoundException("That waiver version does not exist for this organisation.");
+        throw new NotFoundException("That waiver version does not exist for this organization.");
       }
     }
 
@@ -1028,7 +1028,7 @@ export class ComplianceDocumentSubmissionsService {
     const reason = s.latestDecision?.reason ?? null;
     const documentLabel = COMPLIANCE_DOCUMENT_KIND_LABELS[s.kind];
     const decisionLabel = COMPLIANCE_DOCUMENT_STATUS_LABELS[decision];
-    const forLabel = [s.seasonName, s.orgName].filter(Boolean).join(" · ") || "your organisation";
+    const forLabel = [s.seasonName, s.orgName].filter(Boolean).join(" · ") || "your organization";
     const nextStep =
       decision === "approved"
         ? "Nothing else to do for this document."

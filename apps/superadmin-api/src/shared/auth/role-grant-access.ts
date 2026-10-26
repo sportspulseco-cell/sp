@@ -166,7 +166,7 @@ export async function assertCanManageRole(
     throw new ForbiddenException("Only a platform admin can manage platform-wide roles.");
   }
   const anc = await ancestryOf(db, target.scopeType, target.scopeId);
-  if (!anc) throw new NotFoundException("Not found in your organisation or league.");
+  if (!anc) throw new NotFoundException("Not found in your organization or league.");
   const inside = holdings.filter((h) => contains(h.scopeType, h.scopeId, anc));
   if (inside.length === 0) {
     // The caller's own org is above their league but visible to them:
@@ -177,13 +177,13 @@ export async function assertCanManageRole(
         const own = await ancestryOf(db, h.scopeType, h.scopeId);
         if (own?.orgId === target.scopeId) {
           throw new ForbiddenException(
-            "You manage roles inside your league, not for the whole organisation. Ask your org admin."
+            "You manage roles inside your league, not for the whole organization. Ask your org admin."
           );
         }
       }
     }
     log.log(`role ${action} refused (outside scope) user=${userId} role=${target.roleCode} ${target.scopeType}:${target.scopeId}`);
-    throw new NotFoundException("Not found in your organisation or league.");
+    throw new NotFoundException("Not found in your organization or league.");
   }
   const def = target.roleCode ? SYSTEM_ROLE_BY_CODE[target.roleCode] : undefined;
   if (!def) {
