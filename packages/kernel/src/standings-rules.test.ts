@@ -8,8 +8,38 @@ import {
   rankTalliesByBucket,
   resolvePointsRule,
   tallyStandings,
+  withEnteredTeams,
   type StandingsGame
 } from "./game-results";
+
+test("F-4: every entered team is listed; teams with no games show zeros after the rest", () => {
+  type Row = { divisionId: string | null; teamId: string; rank: number | null; gp: number; points: number };
+  const rows: Row[] = [
+    { divisionId: "A", teamId: "t1", rank: 1, gp: 1, points: 2 },
+    { divisionId: "A", teamId: "t2", rank: 2, gp: 1, points: 0 }
+  ];
+  const entered = [
+    { divisionId: "A", teamId: "t1", teamName: "Alpha" },
+    { divisionId: "A", teamId: "t4", teamName: "Delta" },
+    { divisionId: "A", teamId: "t3", teamName: "Charlie" },
+    { divisionId: "A", teamId: "t3", teamName: "Charlie" },
+    { divisionId: "B", teamId: "t5", teamName: "Echo" }
+  ];
+  const out = withEnteredTeams(rows, entered, (t, rank) => ({ divisionId: t.divisionId, teamId: t.teamId, rank, gp: 0, points: 0 }));
+  assert.deepEqual(
+    out.map((r) => `${r.divisionId}:${r.teamId}:${r.rank}:${r.gp}`),
+    ["A:t1:1:1", "A:t2:2:1", "A:t3:3:0", "A:t4:4:0", "B:t5:1:0"]
+  );
+});
+
+test("F-4: no entered teams and no rows gives an empty table; rows are never dropped", () => {
+  const never = (): never => {
+    throw new Error("unused");
+  };
+  assert.deepEqual(withEnteredTeams([], [], never), []);
+  const rows = [{ divisionId: "A", teamId: "gone", rank: 1 }];
+  assert.equal(withEnteredTeams(rows, [], never).length, 1);
+});
 
 const g = (h: string, a: string, hs: number, as: number, over: Partial<StandingsGame> = {}): StandingsGame => ({
   status: "completed", homeTeamId: h, awayTeamId: a, homeBucket: "d", awayBucket: "d",

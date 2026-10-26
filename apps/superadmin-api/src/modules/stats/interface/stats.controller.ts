@@ -39,6 +39,8 @@ import {
 } from "../application/dtos/stats.dto";
 import { ProjectStatsHandler } from "../application/handlers/project-stats.handler";
 import { RecomputeStandingsHandler } from "../application/handlers/recompute-standings.handler";
+import { withEnteredTeams } from "@sportspulse/kernel";
+import { enteredTeams } from "../application/entered-teams";
 import {
   BuildLeaderboardHandler,
   ListLinesForGameHandler,
@@ -302,10 +304,22 @@ export class StatsController {
     const rows = (Array.isArray(totals) ? totals : (totals as { rows?: unknown[] }).rows ?? []) as Array<{
       division_id: string; person_id: string; team_id: string; gp: number; goals: number; assists: number; points: number;
     }>;
-    const standings = await this.db
+    const stored = await this.db
       .select()
       .from(schema.standings)
       .where(inArray(schema.standings.divisionId, divisionIds));
+    // Every entered team from day one, at zero until it plays (F-4).
+    const standings = withEnteredTeams(
+      stored.map((s) => ({
+        divisionId: s.divisionId, teamId: s.teamId, rank: s.rank,
+        gp: s.gp, w: s.w, l: s.l, t: s.t, otl: s.otl, points: s.points, gf: s.gf, ga: s.ga, gd: s.gd
+      })),
+      await enteredTeams(this.db, { divisionIds }),
+      (t, rank) => ({
+        divisionId: t.divisionId, teamId: t.teamId, rank,
+        gp: 0, w: 0, l: 0, t: 0, otl: 0, points: 0, gf: 0, ga: 0, gd: 0
+      })
+    );
     const names = await resolveEntityNames(this.db, [
       ...rows.map((r) => ({ type: "person" as const, id: r.person_id })),
       ...rows.map((r) => ({ type: "team" as const, id: r.team_id })),
