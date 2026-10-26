@@ -34,6 +34,14 @@ type Req = {
   headers?: Record<string, string | undefined>;
 };
 
+/** Path endings that name an action on the record before them. */
+const ACTION_VERBS = new Set([
+  "accept", "decline", "apply", "approve", "reject", "confirm", "cancel", "withdraw", "redeem",
+  "publish", "publish-schedule", "remind", "sign", "cover", "register", "invite", "bulk",
+  "issue-credit", "transfer", "retry-failed", "flush", "subscribe", "unsubscribe", "start",
+  "finalize", "score", "postpone", "forfeit", "assign", "revoke", "resend", "decide", "due"
+]);
+
 /** Recover (resourceType, verb, record id) from the URL, right to left. */
 export function auditTargetFromPath(method: string, path: string): AuditTarget {
   const parts = (path.split("?")[0] ?? path).replace(/^\/+/, "").split("/").filter(Boolean);
@@ -52,6 +60,13 @@ export function auditTargetFromPath(method: string, path: string): AuditTarget {
     resourceType = seg[seg.length - 3] ?? last;
     verb = last;
     pathId = prev;
+  } else if (ACTION_VERBS.has(last) && prev) {
+    // /<resource>/<token>/<verb> or /<resource>/<verb>: the verb is the
+    // action, not the resource (an invite's token is not a UUID, so the
+    // branch above misses it; "accept.create" was recorded 77 times).
+    const tokenLike = (v: string) => v.length >= 16 && /\d/.test(v) && /[a-z]/i.test(v) && !v.includes("-");
+    resourceType = tokenLike(prev) ? (seg[seg.length - 3] ?? prev) : prev;
+    verb = last;
   } else {
     // /<scope>/<resource>  (POST = create on collection)
     resourceType = last;
