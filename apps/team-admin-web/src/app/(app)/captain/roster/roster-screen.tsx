@@ -647,19 +647,8 @@ function PendingInvitesTable({
               <TR key={i.id}>
                 <TD className="italic">{i.email ?? "—"}</TD>
                 <TD>
-                  <Badge
-                    mono
-                    tone={
-                      isExpired
-                        ? "warning"
-                        : i.status === "extended"
-                          ? "neutral"
-                          : "neutral"
-                    }
-                  >
-                    {i.status === "pending"
-                      ? "awaiting acceptance"
-                      : i.status.replace(/_/g, " ")}
+                  <Badge status={isExpired ? "expired" : i.status}>
+                    {!isExpired && i.status === "pending" ? "Awaiting acceptance" : undefined}
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">

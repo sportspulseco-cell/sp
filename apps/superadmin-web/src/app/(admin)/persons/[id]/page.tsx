@@ -22,7 +22,7 @@ import {
 } from "@/components/discipline/suspension-buttons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate } from "@sportspulse/ui";
 import {
   communications,
   compliance,
@@ -33,7 +33,6 @@ import {
   roster
 } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import {
   TBody,
@@ -264,9 +263,7 @@ export default async function PersonDetailPage({
                 />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-fg">
-                    <Badge tone={statusTone(e.status)} mono>
-                      {e.status}
-                    </Badge>
+                    <Badge status={e.status} />
                     <span className="ml-2 text-fg-muted">
                       {e.seasonId
                         ? (seasonMap.get(e.seasonId) ?? "Unknown season")
@@ -376,9 +373,7 @@ export default async function PersonDetailPage({
               {suspensionItems.map((s) => (
                 <TR key={s.id}>
                   <TD>
-                    <Badge tone={s.inForce ? "danger" : statusTone(s.status)} mono>
-                      {s.inForce ? "suspended" : s.status === "active" ? "ended" : s.status}
-                    </Badge>
+                    <Badge status={s.inForce ? "suspended" : s.status === "active" ? "ended" : s.status} />
                   </TD>
                   <TD className="text-fg">{s.label}</TD>
                   <TD className="max-w-[320px] text-fg-muted">{s.reason ?? "No reason recorded"}</TD>
@@ -444,9 +439,7 @@ export default async function PersonDetailPage({
                   </p>
                 </div>
                 <div className="text-right">
-                  <Badge tone={statusTone(n.status === "sent" ? "completed" : n.status)} mono>
-                    {n.status}
-                  </Badge>
+                  <Badge status={n.status} domain="notification" />
                   <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                     {fmtDateTime(n.sentAt ?? n.createdAt)}
                   </p>
@@ -515,9 +508,7 @@ export default async function PersonDetailPage({
                     <LocalDate iso={r.submittedAt ?? r.createdAt} format="date" fallback="—" />
                   </p>
                 </div>
-                <Badge tone={statusTone(r.status)} mono>
-                  {r.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={r.status} />
               </li>
             ))}
           </ul>

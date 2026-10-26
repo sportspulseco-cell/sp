@@ -96,7 +96,7 @@ export default async function TeamAdminSchedulePage() {
                     ) : g.status === "in_play" ? (
                       <Badge mono tone="info">Live {us ?? 0}-{them ?? 0}</Badge>
                     ) : (
-                      <Badge mono tone={g.status === "scheduled" ? "info" : "neutral"}>{g.status.replace(/_/g, " ")}</Badge>
+                      <Badge status={g.status} domain="game" />
                     )}
                   </TD>
                 </TR>

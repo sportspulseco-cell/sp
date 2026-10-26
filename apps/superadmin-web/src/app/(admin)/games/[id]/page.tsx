@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { Badge, LoadError } from "@sportspulse/ui";
 import {
   formatInZone,
   GAME_ENDING_LABELS,
@@ -178,9 +178,7 @@ export default async function GameDetailPage({
           </div>
           <div className="flex items-center gap-2">
             {!game.publishedAt && game.status !== "cancelled" ? (
-              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                Draft
-              </span>
+              <Badge status="draft" />
             ) : null}
             <GameStatusBadge status={game.status} />
           </div>

@@ -114,9 +114,7 @@ export async function ArDashboardTab({ orgId }: { orgId: string }) {
                   <p className="font-mono text-[13px] text-fg">
                     {fmtMoney(i.totalCents, i.currency)}
                   </p>
-                  <Badge mono tone={statusTone(i.status)}>
-                    {i.status}
-                  </Badge>
+                  <Badge status={i.status} />
                   <Link
                     href={`/payments?tab=invoice&invoiceId=${i.id}`}
                     className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
@@ -167,12 +165,3 @@ function Kpi({
   );
 }
 
-function statusTone(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "paid") return "success";
-  if (status === "partial" || status === "sent") return "warning";
-  if (status === "overdue") return "danger";
-  if (status === "void") return "neutral";
-  return "info";
-}

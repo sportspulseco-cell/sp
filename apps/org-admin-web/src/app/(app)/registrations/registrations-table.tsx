@@ -31,13 +31,6 @@ function fmtDate(iso: string | null) {
   return <LocalDate iso={iso} format="date" />;
 }
 
-function statusTone(s: string): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (s === "approved") return "success";
-  if (s === "rejected" || s === "withdrawn" || s === "cancelled") return "danger";
-  if (s.startsWith("pending") || s === "submitted") return "warning";
-  return "info";
-}
-
 function isReviewable(s: string): boolean {
   return s === "submitted" || s.startsWith("pending");
 }
@@ -92,9 +85,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
               <TD className="text-[12px] text-fg-muted">{r.email ?? "Not provided"}</TD>
               <TD className="text-[12px] text-fg-muted">{r.season ?? "No season"}</TD>
               <TD>
-                <Badge mono tone={statusTone(r.status)}>
-                  {r.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={r.status} />
               </TD>
               <TD className="text-[12px] text-fg-muted">
                 {fmtDate(r.submittedAt)}

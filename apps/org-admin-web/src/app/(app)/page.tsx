@@ -215,12 +215,7 @@ export default async function OrgAdminHome() {
                     </TD>
                     <TD className="text-fg-muted">{l.format ?? "—"}</TD>
                     <TD>
-                      <Badge
-                        mono
-                        tone={l.status === "active" ? "success" : "neutral"}
-                      >
-                        {l.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={l.status} />
                     </TD>
                   </TR>
                 ))}
@@ -267,9 +262,7 @@ export default async function OrgAdminHome() {
                       {(r.metadata as { email?: string })?.email ?? "Not provided"}
                     </TD>
                     <TD>
-                      <Badge mono tone={statusToneFor(r.status)}>
-                        {r.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={r.status} />
                     </TD>
                     <TD className="text-right text-[12px] text-fg-muted">
                       <LocalDate iso={r.createdAt} format="date" />
@@ -283,15 +276,6 @@ export default async function OrgAdminHome() {
       </section>
     </div>
   );
-}
-
-function statusToneFor(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "approved") return "success";
-  if (status === "rejected" || status === "cancelled") return "danger";
-  if (status.startsWith("pending")) return "warning";
-  return "info";
 }
 
 function ShellWithoutOrg({ message }: { message: string }) {

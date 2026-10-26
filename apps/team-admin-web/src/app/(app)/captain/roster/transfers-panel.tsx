@@ -19,14 +19,6 @@ import type { TransferRequest } from "@sportspulse/api-client";
 import { ROSTER_DROP_REASON_MIN_CHARS, TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
 import { captain } from "@/lib/api/browser-api";
 
-const STATE_TONE: Record<TransferRequest["status"], "neutral" | "warning" | "success" | "danger"> = {
-  pending_destination: "warning",
-  pending_admin: "warning",
-  approved: "success",
-  rejected: "danger",
-  cancelled: "neutral"
-};
-
 const day = (iso: string | null) => <LocalDate iso={iso} format="date" />;
 
 /**
@@ -219,7 +211,7 @@ export function TransfersPanel({
                   <TD className="font-medium text-fg">{name(t)}</TD>
                   <TD>{t.toTeamName ?? "Another team"}</TD>
                   <TD>
-                    <Badge mono tone={STATE_TONE[t.status]}>
+                    <Badge status={t.status}>
                       {TRANSFER_STATE_LABELS[t.status]}
                     </Badge>
                     {t.status === "rejected" && t.rejectionReason ? (

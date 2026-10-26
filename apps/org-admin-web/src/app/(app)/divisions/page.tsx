@@ -188,9 +188,7 @@ export default async function DivisionsPage({
                       {d.maxTeams ?? "—"}
                     </TD>
                     <TD>
-                      <Badge mono tone={d.status === "active" ? "success" : "neutral"}>
-                        {d.status}
-                      </Badge>
+                      <Badge status={d.status} />
                     </TD>
                   </TR>
                 ))}

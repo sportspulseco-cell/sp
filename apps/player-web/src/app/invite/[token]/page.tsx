@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { statusLabel } from "@sportspulse/kernel";
 import { createClient } from "@/lib/supabase/server";
 import { AcceptInviteButton } from "./accept-invite-button";
 
@@ -57,7 +58,7 @@ export default async function InvitePage({
             This link is not valid. Ask your captain to send a new one.
           </Message>
         ) : invite.status !== "pending" && invite.status !== "extended" ? (
-          <Message title={`This invite is ${invite.status}`}>
+          <Message title={`This invite is ${statusLabel(invite.status).toLowerCase()}`}>
             Ask the captain of {invite.teamName} for a new invite.
           </Message>
         ) : (

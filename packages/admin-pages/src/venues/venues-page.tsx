@@ -885,7 +885,7 @@ function SlotRow({
           {seasonName ? <span className="truncate text-fg-muted">· {seasonName}</span> : null}
           {slot.band ? <Badge tone="neutral" mono>{slot.band}</Badge> : null}
           {slot.isPlayoffReservation ? <Badge tone="warning" mono>playoff</Badge> : null}
-          {slot.status !== "available" ? <Badge tone="neutral" mono>{slot.status}</Badge> : null}
+          {slot.status !== "available" ? <Badge status={slot.status} /> : null}
         </div>
         <div className="flex items-center gap-2">
           <button

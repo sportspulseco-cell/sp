@@ -62,3 +62,20 @@ test("labels read as words, with registration labels from the state machine", ()
   assert.equal(statusLabel("paid"), "Paid");
   assert.ok(!statusLabel("incomplete").includes("—"));
 });
+
+test("game, compliance and bracket domains use their own words and colours", () => {
+  assert.equal(statusLabel("in_play", "game"), "Live");
+  assert.equal(statusLabel("completed", "game"), "Final");
+  assert.equal(statusLabel("completed"), "Completed");
+  assert.equal(statusTone("expired", "compliance"), "danger");
+  assert.equal(statusTone("expired"), "neutral");
+  assert.equal(statusTone("active", "bracket"), "info");
+  assert.equal(statusLabel("active", "bracket"), "In progress");
+  assert.equal(statusTone("complete"), "success");
+});
+
+test("transfer states read the same words as the roster rules", () => {
+  assert.equal(statusLabel("pending_destination"), "Awaiting destination captain");
+  assert.equal(statusLabel("pending_admin"), "Awaiting admin approval");
+  assert.equal(statusTone("pending_admin"), "warning");
+});

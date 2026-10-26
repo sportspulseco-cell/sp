@@ -1,5 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate } from "@sportspulse/ui";
 import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge, statusTone } from "@/components/ui/badge";
 import {
   TBody,
   TD,
@@ -210,9 +209,7 @@ export default async function RostersPage({
                   {m.positionCode ?? "—"}
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(m.currentStatus)} mono>
-                    {m.currentStatus}
-                  </Badge>
+                  <Badge status={m.currentStatus} />
                 </TD>
                 <TD className="text-right">
                   {m.currentStatus === "active" ? (

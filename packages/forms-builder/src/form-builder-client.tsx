@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Plus, Send } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Badge, Button } from "@sportspulse/ui";
 import {
   defaultWaiversConfig,
   emptyFormDefinition,
@@ -343,33 +343,31 @@ function AutosaveBadge({
   if (status === "idle") return null;
   if (status === "dirty") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+      <Badge tone="warning" mono dot>
         Unsaved
-      </span>
+      </Badge>
     );
   }
   if (status === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-blue-700 dark:text-blue-300">
+      <Badge tone="info" mono>
         <Loader2 className="h-3 w-3 animate-spin" />
         Saving…
-      </span>
+      </Badge>
     );
   }
   if (status === "saved") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+      <Badge tone="success" mono>
         <Check className="h-3 w-3" strokeWidth={2.5} />
         Saved
-      </span>
+      </Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
-      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+    <Badge tone="danger" mono dot>
       Save failed
-    </span>
+    </Badge>
   );
 }
 

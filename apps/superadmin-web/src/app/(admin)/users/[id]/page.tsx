@@ -2,10 +2,9 @@ import { ArrowLeft, Building2, ShieldCheck, Trophy, UserCog } from "lucide-react
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import { tintForScope } from "@/components/roles/role-scope-tint";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
@@ -82,9 +81,7 @@ export default async function UserDetailPage({
           </h1>
           <p className="text-[13px] text-fg-muted">{user.email ?? "—"}</p>
           <div className="flex items-center gap-2 pt-1">
-            <Badge tone={statusTone(user.status)} mono>
-              {user.status}
-            </Badge>
+            <Badge status={user.status} />
             {user.isSuperAdmin ? (
               <Badge tone="primary" mono>
                 SUPER ADMIN
@@ -230,9 +227,7 @@ export default async function UserDetailPage({
                       {m.membershipType}
                     </Badge>
                   )}
-                  <Badge tone={statusTone(m.currentStatus)} mono>
-                    {m.currentStatus}
-                  </Badge>
+                  <Badge status={m.currentStatus} />
                 </div>
               </li>
             ))}

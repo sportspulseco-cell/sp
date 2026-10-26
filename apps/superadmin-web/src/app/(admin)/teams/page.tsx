@@ -1,12 +1,11 @@
 ﻿import { fetchAll } from "@sportspulse/api-client";
-import { Alert } from "@sportspulse/ui";
+import { Alert, Badge } from "@sportspulse/ui";
 import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { UrlFilters } from "@/components/ui/url-filters";
 import {
   TBody,
@@ -176,7 +175,7 @@ export default async function TeamsPage({
                   </Link>
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(t.status)}>{t.status}</Badge>
+                  <Badge status={t.status} />
                 </TD>
                 <TD>
                   <AssignAdminCell

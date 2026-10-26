@@ -354,13 +354,7 @@ function SlotCard({
           </a>
         ) : null}
         {slot.gameStatus && (
-          <Badge tone={
-            slot.gameStatus === "completed" ? "success"
-              : slot.gameStatus === "in_play" ? "info"
-                : "neutral"
-          }>
-            {slot.gameStatus.replace(/_/g, " ")}
-          </Badge>
+          <Badge status={slot.gameStatus} domain="game" />
         )}
       </div>
       {canAdvance && (

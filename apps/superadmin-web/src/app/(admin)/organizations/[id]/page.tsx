@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CopyLink, LoadError } from "@sportspulse/ui";
+import { Badge, CopyLink, LoadError } from "@sportspulse/ui";
 import {
   crossOrgGrants,
   iam,
@@ -22,7 +22,6 @@ import {
   publicRegistration,
   registration
 } from "@/lib/api/server-api";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
 import { LinkOrgButton } from "@/components/orgs/link-org-button";
@@ -151,9 +150,7 @@ export default async function OrgDetailPage({
           <p className="font-mono text-[13px] text-fg-muted">{org.slug}</p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Badge mono>{org.orgType.replace(/_/g, " ")}</Badge>
-            <Badge tone={statusTone(org.status)} mono>
-              {org.status}
-            </Badge>
+            <Badge status={org.status} />
             <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
               <Globe2 className="h-3 w-3" strokeWidth={1.75} />
               {org.countryCode} · {org.defaultCurrency}
@@ -344,9 +341,7 @@ export default async function OrgDetailPage({
                     {l.sportCode} · {l.format ?? "—"}
                   </p>
                 </div>
-                <Badge tone={statusTone(l.status)} mono>
-                  {l.status}
-                </Badge>
+                <Badge status={l.status} />
               </li>
             ))}
           </ul>
@@ -384,9 +379,7 @@ export default async function OrgDetailPage({
                     {fmtDate(s.startDate)} → {fmtDate(s.endDate)}
                   </p>
                 </div>
-                <Badge tone={statusTone(s.status)} mono>
-                  {s.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={s.status} />
               </li>
             ))}
           </ul>
@@ -432,9 +425,7 @@ export default async function OrgDetailPage({
                     {d.maxTeams && ` · max ${d.maxTeams} teams`}
                   </p>
                 </div>
-                <Badge tone={statusTone(d.status)} mono>
-                  {d.status}
-                </Badge>
+                <Badge status={d.status} />
               </li>
             ))}
           </ul>
@@ -487,9 +478,7 @@ export default async function OrgDetailPage({
                     )}
                   </p>
                 </div>
-                <Badge tone={statusTone(t.status)} mono>
-                  {t.status}
-                </Badge>
+                <Badge status={t.status} />
               </li>
             ))}
           </ul>

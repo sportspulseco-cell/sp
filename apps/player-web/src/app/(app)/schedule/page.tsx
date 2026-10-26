@@ -66,19 +66,7 @@ function statusBadge(g: Game, myTeamId: string | null) {
       </Badge>
     );
   }
-  const tone =
-    g.status === "scheduled"
-      ? "info"
-      : g.status === "postponed"
-        ? "warning"
-        : g.status === "cancelled"
-          ? "danger"
-          : "neutral";
-  return (
-    <Badge mono tone={tone}>
-      {g.status.replace(/_/g, " ")}
-    </Badge>
-  );
+  return <Badge status={g.status} domain="game" />;
 }
 
 export default async function SchedulePage({

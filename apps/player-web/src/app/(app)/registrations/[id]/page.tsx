@@ -28,26 +28,6 @@ function fmt(iso: string | null | undefined): ReactNode {
   return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
-const STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "danger" | "info" | "neutral"
-> = {
-  draft: "neutral",
-  submitted: "warning",
-  under_review: "warning",
-  approved: "success",
-  rejected: "danger",
-  waitlisted: "info",
-  withdrawn: "neutral",
-  pending_verification: "warning",
-  pending_consent: "warning",
-  pending_payment: "warning",
-  pending_offline: "warning",
-  pending_review: "warning",
-  incomplete: "neutral",
-  cancelled: "neutral"
-};
-
 export default async function RegistrationDetailPage({
   params
 }: {
@@ -169,9 +149,7 @@ export default async function RegistrationDetailPage({
             )}
           </p>
           <div className="mt-3">
-            <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-              {r.status.replace(/_/g, " ")}
-            </Badge>
+            <Badge status={r.status} />
           </div>
         </div>
 

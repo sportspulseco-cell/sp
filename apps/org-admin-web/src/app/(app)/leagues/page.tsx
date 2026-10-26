@@ -157,9 +157,7 @@ export default async function LeaguesPage({
                     <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{l.sportCode}</TD>
                     <TD className="text-fg-muted">{l.format ?? "—"}</TD>
                     <TD>
-                      <Badge mono tone={(l.status as string) === "active" ? "success" : "neutral"}>
-                        {l.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={l.status} />
                     </TD>
                     <TD>
                       <LeagueActions league={l} governingBodies={governingBodies} />

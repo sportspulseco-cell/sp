@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import { Alert, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, LocalDate } from "@sportspulse/ui";
 import { leagueMgmt, teamMovement } from "@/lib/api/browser-api";
 import type { TeamEntry, TeamMovement, TeamMovementResult } from "@/lib/api/types";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
@@ -133,9 +132,7 @@ export function TeamMovementPanel({
                 <TD className="text-fg-muted">{e.leagueName}</TD>
                 <TD>{e.divisionName}</TD>
                 <TD>
-                  <Badge tone={e.entryStatus === "moved" ? "neutral" : statusTone(e.entryStatus)}>
-                    {e.entryStatus.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={e.entryStatus} />
                 </TD>
                 <TD className="text-fg-muted">
                   <LocalDate iso={e.joinedAt} />

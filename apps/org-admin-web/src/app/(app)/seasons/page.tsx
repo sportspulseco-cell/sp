@@ -172,12 +172,7 @@ export default async function SeasonsPage({
                       {fmt(s.startDate)} — {fmt(s.endDate)}
                     </TD>
                     <TD>
-                      <Badge
-                        mono
-                        tone={OPEN_STATES.has(s.status as string) ? "success" : "neutral"}
-                      >
-                        {s.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={s.status} />
                     </TD>
                   </TR>
                 ))}

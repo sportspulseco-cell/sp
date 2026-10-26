@@ -1,6 +1,6 @@
 "use client";
 
-import { LocalDate } from "@sportspulse/ui";
+import { Badge, LocalDate } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate, centsToAmountInput } from "@sportspulse/kernel";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/components/finance/money";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RefundDialog } from "@/components/finance/refund-dialog";
@@ -204,9 +203,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
               Overdue — {daysPastDue} day{daysPastDue === 1 ? "" : "s"}
             </Badge>
           ) : (
-            <Badge tone={statusTone(invoice.status)} mono>
-              {invoice.status}
-            </Badge>
+            <Badge status={invoice.status} />
           )}
         </div>
       </header>
@@ -1100,21 +1097,3 @@ function fmtDate(iso: string | null): string {
   return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
-function statusTone(
-  status: string
-): "info" | "success" | "warning" | "danger" | "neutral" {
-  switch (status) {
-    case "paid":
-      return "success";
-    case "partial":
-      return "warning";
-    case "overdue":
-      return "danger";
-    case "sent":
-      return "info";
-    case "void":
-    case "draft":
-    default:
-      return "neutral";
-  }
-}

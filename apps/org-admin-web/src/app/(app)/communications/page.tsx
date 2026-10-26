@@ -142,19 +142,6 @@ export default async function CommunicationsPage() {
               </THead>
               <TBody>
                 {page.items.map((n) => {
-                  const tone:
-                    | "success"
-                    | "warning"
-                    | "danger"
-                    | "info"
-                    | "neutral" =
-                    n.status === "sent"
-                      ? "success"
-                      : n.status === "failed"
-                        ? "danger"
-                        : n.status === "suppressed"
-                          ? "neutral"
-                          : "warning";
                   return (
                     <TR key={n.id}>
                       <TD className="font-mono text-[11px] text-fg-muted">
@@ -167,9 +154,7 @@ export default async function CommunicationsPage() {
                         {n.recipientEmail ?? n.recipientPersonId ?? "—"}
                       </TD>
                       <TD>
-                        <Badge mono tone={tone}>
-                          {n.status}
-                        </Badge>
+                        <Badge status={n.status} domain="notification" />
                       </TD>
                       <TD className="text-right text-[12px] text-fg-muted">
                         <LocalDate iso={n.createdAt} format="dateTime" />

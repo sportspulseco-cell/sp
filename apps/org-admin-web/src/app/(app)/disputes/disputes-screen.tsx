@@ -38,21 +38,6 @@ interface Item {
 }
 
 
-function statusTone(s: string): "warning" | "success" | "neutral" | "danger" {
-  switch (s) {
-    case "pending":
-      return "warning";
-    case "resolved_refund":
-      return "success";
-    case "resolved_no_refund":
-      return "neutral";
-    case "void":
-      return "danger";
-    default:
-      return "neutral";
-  }
-}
-
 const TABS: Array<{ value: Status; label: string }> = [
   { value: "pending", label: "Pending" },
   { value: "resolved_refund", label: "Refunded" },
@@ -171,9 +156,7 @@ function DisputeRow({
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Badge mono tone={statusTone(item.status)}>
-            {item.status.replace(/_/g, " ")}
-          </Badge>
+          <Badge status={item.status} />
           <p className="font-mono text-xs tabular-nums text-fg">
             paid {formatMoney(item.paidCents, item.currency)}
           </p>

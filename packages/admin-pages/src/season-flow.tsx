@@ -11,7 +11,7 @@ import type {
   TeamMembership
 } from "@sportspulse/api-client";
 import { fetchAll } from "@sportspulse/api-client";
-import { Badge, statusTone } from "@sportspulse/ui";
+import { Badge } from "@sportspulse/ui";
 
 /**
  * "Where each season stands": the operator's home in both admin apps.
@@ -344,9 +344,7 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
             <Link href={links.season(season.id)} className="text-[16px] font-semibold text-fg hover:underline">
               {season.name}
             </Link>
-            <Badge tone={statusTone(season.status)} mono>
-              {season.status.replace(/_/g, " ")}
-            </Badge>
+            <Badge status={season.status} />
           </div>
           <p className="mt-0.5 text-[12px] text-fg-muted">{read.leagueName}</p>
         </div>

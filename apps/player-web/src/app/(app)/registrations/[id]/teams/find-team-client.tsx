@@ -94,9 +94,7 @@ export function FindTeamClient({
                     {t.shortName ? ` · ${t.shortName}` : ""}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge tone={t.status === "active" ? "success" : "neutral"} mono>
-                      {t.status}
-                    </Badge>
+                    <Badge status={t.status} />
                     {!t.captainUserId && (
                       <Badge tone="warning" mono>
                         no captain yet

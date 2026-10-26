@@ -1,12 +1,11 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, LocalDate } from "@sportspulse/ui";
+import { Badge, Alert, LocalDate } from "@sportspulse/ui";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { UrlFilters } from "@/components/ui/url-filters";
 import {
   TBody,
@@ -178,7 +177,7 @@ export default async function OrganizationsPage({
                 <TD className="text-muted-foreground">{o.countryCode}</TD>
                 <TD className="text-muted-foreground">{o.defaultCurrency}</TD>
                 <TD>
-                  <Badge tone={statusTone(o.status)}>{o.status}</Badge>
+                  <Badge status={o.status} />
                 </TD>
                 <TD className="text-muted-foreground">
                   <LocalDate iso={o.createdAt} format="date" />

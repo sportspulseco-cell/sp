@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@sportspulse/ui";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Flag } from "lucide-react";
@@ -11,7 +12,6 @@ import type {
   Person
 } from "@/lib/api/types";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -44,12 +44,6 @@ function tintForRole(role: GameOfficialRole): Tint {
     default:
       return "neutral";
   }
-}
-
-function statusTone(s: GameOfficialStatus) {
-  if (s === "confirmed") return "success" as const;
-  if (s === "tentative") return "warning" as const;
-  return "danger" as const;
 }
 
 export function GameOfficialsPanel({
@@ -134,9 +128,7 @@ export function GameOfficialsPanel({
                   </p>
                 ) : null}
               </div>
-              <Badge tone={statusTone(o.status)} mono>
-                {o.status}
-              </Badge>
+              <Badge status={o.status} />
               {canEdit ? <RevokeOfficialBtn id={o.id} /> : null}
             </li>
           ))}

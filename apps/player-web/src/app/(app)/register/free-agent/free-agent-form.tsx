@@ -433,9 +433,7 @@ function SeasonPicker({
             >
               <span>{s.name}</span>
               {entry ? (
-                <Badge mono tone={entry.status === "placed" ? "success" : "info"}>
-                  {entry.status}
-                </Badge>
+                <Badge status={entry.status} />
               ) : null}
             </button>
           );

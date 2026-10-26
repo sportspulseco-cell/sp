@@ -6,7 +6,7 @@ import {
   Radio, Send, XCircle, ZapOff
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table
+  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table, statusLabel
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -27,14 +27,6 @@ function circuitTone(
   if (state === "closed") return "success";
   if (state === "half_open") return "warning";
   if (state === "open") return "danger";
-  return "neutral";
-}
-
-function statusTone(s: string): "success" | "warning" | "danger" | "neutral" {
-  if (s === "delivered") return "success";
-  if (s === "pending") return "neutral";
-  if (s === "failed") return "warning";
-  if (s === "dead_letter") return "danger";
   return "neutral";
 }
 
@@ -235,14 +227,14 @@ function OutboxRow({ row }: { row: RinkOutboxView }) {
         {row.eventType}
       </TD>
       <TD>
-        <Badge tone={statusTone(row.status)}>
+        <Badge status={row.status}>
           {row.status === "delivered" && (
             <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           )}
           {row.status === "dead_letter" && (
             <ZapOff className="h-3.5 w-3.5" strokeWidth={1.75} />
           )}
-          {row.status}
+          {statusLabel(row.status)}
         </Badge>
       </TD>
       <TD className="text-right">{row.attemptCount}</TD>

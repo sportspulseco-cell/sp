@@ -22,7 +22,7 @@ import {
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
-import { Button, Chip, Field, Input } from "@sportspulse/ui";
+import { Badge, Button, Chip, Field, Input } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 import { WaiverCard } from "./waiver-card";
 
@@ -1841,10 +1841,10 @@ function AcknowledgeCard({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[14px] font-semibold tracking-tight text-fg">{doc.name}</p>
         {doc.signed ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+          <Badge status="accepted">
             <Check className="h-3 w-3" strokeWidth={2.25} />
             Accepted
-          </span>
+          </Badge>
         ) : null}
       </div>
       <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
@@ -2959,9 +2959,7 @@ function DoneStep({
             <p className="text-[14px] font-semibold tracking-tight text-fg">
               Player invite link
             </p>
-            <span className="rounded-full bg-[var(--tint-amber-bg)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">
-              Pending approval
-            </span>
+            <Badge status="pending_approval" />
           </div>
           <p className="mt-1 text-[12px] text-fg-muted">
             Once admin approves your team registration we'll generate a

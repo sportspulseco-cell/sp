@@ -34,13 +34,6 @@ function mb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1);
 }
 
-function statusTone(s: ComplianceDocumentSubmission["status"]): "success" | "warning" | "danger" | "neutral" {
-  if (s === "approved") return "success";
-  if (s === "rejected") return "danger";
-  if (s === "resubmit_requested") return "warning";
-  return "neutral";
-}
-
 /** Downscale a large photo to a JPEG that fits the limit. Returns the original when it cannot. */
 async function shrinkImage(file: File): Promise<Blob> {
   if (!file.type.startsWith("image/") || file.size <= SHRINK_OVER_BYTES) return file;
@@ -308,7 +301,7 @@ export function UploadDocuments({
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Eyebrow>{COMPLIANCE_DOCUMENT_KIND_LABELS[r.kind]}</Eyebrow>
-                  <Badge mono tone={statusTone(r.status)}>
+                  <Badge status={r.status} domain="compliance">
                     {COMPLIANCE_DOCUMENT_STATUS_LABELS[r.status]}
                   </Badge>
                 </div>

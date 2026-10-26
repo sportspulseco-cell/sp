@@ -1,6 +1,6 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { formatCalendarDate } from "@sportspulse/kernel";
+import { formatCalendarDate, statusLabel } from "@sportspulse/kernel";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
@@ -157,18 +157,16 @@ export default async function CaptainCompliancePage() {
                     {r.displayName ?? "Unnamed player"}
                   </div>
                   <div>
-                    <Badge tone={recordTone(r.status)} mono>
-                      {r.status.replace(/_/g, " ")}
-                    </Badge>
+                    <Badge status={r.status} domain="compliance" />
                   </div>
                   <div className="text-[12px] text-fg-muted">
                     USA Hockey:{" "}
                     {usah?.status
-                      ? `${usah.status}${usah.expiresAt ? ` · ${formatCalendarDate(usah.expiresAt)}` : ""}`
+                      ? `${statusLabel(usah.status)}${usah.expiresAt ? ` · ${formatCalendarDate(usah.expiresAt)}` : ""}`
                       : "—"}
                   </div>
                   <div className="text-[12px] text-fg-muted">
-                    Playoff: {playoff?.status ?? "—"}
+                    Playoff: {playoff?.status ? statusLabel(playoff.status) : "—"}
                   </div>
                 </li>
               );
@@ -217,12 +215,3 @@ function SummaryTile({
   );
 }
 
-function recordTone(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "eligible") return "success";
-  if (status === "ineligible" || status === "expired") return "danger";
-  if (status === "expiring" || status === "flagged") return "warning";
-  if (status === "waived") return "info";
-  return "neutral";
-}

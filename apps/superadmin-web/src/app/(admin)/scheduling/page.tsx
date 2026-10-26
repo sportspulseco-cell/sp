@@ -1,11 +1,10 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { Badge, LoadError } from "@sportspulse/ui";
 import { CalendarRange, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import {
   TBody,
   TD,
@@ -88,9 +87,7 @@ export default async function SchedulingIndexPage() {
                   {s.startDate} → {s.endDate}
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(s.status)}>
-                    {s.status.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={s.status} />
                 </TD>
                 <TD className="text-right">
                   <Link

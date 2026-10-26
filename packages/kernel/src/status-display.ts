@@ -1,4 +1,5 @@
 import { REGISTRATION_STATE_LABELS } from "./registration-states";
+import { TRANSFER_STATE_LABELS } from "./roster-rules";
 
 /**
  * One word and one colour per status, in every app. Statuses come from the
@@ -18,9 +19,11 @@ export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
  * Where a status word means something different, the domain picks the
  * tone. A store order that is "placed" still waits on the captain; a free
  * agent who is "placed" is done. A notification that is "sent" arrived; an
- * invoice that is "sent" still waits on payment.
+ * invoice that is "sent" still waits on payment. Games use hockey words
+ * ("Live", "Final"). An expired compliance document blocks play. An
+ * "active" bracket or round is still being played.
  */
-export type StatusDomain = "store_order" | "notification";
+export type StatusDomain = "store_order" | "notification" | "game" | "compliance" | "bracket";
 
 const TONES: Record<string, StatusTone> = {
   // Finished well
@@ -43,6 +46,7 @@ const TONES: Record<string, StatusTone> = {
   present: "success",
   signed: "success",
   resolved_refund: "success",
+  complete: "success",
 
   // Waiting on someone, or needs attention
   pending: "warning",
@@ -103,6 +107,7 @@ const TONES: Record<string, StatusTone> = {
   dissolved: "danger",
   absent: "danger",
   blocked: "danger",
+  unsigned: "danger",
 
   // Ended without a problem, or not started
   draft: "neutral",
@@ -120,22 +125,34 @@ const TONES: Record<string, StatusTone> = {
   suppressed: "neutral",
   resolved_no_refund: "neutral",
   closed: "neutral",
+  ended: "neutral",
   sub: "neutral",
   scratched: "neutral"
 };
 
 const DOMAIN_TONES: Record<StatusDomain, Record<string, StatusTone>> = {
   store_order: { placed: "warning" },
-  notification: { sent: "success" }
+  notification: { sent: "success" },
+  game: {},
+  compliance: { expired: "danger" },
+  bracket: { active: "info" }
+};
+
+const DOMAIN_LABELS: Record<StatusDomain, Record<string, string>> = {
+  store_order: {},
+  notification: {},
+  game: { in_play: "Live", completed: "Final", forfeited: "Forfeit" },
+  compliance: {},
+  bracket: { active: "In progress" }
 };
 
 const LABELS: Record<string, string> = {
   ...REGISTRATION_STATE_LABELS,
+  ...TRANSFER_STATE_LABELS,
   in_play: "In play",
   partially_paid: "Partially paid",
   resubmit_requested: "Resubmit requested",
-  pending_destination: "Waiting on new team",
-  pending_admin: "Waiting on league admin",
+  unsigned: "Not signed",
   pending_approval: "Pending approval",
   resolved_refund: "Resolved, refunded",
   resolved_no_refund: "Resolved, no refund",
@@ -152,10 +169,10 @@ export function statusTone(status: string | null | undefined, domain?: StatusDom
 }
 
 /** The word shown for a status: "pending_review" reads "Pending review". */
-export function statusLabel(status: string | null | undefined): string {
+export function statusLabel(status: string | null | undefined, domain?: StatusDomain): string {
   if (!status) return "Unknown";
   const key = status.toLowerCase();
-  const known = LABELS[key];
+  const known = (domain ? DOMAIN_LABELS[domain][key] : undefined) ?? LABELS[key];
   if (known) return known;
   const words = key.replace(/[_-]+/g, " ").trim();
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : "Unknown";

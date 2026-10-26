@@ -2,7 +2,7 @@ import { formatMoney } from "@sportspulse/kernel";
 import type { ReactNode } from "react";
 import { ArrowLeft, Network } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, Reveal } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -53,9 +53,7 @@ export function TeamDetail({
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {team.shortName ? <Badge mono>{team.shortName}</Badge> : null}
             <Badge mono>{team.sportCode}</Badge>
-            <Badge tone={statusTone(team.status)} mono>
-              {team.status}
-            </Badge>
+            <Badge status={team.status} />
           </div>
         </div>
         {actions ? <div className="shrink-0">{actions}</div> : null}

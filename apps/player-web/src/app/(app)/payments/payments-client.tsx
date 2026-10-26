@@ -134,9 +134,7 @@ export function PaymentsClient({
                       : ""}
                   </span>
                   <span className="flex items-center gap-2">
-                    <Badge tone={inv.status === "paid" ? "success" : "neutral"} mono>
-                      {inv.status}
-                    </Badge>
+                    <Badge status={inv.status} />
                     {inv.paidCents > 0 ? (
                       <Button variant="ghost" size="sm" onClick={() => downloadReceipt(inv, localDate)}>
                         <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
@@ -462,23 +460,7 @@ function installmentLabel(ins: Installment, idx: number) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<
-    string,
-    { tone: "info" | "success" | "warning" | "danger" | "neutral"; label: string }
-  > = {
-    paid: { tone: "success", label: "Paid" },
-    partial: { tone: "warning", label: "Partial" },
-    overdue: { tone: "danger", label: "Overdue" },
-    sent: { tone: "info", label: "Sent" },
-    draft: { tone: "neutral", label: "Draft" },
-    void: { tone: "neutral", label: "Void" }
-  };
-  const entry = map[status] ?? { tone: "neutral" as const, label: status };
-  return (
-    <Badge tone={entry.tone} mono>
-      {entry.label}
-    </Badge>
-  );
+  return <Badge status={status} />;
 }
 
 /**

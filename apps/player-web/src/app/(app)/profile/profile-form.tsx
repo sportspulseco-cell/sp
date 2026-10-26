@@ -186,9 +186,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <Detail
           label="Status"
           value={
-            <Badge mono tone={profile.status === "active" ? "success" : "warning"}>
-              {profile.status}
-            </Badge>
+            <Badge status={profile.status} />
           }
         />
         <Detail

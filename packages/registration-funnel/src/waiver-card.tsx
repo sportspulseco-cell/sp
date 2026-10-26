@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { signatureNameMatches } from "@sportspulse/kernel";
-import { Button, Field, Input, LocalDate } from "@sportspulse/ui";
+import { Badge, Button, Field, Input, LocalDate } from "@sportspulse/ui";
 import type { WaiverDoc } from "./types";
 
 /**
@@ -64,14 +64,14 @@ export function WaiverCard({
           ) : null}
         </div>
         {isSigned ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+          <Badge status="signed">
             <Check className="h-3 w-3" strokeWidth={2.25} />
             Signed
-          </span>
+          </Badge>
         ) : (
-          <span className="rounded-full bg-rose-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+          <Badge tone="danger" mono>
             Not signed
-          </span>
+          </Badge>
         )}
       </div>
       {!isSigned && (

@@ -1,12 +1,11 @@
 "use client";
 
-import { LocalDate } from "@sportspulse/ui";
+import { Badge, LocalDate } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
 import { TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   TBody,
   TD,
@@ -159,7 +158,7 @@ export function TransfersQueue({
                   {t.reason ?? "—"}
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(t.status)}>
+                  <Badge status={t.status}>
                     {TRANSFER_STATE_LABELS[t.status]}
                   </Badge>
                 </TD>
@@ -255,11 +254,3 @@ function RejectDialog({
   );
 }
 
-function statusTone(
-  s: string
-): "neutral" | "success" | "warning" | "danger" | "info" {
-  if (s === "approved") return "success";
-  if (s === "rejected" || s === "cancelled") return "danger";
-  if (s === "pending_admin") return "warning";
-  return "info";
-}

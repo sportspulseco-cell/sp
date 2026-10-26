@@ -10,7 +10,7 @@ import {
   MoreHorizontal,
   Send
 } from "lucide-react";
-import { cn } from "@sportspulse/ui";
+import { Badge, cn } from "@sportspulse/ui";
 import type { ReactNode } from "react";
 
 export type SectionKey =
@@ -348,15 +348,15 @@ export function RegistrationSetupShell({
                       {d.label}
                     </span>
                     {state.status === "done" ? (
-                      <span className="relative rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-emerald-700">
+                      <Badge tone="success" mono className="relative">
                         done
-                      </span>
+                      </Badge>
                     ) : state.status === "issue" ? (
-                      <span className="relative rounded-full bg-amber-500/20 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-amber-700">
+                      <Badge tone="warning" mono className="relative">
                         {(state.issueCount ?? 1) > 1
                           ? `${state.issueCount} issues`
                           : "1 issue"}
-                      </span>
+                      </Badge>
                     ) : null}
                   </Link>
                 </li>

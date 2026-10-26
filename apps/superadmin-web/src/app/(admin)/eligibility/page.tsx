@@ -1,12 +1,11 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate } from "@sportspulse/ui";
 import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
 import { StatNumber } from "@/components/ui/stat-number";
@@ -208,9 +207,7 @@ export default async function EligibilityPage({
                   </Link>
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(e.status)} mono>
-                    {e.status}
-                  </Badge>
+                  <Badge status={e.status} domain="compliance" />
                 </TD>
                 <TD className="text-fg-muted">
                   {e.seasonId

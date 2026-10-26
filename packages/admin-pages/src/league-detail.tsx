@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft, Trophy } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, Reveal } from "@sportspulse/ui";
 import type { League, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -86,9 +86,7 @@ export function LeagueDetail({
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Badge mono>{league.sportCode}</Badge>
             <Badge mono>{league.format}</Badge>
-            <Badge tone={statusTone(league.status)} mono>
-              {league.status}
-            </Badge>
+            <Badge status={league.status} />
             {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
           </div>
         </div>
@@ -213,9 +211,7 @@ export function LeagueDetail({
                 <span className="font-mono text-[11px] text-fg-muted">
                   {s.startDate} → {s.endDate}
                 </span>
-                <Badge mono tone={statusTone(s.status)}>
-                  {s.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={s.status} />
               </li>
             ))}
           </ul>

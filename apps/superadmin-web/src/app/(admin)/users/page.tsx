@@ -1,12 +1,11 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, LocalDate } from "@sportspulse/ui";
+import { Badge, Alert, LocalDate } from "@sportspulse/ui";
 import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import {
   TBody,
   TD,
@@ -196,7 +195,7 @@ export default async function UsersPage({
                     {[u.countryCode, ...(u.regions ?? [])].filter(Boolean).join(" · ") || "—"}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(u.status)}>{u.status}</Badge>
+                    <Badge status={u.status} />
                   </TD>
                   <TD className="text-muted-foreground">
                     <UserTypeCell

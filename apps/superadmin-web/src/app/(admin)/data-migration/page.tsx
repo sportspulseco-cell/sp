@@ -1,12 +1,11 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate } from "@sportspulse/ui";
 import { Database, Upload, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { dataMigration, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
 import {
@@ -39,12 +38,6 @@ function tintForStatus(s: ImportStatus): Tint {
   }
 }
 
-function statusTone(s: ImportStatus) {
-  if (s === "succeeded") return "success" as const;
-  if (s === "running" || s === "partial") return "warning" as const;
-  if (s === "failed") return "danger" as const;
-  return "neutral" as const;
-}
 
 function fmt(iso: string | null) {
   return <LocalDate iso={iso} format="dateTime" fallback="—" />;
@@ -202,9 +195,7 @@ export default async function DataMigrationPage() {
                     {j.failedRows}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(j.status)} mono>
-                      {j.status}
-                    </Badge>
+                    <Badge status={j.status} />
                   </TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
                     {fmt(j.startedAt)}

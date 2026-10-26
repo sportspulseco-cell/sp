@@ -1,12 +1,11 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert } from "@sportspulse/ui";
+import { Alert, Badge } from "@sportspulse/ui";
 import { CalendarRange, Wand2, Trophy, CircleDot, Archive } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { UrlFilters } from "@/components/ui/url-filters";
 import {
   TBody,
@@ -203,9 +202,7 @@ export default async function SeasonsPage({
                 </TD>
                 <TD className="text-muted-foreground">{s.timezone}</TD>
                 <TD>
-                  <Badge tone={statusTone(s.status)}>
-                    {s.status.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={s.status} />
                 </TD>
                 <TD>
                   <AssignAdminCell

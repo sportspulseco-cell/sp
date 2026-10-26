@@ -565,16 +565,6 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
         <ul className="divide-y divide-border">
           {active.slice(0, 4).map((r) => {
             const status = r.status as string;
-            const tone: "success" | "warning" | "danger" | "info" | "neutral" =
-              status === "approved"
-                ? "success"
-                : status === "rejected" ||
-                    status === "withdrawn" ||
-                    status === "cancelled"
-                  ? "danger"
-                  : status.startsWith("pending") || status === "submitted"
-                    ? "warning"
-                    : "info";
             const title =
               r.seasonName ||
               r.formName ||
@@ -600,9 +590,7 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
                         : "Draft")}
                   </p>
                 </div>
-                <Badge mono tone={tone}>
-                  {status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={status} />
               </li>
             );
           })}

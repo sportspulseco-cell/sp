@@ -40,14 +40,6 @@ function fmtDay(iso: string | null) {
   return <LocalDate iso={iso} format="monthDay" fallback="—" />;
 }
 
-const OFFER_TONE: Record<FreeAgentOffer["status"], "info" | "success" | "danger" | "neutral"> = {
-  pending: "info",
-  accepted: "success",
-  declined: "danger",
-  expired: "neutral",
-  revoked: "neutral"
-};
-
 export default async function CaptainFreeAgentsPage() {
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
@@ -216,7 +208,7 @@ export default async function CaptainFreeAgentsPage() {
                   <TD className="font-medium text-fg">{o.playerName ?? "—"}</TD>
                   <TD className="text-[12px] text-fg-muted">{o.seasonName ?? "—"}</TD>
                   <TD>
-                    <Badge mono tone={OFFER_TONE[o.status]}>
+                    <Badge status={o.status}>
                       {FREE_AGENT_OFFER_STATUS_LABELS[o.status]}
                     </Badge>
                   </TD>

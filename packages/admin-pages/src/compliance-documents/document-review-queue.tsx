@@ -53,14 +53,6 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: "all", label: "All documents" }
 ];
 
-function statusTone(s: ComplianceDocumentStatus): "success" | "warning" | "danger" | "neutral" | "info" {
-  if (s === "approved") return "success";
-  if (s === "pending") return "warning";
-  if (s === "rejected") return "danger";
-  if (s === "resubmit_requested") return "info";
-  return "neutral";
-}
-
 /** "Mar 4, 2008 (18)" from a YYYY-MM-DD date of birth. */
 function dobLabel(dob: string | null): string {
   if (!dob) return "Not on file";
@@ -249,7 +241,7 @@ export function DocumentReviewQueue({
                       ) : null}
                     </TD>
                     <TD>
-                      <Badge mono tone={statusTone(d.status)}>
+                      <Badge status={d.status} domain="compliance">
                         {COMPLIANCE_DOCUMENT_STATUS_LABELS[d.status]}
                       </Badge>
                       {d.latestDecision?.reason ? (
@@ -384,7 +376,7 @@ function ReviewDialog({
           <div>
             <dt className="text-fg-muted">Status</dt>
             <dd>
-              <Badge mono tone={statusTone(doc.status)}>
+              <Badge status={doc.status} domain="compliance">
                 {COMPLIANCE_DOCUMENT_STATUS_LABELS[doc.status]}
               </Badge>
             </dd>

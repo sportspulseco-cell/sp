@@ -36,13 +36,6 @@ interface CartLine {
   personalNumber: number | null;
 }
 
-const STATUS_TONE: Record<StoreOrder["status"], "neutral" | "warning" | "success" | "info"> = {
-  placed: "warning",
-  processing: "info",
-  shipped: "success",
-  cancelled: "neutral"
-};
-
 const newKey = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
@@ -226,14 +219,14 @@ export function StoreClient({
                       {o.items.map((i) => (
                         <li key={i.id}>
                           {i.label}
-                          {i.backorder ? <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">backorder</span> : null}
+                          {i.backorder ? <Badge mono tone="warning" className="ml-2">Backorder</Badge> : null}
                         </li>
                       ))}
                     </ul>
                     {o.note ? <p className="mt-1 text-[12px] text-fg-muted">From your captain: {o.note}</p> : null}
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
-                    <Badge mono tone={STATUS_TONE[o.status]}>{o.statusLabel}</Badge>
+                    <Badge status={o.status} domain="store_order">{o.statusLabel}</Badge>
                     {o.status === "cancelled" ? null : o.paid ? (
                       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Paid</span>
                     ) : (

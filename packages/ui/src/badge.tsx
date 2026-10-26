@@ -43,7 +43,7 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
    * word. Renders mono unless `mono={false}`.
    */
   status?: string | null;
-  /** Where the same word means something else (store orders, notifications). */
+  /** Where the same word means something else (store orders, notifications, games, compliance, brackets). */
   domain?: StatusDomain;
 }
 
@@ -78,7 +78,7 @@ export function Badge({
           className={cn("h-1.5 w-1.5 rounded-full", DOT_TONES[resolvedTone])}
         />
       ) : null}
-      {children ?? (isStatus ? statusLabel(status) : null)}
+      {children ?? (isStatus ? statusLabel(status, domain) : null)}
     </span>
   );
 }

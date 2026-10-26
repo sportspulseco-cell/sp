@@ -9,32 +9,6 @@ import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportsp
 import { useFormsBuilderApi } from "./context";
 import { SectionHeader } from "./section-header";
 
-const STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "danger" | "info" | "neutral"
-> = {
-  approved: "success",
-  rejected: "danger",
-  withdrawn: "neutral",
-  cancelled: "neutral",
-  draft: "neutral",
-  submitted: "info",
-  under_review: "info",
-  pending_payment: "warning",
-  pending_consent: "warning",
-  pending_verification: "warning",
-  pending_review: "warning",
-  pending_offline: "warning",
-  incomplete: "warning",
-  waitlisted: "info"
-};
-
-function statusLabel(status: string): string {
-  if (status === "under_review" || status === "pending_review") return "pending review";
-  if (status === "pending_offline") return "pending offline payment";
-  return status.replace(/_/g, " ");
-}
-
 function matches(filter: SubmissionStatusFilter, status: string): boolean {
   const f = SUBMISSION_STATUS_FILTERS.find((x) => x.value === filter);
   return !f?.statuses || (f.statuses as readonly string[]).includes(status);
@@ -176,9 +150,7 @@ export function SubmissionsClient({
                         .join(" · ")}
                     </p>
                   </div>
-                  <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-                    {statusLabel(r.status)}
-                  </Badge>
+                  <Badge status={r.status} />
                   <Button
                     type="button"
                     variant="ghost"

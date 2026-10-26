@@ -3,9 +3,8 @@
 import { formatMoney } from "@sportspulse/kernel";
 import { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
-import { LocalDate } from "@sportspulse/ui";
+import { Badge, LocalDate } from "@sportspulse/ui";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   TBody,
   TD,
@@ -193,9 +192,7 @@ export function DivisionApplicationsQueue({
                     </div>
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(t.entryStatus)}>
-                      {t.entryStatus}
-                    </Badge>
+                    <Badge status={t.entryStatus} />
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
                     <LocalDate iso={t.createdAt} />
@@ -303,12 +300,3 @@ function RejectDialog({
   );
 }
 
-function statusTone(
-  s: string
-): "neutral" | "success" | "warning" | "danger" | "info" {
-  if (s === "confirmed") return "success";
-  if (s === "rejected" || s === "disqualified") return "danger";
-  if (s === "applied" || s === "pending_approval") return "warning";
-  if (s === "withdrawn") return "neutral";
-  return "info";
-}

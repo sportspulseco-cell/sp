@@ -93,9 +93,7 @@ export async function PlayerInvoiceTab({
               {invoice.notes ? ` · ${invoice.notes}` : ""}
             </p>
           </div>
-          <Badge mono tone={statusTone(invoice.status)}>
-            {invoice.status}
-          </Badge>
+          <Badge status={invoice.status} />
         </div>
 
         <table className="mt-4 w-full">
@@ -379,14 +377,3 @@ function readUpcomingFromMetadata(invoice: Invoice): UpcomingEntry[] {
     .filter((x): x is UpcomingEntry => x !== null);
 }
 
-function statusTone(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "paid") return "success";
-  // Mockup shows the "Partial" pill in soft blue rather than amber.
-  if (status === "partial") return "info";
-  if (status === "sent") return "warning";
-  if (status === "overdue") return "danger";
-  if (status === "void") return "neutral";
-  return "info";
-}

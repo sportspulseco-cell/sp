@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, History, Loader2, Pause, XCircle
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table
+  Badge, Button, EmptyState, LocalDate, TBody, TD, TH, THead, TR, Table, statusLabel
 } from "@sportspulse/ui";
 import {
   scheduler, type ScheduleRunListItem
@@ -21,17 +21,6 @@ function fmtDuration(ms: number | null): string {
   if (ms === null) return "—";
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(1)} s`;
-}
-
-function statusTone(s: ScheduleRunListItem["status"]):
-  "success" | "info" | "warning" | "danger" | "neutral" {
-  switch (s) {
-    case "completed": return "success";
-    case "running":
-    case "queued": return "info";
-    case "partial": return "warning";
-    case "failed": return "danger";
-  }
 }
 
 function StatusIcon({ status }: { status: ScheduleRunListItem["status"] }) {
@@ -146,9 +135,9 @@ export function SchedulingRunsList({ seasonId }: Props) {
                     {r.engine}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(r.status)}>
+                    <Badge status={r.status}>
                       <StatusIcon status={r.status} />
-                      {r.status}
+                      {statusLabel(r.status)}
                     </Badge>
                   </TD>
                   <TD className="text-right">

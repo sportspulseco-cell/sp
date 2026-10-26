@@ -40,7 +40,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
         eyebrow={invoice.invoiceNumber}
         title={invoice.recipientEmail ?? "Invoice"}
         description={`Issued ${day(invoice.issuedAt)} · due ${day(invoice.dueAt)}`}
-        action={<Badge mono tone={invoice.status === "paid" ? "success" : invoice.status === "void" ? "neutral" : "warning"}>{invoice.status}</Badge>}
+        action={<Badge status={invoice.status} />}
       />
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -97,7 +97,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                 <TR key={p.id}>
                   <TD>{day(p.receivedAt)}</TD>
                   <TD>{p.method.replace(/_/g, " ")}</TD>
-                  <TD>{p.status}</TD>
+                  <TD><Badge status={p.status} /></TD>
                   <TD className="text-right font-mono tabular-nums">{formatMoney(p.amountCents, p.currency)}</TD>
                 </TR>
               ))}
@@ -123,7 +123,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                 <TR key={i.id}>
                   <TD>{i.installmentNumber === 0 ? "Deposit" : i.installmentNumber}</TD>
                   <TD>{day(i.dueDate)}</TD>
-                  <TD>{i.status}</TD>
+                  <TD><Badge status={i.status} /></TD>
                   <TD className="text-right font-mono tabular-nums">{formatMoney(i.amountCents, cur)}</TD>
                 </TR>
               ))}

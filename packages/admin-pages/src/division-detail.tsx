@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { POINTS_RULE_LABELS, formatCalendarDate, resolvePointsRule } from "@sportspulse/kernel";
 import { ArrowLeft, Layers } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, LocalDate, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LocalDate, Reveal } from "@sportspulse/ui";
 import type { Division, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -159,9 +159,7 @@ export function DivisionDetail({
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {division.tier ? <Badge mono>{division.tier}</Badge> : null}
             <Badge mono>{division.genderEligibility}</Badge>
-            <Badge tone={statusTone(division.status)} mono>
-              {division.status}
-            </Badge>
+            <Badge status={division.status} />
             {parentSeason ? (
               <Link
                 href={`${seasonHref}/${parentSeason.id}`}
@@ -414,9 +412,7 @@ export function DivisionDetail({
                       </span>
                     )}
                   </div>
-                  <Badge tone={statusTone(t.entryStatus)}>
-                    {t.entryStatus.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={t.entryStatus} />
                   <span className="font-mono text-[11px] text-fg-muted tabular-nums">
                     {pct}% confirmed
                   </span>

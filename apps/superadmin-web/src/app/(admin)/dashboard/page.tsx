@@ -21,9 +21,8 @@ import {
   registration,
   roster
 } from "@/lib/api/server-api";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Reveal } from "@sportspulse/ui";
+import { Badge, Reveal } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
   EkgLine,
@@ -301,9 +300,7 @@ export default async function DashboardPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Badge tone={statusTone(o.status)} mono>
-                          {o.status}
-                        </Badge>
+                        <Badge status={o.status} />
                         <ArrowUpRight
                           className="h-3.5 w-3.5 text-fg-subtle opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
                           strokeWidth={1.75}

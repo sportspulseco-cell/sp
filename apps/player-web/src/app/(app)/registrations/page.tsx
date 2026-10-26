@@ -21,26 +21,6 @@ type Row = Awaited<
   ReturnType<typeof registration.listMyRegistrations>
 >["items"][number];
 
-const STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "danger" | "info" | "neutral"
-> = {
-  draft: "neutral",
-  submitted: "warning",
-  under_review: "warning",
-  approved: "success",
-  rejected: "danger",
-  waitlisted: "info",
-  withdrawn: "neutral",
-  pending_verification: "warning",
-  pending_consent: "warning",
-  pending_payment: "warning",
-  pending_offline: "warning",
-  pending_review: "warning",
-  incomplete: "neutral",
-  cancelled: "neutral"
-};
-
 
 function statusCopy(status: string): string {
   switch (status) {
@@ -153,9 +133,7 @@ function RegistrationRow({ r }: { r: Row }) {
               <p className="text-[15px] font-semibold tracking-tight text-fg">
                 {title}
               </p>
-              <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-                {r.status.replace(/_/g, " ")}
-              </Badge>
+              <Badge status={r.status} />
             </div>
             {subtitle && (
               <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted">

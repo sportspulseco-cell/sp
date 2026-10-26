@@ -27,18 +27,6 @@ function fmtDate(iso: string | null) {
   return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
-const STATUS_TONE: Record<
-  TeamInvite["status"],
-  "info" | "success" | "danger" | "warning" | "neutral"
-> = {
-  pending: "warning",
-  extended: "warning",
-  accepted: "success",
-  declined: "danger",
-  expired: "neutral",
-  revoked: "neutral"
-};
-
 /** Plain words for each invite state (FR-3.4.4: the captain sees Declined). */
 function statusLabel(inv: TeamInvite): string {
   const waiting = typeof inv.metadata?.awaitingRegistrationId === "string";
@@ -257,7 +245,7 @@ export default async function CaptainInvitesPage() {
                     )}
                   </TD>
                   <TD>
-                    <Badge tone={STATUS_TONE[inv.status] ?? "neutral"}>
+                    <Badge status={inv.status}>
                       {statusLabel(inv)}
                     </Badge>
                   </TD>

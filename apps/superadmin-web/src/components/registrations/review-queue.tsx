@@ -1,6 +1,6 @@
 "use client";
 
-import { LocalDate } from "@sportspulse/ui";
+import { Badge, LocalDate } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -16,7 +16,6 @@ import {
 import { REGISTRATION_STATE_LABELS, REGISTRATION_STATES, type RegistrationState, formatMoney } from "@sportspulse/kernel";
 import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
-import { Badge, statusTone } from "@/components/ui/badge";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -369,9 +368,7 @@ function Row({
       </TD>
       <TD>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone={statusTone(row.status)}>
-            {row.status.replace(/_/g, " ")}
-          </Badge>
+          <Badge status={row.status} />
           {isOffline && (
             <span
               title="Player chose offline payment — verify receipt before approving."

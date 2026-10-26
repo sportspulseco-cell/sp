@@ -7,13 +7,6 @@ import type { StoreOrder } from "@sportspulse/api-client";
 import { formatMoney } from "@sportspulse/kernel";
 import { teamStore } from "@/lib/api/browser-api";
 
-const STATUS_TONE: Record<StoreOrder["status"], "neutral" | "warning" | "success" | "danger" | "info"> = {
-  placed: "warning",
-  processing: "info",
-  shipped: "success",
-  cancelled: "neutral"
-};
-
 const day = (iso: string) => <LocalDate iso={iso} format="monthDay" />;
 
 /**
@@ -92,14 +85,14 @@ export function StoreOrders({ teamId }: { teamId: string }) {
                     {o.items.map((i) => (
                       <li key={i.id}>
                         {i.label}
-                        {i.backorder ? <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">backorder</span> : null}
+                        {i.backorder ? <Badge mono tone="warning" className="ml-2">Backorder</Badge> : null}
                       </li>
                     ))}
                   </ul>
                   {o.note ? <p className="mt-1 text-[12px] text-fg-muted">Note: {o.note}</p> : null}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
-                  <Badge mono tone={STATUS_TONE[o.status]}>{o.statusLabel}</Badge>
+                  <Badge status={o.status} domain="store_order">{o.statusLabel}</Badge>
                   <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                     {o.invoice?.status === "void" ? "Invoice void" : o.paid ? "Paid" : `Awaiting payment · ${o.invoice?.number ?? ""}`}
                   </span>
