@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { formatInZone } from "@sportspulse/kernel";
+import {
+  formatInZone,
+  orderSchedule,
+  parseScheduleFilter,
+  SCHEDULE_FILTER_LABELS,
+  SCHEDULE_FILTERS
+} from "@sportspulse/kernel";
 import {
   CalendarRange,
   Clock,
   MapPin
 } from "lucide-react";
-import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Badge, EmptyState, LinkTabs, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
@@ -20,7 +26,12 @@ function fmtDateTime(iso: string, tz: string): string {
   });
 }
 
-export default async function TeamAdminSchedulePage() {
+export default async function TeamAdminSchedulePage({
+  searchParams
+}: {
+  searchParams?: Promise<{ filter?: string }>;
+}) {
+  const filter = parseScheduleFilter((await searchParams)?.filter);
   const scope = await loadMeScope();
   const teamId = scope?.teamIds[0] ?? null;
 
@@ -28,13 +39,14 @@ export default async function TeamAdminSchedulePage() {
     ? await gameOps.listGames({ teamId, limit: 100, publishedOnly: true }).catch(() => ({ items: [], nextCursor: null }))
     : { items: [], nextCursor: null };
 
-  const games = (page.items as Game[]).slice().sort(
-    (a, b) => new Date(b.scheduledStartTsUtc).getTime() - new Date(a.scheduledStartTsUtc).getTime()
-  );
+  const all = page.items as Game[];
+  // F-5: the next game first. Upcoming nearest first, completed most
+  // recent first; All is upcoming then the past (kernel orderSchedule).
+  const games = orderSchedule(all, filter);
 
   const seasonIds = Array.from(
     new Set(
-      games
+      all
         .map((g) => (g as Game & { seasonId?: string }).seasonId)
         .filter((id): id is string => Boolean(id))
     )
@@ -47,14 +59,24 @@ export default async function TeamAdminSchedulePage() {
         title="Schedule"
         description="Every scheduled and completed game for your team."
       />
-      <LiveScoreRefresh active={games.some((g) => g.status === "in_play")} />
-      {seasonIds.length > 0 && (
-        <div className="flex justify-end">
-          <ScheduleRealtimeBridge seasonIds={seasonIds} />
-        </div>
-      )}
+      <LiveScoreRefresh active={all.some((g) => g.status === "in_play")} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LinkTabs
+          label="Show games"
+          basePath="/schedule"
+          selected={filter}
+          tabs={SCHEDULE_FILTERS.map((k) => ({ value: k, label: SCHEDULE_FILTER_LABELS[k] }))}
+        />
+        {seasonIds.length > 0 && <ScheduleRealtimeBridge seasonIds={seasonIds} />}
+      </div>
       {games.length === 0 ? (
-        <EmptyState icon={CalendarRange} title="No games scheduled" description="Games appear once the league publishes the season schedule." />
+        all.length > 0 && filter === "upcoming" ? (
+          <EmptyState icon={CalendarRange} title="No upcoming games" description="Your team has no games left to play. Results are under Completed." />
+        ) : all.length > 0 && filter === "completed" ? (
+          <EmptyState icon={CalendarRange} title="No results yet" description="Games show here once they are final. Your next games are under Upcoming." />
+        ) : (
+          <EmptyState icon={CalendarRange} title="No games scheduled" description="Games appear once the league publishes the season schedule." />
+        )
       ) : (
         <Table>
           <THead>
