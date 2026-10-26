@@ -93,8 +93,8 @@ export function SectionCta() {
             />
             <ConsoleCard
               icon={<Building2 className="h-3.5 w-3.5" strokeWidth={2.25} />}
-              title="I run a club or organisation"
-              sub="Your organisation: leagues, seasons, teams, invoices"
+              title="I run a club or organization"
+              sub="Your organization: leagues, seasons, teams, invoices"
               signIn={`${ORG_ADMIN}/sign-in`}
               signUp={`${ORG_ADMIN}/sign-up`}
             />

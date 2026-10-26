@@ -25,11 +25,11 @@ const DESTINATIONS = [
     cta: "Open the admin console"
   },
   {
-    title: "I run a club or organisation",
-    who: "Organisation administrators",
-    does: "Your organisation's leagues, seasons, teams, registrations and invoices.",
+    title: "I run a club or organization",
+    who: "Organization administrators",
+    does: "Your organization's leagues, seasons, teams, registrations and invoices.",
     base: ORG_ADMIN,
-    cta: "Open the organisation console"
+    cta: "Open the organization console"
   },
   {
     title: "I captain or coach a team",

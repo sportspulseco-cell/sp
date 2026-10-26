@@ -97,7 +97,7 @@ const PLAYER = process.env.NEXT_PUBLIC_PLAYER_URL ?? "https://player.sportspulse
 // League admins and platform admins share the admin console.
 const ACCESS = [
   { title: "I run the league", sub: "Seasons, registration, teams, schedule, standings, payments", base: SUPERADMIN },
-  { title: "I run a club or organisation", sub: "Your organisation: leagues, seasons, teams, invoices", base: ORG_ADMIN },
+  { title: "I run a club or organization", sub: "Your organization: leagues, seasons, teams, invoices", base: ORG_ADMIN },
   { title: "I captain or coach a team", sub: "Register the team, roster, invites, dues, lineups", base: TEAM_ADMIN },
   { title: "I play, or I am a parent", sub: "Register, sign waivers, pay, schedule, stats", base: PLAYER }
 ];
