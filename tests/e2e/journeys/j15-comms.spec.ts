@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { IS_STAGING, RUN_TAG, signedInAs, stagingSql, watchErrors, type Role } from "./_helpers";
+import { IS_STAGING, RUN_TAG, openNav, signedInAs, stagingSql, watchErrors, type Role } from "./_helpers";
 
 /**
  * J15 · Announcements and team messages (UC-19, UC-20, UC-21).
@@ -80,13 +80,11 @@ test("1. org_admin finds Communications → Compose and sees the UC-19 fields", 
   const p = (await as(browser, "orgAdmin")).page;
   await p.goto(`${new URL(p.url()).origin}/`);
   await expect(p.getByText("Loading organization workspace")).toHaveCount(0, { timeout: 60_000 });
-  // Communications lives under the collapsed "Operations" group.
-  if (!(await p.locator("a[href='/communications']:visible").count())) {
-    await p.locator("summary:visible", { hasText: "Operations" }).first().click();
-  }
-  const nav = p.locator("a[href='/communications']:visible").first();
-  await expect(nav, "Communications in org-admin nav").toBeVisible();
-  await nav.click();
+  // Communications is "Messages" (/communications) inside the collapsed
+  // "Messages" sidebar group. Fail fast if the link is gone; otherwise open
+  // the group and click it like a user.
+  await expect(p.locator("nav a[href='/communications']").first(), "Messages (/communications) in org-admin nav").toBeAttached();
+  await openNav(p, /^Messages$/);
   await p.waitForURL(/\/communications$/);
   await p.waitForLoadState("networkidle").catch(() => {});
   log("OA /communications:", (await mainText(p)).slice(0, 500));
@@ -204,32 +202,54 @@ test("4. player notification settings toggle persists", async ({ browser }) => {
   const t = await mainText(p);
   log("settings toggles:", n, "channels mentioned:", ["email", "in-app", "in_app", "sms", "push"].filter((c) => t.toLowerCase().includes(c)));
   log("settings text:", t.slice(0, 1200));
-  expect.soft(/broadcast|announcement/i.test(t), "settings list league announcements").toBe(true);
-  expect.soft(/game|schedule/i.test(t), "settings list game-change alerts (UC-21)").toBe(true);
+  // UC-19 sends announcements on the channels the admin picks; no PPHL use
+  // case gives players a per-announcement opt-out, so this is logged only.
+  log("settings list league announcements (org.broadcast):", /broadcast|announcement/i.test(t));
+  // UC-21 precondition: "Notification preferences enabled" for game changes.
+  // Match game rows only: a bare /schedule/ also hit "scheduled card payment".
+  expect.soft(/\bgames?\b|game\.(scheduled|rescheduled|postponed|cancelled)/i.test(t), "settings list game-change alerts (UC-21)").toBe(true);
   const first = toggles.first();
   const label = await first.getAttribute("aria-label");
   const was = await first.getAttribute("aria-pressed");
-  const respP = p.waitForResponse((r) => /me\/preferences/.test(r.url()) && r.request().method() === "PUT");
+  const putPref = () => p.waitForResponse((r) => /me\/preferences\//.test(r.url()) && r.request().method() === "PUT", { timeout: 30_000 });
+  const respP = putPref();
   await first.click();
   const resp = await respP;
-  log(`toggle ${label} ${was} →`, resp.status());
+  log(`toggle ${label} ${was} →`, resp.status(), resp.url());
+  expect(resp.status(), "preference PUT accepted").toBeLessThan(300);
+  // Durable record: the row the PUT wrote for this player.
+  const [, code, channel] = decodeURIComponent(new URL(resp.url()).pathname).match(/me\/preferences\/([^/]+)\/([^/]+)$/) ?? [];
+  const stored = await stagingSql<{ enabled: boolean }>(
+    `select np.enabled from notification_preferences np join profiles pr on pr.id = np.user_id
+      where pr.email = $1 and np.template_code = $2 and np.channel = $3`,
+    [PLAYER_EMAIL, code, channel]
+  );
+  log(`db preference ${code}/${channel}:`, JSON.stringify(stored));
+  expect.soft(stored[0]?.enabled, "preference row stored with the new value").toBe(was !== "true");
   await p.reload();
   await expect(p.locator("button[aria-pressed]").first()).toBeVisible({ timeout: 30_000 });
   const now = await p.locator(`button[aria-label="${label}"]`).getAttribute("aria-pressed");
   expect.soft(now, "preference persisted after reload").not.toBe(was);
   await shot(p, "04-settings");
   // restore the original preference
+  const restoreP = putPref();
   await p.locator(`button[aria-label="${label}"]`).click();
-  await p.waitForTimeout(1000);
+  expect((await restoreP).status(), "preference restored").toBeLessThan(300);
+  const restored = await stagingSql<{ enabled: boolean }>(
+    `select np.enabled from notification_preferences np join profiles pr on pr.id = np.user_id
+      where pr.email = $1 and np.template_code = $2 and np.channel = $3`,
+    [PLAYER_EMAIL, code, channel]
+  );
+  log(`db preference ${code}/${channel} after restore:`, JSON.stringify(restored));
+  expect(restored[0]?.enabled, "preference row back to its original value").toBe(was === "true");
 });
 
 test("5. super_admin @ /communications outbox shows the broadcast; templates page renders", async ({ browser }) => {
   const p = (await as(browser, "superAdmin")).page;
   await p.goto(`${new URL(p.url()).origin}/dashboard`);
-  if (!(await p.locator("a[href='/communications']:visible").count())) {
-    await p.locator("summary:visible", { hasText: "Operations" }).first().click();
-  }
-  await p.locator("a[href='/communications']:visible").first().click();
+  // The outbox is "Messages" (/communications) in the collapsed "Messages" group.
+  await expect(p.locator("nav a[href='/communications']").first(), "Messages (/communications) in admin nav").toBeAttached({ timeout: 30_000 });
+  await openNav(p, /^Messages$/);
   await p.waitForURL(/\/communications/);
   await p.waitForLoadState("networkidle").catch(() => {});
   const t = await mainText(p);
@@ -238,10 +258,24 @@ test("5. super_admin @ /communications outbox shows the broadcast; templates pag
   expect.soft(t, "outbox lists this run's broadcast").toContain(TAG);
   await p.goto(`${new URL(p.url()).origin}/communications/templates`);
   await p.waitForLoadState("networkidle").catch(() => {});
+  await expect(p.locator("main h1", { hasText: "Notification templates" }), "templates page renders").toBeVisible({ timeout: 30_000 });
   const tt = await mainText(p);
   log("templates:", tt.slice(0, 300));
-  expect.soft(tt, "org.broadcast template listed").toMatch(/org\.broadcast|broadcast/i);
   await shot(p, "05b-templates");
+  // The page lists saved overrides only; catalog defaults are not rows. The
+  // admin must still find the broadcast template here: listed, or offered
+  // as a code under "New template" (opened and cancelled, nothing saved).
+  let offered: string[] = [];
+  if (!/org\.broadcast/i.test(tt)) {
+    await p.getByRole("button", { name: "New template" }).first().click();
+    const code = p.locator("#ut-code");
+    await expect(code, "New template has a Code picker").toBeVisible();
+    offered = (await code.locator("option").allTextContents()).map((o) => o.trim());
+    log("New template codes offered:", offered.length, JSON.stringify(offered));
+    await shot(p, "05c-new-template");
+    await p.getByRole("button", { name: "Cancel" }).click();
+  }
+  expect.soft(/org\.broadcast/i.test(tt) || offered.includes("org.broadcast"), "org.broadcast template listed or offered under New template").toBe(true);
   const statuses = await stagingSql(
     `select status, channel, count(*)::int n from notifications where body like $1 or subject = $2 group by status, channel`,
     [`%${TAG} QA broadcast%`, SUBJECT]
