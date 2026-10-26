@@ -61,14 +61,23 @@ export default async function RegistrationsPage() {
           ) : (
             <RegistrationsTable
               items={page.items.map((r) => {
-                const m = (r.metadata ?? {}) as { fullName?: string; email?: string };
+                const m = (r.metadata ?? {}) as {
+                  fullName?: string;
+                  email?: string;
+                  files?: Record<string, { fileName?: string }>;
+                };
                 return {
                   id: r.id,
                   name: m.fullName ?? null,
                   email: m.email ?? null,
                   season: r.seasonName ?? null,
                   status: r.status,
-                  submittedAt: r.submittedAt
+                  submittedAt: r.submittedAt,
+                  // FR-3.4.5: files uploaded on the registration form.
+                  files: Object.entries(m.files ?? {}).map(([key, f]) => ({
+                    key,
+                    fileName: f?.fileName ?? key
+                  }))
                 };
               })}
             />
