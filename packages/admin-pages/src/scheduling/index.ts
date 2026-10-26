@@ -12,3 +12,4 @@ export { SchedulingTournament } from "./tournament-rounds";
 export { ScheduleRealtimeBridge } from "./schedule-realtime-bridge";
 export * from "./scheduler-client";
 export { ScheduleTimeZoneProvider } from "./time-zone";
+export * from "./blackout-dates";

@@ -7,7 +7,7 @@ import {
   Trophy, XCircle, Zap
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, Field, Select
+  Badge, Button, EmptyState, Field, Input, Select
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -16,7 +16,17 @@ import {
 } from "./scheduler-client";
 
 interface Division { id: string; name: string }
-interface Props { seasonId: string; divisions: Division[] }
+interface Props {
+  seasonId: string;
+  divisions: Division[];
+  /**
+   * Publish the bracket's games to team schedules through the API (each
+   * app binds its SDK: gameOps.publishSchedule with gameType "playoff").
+   */
+  publishPlayoffGames?: (req: { seasonId: string; divisionId: string }) => Promise<{ gamesPublished: number; notificationsQueued?: number }>;
+  /** Link to a game's page in this console. */
+  gameHref?: (gameId: string) => string;
+}
 
 
 function bracketStateTone(s: string): "success" | "info" | "neutral" {
@@ -34,13 +44,13 @@ function bracketStateTone(s: string): "success" | "info" | "neutral" {
  *     winner markers, and an inline "Advance winner" action on
  *     completed games
  */
-export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
+export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffGames, gameHref }: Props) {
   const [loading, setLoading] = useState(true);
   const [brackets, setBrackets] = useState<BracketView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genDivision, setGenDivision] = useState<string>(divisions[0]?.id ?? "");
-  const [genTopN, setGenTopN] = useState<"4" | "8" | "16">("8");
+  const [genTeams, setGenTeams] = useState("");
 
   async function load() {
     setLoading(true); setError(null);
@@ -61,7 +71,7 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
       await scheduler.generateBracket({
         seasonId,
         divisionId: genDivision,
-        topN: Number(genTopN) as 4 | 8 | 16
+        teamCount: genTeams ? Number(genTeams) : undefined
       });
       await load();
     } catch (err) {
@@ -102,10 +112,10 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
               Generate new bracket
             </div>
             <p className="mt-1 text-sm text-fg-muted">
-              Reads standings, seeds the top N teams, assigns Round 1 into
-              your <code>is_playoff_reservation=true</code> ice slots, and
-              creates the games. Round 2+ games are created automatically as
-              winners are entered.
+              Seeds teams by the division standings, gives the top seeds a bye
+              when the count is not 4, 8 or 16, and places each game on playoff
+              ice. Later rounds are created as winners go through. Games stay
+              drafts until you publish them.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -120,16 +130,15 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
                 ))}
               </Select>
             </Field>
-            <Field label="Top N (must be power of 2)">
-              <Select
-                value={genTopN}
-                onChange={(e) => setGenTopN(e.target.value as "4" | "8" | "16")}
+            <Field label="Teams in the bracket" hint="Leave blank for every team in the division">
+              <Input
+                type="number"
+                min={2}
+                value={genTeams}
+                placeholder="All teams"
+                onChange={(e) => setGenTeams(e.target.value)}
                 disabled={generating}
-              >
-                <option value="4">Top 4</option>
-                <option value="8">Top 8</option>
-                <option value="16">Top 16</option>
-              </Select>
+              />
             </Field>
             <div className="flex items-end">
               <Button
@@ -141,7 +150,7 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
                 ) : (
                   <Zap className="h-4 w-4" strokeWidth={1.75} />
                 )}
-                Generate
+                Generate bracket
               </Button>
             </div>
           </div>
@@ -162,7 +171,14 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
       ) : (
         <div className="space-y-6">
           {brackets.map((b) => (
-            <BracketCard key={b.id} bracket={b} onAdvanced={load} />
+            <BracketCard
+              key={b.id}
+              bracket={b}
+              seasonId={seasonId}
+              onAdvanced={load}
+              publish={publishPlayoffGames}
+              gameHref={gameHref}
+            />
           ))}
         </div>
       )}
@@ -172,9 +188,37 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions }: Props) {
 
 function BracketCard({
   bracket,
-  onAdvanced
-}: { bracket: BracketView; onAdvanced: () => void }) {
+  seasonId,
+  onAdvanced,
+  publish,
+  gameHref
+}: {
+  bracket: BracketView;
+  seasonId: string;
+  onAdvanced: () => void;
+  publish?: Props["publishPlayoffGames"];
+  gameHref?: (gameId: string) => string;
+}) {
   const roundLabels = roundLabelFn(bracket.totalRounds);
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState<string | null>(null);
+  const [pubError, setPubError] = useState<string | null>(null);
+  const unpublished = bracket.slots.filter((s) => s.gameId && s.published === false).length;
+  async function onPublish() {
+    if (!publish || !bracket.divisionId) return;
+    setPublishing(true); setPubError(null); setPublished(null);
+    try {
+      const r = await publish({ seasonId, divisionId: bracket.divisionId });
+      setPublished(
+        r.gamesPublished === 0
+          ? "Nothing left to publish."
+          : `${r.gamesPublished} playoff ${r.gamesPublished === 1 ? "game" : "games"} published to team schedules.`
+      );
+      onAdvanced();
+    } catch (err) {
+      setPubError(err instanceof Error ? err.message : String(err));
+    } finally { setPublishing(false); }
+  }
   return (
     <div className="rounded-lg border border-border bg-bg p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -182,8 +226,14 @@ function BracketCard({
           <Trophy className="h-4 w-4" strokeWidth={1.75} />
           <span className="text-fg font-medium">{bracket.divisionName ?? "—"}</span>
           <Badge tone={bracketStateTone(bracket.state)}>{bracket.state}</Badge>
-          <Badge tone="neutral" mono>Top {bracket.topN}</Badge>
+          <Badge tone="neutral" mono>{bracket.topN} teams</Badge>
         </div>
+        {publish && unpublished > 0 ? (
+          <Button onClick={onPublish} disabled={publishing}>
+            {publishing ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />}
+            Publish {unpublished} playoff {unpublished === 1 ? "game" : "games"}
+          </Button>
+        ) : null}
         {bracket.championTeamName && (
           <span className="flex items-center gap-1.5 text-fg">
             <Trophy className="h-4 w-4 text-amber-500" strokeWidth={1.75} />
@@ -195,6 +245,8 @@ function BracketCard({
         )}
       </div>
 
+      {published ? <p className="text-sm text-fg">{published}</p> : null}
+      {pubError ? <p className="text-sm text-fg-danger" role="alert">{pubError}</p> : null}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: bracket.totalRounds }, (_, i) => i + 1).map(
           (round) => {
@@ -211,6 +263,7 @@ function BracketCard({
                       bracketId={bracket.id}
                       slot={s}
                       onAdvanced={onAdvanced}
+                      gameHref={gameHref}
                     />
                   ))}
                 </div>
@@ -236,11 +289,13 @@ function roundLabelFn(totalRounds: number) {
 function SlotCard({
   bracketId,
   slot,
-  onAdvanced
+  onAdvanced,
+  gameHref
 }: {
   bracketId: string;
   slot: BracketSlotView;
   onAdvanced: () => void;
+  gameHref?: (gameId: string) => string;
 }) {
   const fmtTs = useSlotTime();
   const [advancing, setAdvancing] = useState<string | null>(null);
@@ -248,20 +303,19 @@ function SlotCard({
 
   const aIsWinner = slot.winnerTeamId === slot.teamAId;
   const bIsWinner = slot.winnerTeamId === slot.teamBId;
+  // The server takes the winner from the final score.
   const canAdvance =
     slot.gameId &&
-    slot.gameStatus === "completed" &&
+    (slot.gameStatus === "completed" || slot.gameStatus === "forfeited") &&
     !slot.winnerTeamId &&
     slot.teamAId &&
     slot.teamBId;
 
-  async function advance(winnerTeamId: string) {
+  async function advance(key: string) {
     if (!slot.gameId) return;
-    setAdvancing(winnerTeamId); setError(null);
+    setAdvancing(key); setError(null);
     try {
-      await scheduler.advanceBracket({
-        bracketId, gameId: slot.gameId, winnerTeamId
-      });
+      await scheduler.advanceBracket({ bracketId, gameId: slot.gameId });
       onAdvanced();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -285,15 +339,20 @@ function SlotCard({
         score={slot.homeScore}
       />
       <TeamLine
-        label={slot.teamBName ?? "TBD"}
+        label={slot.bye ? "Bye" : slot.teamBName ?? "TBD"}
         seed={slot.seedB}
         isWinner={bIsWinner}
         score={slot.awayScore}
       />
       <div className="flex items-center justify-between gap-2 pt-1">
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          {slot.venueName} · {slot.surfaceLabel}
+          {slot.bye ? "Goes through without a game" : `${slot.venueName ?? "Rink"} · ${slot.surfaceLabel ?? ""}`}
         </span>
+        {slot.gameId && gameHref ? (
+          <a href={gameHref(slot.gameId)} className="text-[12px] font-medium text-fg underline-offset-2 hover:underline">
+            Open game{slot.published === false ? " (draft)" : ""}
+          </a>
+        ) : null}
         {slot.gameStatus && (
           <Badge tone={
             slot.gameStatus === "completed" ? "success"
@@ -306,32 +365,17 @@ function SlotCard({
       </div>
       {canAdvance && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            Advance winner:
-          </span>
           <Button
             variant="secondary"
-            onClick={() => advance(slot.teamAId!)}
+            onClick={() => advance("go")}
             disabled={advancing !== null}
           >
-            {advancing === slot.teamAId ? (
+            {advancing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
             ) : (
               <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
             )}
-            {slot.teamAName}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => advance(slot.teamBId!)}
-            disabled={advancing !== null}
-          >
-            {advancing === slot.teamBId ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-            )}
-            {slot.teamBName}
+            Send the winner through
           </Button>
         </div>
       )}

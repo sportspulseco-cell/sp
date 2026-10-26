@@ -12,7 +12,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -27,6 +27,8 @@ import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import {
   accessCan,
   accessForScope,
+  gameAccessFor,
+  gameVisible,
   requireGamePermission
 } from "../../../shared/auth/game-access";
 import {
@@ -104,31 +106,15 @@ export class StatsController {
   @Get("lines/for-game/:gameId")
   async forGame(
     @Param("gameId") gameId: string,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<StatLineDto[]> {
-    // Verify the caller can see this game before returning stats.
-    // 404 (not 403) on miss — no-leak rule. Mirrors games.controller's
-    // getOne scope check (league OR either-team match).
-    if (!scope.isSuperAdmin) {
-      const [game] = await this.db
-        .select({
-          leagueId: schema.games.leagueId,
-          homeTeamId: schema.games.homeTeamId,
-          awayTeamId: schema.games.awayTeamId
-        })
-        .from(schema.games)
-        .where(eq(schema.games.id, gameId))
-        .limit(1);
-      if (!game) throw new NotFoundException(`Game not found: ${gameId}`);
-      const inLeagueScope =
-        scope.leagueIds === null || scope.leagueIds.includes(game.leagueId);
-      const onEitherTeam =
-        !!scope.teamIds &&
-        (scope.teamIds.includes(game.homeTeamId) ||
-          scope.teamIds.includes(game.awayTeamId));
-      if (!inLeagueScope && !onEitherTeam) {
-        throw new NotFoundException(`Game not found: ${gameId}`);
-      }
+    // Same visibility as the game itself (shared/auth/game-access): league
+    // or team in scope, or a role or crew spot covering the game, so the
+    // scorekeeper of one game sees its stat lines. 404 on miss (no leak).
+    const access = await gameAccessFor(this.db, user.userId, gameId);
+    if (!access || !gameVisible(access, scope)) {
+      throw new NotFoundException(`Game not found: ${gameId}`);
     }
     return this.withNames(await this.forGameH.execute({ gameId }));
   }
@@ -255,6 +241,116 @@ export class StatsController {
       throw new BadRequestException("leagueId query parameter is required");
     }
     return this.teamStandingH.execute({ teamId, leagueId, divisionId });
+  }
+
+  // ---------- Season leaders + standings (FR-3.5.3) ----------
+  /**
+   * Points, goals and assists leaders per division for one season, with
+   * each division's team standings. Computed on read from the stat lines
+   * of finalized (completed or forfeited) games of that season only.
+   * Visible to anyone whose league scope covers the season, or whose team
+   * is entered in one of its divisions (captains, players); 404 otherwise.
+   */
+  @Get("seasons/:seasonId/leaders")
+  @ApiOperation({ summary: "Season leaders (points, goals, assists) and standings per division" })
+  async seasonLeaders(
+    @Param("seasonId") seasonId: string,
+    @Query("divisionId") divisionId: string | undefined,
+    @Query("limit") limitRaw: string | undefined,
+    @UserScope() scope: UserScopeType
+  ) {
+    const [season] = await this.db
+      .select({ id: schema.seasons.id, name: schema.seasons.name, leagueId: schema.seasons.leagueId })
+      .from(schema.seasons)
+      .where(eq(schema.seasons.id, seasonId))
+      .limit(1);
+    if (!season) throw new NotFoundException(`Season ${seasonId} not found`);
+    const divisions = await this.db
+      .select({ id: schema.divisions.id, name: schema.divisions.name })
+      .from(schema.divisions)
+      .where(eq(schema.divisions.seasonId, seasonId));
+    const divisionIds = divisions.map((d) => d.id).filter((id) => !divisionId || id === divisionId);
+    if (divisionId && divisionIds.length === 0) throw new NotFoundException(`Division ${divisionId} not found`);
+    const inLeague = scope.isSuperAdmin || scope.leagueIds === null || scope.leagueIds.includes(season.leagueId);
+    if (!inLeague) {
+      const myTeams = scope.teamIds ?? [];
+      const entered = myTeams.length && divisionIds.length
+        ? await this.db
+            .select({ id: schema.divisionTeamEntries.id })
+            .from(schema.divisionTeamEntries)
+            .where(and(inArray(schema.divisionTeamEntries.divisionId, divisionIds), inArray(schema.divisionTeamEntries.teamId, myTeams)))
+            .limit(1)
+        : [];
+      if (entered.length === 0) throw new NotFoundException(`Season ${seasonId} not found`);
+    }
+    const limit = Math.min(Math.max(Number(limitRaw ?? 10) || 10, 1), 50);
+    if (divisionIds.length === 0) return { seasonId, seasonName: season.name, divisions: [] };
+
+    const totals = (await this.db.execute(sql`
+      select sl.division_id, sl.person_id,
+             (array_agg(sl.team_id order by g.scheduled_start_ts_utc desc))[1] as team_id,
+             count(distinct sl.game_id)::int as gp,
+             coalesce(sum((sl.core->>'goals')::int), 0)::int as goals,
+             coalesce(sum((sl.core->>'assists')::int), 0)::int as assists,
+             coalesce(sum((sl.core->>'points')::int), 0)::int as points
+        from stat_lines sl
+        join games g on g.id = sl.game_id
+       where sl.season_id = ${seasonId}
+         and g.status in ('completed', 'forfeited')
+         and sl.division_id in (${sql.join(divisionIds.map((id) => sql`${id}::uuid`), sql`, `)})
+       group by sl.division_id, sl.person_id`)) as unknown;
+    const rows = (Array.isArray(totals) ? totals : (totals as { rows?: unknown[] }).rows ?? []) as Array<{
+      division_id: string; person_id: string; team_id: string; gp: number; goals: number; assists: number; points: number;
+    }>;
+    const standings = await this.db
+      .select()
+      .from(schema.standings)
+      .where(inArray(schema.standings.divisionId, divisionIds));
+    const names = await resolveEntityNames(this.db, [
+      ...rows.map((r) => ({ type: "person" as const, id: r.person_id })),
+      ...rows.map((r) => ({ type: "team" as const, id: r.team_id })),
+      ...standings.map((r) => ({ type: "team" as const, id: r.teamId }))
+    ]);
+    const entry = (r: (typeof rows)[number]) => ({
+      personId: r.person_id,
+      personName: names.get(`person:${r.person_id}`) ?? null,
+      teamId: r.team_id,
+      teamName: names.get(`team:${r.team_id}`) ?? null,
+      gp: r.gp,
+      goals: r.goals,
+      assists: r.assists,
+      points: r.points
+    });
+    const top = (list: typeof rows, key: "points" | "goals" | "assists") =>
+      list
+        .filter((r) => r[key] > 0)
+        .sort((a, b) => b[key] - a[key] || a.gp - b.gp || (names.get(`person:${a.person_id}`) ?? "").localeCompare(names.get(`person:${b.person_id}`) ?? ""))
+        .slice(0, limit)
+        .map(entry);
+    return {
+      seasonId,
+      seasonName: season.name,
+      divisions: divisions
+        .filter((d) => divisionIds.includes(d.id))
+        .map((d) => {
+          const mine = rows.filter((r) => r.division_id === d.id);
+          return {
+            divisionId: d.id,
+            divisionName: d.name,
+            leaders: { points: top(mine, "points"), goals: top(mine, "goals"), assists: top(mine, "assists") },
+            standings: standings
+              .filter((s) => s.divisionId === d.id)
+              .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999))
+              .map((s) => ({
+                teamId: s.teamId,
+                teamName: names.get(`team:${s.teamId}`) ?? null,
+                rank: s.rank,
+                gp: s.gp, w: s.w, l: s.l, t: s.t, otl: s.otl,
+                points: s.points, gf: s.gf, ga: s.ga, gd: s.gd
+              }))
+          };
+        })
+    };
   }
 
   // ---------- Leaderboards ----------

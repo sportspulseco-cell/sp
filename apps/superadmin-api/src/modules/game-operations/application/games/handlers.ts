@@ -37,6 +37,7 @@ import {
 import {
   projectGameStats,
   recomputeLeagueStandings,
+  recordAttendanceFromLineups,
   type Tx
 } from "../../../stats/application/projections";
 import {
@@ -62,6 +63,15 @@ export interface ListGamesInput {
   leagueIdsFilter?: string[];
   /** When true, restrict to games with `published_at IS NOT NULL`. */
   publishedOnly?: boolean;
+  withoutOfficials?: boolean;
+  /** An official's games only (shared/auth/game-access officiatingFilter). */
+  officiating?: {
+    orgIds: string[];
+    leagueIds: string[];
+    seasonIds: string[];
+    divisionIds: string[];
+    gameIds: string[];
+  };
 }
 
 @Injectable()
@@ -937,7 +947,7 @@ export interface FinalizeSummary {
   statLinesWritten: number;
   standingsTeamsRanked: number;
   standingsGamesCounted: number;
-  pointsRuleSource: "default" | "request";
+  pointsRuleSource: "default" | "request" | "division" | "season";
   notificationRecipients: number;
   notificationsQueued: number;
   /** Game-count suspensions of players on either team that counted this game (COMP-10). */
@@ -1012,6 +1022,9 @@ export class FinalizeGameHandler
 
       g.finalize(input.userId, verdict.endedIn);
       await saveIfStatus(tx, g, "in_play");
+      // Who dressed (from the locked lineups) before stats, so games
+      // played count everyone who played (FR-3.5.4).
+      await recordAttendanceFromLineups(tx, input.id);
       const projection = await projectGameStats(tx, input.id);
       const standings = await recomputeLeagueStandings(tx, g.leagueId);
       const suspensions = await serveSuspensionsForFinalizedGame(tx, {

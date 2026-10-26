@@ -15,7 +15,11 @@ const PUBLIC_PATHS = [
 ];
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request });
+  // The (admin) layout reads the path to keep game-day officials on their
+  // games (lib/console-mode.ts). Layouts get no pathname otherwise.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const { user } = await refreshSupabaseSession({
     url: process.env.NEXT_PUBLIC_SUPABASE_URL!,

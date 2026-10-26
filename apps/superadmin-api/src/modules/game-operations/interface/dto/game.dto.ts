@@ -71,6 +71,9 @@ export class PublishScheduleBodyDto {
   @ApiProperty() @IsUUID() seasonId!: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() divisionId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() scheduleRunId?: string;
+  /** Only this kind of game, e.g. "playoff" from the bracket page. */
+  @ApiPropertyOptional({ enum: ["regular", "playoff", "exhibition"] })
+  @IsOptional() @IsIn(["regular", "playoff", "exhibition"]) gameType?: "regular" | "playoff" | "exhibition";
 }
 
 export class RescheduleGameBodyDto {
@@ -128,6 +131,21 @@ export class ListGamesQueryDto {
   @Transform(({ value }) => value === true || value === "true")
   @IsBoolean()
   publishedOnly?: boolean;
+  /**
+   * "My games" for a game-day official: only games they run, through a
+   * scorekeeper / referee role or a crew spot on the game.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  assignedToMe?: boolean;
+  /** Assigner list (FR-3.9): only games with no live crew spot. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  withoutOfficials?: boolean;
 }
 
 // Game events

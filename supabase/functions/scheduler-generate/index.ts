@@ -1,26 +1,29 @@
 ﻿/**
- * scheduler-generate â€” POST endpoint.
+ * scheduler-generate - POST endpoint.
  *
  * End-to-end pipeline:
- *   1. Validate the caller (JWT verified by the platform).
- *   2. Load the season + teams + ice slots + locked fixtures.
- *   3. Build the SolveRequest, hash inputs (determinism contract).
- *   4. Insert schedule_runs row (status='running').
- *   5. POST to the HF Spaces CP-SAT solver.
- *   6. On success â€” delete prior generated-and-not-locked games for
- *      this scope (preserving locked fixtures and manual rows), then
- *      batch-insert new games + game_provenance, then close out the
- *      schedule_runs row with the full solution.
- *   7. On infeasibility / timeout â€” write the infeasibility report to
- *      the schedule_runs row and return it to the caller.
+ *   1. Validate the caller (JWT verified by the platform; scheduler.run).
+ *   2. Load the season, teams, ice slots, blackout dates and every game
+ *      already in the division.
+ *   3. Decide what stays: only DRAFT generated regular-season games
+ *      (unpublished, unlocked, scheduled) are replaced. Published,
+ *      playoff, locked, hand-made and played games stay. Games that stay
+ *      are pinned for the solver (one per team pair, its limit) so their
+ *      fixture is not placed twice; their slots never go to a new game.
+ *   4. Leave out slots on blackout dates (FR-3.8.4) and slots held by any
+ *      live game of the season (any division). If fewer slots are left
+ *      than games to place, answer INFEASIBLE naming how many games could
+ *      not be placed, before calling the solver.
+ *   5. Call the CP-SAT solver (Hugging Face Spaces; unchanged).
+ *   6. After it answers: balance home and away per team and swap the
+ *      second meeting of a pair (FR-3.8.2; the solver always makes the
+ *      earlier-listed team home), report teams over the optional weekly
+ *      limit (the solver cannot enforce one), store each game at the
+ *      slot's instant in the rink's zone (season zone for a slot whose
+ *      zone was never set), then replace the drafts.
  *
- * Pains covered: #7 (locked fixtures preserved by SQL filter),
- * #5/#8/#9 (infeasibility report carries the diagnostic up).
- *
- * Pains DEFERRED to scheduler-conflict-resolve + Z3 wiring:
- *   - Per-team fairness narrative (#8)
- *   - Inline conflict options (#9)
- *   - Tiebreaker proof (#5)
+ * Shared rules: _shared/post-solve.ts (mirror of
+ * packages/scheduler-core/src/post-solve.ts, unit-tested there).
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
@@ -36,6 +39,16 @@ import {
   type TeamInput,
   type TimeBand,
 } from "../_shared/contracts.ts";
+import {
+  balanceHomeAway,
+  enumerateFixtures,
+  gameStartForSlot,
+  pairKey,
+  slotBlackout,
+  weeklyOverLimit,
+  type FixedGame,
+  type ScheduleBlackout,
+} from "../_shared/post-solve.ts";
 
 interface GenerateBody {
   seasonId: string;
@@ -44,6 +57,21 @@ interface GenerateBody {
   timeLimitSeconds?: number;
   seed?: string;
   maxLateFraction?: number;
+  /** Optional: report teams with more games than this in one week. */
+  maxGamesPerTeamPerWeek?: number;
+}
+
+interface ScopeGame {
+  id: string;
+  home_team_id: string;
+  away_team_id: string;
+  slot_id: string | null;
+  scheduled_start_ts_utc: string;
+  status: string;
+  source: string;
+  game_type: string;
+  locked_at: string | null;
+  published_at: string | null;
 }
 
 function json(body: unknown, status = 200): Response {
@@ -52,6 +80,8 @@ function json(body: unknown, status = 200): Response {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
@@ -70,18 +100,24 @@ Deno.serve(async (req) => {
   if (!body.seasonId || !body.divisionId) {
     return json({ error: "missing_required_fields", fields: ["seasonId", "divisionId"] }, 400);
   }
+  const gamesPerPair = Math.max(1, Math.min(4, Math.floor(Number(body.gamesPerPair ?? 1)) || 1));
+  const weeklyMax = body.maxGamesPerTeamPerWeek !== undefined && body.maxGamesPerTeamPerWeek !== null
+    ? Math.floor(Number(body.maxGamesPerTeamPerWeek))
+    : null;
+  if (weeklyMax !== null && !(weeklyMax >= 1)) {
+    return json({ error: "Max games per team per week must be 1 or more." }, 400);
+  }
 
   const env = loadEnv();
   const sb = serviceRoleClient(env);
 
-  // Resolve the caller's user id from the JWT â€” for schedule_runs.ran_by_user_id.
   const authHeader = req.headers.get("Authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id ?? null;
   const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
 
-  // ===== 1. Load season (for league_id / sport_code / org_id) =====
+  // ===== 1. Season + permission =====
   const { data: season, error: seasonErr } = await sb
     .from("seasons")
     .select("id, org_id, league_id, sport_code, config, timezone")
@@ -90,8 +126,8 @@ Deno.serve(async (req) => {
   if (seasonErr || !season) {
     return json({ error: "season_not_found", seasonId: body.seasonId }, 404);
   }
+  const seasonTz = (season.timezone as string | null) ?? "UTC";
 
-  // ===== Permission gate (scheduler.run) =====
   if (!userId) return forbidden("unauthenticated");
   const allowed = await userHasPermission(sb, userId, "scheduler.run", {
     orgId: season.org_id as string,
@@ -101,7 +137,7 @@ Deno.serve(async (req) => {
   }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
-  // ===== 2. Load teams in the division =====
+  // ===== 2. Teams in the division =====
   const { data: entries, error: entriesErr } = await sb
     .from("division_team_entries")
     .select("team_id, division_id")
@@ -117,32 +153,95 @@ Deno.serve(async (req) => {
   if (teams.length < 2) {
     return json({ error: "insufficient_teams", count: teams.length }, 422);
   }
+  const teamIds = teams.map((t) => t.teamId);
+  const teamSet = new Set(teamIds);
 
-  // ===== 3. Load ice slots for the season =====
-  const { data: slotRows, error: slotsErr } = await sb
-    .from("ice_slots")
-    .select(`
-      id,
-      surface_id,
-      start_ts_utc,
-      duration_min,
-      band,
-      hourly_cost_cents,
-      is_playoff_reservation,
-      surfaces!inner (
-        id,
-        label,
-        venue_id,
-        venues!inner ( id, name )
-      )
-    `)
-    .eq("season_id", body.seasonId)
-    .eq("is_playoff_reservation", false)
-    .eq("status", "available");
-  if (slotsErr) return json({ error: "load_slots_failed", detail: slotsErr.message }, 500);
+  // ===== 3. Season ice, blackouts, games already in the division =====
+  const [slotRes, blackoutRes, scopeRes] = await Promise.all([
+    sb
+      .from("ice_slots")
+      .select(`
+        id, surface_id, start_ts_utc, duration_min, tz, band, hourly_cost_cents, is_playoff_reservation,
+        surfaces!inner ( id, label, venue_id, venues!inner ( id, name ) )
+      `)
+      .eq("season_id", body.seasonId)
+      .eq("is_playoff_reservation", false)
+      .eq("status", "available"),
+    sb
+      .from("schedule_blackouts")
+      .select("start_date, end_date, surface_id, reason")
+      .eq("season_id", body.seasonId),
+    sb
+      .from("games")
+      .select("id, home_team_id, away_team_id, slot_id, scheduled_start_ts_utc, status, source, game_type, locked_at, published_at")
+      .eq("season_id", body.seasonId)
+      .eq("division_id", body.divisionId),
+  ]);
+  if (slotRes.error) return json({ error: "load_slots_failed", detail: slotRes.error.message }, 500);
+  if (blackoutRes.error) return json({ error: "load_blackouts_failed", detail: blackoutRes.error.message }, 500);
+  if (scopeRes.error) return json({ error: "load_games_failed", detail: scopeRes.error.message }, 500);
 
-  // Index slot metadata for the games insert phase (we need surface label
-  // + venue name to denormalise onto each game).
+  const blackouts: ScheduleBlackout[] = (blackoutRes.data ?? []).map((b) => ({
+    startDate: b.start_date as string,
+    endDate: b.end_date as string,
+    surfaceId: (b.surface_id as string | null) ?? null,
+    reason: (b.reason as string | null) ?? null,
+  }));
+
+  const scopeGames = (scopeRes.data ?? []) as ScopeGame[];
+  const replaceable = (g: ScopeGame) =>
+    g.source === "generated" && g.game_type === "regular" && g.status === "scheduled" &&
+    !g.locked_at && !g.published_at;
+  const draftIds = scopeGames.filter(replaceable).map((g) => g.id);
+  const kept = scopeGames.filter((g) => !replaceable(g));
+  const keptSummary = {
+    published: kept.filter((g) => g.game_type === "regular" && !!g.published_at).length,
+    playoff: kept.filter((g) => g.game_type === "playoff").length,
+    locked: kept.filter((g) => !!g.locked_at).length,
+    played: kept.filter((g) => ["in_play", "completed", "forfeited"].includes(g.status)).length,
+    total: kept.length,
+  };
+
+  // Slots held by a live game anywhere in the season, other than the
+  // drafts this run replaces (game_slot_uniq ignores cancelled/postponed).
+  const allSlotIds = (slotRes.data ?? []).map((s) => s.id as string);
+  const heldBy = new Map<string, string>();
+  if (allSlotIds.length) {
+    const { data: holders, error: holdErr } = await sb
+      .from("games")
+      .select("id, slot_id, status")
+      .in("slot_id", allSlotIds)
+      .not("status", "in", "(cancelled,postponed)");
+    if (holdErr) return json({ error: "load_slot_holders_failed", detail: holdErr.message }, 500);
+    const drafts = new Set(draftIds);
+    for (const h of holders ?? []) {
+      if (!drafts.has(h.id as string)) heldBy.set(h.slot_id as string, h.id as string);
+    }
+  }
+
+  // Games that stay and cover a regular-season fixture of this round robin.
+  const covering = kept.filter((g) =>
+    g.game_type === "regular" && g.status !== "cancelled" &&
+    teamSet.has(g.home_team_id) && teamSet.has(g.away_team_id)
+  );
+  // Pin the first one per pair whose slot is live (the solver matches a
+  // pin to the pair's first fixture, so a second pin would contradict).
+  const pinnedSlotIds = new Set<string>();
+  const pinnedPairs = new Set<string>();
+  const lockedFixtures: LockedFixture[] = [];
+  const extraCover = new Map<string, number>(); // pair -> kept games not pinned
+  for (const g of [...covering].sort((a, b) => a.scheduled_start_ts_utc.localeCompare(b.scheduled_start_ts_utc))) {
+    const key = pairKey(g.home_team_id, g.away_team_id);
+    const live = !!g.slot_id && g.status !== "postponed" && allSlotIds.includes(g.slot_id);
+    if (live && !pinnedPairs.has(key)) {
+      pinnedPairs.add(key);
+      pinnedSlotIds.add(g.slot_id!);
+      lockedFixtures.push({ homeTeamId: g.home_team_id, awayTeamId: g.away_team_id, slotId: g.slot_id! });
+    } else {
+      extraCover.set(key, (extraCover.get(key) ?? 0) + 1);
+    }
+  }
+
   type SlotMeta = {
     slotId: string;
     surfaceId: string;
@@ -150,13 +249,24 @@ Deno.serve(async (req) => {
     venueId: string;
     venueName: string;
     startTsUtc: string;
+    tz: string | null;
     band: TimeBand | null;
   };
   const slotMetaById = new Map<string, SlotMeta>();
+  const slots: SlotInput[] = [];
+  let blackedOut = 0;
+  let held = 0;
   // deno-lint-ignore no-explicit-any
-  const slots: SlotInput[] = ((slotRows ?? []) as any[]).map((s) => {
+  for (const s of (slotRes.data ?? []) as any[]) {
     const surface = s.surfaces;
     const venue = surface.venues;
+    const pinned = pinnedSlotIds.has(s.id);
+    if (!pinned && heldBy.has(s.id)) { held++; continue; }
+    const where = gameStartForSlot(s.start_ts_utc, s.tz, seasonTz);
+    if (!pinned && slotBlackout({ startTsUtc: where.startTsUtc, surfaceId: surface.id }, seasonTz, blackouts)) {
+      blackedOut++;
+      continue;
+    }
     slotMetaById.set(s.id, {
       slotId: s.id,
       surfaceId: surface.id,
@@ -164,9 +274,10 @@ Deno.serve(async (req) => {
       venueId: venue.id,
       venueName: venue.name,
       startTsUtc: s.start_ts_utc,
+      tz: s.tz ?? null,
       band: s.band,
     });
-    return {
+    slots.push({
       slotId: s.id,
       surfaceId: surface.id,
       venueId: venue.id,
@@ -175,26 +286,10 @@ Deno.serve(async (req) => {
       band: s.band,
       hourlyCostCents: s.hourly_cost_cents,
       isPlayoffReservation: s.is_playoff_reservation,
-    };
-  });
+    });
+  }
 
-  // ===== 4. Load locked fixtures (pain #7 â€” never moved by the engine) =====
-  const { data: lockedGames, error: lockedErr } = await sb
-    .from("games")
-    .select("id, home_team_id, away_team_id, slot_id")
-    .eq("season_id", body.seasonId)
-    .eq("division_id", body.divisionId)
-    .not("locked_at", "is", null)
-    .not("slot_id", "is", null);
-  if (lockedErr) return json({ error: "load_locked_failed", detail: lockedErr.message }, 500);
-
-  const lockedFixtures: LockedFixture[] = (lockedGames ?? []).map((g) => ({
-    homeTeamId: g.home_team_id as string,
-    awayTeamId: g.away_team_id as string,
-    slotId: g.slot_id as string,
-  }));
-
-  // ===== 5. Build SolveRequest + input hash =====
+  // ===== 4. Build SolveRequest + input hash =====
   const seed = body.seed ?? crypto.randomUUID();
   const solveReq: SolveRequest = {
     seasonId: body.seasonId,
@@ -202,12 +297,8 @@ Deno.serve(async (req) => {
     teams,
     slots,
     lockedFixtures,
-    gamesPerPair: body.gamesPerPair ?? 1,
-    bandDefinitions: [
-      // TODO: read these from season.config.timeSlotBands when the org-setup
-      // wizard step lands. For now the slots already carry their band
-      // denormalised, so the solver doesn't need this to function.
-    ],
+    gamesPerPair,
+    bandDefinitions: [],
     weights: DEFAULT_WEIGHTS,
     maxLateFraction: body.maxLateFraction,
     timeLimitSeconds: body.timeLimitSeconds ?? 60,
@@ -215,7 +306,6 @@ Deno.serve(async (req) => {
   };
   const inputHash = await sha256Hex(solveReq);
 
-  // ===== 6. Insert schedule_runs (status='running') =====
   const { data: runRow, error: runInsertErr } = await sb
     .from("schedule_runs")
     .insert({
@@ -224,7 +314,7 @@ Deno.serve(async (req) => {
       engine: "cpsat",
       seed,
       input_hash: inputHash,
-      constraint_snapshot: solveReq,
+      constraint_snapshot: { ...solveReq, blackouts, maxGamesPerTeamPerWeek: weeklyMax },
       status: "running",
       ran_by_user_id: userId,
     })
@@ -235,7 +325,32 @@ Deno.serve(async (req) => {
   }
   const runId = runRow.id as string;
 
-  // ===== 7. Call the solver =====
+  // ===== 5. Enough ice? Say exactly how short we are. =====
+  const fixtures = enumerateFixtures(teamIds, gamesPerPair);
+  const toPlace = fixtures.length; // includes the pinned (kept) ones
+  if (toPlace > slots.length) {
+    const short = toPlace - slots.length;
+    const left = [
+      blackedOut ? `${plural(blackedOut, "slot")} on blackout dates` : null,
+      held ? `${plural(held, "slot")} already used by other games` : null,
+    ].filter(Boolean).join(" and ");
+    const infeasibility = {
+      summary: `${plural(toPlace, "game")} need ice but only ${plural(slots.length, "slot")} are open${left ? ` (${left} left out)` : ""}. ${plural(short, "game")} could not be placed. Nothing was changed.`,
+      hardViolations: [{
+        type: "insufficient_inventory",
+        description: `${plural(short, "game")} could not be placed.`,
+        gamesAffected: [],
+        resolutionHint: "Add ice time, remove a blackout date, or lower games per pair.",
+      }],
+      softViolations: [],
+      unplacedGames: short,
+      placedGames: 0,
+    };
+    await sb.from("schedule_runs").update({ status: "failed", infeasibility_report: infeasibility }).eq("id", runId);
+    return json({ runId, status: "INFEASIBLE", infeasibility, gamesCreated: 0, slotsBlackedOut: blackedOut, kept: keptSummary });
+  }
+
+  // ===== 6. Call the solver =====
   let solveResp;
   try {
     solveResp = await callSolver(env, solveReq);
@@ -260,7 +375,6 @@ Deno.serve(async (req) => {
     return json({ runId, status: "FAILED", error: message }, 502);
   }
 
-  // ===== 8. INFEASIBLE / TIMEOUT â€” record the report and bail out =====
   if (solveResp.status === "INFEASIBLE" || solveResp.status === "TIMEOUT") {
     await sb
       .from("schedule_runs")
@@ -277,65 +391,56 @@ Deno.serve(async (req) => {
       status: solveResp.status,
       infeasibility: solveResp.infeasibility,
       gamesCreated: 0,
+      slotsBlackedOut: blackedOut,
+      kept: keptSummary,
     });
   }
 
-  // ===== 9. OPTIMAL / FEASIBLE â€” persist =====
-  // 9a. Delete prior generated-and-not-locked games for this scope.
-  // The DB-level `WHERE locked_at IS NULL` is the sacred invariant â€”
-  // locked fixtures NEVER leave.
-  // The `status='scheduled'` filter is the partial-regen safety net â€”
-  // completed / in_play / forfeited games stay regardless of regen
-  // (parity-window apply, post-conflict regen, etc.).
-  const { error: delErr } = await sb
-    .from("games")
-    .delete()
-    .eq("season_id", body.seasonId)
-    .eq("division_id", body.divisionId)
-    .eq("source", "generated")
-    .eq("status", "scheduled")
-    .is("locked_at", null);
-  if (delErr) {
-    await sb.from("schedule_runs").update({
-      status: "failed",
-      infeasibility_report: { summary: `delete prior games failed: ${delErr.message}`, hardViolations: [], softViolations: [], unplacedGames: 0, placedGames: 0 },
-    }).eq("id", runId);
-    return json({ runId, status: "FAILED", error: delErr.message }, 500);
+  // ===== 7. OPTIMAL / FEASIBLE: new games only =====
+  // Pinned slots are the kept games themselves. A pair covered by more
+  // kept games than were pinned drops that many new games.
+  const dropLeft = new Map(extraCover);
+  const placed = [];
+  for (const a of [...solveResp.assignments].sort((x, y) =>
+    (slotMetaById.get(x.slotId)?.startTsUtc ?? "").localeCompare(slotMetaById.get(y.slotId)?.startTsUtc ?? "")
+  )) {
+    const meta = slotMetaById.get(a.slotId);
+    if (!meta) continue; // defensive: solver returned a slot we didn't send
+    if (pinnedSlotIds.has(a.slotId)) continue;
+    const key = pairKey(a.homeTeamId, a.awayTeamId);
+    const drop = dropLeft.get(key) ?? 0;
+    if (drop > 0) { dropLeft.set(key, drop - 1); continue; }
+    const at = gameStartForSlot(meta.startTsUtc, meta.tz, seasonTz);
+    placed.push({ slotId: a.slotId, startTsUtc: at.startTsUtc, teamA: a.homeTeamId, teamB: a.awayTeamId, tz: at.tz, constraintIds: a.constraintIds });
+  }
+  const fixed: FixedGame[] = covering.map((g) => ({
+    startTsUtc: g.scheduled_start_ts_utc,
+    homeTeamId: g.home_team_id,
+    awayTeamId: g.away_team_id,
+  }));
+  const balanced = balanceHomeAway(placed, fixed);
+  const tzBySlot = new Map(placed.map((p) => [p.slotId, p]));
+  const weekly = weeklyMax !== null
+    ? weeklyOverLimit([...balanced.games, ...fixed], seasonTz, weeklyMax)
+    : [];
+
+  // 7a. Replace the drafts (only those; see step 3).
+  if (draftIds.length) {
+    const { error: delErr } = await sb.from("games").delete().in("id", draftIds);
+    if (delErr) {
+      await sb.from("schedule_runs").update({
+        status: "failed",
+        infeasibility_report: { summary: `delete prior draft games failed: ${delErr.message}`, hardViolations: [], softViolations: [], unplacedGames: 0, placedGames: 0 },
+      }).eq("id", runId);
+      return json({ runId, status: "FAILED", error: delErr.message }, 500);
+    }
   }
 
-  // 9b. Build games + game_provenance rows together with client-side
-  // UUIDs so each provenance row references its game by id without an
-  // ordering assumption on the insert's return shape.
-  //
-  // Skip any solver assignment that lands on a slot already held by a
-  // game that step 9a's delete preserves. "Persistent" = anything we
-  // didn't (and won't) delete: completed / in_play / forfeited games,
-  // manual games, locked games. Their rows survive the regen, so
-  // re-inserting on their slot would collide on game_slot_uniq.
-  // Caught by EC11 when a locked Bravo-Charlie game was in the DB but
-  // the solver kept placing other games on the same slot because
-  // ice_slots.status='available' regardless of game occupancy.
-  const { data: persistRows } = await sb
-    .from("games")
-    .select("slot_id, source, status, locked_at")
-    .eq("season_id", body.seasonId)
-    .eq("division_id", body.divisionId)
-    .not("slot_id", "is", null);
-  const persistentSlotIds = new Set(
-    (persistRows ?? [])
-      .filter((g) =>
-        g.status !== "cancelled" &&
-        g.status !== "postponed" &&
-        !(g.source === "generated" && g.status === "scheduled" && !g.locked_at),
-      )
-      .map((g) => g.slot_id as string),
-  );
   const gameRows: Record<string, unknown>[] = [];
   const provRows: Record<string, unknown>[] = [];
-  for (const a of solveResp.assignments) {
-    const meta = slotMetaById.get(a.slotId);
-    if (!meta) continue; // defensive â€” solver returned a slot we didn't send
-    if (persistentSlotIds.has(a.slotId)) continue; // slot held by a pre-existing row that survived the delete
+  for (const g of balanced.games) {
+    const meta = slotMetaById.get(g.slotId)!;
+    const p = tzBySlot.get(g.slotId)!;
     const gameId = crypto.randomUUID();
     gameRows.push({
       id: gameId,
@@ -343,9 +448,10 @@ Deno.serve(async (req) => {
       season_id: body.seasonId,
       division_id: body.divisionId,
       sport_code: season.sport_code,
-      home_team_id: a.homeTeamId,
-      away_team_id: a.awayTeamId,
-      scheduled_start_ts_utc: meta.startTsUtc,
+      home_team_id: g.homeTeamId,
+      away_team_id: g.awayTeamId,
+      scheduled_start_ts_utc: g.startTsUtc,
+      tz: p.tz,
       venue_name: meta.venueName,
       surface_label: meta.surfaceLabel,
       slot_id: meta.slotId,
@@ -355,14 +461,14 @@ Deno.serve(async (req) => {
       time_band: meta.band,
       game_type: "regular",
       status: "scheduled",
-      // locked_at intentionally NULL â€” engine output is never auto-locked.
-      // published_at intentionally NULL â€” flip via scheduler-publish.
+      // locked_at NULL: engine output is never auto-locked.
+      // published_at NULL: flip via publish.
     });
     provRows.push({
       game_id: gameId,
       schedule_run_id: runId,
       placement_pass: "initial_assignment",
-      constraint_ids: a.constraintIds,
+      constraint_ids: [...p.constraintIds, "home_away_balance"],
     });
   }
 
@@ -376,23 +482,28 @@ Deno.serve(async (req) => {
       return json({ runId, status: "FAILED", error: insErr.message }, 500);
     }
     const { error: provErr } = await sb.from("game_provenance").insert(provRows);
-    if (provErr) {
-      // Not fatal for the schedule but we must surface it â€” provenance is
-      // the explainability spine.
-      console.error("provenance insert failed (games kept):", provErr);
-    }
+    if (provErr) console.error("provenance insert failed (games kept):", provErr);
   }
+  console.log(`scheduler-generate run=${runId} created=${gameRows.length} replaced=${draftIds.length} kept=${kept.length} blackedOut=${blackedOut} maxImbalance=${balanced.maxImbalance}`);
 
-  // 9c. Close out the schedule_runs row with the full solution
-  // (decision #4 â€” determinism by persistence).
+  const keptText = keptSummary.total
+    ? ` Kept ${plural(keptSummary.total, "game")} already in this division (${[
+        keptSummary.published ? `${keptSummary.published} published` : null,
+        keptSummary.playoff ? `${keptSummary.playoff} playoff` : null,
+        keptSummary.locked ? `${keptSummary.locked} locked` : null,
+        keptSummary.played ? `${keptSummary.played} started or played` : null,
+      ].filter(Boolean).join(", ") || "hand-made"}).`
+    : "";
+  const message = `${plural(gameRows.length, "draft game")} created${draftIds.length ? `, replacing ${draftIds.length} earlier drafts` : ""}.${keptText}${blackedOut ? ` ${plural(blackedOut, "slot")} on blackout dates left out.` : ""}`;
+
   await sb
     .from("schedule_runs")
     .update({
       status: "completed",
-      solution: solveResp,
-      objective_breakdown: solveResp.objectiveBreakdown,
+      solution: { ...solveResp, balancedAssignments: balanced.games, homeAway: balanced.counts, weeklyOverLimit: weekly },
+      objective_breakdown: { ...solveResp.objectiveBreakdown, homeAwayImbalance: balanced.maxImbalance },
       games_created: gameRows.length,
-      games_locked_preserved: lockedFixtures.length,
+      games_locked_preserved: kept.length,
       duration_ms: solveResp.solveTimeMs,
     })
     .eq("id", runId);
@@ -401,7 +512,14 @@ Deno.serve(async (req) => {
     runId,
     status: solveResp.status,
     gamesCreated: gameRows.length,
-    gamesLockedPreserved: lockedFixtures.length,
+    gamesLockedPreserved: kept.length,
+    draftsReplaced: draftIds.length,
+    kept: keptSummary,
+    slotsBlackedOut: blackedOut,
+    homeAway: balanced.counts,
+    maxHomeAwayImbalance: balanced.maxImbalance,
+    weeklyOverLimit: weekly,
+    message,
     solveTimeMs: solveResp.solveTimeMs,
   });
 });

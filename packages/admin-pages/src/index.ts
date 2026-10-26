@@ -88,3 +88,4 @@ export type {
   AnnouncementChannel,
   AnnouncementTargetType
 } from "./communications/announcement-composer";
+export * from "./live-score-refresh";

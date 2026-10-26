@@ -61,7 +61,7 @@ export default async function OrgAdminSchedulingGeneratePage({
       <PageHeader
         eyebrow="schedule"
         title={`Generate · ${season.name}`}
-        description="Pick a division and run the CP-SAT solver. Locked fixtures (locked_at IS NOT NULL) are preserved; previously-generated games for the same scope are replaced."
+        description="Pick a division and run the CP-SAT solver. Only draft games are replaced; published, playoff and locked games stay. Blackout dates are left out."
         action={
           <Link
             href={`/seasons/${season.id}`}
@@ -73,6 +73,7 @@ export default async function OrgAdminSchedulingGeneratePage({
       />
       <GenerateForm
         seasonId={season.id}
+        orgId={season.orgId}
         seasonName={season.name}
         divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
         teamNames={teamNames}

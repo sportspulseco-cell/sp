@@ -15,7 +15,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
-import { ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
+import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ICalExportButton } from "./ical-button";
@@ -43,6 +43,16 @@ function fmtDay(iso: string, tz: string): { day: string; mon: string } {
 }
 
 function statusBadge(g: Game, myTeamId: string | null) {
+  if (g.status === "in_play") {
+    const isHome = g.homeTeamId === myTeamId;
+    const us = (isHome ? g.homeScore : g.awayScore) ?? 0;
+    const them = (isHome ? g.awayScore : g.homeScore) ?? 0;
+    return (
+      <Badge mono tone="info">
+        Live {us}–{them}
+      </Badge>
+    );
+  }
   if (g.status === "completed" && g.homeScore != null && g.awayScore != null) {
     const isHome = g.homeTeamId === myTeamId;
     const us = isHome ? g.homeScore : g.awayScore;
@@ -180,6 +190,7 @@ export default async function SchedulePage({
           ))}
         </div>
         <div className="flex items-center gap-3">
+          <LiveScoreRefresh active={all.some((g) => g.status === "in_play")} />
           {seasonIds.length > 0 && (
             <ScheduleRealtimeBridge seasonIds={seasonIds} />
           )}

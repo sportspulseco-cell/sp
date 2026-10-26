@@ -4,11 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import {
-  EJECTION_LABELS,
   formatInZone,
   GAME_ENDING_LABELS,
-  isEjectionType,
-  HOCKEY_INFRACTION_LABELS
+  HOCKEY_INFRACTION_LABELS,
+  HOCKEY_PENALTY_CLASS_LABELS,
+  MISCONDUCT_PENALTY_CLASSES,
+  penaltyClassOf
 } from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
@@ -25,6 +26,7 @@ import { GameStatusBadge } from "@/components/games/game-status-badge";
 import { GameActions } from "@/components/games/game-actions";
 import { AppendEventButton } from "@/components/games/append-event-button";
 import { IssueSuspensionButton } from "@/components/discipline/suspension-buttons";
+import { getConsoleViewer } from "@/lib/console-mode";
 
 export const metadata = { title: "Game — SportsPulse" };
 
@@ -46,6 +48,9 @@ export default async function GameDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // A game-day official runs the scoresheet only: no league-wide lists.
+  const official = (await getConsoleViewer())?.mode === "official";
+  const backLabel = official ? "My games" : "All games";
 
   const gameResult = await load(gameOps.getGame(id));
   if (!gameResult.ok) {
@@ -61,7 +66,7 @@ export default async function GameDetailPage({
             className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
           >
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-            All games
+            {backLabel}
           </Link>
         }
       />
@@ -69,17 +74,27 @@ export default async function GameDetailPage({
   }
   const game = gameResult.data;
 
-  const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division, suspensionsResult] = await Promise.all([
+  const none = { items: [], nextCursor: null };
+  const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division, suspensionsResult, gamePlayers] = await Promise.all([
     gameOps.eventsForGame(id).catch(() => []),
     stats.linesForGame(id).catch(() => []),
-    fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
-    fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    official
+      ? Promise.resolve(none)
+      : fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => none),
+    official
+      ? Promise.resolve(none)
+      : fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => none),
     gameOps.listOfficials(id).catch(() => []),
-    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    official
+      ? Promise.resolve(none)
+      : fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => none),
     game.divisionId ? leagueMgmt.getDivision(game.divisionId).catch(() => null) : Promise.resolve(null),
     // Suspensions issued from this game's penalties (COMP-10). Admin
     // console only: a scorekeeper gets a 403 here and sees no Suspend.
-    load(gameOps.listSuspensions({ gameId: id, limit: 100 }))
+    load(gameOps.listSuspensions({ gameId: id, limit: 100 })),
+    // Both teams' players for this game: names in the log for everyone,
+    // including a scorekeeper who cannot read the league's people.
+    gameOps.gamePlayers(id).catch(() => [])
   ]);
   const suspensionByEvent = new Map(
     (suspensionsResult.ok ? suspensionsResult.data.items : [])
@@ -99,20 +114,30 @@ export default async function GameDetailPage({
       : 3;
   const lastMove = game.reschedules?.length ? game.reschedules[game.reschedules.length - 1] : null;
 
-  const teamMap = new Map(
-    teamsPage.items.map((t) => [t.id, t.shortName ?? t.name])
-  );
-  const teamFullMap = new Map(teamsPage.items.map((t) => [t.id, t.name]));
+  // The game carries both team names, so the log reads right even when
+  // the viewer cannot list the league's teams (a scorekeeper).
+  const gameTeams: Array<[string, string]> = [
+    [game.homeTeamId, game.homeTeamName ?? "Home"],
+    [game.awayTeamId, game.awayTeamName ?? "Away"]
+  ];
+  const teamMap = new Map<string, string>([
+    ...gameTeams,
+    ...teamsPage.items.map((t) => [t.id, t.shortName ?? t.name] as [string, string])
+  ]);
+  const teamFullMap = new Map<string, string>([
+    ...gameTeams,
+    ...teamsPage.items.map((t) => [t.id, t.name] as [string, string])
+  ]);
   const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
-  const personMap = new Map(
-    personsPage.items.map((p) => [
-      p.id,
-      p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`
-    ])
-  );
+  const personMap = new Map<string, string>([
+    ...gamePlayers.flatMap((t) => t.players.map((p) => [p.personId, p.name] as [string, string])),
+    ...personsPage.items.map(
+      (p) => [p.id, p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`] as [string, string]
+    )
+  ]);
 
-  const homeName = teamFullMap.get(game.homeTeamId) ?? "Home";
-  const awayName = teamFullMap.get(game.awayTeamId) ?? "Away";
+  const homeName = teamFullMap.get(game.homeTeamId) ?? game.homeTeamName ?? "Home";
+  const awayName = teamFullMap.get(game.awayTeamId) ?? game.awayTeamName ?? "Away";
   const homeShort = teamMap.get(game.homeTeamId) ?? homeName;
   const awayShort = teamMap.get(game.awayTeamId) ?? awayName;
 
@@ -128,14 +153,14 @@ export default async function GameDetailPage({
         className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All games
+        {backLabel}
       </Link>
 
       {/* Scoreboard */}
       <section className="rounded-xl border border-border bg-surface-1">
         <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
           <div className="space-y-1">
-            <Eyebrow>{leagueMap.get(game.leagueId) ?? game.sportCode}</Eyebrow>
+            <Eyebrow>{leagueMap.get(game.leagueId) ?? (official ? "Scoresheet" : game.sportCode)}</Eyebrow>
             <p className="text-[13px] text-fg-muted">
               {fmtTime(game.scheduledStartTsUtc, game.tz)} ·{" "}
               <span className="font-mono text-[11px]">{game.tz}</span>
@@ -278,7 +303,10 @@ export default async function GameDetailPage({
                         <p className="mt-0.5 text-[12px] text-fg-muted">
                           {HOCKEY_INFRACTION_LABELS[String(e.attributes.infraction)] ?? "Penalty"},{" "}
                           {e.attributes.minutes} min
-                          {isEjectionType(e.attributes.ejection) ? `, ${EJECTION_LABELS[e.attributes.ejection].toLowerCase()}` : ""}
+                          {(() => {
+                            const c = penaltyClassOf(e.attributes);
+                            return c && MISCONDUCT_PENALTY_CLASSES.includes(c) ? ` · ${HOCKEY_PENALTY_CLASS_LABELS[c]}` : "";
+                          })()}
                         </p>
                       ) : null}
                       {e.eventType === "penalty" && e.primaryPersonId ? (

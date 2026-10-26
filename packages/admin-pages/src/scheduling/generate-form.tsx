@@ -12,6 +12,7 @@ import {
   scheduler,
   type GenerateResponse
 } from "./scheduler-client";
+import { BlackoutDates, type BlackoutApi } from "./blackout-dates";
 
 interface PublishBroadcast {
   seasonId: string;
@@ -42,6 +43,8 @@ interface Props {
     teamsNotified: number;
     notificationsQueued: number;
   }>;
+  /** Blackout dates on the server (FR-3.8.4). Hidden when not bound. */
+  blackoutApi?: BlackoutApi;
 }
 
 type RunStatus = GenerateResponse["status"];
@@ -64,11 +67,12 @@ function StatusIcon({ status }: { status: RunStatus }) {
   return <XCircle className={cls} strokeWidth={1.75} />;
 }
 
-export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, publishSchedule }: Props) {
+export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, publishSchedule, blackoutApi }: Props) {
   const [divisionId, setDivisionId] = useState(divisions[0]?.id ?? "");
   const [gamesPerPair, setGamesPerPair] = useState("1");
   const [timeLimit, setTimeLimit] = useState("60");
   const [seed, setSeed] = useState("");
+  const [weeklyMax, setWeeklyMax] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
@@ -125,7 +129,8 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
         seasonId, divisionId,
         gamesPerPair: Number(gamesPerPair) || 1,
         timeLimitSeconds: Number(timeLimit) || 60,
-        seed: seed.trim() || undefined
+        seed: seed.trim() || undefined,
+        maxGamesPerTeamPerWeek: weeklyMax ? Number(weeklyMax) : undefined
       });
       setResult(res);
     } catch (err) {
@@ -157,6 +162,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
   return (
     <div className="space-y-6">
       <LiveChannelBar status={channelStatus} lastBroadcast={lastBroadcast} />
+      {blackoutApi ? <BlackoutDates api={blackoutApi} disabled={submitting} /> : null}
       <form onSubmit={onSubmit} className="rounded-lg border border-border bg-bg p-6 space-y-5">
         <Field label="Division">
           <Select
@@ -169,7 +175,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
             ))}
           </Select>
         </Field>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
           <Field label="Games per pair" hint="1 = single round-robin, 2 = double">
             <Input type="number" min="1" max="4" value={gamesPerPair}
               onChange={(e) => setGamesPerPair(e.target.value)} disabled={submitting} />
@@ -177,6 +183,10 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
           <Field label="Time limit (seconds)" hint="Solver budget, max 300">
             <Input type="number" min="5" max="300" value={timeLimit}
               onChange={(e) => setTimeLimit(e.target.value)} disabled={submitting} />
+          </Field>
+          <Field label="Max games per team per week" hint="Optional. Checked after the run and reported">
+            <Input type="number" min="1" max="7" value={weeklyMax} placeholder="No limit"
+              onChange={(e) => setWeeklyMax(e.target.value)} disabled={submitting} />
           </Field>
           <Field label="Seed" hint="Leave blank for a random seed (stored for replay)">
             <Input value={seed} onChange={(e) => setSeed(e.target.value)}
@@ -192,7 +202,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
             )}
           </Button>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            Locked fixtures will be preserved.
+            Only draft games are replaced. Published, playoff and locked games stay.
           </span>
         </div>
       </form>
@@ -228,9 +238,25 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
             <>
               <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
                 <Metric label="Games created" value={result.gamesCreated} />
-                <Metric label="Locked preserved" value={result.gamesLockedPreserved ?? 0} />
-                <Metric label="Solve time" value={`${result.solveTimeMs ?? 0} ms`} />
+                <Metric label="Games kept" value={result.kept?.total ?? result.gamesLockedPreserved ?? 0} />
+                <Metric label="Home/away gap" value={result.maxHomeAwayImbalance ?? 0} />
               </div>
+              {result.message ? <p className="text-sm text-fg">{result.message}</p> : null}
+              {result.weeklyOverLimit && result.weeklyOverLimit.length > 0 ? (
+                <div className="rounded-md border border-border bg-bg-subtle p-3 text-sm">
+                  <p className="text-fg">
+                    {result.weeklyOverLimit.length} team weeks go over {weeklyMax} games. The solver cannot hold a weekly
+                    limit yet, so check these before you publish.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-fg-muted">
+                    {result.weeklyOverLimit.slice(0, 8).map((x) => (
+                      <li key={`${x.teamId}-${x.weekStart}`}>
+                        {teamNames[x.teamId] ?? "Unnamed team"}: {x.games} games in the week of {x.weekStart}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <div className="border-t border-border pt-5">
                 <div className="mb-3 flex items-center justify-between">
                   <div>

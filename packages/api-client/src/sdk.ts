@@ -1,5 +1,8 @@
 import type {
   AuditEvent,
+  ScheduleBlackout,
+  SeasonLeaders,
+  MisconductReport,
   AuditFacets,
   CaptainDuesBreakdown,
   ConsentSignature,
@@ -2073,9 +2076,32 @@ export function createApi(f: Fetcher) {
            *  (published_at IS NOT NULL). Consumer apps (player, team-admin)
            *  pass this so captains never see draft fixtures. */
           publishedOnly?: boolean;
+          /** A game-day official's own games (role or crew spot). */
+          assignedToMe?: boolean;
+          /** Assigner list: games with no official yet. */
+          withoutOfficials?: boolean;
         } = {}
       ) => f<Page<Game>>(`/games${qs(q)}`),
       getGame: (id: string) => f<Game>(`/games/${id}`),
+      /**
+       * Misconduct, game misconduct and match penalties of a season, with
+       * the suspension each led to (FR-3.5.4). Admins of the season's league.
+       */
+      misconductReport: (seasonId: string) =>
+        f<MisconductReport>(`/game-events/misconduct-report${qs({ seasonId })}`),
+      /** Does the caller run games (scorekeeper / referee role or a crew spot)? */
+      officiating: () => f<{ officiates: boolean }>("/games/officiating"),
+      /** People with a referee / scorekeeper role covering the game, and any clash. */
+      officialCandidates: (gameId: string) =>
+        f<Array<{ personId: string; name: string; roles: string[]; busyWith: string | null }>>(
+          `/games/${gameId}/official-candidates`
+        ),
+      /** Players the scoresheet may name, per team (season roster + guests). */
+      gamePlayers: (id: string) =>
+        f<Array<{
+          teamId: string;
+          players: Array<{ personId: string; name: string; jerseyNumber: number | null; guest: boolean }>;
+        }>>(`/games/${id}/players`),
       /**
        * Hand-made game in a division at a rink (SCH-5). Both teams must
        * be entered in the division (422 otherwise). The server reads the
@@ -2129,7 +2155,7 @@ export function createApi(f: Fetcher) {
        * Publish a generated schedule (SCH-8): flips the scope's games to
        * published and sends each team's people one "schedule is out" notice.
        */
-      publishSchedule: (body: { seasonId: string; divisionId?: string; scheduleRunId?: string }) =>
+      publishSchedule: (body: { seasonId: string; divisionId?: string; scheduleRunId?: string; gameType?: "regular" | "playoff" | "exhibition" }) =>
         f<{
           seasonId: string;
           divisionId: string | null;
@@ -2299,6 +2325,8 @@ export function createApi(f: Fetcher) {
           slot?: string | null;
           status?: GameOfficialStatus;
           notes?: string | null;
+          /** Assign although the person runs another game at that time. */
+          force?: boolean;
         }
       ) =>
         f<GameOfficial>(`/games/${gameId}/officials`, {
@@ -2315,6 +2343,12 @@ export function createApi(f: Fetcher) {
     },
 
     stats: {
+      /**
+       * Points, goals and assists leaders and team standings per division
+       * for one season, from finalized games only (FR-3.5.3).
+       */
+      seasonLeaders: (seasonId: string, q: { divisionId?: string; limit?: number } = {}) =>
+        f<SeasonLeaders>(`/stats/seasons/${seasonId}/leaders${qs(q)}`),
       listLines: (
         q: {
           limit?: number;
@@ -3506,6 +3540,22 @@ export function createApi(f: Fetcher) {
     // The data the scheduler reads from. Previously seeded via SQL
     // only; now mountable from the admin UI.
     schedulingInventory: {
+      /** Blackout dates the schedule generator leaves out (FR-3.8.4). */
+      listBlackouts: (seasonId: string) =>
+        f<{ seasonId: string; timezone: string; items: ScheduleBlackout[] }>(
+          `/scheduling/seasons/${seasonId}/blackouts`
+        ),
+      /** `surfaceId` omitted = every rink; `endDate` omitted = one day. */
+      createBlackout: (
+        seasonId: string,
+        body: { startDate: string; endDate?: string; surfaceId?: string; reason?: string }
+      ) =>
+        f<ScheduleBlackout>(`/scheduling/seasons/${seasonId}/blackouts`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      deleteBlackout: (id: string) =>
+        f<{ id: string; deleted: boolean }>(`/scheduling/blackouts/${id}`, { method: "DELETE" }),
       listVenues: (q?: { orgId?: string }) =>
         f<{
           items: Array<{

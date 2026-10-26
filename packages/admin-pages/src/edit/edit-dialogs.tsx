@@ -1,5 +1,6 @@
 "use client";
 
+import { PointsRuleFields, pointsRuleForm, pointsRuleFromForm, type PointsRuleForm } from "../divisions/points-rule-fields";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus } from "lucide-react";
@@ -577,15 +578,18 @@ type DivisionForm = {
   numberOfPeriods: string;
   periodLengthMin: string;
   maxRosterSize: string;
+  points: PointsRuleForm;
 };
 
 function DivisionFields({
   f,
   set,
+  setPoints,
   regions
 }: {
   f: DivisionForm;
-  set: (k: keyof DivisionForm, v: string) => void;
+  set: (k: Exclude<keyof DivisionForm, "points">, v: string) => void;
+  setPoints: (next: PointsRuleForm) => void;
   regions: Array<{ id: string; name: string }>;
 }) {
   return (
@@ -651,6 +655,7 @@ function DivisionFields({
           <Input type="number" min={1} value={f.maxRosterSize} onChange={(e) => set("maxRosterSize", e.target.value)} />
         </Field>
       </div>
+      <PointsRuleFields value={f.points} onChange={(next) => setPoints(next)} />
     </>
   );
 }
@@ -659,6 +664,8 @@ function divisionProblem(f: DivisionForm): string | null {
   if (!f.name.trim()) return "Division name is required.";
   if (f.maxTeams && Number(f.maxTeams) < 2) return "Max teams must be at least 2.";
   if (f.ageMin && f.ageMax && Number(f.ageMax) < Number(f.ageMin)) return "Max age must be at least min age.";
+  const pts = pointsRuleFromForm(f.points);
+  if ("problem" in pts) return pts.problem;
   return null;
 }
 
@@ -670,10 +677,12 @@ function mergedRules(existing: Record<string, unknown>, f: DivisionForm): Record
   if (f.numberOfPeriods) gameRules.numberOfPeriods = Number(f.numberOfPeriods);
   if (f.periodLengthMin) gameRules.periodLengthMin = Number(f.periodLengthMin);
   if (f.maxRosterSize) gameRules.maxRosterSize = Number(f.maxRosterSize);
+  const pts = pointsRuleFromForm(f.points);
   return {
     ...existing,
     gameRules,
-    ageRange: { min: num(f.ageMin), max: num(f.ageMax), label: f.ageLabel }
+    ageRange: { min: num(f.ageMin), max: num(f.ageMax), label: f.ageLabel },
+    ...("rule" in pts ? { pointsRule: pts.rule } : {})
   };
 }
 
@@ -699,7 +708,8 @@ export function NewDivisionButton({
     ageLabel: d.ageGroupLabel,
     numberOfPeriods: String(d.gameRules.numberOfPeriods),
     periodLengthMin: String(d.gameRules.periodLengthMin),
-    maxRosterSize: String(d.gameRules.maxRosterSize)
+    maxRosterSize: String(d.gameRules.maxRosterSize),
+    points: pointsRuleForm(null)
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(empty);
@@ -734,7 +744,7 @@ export function NewDivisionButton({
             );
           }}
         >
-          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} regions={regions} />
+          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} setPoints={(points) => setF((p) => ({ ...p, points }))} regions={regions} />
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Create division" onCancel={() => setOpen(false)} />
         </form>
@@ -768,7 +778,8 @@ export function EditDivisionButton({
     ageLabel: rules.ageRange?.label ?? "",
     numberOfPeriods: s(rules.gameRules?.numberOfPeriods),
     periodLengthMin: s(rules.gameRules?.periodLengthMin),
-    maxRosterSize: s(rules.gameRules?.maxRosterSize)
+    maxRosterSize: s(rules.gameRules?.maxRosterSize),
+    points: pointsRuleForm((division.ruleSetOverrides as { pointsRule?: unknown } | null)?.pointsRule)
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(initial);
@@ -797,8 +808,8 @@ export function EditDivisionButton({
             );
           }}
         >
-          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} regions={regions} />
-          <p className="text-[12px] text-fg-muted">Tiebreakers and playoff settings are kept as they are.</p>
+          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} setPoints={(points) => setF((p) => ({ ...p, points }))} regions={regions} />
+          <p className="text-[12px] text-fg-muted">Tiebreaker order and playoff settings are kept as they are (set in org setup). Standings use the points the next time a game is finalized.</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Save division" onCancel={() => setOpen(false)} />
         </form>

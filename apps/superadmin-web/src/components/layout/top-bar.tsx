@@ -1,8 +1,9 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { LogOut, Menu, Search } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { CircleDot, LogOut, Menu, Search } from "lucide-react";
 import { useNav } from "./nav-context";
 import { BreadcrumbTrail } from "./breadcrumb-trail";
 import { LiveDot } from "@/components/motion/kinetic";
@@ -14,10 +15,16 @@ import { LiveDot } from "@/components/motion/kinetic";
  */
 export function TopBar({
   email,
-  displayName
+  displayName,
+  officialMode = false
 }: {
   email: string;
   displayName: string | null;
+  /**
+   * Game-day official console: no menu or search, one link to their
+   * games (the only place they can go).
+   */
+  officialMode?: boolean;
 }) {
   const router = useRouter();
   const { setOpen } = useNav();
@@ -34,14 +41,24 @@ export function TopBar({
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-bg/60 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface-1 text-fg-muted transition-colors duration-fast ease-ease hover:bg-surface-2 hover:text-fg lg:hidden"
-          aria-label="Open menu"
-        >
-          <Menu className="h-4 w-4" strokeWidth={1.75} />
-        </button>
+        {officialMode ? (
+          <Link
+            href="/games"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-border bg-surface-1 px-3 text-[13px] font-medium text-fg transition-colors duration-fast ease-ease hover:bg-surface-2"
+          >
+            <CircleDot className="h-4 w-4" strokeWidth={1.75} />
+            My games
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface-1 text-fg-muted transition-colors duration-fast ease-ease hover:bg-surface-2 hover:text-fg lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        )}
 
         {/* Clickable trail (FR-3.12.2): names from the sidebar and the record. */}
         <div className="hidden min-w-0 sm:flex">
@@ -49,7 +66,7 @@ export function TopBar({
         </div>
 
         {/* Search — minimal inline, no boxed surface */}
-        <button
+        {officialMode ? null : <button
           type="button"
           className="ml-auto hidden items-center gap-2 rounded-md px-3 py-1.5 text-[13px] text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg md:inline-flex"
           aria-label="Search"
@@ -61,7 +78,7 @@ export function TopBar({
           <kbd className="ml-1 rounded border border-border bg-bg-subtle px-1.5 py-px font-mono text-[10px] text-fg-subtle">
             ⌘K
           </kbd>
-        </button>
+        </button>}
       </div>
 
       <div className="flex items-center gap-3">

@@ -163,6 +163,41 @@ export class DrizzleGameRepository implements GameRepository {
     if (q.leagueIdsFilter)
       cs.push(inArray(schema.games.leagueId, q.leagueIdsFilter));
     if (q.publishedOnly) cs.push(isNotNull(schema.games.publishedAt));
+    if (q.withoutOfficials) {
+      cs.push(sql`not exists (select 1 from game_officials o where o.game_id = ${schema.games.id} and o.revoked_at is null and o.status <> 'declined')`);
+    }
+    if (q.officiating) {
+      const o = q.officiating;
+      const any = [];
+      if (o.gameIds.length) any.push(inArray(schema.games.id, o.gameIds));
+      if (o.leagueIds.length) any.push(inArray(schema.games.leagueId, o.leagueIds));
+      if (o.divisionIds.length) any.push(inArray(schema.games.divisionId, o.divisionIds));
+      if (o.seasonIds.length) {
+        any.push(inArray(schema.games.seasonId, o.seasonIds));
+        any.push(
+          inArray(
+            schema.games.divisionId,
+            this.db
+              .select({ id: schema.divisions.id })
+              .from(schema.divisions)
+              .where(inArray(schema.divisions.seasonId, o.seasonIds))
+          )
+        );
+      }
+      if (o.orgIds.length) {
+        any.push(
+          inArray(
+            schema.games.leagueId,
+            this.db
+              .select({ id: schema.leagues.id })
+              .from(schema.leagues)
+              .where(inArray(schema.leagues.orgId, o.orgIds))
+          )
+        );
+      }
+      if (any.length === 0) return { items: [], nextCursor: null };
+      cs.push(or(...any)!);
+    }
 
     const rows = await this.db
       .select()

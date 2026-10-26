@@ -203,6 +203,9 @@ test.describe("J10 schedule generate and publish", () => {
   const teamName = `${RUN_TAG} Wolves`;
   let newTeamId = "";
   let gameId = "";
+  let runId = "";
+  let surfaceId = "";
+  const BLACKOUT_DAY = "2027-02-01";
 
   test.beforeAll(async ({ browser }) => {
     sa = await signedInAs(browser, "superAdmin");
@@ -213,7 +216,20 @@ test.describe("J10 schedule generate and publish", () => {
     divisionId = d[0]?.id ?? "";
   });
   test.afterAll(async () => {
-    console.log(`[J10] RUN_TAG=${RUN_TAG} venue="${venueName}" team="${teamName}" teamId=${newTeamId} gameId=${gameId}`);
+    console.log(`[J10] RUN_TAG=${RUN_TAG} venue="${venueName}" team="${teamName}" teamId=${newTeamId} gameId=${gameId} runId=${runId}`);
+    // Remove what this run generated on the shared season: its games,
+    // bracket, the ice it added for them and its blackout.
+    if (IS_STAGING) {
+      const run = await stagingSql<{ id: string }>(`select id from games where schedule_run_id = $1 or (slot_id in (select id from ice_slots where metadata->>'j10' = $2))`, [runId || null, RUN_TAG]).catch(() => []);
+      const ids = run.map((g) => g.id);
+      if (ids.length) {
+        await stagingSql(`delete from notifications where payload->>'gameId' = any($1::text[])`, [ids]).catch(() => {});
+        await stagingSql(`delete from games where id = any($1::uuid[])`, [ids]).catch(() => {});
+      }
+      await stagingSql(`delete from playoff_brackets where metadata->>'j10' = $1 or (season_id = $2 and division_id = $3 and generated_at > now() - interval '3 hours' and slots::text like '%' || $4 || '%')`, [RUN_TAG, seasonId, divisionId, surfaceId || "none"]).catch(() => {});
+      await stagingSql(`delete from ice_slots where metadata->>'j10' = $1`, [RUN_TAG]).catch(() => {});
+      await stagingSql(`delete from schedule_blackouts where season_id = $1 and reason = $2`, [seasonId, `${RUN_TAG} holiday`]).catch(() => {});
+    }
     console.log(`[J10] superadmin errors:\n  ${saErrors.join("\n  ")}`);
     await sa?.context.close();
   });
@@ -371,26 +387,68 @@ test.describe("J10 schedule generate and publish", () => {
     console.log(`[J10] teams entered in staging division: ${before[0]?.n} -> ${after[0]?.n}`);
   });
 
-  await test.step("3 · generate schedule for the season (UC-06)", async () => {
+  await test.step("3 · generate and publish the schedule (UC-06, FR-3.8.2, FR-3.8.4)", async () => {
     const { page, app } = sa;
+    // Setup (labelled j10=RUN_TAG, removed in afterAll): enough ice for the
+    // division's round robin, one night per fixture at 19:30 New York, plus
+    // two slots on the blackout day. The state under test (blackout,
+    // generate, publish, team schedules) is made in the UI.
+    const [surface] = await stagingSql<{ id: string }>(
+      `select f.id from surfaces f join venues v on v.id = f.venue_id where v.name = $1 and f.deleted_at is null limit 1`, [venueName]);
+    surfaceId = surface?.id ?? "";
+    expect(surfaceId, "J10 rink from step 1").not.toBe("");
+    const [{ n }] = await stagingSql<{ n: number }>(`select count(*)::int n from division_team_entries where division_id = $1 and left_at is null and entry_status in ('applied','accepted','confirmed')`, [divisionId]);
+    const fixtures = (n * (n - 1)) / 2;
+    for (let i = 0; i < fixtures + 2; i++) {
+      await stagingSql(`insert into ice_slots (surface_id, season_id, start_ts_utc, duration_min, tz, metadata) values ($1, $2, $3, 60, 'America/New_York', jsonb_build_object('j10', $4::text))`,
+        [surfaceId, seasonId, new Date(Date.UTC(2027, 1, 3 + i, 0, 30)).toISOString(), RUN_TAG]);
+    }
+    for (const t of ["2027-02-01T23:00:00Z", "2027-02-02T01:00:00Z"]) {
+      await stagingSql(`insert into ice_slots (surface_id, season_id, start_ts_utc, duration_min, tz, metadata) values ($1, $2, $3, 60, 'America/New_York', jsonb_build_object('j10', $4::text))`, [surfaceId, seasonId, t, RUN_TAG]);
+    }
+
     await page.goto(`${app}/dashboard`);
     const navLink = page.getByRole("link", { name: /^Schedul/i }).first();
     if (await navLink.isVisible().catch(() => false)) await navLink.click();
     else await page.goto(`${app}/scheduling`);
     await page.getByRole("row", { name: new RegExp(SEASON_NAME) }).getByRole("link", { name: /Generate/i }).click();
     await expect(page.getByRole("heading", { name: /Generate/ })).toBeVisible();
-    // Division picker is a dropdown of real divisions.
     await expect(page.getByRole("combobox", { name: "Division" })).toBeVisible();
 
-    const result = await edgeCall(page, "scheduler-generate", () => page.getByRole("button", { name: /^Generate$/ }).click());
-    console.log(`[J10] scheduler-generate → ${result}`);
-    await page.waitForTimeout(2000);
+    // FR-3.8.4: a blackout day, saved on the server and listed.
+    await page.getByLabel("First day").fill(BLACKOUT_DAY);
+    await page.getByLabel("Reason").fill(`${RUN_TAG} holiday`);
+    await page.getByRole("button", { name: "Add blackout" }).click();
+    await expect(page.getByRole("list", { name: "Blackout dates" })).toContainText(`${RUN_TAG} holiday`, { timeout: 20_000 });
+    const bl = await stagingSql(`select start_date::text d, surface_id from schedule_blackouts where season_id = $1 and reason = $2`, [seasonId, `${RUN_TAG} holiday`]);
+    expect(bl, "blackout row stored for every rink").toEqual([{ d: BLACKOUT_DAY, surface_id: null }]);
+
+    await page.getByRole("combobox", { name: "Division" }).selectOption(divisionId);
+    const resp = page.waitForResponse((r) => r.url().includes("/functions/v1/scheduler-generate") && r.request().method() === "POST", { timeout: 180_000 });
+    await page.getByRole("button", { name: /^Generate$/ }).click();
+    const r = await resp;
+    const body = await r.json().catch(() => ({}));
+    console.log(`[J10] scheduler-generate → ${r.status()} ${JSON.stringify(body).slice(0, 500)}`);
     await shot(page, "03-generate");
-    const visible = (await page.locator("main").innerText()).slice(0, 1500);
-    console.log(`[J10] generate screen: ${visible.replace(/\s+/g, " ").slice(0, 600)}`);
-    // SCH-1: all scheduler Edge Functions return 404 on staging.
-    expect.soft(result, "SCH-1 scheduler-generate reachable").toMatch(/^http 2\d\d/);
-    expect.soft(visible, "SCH-1 readable error").not.toMatch(/Failed to send a request to the Edge Function/);
+    expect(r.status(), "scheduler-generate answered").toBe(200);
+    expect(["OPTIMAL", "FEASIBLE"], `a schedule was made (not ${body.status}: ${body.infeasibility?.summary ?? body.error})`).toContain(body.status);
+    expect(body.gamesCreated, "games created").toBeGreaterThan(0);
+    runId = body.runId;
+    await expect(page.getByText(/draft games? created/).first(), "the result says what happened").toBeVisible({ timeout: 20_000 });
+    const made = await stagingSql<{ t: string; tz: string; published_at: string | null; h: string; a: string }>(
+      `select scheduled_start_ts_utc::text t, tz, published_at, home_team_id h, away_team_id a from games where schedule_run_id = $1`, [runId]);
+    expect(made.length, "db: one game per reported game").toBe(body.gamesCreated);
+    const local = made.map((g) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(g.t)));
+    expect(local.filter((d) => d === BLACKOUT_DAY), "no game on the blackout day").toEqual([]);
+    expect(made.every((g) => g.tz !== "UTC"), "games carry the rink zone, not UTC").toBe(true);
+    expect(body.maxHomeAwayImbalance ?? 99, "home and away balanced (gap at most 1)").toBeLessThanOrEqual(1);
+
+    const pub = page.waitForResponse((x) => /\/api\/games\/publish-schedule$/.test(x.url()), { timeout: 60_000 });
+    await page.getByRole("button", { name: /^Publish$/ }).click();
+    expect((await pub).status(), "publish accepted").toBeLessThan(300);
+    await expect(page.getByText(/games? published/).first()).toBeVisible({ timeout: 20_000 });
+    const [{ unpublished }] = await stagingSql<{ unpublished: number }>(`select count(*)::int unpublished from games where schedule_run_id = $1 and published_at is null`, [runId]);
+    expect(unpublished, "db: every generated game published").toBe(0);
   });
 
   await test.step("4 · every scheduling tab loads (runs, conflicts, fairness, verify, playoffs, tournament, parity, notifications)", async () => {
@@ -404,28 +462,43 @@ test.describe("J10 schedule generate and publish", () => {
       if (/Load failed|Failed to send a request|Request failed/i.test(text)) failures.push(`${tab}: ${text.match(/(Load failed|Failed to send[^\n]*|Request failed)/i)?.[0]}`);
       await shot(page, `04-tab-${tab}`);
     }
-    // Playoffs: generate bracket (UC-09). Needs playoff-reserved slots which the
-    // Venues UI cannot create (no is_playoff_reservation field).
+    // Playoffs (UC-09): a bracket must actually be generated. Setup: four
+    // playoff-reserved slots on the J10 rink (labelled, removed afterwards).
+    for (let i = 0; i < 4; i++) {
+      await stagingSql(`insert into ice_slots (surface_id, season_id, start_ts_utc, duration_min, tz, is_playoff_reservation, metadata) values ($1, $2, $3, 60, 'America/New_York', true, jsonb_build_object('j10', $4::text))`,
+        [surfaceId, seasonId, new Date(Date.UTC(2027, 3, 10 + i, 23, 0)).toISOString(), RUN_TAG]);
+    }
     await page.goto(`${app}/scheduling/${seasonId}/playoffs`);
     const gen = page.getByRole("button", { name: /Generate( bracket)?/i }).first();
     // The brackets load in the browser after the page renders: wait for the
     // Generate button or the bracket count before deciding which it is.
     await gen.or(page.getByText(/^\d+ brackets?$/i).first()).first().waitFor({ timeout: 30_000 }).catch(() => undefined);
-    if (await gen.isVisible().catch(() => false)) {
+    const hadBracket = !(await gen.isVisible().catch(() => false));
+    if (!hadBracket) {
+      await page.getByLabel("Division").selectOption(divisionId).catch(() => {});
+      await page.getByLabel("Teams in the bracket").fill("4");
       const r = await edgeCall(page, "scheduler-bracket-generate", () => gen.click());
       console.log(`[J10] bracket generate → ${r}`);
-      if (/^http 422 .*insufficient_(teams|playoff_slots)/.test(r)) {
-        // Correct refusal (too few teams, or no playoff ice marked): it must say so in words.
-        const said = await page.getByText(/Pick a smaller bracket or add teams|tick Playoff ice on the slots/).first().isVisible({ timeout: 10_000 }).catch(() => false);
-        console.log(`[J10] bracket refusal shown in words: ${said}`);
-        if (!said) failures.push(`playoffs generate: refusal not explained (${r})`);
-      } else if (!/^http 2/.test(r)) failures.push(`playoffs generate: ${r}`);
-    } else {
-      // Generate shows only for divisions without a bracket; earlier runs may
-      // have made one for every division. Then the page must list them.
-      const listed = await page.getByText(/^\d+ brackets?$/i).first().innerText().catch(() => "");
-      console.log(`[J10] no Generate button; page lists: "${listed}"`);
-      if (!/^[1-9]\d* brackets?$/i.test(listed)) failures.push("playoffs: no Generate bracket button and no bracket listed");
+      expect(r, "bracket generated (2xx)").toMatch(/^http 2/);
+    }
+    const [br] = await stagingSql<{ id: string; n: number }>(
+      `select b.id, (select count(*)::int from games g where g.season_id = b.season_id and g.division_id = b.division_id and g.game_type = 'playoff') n
+         from playoff_brackets b where b.season_id = $1 and b.division_id = $2 and b.state in ('pending','active') limit 1`, [seasonId, divisionId]);
+    console.log(`[J10] bracket row: ${JSON.stringify(br)} (existed before: ${hadBracket})`);
+    expect(br?.id, "db: an active bracket for the division").toBeTruthy();
+    expect(br?.n ?? 0, "db: the bracket's first-round games exist").toBeGreaterThan(0);
+    if (!hadBracket) {
+      await stagingSql(`update playoff_brackets set metadata = metadata || jsonb_build_object('j10', $2::text) where id = $1`, [br!.id, RUN_TAG]);
+      // FR-3.13.2: the bracket links its games and publishes them to team schedules.
+      await page.reload();
+      await expect(page.getByRole("link", { name: /^Open game/ }).first(), "bracket links to its games").toBeVisible({ timeout: 20_000 });
+      const pubResp = page.waitForResponse((x) => /\/api\/games\/publish-schedule$/.test(x.url()), { timeout: 60_000 });
+      await page.getByRole("button", { name: /^Publish \d+ playoff games?$/ }).first().click();
+      expect((await pubResp).status(), "playoff publish accepted").toBeLessThan(300);
+      await expect(page.getByText(/playoff games? published to team schedules/).first()).toBeVisible({ timeout: 20_000 });
+      const [{ n: draftsLeft }] = await stagingSql<{ n: number }>(
+        `select count(*)::int n from games where season_id = $1 and division_id = $2 and game_type = 'playoff' and published_at is null and status <> 'cancelled'`, [seasonId, divisionId]);
+      expect(draftsLeft, "db: bracket games published").toBe(0);
     }
     console.log(`[J10] tab failures:\n  ${failures.join("\n  ")}`);
     expect.soft(failures, "SCH-1 scheduling tabs load").toEqual([]);
@@ -530,6 +603,13 @@ test.describe("J10 schedule generate and publish", () => {
     const capText = await cap.page.locator("main").innerText();
     await cap.page.screenshot({ path: `${OUTPUT_DIR}/j10/06-captain-schedule.png`, fullPage: true });
     expect(capText, "SCH-7 captain /schedule lists the game vs the new team").toContain(RUN_TAG);
+    // The published generated schedule reaches the captain too (step 3).
+    if (runId) {
+      const [g] = await stagingSql<{ opp: string }>(
+        `select t.name opp from games g join teams t on t.id = case when g.home_team_id = (select id from teams where name = $2 and deleted_at is null limit 1) then g.away_team_id else g.home_team_id end
+          where g.schedule_run_id = $1 and (select id from teams where name = $2 and deleted_at is null limit 1) in (g.home_team_id, g.away_team_id) order by g.scheduled_start_ts_utc limit 1`, [runId, BASE_TEAM]);
+      if (g) expect(capText, "captain /schedule shows a generated game (opponent by name)").toContain(g.opp);
+    }
     // Lineups and schedule now read the same server rule (drafts never reach captains).
     await cap.page.goto(`${cap.app}/lineups`);
     const lineupsText = await cap.page.locator("main").innerText();
@@ -544,6 +624,13 @@ test.describe("J10 schedule generate and publish", () => {
     const plText = await pl.page.locator("main").innerText();
     await pl.page.screenshot({ path: `${OUTPUT_DIR}/j10/06-player-schedule.png`, fullPage: true });
     expect(plText, "SCH-7 player /schedule lists the game").toContain(RUN_TAG);
+    if (runId) {
+      const [{ n: mine }] = await stagingSql<{ n: number }>(
+        `select count(*)::int n from games where schedule_run_id = $1 and published_at is not null and (select id from teams where name = $2 and deleted_at is null limit 1) in (home_team_id, away_team_id)`, [runId, BASE_TEAM]);
+      expect(mine, "db: the player's team has published generated games").toBeGreaterThan(0);
+      // Times read in the rink's zone: 7:30 PM, never the UTC 12:30 AM.
+      expect(plText, "player schedule shows the 7:30 PM local start").toMatch(/7:30\s?PM/);
+    }
     // iCal export exists on player schedule (download only, no subscribe URL).
     const ical = pl.page.getByRole("button", { name: /calendar|ical|\.ics/i });
     console.log(`[J10] player iCal buttons: ${await ical.count()}`);

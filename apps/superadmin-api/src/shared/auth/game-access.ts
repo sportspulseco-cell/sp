@@ -1,8 +1,12 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { SYSTEM_ROLE_BY_CODE, permissionGranted } from "@sportspulse/kernel";
+import {
+  SYSTEM_ROLE_BY_CODE,
+  gameOfficialPermissions,
+  permissionGranted
+} from "@sportspulse/kernel";
 import type { UserScope } from "./scope";
 
 /**
@@ -119,6 +123,37 @@ export function rolePermissions(a: ActiveAssignment): string[] {
     : [];
 }
 
+/**
+ * The caller's live crew assignments from the game's Officials panel
+ * (game_officials rows on the caller's person). A row is a grant on that
+ * one game (kernel `gameOfficialPermissions`): assigning someone as
+ * scorekeeper lets them run that game's scoresheet. Declined and revoked
+ * rows grant nothing.
+ */
+export async function loadOfficialAssignments(
+  db: Pick<Database, "select">,
+  userId: string,
+  gameIds?: string[]
+): Promise<Array<{ gameId: string; role: string; status: string }>> {
+  if (gameIds && gameIds.length === 0) return [];
+  return db
+    .select({
+      gameId: schema.gameOfficials.gameId,
+      role: schema.gameOfficials.role,
+      status: schema.gameOfficials.status
+    })
+    .from(schema.gameOfficials)
+    .innerJoin(schema.persons, eq(schema.persons.id, schema.gameOfficials.personId))
+    .where(
+      and(
+        eq(schema.persons.userId, userId),
+        isNull(schema.gameOfficials.revokedAt),
+        ne(schema.gameOfficials.status, "declined"),
+        ...(gameIds ? [inArray(schema.gameOfficials.gameId, gameIds)] : [])
+      )
+    );
+}
+
 /** Scope fields of a game, or of a game about to be created (id ""). */
 export type GameScopeShape = Pick<
   GameScopeRef,
@@ -196,6 +231,14 @@ export async function accessForScope(
     covered = true;
     granted.push(...rolePermissions(a));
   }
+  if (g.id) {
+    for (const o of await loadOfficialAssignments(db, userId, [g.id])) {
+      const perms = gameOfficialPermissions(o.role, o.status);
+      if (perms.length === 0) continue;
+      covered = true;
+      granted.push(...perms);
+    }
+  }
   return { superAdmin: false, granted, covered };
 }
 
@@ -216,6 +259,13 @@ export async function accessForAnyScope(
     if (!shapes.some((g) => covers(a, g))) continue;
     covered = true;
     granted.push(...rolePermissions(a));
+  }
+  const gameIds = shapes.map((g) => g.id).filter(Boolean);
+  for (const o of await loadOfficialAssignments(db, userId, gameIds)) {
+    const perms = gameOfficialPermissions(o.role, o.status);
+    if (perms.length === 0) continue;
+    covered = true;
+    granted.push(...perms);
   }
   return { superAdmin: false, granted, covered };
 }
@@ -293,5 +343,52 @@ export async function userCanSeeDraftGamesAnywhere(db: Database, userId: string)
   const rows = await loadActiveAssignments(db, userId);
   return rows.some((a) =>
     DRAFT_VIEW_PERMISSIONS.some((p) => permissionGranted(rolePermissions(a), p))
+  );
+}
+
+/**
+ * Which games a game-day official runs, for their "My games" list: every
+ * scope where one of their role assignments grants the scoresheet
+ * (`game_event.write`), plus each game they are on the crew of. `all`
+ * means a platform-wide grant.
+ */
+export interface OfficiatingFilter {
+  all: boolean;
+  orgIds: string[];
+  leagueIds: string[];
+  seasonIds: string[];
+  divisionIds: string[];
+  gameIds: string[];
+}
+
+export async function officiatingFilter(db: Database, userId: string): Promise<OfficiatingFilter> {
+  const f: OfficiatingFilter = { all: false, orgIds: [], leagueIds: [], seasonIds: [], divisionIds: [], gameIds: [] };
+  if (await isSuperAdmin(db, userId)) return { ...f, all: true };
+  const [assignments, crew] = await Promise.all([
+    loadActiveAssignments(db, userId),
+    loadOfficialAssignments(db, userId)
+  ]);
+  for (const a of assignments) {
+    if (!permissionGranted(rolePermissions(a), "game_event.write")) continue;
+    if (a.scopeType === "platform") f.all = true;
+    if (!a.scopeId) continue;
+    if (a.scopeType === "org") f.orgIds.push(a.scopeId);
+    if (a.scopeType === "league") f.leagueIds.push(a.scopeId);
+    if (a.scopeType === "season") f.seasonIds.push(a.scopeId);
+    if (a.scopeType === "division") f.divisionIds.push(a.scopeId);
+    if (a.scopeType === "game") f.gameIds.push(a.scopeId);
+  }
+  for (const o of crew) {
+    if (gameOfficialPermissions(o.role, o.status).length > 0) f.gameIds.push(o.gameId);
+  }
+  return f;
+}
+
+/** True when the caller runs games anywhere (a game-day role or a crew spot). */
+export async function userOfficiatesGames(db: Database, userId: string): Promise<boolean> {
+  const f = await officiatingFilter(db, userId);
+  return (
+    f.all ||
+    f.orgIds.length + f.leagueIds.length + f.seasonIds.length + f.divisionIds.length + f.gameIds.length > 0
   );
 }

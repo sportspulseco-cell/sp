@@ -1,48 +1,28 @@
 ﻿/**
- * scheduler-bracket-advance â€” POST endpoint (pain #3 part 2).
+ * scheduler-bracket-advance - POST endpoint (FR-3.13.3).
  *
- * Given a finished bracket game + the winner, advance the winner into
- * the next round's slot. If the next slot now has both teams set,
- * create the corresponding `games` row using the next slot's
- * pre-reserved ice slot. If this was the final, mark the bracket
- * state='complete'.
+ * Move a bracket game's winner into the next round. The server decides
+ * the winner from the game's final score (completed or forfeited, not
+ * tied); a `winnerTeamId` that disagrees with the score is refused. When
+ * the next slot then has both teams, its game is created in that slot's
+ * reserved playoff ice (rink zone, draft until published). The final marks
+ * the bracket complete. The bracket update and the new game are one
+ * transaction with an optimistic lock (sp_bracket_advance, migration 0071),
+ * so two clicks cannot both advance.
  *
- * Permission: scheduler.run.
+ * Body: { bracketId, gameId, winnerTeamId? }. Permission: scheduler.run.
  */
 import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { loadEnv } from "../_shared/env.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
 import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
+import { homeAndAway, winnerFromResult, type BracketSlot } from "../_shared/bracket.ts";
+import { gameStartForSlot } from "../_shared/post-solve.ts";
 
 interface AdvanceBody {
   bracketId: string;
   gameId: string;
-  winnerTeamId: string;
-}
-
-interface BracketSlot {
-  round: number;
-  position: number;
-  iceSlotId: string;
-  startTsUtc: string;
-  surfaceLabel: string;
-  venueName: string;
-  gameId: string | null;
-  seedA: number | null;
-  seedB: number | null;
-  teamAId: string | null;
-  teamBId: string | null;
-  winnerTeamId: string | null;
-  nextSlotPosition: number | null;
-  nextSlotSide: "A" | "B" | null;
-}
-
-interface AdvanceResponse {
-  bracketId: string;
-  bracketState: string;
-  updatedSlot: { round: number; position: number };
-  nextSlot: { round: number; position: number; gameId: string | null } | null;
-  nextGameCreated: boolean;
+  winnerTeamId?: string;
 }
 
 function json(body: unknown, status = 200): Response {
@@ -59,15 +39,13 @@ Deno.serve(async (req) => {
 
   let body: AdvanceBody;
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
-  if (!body.bracketId || !body.gameId || !body.winnerTeamId) {
-    return json({ error: "missing_required_fields", fields: ["bracketId", "gameId", "winnerTeamId"] }, 400);
+  if (!body.bracketId || !body.gameId) {
+    return json({ error: "missing_required_fields", fields: ["bracketId", "gameId"] }, 400);
   }
 
   const env = loadEnv();
   const sb = serviceRoleClient(env);
-
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const jwt = authHeader.replace(/^Bearer\s+/i, "");
+  const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const { data: userData } = await sb.auth.getUser(jwt);
   const userId = userData?.user?.id;
   const appMetadata = (userData?.user?.app_metadata ?? null) as AppMetadata | null;
@@ -75,17 +53,17 @@ Deno.serve(async (req) => {
 
   const { data: bracket } = await sb
     .from("playoff_brackets")
-    .select("id, season_id, division_id, state, slots, seed_map")
+    .select("id, season_id, division_id, state, slots, updated_at")
     .eq("id", body.bracketId)
     .maybeSingle();
   if (!bracket) return json({ error: "bracket_not_found" }, 404);
   if (bracket.state !== "active") {
-    return json({ error: "bracket_not_active", state: bracket.state }, 409);
+    return json({ error: "bracket_not_active", state: bracket.state, message: "This bracket is finished." }, 409);
   }
 
   const { data: season } = await sb
     .from("seasons")
-    .select("id, org_id, league_id, sport_code")
+    .select("id, org_id, league_id, sport_code, timezone")
     .eq("id", bracket.season_id)
     .maybeSingle();
   if (!season) return json({ error: "season_not_found" }, 404);
@@ -98,99 +76,108 @@ Deno.serve(async (req) => {
   }, appMetadata);
   if (!allowed) return forbidden("scheduler.run permission required");
 
-  // deno-lint-ignore no-explicit-any
   const slots = (bracket.slots as BracketSlot[]).map((s) => ({ ...s }));
-  const currentIdx = slots.findIndex((s) => s.gameId === body.gameId);
-  if (currentIdx === -1) return json({ error: "game_not_in_bracket" }, 404);
-  const current = slots[currentIdx]!;
-
+  const current = slots.find((s) => s.gameId === body.gameId);
+  if (!current) return json({ error: "game_not_in_bracket" }, 404);
   if (current.winnerTeamId) {
-    return json({ error: "slot_already_decided", winnerTeamId: current.winnerTeamId }, 409);
-  }
-  if (body.winnerTeamId !== current.teamAId && body.winnerTeamId !== current.teamBId) {
-    return json({ error: "winner_not_in_slot" }, 400);
+    return json({ error: "slot_already_decided", winnerTeamId: current.winnerTeamId, message: "This game's winner already went through." }, 409);
   }
 
-  current.winnerTeamId = body.winnerTeamId;
+  // The final score decides who goes through.
+  const { data: game } = await sb
+    .from("games")
+    .select("id, status, home_team_id, away_team_id, home_score, away_score")
+    .eq("id", body.gameId)
+    .maybeSingle();
+  if (!game) return json({ error: "game_not_found" }, 404);
+  const winner = winnerFromResult({
+    status: game.status as string,
+    homeTeamId: game.home_team_id as string,
+    awayTeamId: game.away_team_id as string,
+    homeScore: Number(game.home_score ?? 0),
+    awayScore: Number(game.away_score ?? 0),
+  });
+  if (!winner) {
+    return json({
+      error: "game_not_decided",
+      message: game.status === "completed" || game.status === "forfeited"
+        ? "The final score is tied. A playoff game needs a winner: correct the score first."
+        : "Finalize the game first. The winner goes through from the final score.",
+    }, 409);
+  }
+  if (body.winnerTeamId && body.winnerTeamId !== winner) {
+    return json({ error: "winner_disagrees_with_score", winnerTeamId: winner, message: "The final score says the other team won." }, 409);
+  }
+  current.winnerTeamId = winner;
 
-  let nextGameCreated = false;
-  let nextSlotView: AdvanceResponse["nextSlot"] = null;
-
+  const games: Record<string, unknown>[] = [];
+  const provenance: Record<string, unknown>[] = [];
+  let state = "active";
+  let next: BracketSlot | undefined;
   if (current.nextSlotPosition === null || current.nextSlotSide === null) {
-    // This was the final.
-    await sb
-      .from("playoff_brackets")
-      .update({ slots, state: "complete", updated_at: new Date().toISOString() })
-      .eq("id", body.bracketId);
-    return json<AdvanceResponse>({
-      bracketId: body.bracketId,
-      bracketState: "complete",
-      updatedSlot: { round: current.round, position: current.position },
-      nextSlot: null,
-      nextGameCreated: false,
-    });
-  }
-
-  // Find the next slot.
-  const nextRound = current.round + 1;
-  const nextIdx = slots.findIndex(
-    (s) => s.round === nextRound && s.position === current.nextSlotPosition,
-  );
-  if (nextIdx === -1) return json({ error: "next_slot_missing" }, 500);
-  const next = slots[nextIdx]!;
-  if (current.nextSlotSide === "A") next.teamAId = body.winnerTeamId;
-  else next.teamBId = body.winnerTeamId;
-
-  // If both teams are set on the next slot and we haven't created a
-  // game for it yet, create one in its pre-reserved ice slot.
-  if (next.teamAId && next.teamBId && !next.gameId) {
-    const { data: iceSurface } = await sb
-      .from("ice_slots")
-      .select("surface_id")
-      .eq("id", next.iceSlotId)
-      .maybeSingle();
-    const surfaceId = iceSurface?.surface_id as string | undefined;
-    const gameId = crypto.randomUUID();
-    const { error: gErr } = await sb.from("games").insert({
-      id: gameId,
-      league_id: season.league_id,
-      season_id: bracket.season_id,
-      division_id: bracket.division_id,
-      sport_code: season.sport_code,
-      home_team_id: next.teamAId,
-      away_team_id: next.teamBId,
-      scheduled_start_ts_utc: next.startTsUtc,
-      venue_name: next.venueName,
-      surface_label: next.surfaceLabel,
-      slot_id: next.iceSlotId,
-      surface_id: surfaceId ?? null,
-      source: "generated",
-      game_type: "playoff",
-      status: "scheduled",
-    });
-    if (gErr) {
-      return json({ error: "next_game_insert_failed", detail: gErr.message }, 500);
+    state = "complete";
+  } else {
+    next = slots.find((s) => s.round === current.round + 1 && s.position === current.nextSlotPosition);
+    if (!next) return json({ error: "next_slot_missing" }, 500);
+    const seed = winner === current.teamAId ? current.seedA : current.seedB;
+    if (current.nextSlotSide === "A") { next.teamAId = winner; next.seedA = seed; }
+    else { next.teamBId = winner; next.seedB = seed; }
+    if (next.teamAId && next.teamBId && !next.gameId && next.iceSlotId) {
+      const { data: ice } = await sb
+        .from("ice_slots")
+        .select("id, surface_id, start_ts_utc, tz")
+        .eq("id", next.iceSlotId)
+        .maybeSingle();
+      const at = gameStartForSlot((ice?.start_ts_utc as string) ?? next.startTsUtc!, (ice?.tz as string) ?? null, season.timezone as string);
+      const gameId = crypto.randomUUID();
+      const { homeTeamId, awayTeamId } = homeAndAway(next);
+      games.push({
+        id: gameId,
+        league_id: season.league_id,
+        season_id: bracket.season_id,
+        division_id: bracket.division_id,
+        sport_code: season.sport_code,
+        home_team_id: homeTeamId,
+        away_team_id: awayTeamId,
+        scheduled_start_ts_utc: at.startTsUtc,
+        tz: at.tz,
+        venue_name: next.venueName,
+        surface_label: next.surfaceLabel,
+        slot_id: next.iceSlotId,
+        surface_id: (ice?.surface_id as string) ?? null,
+      });
+      provenance.push({ game_id: gameId });
+      next.gameId = gameId;
+      next.startTsUtc = at.startTsUtc;
     }
-    next.gameId = gameId;
-    nextGameCreated = true;
-    await sb.from("game_provenance").insert({
-      game_id: gameId,
-      placement_pass: "bracket",
-      constraint_ids: ["no_venue_double_book"],
-    });
   }
-  nextSlotView = { round: next.round, position: next.position, gameId: next.gameId };
 
-  await sb
-    .from("playoff_brackets")
-    .update({ slots, updated_at: new Date().toISOString() })
-    .eq("id", body.bracketId);
+  const { error: rpcErr } = await sb.rpc("sp_bracket_advance", {
+    p_bracket_id: body.bracketId,
+    p_expected_updated_at: bracket.updated_at,
+    p_slots: slots,
+    p_state: state,
+    p_games: games,
+    p_provenance: provenance,
+  });
+  if (rpcErr) {
+    const changed = /bracket_changed/.test(rpcErr.message);
+    console.error(`bracket-advance failed bracket=${body.bracketId} game=${body.gameId}: ${rpcErr.message}`);
+    return json(
+      changed
+        ? { error: "bracket_changed", message: "Someone else just updated this bracket. Reload and try again." }
+        : { error: "bracket_write_failed", detail: rpcErr.message, message: "Nothing was saved. Try again." },
+      changed ? 409 : 500,
+    );
+  }
+  console.log(`bracket-advance bracket=${body.bracketId} game=${body.gameId} winner=${winner} state=${state} newGames=${games.length}`);
 
-  return json<AdvanceResponse>({
+  return json({
     bracketId: body.bracketId,
-    bracketState: "active",
+    bracketState: state,
+    winnerTeamId: winner,
     updatedSlot: { round: current.round, position: current.position },
-    nextSlot: nextSlotView,
-    nextGameCreated,
+    nextSlot: next ? { round: next.round, position: next.position, gameId: next.gameId } : null,
+    nextGameCreated: games.length > 0,
   });
 });

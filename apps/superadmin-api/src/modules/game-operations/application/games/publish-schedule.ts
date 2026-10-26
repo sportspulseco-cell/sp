@@ -28,6 +28,8 @@ export interface PublishScheduleInput {
   seasonId: string;
   divisionId?: string;
   scheduleRunId?: string;
+  /** Only games of this type (bracket page publishes "playoff"). */
+  gameType?: "regular" | "playoff" | "exhibition";
   userId: string;
   /** The caller's bearer header, forwarded to rink-notify-dispatch. */
   authorization?: string;
@@ -80,6 +82,7 @@ export class PublishScheduleHandler {
          and status <> 'cancelled'
          ${input.divisionId ? sql`and division_id = ${input.divisionId}` : sql``}
          ${input.scheduleRunId ? sql`and schedule_run_id = ${input.scheduleRunId}` : sql``}
+         ${input.gameType ? sql`and game_type = ${input.gameType}` : sql``}
       returning id, home_team_id, away_team_id, scheduled_start_ts_utc, tz, venue_name, surface_label`);
     const rows = rowsOf<PublishedRow>(result);
 

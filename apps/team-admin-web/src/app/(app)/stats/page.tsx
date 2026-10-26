@@ -12,6 +12,7 @@ import {
 import type { Standing, StatLine } from "@sportspulse/api-client";
 import { captain, leagueMgmt, loadMeScope, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { SeasonLeadersBlock } from "@sportspulse/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Stats - Team Admin" };
@@ -75,6 +76,11 @@ export default async function TeamAdminStatsPage() {
     )
   ]);
   const leagueId = seasonRow?.leagueId ?? null;
+  // Division leaders of the team's season (FR-3.5.3), finalized games only.
+  const leaders = division
+    ? await stats.seasonLeaders(season.id, { divisionId: division.id }).catch(() => null)
+    : null;
+  const myDivisionLeaders = leaders?.divisions[0] ?? null;
   const leagueStandings: Standing[] = leagueId
     ? await stats.standings(leagueId).catch(() => [] as Standing[])
     : [];
@@ -171,6 +177,13 @@ export default async function TeamAdminStatsPage() {
           </Table>
         )}
       </section>
+
+      {myDivisionLeaders ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-fg">Leaders · {myDivisionLeaders.divisionName}</h2>
+          <SeasonLeadersBlock data={myDivisionLeaders} highlightTeamId={teamId} showStandings={false} />
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-fg">Player stats · {season.name}</h2>

@@ -132,17 +132,19 @@ Deno.serve(async (req) => {
     const { data: teams } = await sb.from("teams").select("id, name").in("id", [...allTeamIds]);
     for (const t of teams ?? []) teamNameById.set(t.id as string, t.name as string);
   }
-  const gameStatusById = new Map<string, { status: string; home: number | null; away: number | null }>();
+  const gameStatusById = new Map<string, { status: string; home: number | null; away: number | null; published: boolean; homeTeamId: string }>();
   if (allGameIds.size > 0) {
     const { data: games } = await sb
       .from("games")
-      .select("id, status, home_score, away_score")
+      .select("id, status, home_score, away_score, published_at, home_team_id")
       .in("id", [...allGameIds]);
     for (const g of games ?? []) {
       gameStatusById.set(g.id as string, {
         status: g.status as string,
         home: g.home_score as number | null,
         away: g.away_score as number | null,
+        published: !!g.published_at,
+        homeTeamId: g.home_team_id as string,
       });
     }
   }
@@ -169,10 +171,15 @@ Deno.serve(async (req) => {
         venueName: s.venueName,
         gameId: s.gameId,
         gameStatus: gs?.status ?? null,
-        homeScore: gs?.home ?? null,
-        awayScore: gs?.away ?? null,
+        // Scores per side of the slot (A, B): the better seed is home, which
+        // can be side B in later rounds.
+        homeScore: gs ? (gs.homeTeamId === s.teamAId ? gs.home : gs.away) : null,
+        awayScore: gs ? (gs.homeTeamId === s.teamAId ? gs.away : gs.home) : null,
         seedA: s.seedA,
         seedB: s.seedB,
+        // deno-lint-ignore no-explicit-any
+        bye: !!(s as any).bye,
+        published: gs?.published ?? false,
         teamAId: s.teamAId,
         teamBId: s.teamBId,
         teamAName: s.teamAId ? (teamNameById.get(s.teamAId) ?? null) : null,

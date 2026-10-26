@@ -774,7 +774,7 @@ export interface GameFinalizeSummary {
   statLinesWritten: number;
   standingsTeamsRanked: number;
   standingsGamesCounted: number;
-  pointsRuleSource: "default" | "request";
+  pointsRuleSource: "default" | "request" | "division" | "season";
   notificationRecipients: number;
   notificationsQueued: number;
   /** Game-count suspensions that counted this game (COMP-10). */
@@ -852,6 +852,8 @@ export interface GameOfficial {
   id: string;
   gameId: string;
   personId: string;
+  /** Filled by the per-game list. */
+  personName?: string | null;
   role: GameOfficialRole;
   slot: string | null;
   status: GameOfficialStatus;
@@ -1530,4 +1532,76 @@ export interface TeamStoreProduct {
   createdByUserId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A blackout day or range for the schedule generator (FR-3.8.4). */
+export interface ScheduleBlackout {
+  id: string;
+  startDate: string;
+  endDate: string;
+  /** null = every rink. */
+  surfaceId: string | null;
+  rinkLabel?: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+/** One leader row (FR-3.5.3). */
+export interface SeasonLeader {
+  personId: string;
+  personName: string | null;
+  teamId: string;
+  teamName: string | null;
+  gp: number;
+  goals: number;
+  assists: number;
+  points: number;
+}
+
+/** Leaders and standings of one division in one season. */
+export interface DivisionLeaders {
+  divisionId: string;
+  divisionName: string;
+  leaders: { points: SeasonLeader[]; goals: SeasonLeader[]; assists: SeasonLeader[] };
+  standings: Array<{
+    teamId: string;
+    teamName: string | null;
+    rank: number | null;
+    gp: number; w: number; l: number; t: number; otl: number;
+    points: number; gf: number; ga: number; gd: number;
+  }>;
+}
+
+export interface SeasonLeaders {
+  seasonId: string;
+  seasonName: string;
+  divisions: DivisionLeaders[];
+}
+
+/** FR-3.5.4 misconduct report for one season. */
+export interface MisconductReport {
+  seasonId: string;
+  seasonName: string;
+  items: Array<{
+    eventId: string;
+    gameId: string;
+    gameStartTsUtc: string;
+    tz: string;
+    gameLabel: string;
+    divisionName: string | null;
+    period: number | null;
+    clockRemainingSec: number | null;
+    personId: string | null;
+    personName: string | null;
+    teamId: string | null;
+    teamName: string | null;
+    infraction: string | null;
+    infractionLabel: string | null;
+    minutes: number | null;
+    penaltyClass: string;
+    penaltyClassLabel: string;
+    ejection: boolean;
+    suspension: { id: string; status: string; kind: string; nGames: number | null } | null;
+  }>;
+  players: Array<{ personId: string; personName: string | null; teamName: string | null; count: number; ejections: number }>;
 }

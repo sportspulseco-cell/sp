@@ -15,6 +15,7 @@ import {
 import type { Game, StatLine } from "@sportspulse/api-client";
 import { gameOps, loadMeScope, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
+import { SeasonLeadersBlock } from "@sportspulse/ui";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -89,6 +90,15 @@ export default async function StatsPage({
     ? allLines.filter((s) => s.seasonId === seasonFilter)
     : allLines;
   const games: Game[] = gamesPage.items;
+  // My division's standings and leaders (FR-3.5.3): the chosen season, else
+  // the season of my team's latest game; finalized games only.
+  const latest = [...games]
+    .filter((g) => g.seasonId && g.divisionId && (!seasonFilter || g.seasonId === seasonFilter))
+    .sort((a, b) => b.scheduledStartTsUtc.localeCompare(a.scheduledStartTsUtc))[0];
+  const leaders = latest
+    ? await stats.seasonLeaders(latest.seasonId!, { divisionId: latest.divisionId! }).catch(() => null)
+    : null;
+  const myDivision = leaders?.divisions[0] ?? null;
   const gameById = new Map<string, Game>(games.map((g: Game) => [g.id, g]));
 
   // Aggregate season totals from individual stat lines. The
@@ -330,6 +340,12 @@ export default async function StatsPage({
           </section>
         </>
       )}
+      {myDivision ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-fg">{leaders?.seasonName} · {myDivision.divisionName}</h2>
+          <SeasonLeadersBlock data={myDivision} highlightTeamId={myTeamId} />
+        </section>
+      ) : null}
     </div>
   );
 }
