@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import {
   BadRequestException,
   Body,
@@ -103,15 +104,6 @@ function readSplitMethod(metadata: unknown): SplitMethod | null {
   return m === "even" || m === "custom" ? m : null;
 }
 
-function fmtMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-      cents / 100
-    );
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
-}
 
 /**
  * Status of a player's share after its total changes. Issued shares
@@ -522,7 +514,7 @@ export class CaptainDuesController {
         if (sum !== target) {
           throw new UnprocessableEntityException({
             error: "split_sum_mismatch",
-            message: `Shares must add up to the team fee exactly: got ${fmtMoney(sum, currency)}, team fee is ${fmtMoney(target, currency)}.`,
+            message: `Shares must add up to the team fee exactly: got ${formatMoney(sum, currency)}, team fee is ${formatMoney(target, currency)}.`,
             sumCents: sum,
             targetCents: target
           });
@@ -534,7 +526,7 @@ export class CaptainDuesController {
         if (amount < r.sub.paidCents) {
           throw new UnprocessableEntityException({
             error: "below_paid",
-            message: `${r.label} has already paid ${fmtMoney(r.sub.paidCents, currency)}; their share cannot be less than that.`,
+            message: `${r.label} has already paid ${formatMoney(r.sub.paidCents, currency)}; their share cannot be less than that.`,
             invoiceId: r.sub.id
           });
         }
@@ -655,7 +647,7 @@ export class CaptainDuesController {
     if (remaining < 0) {
       throw new UnprocessableEntityException({
         error: "below_charged",
-        message: `${label} already has ${fmtMoney(fixedSum, currency)} charged on a payment plan; their share cannot be less than that.`,
+        message: `${label} already has ${formatMoney(fixedSum, currency)} charged on a payment plan; their share cannot be less than that.`,
         invoiceId
       });
     }
@@ -967,7 +959,7 @@ export class CaptainDuesController {
     if (master.paidCents > 0) {
       throw new ConflictException({
         error: "master_paid",
-        message: `${fmtMoney(master.paidCents, master.currency)} is already paid on this team invoice. Ask your league admin before splitting it.`
+        message: `${formatMoney(master.paidCents, master.currency)} is already paid on this team invoice. Ask your league admin before splitting it.`
       });
     }
     const target = master.totalCents;
@@ -996,7 +988,7 @@ export class CaptainDuesController {
       if (sum !== target) {
         throw new UnprocessableEntityException({
           error: "split_sum_mismatch",
-          message: `Shares must add up to the team fee exactly: got ${fmtMoney(sum, master.currency)}, team fee is ${fmtMoney(target, master.currency)}.`,
+          message: `Shares must add up to the team fee exactly: got ${formatMoney(sum, master.currency)}, team fee is ${formatMoney(target, master.currency)}.`,
           sumCents: sum,
           targetCents: target
         });

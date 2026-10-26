@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import type { ReactNode } from "react";
 import { ArrowLeft, Network } from "lucide-react";
 import Link from "next/link";
@@ -5,12 +6,6 @@ import { Badge, Eyebrow, IconTile, Reveal, statusTone } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { Field } from "./field";
 
-function fmtCents(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD"
-  });
-}
 
 /**
  * Read-only team detail. Pure presentational — each app fetches
@@ -94,7 +89,7 @@ export function TeamDetail({
             tag="teams.confirmation_threshold_cents"
             mono
           >
-            {fmtCents(team.confirmationThresholdCents)}
+            {formatMoney(team.confirmationThresholdCents)}
           </Field>
         </dl>
       </Reveal>

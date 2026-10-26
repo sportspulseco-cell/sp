@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { eq, inArray } from "drizzle-orm";
@@ -54,10 +55,7 @@ export class InvoiceNoticesService {
       if (inv.status === "draft" || inv.status === "void") return;
       const email = inv.accountEmail ?? inv.invoiceEmail ?? null;
       if (!inv.personId && !email) return;
-      const amountLabel = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: inv.currency || "USD"
-      }).format((inv.totalCents ?? 0) / 100);
+      const amountLabel = formatMoney(inv.totalCents ?? 0, inv.currency || "USD");
       const dueLabel = inv.dueAt
         ? new Date(inv.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
         : "on receipt";

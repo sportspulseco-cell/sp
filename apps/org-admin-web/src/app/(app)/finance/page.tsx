@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 /* Hallmark · page: list (finance) · genre: editorial · theme: project
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -17,12 +18,6 @@ import { InvoiceTable } from "./invoice-table";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Finance - Org Admin" };
 
-function fmtMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 export default async function FinancePage() {
   const scope = await iam.meScope().catch(() => null);
@@ -80,7 +75,7 @@ export default async function FinancePage() {
           <StatTile
             icon={Wallet}
             label="Outstanding"
-            value={fmtMoney(balanceCents, currency)}
+            value={formatMoney(balanceCents, currency)}
             hint={`${open.length} open invoice${open.length === 1 ? "" : "s"}`}
             tone={overdueCount > 0 ? "rose" : "blue"}
           />

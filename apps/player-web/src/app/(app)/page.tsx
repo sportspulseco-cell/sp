@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import {
@@ -43,12 +44,6 @@ export const revalidate = 0;
 
 /* ----------------------------- helpers ----------------------------- */
 
-function fmtMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 // In the game's own zone.
 function fmtDateTime(iso: string, tz: string): string {
@@ -332,7 +327,7 @@ export default async function PlayerHome() {
         <Kpi
           icon={Wallet}
           label="Balance due"
-          value={fmtMoney(balanceCents, currency)}
+          value={formatMoney(balanceCents, currency)}
           hint={
             balanceCents === 0
               ? "Paid in full"
@@ -669,7 +664,7 @@ function PaymentsSummary({
             Paid in full
           </p>
           <p className="mt-1 text-[12px] text-fg-muted">
-            {fmtMoney(totalReceived, currency)} received this season.
+            {formatMoney(totalReceived, currency)} received this season.
           </p>
         </div>
       ) : (
@@ -685,7 +680,7 @@ function PaymentsSummary({
             >
               <p className="flex items-center gap-1.5 font-medium">
                 <AlertCircle className="h-3.5 w-3.5" strokeWidth={2} />
-                {fmtMoney(next.totalCents - next.paidCents, next.currency)}{" "}
+                {formatMoney(next.totalCents - next.paidCents, next.currency)}{" "}
                 {isOverdue ? "overdue" : "due soon"}
                 {next.dueAt ? ` · ${fmtDate(next.dueAt)}` : ""}
               </p>
@@ -718,7 +713,7 @@ function PaymentsSummary({
                   ) : null}
                 </div>
                 <span className="font-mono text-[12px] tabular-nums text-fg">
-                  {fmtMoney(inv.totalCents - inv.paidCents, inv.currency)}
+                  {formatMoney(inv.totalCents - inv.paidCents, inv.currency)}
                 </span>
               </li>
             ))}
@@ -726,7 +721,7 @@ function PaymentsSummary({
           <p className="border-t border-border pt-3 text-[11px] text-fg-muted">
             Paid so far:{" "}
             <span className="text-[var(--tint-emerald-fg)]">
-              {fmtMoney(totalReceived, currency)}
+              {formatMoney(totalReceived, currency)}
             </span>
           </p>
         </div>

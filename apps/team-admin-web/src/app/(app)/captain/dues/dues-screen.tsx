@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
@@ -15,12 +16,6 @@ type SubInvoice = Breakdown["subInvoices"][number];
 
 type SplitMode = "even" | "custom";
 
-function fmt(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 export function DuesScreen({
   teamId,
@@ -225,7 +220,7 @@ export function DuesScreen({
   async function coverOutstanding() {
     if (
       !confirm(
-        `Charge your card ${fmt(outstanding, currency)} to cover all unpaid sub-invoices?`
+        `Charge your card ${formatMoney(outstanding, currency)} to cover all unpaid sub-invoices?`
       )
     )
       return;
@@ -238,7 +233,7 @@ export function DuesScreen({
       });
       setFlash(
         res.charged > 0
-          ? `Charged ${fmt(res.charged, currency)} — covered ${res.covered} player${res.covered === 1 ? "" : "s"}.`
+          ? `Charged ${formatMoney(res.charged, currency)} — covered ${res.covered} player${res.covered === 1 ? "" : "s"}.`
           : "Nothing outstanding."
       );
       await refresh();
@@ -271,8 +266,8 @@ export function DuesScreen({
         [
           escapeCsv(r.playerName ?? r.recipientEmail ?? r.id),
           r.invoiceNumber,
-          fmt(r.totalCents, r.currency),
-          fmt(r.paidCents, r.currency),
+          formatMoney(r.totalCents, r.currency),
+          formatMoney(r.paidCents, r.currency),
           rowStatusFor(r),
           r.dueAt ? new Date(r.dueAt).toLocaleDateString("en-CA") : "—"
         ].join(",")
@@ -317,7 +312,7 @@ export function DuesScreen({
                 >
                   {data.masters.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.label} · {m.invoiceNumber} · {fmt(m.totalCents, currency)}
+                      {m.label} · {m.invoiceNumber} · {formatMoney(m.totalCents, currency)}
                     </option>
                   ))}
                 </select>
@@ -340,16 +335,16 @@ export function DuesScreen({
                 Collected
               </p>
               <p className="mt-1 font-mono text-[26px] font-semibold tabular-nums text-fg">
-                {fmt(data.collectedCents, currency)}
+                {formatMoney(data.collectedCents, currency)}
               </p>
             </div>
             <div className="text-right">
               <p className="font-mono text-[11px] uppercase tracking-widest text-fg-muted">
-                of {fmt(data.totalCents, currency)} total
+                of {formatMoney(data.totalCents, currency)} total
               </p>
               {data.thresholdCents > 0 && (
                 <p className="mt-0.5 font-mono text-[11px] text-fg-muted">
-                  Confirms at {fmt(data.thresholdCents, currency)}
+                  Confirms at {formatMoney(data.thresholdCents, currency)}
                 </p>
               )}
             </div>
@@ -364,7 +359,7 @@ export function DuesScreen({
             {data.thresholdCents > 0 && thresholdPct > 0 && thresholdPct < 100 && (
               <span
                 aria-label="confirmation threshold"
-                title={`Threshold ${fmt(data.thresholdCents, currency)}`}
+                title={`Threshold ${formatMoney(data.thresholdCents, currency)}`}
                 className="absolute -top-1 h-4 w-px bg-[var(--success)]"
                 style={{ left: `${thresholdPct}%` }}
               />
@@ -381,7 +376,7 @@ export function DuesScreen({
             ) : (
               data.thresholdCents > 0 && (
                 <span>
-                  {fmt(
+                  {formatMoney(
                     Math.max(0, data.thresholdCents - data.collectedCents),
                     currency
                   )}{" "}
@@ -419,7 +414,7 @@ export function DuesScreen({
                 ) : (
                   <CircleDollarSign className="mr-2 h-4 w-4" />
                 )}
-                Cover outstanding ({fmt(outstanding, currency)})
+                Cover outstanding ({formatMoney(outstanding, currency)})
               </Button>
             </div>
             <Button variant="ghost" onClick={exportCsv}>
@@ -469,7 +464,7 @@ export function DuesScreen({
                 </label>
               ) : (
                 <span className={firstCustomSum === targetCents ? "text-fg-muted" : "font-medium text-[var(--tint-rose-fg)]"}>
-                  {fmt(firstCustomSum, currency)} of {fmt(targetCents, currency)}
+                  {formatMoney(firstCustomSum, currency)} of {formatMoney(targetCents, currency)}
                 </span>
               )}
               <Button
@@ -493,7 +488,7 @@ export function DuesScreen({
           ) : (
             <>
               <p className="px-5 pt-4 text-[12px] text-fg-muted">
-                Your league sent the team one invoice for {fmt(targetCents, currency)}. Split it and each
+                Your league sent the team one invoice for {formatMoney(targetCents, currency)}. Split it and each
                 player gets their own invoice for their share; they pay it in the player app.
               </p>
               <table className="mt-2 w-full text-[13px]">
@@ -580,12 +575,12 @@ export function DuesScreen({
                   customBalanced ? "text-fg-muted" : "font-medium text-[var(--tint-rose-fg)]"
                 }
               >
-                {fmt(customSum, currency)} of {fmt(targetCents, currency)}
+                {formatMoney(customSum, currency)} of {formatMoney(targetCents, currency)}
                 {customBalanced
                   ? ""
                   : customSum > targetCents
-                    ? ` · ${fmt(customSum - targetCents, currency)} too much`
-                    : ` · ${fmt(targetCents - customSum, currency)} left to assign`}
+                    ? ` · ${formatMoney(customSum - targetCents, currency)} too much`
+                    : ` · ${formatMoney(targetCents - customSum, currency)} left to assign`}
               </span>
             )}
             <Button
@@ -730,7 +725,7 @@ function PlayerRow({
             />
           </div>
           <span className="font-mono text-[12px] tabular-nums text-fg-muted">
-            {fmt(sub.paidCents, currency)}
+            {formatMoney(sub.paidCents, currency)}
           </span>
         </div>
       </td>

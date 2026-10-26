@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -9,9 +10,6 @@ import { PageHeader } from "@/components/layout/page-header";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice — SportsPulse" };
 
-function money(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD" }).format(cents / 100);
-}
 function day(iso: string | null | undefined) {
   return iso
     ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
@@ -49,9 +47,9 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
 
       <section className="grid gap-3 sm:grid-cols-3">
         {[
-          ["Total", money(invoice.totalCents, cur)],
-          ["Paid", money(invoice.paidCents, cur)],
-          ["Outstanding", money(outstanding, cur)]
+          ["Total", formatMoney(invoice.totalCents, cur)],
+          ["Paid", formatMoney(invoice.paidCents, cur)],
+          ["Outstanding", formatMoney(outstanding, cur)]
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border border-border bg-surface-1 p-4">
             <p className="text-[12px] text-fg-muted">{label}</p>
@@ -75,7 +73,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
               <TR key={it.id}>
                 <TD>{it.description}</TD>
                 <TD>{it.quantity}</TD>
-                <TD className="text-right font-mono tabular-nums">{money(it.unitAmountCents * it.quantity, cur)}</TD>
+                <TD className="text-right font-mono tabular-nums">{formatMoney(it.unitAmountCents * it.quantity, cur)}</TD>
               </TR>
             ))}
           </TBody>
@@ -102,7 +100,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                   <TD>{day(p.receivedAt)}</TD>
                   <TD>{p.method.replace(/_/g, " ")}</TD>
                   <TD>{p.status}</TD>
-                  <TD className="text-right font-mono tabular-nums">{money(p.amountCents, p.currency)}</TD>
+                  <TD className="text-right font-mono tabular-nums">{formatMoney(p.amountCents, p.currency)}</TD>
                 </TR>
               ))}
             </TBody>
@@ -128,7 +126,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                   <TD>{i.installmentNumber === 0 ? "Deposit" : i.installmentNumber}</TD>
                   <TD>{day(i.dueDate)}</TD>
                   <TD>{i.status}</TD>
-                  <TD className="text-right font-mono tabular-nums">{money(i.amountCents, cur)}</TD>
+                  <TD className="text-right font-mono tabular-nums">{formatMoney(i.amountCents, cur)}</TD>
                 </TR>
               ))}
             </TBody>
@@ -152,7 +150,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                 <TR key={r.id}>
                   <TD>{r.refundType.replace(/_/g, " ")}</TD>
                   <TD>{r.reason}</TD>
-                  <TD className="text-right font-mono tabular-nums">{money(r.amountCents, r.currency)}</TD>
+                  <TD className="text-right font-mono tabular-nums">{formatMoney(r.amountCents, r.currency)}</TD>
                 </TR>
               ))}
             </TBody>

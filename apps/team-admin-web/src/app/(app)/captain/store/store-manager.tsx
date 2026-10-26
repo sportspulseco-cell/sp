@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
@@ -46,12 +47,6 @@ function productToForm(p: Product): FormState {
   };
 }
 
-function fmt(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 export function StoreManager({
   teamId,
@@ -324,7 +319,7 @@ function ProductRow({
           )}
         </div>
         <p className="text-xs text-fg-muted">
-          {fmt(p.priceCents, p.currency)}
+          {formatMoney(p.priceCents, p.currency)}
           {p.variantLabel ? ` · ${p.variantLabel}` : ""}
           {p.stockQty != null ? ` · ${p.stockQty} in stock` : ""}
         </p>

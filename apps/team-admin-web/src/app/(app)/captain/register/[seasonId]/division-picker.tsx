@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -305,11 +306,3 @@ function genderLabel(gender: string) {
   }
 }
 
-function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(cents / 100);
-}

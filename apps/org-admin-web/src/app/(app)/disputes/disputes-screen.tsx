@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Gavel, Loader2, X } from "lucide-react";
@@ -36,12 +37,6 @@ interface Item {
   createdAt: string;
 }
 
-function fmt(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 function statusTone(s: string): "warning" | "success" | "neutral" | "danger" {
   switch (s) {
@@ -180,11 +175,11 @@ function DisputeRow({
             {item.status.replace(/_/g, " ")}
           </Badge>
           <p className="font-mono text-xs tabular-nums text-fg">
-            paid {fmt(item.paidCents, item.currency)}
+            paid {formatMoney(item.paidCents, item.currency)}
           </p>
           {item.refundAmountCents > 0 ? (
             <p className="font-mono text-[11px] tabular-nums text-[var(--tint-emerald-fg)]">
-              refund {fmt(item.refundAmountCents, item.currency)}
+              refund {formatMoney(item.refundAmountCents, item.currency)}
             </p>
           ) : null}
         </div>
@@ -311,7 +306,7 @@ function ResolveForm({
         {decision === "refund" ? (
           <Field
             label="Refund amount"
-            hint={`Max ${fmt(item.paidCents, item.currency)} (amount the player paid).`}
+            hint={`Max ${formatMoney(item.paidCents, item.currency)} (amount the player paid).`}
           >
             <Input
               value={refundDollars}

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import {
   AlertOctagon,
@@ -24,12 +25,6 @@ type Invoices = Awaited<ReturnType<typeof finance.myInvoices>>;
 type Invoice = Invoices["items"][number];
 type Installment = Invoice["installments"][number];
 
-function fmt(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 export function PaymentsClient({
   initial
@@ -91,7 +86,7 @@ export function PaymentsClient({
               Wallet balance
             </p>
             <p className="font-mono text-[20px] font-semibold tabular-nums text-fg">
-              {fmt(totalBalance, walletCurrency)}
+              {formatMoney(totalBalance, walletCurrency)}
             </p>
           </div>
         </div>
@@ -128,9 +123,9 @@ export function PaymentsClient({
                 <li key={inv.id} className="flex items-center justify-between px-5 py-3 text-[13px]">
                   <span className="font-mono text-fg">{inv.invoiceNumber}</span>
                   <span className="font-mono tabular-nums text-fg-muted">
-                    {fmt(inv.totalCents, inv.currency)}
+                    {formatMoney(inv.totalCents, inv.currency)}
                     {(inv.refundedCents ?? 0) > 0
-                      ? ` (${fmt(inv.refundedCents, inv.currency)} refunded)`
+                      ? ` (${formatMoney(inv.refundedCents, inv.currency)} refunded)`
                       : ""}
                   </span>
                   <span className="flex items-center gap-2">
@@ -236,7 +231,7 @@ function InvoiceCard({
                   day: "numeric"
                 })
               : `installment #${oldestFailed.installmentNumber}`}{" "}
-            payment of {fmt(oldestFailed.amountCents, invoice.currency)} failed.
+            payment of {formatMoney(oldestFailed.amountCents, invoice.currency)} failed.
             Update your card and retry.
           </span>
         </div>
@@ -246,38 +241,38 @@ function InvoiceCard({
       <dl className="space-y-1 border-t border-border px-5 py-3 text-[13px]">
         <BreakdownRow
           label="Registration fee"
-          value={fmt(invoice.subtotalCents, invoice.currency)}
+          value={formatMoney(invoice.subtotalCents, invoice.currency)}
         />
         {invoice.walletCreditAppliedCents > 0 && (
           <BreakdownRow
             label="Wallet credit applied"
-            value={"−" + fmt(invoice.walletCreditAppliedCents, invoice.currency)}
+            value={"−" + formatMoney(invoice.walletCreditAppliedCents, invoice.currency)}
             tone="emerald"
           />
         )}
         {invoice.lateFeeAppliedCents > 0 && (
           <BreakdownRow
             label="Late fee"
-            value={"+" + fmt(invoice.lateFeeAppliedCents, invoice.currency)}
+            value={"+" + formatMoney(invoice.lateFeeAppliedCents, invoice.currency)}
             tone="rose"
           />
         )}
         {(invoice.refundedCents ?? 0) > 0 && (
           <BreakdownRow
             label="Refunded to you"
-            value={"−" + fmt(invoice.refundedCents, invoice.currency)}
+            value={"−" + formatMoney(invoice.refundedCents, invoice.currency)}
             tone="emerald"
           />
         )}
         {invoice.paidCents > 0 && (
           <BreakdownRow
             label="Paid"
-            value={"−" + fmt(invoice.paidCents, invoice.currency)}
+            value={"−" + formatMoney(invoice.paidCents, invoice.currency)}
           />
         )}
         <BreakdownRow
           label="Outstanding"
-          value={fmt(outstanding, invoice.currency)}
+          value={formatMoney(outstanding, invoice.currency)}
           emphasis
         />
       </dl>
@@ -316,7 +311,7 @@ function InvoiceCard({
                             : "text-fg"
                       ].join(" ")}
                     >
-                      {fmt(ins.amountCents, invoice.currency)}
+                      {formatMoney(ins.amountCents, invoice.currency)}
                     </p>
                     <p className="text-[10px] text-fg-muted">
                       {ins.status === "failed"
@@ -346,7 +341,7 @@ function InvoiceCard({
         ) : outstanding > 0 ? (
           <Button onClick={onPay}>
             <CreditCard className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
-            Pay {fmt(outstanding, invoice.currency)}
+            Pay {formatMoney(outstanding, invoice.currency)}
           </Button>
         ) : null}
         {/* No card is stored while payments run without a card provider,
@@ -513,7 +508,7 @@ function downloadReceipt(inv: Invoice) {
     iso ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
   const refunded = inv.refundedCents ?? 0;
   const balance = Math.max(0, inv.totalCents - inv.paidCents);
-  const lines = `<tr><td>${esc(invoiceTitleFor(inv))}${inv.teamName ? ` · ${esc(inv.teamName)}` : ""}</td><td class="n">1</td><td class="n">${esc(fmt(inv.totalCents, inv.currency))}</td></tr>`;
+  const lines = `<tr><td>${esc(invoiceTitleFor(inv))}${inv.teamName ? ` · ${esc(inv.teamName)}` : ""}</td><td class="n">1</td><td class="n">${esc(formatMoney(inv.totalCents, inv.currency))}</td></tr>`;
   const win = window.open("", "_blank");
   if (!win) return;
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(inv.invoiceNumber)}</title>
@@ -524,10 +519,10 @@ td,th{padding:6px 4px;border-bottom:1px solid #ddd;text-align:left}.n{text-align
 <h1>Receipt</h1><p>SportsPulse</p><p>Invoice ${esc(inv.invoiceNumber)}${inv.issuedAt ? ` · issued ${esc(day(inv.issuedAt))}` : ""} · printed ${esc(day(new Date().toISOString()))}</p>
 <table><thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Price</th></tr></thead><tbody>${lines}</tbody></table>
 <table><tbody>
-<tr><td>Total</td><td class="n">${esc(fmt(inv.totalCents, inv.currency))}</td></tr>
-<tr class="tot"><td>Paid</td><td class="n">${esc(fmt(inv.paidCents, inv.currency))}</td></tr>
-${refunded > 0 ? `<tr><td>Refunded</td><td class="n">${esc(fmt(refunded, inv.currency))}</td></tr>` : ""}
-<tr><td>Balance</td><td class="n">${esc(fmt(balance, inv.currency))}</td></tr>
+<tr><td>Total</td><td class="n">${esc(formatMoney(inv.totalCents, inv.currency))}</td></tr>
+<tr class="tot"><td>Paid</td><td class="n">${esc(formatMoney(inv.paidCents, inv.currency))}</td></tr>
+${refunded > 0 ? `<tr><td>Refunded</td><td class="n">${esc(formatMoney(refunded, inv.currency))}</td></tr>` : ""}
+<tr><td>Balance</td><td class="n">${esc(formatMoney(balance, inv.currency))}</td></tr>
 </tbody></table>
 <button onclick="window.print()">Print or save as PDF</button>
 </body></html>`);
@@ -579,9 +574,9 @@ function PayDialog({
       });
       const parts: string[] = [];
       if (res.walletApplied > 0)
-        parts.push(`${fmt(res.walletApplied, invoice!.currency)} from wallet`);
+        parts.push(`${formatMoney(res.walletApplied, invoice!.currency)} from wallet`);
       if (res.cardCharged > 0)
-        parts.push(`${fmt(res.cardCharged, invoice!.currency)} to card`);
+        parts.push(`${formatMoney(res.cardCharged, invoice!.currency)} to card`);
       onPaid(`Paid ${parts.join(" + ")}. Invoice is ${res.status}.`);
     } catch (e) {
       setError((e as Error).message);
@@ -595,7 +590,7 @@ function PayDialog({
       open={true}
       onClose={onClose}
       title={`Pay ${invoice.invoiceNumber}`}
-      description={`${fmt(outstanding, invoice.currency)} outstanding. Apply wallet credit, charge a card, or split.`}
+      description={`${formatMoney(outstanding, invoice.currency)} outstanding. Apply wallet credit, charge a card, or split.`}
       size="lg"
     >
       <div className="space-y-3">
@@ -603,7 +598,7 @@ function PayDialog({
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               From wallet (max{" "}
-              {fmt(
+              {formatMoney(
                 Math.min(walletAvailable, outstanding),
                 invoice.currency
               )})
@@ -629,19 +624,19 @@ function PayDialog({
           <div className="flex items-center justify-between">
             <span className="text-fg-muted">Wallet:</span>
             <span className="font-mono tabular-nums text-fg">
-              {fmt(walletApplied, invoice.currency)}
+              {formatMoney(walletApplied, invoice.currency)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
             <span className="text-fg-muted">Card:</span>
             <span className="font-mono tabular-nums text-fg">
-              {fmt(cardCharge, invoice.currency)}
+              {formatMoney(cardCharge, invoice.currency)}
             </span>
           </div>
           <div className="mt-2 flex items-center justify-between border-t border-border pt-2 font-medium">
             <span>Total</span>
             <span className="font-mono tabular-nums">
-              {fmt(walletApplied + cardCharge, invoice.currency)}
+              {formatMoney(walletApplied + cardCharge, invoice.currency)}
             </span>
           </div>
         </div>
@@ -708,7 +703,7 @@ function RetryDialog({
       });
       if (res.status === "succeeded") {
         onResult(
-          `Installment #${target!.ins.installmentNumber} paid (${fmt(target!.ins.amountCents, target!.inv.currency)}).`
+          `Installment #${target!.ins.installmentNumber} paid (${formatMoney(target!.ins.amountCents, target!.inv.currency)}).`
         );
       } else {
         onResult(`Retry failed: ${res.message ?? "card declined"}`);
@@ -725,7 +720,7 @@ function RetryDialog({
       open={true}
       onClose={onClose}
       title={`Retry installment #${target.ins.installmentNumber}`}
-      description={`${fmt(target.ins.amountCents, target.inv.currency)} — previous attempt declined.`}
+      description={`${formatMoney(target.ins.amountCents, target.inv.currency)} — previous attempt declined.`}
     >
       <div className="space-y-3">
         {target.inv.cardOnFile && (

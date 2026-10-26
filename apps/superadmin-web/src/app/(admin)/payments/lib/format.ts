@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 /**
  * Shared formatters for the Payment & Invoicing tabs. Money is stored
  * as integer cents on the wire — divide by 100 for display, but apply
@@ -5,16 +6,7 @@
  */
 
 export function fmtMoney(cents: number, currency = "USD"): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(cents / 100);
-  } catch {
-    return `$${(cents / 100).toFixed(2)}`;
-  }
+  return formatMoney(cents, currency);
 }
 
 export function fmtDate(iso: string | null | undefined): string {

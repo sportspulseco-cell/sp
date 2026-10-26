@@ -10,7 +10,8 @@ import {
   SKILL_LEVEL_HINTS,
   SKILL_LEVEL_LABELS,
   SKILL_LEVELS,
-  tiersForDivision
+  tiersForDivision,
+  formatMoney
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
@@ -2499,11 +2500,7 @@ function PaymentStep({
       : 0;
   const intervalDays = tier?.installmentIntervalDays ?? 30;
 
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency
-    }).format(cents / 100);
+  const fmt = (cents: number) => formatMoney(cents, currency);
 
   function applyDiscount() {
     // Visual stub — real coupon resolution lands when the discount-code

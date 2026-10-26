@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,12 +26,6 @@ const METHOD_OPTIONS: Array<{ value: Method; label: string }> = [
   { value: "manual", label: "Other" }
 ];
 
-function fmt(cents: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 function statusTone(s: string): "success" | "warning" | "danger" | "neutral" | "info" {
   if (s === "paid") return "success";
@@ -103,13 +98,13 @@ function InvoiceRow({
             ) : null}
           </p>
           <p className="text-[12px] text-fg-muted">
-            {fmt(invoice.totalCents, invoice.currency)} total ·{" "}
+            {formatMoney(invoice.totalCents, invoice.currency)} total ·{" "}
             <span className="text-fg">
-              {fmt(invoice.paidCents, invoice.currency)} paid
+              {formatMoney(invoice.paidCents, invoice.currency)} paid
             </span>
             {remaining > 0 ? (
               <>
-                {" "}· {fmt(remaining, invoice.currency)} due
+                {" "}· {formatMoney(remaining, invoice.currency)} due
               </>
             ) : null}
           </p>
@@ -173,7 +168,7 @@ function RecordPaymentForm({
     }
     const cents = Math.round(dollars * 100);
     if (cents > remainingCents) {
-      setError(`Amount can't exceed ${fmt(remainingCents, currency)}.`);
+      setError(`Amount can't exceed ${formatMoney(remainingCents, currency)}.`);
       return;
     }
     setBusy(true);
@@ -200,7 +195,7 @@ function RecordPaymentForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
           label="Amount"
-          hint={`Up to ${fmt(remainingCents, currency)} remaining.`}
+          hint={`Up to ${formatMoney(remainingCents, currency)} remaining.`}
         >
           <Input
             value={amount}

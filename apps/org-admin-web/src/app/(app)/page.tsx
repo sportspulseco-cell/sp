@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import { fetchAll } from "@sportspulse/api-client";
 /* Hallmark · page: dashboard · genre: editorial · theme: project (sp-org-admin)
  * pre-emit critique: P5 H4 E5 S4 R5 V4
@@ -33,12 +34,6 @@ import { SeasonFlow } from "@sportspulse/admin-pages";
 
 export const dynamic = "force-dynamic";
 
-function formatMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency
-  }).format(cents / 100);
-}
 
 export default async function OrgAdminHome() {
   const scope = await iam.meScope().catch(() => null);

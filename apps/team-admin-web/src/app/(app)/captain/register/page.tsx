@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -629,11 +630,3 @@ function formatDateTime(iso: string) {
   });
 }
 
-function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(cents / 100);
-}

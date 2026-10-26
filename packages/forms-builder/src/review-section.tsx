@@ -1,3 +1,4 @@
+import { formatMoney } from "@sportspulse/kernel";
 import { AlertTriangle, ExternalLink } from "lucide-react";
 import type {
   Division,
@@ -41,14 +42,6 @@ function fmtDateShort(iso: string | null, timeZone?: string | null): string {
   }
 }
 
-function fmtMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(cents / 100);
-}
 
 /**
  * Review & publish section. 6-tile summary grid + issue list +
@@ -161,7 +154,7 @@ export function ReviewSection({
             </p>
             <p className="font-mono text-[11px] text-fg-muted">
               {standardTier
-                ? `${fmtMoney(standardTier.fullPriceCents, standardTier.currency)} full · ${fmtMoney(standardTier.depositCents, standardTier.currency)} deposit`
+                ? `${formatMoney(standardTier.fullPriceCents, standardTier.currency)} full · ${formatMoney(standardTier.depositCents, standardTier.currency)} deposit`
                 : "No tiers yet"}
             </p>
           </Tile>

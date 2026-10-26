@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@sportspulse/kernel";
 /**
  * Shared InvoiceComposer used by both sa-web and org-admin-web.
  *
@@ -172,13 +173,6 @@ function addDaysIso(iso: string, days: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function money(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
-}
 
 function todayIso(): string {
   const d = new Date();
@@ -507,7 +501,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                   <option value="">None, I will enter the lines</option>
                   {orgSchedules.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} · {money(f.baseAmountCents, f.currency)}
+                      {f.name} · {formatMoney(f.baseAmountCents, f.currency)}
                     </option>
                   ))}
                 </select>
@@ -516,7 +510,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                     Due {pickedSchedule.dueOffsetDays} day{pickedSchedule.dueOffsetDays === 1 ? "" : "s"} after
                     today
                     {pickedSchedule.lateFeeCents > 0
-                      ? `; late fee ${money(pickedSchedule.lateFeeCents, pickedSchedule.currency)} after that`
+                      ? `; late fee ${formatMoney(pickedSchedule.lateFeeCents, pickedSchedule.currency)} after that`
                       : ""}
                     . You can still change the lines and the date.
                   </p>
