@@ -1903,6 +1903,19 @@ export class PublicRegistrationController {
     return { id: submissionId, updated: true, status: updated.status, isMinor: isMinorOn(dob) };
   }
 
+  @Get("submissions/:id/wallet")
+  @ApiOperation({ summary: "The registrant's wallet credit in this registration's org, for the payment step (FR-3.6.2)." })
+  async wallet(@Param("id") submissionId: string, @Query("email") email: string) {
+    const row = await this.loadAndAuthorize(submissionId, email);
+    if (!row.subjectPersonId) return { balanceCents: 0, currency: "USD", frozen: false };
+    const accts = await this.db
+      .select({ balanceCents: schema.walletAccounts.balanceCents, currency: schema.walletAccounts.currency, frozen: schema.walletAccounts.frozen })
+      .from(schema.walletAccounts)
+      .where(and(eq(schema.walletAccounts.personId, row.subjectPersonId), eq(schema.walletAccounts.orgId, row.orgId)));
+    const a = accts.find((x) => x.balanceCents > 0) ?? accts[0];
+    return { balanceCents: a && !a.frozen ? a.balanceCents : 0, currency: a?.currency ?? "USD", frozen: a?.frozen ?? false };
+  }
+
   @Post("submissions/:id/pay")
   @ApiOperation({
     summary:
@@ -1916,6 +1929,8 @@ export class PublicRegistrationController {
       mockOutcome?: "succeeded" | "failed" | "offline";
       /** "plan": deposit today, the rest in installments (UC-15). */
       paymentOption?: "full" | "plan";
+      /** Spend the registrant's wallet credit in this org first (FR-3.6.2). */
+      useWallet?: boolean;
     }
   ) {
     try {
@@ -1937,6 +1952,7 @@ export class PublicRegistrationController {
       mockOutcome?: "succeeded" | "failed" | "offline";
       /** "plan": deposit today, the rest in installments (UC-15). */
       paymentOption?: "full" | "plan";
+      useWallet?: boolean;
     }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
@@ -2070,6 +2086,12 @@ export class PublicRegistrationController {
 
     // Offline: no card charge; the admin marks it paid later. The invoice
     // stays `sent` so Finance tracks who owes what.
+    if (outcome === "offline" && body.useWallet) {
+      throw new ConflictException({
+        error: "wallet_with_offline",
+        message: "Credit is used with card payment. Choose full payment or the plan to use your credit."
+      });
+    }
     if (outcome === "offline") {
       assertValidTransition(row.status, "pending_offline");
       const offlineInvoiceId = await this.db.transaction(async (tx) => {
@@ -2156,9 +2178,59 @@ export class PublicRegistrationController {
           ? scheduled ? 0 : invoice.totalCents - invoice.paidCents
           : plan ? plan[0]!.amountCents : invoice.totalCents;
         let intentId: string | null = null;
-        if (due > 0) {
+        // Wallet credit first (FR-3.6.2): checked and taken under a row
+        // lock in this transaction, written to the wallet ledger and as a
+        // payment, so a decline below rolls it back with everything else.
+        let walletApplied = 0;
+        if (body.useWallet && due > 0 && row.subjectPersonId) {
+          const [acct] = await tx
+            .select()
+            .from(schema.walletAccounts)
+            .where(
+              and(
+                eq(schema.walletAccounts.personId, row.subjectPersonId),
+                eq(schema.walletAccounts.orgId, row.orgId),
+                eq(schema.walletAccounts.currency, currency)
+              )
+            )
+            .for("update")
+            .limit(1);
+          if (!acct || acct.frozen || acct.balanceCents <= 0) {
+            throw new ConflictException({
+              error: "no_wallet_credit",
+              message: acct?.frozen
+                ? "Your credit is on hold. Contact your league, or pay by card."
+                : "You have no credit to use in this league. Pay by card."
+            });
+          }
+          walletApplied = Math.min(acct.balanceCents, due);
+          await tx
+            .update(schema.walletAccounts)
+            .set({ balanceCents: acct.balanceCents - walletApplied, updatedAt: new Date() })
+            .where(eq(schema.walletAccounts.id, acct.id));
+          await tx.insert(schema.walletLedger).values({
+            walletId: acct.id,
+            entryType: "credit_applied",
+            amountCents: -walletApplied,
+            relatedInvoiceId: invoice.id,
+            reason: "Registration payment",
+            metadata: { invoiceId: invoice.id, registrationId: submissionId }
+          });
+          await tx.insert(schema.payments).values({
+            orgId: row.orgId,
+            invoiceId: invoice.id,
+            method: "manual",
+            status: "succeeded",
+            amountCents: walletApplied,
+            currency,
+            externalProviderId: `wallet:${acct.id}:${invoice.id}:${invoice.paidCents}`,
+            metadata: { source: "wallet", registrationId: submissionId }
+          });
+        }
+        const cardDue = due - walletApplied;
+        if (cardDue > 0) {
           const charge = await this.processor.charge({
-            amountCents: due,
+            amountCents: cardDue,
             currency,
             description: `Registration ${tierName}`,
             mockOutcome: outcome
@@ -2172,7 +2244,7 @@ export class PublicRegistrationController {
             invoiceId: invoice.id,
             method: "credit_card",
             status: "succeeded",
-            amountCents: due,
+            amountCents: cardDue,
             currency,
             externalProviderId: charge.intentId,
             metadata: { source: "card", registrationId: submissionId }
@@ -2209,6 +2281,7 @@ export class PublicRegistrationController {
                 paidAt: new Date().toISOString(),
                 amountCents,
                 paidTodayCents: due,
+                walletAppliedCents: walletApplied,
                 option: plan ? "plan" : "full",
                 currency,
                 invoiceId: invoice.id,

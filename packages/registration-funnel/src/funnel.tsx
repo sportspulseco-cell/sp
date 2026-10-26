@@ -530,7 +530,7 @@ export function RegistrationFunnel({
     next();
   }
 
-  async function pay(outcome: "succeeded" | "offline", paymentOption?: "full" | "plan") {
+  async function pay(outcome: "succeeded" | "offline", paymentOption?: "full" | "plan", useWallet = false) {
     if (!submissionId) return;
     setSubmitting(true);
     setError(null);
@@ -538,7 +538,8 @@ export function RegistrationFunnel({
       const res = await api.pay(submissionId, {
         email,
         mockOutcome: outcome,
-        ...(paymentOption ? { paymentOption } : {})
+        ...(paymentOption ? { paymentOption } : {}),
+        ...(useWallet ? { useWallet: true } : {})
       });
       setSubmissionStatus(res.status);
       if (res.status === "pending_review" || res.status === "pending_offline") {
@@ -766,8 +767,9 @@ export function RegistrationFunnel({
             tier={tiers.find((t) => t.id === pricingTierId) ?? null}
             submitting={submitting}
             error={error}
-            onPay={(paymentOption) => pay("succeeded", paymentOption)}
+            onPay={(paymentOption, useWallet) => pay("succeeded", paymentOption, useWallet)}
             onPayOffline={() => pay("offline")}
+            loadWallet={submissionId ? () => api.walletBalance(submissionId, email.trim()) : undefined}
             onBack={back}
           />
         )}
@@ -2478,17 +2480,37 @@ function PaymentStep({
   error,
   onPay,
   onPayOffline,
+  loadWallet,
   onBack
 }: {
   tier: PricingTier | null;
   submitting: boolean;
   error: string | null;
-  onPay: (paymentOption: "full" | "plan") => void;
+  onPay: (paymentOption: "full" | "plan", useWallet: boolean) => void;
   onPayOffline: () => void;
+  loadWallet?: () => Promise<{ balanceCents: number; currency: string; frozen: boolean }>;
   onBack: () => void;
 }) {
   // Full payment is selected first; a plan is the player's choice.
   const [option, setOption] = useState<"full" | "plan" | "offline">("full");
+  // Wallet credit in this league (FR-3.6.2): offered only when there is some.
+  const [walletCents, setWalletCents] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
+  useEffect(() => {
+    let live = true;
+    loadWallet?.()
+      .then((w) => {
+        if (live && w.balanceCents > 0 && w.currency === (tier?.currency ?? "USD")) {
+          setWalletCents(w.balanceCents);
+          setUseWallet(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const free = !tier || tier.isFree || tier.fullPriceCents === 0;
   const currency = tier?.currency ?? "USD";
@@ -2507,10 +2529,12 @@ function PaymentStep({
   // What actually fires on the primary CTA — pick handler by option.
   function handlePay() {
     if (option === "offline") onPayOffline();
-    else onPay(option === "plan" && plan ? "plan" : "full");
+    else onPay(option === "plan" && plan ? "plan" : "full", useWallet && walletCents > 0);
   }
 
-  const ctaAmount = option === "plan" && plan ? depositCents : totalCents;
+  const dueToday = option === "plan" && plan ? depositCents : totalCents;
+  const creditUsed = option !== "offline" && useWallet ? Math.min(walletCents, dueToday) : 0;
+  const ctaAmount = dueToday - creditUsed;
 
   return (
     <div className="space-y-5">
@@ -2597,8 +2621,30 @@ function PaymentStep({
         </ul>
       </section>
 
+      {walletCents > 0 && option !== "offline" && !free ? (
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <label className="flex items-start gap-3 text-[13px] text-fg">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={useWallet}
+              onChange={(e) => setUseWallet(e.target.checked)}
+            />
+            <span>
+              Use my credit: {fmt(walletCents)} available
+              {useWallet ? (
+                <span className="block text-[12px] text-fg-muted">
+                  {fmt(creditUsed)} from your credit
+                  {ctaAmount > 0 ? `, ${fmt(ctaAmount)} by card` : ". Nothing to pay by card."}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        </section>
+      ) : null}
+
       {/* Card 3 — Card details (visual; Stripe Elements lands later) */}
-      {option !== "offline" ? (
+      {option !== "offline" && ctaAmount > 0 ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
           <p className="text-[14px] font-semibold tracking-tight text-fg">
             Card details
@@ -2648,7 +2694,9 @@ function PaymentStep({
                   ? "Submit for offline payment"
                   : ctaAmount > 0
                     ? `Pay ${fmt(ctaAmount)}`
-                    : "Start payment plan"}
+                    : creditUsed > 0
+                      ? `Pay ${fmt(creditUsed)} with credit`
+                      : "Start payment plan"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
