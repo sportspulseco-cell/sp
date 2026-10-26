@@ -16,6 +16,7 @@ import {
   Table
 } from "@/components/ui/table";
 import { InviteUserButton } from "@/components/users/invite-user-button";
+import { viewerRoleGrants } from "@/lib/role-grants";
 import { ManageUserRolesCell } from "@/components/users/manage-user-roles-cell";
 import { UserTypeCell } from "@/components/users/user-type-cell";
 import { UserActionsMenu } from "@/components/users/user-actions-menu";
@@ -40,6 +41,7 @@ export default async function UsersPage({
   // Every account, not the first 50: newly invited users were missing
   // and the KPI tiles undercounted (68 users on staging).
   let loadFailed = false;
+  const viewer = await viewerRoleGrants();
   const [page, assignments] = await Promise.all([
     fetchAll((cursor) => iam.listUsers({ limit: 100, cursor })).catch((e) => {
       // Show the failure; an empty list here read as "No users yet".
@@ -111,7 +113,7 @@ export default async function UsersPage({
         eyebrow="People"
         title="Users"
         description="Everyone with a login. Invite a user, set their role, or edit their profile."
-        action={<InviteUserButton />}
+        action={<InviteUserButton granter={{ isSuperAdmin: viewer.isSuperAdmin, holdings: viewer.holdings }} />}
       />
       <KineticStrip
         cards={[

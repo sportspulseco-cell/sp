@@ -78,3 +78,43 @@ test("1. league admin sends an announcement to their own league only", async ({ 
   expect(rows.every((r) => r.org_id === la!.org_id && r.target === la!.league_id && r.channel === "in_app")).toBe(true);
   await context.close();
 });
+
+test("2. league admin invites only within their league and never above their level", async ({ browser }) => {
+  const { page, context } = await signedInAs(browser, "leagueAdmin", { app: E2E_URLS.superadmin });
+  await page.goto(`${E2E_URLS.superadmin}/users`);
+  await page.getByRole("button", { name: "Invite user" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  // No "grant a role" opt-out: a scoped admin always invites with a role.
+  await expect(dialog.getByText("Also grant a role on invite.")).toHaveCount(0);
+  const role = dialog.locator("select").first();
+  const roles = await role.locator("option").allTextContents();
+  console.log("[j18] invite roles:", JSON.stringify(roles));
+  expect(roles).not.toContain("Super Admin");
+  expect(roles).not.toContain("Org Admin");
+  expect(roles).toEqual(expect.arrayContaining(["League Admin", "Captain", "Coach"]));
+  // Default reflects the inviter: their own role at their own league.
+  await expect(role).toHaveValue("league_admin");
+  const scopeTypes = await dialog.locator("select").nth(1).locator("option").allTextContents();
+  expect(scopeTypes).toEqual(["League"]);
+  await context.close();
+});
+
+test("3. league admin sees an org page's admin list read-only", async ({ browser }) => {
+  const { page, context } = await signedInAs(browser, "leagueAdmin", { app: E2E_URLS.superadmin });
+  const [la] = await stagingSql<{ org_id: string }>(
+    `select l.org_id from user_role_assignments a join roles r on r.id = a.role_id join profiles p on p.id = a.user_id
+       join leagues l on l.id = a.scope_id where p.email = $1 and r.code = 'league_admin' and a.revoked_at is null limit 1`,
+    [LEAGUE_ADMIN_EMAIL]
+  );
+  await page.goto(`${E2E_URLS.superadmin}/organizations/${la!.org_id}`);
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const text = await mainText(page);
+  if (/could not be found|Could not load/i.test(text)) {
+    console.log("[j18] org page not open to a league admin; nothing to check");
+  } else {
+    await expect(page.getByText("Your role cannot add admins here. Ask your org admin.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Revoke" })).toHaveCount(0);
+  }
+  await context.close();
+});

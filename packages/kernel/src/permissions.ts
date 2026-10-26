@@ -164,6 +164,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ["send", "Send", "Send notifications / emails."],
     ["template.write", "Edit templates", "Edit email templates."]
   ]),
+  G("role", "Role assignments", [
+    ["assign", "Assign roles", "Grant and revoke roles inside your own org or league, never above your own level."],
+    ["invite", "Invite users", "Invite people by email with a role inside your own org or league."]
+  ]),
   G("import", "Data import", [
     ["read", "Read", "View import jobs."],
     ["run", "Run", "Run bulk CSV imports."]
@@ -378,7 +382,9 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
       "finance.*",
       "communication.*",
       "report.*",
-      "audit.read"
+      "audit.read",
+      // FR-3.19.2: org admins assign roles inside their org (PPHL 2.2).
+      "role.*"
     ]
   },
   {
@@ -403,7 +409,10 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
       "game_event.*",
       "score.*",
       "suspension.*",
-      "communication.send"
+      "communication.send",
+      // League admins add co-admins, officials and team staff inside
+      // their league (PPHL 7.1 "manage all teams within a league").
+      "role.*"
     ]
   },
   {
