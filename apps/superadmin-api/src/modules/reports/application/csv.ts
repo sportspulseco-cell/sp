@@ -7,10 +7,10 @@ export function toCsv(
   columns?: string[]
 ): string {
   if (rows.length === 0) {
-    return columns?.length ? columns.join(",") + "\n" : "";
+    return columns?.length ? columns.map(encodeCell).join(",") + "\n" : "";
   }
   const cols = columns ?? Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
-  const lines: string[] = [cols.join(",")];
+  const lines: string[] = [cols.map(encodeCell).join(",")];
   for (const row of rows) {
     lines.push(cols.map((c) => encodeCell(row[c])).join(","));
   }

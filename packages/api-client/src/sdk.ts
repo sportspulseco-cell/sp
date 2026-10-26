@@ -102,6 +102,36 @@ const qs = (params: Record<string, string | number | boolean | undefined>) => {
   return s ? `?${s}` : "";
 };
 
+/** Status filter values shared with the API (kernel SUBMISSION_STATUS_FILTERS). */
+export type SubmissionStatusFilterValue = "all" | "approved" | "pending_review" | "pending_payment" | "rejected";
+
+export interface FormSubmissionRow {
+  id: string;
+  personName: string;
+  email: string | null;
+  dob: string | null;
+  status: string;
+  divisionId: string | null;
+  divisionName: string | null;
+  teamName: string | null;
+  submissionType: string | null;
+  versionNumber: number;
+  submittedAt: string | null;
+  createdAt: string;
+  /** Answer text by column key. */
+  answers: Record<string, string>;
+}
+
+export interface FormSubmissions {
+  formId: string;
+  formName: string;
+  status: SubmissionStatusFilterValue;
+  columns: Array<{ key: string; label: string }>;
+  items: FormSubmissionRow[];
+  total: number;
+  truncated: boolean;
+}
+
 export type Fetcher = <T>(path: string, init?: RequestInit) => Promise<T>;
 
 // Factory: build the SDK against any fetcher.
@@ -1782,6 +1812,14 @@ export function createApi(f: Fetcher) {
       listRegistrations: (
         q: { orgId?: string; status?: string; subjectPersonId?: string; limit?: number; cursor?: string } = {}
       ) => f<Page<Registration>>(`/registration/registrations${qs(q)}`),
+      /** A form's submissions with every answer, labelled by column. */
+      listFormSubmissions: (formId: string, q: { status?: SubmissionStatusFilterValue } = {}) =>
+        f<FormSubmissions>(`/registration/forms/${formId}/submissions${qs(q)}`),
+      /** The same rows as CSV text, to save as a file. */
+      exportFormSubmissions: (formId: string, q: { status?: SubmissionStatusFilterValue } = {}) =>
+        f<{ filename: string; csv: string; rows: number; truncated: boolean }>(
+          `/registration/forms/${formId}/submissions/export${qs(q)}`
+        ),
       /**
        * Self-scoped variant — returns only the caller's own
        * registrations. Backed by /registration/self/registrations,

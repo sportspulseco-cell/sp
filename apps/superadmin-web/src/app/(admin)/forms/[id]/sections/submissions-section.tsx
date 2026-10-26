@@ -1,28 +1,17 @@
-import type { Division, RegistrationForm } from "@sportspulse/api-client";
-import { registration } from "@/lib/api/server-api";
+import type { FormSubmissions } from "@sportspulse/api-client";
 import { SubmissionsClient } from "@sportspulse/forms-builder";
 
 /**
- * Submissions section. Server fetches the current set so we can paint
- * status counts in the header (X total · Y pending · Z approved · ...).
- * The client component owns the filter dropdown + Approve/Reject/Email
- * row actions.
+ * Submissions section: this form's submissions with their answers. The
+ * page loads them once (the section pill shows the count); the client
+ * owns the status filter, answers, CSV export and Approve / Reject.
  */
-export async function SubmissionsSection({
-  form,
-  divisions
+export function SubmissionsSection({
+  formId,
+  submissions
 }: {
-  form: RegistrationForm;
-  divisions: Division[];
+  formId: string;
+  submissions: FormSubmissions;
 }) {
-  const page = await registration
-    .listRegistrations({ orgId: form.orgId })
-    .catch(() => ({ items: [], nextCursor: null }));
-
-  return (
-    <SubmissionsClient
-      registrations={page.items}
-      divisions={divisions}
-    />
-  );
+  return <SubmissionsClient formId={formId} submissions={submissions} />;
 }

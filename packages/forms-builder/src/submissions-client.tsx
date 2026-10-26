@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Loader2 } from "lucide-react";
+import { ChevronDown, Download, Loader2 } from "lucide-react";
 import { Badge, Button } from "@sportspulse/ui";
-import type { Division, Registration } from "@sportspulse/api-client";
+import type { FormSubmissionRow, FormSubmissions } from "@sportspulse/api-client";
+import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
 import { useFormsBuilderApi } from "./context";
 import { SectionHeader } from "./section-header";
 
@@ -29,211 +30,197 @@ const STATUS_TONE: Record<
 };
 
 function statusLabel(status: string): string {
-  // The mockup shows "approved" / "pending review" / "pending payment".
   if (status === "under_review" || status === "pending_review") return "pending review";
-  if (status === "pending_payment") return "pending payment";
-  if (status === "pending_consent") return "pending consent";
-  if (status === "pending_verification") return "pending verification";
+  if (status === "pending_offline") return "pending offline payment";
   return status.replace(/_/g, " ");
 }
 
-const STATUS_FILTERS = [
-  { value: "all", label: "All statuses" },
-  { value: "approved", label: "Approved only" },
-  { value: "pending_review", label: "Pending review" },
-  { value: "pending_payment", label: "Pending payment" },
-  { value: "rejected", label: "Rejected" }
-] as const;
+function whenLabel(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function matches(filter: SubmissionStatusFilter, status: string): boolean {
+  const f = SUBMISSION_STATUS_FILTERS.find((x) => x.value === filter);
+  return !f?.statuses || (f.statuses as readonly string[]).includes(status);
+}
 
 /**
- * Mockup's Submissions panel. Status dropdown filter + CSV export +
- * row actions (Approve, Reject, Email). Hits registration.reviewRegistration
- * via the injected SDK context.
+ * Submissions of one form, with every answer. Rows come from the API's
+ * form submissions read (registrations on any version of this form the
+ * caller may see). Each row opens to show the answers; Export CSV
+ * downloads the same rows, filtered the same way, with one column per
+ * answer. Approve and Reject review the registration in place.
  */
 export function SubmissionsClient({
-  registrations,
-  divisions
+  formId,
+  submissions
 }: {
-  registrations: Registration[];
-  divisions: Division[];
+  formId: string;
+  submissions: FormSubmissions;
 }) {
   const { registration: regApi } = useFormsBuilderApi();
   const router = useRouter();
-  const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]["value"]>(
-    "all"
-  );
+  const [filter, setFilter] = useState<SubmissionStatusFilter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const items = submissions.items;
 
-  const total = registrations.length;
-  const pendingCount = registrations.filter(
-    (r) =>
-      r.status === "submitted" ||
-      r.status === "under_review" ||
-      r.status === "pending_review" ||
-      r.status === "pending_payment"
-  ).length;
-  const approvedCount = registrations.filter((r) => r.status === "approved").length;
-  const rejectedCount = registrations.filter((r) => r.status === "rejected").length;
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const f of SUBMISSION_STATUS_FILTERS) c[f.value] = items.filter((r) => matches(f.value, r.status)).length;
+    return c;
+  }, [items]);
 
-  const divisionMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const d of divisions) m.set(d.id, d.name);
-    return m;
-  }, [divisions]);
+  const filtered = useMemo(() => items.filter((r) => matches(filter, r.status)), [items, filter]);
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return registrations;
-    if (filter === "pending_review") {
-      return registrations.filter(
-        (r) => r.status === "submitted" || r.status === "under_review" || r.status === "pending_review"
-      );
-    }
-    if (filter === "pending_payment") {
-      return registrations.filter((r) => r.status === "pending_payment");
-    }
-    return registrations.filter((r) => r.status === filter);
-  }, [registrations, filter]);
-
-  async function review(id: string, action: "approve" | "reject") {
-    setBusyId(id);
+  async function review(r: FormSubmissionRow, action: "approve" | "reject") {
+    setBusyId(r.id);
     setError(null);
+    setNotice(null);
     try {
-      await regApi.reviewRegistration(id, { action });
+      await regApi.reviewRegistration(r.id, { action });
+      setNotice(`${r.personName}: ${action === "approve" ? "approved" : "rejected"}.`);
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(`Could not ${action} ${r.personName}: ${(e as Error).message}`);
     } finally {
       setBusyId(null);
     }
   }
 
-  function exportCsv() {
-    const rows = [
-      ["id", "name", "division", "status", "submitted_at"],
-      ...filtered.map((r) => [
-        r.id,
-        r.subjectName ?? r.teamName ?? "",
-        r.divisionId ? divisionMap.get(r.divisionId) ?? "" : "",
-        r.status,
-        r.submittedAt ?? r.createdAt
-      ])
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `submissions-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  async function exportCsv() {
+    setExporting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const out = await regApi.exportFormSubmissions(formId, { status: filter });
+      const blob = new Blob([out.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = out.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setNotice(
+        `Downloaded ${out.rows} ${out.rows === 1 ? "submission" : "submissions"}${out.truncated ? " (the first 5,000 only)" : ""}.`
+      );
+    } catch (e) {
+      setError(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
     <div className="space-y-6">
       <SectionHeader
         title="Submissions"
-        subtitle={`${total} total · ${pendingCount} pending review · ${approvedCount} approved · ${rejectedCount} rejected`}
+        subtitle={`${counts.all ?? 0} total · ${counts.pending_review ?? 0} pending review · ${counts.pending_payment ?? 0} pending payment · ${counts.approved ?? 0} approved · ${counts.rejected ?? 0} rejected`}
         action={
           <div className="flex items-center gap-2">
             <select
               value={filter}
-              onChange={(e) =>
-                setFilter(
-                  e.target.value as (typeof STATUS_FILTERS)[number]["value"]
-                )
-              }
+              onChange={(e) => setFilter(e.target.value as SubmissionStatusFilter)}
+              aria-label="Filter by status"
               className="h-9 rounded-md border border-border bg-surface-1 px-2 text-[12px] text-fg"
             >
-              {STATUS_FILTERS.map((f) => (
+              {SUBMISSION_STATUS_FILTERS.map((f) => (
                 <option key={f.value} value={f.value}>
-                  {f.label}
+                  {f.label} ({counts[f.value] ?? 0})
                 </option>
               ))}
             </select>
-            <Button type="button" variant="ghost" size="sm" onClick={exportCsv}>
-              <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
-              <span className="font-mono text-[10px] uppercase tracking-widest">
-                Export CSV
-              </span>
+            <Button type="button" variant="ghost" size="sm" onClick={exportCsv} disabled={exporting || filtered.length === 0}>
+              {exporting ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+              <span className="font-mono text-[10px] uppercase tracking-widest">Export CSV</span>
             </Button>
           </div>
         }
       />
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
           {error}
         </p>
+      ) : null}
+      {notice ? (
+        <p role="status" className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+          {notice}
+        </p>
+      ) : null}
+      {submissions.truncated ? (
+        <p className="text-[12px] text-fg-muted">Showing the newest 5,000 submissions.</p>
       ) : null}
 
       <ul className="divide-y divide-border rounded-xl border border-border bg-surface-1">
         {filtered.length === 0 ? (
           <li className="px-5 py-8 text-center text-[13px] text-fg-muted">
-            No submissions match this filter.
+            {items.length === 0 ? "No one has submitted this form yet." : "No submissions match this filter."}
           </li>
         ) : (
           filtered.map((r) => {
-            const divName = r.divisionId
-              ? divisionMap.get(r.divisionId) ?? "—"
-              : "—";
+            const answered = submissions.columns.filter((c) => r.answers[c.key]);
             return (
-              <li
-                key={r.id}
-                className="flex flex-wrap items-center gap-3 px-5 py-3"
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-border"
-                  aria-label={`Select ${r.subjectName ?? r.teamName ?? "registration"}`}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-fg truncate">
-                    {r.subjectName ?? r.teamName ?? "Unknown player"}
-                  </p>
-                  <p className="font-mono text-[11px] text-fg-muted">{divName}</p>
+              <li key={r.id} className="px-5 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-fg">{r.personName}</p>
+                    <p className="text-[11px] text-fg-muted">
+                      {[r.divisionName, r.teamName, r.email, `submitted ${whenLabel(r.submittedAt ?? r.createdAt)}`]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
+                    {statusLabel(r.status)}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => review(r, "approve")}
+                    disabled={busyId === r.id || r.status === "approved"}
+                  >
+                    {busyId === r.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                    <span className="font-mono text-[10px] uppercase tracking-widest">Approve</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => review(r, "reject")}
+                    disabled={busyId === r.id || r.status === "rejected"}
+                  >
+                    <span className="font-mono text-[10px] uppercase tracking-widest">Reject</span>
+                  </Button>
                 </div>
-                <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-                  {statusLabel(r.status)}
-                </Badge>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => review(r.id, "approve")}
-                  disabled={busyId === r.id || r.status === "approved"}
-                >
-                  {busyId === r.id ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                <details className="group mt-2">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] text-fg-muted hover:text-fg">
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                    {answered.length === 0 ? "No answers" : `Answers (${answered.length})`}
+                  </summary>
+                  {answered.length > 0 ? (
+                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                      {answered.map((c) => (
+                        <div key={c.key} className="min-w-0">
+                          <dt className="text-[11px] text-fg-muted">{c.label}</dt>
+                          <dd className="break-words text-[13px] text-fg">{r.answers[c.key]}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   ) : null}
-                  <span className="font-mono text-[10px] uppercase tracking-widest">
-                    Approve
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => review(r.id, "reject")}
-                  disabled={busyId === r.id || r.status === "rejected"}
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-widest">
-                    Reject
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled
-                  title="Email composer ships with the notifications worker — placeholder"
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-widest">
-                    Email
-                  </span>
-                </Button>
+                </details>
               </li>
             );
           })

@@ -307,3 +307,89 @@ export function visibleQuestions(
     (q) => q.isActive && evaluateConditional(q, answers)
   );
 }
+
+// ---------------------------------------------------------------------
+// Submission answers for admins (Submissions view + CSV export).
+// ---------------------------------------------------------------------
+
+/**
+ * Answer keys the registration funnel writes itself, outside the form's
+ * own questions (packages/registration-funnel funnel.tsx). Labels match
+ * the funnel's field labels.
+ */
+export const RESERVED_ANSWER_FIELDS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: "usa_hockey_id", label: "USA Hockey ID" },
+  { key: "skill_level", label: "Skill level" },
+  { key: "positions", label: "Preferred positions" },
+  { key: "availability", label: "Availability" },
+  { key: "jersey_number", label: "Jersey number" },
+  { key: "fa_note", label: "Note to captains" }
+];
+
+export interface AnswerColumn {
+  key: string;
+  label: string;
+  /** The question, when the key is one of the form's questions. */
+  question?: FormQuestion;
+}
+
+/**
+ * One column per answer key, in form order: the newest version's
+ * questions first, then questions only older versions had, then the
+ * funnel's reserved keys, then any other key found in the answers
+ * (labelled by its key, so nothing an admin collected is dropped).
+ */
+export function answerColumns(
+  definitions: ReadonlyArray<{ questions?: FormQuestion[] } | null | undefined>,
+  answerMaps: ReadonlyArray<AnswerMap> = []
+): AnswerColumn[] {
+  const cols: AnswerColumn[] = [];
+  const seen = new Set<string>();
+  const add = (c: AnswerColumn) => {
+    if (seen.has(c.key)) return;
+    seen.add(c.key);
+    cols.push(c);
+  };
+  for (const d of definitions) {
+    for (const q of d?.questions ?? []) add({ key: q.key, label: q.label || q.key, question: q });
+  }
+  const present = new Set(answerMaps.flatMap((a) => Object.keys(a ?? {})));
+  for (const r of RESERVED_ANSWER_FIELDS) if (present.has(r.key)) add({ ...r });
+  for (const k of present) add({ key: k, label: k });
+  return cols;
+}
+
+/**
+ * Status filters on a form's Submissions view; the CSV export takes the
+ * same values so the file matches what the admin is looking at.
+ */
+export const SUBMISSION_STATUS_FILTERS = [
+  { value: "all", label: "All statuses", statuses: null },
+  { value: "approved", label: "Approved only", statuses: ["approved"] },
+  { value: "pending_review", label: "Pending review", statuses: ["submitted", "under_review", "pending_review", "pending_offline"] },
+  { value: "pending_payment", label: "Pending payment", statuses: ["pending_payment"] },
+  { value: "rejected", label: "Rejected", statuses: ["rejected"] }
+] as const satisfies ReadonlyArray<{ value: string; label: string; statuses: readonly string[] | null }>;
+export type SubmissionStatusFilter = (typeof SUBMISSION_STATUS_FILTERS)[number]["value"];
+
+const DAY_LABEL: Record<string, string> = {
+  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun"
+};
+
+/** Plain text for one answer: option labels, lists joined with "; ", Yes/No. */
+export function formatAnswer(value: unknown, question?: FormQuestion): string {
+  if (value === null || value === undefined || value === "") return "";
+  const optionLabel = (v: unknown) =>
+    question?.options?.find((o) => o.value === String(v))?.label ?? String(v);
+  if (Array.isArray(value)) return value.map(optionLabel).join("; ");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    // Availability-style maps: list the keys that are on.
+    if (entries.length > 0 && entries.every(([, v]) => typeof v === "boolean")) {
+      return entries.filter(([, v]) => v).map(([k]) => DAY_LABEL[k] ?? k).join("; ");
+    }
+    return JSON.stringify(value);
+  }
+  return optionLabel(value);
+}
