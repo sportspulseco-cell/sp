@@ -1260,6 +1260,74 @@ export interface InvoiceItem {
  * sub-invoice per player; `splitMethod` is the persisted split mode
  * on the master invoice (null until the captain saves one).
  */
+export interface DiscountCodeInput {
+  description?: string | null;
+  kind?: "percent" | "fixed";
+  /** percent: basis points, 100 = 1%. */
+  percentBasisPoints?: number | null;
+  amountCents?: number | null;
+  usageLimit?: number | null;
+  /** YYYY-MM-DD in the season's calendar, inclusive. */
+  validFrom?: string | null;
+  validTo?: string | null;
+  divisionIds?: string[];
+  pricingTierIds?: string[];
+  isActive?: boolean;
+}
+
+export interface DiscountCode {
+  id: string;
+  orgId: string;
+  seasonId: string;
+  code: string;
+  description: string | null;
+  kind: "percent" | "fixed";
+  percentBasisPoints: number | null;
+  amountCents: number | null;
+  usageLimit: number | null;
+  usageCount: number;
+  validFrom: string | null;
+  validTo: string | null;
+  divisionIds: string[];
+  pricingTierIds: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface DiscountCodeSummary extends DiscountCode {
+  activeUses: number;
+  releasedUses: number;
+  discountGivenCents: number;
+}
+
+export interface DiscountCodeUse {
+  id: string;
+  status: "active" | "released";
+  amountCents: number;
+  usedAt: string;
+  releasedAt: string | null;
+  releasedReason: string | null;
+  registrationId: string;
+  registrationStatus: string | null;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  playerName: string;
+  email: string | null;
+}
+
+export interface FamilyPricingInput {
+  familyMaxCents?: number | null;
+  siblingKind?: "percent" | "fixed" | null;
+  siblingPercentBasisPoints?: number | null;
+  siblingAmountCents?: number | null;
+  siblingFromNth?: number;
+  isActive?: boolean;
+}
+
+export interface FamilyPricing extends Required<FamilyPricingInput> {
+  updatedAt: string;
+}
+
 export interface CaptainDuesBreakdown {
   teamId: string;
   teamName: string;

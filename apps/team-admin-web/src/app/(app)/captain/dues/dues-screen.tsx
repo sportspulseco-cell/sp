@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { coverAmountProblem, formatMoney } from "@sportspulse/kernel";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
@@ -8,7 +8,7 @@ import {
   Download,
   Loader2
 } from "lucide-react";
-import { Badge, Button, Eyebrow } from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, Eyebrow, Field, Input } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 type Breakdown = Awaited<ReturnType<typeof finance.captainDuesBreakdown>>;
@@ -239,6 +239,51 @@ export function DuesScreen({
       await refresh();
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // UC-16: the captain pays part or all of one player's share. One key
+  // per dialog, so a double click or a retry never charges twice.
+  const [coverFor, setCoverFor] = useState<SubInvoice | null>(null);
+  const [coverDollars, setCoverDollars] = useState("");
+  const [coverKey, setCoverKey] = useState("");
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const coverOwed = coverFor ? Math.max(0, coverFor.totalCents - coverFor.paidCents) : 0;
+  const coverCents = Math.round(parseFloat(coverDollars || "0") * 100);
+  const coverProblem = coverFor ? coverAmountProblem(Number.isFinite(coverCents) ? coverCents : 0, coverOwed) : null;
+
+  function openCover(sub: SubInvoice) {
+    setCoverFor(sub);
+    setCoverDollars((Math.max(0, sub.totalCents - sub.paidCents) / 100).toFixed(2));
+    setCoverKey(`cover-${sub.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    setCoverError(null);
+  }
+
+  async function payShare() {
+    if (!coverFor || coverProblem) return;
+    setBusy(`cover-${coverFor.id}`);
+    setCoverError(null);
+    try {
+      const res = await finance.captainDuesCoverShare(teamId, coverFor.id, {
+        amountCents: coverCents,
+        idempotencyKey: coverKey,
+        mockOutcome: "succeeded",
+        masterInvoiceId: data.masterInvoiceId ?? undefined
+      });
+      // Readback: the table shows what the server stored.
+      const { cover, ...next } = res;
+      setData(next);
+      const left = Math.max(0, cover.totalCents - cover.paidCents);
+      setFlash(
+        `Paid ${formatMoney(cover.paidNowCents, currency)} for ${coverFor.playerName ?? "the player"}. ` +
+          (left === 0 ? "Their share is paid." : `${formatMoney(left, currency)} still owed.`) +
+          " They have been told."
+      );
+      setCoverFor(null);
+    } catch (e) {
+      setCoverError((e as Error).message);
     } finally {
       setBusy(null);
     }
@@ -626,12 +671,61 @@ export function DuesScreen({
                   onSplitChange={(cents) => setCustomSplitFor(s.id, cents)}
                   busy={busy === s.id}
                   onRemind={() => remindOne(s)}
+                  onCover={() => openCover(s)}
+                  coverDisabled={busy !== null}
                 />
               ))
             )}
           </tbody>
         </table>
       </section>
+
+      <Dialog
+        open={coverFor !== null}
+        onClose={() => (busy ? undefined : setCoverFor(null))}
+        title={coverFor ? `Pay for ${coverFor.playerName ?? "this player"}` : "Pay a share"}
+        description="Your card is charged and the payment is recorded on the player's share. The player gets a note that you paid."
+        size="sm"
+      >
+        {coverFor ? (
+          <div className="space-y-3">
+            <p className="text-[13px] text-fg-muted">
+              Share {coverFor.invoiceNumber}: {formatMoney(coverFor.totalCents, currency)}, paid{" "}
+              {formatMoney(coverFor.paidCents, currency)},{" "}
+              <span className="font-medium text-fg">{formatMoney(coverOwed, currency)} owed</span>
+              {coverFor.isOverdue ? " (overdue)" : ""}.
+            </p>
+            <Field label="Amount to pay">
+              <Input
+                type="number"
+                step="0.01"
+                min={0.01}
+                max={(coverOwed / 100).toFixed(2)}
+                inputMode="decimal"
+                aria-label="Amount to pay"
+                value={coverDollars}
+                onChange={(e) => setCoverDollars(e.target.value)}
+              />
+            </Field>
+            {coverProblem && coverDollars ? <p className="text-[12px] text-[var(--tint-rose-fg)]">{coverProblem}</p> : null}
+            {coverError ? (
+              <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+                {coverError}
+              </p>
+            ) : null}
+            <p className="text-[11px] text-fg-muted">Test mode: no real card is charged.</p>
+            <DialogActions>
+              <Button variant="ghost" onClick={() => setCoverFor(null)} disabled={busy !== null}>
+                Cancel
+              </Button>
+              <Button onClick={() => void payShare()} disabled={busy !== null || !!coverProblem}>
+                {busy === `cover-${coverFor.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Pay {Number.isFinite(coverCents) && coverCents > 0 ? formatMoney(coverCents, currency) : ""}
+              </Button>
+            </DialogActions>
+          </div>
+        ) : null}
+      </Dialog>
     </div>
   );
 }
@@ -643,7 +737,9 @@ function PlayerRow({
   splitCents,
   onSplitChange,
   busy,
-  onRemind
+  onRemind,
+  onCover,
+  coverDisabled
 }: {
   sub: SubInvoice;
   currency: string;
@@ -652,6 +748,8 @@ function PlayerRow({
   onSplitChange: (cents: number) => void;
   busy: boolean;
   onRemind: () => void;
+  onCover: () => void;
+  coverDisabled: boolean;
 }) {
   const owe = Math.max(0, sub.totalCents - sub.paidCents);
   const fullyPaid = owe === 0;
@@ -765,18 +863,29 @@ function PlayerRow({
         {fullyPaid ? (
           <span className="text-fg-muted">—</span>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRemind}
-            disabled={busy}
-          >
-            {busy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              "Remind"
-            )}
-          </Button>
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRemind}
+              disabled={busy}
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                "Remind"
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onCover}
+              disabled={coverDisabled || sub.status === "void" || sub.status === "draft"}
+              aria-label={`Pay for ${sub.playerName ?? "player"}`}
+            >
+              Pay
+            </Button>
+          </div>
         )}
       </td>
     </tr>

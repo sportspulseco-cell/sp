@@ -89,3 +89,5 @@ export type {
   AnnouncementTargetType
 } from "./communications/announcement-composer";
 export * from "./live-score-refresh";
+export { DiscountsPanel } from "./finance/discounts-panel";
+export type { DiscountsApi, DiscountsPanelProps } from "./finance/discounts-panel";

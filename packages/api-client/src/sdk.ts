@@ -5,6 +5,12 @@ import type {
   MisconductReport,
   AuditFacets,
   CaptainDuesBreakdown,
+  DiscountCode,
+  DiscountCodeInput,
+  DiscountCodeSummary,
+  DiscountCodeUse,
+  FamilyPricing,
+  FamilyPricingInput,
   ConsentSignature,
   AdminComplianceDocument,
   ComplianceDocumentQueuePage,
@@ -946,6 +952,18 @@ export function createApi(f: Fetcher) {
           `/captain/dues/${teamId}/remind/${invoiceId}${masterInvoiceId ? `?masterId=${encodeURIComponent(masterInvoiceId)}` : ""}`,
           { method: "POST" }
         ),
+      /** Captain pays part or all of one player's share (UC-16). Returns the fresh breakdown. */
+      captainDuesCoverShare: (
+        teamId: string,
+        invoiceId: string,
+        body: { amountCents: number; idempotencyKey: string; mockOutcome?: "succeeded" | "failed"; masterInvoiceId?: string }
+      ) =>
+        f<CaptainDuesBreakdown & {
+          cover: { invoiceId: string; paidNowCents: number; paidCents: number; totalCents: number; status: string; replay: boolean };
+        }>(`/captain/dues/${teamId}/cover/${invoiceId}`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
       captainDuesCoverOutstanding: (
         teamId: string,
         body: { mockOutcome?: "succeeded" | "failed"; invoiceId?: string } = {}
@@ -2642,6 +2660,23 @@ export function createApi(f: Fetcher) {
         f<Record<string, string[]>>(
           `/registration-v2/pricing-tier-divisions${qs({ ids: tierIds.join(",") })}`
         ),
+
+      // Discount codes and family pricing for a season (scoped admins).
+      listDiscountCodes: (seasonId: string) =>
+        f<DiscountCodeSummary[]>(`/registration-v2/discount-codes${qs({ seasonId })}`),
+      createDiscountCode: (body: DiscountCodeInput & { seasonId: string; code: string }) =>
+        f<DiscountCode>("/registration-v2/discount-codes", { method: "POST", body: JSON.stringify(body) }),
+      updateDiscountCode: (id: string, body: Partial<DiscountCodeInput>) =>
+        f<DiscountCode>(`/registration-v2/discount-codes/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+      discountCodeUses: (id: string) =>
+        f<{ code: DiscountCode; uses: DiscountCodeUse[] }>(`/registration-v2/discount-codes/${id}/uses`),
+      getFamilyPricing: (seasonId: string) =>
+        f<{ seasonId: string; rule: FamilyPricing | null }>(`/registration-v2/family-pricing${qs({ seasonId })}`),
+      putFamilyPricing: (body: FamilyPricingInput & { seasonId: string }) =>
+        f<{ seasonId: string; rule: FamilyPricing | null }>("/registration-v2/family-pricing", {
+          method: "PUT",
+          body: JSON.stringify(body)
+        }),
 
       listEmailTemplates: (q: { seasonId?: string } = {}) =>
         f<EmailTemplate[]>(`/registration-v2/email-templates${qs(q)}`),
