@@ -3091,6 +3091,24 @@ export function createApi(f: Fetcher) {
             `/captain/roster/${teamId}/add`,
             { method: "POST", body: JSON.stringify(body) }
           ),
+        /** FR-3.4.3: players from this team's other seasons, for inviting to `seasonId`. */
+        pastPlayers: (teamId: string, seasonId: string) =>
+          f<{
+            items: Array<{
+              personId: string;
+              name: string;
+              email: string | null;
+              lastSeasonName: string;
+              lastJerseyNumber: number | null;
+              state: "can_invite" | "on_roster" | "invited" | "no_email";
+            }>;
+          }>(`/captain/roster/${teamId}/past-players${qs({ seasonId })}`),
+        /** FR-3.4.3: invite several past players in one go; skipped ones are named. */
+        inviteMany: (teamId: string, body: { seasonId: string; personIds: string[] }) =>
+          f<{ invited: number; results: Array<{ personId: string; name: string | null; outcome: string }> }>(
+            `/captain/roster/${teamId}/invite-many`,
+            { method: "POST", body: JSON.stringify(body) }
+          ),
         /** FR-3.11.2: set or clear a rostered player's jersey number (unique per team and season). */
         setJersey: (
           teamId: string,

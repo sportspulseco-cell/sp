@@ -429,6 +429,29 @@ test("J8.4b a player declines a personal invite; the captain is told and /captai
   await snap(p, "46-captain-invites-declined");
 });
 
+test("J8.4c captain invites players from past rosters in one go (FR-3.4.3)", async () => {
+  const p = cap.page;
+  await p.goto(`${cap.app}/captain/invites`);
+  await settle(p);
+  const box = p.getByTestId("past-roster-invite");
+  await expect(box, "the invites page offers past-roster invites").toBeVisible({ timeout: 20_000 });
+  await expect(box.getByText(/Loading past players/)).toBeHidden({ timeout: 20_000 });
+  const picks = box.getByRole("checkbox", { disabled: false });
+  const n = await picks.count();
+  await snap(p, "47-past-roster-list");
+  if (n === 0) {
+    test.info().annotations.push({ type: "note", description: "no invitable past players for Staging Skaters on staging; list and empty state only" });
+    return;
+  }
+  const label = (await picks.first().getAttribute("aria-label")) ?? "";
+  await picks.first().check();
+  await box.getByRole("button", { name: /Invite 1 selected/ }).click();
+  await expect(box.getByText(/Invited 1 player/)).toBeVisible({ timeout: 20_000 });
+  await snap(p, "48-past-roster-invited");
+  const name = label.replace(/^Invite /, "");
+  await expect(box.getByRole("listitem").filter({ hasText: name }).first(), "the player now reads as invited").toContainText(/Invite already open/, { timeout: 20_000 });
+});
+
 test("J8.5 captain adds the plain player by name; player sees the team; captain drops him", async ({ browser }) => {
   const p = cap.page;
   await p.goto(`${cap.app}/captain/roster`);

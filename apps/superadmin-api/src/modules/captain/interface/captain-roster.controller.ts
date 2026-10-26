@@ -20,6 +20,9 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsInt,
   IsOptional,
@@ -104,6 +107,11 @@ class InviteBodyDto {
   @IsOptional() @IsInt() @Min(0) splitAmountCents?: number;
   /** Optional sweater number the player gets when they join (FR-3.11.2). */
   @IsOptional() @IsInt() @Min(0) @Max(99) jerseyNumber?: number;
+}
+
+class InviteManyBodyDto {
+  @IsUUID() seasonId!: string;
+  @IsArray() @ArrayNotEmpty() @ArrayMaxSize(60) @IsUUID("4", { each: true }) personIds!: string[];
 }
 
 class JerseyBodyDto {
@@ -326,6 +334,126 @@ export class CaptainRosterController {
         ? new Date() > season.rosterLockAt
         : false
     };
+  }
+
+  // -------------------------------------------------------------------
+  // GET /captain/roster/:teamId/past-players  (FR-3.4.3)
+  // -------------------------------------------------------------------
+  @Get(":teamId/past-players")
+  @ApiOperation({
+    summary:
+      "Players who were on this team in other seasons, for inviting them to `seasonId` in one go (FR-3.4.3, UC-04 'selects from past roster'). Marks who is already on the season's roster or has an open invite, and who has no email."
+  })
+  async pastPlayers(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Query("seasonId") seasonId: string
+  ) {
+    await this.requireCaptainTeam(user.userId, teamId);
+    if (!seasonId) throw new BadRequestException("seasonId is required");
+    const rows = (await this.db.execute(sql`
+      SELECT DISTINCT ON (tm.person_id)
+             tm.person_id, p.legal_first_name AS first, p.legal_last_name AS last, p.preferred_name AS preferred,
+             lower(coalesce(pr.email, p.external_ids->>'email')) AS email,
+             s.name AS season_name, s.start_date AS season_start, tm.jersey_number
+        FROM team_memberships tm
+        JOIN persons p ON p.id = tm.person_id
+        JOIN seasons s ON s.id = tm.season_id
+        LEFT JOIN profiles pr ON pr.id = p.user_id
+       WHERE tm.team_id = ${teamId} AND tm.season_id <> ${seasonId}
+       ORDER BY tm.person_id, s.start_date DESC NULLS LAST
+    `)) as unknown as Array<{
+      person_id: string; first: string | null; last: string | null; preferred: string | null;
+      email: string | null; season_name: string; season_start: string | null; jersey_number: number | null;
+    }>;
+    const ids = rows.map((r) => r.person_id);
+    const [onRoster, openInvites] = ids.length
+      ? await Promise.all([
+          this.db
+            .select({ personId: schema.teamMemberships.personId })
+            .from(schema.teamMemberships)
+            .where(
+              and(
+                eq(schema.teamMemberships.teamId, teamId),
+                eq(schema.teamMemberships.seasonId, seasonId),
+                eq(schema.teamMemberships.currentStatus, "active"),
+                inArray(schema.teamMemberships.personId, ids)
+              )
+            ),
+          this.db
+            .select({ email: schema.teamInvites.inviteeEmail })
+            .from(schema.teamInvites)
+            .where(
+              and(
+                eq(schema.teamInvites.teamId, teamId),
+                eq(schema.teamInvites.seasonId, seasonId),
+                inArray(schema.teamInvites.status, OPEN_INVITE_STATUSES)
+              )
+            )
+        ])
+      : [[], []];
+    const rostered = new Set(onRoster.map((r) => r.personId));
+    const invited = new Set(openInvites.map((r) => (r.email ?? "").toLowerCase()));
+    return {
+      items: rows
+        .map((r) => ({
+          personId: r.person_id,
+          name: (r.preferred && r.preferred.trim()) || [r.first, r.last].filter(Boolean).join(" ").trim() || "Unnamed player",
+          email: r.email,
+          lastSeasonName: r.season_name,
+          lastJerseyNumber: r.jersey_number,
+          state: rostered.has(r.person_id)
+            ? ("on_roster" as const)
+            : r.email && invited.has(r.email)
+              ? ("invited" as const)
+              : !r.email
+                ? ("no_email" as const)
+                : ("can_invite" as const)
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /captain/roster/:teamId/invite-many  (FR-3.4.3)
+  // -------------------------------------------------------------------
+  @Post(":teamId/invite-many")
+  @ApiOperation({
+    summary:
+      "Invite several past players to a season in one go. Each must have been on this team before; players already on the roster, already invited or without an email are skipped and named. Same invite as one by email (14-day expiry, email with the link)."
+  })
+  async inviteMany(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Body() body: InviteManyBodyDto
+  ) {
+    const team = await this.requireCaptainTeam(user.userId, teamId);
+    const season = await this.loadSeason(body.seasonId);
+    if (!season) throw new NotFoundException("Season not found");
+    this.assertRosterUnlocked(season);
+    const past = await this.pastPlayers(user, teamId, season.id);
+    const byId = new Map(past.items.map((p) => [p.personId, p]));
+    const results: Array<{ personId: string; name: string | null; outcome: string }> = [];
+    for (const personId of Array.from(new Set(body.personIds))) {
+      const p = byId.get(personId);
+      if (!p) {
+        results.push({ personId, name: null, outcome: "not_a_past_player" });
+        continue;
+      }
+      if (p.state !== "can_invite") {
+        results.push({ personId, name: p.name, outcome: p.state === "invited" ? "already_invited" : p.state });
+        continue;
+      }
+      await this.createInvite(team, season, p.email!, user.userId, {
+        source: "past_roster",
+        personId,
+        jerseyNumber: p.lastJerseyNumber ?? null
+      });
+      results.push({ personId, name: p.name, outcome: "invited" });
+    }
+    const invited = results.filter((r) => r.outcome === "invited").length;
+    this.log.log(`invite-many team=${teamId} season=${season.id} asked=${body.personIds.length} invited=${invited}`);
+    return { invited, results };
   }
 
   // -------------------------------------------------------------------

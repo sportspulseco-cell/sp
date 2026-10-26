@@ -16,6 +16,7 @@ import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/serv
 import { PageHeader } from "@/components/layout/page-header";
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
+import { PastRosterInvite } from "./past-roster-invite";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -158,6 +159,20 @@ export default async function CaptainInvitesPage() {
         </p>
         <div className="mt-4">
           <CreateInviteForm
+            teamId={myTeamId}
+            seasons={teamSeasons.map((s) => ({ id: s.id, name: s.name }))}
+            defaultSeasonId={currentSeason?.id ?? null}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface-1 p-6">
+        <Eyebrow>Invite from past rosters</Eyebrow>
+        <p className="mt-1 text-[12px] text-fg-muted">
+          Players who were on {team?.name ?? "your team"} in earlier seasons. Pick them and invite them in one go.
+        </p>
+        <div className="mt-4">
+          <PastRosterInvite
             teamId={myTeamId}
             seasons={teamSeasons.map((s) => ({ id: s.id, name: s.name }))}
             defaultSeasonId={currentSeason?.id ?? null}
