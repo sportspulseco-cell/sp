@@ -132,7 +132,7 @@ export class OrgAdminRegistrationsController {
     });
     // Same hooks as the super admin's approve: player role, free-agent
     // pool entry, the team for a team registration.
-    if (next === "approved") await this.v2.applyApprovalSideEffects(row);
+    const placement = next === "approved" ? await this.v2.applyApprovalSideEffects(row, user.userId) : null;
 
     // Notify via the catalog template — same path the super-admin
     // flow uses, gets the per-org overrides if any are configured.
@@ -151,7 +151,7 @@ export class OrgAdminRegistrationsController {
       sourceEvent: `registration.${next}`
     });
 
-    return { id, status: next };
+    return { id, status: next, roster: placement?.roster ?? null };
   }
 
   private async userHasOrgAdminOnOrg(

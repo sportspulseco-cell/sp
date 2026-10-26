@@ -52,6 +52,7 @@ import {
   PARENTAL_CONSENT_TITLE,
   REGISTRATION_ACCEPTING_SEASON_STATUSES,
   REGISTRATION_STATE_LABELS,
+  submissionTypeCarriesTeam,
   submissionTypeRefusal,
   tierOffersDivision,
   tierIsFull,
@@ -68,6 +69,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { RegistrationV2Service } from "../application/registration-v2.service";
+import { RosterEntryService } from "../application/roster-entry.service";
 import { loadSeasonTiers, type SeasonTier } from "../application/season-tiers";
 import { reserveInvoiceNumbers } from "../../finance/application/services/invoice-number";
 import { closeRegistrationMoney, takeSeat } from "../application/seats";
@@ -235,6 +237,23 @@ class StartSubmissionBodyDto {
   @IsOptional()
   @IsUUID()
   formVersionId?: string;
+
+  /**
+   * Register directly onto a team (FR-3.4.1): the funnel's
+   * /register/<season>?team=<team> link. Stored on registrations.team_id;
+   * the player joins that roster when the registration is approved.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
+
+  /** The captain invite the player followed (settled on approval). */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  inviteToken?: string;
 }
 
 /**
@@ -265,7 +284,8 @@ export class PublicRegistrationController {
     private readonly supabase: SupabaseAdminService,
     private readonly email: EmailDispatcherService,
     private readonly config: ConfigService,
-    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
+    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor,
+    private readonly rosterEntry: RosterEntryService
   ) {}
 
   @Get("open")
@@ -511,13 +531,16 @@ export class PublicRegistrationController {
     summary:
       "Fetch a season's public registration context: season meta, active pricing tiers, active form definition."
   })
-  async getSeasonContext(@Param("id") id: string) {
+  async getSeasonContext(@Param("id") id: string, @Query("team") teamId?: string) {
     const [season] = await this.db
       .select()
       .from(schema.seasons)
       .where(eq(schema.seasons.id, id))
       .limit(1);
     if (!season) throw new NotFoundException("Season not found");
+    // FR-3.4.1: /register/<season>?team=<team>. The funnel shows the team
+    // and, before payment, whether it can take the player (full, locked).
+    const joinTeam = teamId && UUID_RE.test(teamId) ? await this.joinTeamContext(teamId, id) : null;
 
     // Each tier carries the divisions it is offered to; the funnel shows
     // a player only their division's prices (REG-18).
@@ -570,8 +593,74 @@ export class PublicRegistrationController {
         message: window.message
       },
       formVersionId: formVersion?.versionId ?? null,
-      formDefinition: formVersion?.schema ?? { schemaVersion: 1, questions: [] }
+      formDefinition: formVersion?.schema ?? { schemaVersion: 1, questions: [] },
+      joinTeam
     };
+  }
+
+  /**
+   * The team a ?team= link joins, for the funnel: name, division, and
+   * the refusal the player would hit (team not in the season, roster
+   * full or locked). `available: false` with a message when it cannot.
+   */
+  private async joinTeamContext(teamId: string, seasonId: string) {
+    const opening = await this.rosterEntry.opening(teamId, seasonId);
+    if (!opening) {
+      return {
+        id: teamId,
+        name: null as string | null,
+        divisionId: null as string | null,
+        divisionName: null as string | null,
+        available: false,
+        message: "This team is not playing this season. Check the link with your captain, or register without a team."
+      };
+    }
+    return {
+      id: opening.team.id,
+      name: opening.team.name,
+      divisionId: opening.division?.id ?? null,
+      divisionName: opening.division?.name ?? null,
+      available: !opening.refusal,
+      message: opening.refusal?.message ?? null
+    };
+  }
+
+  /**
+   * Validate a ?team= (and invite token) on start / resume: a player path,
+   * a team that plays the season with room on its roster, and an invite
+   * for that same team. Returns what the registration stores.
+   */
+  private async resolveJoinTeam(
+    seasonId: string,
+    submissionType: RegistrationSubmissionType,
+    teamId: string | undefined,
+    inviteToken: string | undefined
+  ): Promise<{ teamId: string; divisionId: string | null; inviteId: string | null } | null> {
+    if (!teamId) return null;
+    if (!submissionTypeCarriesTeam(submissionType)) {
+      throw new UnprocessableEntityException(
+        "A team registration creates its own team. To join an existing team, pick Register as a player or Captain invite."
+      );
+    }
+    const opening = await this.rosterEntry.opening(teamId, seasonId);
+    if (!opening) {
+      throw new UnprocessableEntityException(
+        "This team is not playing this season. Check the link with your captain, or register without a team."
+      );
+    }
+    if (opening.refusal) {
+      throw new ConflictException({ error: `roster_${opening.refusal.reason}`, message: opening.refusal.message });
+    }
+    let inviteId: string | null = null;
+    if (inviteToken) {
+      const [inv] = await this.db
+        .select({ id: schema.teamInvites.id, teamId: schema.teamInvites.teamId, seasonId: schema.teamInvites.seasonId })
+        .from(schema.teamInvites)
+        .where(eq(schema.teamInvites.token, inviteToken))
+        .limit(1);
+      if (inv && inv.teamId === teamId && inv.seasonId === seasonId) inviteId = inv.id;
+    }
+    return { teamId, divisionId: opening.division?.id ?? null, inviteId };
   }
 
   @Post("seasons/:id/submissions")
@@ -594,6 +683,9 @@ export class PublicRegistrationController {
     );
     // REG-14: the season's registration type decides which paths exist.
     const submissionType = this.assertPathOffered(season, body.submissionType);
+    // FR-3.4.1: a team to join, checked before anything is written.
+    const join = await this.resolveJoinTeam(seasonId, submissionType, body.teamId, body.inviteToken);
+    if (join?.divisionId) body.divisionId = join.divisionId;
 
     const email = body.email.trim().toLowerCase();
     const baseKey = `${email}|${seasonId}|${submissionType}`;
@@ -717,6 +809,16 @@ export class PublicRegistrationController {
       if (body.teamName || body.teamColor) {
         patch.team = { name: body.teamName ?? null, color: body.teamColor ?? null };
       }
+      if (join) {
+        if (existing.teamId && existing.teamId !== join.teamId) {
+          throw new ConflictException({
+            error: "registration_has_team",
+            message:
+              "Your registration for this season is already for another team. Ask the league to move it before joining a different team."
+          });
+        }
+        patch.joinTeam = { teamId: join.teamId, inviteId: join.inviteId, source: "registration_link" };
+      }
       const rebind = this.rebindFormVersion(existing, formVersion.versionId);
       const toConsent = this.needsGuardianConsentNow(existing, dob);
       if (toConsent) {
@@ -733,6 +835,7 @@ export class PublicRegistrationController {
           metadata: mergeMetadata(existing.metadata, patch),
           ...rebind,
           ...(toConsent ? { status: "pending_consent" } : {}),
+          ...(join ? { teamId: join.teamId, ...(join.divisionId ? { divisionId: join.divisionId } : {}) } : {}),
           updatedAt: new Date()
         })
         .where(
@@ -790,6 +893,7 @@ export class PublicRegistrationController {
           subjectPersonId: personId!,
           seasonId,
           divisionId: body.divisionId ?? null,
+          teamId: join?.teamId ?? null,
           status: initialState,
           metadata: {
             submissionType,
@@ -806,7 +910,10 @@ export class PublicRegistrationController {
                     name: body.teamName ?? null,
                     color: body.teamColor ?? null
                   }
-                : undefined
+                : undefined,
+            joinTeam: join
+              ? { teamId: join.teamId, inviteId: join.inviteId, source: "registration_link" }
+              : undefined
           }
         })
         .returning();
@@ -858,6 +965,9 @@ export class PublicRegistrationController {
         | "captain_invite";
       /** Form version the funnel rendered; see StartSubmissionBodyDto. */
       formVersionId?: string;
+      /** FR-3.4.1 team to join and the invite followed; see StartSubmissionBodyDto. */
+      teamId?: string;
+      inviteToken?: string;
     }
   ) {
     const season = await this.requirements.loadSeason(seasonId);
@@ -866,11 +976,20 @@ export class PublicRegistrationController {
     if (body.formVersionId && !UUID_RE.test(body.formVersionId)) {
       throw new BadRequestException("formVersionId must be a UUID");
     }
+    if (body.teamId && !UUID_RE.test(body.teamId)) {
+      throw new BadRequestException("teamId must be a UUID");
+    }
     const formVersion = await this.requirements.bindFormVersion(
       season,
       body.formVersionId ?? null
     );
     const submissionType = this.assertPathOffered(season, body.submissionType);
+    const join = await this.resolveJoinTeam(
+      seasonId,
+      submissionType,
+      body.teamId,
+      typeof body.inviteToken === "string" ? body.inviteToken.slice(0, 200) : undefined
+    );
 
     const email = (body.email ?? "").trim().toLowerCase();
     if (!email) throw new NotFoundException("email required");
@@ -959,16 +1078,35 @@ export class PublicRegistrationController {
         );
       }
       let status = existing.status;
-      if (rebind.formVersionId || toConsent) {
+      if (join && existing.teamId && existing.teamId !== join.teamId) {
+        throw new ConflictException({
+          error: "registration_has_team",
+          message:
+            "Your registration for this season is already for another team. Ask the league to move it before joining a different team."
+        });
+      }
+      // Record the team only on a registration the player can still edit;
+      // a submitted one goes through the invite accept (team recorded there).
+      const recordJoin = !!join && EDITABLE_STATES.has(existing.status) && existing.teamId !== join.teamId;
+      if (rebind.formVersionId || toConsent || recordJoin) {
+        const joinMeta = recordJoin
+          ? { joinTeam: { teamId: join!.teamId, inviteId: join!.inviteId, source: "registration_link" } }
+          : {};
         const [updated] = await this.db
           .update(schema.registrations)
           .set({
             ...rebind,
-            ...(toConsent
+            ...(toConsent || recordJoin
               ? {
-                  status: "pending_consent",
-                  metadata: mergeMetadata(existing.metadata, { isMinor: true })
+                  ...(toConsent ? { status: "pending_consent" } : {}),
+                  metadata: mergeMetadata(existing.metadata, {
+                    ...(toConsent ? { isMinor: true } : {}),
+                    ...joinMeta
+                  })
                 }
+              : {}),
+            ...(recordJoin
+              ? { teamId: join!.teamId, ...(join!.divisionId ? { divisionId: join!.divisionId } : {}) }
               : {}),
             updatedAt: new Date()
           })
@@ -1049,6 +1187,8 @@ export class PublicRegistrationController {
           submittedByUserId: userId,
           subjectPersonId: personId!,
           seasonId,
+          divisionId: join?.divisionId ?? null,
+          teamId: join?.teamId ?? null,
           status: initialState,
           metadata: {
             submissionType,
@@ -1058,7 +1198,10 @@ export class PublicRegistrationController {
             phone: profilePhone,
             dobDate: profileDob,
             answers: {},
-            isMinor: isMinorOn(profileDob)
+            isMinor: isMinorOn(profileDob),
+            ...(join
+              ? { joinTeam: { teamId: join.teamId, inviteId: join.inviteId, source: "registration_link" } }
+              : {})
           }
         })
         .returning();
@@ -1084,7 +1227,7 @@ export class PublicRegistrationController {
       phone: profilePhone,
       answers: {} as Record<string, unknown>,
       pricingTierId: null as string | null,
-      divisionId: null as string | null
+      divisionId: (join?.divisionId ?? null) as string | null
     };
   }
 
@@ -1968,6 +2111,18 @@ export class PublicRegistrationController {
     // Payment processing itself is unchanged (mock by founder decision).
     await this.requirements.assertSubmittable(row);
     const meta = (row.metadata as Record<string, unknown>) ?? {};
+    // FR-3.4.1: a registration onto a team that filled up or locked since
+    // the player started says so before anything is charged.
+    if (row.teamId && row.seasonId && submissionTypeCarriesTeam((meta.submissionType as string) ?? "individual")) {
+      const opening = await this.rosterEntry.opening(row.teamId, row.seasonId);
+      const refusal = !opening
+        ? "This team is not playing this season any more. Contact the league before you pay."
+        : opening.refusal?.message ?? null;
+      if (refusal) {
+        this.log.log(`refused pay: registration=${row.id} team=${row.teamId}: ${refusal}`);
+        throw new ConflictException({ error: "team_unavailable", message: refusal });
+      }
+    }
     const outcome = body.mockOutcome ?? "succeeded";
 
     // The amount comes from a tier this season offers for the

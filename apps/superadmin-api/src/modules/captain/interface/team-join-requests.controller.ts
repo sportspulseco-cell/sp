@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -24,6 +25,12 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { NotificationService } from "../../communications/application/notification.service";
 import { notifyAudience } from "../../../shared/audience/notify-audience";
+import { ConfigService } from "@nestjs/config";
+import { teamRegistrationPath } from "@sportspulse/kernel";
+import { playerWebUrl } from "../../../shared/app-urls";
+import { RosterEntryService } from "../../registration-v2/application/roster-entry.service";
+
+type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 class ApplyBodyDto {
   @IsUUID() teamId!: string;
@@ -54,9 +61,13 @@ class DecideBodyDto {
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class TeamJoinRequestsController {
+  private readonly log = new Logger(TeamJoinRequestsController.name);
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly notify: NotificationService
+    private readonly notify: NotificationService,
+    private readonly config: ConfigService,
+    private readonly rosterEntry: RosterEntryService
   ) {}
 
   // -------------------------------------------------------------------
@@ -486,98 +497,167 @@ export class TeamJoinRequestsController {
     const ok = await userIsCaptainOfTeam(this.db, user.userId, row.teamId);
     if (!ok) throw new ForbiddenException("Not the captain of this team");
 
-    const nextStatus = body.action === "approve" ? "approved" : "rejected";
-
-    await this.db.transaction(async (tx) => {
-      await tx
+    const decided = {
+      decidedAt: new Date(),
+      decidedByUserId: user.userId,
+      decisionReason: body.reason?.trim() || null,
+      updatedAt: new Date()
+    };
+    /** Flip the request once; a second decision on the same request is refused. */
+    const flip = async (tx: Tx, status: "approved" | "rejected") => {
+      const done = await tx
         .update(schema.teamJoinRequests)
-        .set({
-          status: nextStatus,
-          decidedAt: new Date(),
-          decidedByUserId: user.userId,
-          decisionReason: body.reason?.trim() || null,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.teamJoinRequests.id, id));
-
-      // On approve, create the active roster row (idempotent on the
-      // active uniqueness index — duplicate insert silently bails out).
-      if (body.action === "approve") {
-        await tx
-          .insert(schema.teamMemberships)
-          .values({
-            teamId: row.teamId,
-            personId: row.playerPersonId,
-            seasonId: row.seasonId,
-            membershipType: "primary",
-            effectiveFrom: new Date(),
-            currentStatus: "active"
-          })
-          .onConflictDoNothing();
-
-        // Grant a team-scoped `player` role so the player's JWT
-        // principal scope picks up the team. Without this row,
-        // loadUserScope returns scope.teamIds=[] and player-web's
-        // /team page stays on the "Not on a roster yet" empty state
-        // even though the membership row exists.
-        const [linkedPerson] = await tx
-          .select({ userId: schema.persons.userId })
-          .from(schema.persons)
-          .where(eq(schema.persons.id, row.playerPersonId))
-          .limit(1);
-        if (linkedPerson?.userId) {
-          const [playerRole] = await tx
-            .select({ id: schema.roles.id })
-            .from(schema.roles)
-            .where(eq(schema.roles.code, "player"))
-            .limit(1);
-          if (playerRole) {
-            // De-dup: skip if an active team-scoped player role
-            // already exists for this user+team.
-            const [existing] = await tx
-              .select({ id: schema.userRoleAssignments.id })
-              .from(schema.userRoleAssignments)
-              .where(
-                and(
-                  eq(schema.userRoleAssignments.userId, linkedPerson.userId),
-                  eq(schema.userRoleAssignments.roleId, playerRole.id),
-                  eq(schema.userRoleAssignments.scopeType, "team"),
-                  eq(schema.userRoleAssignments.scopeId, row.teamId)
-                )
-              )
-              .limit(1);
-            if (!existing) {
-              await tx.insert(schema.userRoleAssignments).values({
-                userId: linkedPerson.userId,
-                roleId: playerRole.id,
-                scopeType: "team",
-                scopeId: row.teamId,
-                effectiveFrom: new Date(),
-                grantedByUserId: user.userId
-              });
-            }
-          }
-        }
+        .set({ status, ...decided })
+        .where(and(eq(schema.teamJoinRequests.id, id), eq(schema.teamJoinRequests.status, "pending")))
+        .returning({ id: schema.teamJoinRequests.id });
+      if (done.length !== 1) {
+        throw new ConflictException({ error: "not_pending", message: "This request was just decided." });
       }
-    });
+    };
 
+    if (body.action === "reject") {
+      await this.db.transaction((tx) => flip(tx, "rejected"));
+      void this.notify.queue({
+        orgId: row.orgId,
+        templateCode: "PLAYER_JOIN_REJECTED",
+        idempotencyKey: `join-decide-${id}`,
+        recipientPersonId: row.playerPersonId,
+        payload: {
+          teamId: row.teamId,
+          teamName: row.teamName,
+          playerPersonId: row.playerPersonId,
+          reason: body.reason?.trim() || "No reason given."
+        }
+      });
+      return { id, status: "rejected" as const };
+    }
+
+    // Approve: the same roster rules as every other way onto a roster
+    // (lock, cap, one active membership, move log) and the same
+    // registration gate: a player joins by completing the season's
+    // registration (UC-01, UC-04). Before this the approval inserted a
+    // membership with no lock or cap check and no roster_moves row.
+    const season = await this.rosterEntry.loadSeason(row.seasonId);
+    if (!season) throw new NotFoundException("Season not found");
+    this.rosterEntry.assertUnlocked(season);
+    await this.rosterEntry.assertNotActiveInOtherSeason(row.teamId, row.playerPersonId, season.id);
+    const opening = await this.rosterEntry.opening(row.teamId, season.id);
+    if (!opening) {
+      throw new ConflictException({
+        error: "team_not_in_season",
+        message: `${row.teamName} is not playing ${season.name}, so it cannot take players for it.`
+      });
+    }
+    const reg = await this.rosterEntry.seasonRegistration(row.playerPersonId, season.id);
+    const readiness = reg?.readiness ?? "register";
+    this.log.log(
+      `join request decide id=${id} team=${row.teamId} person=${row.playerPersonId} registration=${reg?.id ?? "-"}:${reg?.status ?? "-"} -> ${readiness}`
+    );
+
+    let roster: "rostered" | "awaiting_approval" | "registration_required";
+    let message: string;
+    if (readiness === "ready") {
+      await this.rosterEntry.addToRoster({
+        teamId: row.teamId,
+        seasonId: season.id,
+        personId: row.playerPersonId,
+        maxRosterSize: opening.maxRosterSize,
+        actorUserId: user.userId,
+        jerseyNumber: null,
+        positionCode: null,
+        reason: "Join request approved",
+        sourceEventId: `join-request-${id}`,
+        inTx: async (tx) => {
+          await flip(tx, "approved");
+          await this.grantTeamPlayerRole(tx, row.playerPersonId, row.teamId, user.userId);
+        }
+      });
+      roster = "rostered";
+      message = "The player is on the roster.";
+    } else {
+      if (opening.refusal) {
+        throw new ConflictException({ error: opening.refusal.reason, message: opening.refusal.message });
+      }
+      if (readiness === "awaiting_approval" && reg) {
+        await this.db.transaction(async (tx) => {
+          await this.rosterEntry.recordTeamOnRegistration(reg, row.teamId, {
+            source: "join_request",
+            exec: tx
+          });
+          await flip(tx, "approved");
+        });
+        roster = "awaiting_approval";
+        message = "The player joins the roster when the league approves their registration.";
+      } else {
+        await this.db.transaction((tx) => flip(tx, "approved"));
+        roster = "registration_required";
+        message = `The player has not registered for ${season.name} yet. We asked them to register; they join the roster when the league approves it.`;
+      }
+    }
+
+    const registerUrl = `${playerWebUrl(this.config).replace(/\/+$/, "")}${teamRegistrationPath(season.id, row.teamId)}`;
     void this.notify.queue({
       orgId: row.orgId,
-      templateCode:
-        body.action === "approve"
-          ? "PLAYER_JOIN_APPROVED"
-          : "PLAYER_JOIN_REJECTED",
+      templateCode: roster === "registration_required" ? "TEAM_JOIN_REGISTER" : "PLAYER_JOIN_APPROVED",
       idempotencyKey: `join-decide-${id}`,
       recipientPersonId: row.playerPersonId,
       payload: {
         teamId: row.teamId,
         teamName: row.teamName,
+        seasonName: season.name,
+        seasonId: season.id,
         playerPersonId: row.playerPersonId,
+        registerUrl,
+        rosterClause:
+          roster === "rostered"
+            ? "You are on the roster."
+            : "You join the roster when the league approves your registration.",
         reason: body.reason?.trim() || "No reason given."
       }
     });
 
-    return { id, status: nextStatus };
+    return { id, status: "approved" as const, roster, message };
+  }
+
+  /**
+   * Team-scoped `player` role for a player who joined from a request,
+   * so their principal scope picks up the team. Idempotent.
+   */
+  private async grantTeamPlayerRole(tx: Tx, personId: string, teamId: string, actorUserId: string) {
+    const [linkedPerson] = await tx
+      .select({ userId: schema.persons.userId })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, personId))
+      .limit(1);
+    if (!linkedPerson?.userId) return;
+    const [playerRole] = await tx
+      .select({ id: schema.roles.id })
+      .from(schema.roles)
+      .where(eq(schema.roles.code, "player"))
+      .limit(1);
+    if (!playerRole) return;
+    const [existing] = await tx
+      .select({ id: schema.userRoleAssignments.id })
+      .from(schema.userRoleAssignments)
+      .where(
+        and(
+          eq(schema.userRoleAssignments.userId, linkedPerson.userId),
+          eq(schema.userRoleAssignments.roleId, playerRole.id),
+          eq(schema.userRoleAssignments.scopeType, "team"),
+          eq(schema.userRoleAssignments.scopeId, teamId)
+        )
+      )
+      .limit(1);
+    if (!existing) {
+      await tx.insert(schema.userRoleAssignments).values({
+        userId: linkedPerson.userId,
+        roleId: playerRole.id,
+        scopeType: "team",
+        scopeId: teamId,
+        effectiveFrom: new Date(),
+        grantedByUserId: actorUserId
+      });
+    }
   }
 
   // -------------------------------------------------------------------

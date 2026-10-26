@@ -11,6 +11,7 @@ import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.servic
 import { NotificationService } from "../../communications/application/notification.service";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 import { withTierDivisions } from "./season-tiers";
+import { RosterEntryService } from "./roster-entry.service";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -25,7 +26,8 @@ export class RegistrationV2Service {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly supabase: SupabaseAdminService,
     private readonly notify: NotificationService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly rosterEntry: RosterEntryService
   ) {}
 
   // ================= PRICING TIERS =================
@@ -867,13 +869,23 @@ export class RegistrationV2Service {
    *      row from metadata.answers (positions / availability /
    *      skill_level / fa_note). Without this the player never
    *      surfaces on the captain's Free agents list.
+   *   3. A player registration with a team on it (`team_id`: the
+   *      funnel's ?team= link, or an invite, offer or join request
+   *      answered while it waited for review) puts the player on that
+   *      roster through the shared roster add (lock, cap, move log) and
+   *      settles the invite (FR-3.4.1, UC-04).
    *
    * Failures are logged but don't roll back the approval — the
    * approval is the binding decision; side-effects are mechanical
-   * sync.
+   * sync. A roster placement that could not happen is recorded on the
+   * registration (`metadata.rosterPlacement`) and returned.
    */
-  async applyApprovalSideEffects(row: typeof schema.registrations.$inferSelect): Promise<void> {
+  async applyApprovalSideEffects(
+    row: typeof schema.registrations.$inferSelect,
+    actorUserId: string | null = null
+  ): Promise<{ roster: { status: string; reason?: string } | null }> {
     const meta = (row.metadata as Record<string, unknown>) ?? {};
+    let roster: { status: string; reason?: string } | null = null;
     try {
       if (row.submittedByUserId && row.orgId) {
         await this.ensurePlayerRoleForRegistration({
@@ -924,6 +936,36 @@ export class RegistrationV2Service {
           );
         }
       }
+      if (submissionType !== "team") {
+        // Read the row again: the team may have been recorded after the
+        // caller loaded it (an invite answered while it waited for review).
+        const [fresh] = await this.db
+          .select()
+          .from(schema.registrations)
+          .where(eq(schema.registrations.id, row.id))
+          .limit(1);
+        if (fresh?.teamId) {
+          roster = await this.rosterEntry.rosterFromApprovedRegistration(fresh, actorUserId);
+          // A free agent who answered an offer before approval joined a
+          // team: the pool entry the approval just made is placed.
+          if (
+            submissionType === "free_agent" &&
+            (roster.status === "rostered" || roster.status === "already") &&
+            fresh.seasonId &&
+            fresh.subjectPersonId
+          ) {
+            await this.db
+              .update(schema.freeAgentPoolEntries)
+              .set({ status: "placed", placedTeamId: fresh.teamId, placedAt: new Date(), updatedAt: new Date() })
+              .where(
+                and(
+                  eq(schema.freeAgentPoolEntries.playerPersonId, fresh.subjectPersonId),
+                  eq(schema.freeAgentPoolEntries.seasonId, fresh.seasonId)
+                )
+              );
+          }
+        }
+      }
     } catch (e) {
       // Don't fail the approval if a side-effect stumbles — admin can
       // re-trigger via override_flag or re-approve. Log loudly.
@@ -932,5 +974,6 @@ export class RegistrationV2Service {
         (e as Error).message
       );
     }
+    return { roster };
   }
 }

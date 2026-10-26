@@ -265,7 +265,7 @@ export class AdminReviewController {
           updatedAt: new Date()
         })
         .where(eq(schema.registrations.id, id));
-      await this.v2.applyApprovalSideEffects(row);
+      const placement = await this.v2.applyApprovalSideEffects(row, user.userId);
       if (recipient) {
         await this.email.send({
           to: recipient,
@@ -274,7 +274,7 @@ export class AdminReviewController {
           channel: "registration.approved"
         });
       }
-      return { id, status: "approved" as const };
+      return { id, status: "approved" as const, roster: placement.roster };
     }
 
     if (body.action === "reject") {
@@ -477,7 +477,7 @@ export class AdminReviewController {
       applied++;
       const meta = (r.metadata as Record<string, unknown>) ?? {};
       if (target === "approved") {
-        await this.v2.applyApprovalSideEffects(r);
+        await this.v2.applyApprovalSideEffects(r, reviewerUserId);
       }
       const recipient = meta.email as string | undefined;
       if (recipient) {

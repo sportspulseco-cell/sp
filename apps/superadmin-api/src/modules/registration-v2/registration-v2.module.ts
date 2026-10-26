@@ -4,6 +4,7 @@ import { FinanceModule } from "../finance/finance.module";
 import { RegistrationV2Service } from "./application/registration-v2.service";
 import { RegistrationRequirementsService } from "./application/registration-requirements.service";
 import { FreeAgentOffersService } from "./application/free-agent-offers.service";
+import { RosterEntryService } from "./application/roster-entry.service";
 import { PricingTiersController } from "./interface/pricing-tiers.controller";
 import { PricingTierDivisionsController } from "./interface/pricing-tier-divisions.controller";
 import { EmailTemplatesController } from "./interface/email-templates.controller";
@@ -36,7 +37,9 @@ import { AdminReviewController } from "./interface/admin-review.controller";
   // required-document signatures, shared with the player /compliance page.
   // FreeAgentOffersService: free-agent offers (CAP-9); exported for the
   // captain module, whose invite accept / decline settles them.
-  providers: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService],
-  exports: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService]
+  // RosterEntryService: the one roster add (registration gate, lock, cap,
+  // move log) for captains, invites, offers, join requests and approval.
+  providers: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService, RosterEntryService],
+  exports: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService, RosterEntryService]
 })
 export class RegistrationV2Module {}

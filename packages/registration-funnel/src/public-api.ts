@@ -88,6 +88,10 @@ export interface PublicRegistrationApi {
       /** Team registration only — captured on the Team information card. */
       teamName?: string;
       teamColor?: string;
+      /** FR-3.4.1: join this team when the registration is approved. */
+      teamId?: string;
+      /** The captain invite the player followed. */
+      inviteToken?: string;
     }
   ): Promise<{
     id: string;
@@ -111,6 +115,8 @@ export interface PublicRegistrationApi {
       submissionType?: SubmissionType;
       /** Form version the funnel rendered; the API binds to it (REG-8). */
       formVersionId?: string;
+      teamId?: string;
+      inviteToken?: string;
     }
   ): Promise<{
     id: string;

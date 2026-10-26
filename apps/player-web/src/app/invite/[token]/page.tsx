@@ -71,6 +71,10 @@ export default async function InvitePage({
                   ? `${invite.teamName} offered you a spot for ${invite.seasonName} from the free-agent pool. Accept to join the roster, or decline to stay in the pool.`
                   : invite.seasonName}
               </p>
+              <p className="mt-2 text-[13px] text-fg-muted">
+                Players join a team by registering for the season (form, waivers and payment). If you
+                have not registered yet, Join opens the registration with {invite.teamName} set.
+              </p>
             </div>
             {user ? (
               <AcceptInviteButton

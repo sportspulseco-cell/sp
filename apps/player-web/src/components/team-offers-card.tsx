@@ -36,8 +36,14 @@ export function TeamOffersCard({ items }: { items: MyTeamInvite[] }) {
     setBusy(`${inv.id}:${kind}`);
     setError(null);
     try {
-      if (kind === "accept") await captain.acceptInvite(inv.token);
-      else await captain.declineInvite(inv.token);
+      if (kind === "accept") {
+        const res = await captain.acceptInvite(inv.token);
+        // No season registration yet: register with this team set (UC-04).
+        if (res.status === "registration_required" && res.registerPath) {
+          router.push(res.registerPath);
+          return;
+        }
+      } else await captain.declineInvite(inv.token);
       setOpen((prev) => prev.filter((p) => p.id !== inv.id));
       setAnswered((prev) => [
         ...prev,

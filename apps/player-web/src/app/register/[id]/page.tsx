@@ -18,14 +18,15 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 export const dynamic = "force-dynamic";
 
 async function getContext(
-  seasonId: string
+  seasonId: string,
+  teamId: string | null
 ): Promise<LoadResult<PublicSeasonContext>> {
   // Keep the HTTP status: a 404 (no such season) and a server error
   // must render differently.
   return load(
     (async () => {
       const res = await fetch(
-        `${API}/public/registration/seasons/${seasonId}`,
+        `${API}/public/registration/seasons/${seasonId}${teamId ? `?team=${encodeURIComponent(teamId)}` : ""}`,
         { cache: "no-store" }
       );
       if (!res.ok) {
@@ -39,12 +40,18 @@ async function getContext(
 }
 
 export default async function PlayerRegisterPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  /** FR-3.4.1: ?team=<teamId> registers onto that team; ?invite=<token> is the captain invite followed. */
+  searchParams: Promise<{ team?: string; invite?: string }>;
 }) {
   const { id } = await params;
-  const ctxResult = await getContext(id);
+  const sp = await searchParams;
+  const teamId = typeof sp.team === "string" && sp.team ? sp.team : null;
+  const inviteToken = typeof sp.invite === "string" && sp.invite ? sp.invite : null;
+  const ctxResult = await getContext(id, teamId);
   if (!ctxResult.ok) {
     if (ctxResult.status === 404) notFound();
     return (
@@ -61,7 +68,7 @@ export default async function PlayerRegisterPage({
 
   return (
     <div className="min-h-screen bg-bg text-fg">
-      <FunnelClient context={ctx} />
+      <FunnelClient context={ctx} inviteToken={inviteToken} />
     </div>
   );
 }

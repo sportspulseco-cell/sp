@@ -1882,7 +1882,12 @@ export function createApi(f: Fetcher) {
         id: string,
         body: { action: "approve" | "reject"; reason?: string }
       ) =>
-        f<{ id: string; status: "approved" | "rejected" }>(
+        f<{
+          id: string;
+          status: "approved" | "rejected";
+          roster?: "rostered" | "awaiting_approval" | "registration_required";
+          message?: string;
+        }>(
           `/captain/team-join-requests/${id}/decide`,
           { method: "POST", body: JSON.stringify(body) }
         ),
@@ -2783,7 +2788,17 @@ export function createApi(f: Fetcher) {
         }>(`/captain/teams/${teamId}/message`, { method: "POST", body: JSON.stringify(body) }),
       /** Invited player joins the team from /invite/[token] (UC-04). */
       acceptInvite: (token: string) =>
-        f<{ teamId: string; seasonId: string; membershipId: string }>(
+        // UC-04: rostered (approved registration), awaiting_approval (team
+        // recorded on a submitted registration) or registration_required
+        // (open registerPath: the funnel with this team set).
+        f<{
+          status: "rostered" | "awaiting_approval" | "registration_required";
+          teamId: string;
+          seasonId: string;
+          membershipId?: string;
+          registerPath?: string;
+          message?: string;
+        }>(
           `/captain/roster/invites/${encodeURIComponent(token)}/accept`,
           { method: "POST" }
         ),
@@ -3018,6 +3033,8 @@ export function createApi(f: Fetcher) {
               personFirstName: string | null;
               personLastName: string | null;
               personEmail: string | null;
+              /** FR-3.11.2: contact details, read only for the captain. */
+              personPhone?: string | null;
               personDob: string | null;
             }>;
             invites: Array<{
@@ -3029,6 +3046,14 @@ export function createApi(f: Fetcher) {
               extensionCount: number;
               lastSentAt: string | null;
               createdAt: string;
+            }>;
+            /** Players registering onto the team; they join on the league's approval (FR-3.4.1). */
+            joining?: Array<{
+              registrationId: string;
+              personId: string;
+              name: string | null;
+              status: string;
+              stage: "awaiting_approval" | "registering";
             }>;
             rosterLockAt: string | null;
             isLocked: boolean;
@@ -3042,9 +3067,29 @@ export function createApi(f: Fetcher) {
             positionCode?: string;
           }
         ) =>
-          f<{ move: unknown; membership: unknown }>(
+          /**
+           * rostered: on the roster now (approved registration).
+           * awaiting_approval: registered, joins when the league approves.
+           * invited: no registration; an invite to register onto the team went out.
+           */
+          f<{
+            status: "rostered" | "awaiting_approval" | "invited";
+            message: string;
+            move?: unknown;
+            membership?: unknown;
+            invite?: { id: string; token: string };
+          }>(
             `/captain/roster/${teamId}/add`,
             { method: "POST", body: JSON.stringify(body) }
+          ),
+        /** FR-3.11.2: set or clear a rostered player's jersey number (unique per team and season). */
+        setJersey: (
+          teamId: string,
+          body: { seasonId: string; personId: string; jerseyNumber: number | null }
+        ) =>
+          f<{ membershipId: string; jerseyNumber: number | null }>(
+            `/captain/roster/${teamId}/jersey`,
+            { method: "PATCH", body: JSON.stringify(body) }
           ),
         drop: (
           teamId: string,
@@ -3060,7 +3105,7 @@ export function createApi(f: Fetcher) {
           }),
         invite: (
           teamId: string,
-          body: { seasonId: string; email: string }
+          body: { seasonId: string; email: string; jerseyNumber?: number }
         ) =>
           f<{
             invite: {

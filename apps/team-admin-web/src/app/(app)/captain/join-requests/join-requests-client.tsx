@@ -43,11 +43,12 @@ export function JoinRequestsClient({
     setBusy(item.id);
     setError(null);
     try {
-      await registration.captainDecideJoinRequest(item.id, {
+      const res = await registration.captainDecideJoinRequest(item.id, {
         action: "approve"
       });
       setItems((arr) => arr.filter((i) => i.id !== item.id));
-      setFlash(`Approved ${item.playerName ?? "player"}.`);
+      // Rostered now, or joining once the league approves their registration.
+      setFlash(`Approved ${item.playerName ?? "player"}. ${res.message ?? ""}`.trim());
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
