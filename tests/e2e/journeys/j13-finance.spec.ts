@@ -33,7 +33,6 @@ if (!existsSync(TAG_FILE)) writeFileSync(TAG_FILE, process.env.E2E_RUN_TAG ?? RU
 const TAG = readFileSync(TAG_FILE, "utf8").trim();
 
 const ORG_NAME = "PPHL Staging";
-const TEAM_NAME = "Staging Skaters";
 const PLAYER_EMAIL = "staging-player@sportspulse.us";
 const AMOUNT_A = "123.45"; // invoice A (paid + refunded)
 const AMOUNT_B = "40.00"; // invoice B (paid with wallet credit)
@@ -167,7 +166,7 @@ async function composeTeamInvoice(p: Page, desc: string, amount: string) {
   return { org };
 }
 
-test("3. /finance/create composer: individual picker, then team-scope invoices A and B", async ({ browser }) => {
+test("3. /finance/create composer: individual picker, then invoices A and B to the player", async ({ browser }) => {
   const p = (await as(browser, "superAdmin")).page;
   await composeTeamInvoice(p, DESC_A, AMOUNT_A);
   // Default scope is Individual — the person picker must list people.
@@ -189,8 +188,13 @@ test("3. /finance/create composer: individual picker, then team-scope invoices A
     [DESC_B, AMOUNT_B]
   ] as const) {
     if (!/\/finance\/create/.test(p.url())) await composeTeamInvoice(p, desc, amt);
-    await p.locator("select#scope").selectOption("team");
-    await p.locator("select#target").selectOption({ label: TEAM_NAME });
+    // Individual scope to the player: since MON-23 a Team invoice goes to the
+    // captain to split on Dues (covered by J14), so the player-pays steps below
+    // need invoices addressed to the player.
+    await p.locator("select#scope").selectOption("individual");
+    const playerOpt = (await p.locator("select#target option").allTextContents()).find((o) => /staging-player@/i.test(o));
+    expect(playerOpt, "composer lists the staging player").toBeTruthy();
+    await p.locator("select#target").selectOption({ label: playerOpt! });
     await p.getByPlaceholder("e.g. 2026 Spring season registration").fill(desc);
     await p.getByPlaceholder("0.00").first().fill(amt);
     await p.locator("input[type='date']").fill(inTwoDaysIso());
@@ -199,7 +203,7 @@ test("3. /finance/create composer: individual picker, then team-scope invoices A
     const resp = await respP;
     const json = await resp.json().catch(() => ({}));
     log(`composer create ${desc} →`, resp.status(), JSON.stringify(json).slice(0, 200));
-    expect(resp.status(), "composer team invoice created").toBeLessThan(300);
+    expect(resp.status(), "composer invoice created").toBeLessThan(300);
     await p.waitForURL(/\/finance(\?|$)/, { timeout: 20_000 });
   }
 

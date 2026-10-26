@@ -408,6 +408,9 @@ test.describe("J10 schedule generate and publish", () => {
     // Venues UI cannot create (no is_playoff_reservation field).
     await page.goto(`${app}/scheduling/${seasonId}/playoffs`);
     const gen = page.getByRole("button", { name: /Generate( bracket)?/i }).first();
+    // The brackets load in the browser after the page renders: wait for the
+    // Generate button or the bracket count before deciding which it is.
+    await gen.or(page.getByText(/^\d+ brackets?$/i).first()).first().waitFor({ timeout: 30_000 }).catch(() => undefined);
     if (await gen.isVisible().catch(() => false)) {
       const r = await edgeCall(page, "scheduler-bracket-generate", () => gen.click());
       console.log(`[J10] bracket generate → ${r}`);
