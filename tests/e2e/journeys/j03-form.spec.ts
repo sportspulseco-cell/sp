@@ -151,9 +151,9 @@ test.describe.serial("J3 · build and publish a registration form", () => {
   test("1 · org_admin creates league + season + division in Org setup", async () => {
     test.skip(FROM > 1, "resumed run");
     await oa.goto(`${E2E_URLS.orgAdmin}/`);
-    // Entry point discoverable from the sidebar.
-    await expect(oa.getByRole("link", { name: /^Org setup$/ }).first()).toBeVisible();
-    await oa.getByRole("link", { name: /^Org setup$/ }).first().click();
+    // Entry point discoverable from the sidebar ("Set up a season", the
+    // SportsEngine-style name for org setup).
+    await openNav(oa, /^Set up a season$/);
     await oa.getByRole("button", { name: /next: league/i }).click();
 
     const sport = oa.locator("main select").first();
@@ -194,7 +194,7 @@ test.describe.serial("J3 · build and publish a registration form", () => {
   test("2 · New form dialog — season registration form for the org", async () => {
     test.skip(FROM > 2, "resumed run");
     await oa.goto(`${E2E_URLS.orgAdmin}/`);
-    await openNav(oa, /^Forms$/);
+    await openNav(oa, /^Registration forms$/);
     await expect(oa.getByRole("heading", { name: /Registration forms/i })).toBeVisible();
     await oa.getByRole("button", { name: /new form/i }).first().click();
     const dlg = oa.getByRole("dialog");
@@ -437,7 +437,7 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     test.skip(FROM > 11, "resumed run");
     const { context, page } = await signedIn(browser, E2E_URLS.superadmin, SMOKE_USERS.superAdmin);
     const errs = watchErrors(page);
-    await openNav(page, /^Forms$/);
+    await openNav(page, /^Registration forms$/);
     await expect(page.getByRole("link", { name: formName })).toBeVisible({ timeout: 20_000 });
     // OA list shows the season column; SA list does not — note divergence.
     const saHeaders = await page.locator("main thead th").allInnerTexts();

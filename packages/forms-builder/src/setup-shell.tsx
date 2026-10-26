@@ -406,7 +406,9 @@ export function RegistrationSetupShell({
           </div>
         </aside>
 
-        <main className="min-w-0">
+        {/* The app layout owns the page's one <main>; nesting a second one
+            broke the landmark (and J3 found two). */}
+        <section className="min-w-0">
           <motion.div
             key={active}
             initial={{ opacity: 0, y: 12 }}
@@ -415,7 +417,7 @@ export function RegistrationSetupShell({
           >
             {children}
           </motion.div>
-        </main>
+        </section>
       </div>
     </div>
   );
