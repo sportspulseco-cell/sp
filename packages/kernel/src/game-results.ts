@@ -297,6 +297,44 @@ export function rankTalliesByBucket(
   return out;
 }
 
+/** A team entered in a division (a live division_team_entries row). */
+export interface EnteredTeam {
+  divisionId: string;
+  teamId: string;
+  teamName?: string | null;
+}
+
+/**
+ * Standings list every entered team from day one (F-4), as SportsEngine
+ * does. Stored standings only hold teams with a finalized game; each
+ * entered team without a row is added on read with zeros, ranked after
+ * the division's teams with games. They are all tied at zero, so they
+ * follow in name order. `zero` builds the row; nothing is written.
+ */
+export function withEnteredTeams<T extends { divisionId: string | null; teamId: string; rank: number | null }>(
+  rows: readonly T[],
+  entered: readonly EnteredTeam[],
+  zero: (team: EnteredTeam, rank: number) => T
+): T[] {
+  const out = [...rows];
+  const byDivision = new Map<string, EnteredTeam[]>();
+  for (const e of entered) {
+    if (!byDivision.has(e.divisionId)) byDivision.set(e.divisionId, []);
+    byDivision.get(e.divisionId)!.push(e);
+  }
+  for (const [divisionId, teams] of byDivision) {
+    const listed = rows.filter((r) => r.divisionId === divisionId);
+    const have = new Set(listed.map((r) => r.teamId));
+    let rank = Math.max(listed.length, ...listed.map((r) => r.rank ?? 0));
+    const seen = new Set<string>();
+    const missing = teams
+      .filter((t) => !have.has(t.teamId) && !seen.has(t.teamId) && seen.add(t.teamId))
+      .sort((a, b) => (a.teamName ?? "").localeCompare(b.teamName ?? "") || (a.teamId < b.teamId ? -1 : 1));
+    for (const t of missing) out.push(zero(t, ++rank));
+  }
+  return out;
+}
+
 export interface FinalResultInput {
   homeScore: number;
   awayScore: number;

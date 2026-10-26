@@ -14,6 +14,8 @@ export interface PricingTier {
   divisionId: string | null;
   /** Divisions this price is for; empty means every division (REG-18). */
   divisionIds?: string[];
+  /** Who the price is for: any | team | player | free_agent (F-2). */
+  audience?: string;
   currency: string;
   fullPriceCents: number;
   isFree: boolean;

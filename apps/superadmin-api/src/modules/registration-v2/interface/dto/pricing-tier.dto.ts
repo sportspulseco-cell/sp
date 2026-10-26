@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
+import { PRICE_AUDIENCES, type PriceAudience } from "@sportspulse/kernel";
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -35,6 +37,9 @@ export class CreatePricingTierBodyDto {
   usageLimit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() customUrlSlug?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isReturningTeamPricing?: boolean;
+  @ApiPropertyOptional({ enum: PRICE_AUDIENCES, description: "Who the price is for. any = every registration path." })
+  @IsOptional() @IsIn(PRICE_AUDIENCES as unknown as string[], { message: "Pick who the price is for: anyone, team, player or free agent." })
+  audience?: PriceAudience;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
@@ -60,6 +65,9 @@ export class UpdatePricingTierBodyDto {
   usageLimit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() customUrlSlug?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isReturningTeamPricing?: boolean;
+  @ApiPropertyOptional({ enum: PRICE_AUDIENCES, description: "Who the price is for. any = every registration path." })
+  @IsOptional() @IsIn(PRICE_AUDIENCES as unknown as string[], { message: "Pick who the price is for: anyone, team, player or free agent." })
+  audience?: PriceAudience;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 

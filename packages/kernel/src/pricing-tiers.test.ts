@@ -1,9 +1,71 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coveredInstallments, planInstallments, teamTierForDivision, tierIsFull, tierDivisionIds, tierOffersDivision, tierOffersPlan, tiersForDivision } from "./pricing-tiers";
+import {
+  coveredInstallments,
+  planInstallments,
+  priceAudienceFor,
+  teamTierForDivision,
+  teamTierForPath,
+  tierIsFull,
+  tierDivisionIds,
+  tierOffersDivision,
+  tierOffersPath,
+  tierOffersPlan,
+  tierPathRefusal,
+  tiersForDivision,
+  tiersForPath
+} from "./pricing-tiers";
 
 const A = "div-a";
 const B = "div-b";
+
+test("audience: each path pays as team, player or free agent", () => {
+  assert.equal(priceAudienceFor("team"), "team");
+  assert.equal(priceAudienceFor("individual"), "player");
+  assert.equal(priceAudienceFor("captain_invite"), "player");
+  assert.equal(priceAudienceFor("free_agent"), "free_agent");
+  assert.equal(priceAudienceFor(null), "player");
+});
+
+test("audience: a team price is refused on a player path and the other way round", () => {
+  assert.equal(tierOffersPath("team", "team"), true);
+  assert.equal(tierOffersPath("team", "individual"), false);
+  assert.equal(tierOffersPath("player", "team"), false);
+  assert.equal(tierOffersPath("player", "captain_invite"), true);
+  assert.equal(tierOffersPath("free_agent", "individual"), false);
+  assert.equal(tierOffersPath("free_agent", "free_agent"), true);
+});
+
+test("audience: any, missing or unknown fits every path (older prices)", () => {
+  for (const p of ["team", "individual", "free_agent", "captain_invite"]) {
+    assert.equal(tierOffersPath("any", p), true);
+    assert.equal(tierOffersPath(null, p), true);
+    assert.equal(tierOffersPath("bogus", p), true);
+  }
+});
+
+test("audience: the funnel list keeps only the path's prices in the division", () => {
+  const tiers = [
+    { id: "team", isActive: true, divisionIds: [], audience: "team" },
+    { id: "player", isActive: true, divisionIds: [], audience: "player" },
+    { id: "any", isActive: true, divisionIds: [], audience: "any" },
+    { id: "playerB", isActive: true, divisionIds: [B], audience: "player" },
+    { id: "off", isActive: false, divisionIds: [], audience: "team" }
+  ];
+  assert.deepEqual(tiersForPath(tiers, A, "team").map((t) => t.id), ["team", "any"]);
+  assert.deepEqual(tiersForPath(tiers, A, "individual").map((t) => t.id), ["player", "any"]);
+  assert.deepEqual(tiersForPath(tiers, B, "captain_invite").map((t) => t.id), ["player", "any", "playerB"]);
+  assert.deepEqual(tiersForPath(tiers, A, "free_agent").map((t) => t.id), ["any"]);
+  assert.equal(teamTierForPath(tiers, A)?.id, "team");
+  assert.equal(teamTierForPath([tiers[1]!], A), null);
+});
+
+test("audience: the refusal names both sides", () => {
+  assert.equal(
+    tierPathRefusal("player", "team"),
+    "That price is for a player registration, and this is a team registration. Pick one of the prices shown."
+  );
+});
 
 test("the Divisions grid decides; a tier from before the grid keeps its one division", () => {
   assert.deepEqual(tierDivisionIds([A, B], A), [A, B]);

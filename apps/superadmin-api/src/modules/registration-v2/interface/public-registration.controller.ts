@@ -62,8 +62,13 @@ import {
   submissionTypeRefusal,
   tierOffersDivision,
   tierIsFull,
+  tierOffersPath,
   tierOffersPlan,
+  tierPathRefusal,
   tiersForDivision,
+  tiersForPath,
+  priceAudienceFor,
+  PRICE_AUDIENCE_LABELS,
   type RegistrationDocumentKey,
   type RegistrationState,
   type RegistrationSubmissionType
@@ -2012,6 +2017,13 @@ export class PublicRegistrationController {
     if (nextTierId && row.seasonId && (has("pricingTierId") || has("divisionId"))) {
       const tier = (await loadSeasonTiers(this.db, row.seasonId)).find((t) => t.id === nextTierId);
       const offered = !!tier && tier.isActive && tierOffersDivision(tier.divisionIds, nextDivisionId);
+      // F-2: a team price on a player path, or a player price on a team
+      // registration, is refused with both sides named.
+      const submissionType = (meta.submissionType as string | undefined) ?? "individual";
+      if (offered && has("pricingTierId") && !tierOffersPath(tier!.audience, submissionType)) {
+        this.log.log(`refused tier=${nextTierId} registration=${row.id}: audience=${tier!.audience} path=${submissionType}`);
+        throw new UnprocessableEntityException(tierPathRefusal(tier!.audience, submissionType));
+      }
       if (!offered) {
         if (has("pricingTierId")) {
           this.log.log(`refused tier=${nextTierId} registration=${row.id} division=${nextDivisionId}`);
@@ -2365,6 +2377,7 @@ export class PublicRegistrationController {
       const offlineInvoiceId = await this.db.transaction(async (tx) => {
         const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
         const existing = await findInvoice(tx);
+        if (!existing) await this.assertTierPathInTx(tx, tierId, row);
         // A seat on a limited price is taken with the first invoice.
         if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const invoice =
@@ -2427,6 +2440,7 @@ export class PublicRegistrationController {
       invoiceId = await this.db.transaction(async (tx) => {
         const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
         const existing = await findInvoice(tx);
+        if (!existing) await this.assertTierPathInTx(tx, tierId, row);
         // A seat on a limited price is taken before any charge.
         if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const quote = existing ? null : await priceInTx(tx);
@@ -2853,10 +2867,27 @@ export class PublicRegistrationController {
     let tierName = "Registration fee";
     let pickedTier: SeasonTier | null = null;
     const seasonTiers = row.seasonId ? await loadSeasonTiers(this.db, row.seasonId) : [];
-    const offeredTiers = tiersForDivision(seasonTiers, row.divisionId ?? null);
+    const submissionType = (meta.submissionType as string | undefined) ?? "individual";
+    const divisionTiers = tiersForDivision(seasonTiers, row.divisionId ?? null);
+    // F-2: only the prices for this registration's path (team, player,
+    // free agent). A season that prices the division but not this path
+    // is refused, never registered for nothing.
+    const offeredTiers = tiersForPath(seasonTiers, row.divisionId ?? null, submissionType);
     const tierId = (meta.pricingTierId as string | null | undefined) ?? null;
+    if (offeredTiers.length === 0 && divisionTiers.length > 0) {
+      this.log.log(`refused price: registration=${row.id} path=${submissionType}: ${divisionTiers.length} prices, none for this path`);
+      throw new ConflictException({
+        error: "tier_not_offered",
+        message: `The league has not set a price for ${PRICE_AUDIENCE_LABELS[priceAudienceFor(submissionType)].toLowerCase()} in this division yet. Contact the league before you pay.`
+      });
+    }
     if (tierId) {
       const tier = offeredTiers.find((t) => t.id === tierId);
+      const pathMismatch = divisionTiers.find((t) => t.id === tierId);
+      if (!tier && pathMismatch) {
+        this.log.log(`refused price: registration=${row.id} tier=${tierId} audience=${pathMismatch.audience} path=${submissionType}`);
+        throw new ConflictException({ error: "tier_wrong_path", message: tierPathRefusal(pathMismatch.audience, submissionType) });
+      }
       if (!tier) {
         this.log.log(`refused price: registration=${row.id} tier=${tierId} not offered for division=${row.divisionId}`);
         throw new ConflictException({
@@ -2873,6 +2904,35 @@ export class PublicRegistrationController {
       throw new ConflictException({ error: "tier_required", message: "Pick a price before paying." });
     }
     return { amountCents, currency, tierName, pickedTier, tierId };
+  }
+
+  /**
+   * F-2, inside the pay transaction: the price is read again under a
+   * row lock, so a price whose audience an admin changed after the
+   * check above is refused before anything is written or charged.
+   */
+  private async assertTierPathInTx(tx: Tx, tierId: string | null, row: { id: string; metadata: unknown }) {
+    if (!tierId) return;
+    const submissionType = (((row.metadata as Record<string, unknown>) ?? {}).submissionType as string | undefined) ?? "individual";
+    const [tier] = await tx
+      .select({ audience: schema.pricingTiers.audience, isActive: schema.pricingTiers.isActive })
+      .from(schema.pricingTiers)
+      .where(eq(schema.pricingTiers.id, tierId))
+      // FOR UPDATE, not SHARE: takeSeat updates this row next, and two
+      // payers holding a share lock would deadlock on that upgrade.
+      .for("update")
+      .limit(1);
+    if (!tier || !tier.isActive) {
+      this.log.log(`refused pay in tx: registration=${row.id} tier=${tierId} gone or inactive`);
+      throw new ConflictException({
+        error: "tier_not_offered",
+        message: "Your price is no longer offered. Go back to the price step and pick again."
+      });
+    }
+    if (!tierOffersPath(tier.audience, submissionType)) {
+      this.log.log(`refused pay in tx: registration=${row.id} tier=${tierId} audience=${tier.audience} path=${submissionType}`);
+      throw new ConflictException({ error: "tier_wrong_path", message: tierPathRefusal(tier.audience, submissionType) });
+    }
   }
 
   private quoteInput(

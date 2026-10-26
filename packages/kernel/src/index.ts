@@ -36,6 +36,7 @@ export * from "./suspensions";
 export * from "./discipline";
 export * from "./team-store";
 export * from "./pricing-tiers";
+export * from "./schedule-order";
 export * from "./money";
 export * from "./invoice-terms";
 export * from "./eligibility-evaluation";

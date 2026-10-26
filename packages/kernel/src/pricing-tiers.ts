@@ -39,6 +39,71 @@ export function teamTierForDivision<T extends TierForDivision>(tiers: readonly T
   return active.find((t) => t.divisionIds.includes(divisionId)) ?? active.find((t) => t.divisionIds.length === 0) ?? null;
 }
 
+/**
+ * Who a price is for (F-2). A team fee and a player fee in the same
+ * season must never be swapped: a captain registering a team sees only
+ * team prices, a player only player prices. `any` is every path; prices
+ * saved before audiences existed are `any`, so nothing changes for them.
+ */
+export const PRICE_AUDIENCES = ["any", "team", "player", "free_agent"] as const;
+export type PriceAudience = (typeof PRICE_AUDIENCES)[number];
+
+export const PRICE_AUDIENCE_LABELS: Record<PriceAudience, string> = {
+  any: "Anyone",
+  team: "Team registration",
+  player: "Player registration",
+  free_agent: "Free agent registration"
+};
+
+export function isPriceAudience(v: unknown): v is PriceAudience {
+  return typeof v === "string" && (PRICE_AUDIENCES as readonly string[]).includes(v);
+}
+
+/**
+ * The audience a registration path pays as. A captain invite is a
+ * player joining a team. An unknown path is read as a player.
+ */
+export function priceAudienceFor(submissionType: string | null | undefined): Exclude<PriceAudience, "any"> {
+  if (submissionType === "team") return "team";
+  if (submissionType === "free_agent") return "free_agent";
+  return "player";
+}
+
+/** Whether a price with this audience may be picked on this path. */
+export function tierOffersPath(audience: string | null | undefined, submissionType: string | null | undefined): boolean {
+  const a = isPriceAudience(audience) ? audience : "any";
+  return a === "any" || a === priceAudienceFor(submissionType);
+}
+
+/** The sentence for a price picked on the wrong path. */
+export function tierPathRefusal(audience: string | null | undefined, submissionType: string | null | undefined): string {
+  const a = isPriceAudience(audience) ? audience : "any";
+  const path = priceAudienceFor(submissionType);
+  const said = { team: "a team registration", player: "a player registration", free_agent: "a free agent registration", any: "any registration" };
+  return `That price is for ${said[a]}, and this is ${said[path]}. Pick one of the prices shown.`;
+}
+
+export interface TierForPath extends TierForDivision {
+  audience?: string | null;
+}
+
+/** The active tiers a registration on this path, in this division, may pick. */
+export function tiersForPath<T extends TierForPath>(
+  tiers: readonly T[],
+  divisionId: string | null,
+  submissionType: string | null | undefined
+): T[] {
+  return tiersForDivision(tiers, divisionId).filter((t) => tierOffersPath(t.audience, submissionType));
+}
+
+/**
+ * The one price for a team entering a division: a team (or any) price
+ * set for that division first, else the season-wide one, else none.
+ */
+export function teamTierForPath<T extends TierForPath>(tiers: readonly T[], divisionId: string): T | null {
+  return teamTierForDivision(tiers.filter((t) => tierOffersPath(t.audience, "team")), divisionId);
+}
+
 /** One charge in a payment plan. Number 0 is the deposit, due today. */
 export interface PlanInstallment {
   installmentNumber: number;

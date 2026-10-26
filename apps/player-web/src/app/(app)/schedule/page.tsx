@@ -1,6 +1,12 @@
-import { formatInZone } from "@sportspulse/kernel";
+import {
+  formatInZone,
+  orderSchedule,
+  parseScheduleFilter,
+  SCHEDULE_FILTER_LABELS,
+  SCHEDULE_FILTERS
+} from "@sportspulse/kernel";
 import { CalendarRange, Clock, MapPin } from "lucide-react";
-import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, LoadError } from "@sportspulse/ui";
+import { Badge, EmptyState, LinkTabs, LoadError, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { load, type Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
@@ -61,7 +67,7 @@ export default async function SchedulePage({
   searchParams?: Promise<{ filter?: string }>;
 }) {
   const sp = await searchParams;
-  const filter = sp?.filter ?? "all";
+  const filter = parseScheduleFilter(sp?.filter);
 
   const scope = await loadMeScope();
   const myTeamId = scope?.teamIds[0] ?? null;
@@ -78,34 +84,9 @@ export default async function SchedulePage({
 
   const gamesFailed = gamesResult && !gamesResult.ok ? gamesResult : null;
   const all: Game[] = gamesResult?.ok ? gamesResult.data.items : [];
-  const now = Date.now();
-  const upcoming = all
-    .filter((g: Game) => new Date(g.scheduledStartTsUtc).getTime() >= now)
-    .sort(
-      (a: Game, b: Game) =>
-        new Date(a.scheduledStartTsUtc).getTime() -
-        new Date(b.scheduledStartTsUtc).getTime()
-    );
-  const completed = all
-    .filter((g: Game) => g.status === "completed")
-    .sort(
-      (a: Game, b: Game) =>
-        new Date(b.scheduledStartTsUtc).getTime() -
-        new Date(a.scheduledStartTsUtc).getTime()
-    );
-
-  const list =
-    filter === "upcoming"
-      ? upcoming
-      : filter === "completed"
-        ? completed
-        : all
-            .slice()
-            .sort(
-              (a: Game, b: Game) =>
-                new Date(b.scheduledStartTsUtc).getTime() -
-                new Date(a.scheduledStartTsUtc).getTime()
-            );
+  // F-5: the next game first. Upcoming nearest first, completed most
+  // recent first; All is upcoming then the past (kernel orderSchedule).
+  const list = orderSchedule(all, filter);
 
   // Resolve opponent team names so the row reads "vs. Boston Gold Kings"
   // instead of "vs. D99BA8FD" (BUG-037). One getTeam call per unique
@@ -149,27 +130,19 @@ export default async function SchedulePage({
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-md border border-border bg-bg-subtle p-0.5">
-          {(["all", "upcoming", "completed"] as const).map((k) => (
-            <a
-              key={k}
-              href={k === "all" ? "/schedule" : `/schedule?filter=${k}`}
-              className={
-                "inline-flex h-8 items-center rounded px-3 font-mono text-[10px] uppercase tracking-widest " +
-                (filter === k ? "bg-fg text-bg" : "text-fg-muted hover:text-fg")
-              }
-            >
-              {k}
-            </a>
-          ))}
-        </div>
+        <LinkTabs
+          label="Show games"
+          basePath="/schedule"
+          selected={filter}
+          tabs={SCHEDULE_FILTERS.map((k) => ({ value: k, label: SCHEDULE_FILTER_LABELS[k] }))}
+        />
         <div className="flex items-center gap-3">
           <LiveScoreRefresh active={all.some((g) => g.status === "in_play")} />
           {seasonIds.length > 0 && (
             <ScheduleRealtimeBridge seasonIds={seasonIds} />
           )}
           <ICalExportButton
-            games={list}
+            games={orderSchedule(all, "all")}
             teamLabel={team?.name ?? "My team"}
           />
         </div>
@@ -178,11 +151,25 @@ export default async function SchedulePage({
       {gamesFailed ? (
         <LoadError what="your schedule" status={gamesFailed.status} message={gamesFailed.message} />
       ) : list.length === 0 ? (
-        <EmptyState
-          icon={CalendarRange}
-          title="No games scheduled yet"
-          description="Check back once the league publishes the season schedule."
-        />
+        all.length > 0 && filter === "upcoming" ? (
+          <EmptyState
+            icon={CalendarRange}
+            title="No upcoming games"
+            description="Your team has no games left to play. Results are under Completed."
+          />
+        ) : all.length > 0 && filter === "completed" ? (
+          <EmptyState
+            icon={CalendarRange}
+            title="No results yet"
+            description="Games show here once they are final. Your next games are under Upcoming."
+          />
+        ) : (
+          <EmptyState
+            icon={CalendarRange}
+            title="No games scheduled yet"
+            description="Check back once the league publishes the season schedule."
+          />
+        )
       ) : (
         <Table>
           <THead>

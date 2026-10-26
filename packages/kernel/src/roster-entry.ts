@@ -132,6 +132,41 @@ export function jerseyNumberRefusal(n: unknown): string | null {
   return null;
 }
 
+/** Auto-assigned numbers run from 1; 0 is only ever picked by hand. */
+export const JERSEY_AUTO_MIN = 1;
+
+/**
+ * The number a player gets when rostered (FR-3.4.2): the one they asked
+ * for when it is usable and nobody on the team wears it this season,
+ * else the lowest free number from 1 to 99. Null only when 1 to 99 are
+ * all taken; the roster then shows no number until the captain sets one.
+ */
+export function assignJerseyNumber(
+  requested: unknown,
+  taken: Iterable<number | null | undefined>
+): number | null {
+  const used = new Set<number>();
+  for (const n of taken) if (typeof n === "number") used.add(n);
+  if (
+    typeof requested === "number" &&
+    Number.isInteger(requested) &&
+    jerseyNumberRefusal(requested) === null &&
+    !used.has(requested)
+  ) {
+    return requested;
+  }
+  for (let n = JERSEY_AUTO_MIN; n <= JERSEY_NUMBER_MAX; n++) {
+    if (!used.has(n)) return n;
+  }
+  return null;
+}
+
+/** A form answer read as a requested number: a whole number 0-99, or null. */
+export function requestedJerseyNumber(raw: unknown): number | null {
+  const n = typeof raw === "string" && raw.trim() !== "" ? Number(raw) : raw;
+  return typeof n === "number" && Number.isInteger(n) && jerseyNumberRefusal(n) === null ? n : null;
+}
+
 // =====================================================================
 // INVITE REMINDERS (UC-04 alternative flow, FR-3.4.4)
 // =====================================================================

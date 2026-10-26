@@ -2,8 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import type { Page } from "@sportspulse/kernel";
+import { withEnteredTeams, type Page } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
+import { enteredTeams } from "../../application/entered-teams";
 import type {
   LeaderboardRow,
   ListStatLinesQuery,
@@ -102,7 +103,22 @@ export class DrizzleStatsRepository implements StatsRepository {
       .from(schema.standings)
       .where(and(...cs))
       .orderBy(asc(schema.standings.rank));
-    return rows.map((r) => this.toStanding(r));
+    // Every entered team is listed from day one (F-4): teams with no
+    // finalized game are composed here at zero, after the teams that
+    // played. Nothing is written to the standings table.
+    const entered = await enteredTeams(this.db, { leagueId, divisionIds: divisionId ? [divisionId] : undefined });
+    const now = new Date();
+    const all = withEnteredTeams(rows.map((r) => this.toStanding(r)), entered, (t, rank) => ({
+      id: `entered:${t.divisionId}:${t.teamId}`,
+      leagueId,
+      divisionId: t.divisionId,
+      teamId: t.teamId,
+      gp: 0, w: 0, l: 0, t: 0, otl: 0, points: 0, gf: 0, ga: 0, gd: 0,
+      rank,
+      tiebreakers: { noGamesYet: true },
+      derivedAt: now
+    }));
+    return all.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
   }
 
   async upsertStanding(

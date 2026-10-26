@@ -1,14 +1,50 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  assignJerseyNumber,
   inviteAutoReminderDue,
   jerseyNumberRefusal,
   joinTeamSubmissionType,
+  requestedJerseyNumber,
   rosterEntryReadiness,
   rosterOpeningRefusal,
   submissionTypeCarriesTeam,
   teamRegistrationPath
 } from "./roster-entry";
+
+test("jersey: the asked-for number when free", () => {
+  assert.equal(assignJerseyNumber(9, [1, 2]), 9);
+  assert.equal(assignJerseyNumber(0, []), 0);
+});
+
+test("jersey: a taken number falls back to the lowest free from 1", () => {
+  assert.equal(assignJerseyNumber(9, [9]), 1);
+  assert.equal(assignJerseyNumber(9, [1, 9, 2, null]), 3);
+});
+
+test("jersey: no request, or an unusable one, gets the lowest free", () => {
+  assert.equal(assignJerseyNumber(null, [0, 1]), 2);
+  assert.equal(assignJerseyNumber(100, []), 1);
+  assert.equal(assignJerseyNumber(-1, []), 1);
+  assert.equal(assignJerseyNumber(4.5, [1]), 2);
+  assert.equal(assignJerseyNumber("9", []), 1);
+});
+
+test("jersey: a full 1-99 gives no number", () => {
+  const all = Array.from({ length: 99 }, (_, i) => i + 1);
+  assert.equal(assignJerseyNumber(null, all), null);
+  assert.equal(assignJerseyNumber(0, all), 0);
+  assert.equal(assignJerseyNumber(50, all), null);
+});
+
+test("jersey: a form answer is read as a number 0-99", () => {
+  assert.equal(requestedJerseyNumber(9), 9);
+  assert.equal(requestedJerseyNumber("12"), 12);
+  assert.equal(requestedJerseyNumber(""), null);
+  assert.equal(requestedJerseyNumber("abc"), null);
+  assert.equal(requestedJerseyNumber(120), null);
+  assert.equal(requestedJerseyNumber(null), null);
+});
 
 test("an approved registration joins now", () => {
   assert.equal(rosterEntryReadiness("approved"), "ready");

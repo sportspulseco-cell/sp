@@ -17,6 +17,7 @@ import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
+import { tierOffersPath } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
@@ -256,15 +257,18 @@ export class CaptainApplicationsController {
 
     // Resolve fee per division (active tier — per-division override, else season-wide).
     const seasonIds = Array.from(new Set(rows.map((r) => r.seasonId)));
-    const tiers = await this.db
-      .select()
-      .from(schema.pricingTiers)
-      .where(
-        and(
-          inArray(schema.pricingTiers.seasonId, seasonIds),
-          eq(schema.pricingTiers.isActive, true)
+    // A team pays a team (or any) price, never a player price (F-2).
+    const tiers = (
+      await this.db
+        .select()
+        .from(schema.pricingTiers)
+        .where(
+          and(
+            inArray(schema.pricingTiers.seasonId, seasonIds),
+            eq(schema.pricingTiers.isActive, true)
+          )
         )
-      );
+    ).filter((t) => tierOffersPath(t.audience, "team"));
     function feeFor(seasonId: string, divisionId: string) {
       const perDiv = tiers.find(
         (t) => t.seasonId === seasonId && t.divisionId === divisionId

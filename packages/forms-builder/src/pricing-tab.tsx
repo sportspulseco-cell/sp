@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Division, PricingTier } from "@sportspulse/api-client";
-import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
+import {
+  centsToAmountInput,
+  formatMoney,
+  isPriceAudience,
+  PRICE_AUDIENCE_LABELS,
+  PRICE_AUDIENCES,
+  type PriceAudience
+} from "@sportspulse/kernel";
 import { LocalDate, Input, Button } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 
@@ -164,6 +171,10 @@ function TierCard({
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <AudienceField
+          value={tier.audience ?? "any"}
+          onChange={(v) => onPatch({ audience: v })}
+        />
         <MoneyField
           label={`Full price (${tier.currency})`}
           cents={tier.fullPriceCents}
@@ -255,6 +266,39 @@ function FragmentRow({ day, amountCents, currency }: { day: number; amountCents:
         {formatMoney(amountCents, currency)}
       </span>
     </>
+  );
+}
+
+/**
+ * Who the price is for (F-2). A team price is only offered to a captain
+ * registering a team, a player price only to players, so a team cannot
+ * pay the player fee. "Anyone" is every path, as prices were before.
+ */
+function AudienceField({
+  value,
+  onChange
+}: {
+  value: PriceAudience;
+  onChange: (v: PriceAudience) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">For</span>
+      <select
+        value={value}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (isPriceAudience(next) && next !== value) onChange(next);
+        }}
+        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 text-[13px] text-fg focus:border-fg-muted focus:outline-none"
+      >
+        {PRICE_AUDIENCES.map((a) => (
+          <option key={a} value={a}>
+            {PRICE_AUDIENCE_LABELS[a]}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

@@ -102,7 +102,8 @@ export class TeamStandingHandler
     );
     const sorted = rows
       .map(StandingDto.fromRow)
-      .sort((a, b) => b.points - a.points || b.gd - a.gd);
+      // Teams that have not played yet (F-4) sit after the teams that have.
+      .sort((a, b) => b.points - a.points || Number(b.gp > 0) - Number(a.gp > 0) || b.gd - a.gd);
     const idx = sorted.findIndex((r) => r.teamId === input.teamId);
     return {
       team: idx >= 0 ? sorted[idx]! : null,
