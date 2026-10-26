@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  inviteAutoReminderDue,
   jerseyNumberRefusal,
   joinTeamSubmissionType,
   rosterEntryReadiness,
@@ -50,6 +51,20 @@ test("a full or locked roster says so", () => {
   assert.match(rosterOpeningRefusal({ ...base, current: 20 }, now)!.message, /full \(20 of 20\)/);
   assert.equal(rosterOpeningRefusal({ ...base, rosterLockAt: "2026-10-01T00:00:00Z" }, now)?.reason, "locked");
   assert.equal(rosterOpeningRefusal({ ...base, rosterLockAt: "2026-12-01T00:00:00Z" }, now), null);
+});
+
+test("invite reminders: once after 3 days, once before the lock", () => {
+  const now = new Date("2026-10-26T12:00:00Z");
+  const d = (h: number) => new Date(now.getTime() - h * 3600_000);
+  assert.equal(inviteAutoReminderDue({ createdAt: d(24), rosterLockAt: null, sent: [] }, now), null);
+  assert.equal(inviteAutoReminderDue({ createdAt: d(73), rosterLockAt: null, sent: [] }, now), "after_days");
+  assert.equal(inviteAutoReminderDue({ createdAt: d(73), rosterLockAt: null, sent: ["after_days"] }, now), null);
+  const lockSoon = new Date(now.getTime() + 20 * 3600_000);
+  assert.equal(inviteAutoReminderDue({ createdAt: d(30), rosterLockAt: lockSoon, sent: [] }, now), "before_lock");
+  assert.equal(inviteAutoReminderDue({ createdAt: d(80), rosterLockAt: lockSoon, sent: ["before_lock"] }, now), "after_days");
+  assert.equal(inviteAutoReminderDue({ createdAt: d(30), rosterLockAt: lockSoon, sent: ["before_lock"] }, now), null);
+  assert.equal(inviteAutoReminderDue({ createdAt: d(2), rosterLockAt: lockSoon, sent: [] }, now), null);
+  assert.equal(inviteAutoReminderDue({ createdAt: d(100), rosterLockAt: d(1), sent: [] }, now), null);
 });
 
 test("jersey numbers are whole numbers 0-99", () => {

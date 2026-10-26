@@ -4088,7 +4088,10 @@ export interface TeamInvite {
   inviteeEmail: string | null;
   token: string;
   kind: "personal" | "generic";
-  status: "pending" | "accepted" | "declined" | "expired" | "revoked";
+  /** `extended` = reminded with a new expiry; still open. */
+  status: "pending" | "extended" | "accepted" | "declined" | "expired" | "revoked";
+  updatedAt?: string;
+  metadata?: Record<string, unknown>;
   expiresAt: string | null;
   acceptedAt: string | null;
   revokedAt: string | null;

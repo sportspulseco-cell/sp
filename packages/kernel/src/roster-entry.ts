@@ -132,6 +132,44 @@ export function jerseyNumberRefusal(n: unknown): string | null {
   return null;
 }
 
+// =====================================================================
+// INVITE REMINDERS (UC-04 alternative flow, FR-3.4.4)
+// =====================================================================
+/** A pending invite gets one automatic reminder after this many days. */
+export const INVITE_AUTO_REMINDER_AFTER_DAYS = 3;
+/** And one in this many hours before the season's roster lock. */
+export const INVITE_LOCK_REMINDER_HOURS = 48;
+
+export type InviteAutoReminderKind = "after_days" | "before_lock";
+
+/**
+ * Which automatic reminder is due now for a pending invite, or null.
+ * `sent` lists the kinds already sent. The lock reminder wins when both
+ * are due, so a late invite still hears about the deadline; an invite
+ * younger than a day gets no lock reminder (it was just sent).
+ */
+export function inviteAutoReminderDue(
+  invite: { createdAt: Date | string; rosterLockAt: Date | string | null | undefined; sent: readonly string[] },
+  now: Date = new Date()
+): InviteAutoReminderKind | null {
+  const created = new Date(invite.createdAt).getTime();
+  const lock = invite.rosterLockAt ? new Date(invite.rosterLockAt).getTime() : null;
+  const t = now.getTime();
+  if (lock !== null && t >= lock) return null;
+  if (
+    lock !== null &&
+    !invite.sent.includes("before_lock") &&
+    lock - t <= INVITE_LOCK_REMINDER_HOURS * 3600_000 &&
+    t - created >= 24 * 3600_000
+  ) {
+    return "before_lock";
+  }
+  if (!invite.sent.includes("after_days") && t - created >= INVITE_AUTO_REMINDER_AFTER_DAYS * 86400_000) {
+    return "after_days";
+  }
+  return null;
+}
+
 /** The sentence for a number another player on the team already wears. */
 export function jerseyNumberClash(n: number, holderName: string | null): string {
   return `Number ${n} is already worn by ${holderName ?? "another player"} on this team this season. Pick another number.`;

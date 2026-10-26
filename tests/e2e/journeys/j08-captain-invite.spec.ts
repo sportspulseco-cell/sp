@@ -396,6 +396,39 @@ test("J8.4 captain invites by email from /captain/roster", async () => {
   finding((notes[0]?.n ?? 0) > 0, "CAP: roster 'Invite by email' queued no notification row for the invitee");
 });
 
+test("J8.4b a player declines a personal invite; the captain is told and /captain/invites says Declined (FR-3.4.4)", async ({ browser }) => {
+  const p = cap.page;
+  await p.goto(`${cap.app}/captain/invites`);
+  await settle(p);
+  await p.locator("#kind").selectOption("personal");
+  await p.locator("#email").fill(PLAIN_EMAIL);
+  await p.getByRole("button", { name: /send invite/i }).click();
+  const created = p.getByText(`Invite created for ${PLAIN_EMAIL}`);
+  await expect(created).toBeVisible({ timeout: 15_000 });
+  const link = (await created.innerText()).match(/https?:\/\/\S+\/invite\/\S+/)?.[0] ?? "";
+  const pl = await signedInAs(browser, "player", { email: PLAIN_EMAIL, password: PLAIN_PASSWORD });
+  await pl.page.goto(link);
+  await settle(pl.page);
+  await pl.page.getByRole("button", { name: /^decline$/i }).click();
+  await expect(pl.page.getByText(/You declined the/i)).toBeVisible({ timeout: 20_000 });
+  await snap(pl.page, "45-player-declined");
+  await pl.context.close();
+  const token = link.replace(/.*\/invite\//, "").trim();
+  const [row] = await stagingSql<{ id: string; status: string }>(`select id, status from team_invites where token = $1`, [token]);
+  expect(row?.status, "invite is declined in the database").toBe("declined");
+  await p.waitForTimeout(3000);
+  const notes = await stagingSql<{ n: number }>(
+    `select count(*)::int n from notifications where template_code = 'TEAM_INVITE_DECLINED' and idempotency_key like $1`,
+    [`invite-declined-${row!.id}%`]
+  );
+  finding((notes[0]?.n ?? 0) > 0, "CAP: the captain was not told the player declined (UC-04 alternative flow)");
+  await p.goto(`${cap.app}/captain/invites`);
+  await settle(p);
+  const closed = p.locator("section", { hasText: "Closed invites" }).getByRole("row").filter({ hasText: PLAIN_EMAIL }).first();
+  await expect(closed, "the declined invite reads Declined").toContainText(/Declined/, { timeout: 20_000 });
+  await snap(p, "46-captain-invites-declined");
+});
+
 test("J8.5 captain adds the plain player by name; player sees the team; captain drops him", async ({ browser }) => {
   const p = cap.page;
   await p.goto(`${cap.app}/captain/roster`);
