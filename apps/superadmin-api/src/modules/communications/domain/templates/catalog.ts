@@ -17,6 +17,8 @@ export const TEMPLATE_CODES = [
   "game.rescheduled",
   // UC-08 a schedule run is published: one digest per person per team (SCH-8).
   "schedule.published",
+  // FR-3.17.3 auto-reminder about a day before a game.
+  "game.reminder",
   "suspension.issued",
   "suspension.lifted",
   "roster.added",
@@ -124,6 +126,7 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
   // Games (UC-21, SCH-6, SCH-8)
   { key: "schedule.published", category: "Games", label: "Schedule published", description: "When your team's schedule is out.", codes: ["schedule.published"] },
   { key: "game.scheduled", category: "Games", label: "New game", description: "When a game is added to your team's schedule.", codes: ["game.scheduled"] },
+  { key: "game.reminder", category: "Games", label: "Game reminder", description: "A reminder about a day before each of your games.", codes: ["game.reminder"] },
   { key: "game.rescheduled", category: "Games", label: "Game moved", description: "When a game's time or rink changes.", codes: ["game.rescheduled"] },
   { key: "game.postponed", category: "Games", label: "Game postponed or cancelled", description: "When a game is postponed or cancelled.", codes: ["game.postponed", "game.cancelled"] },
   { key: "game.finalized", category: "Games", label: "Final score", description: "When a game is final and stats are in.", codes: ["game.finalized"] },
@@ -239,6 +242,23 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     channel: "in_app",
     subject: "New game: {{awayTeam}} at {{homeTeam}}",
     body: "{{awayTeam}} play at {{homeTeam}} on {{whenLabel}}{{venueClause}}.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  // FR-3.17.3: sent by the hourly reminder sweep, about a day ahead.
+  {
+    code: "game.reminder",
+    channel: "email",
+    subject: "Reminder: {{awayTeam}} at {{homeTeam}}, {{whenLabel}}",
+    body:
+      "Your game is coming up: {{awayTeam}} play at {{homeTeam}} on {{whenLabel}}{{venueClause}}.\n\n" +
+      "Check your team schedule for any changes.",
+    variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
+  },
+  {
+    code: "game.reminder",
+    channel: "in_app",
+    subject: "Reminder: {{awayTeam}} at {{homeTeam}}",
+    body: "Your game is coming up: {{awayTeam}} play at {{homeTeam}} on {{whenLabel}}{{venueClause}}.",
     variables: ["awayTeam", "homeTeam", "whenLabel", "venueClause"]
   },
   {
