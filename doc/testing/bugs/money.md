@@ -451,6 +451,22 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
     installments of 50.00 at 30 and 60 days marked for the job, double click makes one of each). Kernel tests 9/9.
   Not verified: the funnel in a browser on staging (j04 after the next staging push).
 
+[MON-29] Seat limits on a price were never counted; a rejected or cancelled registration stayed owed · major
+  Found: same walk (26 Oct). The pricing tab saves a usage limit (an early-bird price for the first 50) and the funnel
+    showed "0/50 taken", but nothing counted or enforced it: usage_count stayed 0 and the 51st player paid. A
+    registration rejected or cancelled while its offline invoice was unpaid kept that invoice "sent", so Finance
+    counted it as owed and overdue reminders would chase a player the league had turned away.
+  Fix: registration-v2/application/seats.ts. The pay step takes a seat in its transaction before any charge (guarded
+    increment; a full price refuses with 409 and writes nothing); picking a full price refuses with 422 "That price is
+    full: N of M taken"; the funnel shows "N of M left" and greys out a full price (kernel tierIsFull). Reject (single
+    and bulk) and the player cancel give the seat back once and void an invoice nothing was paid on; a paid invoice
+    stays for the admin to refund.
+  Evidence: regfa/verify-seats.mjs 11/11 on the local API against staging: 2 seats taken by card and offline payers;
+    the third refused at the price step (422) and at payment (409, no invoice, still 2); a reject frees a seat and the
+    third player pays; a cancel frees one and voids the unpaid offline invoice with the reason; the rejected card
+    payer's paid invoice stays paid. verify-regpay 15/15 and verify-regplan 18/18 again on the same build.
+  Not verified: the funnel tier cards in a browser on staging (next staging push).
+
 ## Gaps
 
 Backend without UI

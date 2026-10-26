@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coveredInstallments, planInstallments, teamTierForDivision, tierDivisionIds, tierOffersDivision, tierOffersPlan, tiersForDivision } from "./pricing-tiers";
+import { coveredInstallments, planInstallments, teamTierForDivision, tierIsFull, tierDivisionIds, tierOffersDivision, tierOffersPlan, tiersForDivision } from "./pricing-tiers";
 
 const A = "div-a";
 const B = "div-b";
@@ -81,4 +81,11 @@ test("a payment by hand covers open installments in order; paid ones count, canc
   assert.deepEqual(coveredInstallments(rows, 10000).map((r) => r.installmentNumber), [1]);
   assert.deepEqual(coveredInstallments(rows, 15000).map((r) => r.installmentNumber), [1, 2]);
   assert.deepEqual(coveredInstallments(rows, 0), []);
+});
+
+test("a price is full only when it has a limit and every seat is taken", () => {
+  assert.equal(tierIsFull({ usageLimit: null, usageCount: 999 }), false);
+  assert.equal(tierIsFull({ usageLimit: 0, usageCount: 5 }), false);
+  assert.equal(tierIsFull({ usageLimit: 50, usageCount: 49 }), false);
+  assert.equal(tierIsFull({ usageLimit: 50, usageCount: 50 }), true);
 });

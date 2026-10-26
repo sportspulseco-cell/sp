@@ -12,6 +12,7 @@ import {
   SKILL_LEVELS,
   tiersForDivision,
   tierOffersPlan,
+  tierIsFull,
   planInstallments,
   formatMoney
 } from "@sportspulse/kernel";
@@ -1901,15 +1902,21 @@ function TierStep({
         {tiers.map((t) => {
           const on = value === t.id;
           const free = t.isFree || t.fullPriceCents === 0;
+          // A full price stays listed so the player sees why, but cannot be
+          // picked (the server refuses it too).
+          const full = tierIsFull(t) && !on;
           return (
             <button
               key={t.id}
               type="button"
+              disabled={full}
               onClick={() => onChange(t.id)}
               className={
                 on
                   ? "flex items-start justify-between gap-4 rounded-lg border border-accent bg-accent/5 p-4 text-left ring-2 ring-accent/30"
-                  : "flex items-start justify-between gap-4 rounded-lg border border-border bg-surface-1 p-4 text-left hover:border-fg-muted"
+                  : full
+                    ? "flex cursor-not-allowed items-start justify-between gap-4 rounded-lg border border-border bg-surface-1 p-4 text-left opacity-60"
+                    : "flex items-start justify-between gap-4 rounded-lg border border-border bg-surface-1 p-4 text-left hover:border-fg-muted"
               }
             >
               <div className="space-y-1">
@@ -1924,11 +1931,11 @@ function TierStep({
                     <Chip>Payment plan · {t.installmentCount}x</Chip>
                   )}
                   {t.isReturningTeamPricing && <Chip>Returning teams</Chip>}
-                  {t.usageLimit && (
+                  {t.usageLimit ? (
                     <Chip>
-                      {t.usageCount}/{t.usageLimit} taken
+                      {tierIsFull(t) ? "Full" : `${t.usageLimit - t.usageCount} of ${t.usageLimit} left`}
                     </Chip>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="text-right">

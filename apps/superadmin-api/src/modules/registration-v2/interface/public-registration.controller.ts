@@ -54,6 +54,7 @@ import {
   REGISTRATION_STATE_LABELS,
   submissionTypeRefusal,
   tierOffersDivision,
+  tierIsFull,
   tierOffersPlan,
   tiersForDivision,
   type RegistrationDocumentKey,
@@ -69,6 +70,7 @@ import { EmailDispatcherService } from "../../../shared/notifications/email-disp
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { loadSeasonTiers, type SeasonTier } from "../application/season-tiers";
 import { reserveInvoiceNumbers } from "../../finance/application/services/invoice-number";
+import { closeRegistrationMoney, takeSeat } from "../application/seats";
 import { PAYMENT_PROCESSOR, PaymentProcessor } from "../../../shared/payments/payment-processor";
 import {
   RegistrationRequirementsService,
@@ -1823,6 +1825,11 @@ export class PublicRegistrationController {
         }
         patch.pricingTierId = null;
         this.log.log(`registration=${row.id} division=${nextDivisionId}: tier ${nextTierId} not offered there, cleared`);
+      } else if (has("pricingTierId") && tierIsFull(tier!)) {
+        this.log.log(`refused tier=${nextTierId} registration=${row.id}: full ${tier!.usageCount}/${tier!.usageLimit}`);
+        throw new UnprocessableEntityException(
+          `That price is full: ${tier!.usageCount} of ${tier!.usageLimit} taken. Pick another price.`
+        );
       }
     }
 
@@ -2023,15 +2030,19 @@ export class PublicRegistrationController {
       assertValidTransition(row.status, "pending_offline");
       const offlineInvoiceId = await this.db.transaction(async (tx) => {
         const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
+        const existing = await findInvoice(tx);
+        // A seat on a limited price is taken with the first invoice.
+        if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const invoice =
-          (await findInvoice(tx)) ??
+          existing ??
           (await createInvoice(tx, invoiceNumber!, { paymentMethod: "offline", tierId }));
         await tx
           .update(schema.registrations)
           .set({
             status: "pending_offline",
             metadata: mergeMetadata(meta, {
-              payment: { outcome: "offline", amountCents, currency, invoiceId: invoice.id }
+              payment: { outcome: "offline", amountCents, currency, invoiceId: invoice.id },
+              ...(!existing && tierId ? { seat: { tierId } } : {})
             }),
             updatedAt: new Date()
           })
@@ -2077,6 +2088,8 @@ export class PublicRegistrationController {
       invoiceId = await this.db.transaction(async (tx) => {
         const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
         const existing = await findInvoice(tx);
+        // A seat on a limited price is taken before any charge.
+        if (!existing && tierId) await takeSeat(tx, tierId, submissionId);
         const invoice =
           existing ??
           (await createInvoice(tx, invoiceNumber!, { mockStripe: true, tierId, ...(plan ? { paymentPlan: true } : {}) }));
@@ -2151,7 +2164,8 @@ export class PublicRegistrationController {
                 currency,
                 invoiceId: invoice.id,
                 mockStripe: true
-              }
+              },
+              ...(!existing && tierId ? { seat: { tierId } } : {})
             }),
             updatedAt: new Date()
           })
@@ -2204,10 +2218,13 @@ export class PublicRegistrationController {
       throw new NotFoundException("Submission has invalid state");
     }
     assertValidTransition(row.status, "cancelled");
-    await this.db
-      .update(schema.registrations)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      .where(eq(schema.registrations.id, id));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(schema.registrations)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(eq(schema.registrations.id, id));
+      await closeRegistrationMoney(tx, row, "Registration cancelled by the player");
+    });
     return { id, status: "cancelled" as const };
   }
 

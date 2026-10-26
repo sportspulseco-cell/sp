@@ -102,3 +102,8 @@ export function coveredInstallments<T extends PlanRow>(rows: readonly T[], paidC
   }
   return covered;
 }
+
+/** Whether a price with a usage limit has no seat left. */
+export function tierIsFull(tier: { usageLimit: number | null; usageCount: number }): boolean {
+  return tier.usageLimit !== null && tier.usageLimit > 0 && tier.usageCount >= tier.usageLimit;
+}

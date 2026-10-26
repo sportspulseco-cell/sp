@@ -44,6 +44,7 @@ import { userHasOrgAdminOnOrg, userIsPeopleAdmin } from "../../../shared/auth/or
 import { orgVisible, visibleRegistrationsWhere } from "../../../shared/auth/visibility";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
+import { closeRegistrationMoney } from "../application/seats";
 
 class ReviewActionBodyDto {
   @ApiPropertyOptional({
@@ -264,16 +265,20 @@ export class AdminReviewController {
 
     if (body.action === "reject") {
       assertValidTransition(row.status, "rejected");
-      await this.db
-        .update(schema.registrations)
-        .set({
-          status: "rejected",
-          reviewedAt: new Date(),
-          reviewedByUserId: user.userId,
-          decisionReason: body.reason ?? null,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.registrations.id, id));
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(schema.registrations)
+          .set({
+            status: "rejected",
+            reviewedAt: new Date(),
+            reviewedByUserId: user.userId,
+            decisionReason: body.reason ?? null,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.registrations.id, id));
+        // Seat back, unpaid invoice voided.
+        await closeRegistrationMoney(tx, row, "Registration rejected");
+      });
       if (recipient) {
         await this.email.send({
           to: recipient,
@@ -441,16 +446,20 @@ export class AdminReviewController {
         continue;
       }
       assertValidTransition(r.status, target);
-      await this.db
-        .update(schema.registrations)
-        .set({
-          status: target,
-          reviewedAt: new Date(),
-          reviewedByUserId: reviewerUserId,
-          decisionReason: reason,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.registrations.id, r.id));
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(schema.registrations)
+          .set({
+            status: target,
+            reviewedAt: new Date(),
+            reviewedByUserId: reviewerUserId,
+            decisionReason: reason,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.registrations.id, r.id));
+        // The same seat rule as a single reject.
+        if (target === "rejected") await closeRegistrationMoney(tx, r, "Registration rejected");
+      });
       applied++;
       const meta = (r.metadata as Record<string, unknown>) ?? {};
       if (target === "approved") {
