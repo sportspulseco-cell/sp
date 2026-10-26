@@ -44,6 +44,69 @@ function statsRepo(exec: Exec): StatsRepository {
   return new DrizzleStatsRepository(exec as unknown as Database);
 }
 
+export interface AttendanceResult {
+  gameId: string;
+  /** Rows added from the two lineups (check-in rows already there stay). */
+  rowsAdded: number;
+  dressed: number;
+  scratched: number;
+}
+
+/**
+ * Who dressed for the game (FR-3.5.4): each team's locked lineup becomes
+ * game_attendance rows, starters and bench "present", scratches
+ * "scratched". A row the scorekeeper already checked in (a guest, a late
+ * arrival) is kept as it is. Idempotent. Games played come from these
+ * rows (projectGameStats), so a player who dressed but did not score
+ * still gets the game.
+ */
+export async function recordAttendanceFromLineups(exec: Exec, gameId: string): Promise<AttendanceResult> {
+  const lineups = await exec
+    .select({ teamId: schema.gameLineups.teamId, lineup: schema.gameLineups.lineup })
+    .from(schema.gameLineups)
+    .where(eq(schema.gameLineups.gameId, gameId));
+  const rows: Array<{ gameId: string; teamId: string; personId: string; status: string; jerseyNumberUsed: number | null }> = [];
+  const seen = new Set<string>();
+  const jersey = (v: unknown) => {
+    const n = typeof v === "number" ? v : typeof v === "string" && /^\d{1,3}$/.test(v.trim()) ? Number(v.trim()) : NaN;
+    return Number.isInteger(n) && n >= 0 && n <= 999 ? n : null;
+  };
+  for (const l of lineups) {
+    const lu = (l.lineup ?? {}) as {
+      starters?: Array<{ personId?: string; jerseyNumber?: unknown }>;
+      bench?: Array<{ personId?: string; jerseyNumber?: unknown }>;
+      scratches?: Array<{ personId?: string }>;
+    };
+    for (const p of [...(lu.starters ?? []), ...(lu.bench ?? [])]) {
+      if (!p.personId || seen.has(p.personId)) continue;
+      seen.add(p.personId);
+      rows.push({ gameId, teamId: l.teamId, personId: p.personId, status: "present", jerseyNumberUsed: jersey(p.jerseyNumber) });
+    }
+    for (const p of lu.scratches ?? []) {
+      if (!p.personId || seen.has(p.personId)) continue;
+      seen.add(p.personId);
+      rows.push({ gameId, teamId: l.teamId, personId: p.personId, status: "scratched", jerseyNumberUsed: null });
+    }
+  }
+  let added = 0;
+  if (rows.length) {
+    const inserted = await exec
+      .insert(schema.gameAttendance)
+      .values(rows)
+      .onConflictDoNothing({ target: [schema.gameAttendance.gameId, schema.gameAttendance.personId] })
+      .returning({ id: schema.gameAttendance.id });
+    added = inserted.length;
+  }
+  const result = {
+    gameId,
+    rowsAdded: added,
+    dressed: rows.filter((r) => r.status === "present").length,
+    scratched: rows.filter((r) => r.status === "scratched").length
+  };
+  log.log(`recordAttendanceFromLineups game=${gameId} lineups=${lineups.length} added=${added} dressed=${result.dressed} scratched=${result.scratched}`);
+  return result;
+}
+
 export interface ProjectionResult {
   gameId: string;
   linesWritten: number;
@@ -103,6 +166,24 @@ export async function projectGameStats(
       attributes: (e.attributes as Record<string, unknown>) ?? {}
     }))
   );
+
+  // Everyone who dressed played the game, scoring or not (FR-3.5.4):
+  // attendance rows (lineups, check-ins) add a zero line for them.
+  const dressed = await exec
+    .select({ personId: schema.gameAttendance.personId, teamId: schema.gameAttendance.teamId })
+    .from(schema.gameAttendance)
+    .where(
+      and(
+        eq(schema.gameAttendance.gameId, gameId),
+        inArray(schema.gameAttendance.status, ["present", "late", "sub"])
+      )
+    );
+  const withEvents = new Set(personStats.map((p) => p.personId));
+  for (const d of dressed) {
+    if (withEvents.has(d.personId)) continue;
+    withEvents.add(d.personId);
+    personStats.push({ personId: d.personId, teamId: d.teamId, core: {}, extended: {} } as (typeof personStats)[number]);
+  }
 
   const repo = statsRepo(exec);
   await repo.deleteStatLinesForGame(gameId);

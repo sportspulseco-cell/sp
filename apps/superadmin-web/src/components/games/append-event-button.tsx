@@ -7,6 +7,9 @@ import {
   HOCKEY_INFRACTIONS,
   HOCKEY_PENALTY_MINUTES,
   HOCKEY_PENALTY_MINUTE_LABELS,
+  HOCKEY_PENALTY_CLASSES,
+  HOCKEY_PENALTY_CLASS_LABELS,
+  penaltyClassOf,
   HOCKEY_SCORESHEET_EVENT_TYPES,
   HOCKEY_SPORT_CODE,
   validateHockeyEvent
@@ -109,6 +112,8 @@ function AppendDialog({
     assist2: "",
     infraction: "",
     minutes: "",
+    /** "" = follow the minutes (kernel penaltyClassOf). */
+    penaltyClass: "",
     period: 1,
     clockRemainingSec: ""
   });
@@ -161,7 +166,11 @@ function AppendDialog({
       ? [form.assist1, form.assist2].filter((id) => id !== "")
       : [];
     const attributes = showPenalty
-      ? { infraction: form.infraction, minutes: Number(form.minutes) }
+      ? {
+          infraction: form.infraction,
+          minutes: Number(form.minutes),
+          ...(form.penaltyClass ? { penaltyClass: form.penaltyClass } : {})
+        }
       : undefined;
     if (isHockey) {
       const problem = validateHockeyEvent({
@@ -339,6 +348,24 @@ function AppendDialog({
                 {HOCKEY_PENALTY_MINUTES.map((m) => (
                   <option key={m} value={String(m)}>
                     {HOCKEY_PENALTY_MINUTE_LABELS[m]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Penalty type" htmlFor="penaltyClass" hint="Pick game misconduct or match penalty when the player is ejected">
+              <Select
+                id="penaltyClass"
+                value={form.penaltyClass}
+                onChange={(e) => setForm({ ...form, penaltyClass: e.target.value })}
+              >
+                <option value="">
+                  {form.minutes
+                    ? `${HOCKEY_PENALTY_CLASS_LABELS[penaltyClassOf({ minutes: Number(form.minutes) }) ?? "minor"]} (from the minutes)`
+                    : "From the minutes"}
+                </option>
+                {HOCKEY_PENALTY_CLASSES.map((c) => (
+                  <option key={c} value={c}>
+                    {HOCKEY_PENALTY_CLASS_LABELS[c]}
                   </option>
                 ))}
               </Select>

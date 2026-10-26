@@ -1,6 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { ClipboardList, FileBarChart, ListChecks, Trophy } from "lucide-react";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -22,6 +23,12 @@ export default async function ReportsPage() {
         title="Reports"
         description="Download standings, rosters and registrations as CSV."
       />
+      <p className="text-sm">
+        <Link href="/reports/misconduct" className="font-medium text-fg underline-offset-2 hover:underline">
+          Misconduct report
+        </Link>
+        <span className="text-fg-muted"> · misconducts, game misconducts and match penalties by player</span>
+      </p>
 
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface-1">

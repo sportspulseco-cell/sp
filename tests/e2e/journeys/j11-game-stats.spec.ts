@@ -402,6 +402,13 @@ test.describe("J11 game day to stats", () => {
       const lines = await stagingSql(`select person_id, core from stat_lines where game_id = $1`, [gameId]);
       console.log(`[J11] stat_lines right after finalize: ${lines.length}`);
       expect(lines.length, "SCH-17 finalize triggers stat projection (UC-13)").toBeGreaterThan(0);
+      // FR-3.5.4: the captain's locked lineup became attendance rows, so
+      // every dressed player has a game played (a stat line), scoring or not.
+      const att = await stagingSql<{ person_id: string; status: string }>(`select person_id, status from game_attendance where game_id = $1`, [gameId]);
+      console.log(`[J11] attendance rows after finalize: ${att.length}`);
+      expect(att.filter((a) => a.status === "present").length, "FR-3.5.4 lineup players recorded as dressed").toBeGreaterThan(0);
+      const linePersons = new Set((lines as Array<{ person_id: string }>).map((l) => l.person_id));
+      expect(att.filter((a) => a.status === "present").every((a) => linePersons.has(a.person_id)), "FR-3.5.4 every dressed player has a game played").toBe(true);
       const notif = await stagingSql<{ recipient_person_id: string | null; payload: any; status: string }>(
         `select template_code, payload, recipient_person_id, status from notifications where idempotency_key like $1`, [`game.finalized:${gameId}%`]);
       console.log(`[J11] game.finalized notifications: ${JSON.stringify(notif).slice(0, 600)}`);
@@ -409,6 +416,18 @@ test.describe("J11 game day to stats", () => {
       expect(notif.every((n) => n.recipient_person_id), "SCH-17 every notice has a recipient").toBe(true);
       expect(notif[0]?.payload?.homeTeam, "SCH-17 notice names the team, not an id").toBe(BASE_TEAM);
       await shot(page, "05-finalized");
+    });
+
+    await test.step("5b · misconduct report renders for the season (FR-3.5.4)", async () => {
+      const [g] = await stagingSql<{ season_id: string }>(`select coalesce(g.season_id, d.season_id) season_id from games g left join divisions d on d.id = g.division_id where g.id = $1`, [gameId]);
+      await page.goto(`${app}/reports/misconduct?seasonId=${g?.season_id}`);
+      await expect(page.getByRole("heading", { name: "Misconduct report" })).toBeVisible({ timeout: 30_000 });
+      const [{ n }] = await stagingSql<{ n: number }>(
+        `select count(*)::int n from game_events e join games g on g.id = e.game_id left join divisions d on d.id = g.division_id
+          where e.event_type = 'penalty' and coalesce(g.season_id, d.season_id) = $1
+            and (e.attributes->>'penaltyClass' in ('misconduct','game_misconduct','match') or (e.attributes->>'penaltyClass' is null and e.attributes->>'minutes' = '10'))`, [g?.season_id]);
+      if (n === 0) await expect(page.getByText("No misconducts this season")).toBeVisible();
+      else await expect(page.getByRole("heading", { name: "Every penalty" })).toBeVisible();
     });
 
     await test.step("6 · Project stats + standings (manual fallback) and superadmin /stats", async () => {

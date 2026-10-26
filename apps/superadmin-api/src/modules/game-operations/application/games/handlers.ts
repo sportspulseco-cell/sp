@@ -37,6 +37,7 @@ import {
 import {
   projectGameStats,
   recomputeLeagueStandings,
+  recordAttendanceFromLineups,
   type Tx
 } from "../../../stats/application/projections";
 import {
@@ -1017,6 +1018,9 @@ export class FinalizeGameHandler
 
       g.finalize(input.userId, verdict.endedIn);
       await saveIfStatus(tx, g, "in_play");
+      // Who dressed (from the locked lineups) before stats, so games
+      // played count everyone who played (FR-3.5.4).
+      await recordAttendanceFromLineups(tx, input.id);
       const projection = await projectGameStats(tx, input.id);
       const standings = await recomputeLeagueStandings(tx, g.leagueId);
       const suspensions = await serveSuspensionsForFinalizedGame(tx, {

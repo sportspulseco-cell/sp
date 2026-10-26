@@ -2,6 +2,7 @@ import type {
   AuditEvent,
   ScheduleBlackout,
   SeasonLeaders,
+  MisconductReport,
   AuditFacets,
   CaptainDuesBreakdown,
   ConsentSignature,
@@ -1968,6 +1969,12 @@ export function createApi(f: Fetcher) {
         } = {}
       ) => f<Page<Game>>(`/games${qs(q)}`),
       getGame: (id: string) => f<Game>(`/games/${id}`),
+      /**
+       * Misconduct, game misconduct and match penalties of a season, with
+       * the suspension each led to (FR-3.5.4). Admins of the season's league.
+       */
+      misconductReport: (seasonId: string) =>
+        f<MisconductReport>(`/game-events/misconduct-report${qs({ seasonId })}`),
       /** Does the caller run games (scorekeeper / referee role or a crew spot)? */
       officiating: () => f<{ officiates: boolean }>("/games/officiating"),
       /** Players the scoresheet may name, per team (season roster + guests). */

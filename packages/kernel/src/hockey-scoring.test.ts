@@ -48,3 +48,20 @@ test("penalty needs a listed infraction and 2/4/5/10 minutes", () => {
 test("a player-attributed event needs the team", () => {
   assert.match(validateHockeyEvent(ev({ eventType: "shot", teamId: null }))!, /team/);
 });
+
+test("FR-3.5.4 penalty class: picked class wins, else from minutes; bad class refused", async () => {
+  const k = await import("./hockey-scoring");
+  assert.equal(k.penaltyClassOf({ minutes: 10 }), "misconduct");
+  assert.equal(k.penaltyClassOf({ minutes: 5, penaltyClass: "match" }), "match");
+  assert.equal(k.penaltyClassOf({ minutes: 2 }), "minor");
+  assert.equal(k.penaltyClassOf({}), null);
+  assert.ok(k.EJECTION_PENALTY_CLASSES.includes("game_misconduct"));
+  assert.match(
+    k.validateHockeyEvent({ eventType: "penalty", teamId: "t", primaryPersonId: "p", secondaryPersonIds: [], attributes: { minutes: 10, infraction: "fighting", penaltyClass: "ejection" } }) ?? "",
+    /penalty type/
+  );
+  assert.equal(
+    k.validateHockeyEvent({ eventType: "penalty", teamId: "t", primaryPersonId: "p", secondaryPersonIds: [], attributes: { minutes: 10, infraction: "fighting", penaltyClass: "game_misconduct" } }),
+    null
+  );
+});

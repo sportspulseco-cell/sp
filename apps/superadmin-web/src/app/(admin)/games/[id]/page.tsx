@@ -6,7 +6,10 @@ import { LoadError } from "@sportspulse/ui";
 import {
   formatInZone,
   GAME_ENDING_LABELS,
-  HOCKEY_INFRACTION_LABELS
+  HOCKEY_INFRACTION_LABELS,
+  HOCKEY_PENALTY_CLASS_LABELS,
+  MISCONDUCT_PENALTY_CLASSES,
+  penaltyClassOf
 } from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
@@ -300,6 +303,10 @@ export default async function GameDetailPage({
                         <p className="mt-0.5 text-[12px] text-fg-muted">
                           {HOCKEY_INFRACTION_LABELS[String(e.attributes.infraction)] ?? "Penalty"},{" "}
                           {e.attributes.minutes} min
+                          {(() => {
+                            const c = penaltyClassOf(e.attributes);
+                            return c && MISCONDUCT_PENALTY_CLASSES.includes(c) ? ` · ${HOCKEY_PENALTY_CLASS_LABELS[c]}` : "";
+                          })()}
                         </p>
                       ) : null}
                       {e.eventType === "penalty" && e.primaryPersonId ? (

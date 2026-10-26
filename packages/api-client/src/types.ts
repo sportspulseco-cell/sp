@@ -1520,3 +1520,31 @@ export interface SeasonLeaders {
   seasonName: string;
   divisions: DivisionLeaders[];
 }
+
+/** FR-3.5.4 misconduct report for one season. */
+export interface MisconductReport {
+  seasonId: string;
+  seasonName: string;
+  items: Array<{
+    eventId: string;
+    gameId: string;
+    gameStartTsUtc: string;
+    tz: string;
+    gameLabel: string;
+    divisionName: string | null;
+    period: number | null;
+    clockRemainingSec: number | null;
+    personId: string | null;
+    personName: string | null;
+    teamId: string | null;
+    teamName: string | null;
+    infraction: string | null;
+    infractionLabel: string | null;
+    minutes: number | null;
+    penaltyClass: string;
+    penaltyClassLabel: string;
+    ejection: boolean;
+    suspension: { id: string; status: string; kind: string; nGames: number | null } | null;
+  }>;
+  players: Array<{ personId: string; personName: string | null; teamName: string | null; count: number; ejections: number }>;
+}
