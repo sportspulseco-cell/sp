@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, Layers, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, Building2, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAll, load, type RoleAssignment } from "@sportspulse/api-client";
@@ -6,8 +6,8 @@ import {
   Badge,
   EmptyState,
   Eyebrow,
-  IconTile,
   LoadError,
+  PageHeader,
   TBody,
   TD,
   TH,
@@ -105,53 +105,41 @@ export default async function RoleDetailPage({
 
   return (
     <div className="space-y-10">
-      <BackLink />
-
-      {/* Header */}
-      <header className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile
-          icon={ShieldCheck}
-          tint={role.isSystem ? "violet" : "amber"}
-          size="lg"
-        />
-        <div className="min-w-0 space-y-2">
-          <Eyebrow dot>ROLE</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {role.name}
-          </h1>
-          <p className="font-mono text-[13px] text-fg-muted">{role.code}</p>
-          {role.description ? (
-            <p className="max-w-2xl text-[13px] text-fg-muted">
-              {role.description}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {role.isSystem ? (
-              <Badge tone="info" mono>
-                SYSTEM
-              </Badge>
-            ) : (
-              <Badge tone="accent" mono>
-                CUSTOM
-              </Badge>
-            )}
-            {inHierarchy ? (
-              <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                hierarchy {level + 1} / {HIERARCHY.length}
-              </span>
-            ) : null}
-            {orgName ? (
-              <Link
-                href={`/organizations/${role.orgId}`}
-                className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted hover:text-fg"
-              >
-                <Building2 className="h-3 w-3" strokeWidth={1.75} />
-                {orgName}
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        eyebrow="Role"
+        title={role.name}
+        description={
+          <>
+            <p className="font-mono text-[13px]">{role.code}</p>
+            {role.description ? <p className="mt-1 text-[13px]">{role.description}</p> : null}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {role.isSystem ? (
+                <Badge tone="info" mono>
+                  SYSTEM
+                </Badge>
+              ) : (
+                <Badge tone="accent" mono>
+                  CUSTOM
+                </Badge>
+              )}
+              {inHierarchy ? (
+                <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                  hierarchy {level + 1} / {HIERARCHY.length}
+                </span>
+              ) : null}
+              {orgName ? (
+                <Link
+                  href={`/organizations/${role.orgId}`}
+                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted hover:text-fg"
+                >
+                  <Building2 className="h-3 w-3" strokeWidth={1.75} />
+                  {orgName}
+                </Link>
+              ) : null}
+            </div>
+          </>
+        }
+      />
 
       {/* Permissions */}
       <section className="space-y-3">

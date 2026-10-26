@@ -1,8 +1,8 @@
-import { ArrowLeft, FileSignature } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { Badge, Eyebrow, IconTile, LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError, PageHeader } from "@sportspulse/ui";
 import { compliance, orgs } from "@/lib/api/server-api";
 import { PublishDocumentVersionForm } from "@/components/documents/publish-document-version-form";
 
@@ -54,27 +54,13 @@ export default async function DocumentDetailPage({
 
   return (
     <div className="space-y-8">
-      <Link
-        href="/documents"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All documents
-      </Link>
-
-      <header className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={FileSignature} tint="violet" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>
-            DOCUMENT · {doc.orgId ? (org?.displayName ?? "Unknown org") : "Platform"}
-          </Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {doc.name}
-          </h1>
-          {doc.description ? (
-            <p className="text-[14px] text-fg-muted">{doc.description}</p>
-          ) : null}
-          <div className="flex items-center gap-2 pt-2">
+      <PageHeader
+        eyebrow={`Document · ${doc.orgId ? (org?.displayName ?? "Unknown org") : "Platform"}`}
+        title={doc.name}
+        description={
+          <>
+            {doc.description ? <p>{doc.description}</p> : null}
+            <div className="flex items-center gap-2 pt-2">
             <Badge mono>{doc.kind.replace(/_/g, " ")}</Badge>
             {doc.activeVersionId ? (
               <Badge tone="success" mono>
@@ -87,9 +73,10 @@ export default async function DocumentDetailPage({
                 NO ACTIVE VERSION
               </Badge>
             )}
-          </div>
-        </div>
-      </header>
+            </div>
+          </>
+        }
+      />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-surface-1">

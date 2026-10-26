@@ -1,7 +1,6 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import {
   ArrowLeft,
-  Building2,
   CalendarRange,
   Globe2,
   KeyRound,
@@ -13,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, CopyLink, Eyebrow, IconTile, LoadError, statusTone } from "@sportspulse/ui";
+import { Badge, CopyLink, Eyebrow, IconTile, LoadError, PageHeader, statusTone } from "@sportspulse/ui";
 import {
   crossOrgGrants,
   iam,
@@ -134,43 +133,32 @@ export default async function OrgDetailPage({
 
   return (
     <div className="space-y-10">
-      <Link
-        href="/organizations"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All organizations
-      </Link>
+      <PageHeader
+        eyebrow={`Org · ${org.legalName}`}
+        title={org.displayName}
+        description={
+          <>
+            <p className="font-mono text-[13px]">{org.slug}</p>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <Badge mono>{org.orgType.replace(/_/g, " ")}</Badge>
+              <Badge tone={statusTone(org.status)} mono>
+                {org.status}
+              </Badge>
+              <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                <Globe2 className="h-3 w-3" strokeWidth={1.75} />
+                {org.countryCode} · {org.defaultCurrency}
+              </span>
+            </div>
+          </>
+        }
+        action={<OrgActions org={org} />}
+      />
 
-      {/* Header */}
-      <header className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={Building2} tint="violet" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>ORG · {org.legalName}</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {org.displayName}
-          </h1>
-          <p className="font-mono text-[13px] text-fg-muted">{org.slug}</p>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Badge mono>{org.orgType.replace(/_/g, " ")}</Badge>
-            <Badge tone={statusTone(org.status)} mono>
-              {org.status}
-            </Badge>
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-              <Globe2 className="h-3 w-3" strokeWidth={1.75} />
-              {org.countryCode} · {org.defaultCurrency}
-            </span>
-          </div>
-        </div>
-        <div className="ml-auto flex flex-col items-end gap-3">
-          <OrgActions org={org} />
-        <div className="grid grid-cols-3 gap-3 text-right">
-          <Stat label="Seasons" value={seasonsPage.items.length} />
-          <Stat label="Leagues" value={orgLeagues.length} />
-          <Stat label="Teams" value={teamsPage.items.length} />
-        </div>
-        </div>
-      </header>
+      <section className="grid grid-cols-3 gap-3 sm:max-w-md">
+        <Stat label="Seasons" value={seasonsPage.items.length} />
+        <Stat label="Leagues" value={orgLeagues.length} />
+        <Stat label="Teams" value={teamsPage.items.length} />
+      </section>
 
       {appLinks?.playerWebUrl ? (
         <div className="rounded-xl border border-border bg-surface-1 p-5">

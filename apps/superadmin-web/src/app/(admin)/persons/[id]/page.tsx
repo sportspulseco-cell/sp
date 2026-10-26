@@ -4,12 +4,11 @@ import {
   CalendarRange,
   ClipboardList,
   FileSignature,
-  Globe2,
   Gavel,
+  Globe2,
   ListChecks,
   MessageSquare,
   ShieldCheck,
-  UserCircle2,
   type LucideIcon
 } from "lucide-react";
 import { EditPersonButton } from "@/components/persons/edit-person-button";
@@ -26,6 +25,7 @@ import {
   Eyebrow,
   IconTile,
   LoadError,
+  PageHeader,
   TBody,
   TD,
   TH,
@@ -165,27 +165,13 @@ export default async function PersonDetailPage({
 
   return (
     <div className="space-y-10">
-      <Link
-        href="/persons"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All persons
-      </Link>
-
-      {/* Profile header */}
-      <header className="flex items-start justify-between gap-6 border-b border-border pb-8">
-        <div className="flex items-start gap-5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[var(--tint-violet-bg)] text-[var(--tint-violet-fg)]">
-            <UserCircle2 className="h-8 w-8" strokeWidth={1.5} />
-          </div>
-          <div className="space-y-2">
-            <Eyebrow dot>Person · {person.userId ? "Has account" : "No account"}</Eyebrow>
-            <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
-              {display}
-            </h1>
+      <PageHeader
+        eyebrow={`Person · ${person.userId ? "Has account" : "No account"}`}
+        title={display}
+        description={
+          <>
             {person.preferredName ? (
-              <p className="text-[13px] text-fg-muted">
+              <p className="text-[13px]">
                 Legal: {person.legalFirstName} {person.legalLastName}
               </p>
             ) : null}
@@ -210,15 +196,18 @@ export default async function PersonDetailPage({
                 )}
               </li>
             </ul>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <EditPersonButton person={person} />
-              {!person.userId ? <LinkPersonButton personId={person.id} /> : null}
-            </div>
-          </div>
-        </div>
+          </>
+        }
+        action={
+          <>
+            <EditPersonButton person={person} />
+            {!person.userId ? <LinkPersonButton personId={person.id} /> : null}
+          </>
+        }
+      />
 
-        {/* KPIs */}
-        <div className="grid grid-cols-4 gap-3 text-right">
+      {/* KPIs */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Kpi
             label="Eligible"
             value={eligibleNow.length}
@@ -240,8 +229,7 @@ export default async function PersonDetailPage({
             value={activeMemberships.length}
             total={memberships.items.length}
           />
-        </div>
-      </header>
+        </section>
 
       {/* Eligibility timeline */}
       <Section
