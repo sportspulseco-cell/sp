@@ -6,7 +6,7 @@ import { LoadError } from "@sportspulse/ui";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Register — SportsPulse" };
+export const metadata = { title: "Register · Player" };
 
 interface OpenSeason {
   seasonId: string;
@@ -26,7 +26,7 @@ type LeaguePage =
  * shares (/join?org=<slug>). Anonymous: a visitor sees that league's open
  * seasons without signing in, and signs in or creates an account only when
  * they register. There is no list across leagues, so nobody can browse other
- * organisations from here (the API refuses a request that names no league).
+ * organizations from here (the API refuses a request that names no league).
  */
 async function loadLeague(org: string): Promise<LeaguePage> {
   try {

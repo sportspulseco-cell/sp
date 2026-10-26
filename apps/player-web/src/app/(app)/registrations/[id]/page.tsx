@@ -15,42 +15,18 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { Badge, Eyebrow, LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError, LocalDate, Alert } from "@sportspulse/ui";
+import type { ReactNode } from "react";
 import { registration } from "@/lib/api/server-api";
 import { LegacyDivisionPrompt } from "./legacy-division-prompt";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Registration — SportsPulse" };
+export const metadata = { title: "Registration · Player" };
 
-function fmt(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmt(iso: string | null | undefined): ReactNode {
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
-
-const STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "danger" | "info" | "neutral"
-> = {
-  draft: "neutral",
-  submitted: "warning",
-  under_review: "warning",
-  approved: "success",
-  rejected: "danger",
-  waitlisted: "info",
-  withdrawn: "neutral",
-  pending_verification: "warning",
-  pending_consent: "warning",
-  pending_payment: "warning",
-  pending_offline: "warning",
-  pending_review: "warning",
-  incomplete: "neutral",
-  cancelled: "neutral"
-};
 
 export default async function RegistrationDetailPage({
   params
@@ -167,22 +143,20 @@ export default async function RegistrationDetailPage({
               </>
             ) : (
               <>
-                {headline} — see the next-steps timeline below to finish your
+                {headline}. See the next steps below to finish your
                 registration.
               </>
             )}
           </p>
           <div className="mt-3">
-            <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-              {r.status.replace(/_/g, " ")}
-            </Badge>
+            <Badge status={r.status} />
           </div>
         </div>
 
         {/* Detail table */}
         <dl className="mt-6 divide-y divide-border rounded-xl border border-border bg-bg-subtle text-[13px]">
           <DetailRow label="Registration form" value={r.formName ?? "—"} />
-          <DetailRow label="Organisation" value={r.orgName ?? "—"} />
+          <DetailRow label="Organization" value={r.orgName ?? "—"} />
           {r.seasonName && <DetailRow label="Season" value={r.seasonName} />}
           {r.leagueName && <DetailRow label="League" value={r.leagueName} />}
           {r.divisionName && (
@@ -213,7 +187,7 @@ export default async function RegistrationDetailPage({
                 <StepDone>You're on {r.teamName}</StepDone>
               ) : (
                 <StepCurrent index={3}>
-                  Waiting for team assignment by your admin — they'll add you
+                  Waiting for your admin to assign a team. They'll add you
                   to a roster when one is set.
                 </StepCurrent>
               )}
@@ -222,15 +196,15 @@ export default async function RegistrationDetailPage({
               </StepFuture>
             </ol>
           ) : isRejected ? (
-            <p className="rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 py-2 text-[13px] text-fg dark:bg-[var(--tint-rose-bg)]">
+            <Alert tone="error">
               Contact your league admin to discuss the decision. You can submit
               a fresh registration for a different season.
-            </p>
+            </Alert>
           ) : (
             <ol className="space-y-2 text-[13px]">
               <StepDone>Registration submitted</StepDone>
               <StepCurrent index={2}>
-                Admin is reviewing — you'll get an email when there's an
+                Your admin is reviewing. You'll get an email when there's an
                 update.
               </StepCurrent>
               <StepFuture index={3}>
@@ -335,7 +309,7 @@ function DetailRow({
   mono
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   mono?: boolean;
 }) {
   return (

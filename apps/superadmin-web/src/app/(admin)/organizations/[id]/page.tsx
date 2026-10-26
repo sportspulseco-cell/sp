@@ -1,45 +1,23 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  ArrowLeft,
-  CalendarRange,
-  Globe2,
-  KeyRound,
-  Layers,
-  Network,
-  Trophy,
-  Users,
-  type LucideIcon
-} from "lucide-react";
+import { ArrowLeft, CalendarRange, Globe2, KeyRound, Layers, Network, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, CopyLink, Eyebrow, IconTile, LoadError, PageHeader, statusTone } from "@sportspulse/ui";
-import {
-  crossOrgGrants,
-  iam,
-  leagueMgmt,
-  orgs,
-  publicRegistration,
-  registration
-} from "@/lib/api/server-api";
+import { crossOrgGrants, iam, leagueMgmt, orgs, publicRegistration, registration } from "@/lib/api/server-api";
 import { LinkOrgButton } from "@/components/orgs/link-org-button";
 import { UnlinkRelationButton } from "@/components/orgs/unlink-relation-button";
 import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 import { viewerRoleGrants } from "@/lib/role-grants";
-import { SYSTEM_ROLE_CODES } from "@sportspulse/kernel";
+import { SYSTEM_ROLE_CODES, DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { RegionsSection } from "@/components/regions/regions-section";
 import { OrgActions } from "@/components/edit/detail-actions";
 
-export const metadata = { title: "Organization — SportsPulse" };
+export const metadata = { title: "Organization · Super Admin" };
 
-function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(iso: string | null): string {
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
 export default async function OrgDetailPage({
@@ -141,9 +119,7 @@ export default async function OrgDetailPage({
             <p className="font-mono text-[13px]">{org.slug}</p>
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <Badge mono>{org.orgType.replace(/_/g, " ")}</Badge>
-              <Badge tone={statusTone(org.status)} mono>
-                {org.status}
-              </Badge>
+              <Badge status={org.status} />
               <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                 <Globe2 className="h-3 w-3" strokeWidth={1.75} />
                 {org.countryCode} · {org.defaultCurrency}
@@ -170,7 +146,7 @@ export default async function OrgDetailPage({
       <Section
         eyebrow="Admins"
         title="Org admins + memberships"
-        description="Users with active roles scoped to this org. Every org should have at least one org_admin — assign one below or invite by email."
+        description="Users with active roles scoped to this org. Every org should have at least one org_admin. Assign one below or invite by email."
         icon={Users}
         tint="emerald"
       >
@@ -334,9 +310,7 @@ export default async function OrgDetailPage({
                     {l.sportCode} · {l.format ?? "—"}
                   </p>
                 </div>
-                <Badge tone={statusTone(l.status)} mono>
-                  {l.status}
-                </Badge>
+                <Badge status={l.status} />
               </li>
             ))}
           </ul>
@@ -374,9 +348,7 @@ export default async function OrgDetailPage({
                     {fmtDate(s.startDate)} → {fmtDate(s.endDate)}
                   </p>
                 </div>
-                <Badge tone={statusTone(s.status)} mono>
-                  {s.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={s.status} />
               </li>
             ))}
           </ul>
@@ -422,9 +394,7 @@ export default async function OrgDetailPage({
                     {d.maxTeams && ` · max ${d.maxTeams} teams`}
                   </p>
                 </div>
-                <Badge tone={statusTone(d.status)} mono>
-                  {d.status}
-                </Badge>
+                <Badge status={d.status} />
               </li>
             ))}
           </ul>
@@ -477,9 +447,7 @@ export default async function OrgDetailPage({
                     )}
                   </p>
                 </div>
-                <Badge tone={statusTone(t.status)} mono>
-                  {t.status}
-                </Badge>
+                <Badge status={t.status} />
               </li>
             ))}
           </ul>

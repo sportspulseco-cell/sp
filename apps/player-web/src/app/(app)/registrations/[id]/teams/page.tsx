@@ -8,7 +8,7 @@ import { FindTeamClient } from "./find-team-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Find a team — SportsPulse" };
+export const metadata = { title: "Find a team · Player" };
 
 export default async function FindTeamPage({
   params
@@ -83,10 +83,10 @@ export default async function FindTeamPage({
   // Scope: division-bound registration → teams that have an active
   // DTE in *that* division (P2-2). Org-only registration → every
   // team in the org (the captain still decides whether to accept).
-  const teamsPage = await fetchAll((cursor) => leagueMgmt
+  const teamsResult = await load(fetchAll((cursor) => leagueMgmt
     .listTeams({ orgId: r.orgId,
-      divisionId: r.divisionId ?? undefined, limit: 100, cursor }))
-    .catch(() => ({ items: [], nextCursor: null }));
+      divisionId: r.divisionId ?? undefined, limit: 100, cursor })));
+  const teamsPage = teamsResult.ok ? teamsResult.data : { items: [], nextCursor: null };
 
   // Already-pending requests so we can disable the Apply button.
   const myRequests = await registration
@@ -114,12 +114,14 @@ export default async function FindTeamPage({
         title="Find a team"
         description={
           r.divisionName
-            ? `Teams in ${r.divisionName} — pick one and apply. The team's captain will accept or decline.`
+            ? `Teams in ${r.divisionName}. Pick one and apply. The team's captain will accept or decline.`
             : "Browse teams in your org and apply to one. The team's captain will accept or decline."
         }
       />
 
-      {teamsPage.items.length === 0 ? (
+      {!teamsResult.ok ? (
+        <LoadError what="teams" status={teamsResult.status} message={teamsResult.message} />
+      ) : teamsPage.items.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No teams yet"

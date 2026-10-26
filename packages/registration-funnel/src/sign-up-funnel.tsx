@@ -9,12 +9,13 @@ import {
   type LucideIcon
 } from "lucide-react";
 import {
+  Alert,
   Button,
+  cn,
   Eyebrow,
   Field,
   Input,
-  Select,
-  cn
+  Select
 } from "@sportspulse/ui";
 
 /**
@@ -386,7 +387,7 @@ function WelcomeStep({
       <StepHeader
         step={1}
         total={STEP_ORDER.length}
-        title={`Join SportsPulse — ${appName}`}
+        title={`Join SportsPulse: ${appName}`}
         hint={`This sign-up is for ${roleLabel}. Different role? Pick the matching console from the SportsPulse landing page.`}
       />
       <ul className="space-y-2 rounded-md border border-border bg-bg-subtle p-4 text-[13px] text-fg-muted">
@@ -442,7 +443,7 @@ function DoneStep({
           You're in{firstName ? `, ${firstName}` : ""}.
         </h1>
         <p className="text-[13px] leading-relaxed text-fg-muted">
-          Your SportsPulse {appName} account is ready. One last short step —
+          Your SportsPulse {appName} account is ready. One last short step:
           we'll capture role-specific details so the {roleLabel.toLowerCase()}{" "}
           app knows what to show you.
         </p>
@@ -476,12 +477,9 @@ function BulletItem({ children }: { children: React.ReactNode }) {
 function ErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p
-      role="alert"
-      className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400"
-    >
+    <Alert tone="error">
       {message}
-    </p>
+    </Alert>
   );
 }
 

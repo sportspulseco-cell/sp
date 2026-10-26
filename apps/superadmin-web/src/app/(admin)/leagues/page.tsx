@@ -1,18 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Alert,
-  Badge,
-  EmptyState,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  UrlFilters,
-  statusTone
-} from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Trophy, Wand2, Network, Archive, Layers } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
@@ -21,7 +8,7 @@ import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import type { League } from "@/lib/api/types";
 
-export const metadata = { title: "Leagues — SportsPulse" };
+export const metadata = { title: "Leagues · Super Admin" };
 
 /**
  * View-only listing — creation lives exclusively in /org-setup so the
@@ -130,9 +117,9 @@ export default async function LeaguesPage({
 
       <div className="space-y-2">
         <UrlFilters
-          searchPlaceholder="Search leagues by name, organisation, sport or format"
+          searchPlaceholder="Search leagues by name, organization, sport or format"
           selects={[
-            { param: "orgId", label: "Organisation", allLabel: "All organisations", options: orgOptions },
+            { param: "orgId", label: "Organization", allLabel: "All organizations", options: orgOptions },
             {
               param: "status",
               label: "Status",
@@ -166,14 +153,14 @@ export default async function LeaguesPage({
         <EmptyState
           icon={Trophy}
           title="No leagues match these filters"
-          description="Clear the search or pick a different organisation, status or sport."
+          description="Clear the search or pick a different organization, status or sport."
         />
       ) : (
         <Table>
           <THead>
             <TR>
               <TH>Name</TH>
-              <TH>Organisation</TH>
+              <TH>Organization</TH>
               <TH>Sport</TH>
               <TH>Format</TH>
               <TH>Status</TH>
@@ -198,9 +185,7 @@ export default async function LeaguesPage({
                 <TD className="text-muted-foreground">{l.sportCode}</TD>
                 <TD className="text-muted-foreground">{l.format}</TD>
                 <TD>
-                  <Badge tone={statusTone(l.status)}>
-                    {l.status.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={l.status} />
                 </TD>
                 <TD>
                   <AssignAdminCell

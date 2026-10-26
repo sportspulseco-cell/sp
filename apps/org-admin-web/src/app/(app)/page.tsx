@@ -1,38 +1,16 @@
 import { formatMoney } from "@sportspulse/kernel";
 import { fetchAll } from "@sportspulse/api-client";
-/* Hallmark · page: dashboard · genre: editorial · theme: project (sp-org-admin)
- * pre-emit critique: P5 H4 E5 S4 R5 V4
- */
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Building2,
-  CalendarRange,
-  ClipboardList,
-  Layers,
-  ScrollText,
-  Trophy,
-  Wallet
-} from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  SectionRail,
-  StatTile,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { ArrowUpRight, Building2, CalendarRange, ClipboardList, Layers, ScrollText, Trophy, Wallet } from "lucide-react";
+import { Badge, EmptyState, LocalDate, PageHeader, SectionRail, StatTile, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { adminTransfers, gameOps, leagueMgmt, loadMeScope, orgAdminFinance, orgs, registration, registrationV2Admin, roster } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { SeasonFlow } from "@sportspulse/admin-pages";
+/* Hallmark · page: dashboard · genre: editorial · theme: project (sp-org-admin)
+ * pre-emit critique: P5 H4 E5 S4 R5 V4
+ */
 
 export const dynamic = "force-dynamic";
-
 
 export default async function OrgAdminHome() {
   const scope = await loadMeScope();
@@ -132,7 +110,7 @@ export default async function OrgAdminHome() {
         <SectionRail
           index="01"
           label="Pulse"
-          subtitle="The four numbers that matter today — leagues, seasons, registrations waiting, and money outstanding."
+          subtitle="The four numbers that matter today: leagues, seasons, registrations waiting, and money outstanding."
         />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatTile
@@ -213,12 +191,7 @@ export default async function OrgAdminHome() {
                     </TD>
                     <TD className="text-fg-muted">{l.format ?? "—"}</TD>
                     <TD>
-                      <Badge
-                        mono
-                        tone={l.status === "active" ? "success" : "neutral"}
-                      >
-                        {l.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={l.status} />
                     </TD>
                   </TR>
                 ))}
@@ -265,12 +238,10 @@ export default async function OrgAdminHome() {
                       {(r.metadata as { email?: string })?.email ?? "Not provided"}
                     </TD>
                     <TD>
-                      <Badge mono tone={statusToneFor(r.status)}>
-                        {r.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={r.status} />
                     </TD>
                     <TD className="text-right text-[12px] text-fg-muted">
-                      {new Date(r.createdAt).toLocaleDateString("en-CA")}
+                      <LocalDate iso={r.createdAt} format="date" />
                     </TD>
                   </TR>
                 ))}
@@ -281,15 +252,6 @@ export default async function OrgAdminHome() {
       </section>
     </div>
   );
-}
-
-function statusToneFor(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "approved") return "success";
-  if (status === "rejected" || status === "cancelled") return "danger";
-  if (status.startsWith("pending")) return "warning";
-  return "info";
 }
 
 function ShellWithoutOrg({ message }: { message: string }) {

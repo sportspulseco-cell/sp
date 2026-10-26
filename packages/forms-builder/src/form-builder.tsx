@@ -264,7 +264,7 @@ function QuestionCard({
             </Field>
             <Field
               label="Key"
-              hint="Stable identifier — referenced by conditional logic and answer storage."
+              hint="Stable identifier. Conditional logic and stored answers refer to it."
             >
               <Input
                 value={q.key}
@@ -360,14 +360,14 @@ function QuestionCard({
                 <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.75} />
               </button>
             </div>
-            <button
+            <Button
               type="button"
               onClick={onDelete}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:bg-rose-500/10 hover:text-rose-500"
+              variant="ghost" size="sm" className="gap-1.5 text-fg-muted hover:text-[var(--tint-rose-fg)]"
             >
               <Trash2 className="h-3 w-3" strokeWidth={1.75} />
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -491,7 +491,7 @@ function ConditionalEditor({
         <>
           {sourceCandidates.length === 0 ? (
             <p className="mt-3 text-[12px] text-fg-muted">
-              Add another question first — conditional logic needs a source.
+              Add another question first. Conditional logic needs a source.
             </p>
           ) : (
             <div className="mt-3 grid gap-2 sm:grid-cols-3">

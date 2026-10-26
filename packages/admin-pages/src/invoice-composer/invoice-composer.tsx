@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney, invoiceLineTotals } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney, invoiceLineTotals } from "@sportspulse/kernel";
 /**
  * Shared InvoiceComposer used by both sa-web and org-admin-web.
  *
@@ -246,12 +246,12 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         kind: itemKindFor(f.kind),
         description: f.name,
         quantity: 1,
-        unitDollars: (f.baseAmountCents / 100).toFixed(2)
+        unitDollars: centsToAmountInput(f.baseAmountCents)
       },
       ...xs.slice(1).filter((x) => x.description.trim() || x.unitDollars)
     ]);
     setDueAt(addDaysIso(today, Math.max(0, f.dueOffsetDays)));
-    setLateFeeDollars(f.lateFeeCents > 0 ? (f.lateFeeCents / 100).toFixed(2) : "");
+    setLateFeeDollars(f.lateFeeCents > 0 ? centsToAmountInput(f.lateFeeCents) : "");
   }
 
   // Filter target picker by the selected org (so an admin with multi-org
@@ -305,7 +305,6 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
   );
   const discountTotalCents = lineTotals.discountCents;
   const totalCents = lineTotals.ok ? lineTotals.totalCents : 0;
-  const totalDisplay = (totalCents / 100).toFixed(2);
   const depositCents = Math.round(Number(depositDollars) * 100) || 0;
   const lateFeeCents = Math.round(Number(lateFeeDollars) * 100) || 0;
   const lateFeeInvalid = lateFeeDollars.trim() !== "" && !(Number(lateFeeDollars) >= 0);
@@ -384,7 +383,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {props.orgs.length > 1 ? (
-            <Field label="Organisation" htmlFor="org">
+            <Field label="Organization" htmlFor="org">
               <Select
                 id="org"
                 value={orgId}
@@ -445,7 +444,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             targets.length === 0
               ? billingScope === "individual"
                 ? "No people loaded yet for this org. A person shows up here once they hold an active membership, registration, or role assignment in your org."
-                : `No ${billingScope}s exist for this org yet — pick another scope or seed the data first.`
+                : `No ${billingScope}s exist for this org yet. Pick another scope or seed the data first.`
               : undefined
           }
         >
@@ -480,7 +479,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
               What are they being billed for?
             </h2>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() =>
               setItems((xs) => [
@@ -493,11 +492,11 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                 }
               ])
             }
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-2.5 py-1 text-[12px] font-medium text-fg-muted hover:border-border-strong hover:text-fg"
+            variant="outline" size="sm" className="gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
             Add line
-          </button>
+          </Button>
         </div>
         {props.feeSchedules ? (
           <div className="space-y-1">
@@ -506,15 +505,15 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             </label>
             {orgSchedules.length === 0 ? (
               <p className="text-[12px] text-fg-muted">
-                No fee schedules for this organisation yet. Enter the lines below.
+                No fee schedules for this organization yet. Enter the lines below.
               </p>
             ) : (
               <>
-                <select
+                <Select
                   id="ic-fee-schedule"
                   value={feeScheduleId}
                   onChange={(e) => (e.target.value ? applySchedule(e.target.value) : setFeeScheduleId(""))}
-                  className="h-9 w-full rounded-md border border-border bg-bg px-2 text-[13px] text-fg sm:max-w-md"
+                  className="sm:max-w-md"
                 >
                   <option value="">None, I will enter the lines</option>
                   {orgSchedules.map((f) => (
@@ -522,7 +521,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
                       {f.name} · {formatMoney(f.baseAmountCents, f.currency)}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {pickedSchedule ? (
                   <p className="text-[12px] text-fg-muted">
                     Due {pickedSchedule.dueOffsetDays} day{pickedSchedule.dueOffsetDays === 1 ? "" : "s"} after
@@ -654,7 +653,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             Total
           </span>
           <span className="font-mono tabular-nums text-fg">
-            ${totalDisplay}
+            {formatMoney(totalCents)}
           </span>
         </div>
         {!lineTotals.ok ? (
@@ -674,7 +673,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
           </h2>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Due date *" hint="No past dates — pick today or later.">
+          <Field label="Due date *" hint="No past dates. Pick today or later.">
             <Input
               type="date"
               value={dueAt}
@@ -700,11 +699,11 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
               placeholder="0.00"
             />
           </Field>
-          <Field label="Notes" hint="Optional — surfaces on the invoice.">
+          <Field label="Notes" hint="Optional. Shown on the invoice.">
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Includes jersey — please send size by 04/15."
+              placeholder="e.g. Includes jersey. Please send size by 04/15."
             />
           </Field>
         </div>

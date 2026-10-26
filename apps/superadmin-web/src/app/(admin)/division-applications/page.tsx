@@ -3,7 +3,7 @@ import { LoadError, PageHeader } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/server-api";
 import { DivisionApplicationsQueue } from "./queue";
 
-export const metadata = { title: "Division applications — SportsPulse" };
+export const metadata = { title: "Division applications · Super Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function DivisionApplicationsPage() {

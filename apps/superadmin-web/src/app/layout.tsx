@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SportsPulse — Super Admin",
+  title: "SportsPulse · Super Admin",
   description: "Platform administration for SportsPulse"
 };
 

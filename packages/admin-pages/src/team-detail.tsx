@@ -1,10 +1,10 @@
 import { formatMoney } from "@sportspulse/kernel";
 import type { ReactNode } from "react";
-
-import { Badge, PageHeader, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, PageHeader, Reveal, statusTone, Eyebrow, IconTile } from "@sportspulse/ui";
+import { ArrowLeft, Network } from "lucide-react";
+import Link from "next/link";
 import type { Team } from "@sportspulse/api-client";
 import { Field } from "./field";
-
 
 /**
  * Read-only team detail. Pure presentational — each app fetches
@@ -42,9 +42,7 @@ export function TeamDetail({
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {team.shortName ? <Badge mono>{team.shortName}</Badge> : null}
               <Badge mono>{team.sportCode}</Badge>
-              <Badge tone={statusTone(team.status)} mono>
-                {team.status}
-              </Badge>
+              <Badge status={team.status} />
             </div>
           </>
         }

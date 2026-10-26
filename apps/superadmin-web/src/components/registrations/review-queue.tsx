@@ -1,39 +1,11 @@
 "use client";
 
+import { Alert, Badge, LocalDate, Skeleton, Button, Dialog, DialogActions, Field, Input, Select, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  Check,
-  Loader2,
-  Mail,
-  RotateCcw,
-  ShieldAlert,
-  Wallet,
-  X
-} from "lucide-react";
-import {
-  REGISTRATION_STATE_LABELS,
-  REGISTRATION_STATES,
-  type RegistrationState
-} from "@sportspulse/kernel";
+import { AlertTriangle, Check, Loader2, Mail, RotateCcw, ShieldAlert, Wallet, X } from "lucide-react";
+import { REGISTRATION_STATE_LABELS, REGISTRATION_STATES, type RegistrationState, formatMoney } from "@sportspulse/kernel";
 import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogActions,
-  Field,
-  Input,
-  Select,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
 
 interface Submission {
   id: string;
@@ -220,14 +192,14 @@ export function ReviewQueue() {
       )}
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {/* Table */}
@@ -375,12 +347,10 @@ function Row({
       </TD>
       <TD>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone={statusTone(row.status)}>
-            {row.status.replace(/_/g, " ")}
-          </Badge>
+          <Badge status={row.status} />
           {isOffline && (
             <span
-              title="Player chose offline payment — verify receipt before approving."
+              title="Player chose offline payment. Verify receipt before approving."
               className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-300"
             >
               <Wallet className="h-2.5 w-2.5" />
@@ -408,8 +378,8 @@ function Row({
       </TD>
       <TD className="text-muted-foreground">
         {row.submittedAt
-          ? new Date(row.submittedAt).toLocaleDateString("en-CA")
-          : new Date(row.createdAt).toLocaleDateString("en-CA")}
+          ? <LocalDate iso={row.submittedAt} format="date" />
+          : <LocalDate iso={row.createdAt} format="date" />}
       </TD>
       <TD className="text-right">
         <Button variant="ghost" onClick={onReview}>
@@ -480,7 +450,7 @@ function BulkEmailDialog({
       open={open}
       onClose={onClose}
       title={`Email ${count} registrant(s)`}
-      description="Sends via Resend (real or log-only based on RESEND_API_KEY). State is unchanged — this is purely communications."
+      description="Sends via Resend (real or log-only based on RESEND_API_KEY). State is unchanged. This only sends messages."
       size="lg"
     >
       <Field label="Subject">
@@ -583,26 +553,26 @@ function ReviewDialog({
     >
       <div className="space-y-4">
         {isOffline && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-800 dark:text-amber-200">
+          <Alert tone="warning" className="flex items-start gap-2">
             <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-medium">Offline payment claimed</p>
               <p className="text-amber-700/90 dark:text-amber-200/80">
                 The player chose offline payment
                 {payment?.amountCents
-                  ? ` (${(payment.amountCents / 100).toFixed(2)} ${payment.currency ?? "USD"})`
+                  ? ` (${formatMoney(payment.amountCents, payment.currency ?? "USD")})`
                   : ""}
-                . Verify receipt before approving — approving from here marks the registration final.
+                . Verify receipt before approving. Approving from here marks the registration final.
               </p>
             </div>
-          </div>
+          </Alert>
         )}
         <dl className="divide-y divide-border rounded-md border border-border bg-surface-1 text-sm">
           <Row2 label="Email">{meta.email as string}</Row2>
           <Row2 label="Path">{(meta.submissionType as string) ?? "—"}</Row2>
           <Row2 label="DOB">{(meta.dobDate as string) ?? "—"}</Row2>
           <Row2 label="Tier">
-            {tierId ? (tierName ?? "Loading…") : "—"}
+            {tierId ? (tierName ?? <Skeleton className="inline-block h-3 w-24 align-middle" />) : "—"}
           </Row2>
           {placement ? (
             <Row2 label="Team">
@@ -681,13 +651,13 @@ function ReviewDialog({
         {flags.length > 0 && (
           <Field
             label="Override flag (optional)"
-            hint="Pick a flag to mark as overridden — admin justification goes in the reason field above."
+            hint="Pick a flag to mark as overridden. Admin justification goes in the reason field above."
           >
             <Select
               value={overrideFlag}
               onChange={(e) => setOverrideFlag(e.target.value)}
             >
-              <option value="">— none —</option>
+              <option value="">None</option>
               {flags.map((f) => (
                 <option key={f} value={f}>
                   {f}
@@ -698,9 +668,9 @@ function ReviewDialog({
         )}
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

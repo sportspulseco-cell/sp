@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { compliance } from "@/lib/api/browser-api";
-import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Alert } from "@sportspulse/ui";
 
 export function WaiveEligibilityButton({ id }: { id: string }) {
   const router = useRouter();
@@ -31,18 +31,20 @@ export function WaiveEligibilityButton({ id }: { id: string }) {
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         Waive
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
         title="Waive eligibility"
-        description="Admin override — record a reason that's auditable."
+        description="Admin override. Record a reason that's auditable."
       >
         <form onSubmit={onSubmit} className="space-y-4">
           <Field
@@ -59,9 +61,9 @@ export function WaiveEligibilityButton({ id }: { id: string }) {
             />
           </Field>
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

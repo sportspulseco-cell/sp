@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { compliance } from "@/lib/api/browser-api";
 import type { DocumentKind, Org } from "@/lib/api/types";
-import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 
 const KINDS: DocumentKind[] = [
   "waiver",
@@ -138,9 +138,9 @@ function CreateDocumentDialog({
         </Field>
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
 
         <DialogActions>

@@ -1,13 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatInZone, formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarRange,
-  CircleDollarSign,
-  MapPin,
-  ShieldCheck
-} from "lucide-react";
+import { ArrowRight, CalendarRange, CircleDollarSign, MapPin, ShieldCheck } from "lucide-react";
 import { Badge, Eyebrow } from "@sportspulse/ui";
 import { gameOps, roster, stats } from "@/lib/api/server-api";
 import type { DashboardState, DashboardTeam } from "./shared-types";
@@ -116,7 +110,7 @@ export async function InSeasonView({
           title="Collection progress"
           body={
             state.thresholdCents > 0
-              ? `${formatCents(state.collectedCents)} of ${formatCents(state.thresholdCents)} collected.`
+              ? `${formatMoney(state.collectedCents)} of ${formatMoney(state.thresholdCents)} collected.`
               : "No collection threshold for this season."
           }
           href="/captain/dues"
@@ -153,7 +147,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
   if (completed.items.length === 0) {
     return (
       <p className="px-5 py-5 text-[13px] text-fg-muted">
-        No completed games yet — once finalised games land, they'll appear
+        No completed games yet. Once games are final, they'll appear
         here with score + outcome.
       </p>
     );
@@ -174,7 +168,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
           </Badge>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             {/* The rink's date: a late game is not "tomorrow" on a UTC server. */}
-            {formatInZone(g.scheduledStartTsUtc, g.tz, { month: "short", day: "numeric" })}
+            {formatInZone(g.scheduledStartTsUtc, g.tz, DATE_FORMATS.monthDay)}
           </span>
         </li>
       ))}
@@ -267,8 +261,4 @@ function outcomeLabel(
   if (ours > theirs) return "W";
   if (ours < theirs) return "L";
   return "T";
-}
-
-function formatCents(c: number): string {
-  return `$${(c / 100).toFixed(2)}`;
 }

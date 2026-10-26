@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button, Input } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 const AUDIENCES = [
@@ -102,7 +102,7 @@ export function TeamMessageForm({ teamId, teamName }: { teamId: string; teamName
       </fieldset>
       <label className="grid gap-1">
         <span className="text-[13px] font-medium text-fg">Subject</span>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} className={box} placeholder="Practice moved to 8 PM" />
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} placeholder="Practice moved to 8 PM" />
         <span className="text-[12px] text-fg-muted">Players see it as “{teamName}: {subject.trim() || "your subject"}”.</span>
       </label>
       <label className="grid gap-1">
@@ -110,12 +110,12 @@ export function TeamMessageForm({ teamId, teamName }: { teamId: string; teamName
         <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} rows={6} className={box} />
       </label>
       {error ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">{error}</p>
+        <Alert tone="error">{error}</Alert>
       ) : null}
       {result ? (
-        <p role="status" className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {result}
-        </p>
+        </Alert>
       ) : null}
       <div className="flex justify-end">
         <Button onClick={send} disabled={!valid || busy}>

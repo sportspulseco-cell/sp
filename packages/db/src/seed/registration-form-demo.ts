@@ -146,7 +146,7 @@ async function main() {
   const [org] = await db.select().from(schema.orgs).limit(1);
   if (!org) {
     console.error(
-      "❌  No org found. Create an organisation before seeding the registration form."
+      "❌  No org found. Create an organization before seeding the registration form."
     );
     process.exit(1);
   }

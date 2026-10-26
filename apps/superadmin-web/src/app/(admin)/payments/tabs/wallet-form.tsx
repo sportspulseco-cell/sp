@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button, Input } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 /**
@@ -77,33 +77,32 @@ export function WalletForm({
       </header>
 
       <Field label="Player">
-        <input
+        <Input
           type="text"
           value={personId}
           readOnly
           disabled
-          className="input cursor-not-allowed bg-bg-subtle font-mono text-fg-muted"
+          className="cursor-not-allowed bg-bg-subtle font-mono text-fg-muted"
         />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Credit amount ($)" required>
-          <input
+          <Input
             type="number"
             min="0.01"
             step="0.01"
             value={amountStr}
             onChange={(e) => setAmountStr(e.target.value)}
-            className="input font-mono"
             required
+            className="font-mono"
           />
         </Field>
         <Field label="Expires (optional)">
-          <input
+          <Input
             type="date"
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
-            className="input"
           />
         </Field>
       </div>
@@ -111,7 +110,7 @@ export function WalletForm({
       <Field
         label="Reason"
         required
-        hint="Internal note — explain why this credit is being issued. Stored in audit trail."
+        hint="Internal note. Explain why this credit is being issued. Stored in audit trail."
       >
         <textarea
           rows={3}
@@ -130,14 +129,14 @@ export function WalletForm({
       </p>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {success ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           Credit issued. The ledger entry is appended above and the balance reflects the new total.
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex items-center border-t border-border pt-4">

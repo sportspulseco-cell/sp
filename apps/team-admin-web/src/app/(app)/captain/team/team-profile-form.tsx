@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Loader2, Save } from "lucide-react";
-import { Button, Field, Input } from "@sportspulse/ui";
+import { Alert, Button, Field, Input, LocalDate } from "@sportspulse/ui";
 import { leagueMgmt } from "@/lib/api/browser-api";
 
 /**
@@ -74,9 +74,9 @@ export function TeamProfileForm({
       </Field>
 
       {error ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex items-center gap-3 pt-2">
@@ -95,7 +95,7 @@ export function TeamProfileForm({
         </Button>
         {savedAt ? (
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
-            Saved {savedAt.toLocaleTimeString("en-US")}
+            Saved <LocalDate iso={savedAt} format="time" />
           </span>
         ) : null}
       </div>

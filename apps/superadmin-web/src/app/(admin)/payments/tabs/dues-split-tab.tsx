@@ -1,3 +1,4 @@
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { Users } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import type { TeamInvoiceSplitWithPerson } from "@sportspulse/api-client";
@@ -100,7 +101,7 @@ export async function DuesSplitTab({
           <p className="mt-2 font-mono text-[11px] text-fg-muted">
             {pct}% collected
             {invoice.dueAt
-              ? ` · Deadline ${new Date(invoice.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+              ? ` · Deadline ${formatCalendarDate(invoice.dueAt, DATE_FORMATS.date)}`
               : ""}
           </p>
         </div>
@@ -110,7 +111,7 @@ export async function DuesSplitTab({
         <EmptyState
           icon={Users}
           title="No splits for this invoice yet"
-          description="Use the Cover outstanding control after creating a split row per player. Splits divide an invoice's total across the roster — useful for team dues."
+          description="Use the Cover outstanding control after creating a split row per player. Splits divide an invoice's total across the roster, which suits team dues."
         />
       ) : (
         <DuesSplitClient

@@ -3,17 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Paperclip, X } from "lucide-react";
-import {
-  Alert,
-  Badge,
-  Button,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Alert, Badge, Button, TBody, TD, TH, THead, TR, Table, LocalDate, Input } from "@sportspulse/ui";
 import { orgAdminRegistrations, registrationV2Admin } from "@/lib/api/browser-api";
 
 interface Item {
@@ -27,20 +17,9 @@ interface Item {
   files: Array<{ key: string; fileName: string }>;
 }
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null) {
   if (!iso) return "draft";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-}
-
-function statusTone(s: string): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (s === "approved") return "success";
-  if (s === "rejected" || s === "withdrawn" || s === "cancelled") return "danger";
-  if (s.startsWith("pending") || s === "submitted") return "warning";
-  return "info";
+  return <LocalDate iso={iso} format="date" />;
 }
 
 function isReviewable(s: string): boolean {
@@ -123,9 +102,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
               <TD className="text-[12px] text-fg-muted">{r.email ?? "Not provided"}</TD>
               <TD className="text-[12px] text-fg-muted">{r.season ?? "No season"}</TD>
               <TD>
-                <Badge mono tone={statusTone(r.status)}>
-                  {r.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={r.status} />
               </TD>
               <TD className="text-[12px] text-fg-muted">
                 {fmtDate(r.submittedAt)}
@@ -191,14 +168,14 @@ function RejectReason({
   const [reason, setReason] = useState("");
   return (
     <div className="flex items-center justify-end gap-2">
-      <input
+      <Input
         type="text"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason (optional)"
         disabled={busy}
         maxLength={500}
-        className="h-8 w-48 rounded-md border border-border bg-surface-1 px-2 text-[12px] text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
+        className="h-8 w-48 px-2 text-[12px]"
       />
       <Button
         size="sm"

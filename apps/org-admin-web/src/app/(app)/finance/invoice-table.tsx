@@ -1,11 +1,11 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
 import type { Invoice } from "@sportspulse/api-client";
 import { orgAdminFinance } from "@/lib/api/browser-api";
 
@@ -26,14 +26,6 @@ const METHOD_OPTIONS: Array<{ value: Method; label: string }> = [
   { value: "manual", label: "Other" }
 ];
 
-
-function statusTone(s: string): "success" | "warning" | "danger" | "neutral" | "info" {
-  if (s === "paid") return "success";
-  if (s === "overdue") return "danger";
-  if (s === "void") return "neutral";
-  if (s === "partially_paid") return "warning";
-  return "info";
-}
 
 export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -110,9 +102,7 @@ function InvoiceRow({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge mono tone={statusTone(invoice.status as string)}>
-            {(invoice.status as string).replace(/_/g, " ")}
-          </Badge>
+          <Badge status={invoice.status} />
           {canRecord ? (
             isOpen ? (
               <Button size="sm" variant="outline" onClick={onClose}>
@@ -152,7 +142,7 @@ function RecordPaymentForm({
   onDone: () => void;
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState((remainingCents / 100).toFixed(2));
+  const [amount, setAmount] = useState(centsToAmountInput(remainingCents));
   const [method, setMethod] = useState<Method>("etransfer");
   const [receivedAt, setReceivedAt] = useState("");
   const [notes, setNotes] = useState("");
@@ -205,18 +195,17 @@ function RecordPaymentForm({
           />
         </Field>
         <Field label="Method">
-          <select
+          <Select
             value={method}
             onChange={(e) => setMethod(e.target.value as Method)}
             disabled={busy}
-            className="flex h-9 w-full rounded-md border border-border bg-surface-1 px-3 text-sm text-fg focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50"
           >
             {METHOD_OPTIONS.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Received on" hint="Leave blank for now.">
           <Input

@@ -1,18 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Alert,
-  Badge,
-  EmptyState,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  UrlFilters,
-  statusTone
-} from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Layers, Wand2, Network, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -20,7 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Division, Season } from "@/lib/api/types";
 
-export const metadata = { title: "Divisions — SportsPulse" };
+export const metadata = { title: "Divisions · Super Admin" };
 
 /**
  * Post-flip hierarchy: Org → League → Season → Region → Division.
@@ -225,7 +212,7 @@ export default async function DivisionsPage({
                     {d.maxTeams ?? "—"}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(d.status)}>{d.status}</Badge>
+                    <Badge status={d.status} />
                   </TD>
                   <TD>
                     <AssignAdminCell

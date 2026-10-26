@@ -16,7 +16,7 @@ import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Misconduct report — SportsPulse" };
+export const metadata = { title: "Misconduct report · Super Admin" };
 
 /**
  * Misconduct report (FR-3.5.4): misconduct, game misconduct and match

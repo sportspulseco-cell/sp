@@ -1,6 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import Link from "next/link";
 import { CalendarRange, MapPin, Pencil, Trophy } from "lucide-react";
+import { statusLabel } from "@sportspulse/kernel";
 import { Eyebrow } from "@sportspulse/ui";
 import { leagueMgmt, stats } from "@/lib/api/server-api";
 import { Countdown } from "./countdown";
@@ -50,7 +51,7 @@ export async function OffSeasonView({
           Season complete
         </h2>
         <p className="mt-1 text-sm text-white/80">
-          {lastSeason?.name ?? state.seasonName ?? "Most recent season"} —
+          {lastSeason?.name ?? state.seasonName ?? "Most recent season"}:
           completed
         </p>
         <div className="mt-5">
@@ -103,7 +104,7 @@ export async function OffSeasonView({
           <ProfileField
             icon={CalendarRange}
             label="Status"
-            value={team.status}
+            value={statusLabel(team.status)}
           />
         </div>
       </section>

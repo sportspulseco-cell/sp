@@ -7,6 +7,7 @@ import type { Role, RoleAssignment } from "@/lib/api/types";
 import { Dialog } from "@sportspulse/ui";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { resolvePrimaryRole } from "./primary-role";
+import { Alert, Button, Skeleton } from "@sportspulse/ui";
 
 /**
  * Per-row role manager for /users.
@@ -62,11 +63,13 @@ export function ManageUserRolesCell({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
         title={`Manage roles for ${display}`}
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         <Shield className="h-3 w-3" strokeWidth={2} />
         <span>
@@ -76,7 +79,7 @@ export function ManageUserRolesCell({
             ? "Add role"
             : `${count} role${count === 1 ? "" : "s"}`}
         </span>
-      </button>
+      </Button>
 
       <Dialog
         open={open}
@@ -86,21 +89,22 @@ export function ManageUserRolesCell({
         size="lg"
       >
         {loading && (
-          <div className="flex items-center gap-2 py-6 text-[13px] text-fg-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading…
+          <div className="space-y-2 py-4" aria-busy="true">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
           </div>
         )}
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
         {!loading && !error && assignments !== null && roles !== null && (
           <div className="space-y-5">
             {assignments.length === 0 ? (
               <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-4 text-center text-[13px] text-fg-muted">
-                No active assignments yet — use the form below to grant one.
+                No active assignments yet. Use the form below to grant one.
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-md border border-border bg-surface-1">

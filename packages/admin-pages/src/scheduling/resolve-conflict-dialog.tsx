@@ -4,7 +4,11 @@ import { useSlotTime } from "./time-zone";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Lock, XCircle } from "lucide-react";
 import {
-  Badge, Button, Dialog, DialogActions
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  Input
 } from "@sportspulse/ui";
 import {
   scheduler, type ConflictPair, type ResolveResponse
@@ -153,7 +157,7 @@ export function ResolveConflictDialog({
                         {r.startTsUtc
                           ? `${r.venueName ?? "Rink"} · ${r.surfaceLabel ?? "Surface"} · ${fmtTime(r.startTsUtc)}`
                           : "Ice slot"}
-                      </span> — {r.reason}
+                      </span>: {r.reason}
                     </li>
                   ))}
                 </ul>
@@ -166,11 +170,11 @@ export function ResolveConflictDialog({
                   className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                   Reason (stored in provenance)
                 </label>
-                <input id="resolve-reason" type="text" value={reason}
+                <Input id="resolve-reason" type="text" value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="e.g. Captain emailed re. overlap with travel"
                   disabled={applying}
-                  className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus:border-fg-muted focus:outline-none" />
+ />
               </div>
             )}
 

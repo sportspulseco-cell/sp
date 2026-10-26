@@ -6,7 +6,7 @@ import { SchedulingFairnessForm } from "@sportspulse/admin-pages";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
-export const metadata = { title: "Fairness report — Org Admin" };
+export const metadata = { title: "Fairness report · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

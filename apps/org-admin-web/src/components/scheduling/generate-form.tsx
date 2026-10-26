@@ -11,7 +11,7 @@ import { SchedulingGenerateForm } from "@sportspulse/admin-pages";
 import { gameOps, schedulingInventory } from "@/lib/api/browser-api";
 
 type Props = Omit<ComponentProps<typeof SchedulingGenerateForm>, "publishSchedule" | "blackoutApi"> & {
-  /** The season's organisation, for the one-rink blackout picker. */
+  /** The season's organization, for the one-rink blackout picker. */
   orgId: string;
 };
 

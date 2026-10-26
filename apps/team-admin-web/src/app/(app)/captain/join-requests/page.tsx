@@ -1,11 +1,12 @@
 import { Inbox, ShieldAlert } from "lucide-react";
-import { EmptyState, PageHeader } from "@sportspulse/ui";
+import { EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { loadMeScope, registration } from "@/lib/api/server-api";
 import { JoinRequestsClient } from "./join-requests-client";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Join requests — SportsPulse" };
+export const metadata = { title: "Join requests · Team Admin" };
 
 export default async function CaptainJoinRequestsPage() {
   const scope = await loadMeScope();
@@ -27,9 +28,8 @@ export default async function CaptainJoinRequestsPage() {
     );
   }
 
-  const initial = await registration
-    .captainListJoinRequests(teamId, "pending")
-    .catch(() => ({ items: [] }));
+  const initialResult = await load(registration.captainListJoinRequests(teamId, "pending"));
+  const initial = initialResult.ok ? initialResult.data : { items: [] };
 
   return (
     <div className="space-y-6">
@@ -38,7 +38,9 @@ export default async function CaptainJoinRequestsPage() {
         title="Join requests"
         description="Players who've completed registration and applied to join your team. Approve to add them to the active roster; deny to send them back to the team-search flow."
       />
-      {initial.items.length === 0 ? (
+      {!initialResult.ok ? (
+        <LoadError what="join requests" status={initialResult.status} message={initialResult.message} />
+      ) : initial.items.length === 0 ? (
         <EmptyState
           icon={Inbox}
           title="No pending requests"

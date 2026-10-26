@@ -1,68 +1,32 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Building2,
-  CalendarRange,
-  CheckCircle2,
-  Layers,
-  ScrollText,
-  Trophy,
-  Users
-} from "lucide-react";
-import { Badge, EmptyState, PageHeader } from "@sportspulse/ui";
+import { ArrowRight, Building2, CalendarRange, CheckCircle2, Layers, ScrollText, Trophy, Users } from "lucide-react";
+import { Badge, EmptyState, PageHeader, LoadError, LocalDate } from "@sportspulse/ui";
+import { load } from "@sportspulse/api-client";
 import { registration } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "My registrations — SportsPulse" };
+export const metadata = { title: "My registrations · Player" };
 
 type Row = Awaited<
   ReturnType<typeof registration.listMyRegistrations>
 >["items"][number];
 
-const STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "danger" | "info" | "neutral"
-> = {
-  draft: "neutral",
-  submitted: "warning",
-  under_review: "warning",
-  approved: "success",
-  rejected: "danger",
-  waitlisted: "info",
-  withdrawn: "neutral",
-  pending_verification: "warning",
-  pending_consent: "warning",
-  pending_payment: "warning",
-  pending_offline: "warning",
-  pending_review: "warning",
-  incomplete: "neutral",
-  cancelled: "neutral"
-};
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-}
-
 function statusCopy(status: string): string {
   switch (status) {
     case "draft":
-      return "Started but not yet submitted — finish the funnel to submit.";
+      return "Started but not submitted yet. Finish the steps to submit.";
     case "submitted":
       return "Submitted. Admin will review shortly.";
     case "under_review":
     case "pending_review":
       return "An admin is currently reviewing.";
     case "approved":
-      return "Approved — you're cleared for the season.";
+      return "Approved. You're cleared for the season.";
     case "rejected":
       return "Rejected. Contact your admin or check the decision reason.";
     case "waitlisted":
-      return "Waitlisted — admin will reach out if a spot opens.";
+      return "Waitlisted. Your admin will reach out if a spot opens.";
     case "withdrawn":
       return "Withdrawn.";
     case "pending_verification":
@@ -70,9 +34,9 @@ function statusCopy(status: string): string {
     case "pending_consent":
       return "Awaiting parental consent.";
     case "pending_payment":
-      return "Payment outstanding — finish checkout to submit.";
+      return "Payment outstanding. Finish checkout to submit.";
     case "pending_offline":
-      return "Offline payment pending — admin will mark received.";
+      return "Offline payment pending. Your admin will mark it received.";
     case "incomplete":
       return "Resume the funnel to fill missing details.";
     case "cancelled":
@@ -83,11 +47,8 @@ function statusCopy(status: string): string {
 }
 
 export default async function MyRegistrationsPage() {
-  const page = await registration
-    .listMyRegistrations()
-    .catch(() => ({ items: [] as Row[] }));
-
-  const items: Row[] = page.items ?? [];
+  const result = await load(registration.listMyRegistrations());
+  const items: Row[] = result.ok ? (result.data.items ?? []) : [];
   const sorted = items.slice().sort((a, b) => {
     const at = a.submittedAt ?? a.createdAt;
     const bt = b.submittedAt ?? b.createdAt;
@@ -102,7 +63,9 @@ export default async function MyRegistrationsPage() {
         description="Every registration you've submitted across leagues. Drafts can be resumed; approved ones unlock the rest of the dashboard."
       />
 
-      {sorted.length === 0 ? (
+      {!result.ok ? (
+        <LoadError what="your registrations" status={result.status} message={result.message} />
+      ) : sorted.length === 0 ? (
         <EmptyState
           icon={ScrollText}
           title="No registrations yet"
@@ -159,9 +122,7 @@ function RegistrationRow({ r }: { r: Row }) {
               <p className="text-[15px] font-semibold tracking-tight text-fg">
                 {title}
               </p>
-              <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-                {r.status.replace(/_/g, " ")}
-              </Badge>
+              <Badge status={r.status} />
             </div>
             {subtitle && (
               <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
@@ -218,10 +179,14 @@ function RegistrationRow({ r }: { r: Row }) {
 
             <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               Ref {r.id.slice(0, 8)} ·{" "}
-              {r.submittedAt
-                ? `Submitted ${fmtDate(r.submittedAt)}`
-                : `Started ${fmtDate(r.createdAt)}`}
-              {r.reviewedAt ? ` · Reviewed ${fmtDate(r.reviewedAt)}` : ""}
+              {r.submittedAt ? (
+                <>Submitted <LocalDate iso={r.submittedAt} format="date" /></>
+              ) : (
+                <>Started <LocalDate iso={r.createdAt} format="date" /></>
+              )}
+              {r.reviewedAt ? (
+                <> · Reviewed <LocalDate iso={r.reviewedAt} format="date" /></>
+              ) : null}
             </p>
           </div>
         </div>

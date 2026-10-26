@@ -6,7 +6,7 @@ import { DiscountsShell } from "./discounts-shell";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Discounts — SportsPulse" };
+export const metadata = { title: "Discounts · Super Admin" };
 
 /**
  * Discount codes and family pricing per season. The shared

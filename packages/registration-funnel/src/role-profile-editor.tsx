@@ -9,7 +9,7 @@ import {
   type AnswerMap,
   type FormDefinition
 } from "@sportspulse/kernel";
-import { Alert, Button } from "@sportspulse/ui";
+import { Alert, Button, Skeleton } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 
 /**
@@ -185,9 +185,7 @@ export function RoleProfileFields({
 }) {
   if (state.loading) {
     return (
-      <div className="flex items-center gap-2 py-6 text-[13px] text-fg-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading saved values…
-      </div>
+      <div role="status" aria-label="Loading saved values" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
   if (state.loadError) return <Alert tone="error">Could not load the profile: {state.loadError}</Alert>;

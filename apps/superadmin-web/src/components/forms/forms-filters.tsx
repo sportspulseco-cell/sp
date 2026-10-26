@@ -2,7 +2,7 @@
 
 import { UrlFilters } from "@sportspulse/ui";
 
-/** /forms name search + Organisation / Division / Scope filters (?q=&org=&division=&scope=). */
+/** /forms name search + Organization / Division / Scope filters (?q=&org=&division=&scope=). */
 export function FormsFilters({
   orgs,
   divisions
@@ -17,8 +17,8 @@ export function FormsFilters({
       selects={[
         {
           param: "org",
-          label: "Organisation",
-          allLabel: "All organisations",
+          label: "Organization",
+          allLabel: "All organizations",
           options: orgs.map((o) => ({ value: o.id, label: o.name }))
         },
         {

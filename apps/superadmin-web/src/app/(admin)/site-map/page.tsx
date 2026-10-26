@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { navGroups } from "@/components/layout/nav-config";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Site map — SportsPulse" };
+export const metadata = { title: "Site map · Super Admin" };
 
 /**
  * Site map (FR-3.12.2): every page this person can open, grouped as in

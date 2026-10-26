@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Select } from "@sportspulse/ui";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
@@ -247,22 +248,26 @@ export function ArDashboardClient({
             )}
           </span>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               disabled={!hasPrev}
               onClick={() => navigate({ page: Math.max(1, invoices.page - 1) })}
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-bg px-3 text-[12px] text-fg disabled:cursor-not-allowed disabled:opacity-40"
+              variant="outline"
+              size="sm"
+              className="gap-1"
             >
               <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Prev
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={!hasNext}
               onClick={() => navigate({ page: invoices.page + 1 })}
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-bg px-3 text-[12px] text-fg disabled:cursor-not-allowed disabled:opacity-40"
+              variant="outline"
+              size="sm"
+              className="gap-1"
             >
               Next <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -314,17 +319,17 @@ function FilterSelect({
   onChange: (v: string) => void;
 }) {
   return (
-    <select
+    <Select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-10 rounded-md border border-border bg-bg px-3 text-[13px] text-fg focus:border-accent focus:outline-none"
+      className="text-[13px]"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -338,10 +343,10 @@ function OrgScopeSelector({
   onChange: (v: string) => void;
 }) {
   return (
-    <select
+    <Select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-9 rounded-md border border-border bg-bg px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted focus:border-accent focus:outline-none"
+      className="font-mono text-[10px] uppercase tracking-widest text-fg-muted"
     >
       <option value="">All orgs</option>
       {orgs.map((o) => (
@@ -349,7 +354,7 @@ function OrgScopeSelector({
           {o.displayName}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 

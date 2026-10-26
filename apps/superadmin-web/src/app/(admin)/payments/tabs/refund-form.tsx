@@ -1,9 +1,10 @@
 "use client";
 
+import { centsToAmountInput } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button, Select, Input } from "@sportspulse/ui";
 import type { InvoiceRefundable, Refund } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/browser-api";
 import { fmtMoney, fmtDate } from "../lib/format";
@@ -52,7 +53,7 @@ export function RefundForm({
   const maxFor = (d: Destination) =>
     d === "card" ? refundable.cardCents : refundable.totalCents;
   const [dest, setDest] = useState<Destination>(defaultDest);
-  const [amountStr, setAmountStr] = useState((maxFor(defaultDest) / 100).toFixed(2));
+  const [amountStr, setAmountStr] = useState(centsToAmountInput(maxFor(defaultDest)));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export function RefundForm({
         : "the card the invoice was paid with";
       return `Sent back to ${card} through the payment processor. While the league is testing, payments run on a test processor and no real card is refunded. The player gets a refund notice.`;
     }
-    return "Added to the player's SportsPulse wallet for this organisation right away. The player gets a refund notice.";
+    return "Added to the player's SportsPulse wallet for this organization right away. The player gets a refund notice.";
   }, [dest, cardOnFileBrand, cardOnFileLast4]);
 
   async function submit(e: React.FormEvent) {
@@ -138,14 +139,13 @@ export function RefundForm({
 
         <div className="mt-4 space-y-4">
           <Field label="Refund to" required>
-            <select
+            <Select
               value={dest}
               onChange={(e) => {
                 const d = e.target.value as Destination;
                 setDest(d);
-                if (amountCents > maxFor(d)) setAmountStr((maxFor(d) / 100).toFixed(2));
+                if (amountCents > maxFor(d)) setAmountStr(centsToAmountInput(maxFor(d)));
               }}
-              className="input"
             >
               <option value="card" disabled={refundable.cardCents === 0}>
                 {refundable.cardCents > 0
@@ -153,7 +153,7 @@ export function RefundForm({
                   : "The card it was paid with (no card payment on this invoice)"}
               </option>
               <option value="wallet">SportsPulse wallet credit</option>
-            </select>
+            </Select>
           </Field>
 
           <Field
@@ -161,29 +161,29 @@ export function RefundForm({
             required
             hint={`Maximum refundable: ${fmtMoney(maxRefundableCents, currency)}`}
           >
-            <input
+            <Input
               type="number"
               min="0.01"
               step="0.01"
-              max={(maxRefundableCents / 100).toFixed(2)}
+              max={centsToAmountInput(maxRefundableCents)}
               value={amountStr}
               onChange={(e) => setAmountStr(e.target.value)}
-              className="input font-mono"
               required
+              className="font-mono"
             />
           </Field>
 
           <Field
             label="Reason"
             required
-            hint="Required — document the reason for this refund (min 10 characters). Stored in audit trail."
+            hint="Required. Document the reason for this refund (min 10 characters). Stored in audit trail."
           >
             <textarea
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               maxLength={2000}
-              placeholder="e.g. season cancelled — full refund per league policy."
+              placeholder="e.g. season cancelled, full refund per league policy."
               className="input"
               required
             />
@@ -198,14 +198,14 @@ export function RefundForm({
           </div>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           {success ? (
-            <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+            <Alert tone="success" role="status">
               {success}
-            </p>
+            </Alert>
           ) : null}
 
           <div className="flex items-center gap-2 border-t border-border pt-4">
@@ -223,7 +223,7 @@ export function RefundForm({
               size="sm"
               onClick={() => {
                 setDest(defaultDest);
-                setAmountStr((maxFor(defaultDest) / 100).toFixed(2));
+                setAmountStr(centsToAmountInput(maxFor(defaultDest)));
                 setReason("");
                 setError(null);
               }}

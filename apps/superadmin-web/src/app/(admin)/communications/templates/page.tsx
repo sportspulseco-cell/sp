@@ -18,7 +18,7 @@ import { communications, orgs } from "@/lib/api/server-api";
 import { UpsertTemplateButton } from "@/components/communications/upsert-template-button";
 import { DeleteTemplateButton } from "@/components/communications/delete-template-button";
 
-export const metadata = { title: "Notification templates — SportsPulse" };
+export const metadata = { title: "Notification templates · Super Admin" };
 
 export default async function TemplatesPage() {
   const [templatesResult, orgList] = await Promise.all([
@@ -53,7 +53,7 @@ export default async function TemplatesPage() {
       <PageHeader
         eyebrow="templates"
         title="Notification templates"
-        description="Per (org, code, channel, locale) — the source of subjects + body. Code-level defaults live in the catalog; UI rows here override per-org."
+        description="Per (org, code, channel, locale): the source of subjects + body. Code-level defaults live in the catalog; UI rows here override per-org."
         action={<UpsertTemplateButton />}
       />
 

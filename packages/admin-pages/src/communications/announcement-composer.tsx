@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input, LocalDate, Select, Skeleton } from "@sportspulse/ui";
 import type {
   AnnouncementReach,
   BroadcastAttachment,
@@ -85,7 +85,7 @@ const AUDIENCE_OPTIONS: Array<{ value: AnnouncementAudience; label: string; hint
 ];
 
 const TARGET_LABEL: Record<AnnouncementTargetType, string> = {
-  org: "The whole organisation",
+  org: "The whole organization",
   league: "One league",
   season: "One season",
   division: "One division",
@@ -110,8 +110,11 @@ function localInputValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function fmtWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const WHEN: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+
+/** A send time in the reader's zone (hydration-safe through LocalDate). */
+function fmtWhen(iso: string) {
+  return <LocalDate iso={iso} options={WHEN} />;
 }
 
 async function fileToBase64(file: File): Promise<string> {
@@ -283,7 +286,7 @@ export function AnnouncementComposer({
   }
 
   const targetList = targetType === "org" ? [] : lists[targetType];
-  const orgName = orgs.find((o) => o.id === reach.orgId)?.name ?? "this organisation";
+  const orgName = orgs.find((o) => o.id === reach.orgId)?.name ?? "this organization";
 
   function toggle<T>(list: T[], v: T): T[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
@@ -338,7 +341,7 @@ export function AnnouncementComposer({
     <div className="space-y-4 rounded-xl border border-border bg-surface-1 p-6" data-testid="announcement-composer">
       <Eyebrow>Send to</Eyebrow>
       {orgs.length > 1 && onOrgChange ? (
-        <Field label="Organisation" htmlFor="compose-org">
+        <Field label="Organization" htmlFor="compose-org">
           <Select
             id="compose-org"
             value={reach.orgId}
@@ -360,7 +363,7 @@ export function AnnouncementComposer({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
-            label="Part of the organisation"
+            label="Part of the organization"
             htmlFor="compose-target-type"
             hint={reach.wholeOrg ? undefined : "You can send to the leagues you run and everything in them."}
           >
@@ -592,7 +595,10 @@ export function AnnouncementComposer({
           <Eyebrow>Scheduled</Eyebrow>
           {scheduledError ? <Alert tone="error">{scheduledError}</Alert> : null}
           {scheduled === null ? (
-            <p className="text-[12px] text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading scheduled broadcasts" className="space-y-2">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
           ) : scheduled.length === 0 ? (
             <p className="text-[12px] text-fg-muted">Nothing scheduled.</p>
           ) : (
@@ -602,7 +608,7 @@ export function AnnouncementComposer({
                   <div className="min-w-0">
                     <p className="truncate text-[13px] font-medium text-fg">{x.subject}</p>
                     <p className="text-[12px] text-fg-muted">
-                      {x.status === "sent" && x.sentAt ? `Sent ${fmtWhen(x.sentAt)}` : `For ${fmtWhen(x.sendAt)}`}
+                      {x.status === "sent" && x.sentAt ? <>Sent {fmtWhen(x.sentAt)}</> : <>For {fmtWhen(x.sendAt)}</>}
                       {x.attachments.length ? ` · ${x.attachments.length} file${x.attachments.length === 1 ? "" : "s"}` : ""}
                       {x.status === "sent" && x.result ? ` · ${x.result.queued} queued` : ""}
                       {x.status === "failed" && x.lastError ? ` · ${x.lastError}` : ""}

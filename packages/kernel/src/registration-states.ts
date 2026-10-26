@@ -52,7 +52,7 @@ export const REGISTRATION_STATE_LABELS: Record<RegistrationState, string> = {
   pending_payment: "Pending payment",
   pending_offline: "Pending offline payment",
   pending_review: "Pending review",
-  incomplete: "Incomplete — resubmission requested",
+  incomplete: "Incomplete: resubmission requested",
   approved: "Approved",
   rejected: "Rejected",
   cancelled: "Cancelled"

@@ -1,4 +1,4 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { Clock, UsersRound } from "lucide-react";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import {
@@ -12,7 +12,9 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  LoadError,
+  LocalDate
 } from "@sportspulse/ui";
 import type { Standing, TeamMembership } from "@sportspulse/api-client";
 import { captain, iam, leagueMgmt, loadMeScope, registration, roster, stats } from "@/lib/api/server-api";
@@ -21,15 +23,8 @@ import { JoinTeamButton } from "./join-team-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Team — SportsPulse" };
+export const metadata = { title: "Team · Player" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
-}
 
 export default async function TeamPage({
   searchParams
@@ -54,15 +49,15 @@ export default async function TeamPage({
     type JoinRequest = Awaited<
       ReturnType<typeof registration.listMyJoinRequests>
     >["items"][number];
-    const [joinable, joinRequests] = await Promise.all([
-      registration
-        .listJoinableTeams()
-        .catch(() => ({ items: [] as JoinableTeam[] })),
+    // A failed load is shown as an error, never as "Not on a roster yet".
+    const [joinableResult, joinRequests] = await Promise.all([
+      load(registration.listJoinableTeams()),
       registration
         .listMyJoinRequests()
         .catch(() => ({ items: [] as JoinRequest[] }))
     ]);
 
+    const joinable = { items: joinableResult.ok ? joinableResult.data.items : ([] as JoinableTeam[]) };
     const pending = joinRequests.items.filter((r) => r.status === "pending");
 
     // Group joinable teams by division for a clean section per
@@ -124,7 +119,7 @@ export default async function TeamPage({
                       {p.teamName}
                     </p>
                     <p className="mt-0.5 text-[11px] text-fg-muted">
-                      {p.orgName ?? "—"} · applied {fmtDate(p.appliedAt)}
+                      {p.orgName ?? "—"} · applied <LocalDate iso={p.appliedAt} format="date" />
                     </p>
                   </div>
                   <Badge mono tone="warning">
@@ -183,7 +178,9 @@ export default async function TeamPage({
           ))
         ) : null}
 
-        {!hasAnything ? (
+        {!joinableResult.ok ? (
+          <LoadError what="teams you can join" status={joinableResult.status} message={joinableResult.message} />
+        ) : !hasAnything ? (
           <EmptyState
             icon={UsersRound}
             title="Not on a roster yet"
@@ -194,12 +191,16 @@ export default async function TeamPage({
     );
   }
 
-  const [team, membershipsPage] = await Promise.all([
+  const [team, membershipsResult] = await Promise.all([
     leagueMgmt.getTeam(myTeamId).catch(() => null),
-    fetchAll((cursor) =>
+    load(fetchAll((cursor) =>
       roster.listMemberships({ teamId: myTeamId, activeOnly: true, limit: 100, cursor })
-    ).catch(() => ({ items: [] as TeamMembership[], nextCursor: null }))
+    ))
   ]);
+  // A failed roster load is shown as an error, never as "Empty roster".
+  const membershipsPage = membershipsResult.ok
+    ? membershipsResult.data
+    : { items: [] as TeamMembership[], nextCursor: null };
 
   // Standings need a leagueId — derive from any of the team's games
   // (we don't have a direct team→league lookup yet). For now fall back
@@ -330,7 +331,11 @@ export default async function TeamPage({
               {memberships.length} active
             </span>
           </header>
-          {memberships.length === 0 ? (
+          {!membershipsResult.ok ? (
+            <div className="p-5">
+              <LoadError what="your roster" status={membershipsResult.status} message={membershipsResult.message} />
+            </div>
+          ) : memberships.length === 0 ? (
             <div className="px-5 py-6 text-[13px] text-fg-muted">
               Empty roster.
             </div>

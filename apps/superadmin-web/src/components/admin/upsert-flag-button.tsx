@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { admin } from "@/lib/api/browser-api";
-import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Alert } from "@sportspulse/ui";
 
 export function UpsertFlagButton() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export function UpsertFlagButton() {
           <Field
             label="Key"
             htmlFor="uf-key"
-            hint="Stable identifier — lowercase_snake_case."
+            hint="Stable identifier in lowercase_snake_case."
           >
             <Input
               id="uf-key"
@@ -79,7 +79,7 @@ export function UpsertFlagButton() {
           <Field
             label="Rollout %"
             htmlFor="uf-rollout"
-            hint="0–100. Hashed against actor ID — 50 = enabled for half of orgs."
+            hint="0–100. Hashed against actor ID: 50 = enabled for half of orgs."
           >
             <Input
               id="uf-rollout"
@@ -104,9 +104,9 @@ export function UpsertFlagButton() {
           </label>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

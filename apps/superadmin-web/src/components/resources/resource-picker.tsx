@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@sportspulse/ui";
 import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Loader2, Search, X } from "lucide-react";
@@ -98,7 +99,7 @@ export function ResourcePicker({
             </>
           ) : value ? (
             <span className="text-fg-muted">
-              {loading ? "Loading…" : `Unknown ${scopeType}`}
+              {loading ? <Skeleton className="inline-block h-3 w-24 align-middle" /> : `Unknown ${scopeType}`}
             </span>
           ) : (
             <span className="text-fg-muted">

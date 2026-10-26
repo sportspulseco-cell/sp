@@ -4,7 +4,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button, Skeleton, Select } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import {
   SEASON_REGISTRATION_TYPES,
@@ -180,7 +180,7 @@ export function SeasonSectionForm({
     <div className="space-y-6">
       <SectionHeader
         title="Season setup"
-        subtitle="Pick the season this registration runs against — created via Org setup"
+        subtitle="Pick the season this registration runs against (created in Org setup)"
       />
 
       {/* Rollover card */}
@@ -190,7 +190,7 @@ export function SeasonSectionForm({
             Roll over a previous season?
           </p>
           <p className="mt-0.5 text-[12px] text-fg-muted">
-            Copies pricing, divisions, questions, waivers — not dates
+            Copies pricing, divisions, questions and waivers, not dates
           </p>
         </div>
         {priorSeasons.length === 0 ? (
@@ -241,10 +241,7 @@ export function SeasonSectionForm({
           hint="Seasons are created in Org setup. Pick one to bind this registration form to it; the rest of the wizard reads its config from the selected season."
         >
           {seasonsLoading ? (
-            <div className="flex items-center gap-2 text-[12px] text-fg-muted">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Loading seasons…
-            </div>
+            <div role="status" aria-label="Loading seasons"><Skeleton className="h-9" /></div>
           ) : allSeasons.length === 0 ? (
             <p className="text-[12px] text-fg-muted">
               No seasons in this org yet.{" "}
@@ -254,11 +251,10 @@ export function SeasonSectionForm({
               .
             </p>
           ) : (
-            <select
+            <Select
               value={seasonId}
               onChange={(e) => bindSeason(e.target.value)}
               disabled={busy !== "none"}
-              className="input"
               required
             >
               <option value="" disabled>
@@ -269,7 +265,7 @@ export function SeasonSectionForm({
                   {s.name} · {s.startDate} → {s.endDate}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         </Field>
 
@@ -319,21 +315,20 @@ export function SeasonSectionForm({
           hint="Decides which paths players see. Team: captains register teams and players join from their captain's invite link. Individual: players register themselves, and as free agents when that is allowed under Divisions & eligibility. Saved on the season."
         >
           <div className="flex items-center gap-2">
-            <select
+            <Select
               aria-label="Registration type"
               value={registrationType}
               onChange={(e) =>
                 setRegistrationType(e.target.value as SeasonRegistrationType)
               }
               disabled={!seasonId || busy !== "none"}
-              className="input"
             >
               {SEASON_REGISTRATION_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {SEASON_REGISTRATION_TYPE_LABELS[t]}
                 </option>
               ))}
-            </select>
+            </Select>
             <Button
               type="button"
               variant="ghost"
@@ -352,20 +347,19 @@ export function SeasonSectionForm({
         </Field>
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         {saved ? (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+          <Alert tone="success" role="status">
             Saved.
-          </p>
+          </Alert>
         ) : null}
       </section>
 
       <EligibilityPanel form={form} />
 
-      <FieldStyle />
     </div>
   );
 }
@@ -476,20 +470,3 @@ function ReadOnly({
   );
 }
 
-function FieldStyle() {
-  return (
-    <style>{`
-      .input {
-        height: 2.5rem;
-        width: 100%;
-        border-radius: 0.375rem;
-        border: 1px solid var(--border);
-        background: var(--surface-1);
-        padding: 0 0.75rem;
-        color: var(--fg);
-        font-size: 13px;
-      }
-      .input:focus { outline: none; border-color: var(--accent); }
-    `}</style>
-  );
-}

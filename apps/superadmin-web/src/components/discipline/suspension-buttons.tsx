@@ -3,16 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Gavel, Loader2 } from "lucide-react";
-import {
-  SUSPENSION_ISSUE_KINDS,
-  SUSPENSION_KIND_LABELS,
-  SUSPENSION_MAX_GAMES,
-  validateLiftReason,
-  validateSuspensionIssue,
-  type SuspensionKind
-} from "@sportspulse/kernel";
+import { SUSPENSION_ISSUE_KINDS, SUSPENSION_KIND_LABELS, SUSPENSION_MAX_GAMES, validateLiftReason, validateSuspensionIssue, type SuspensionKind } from "@sportspulse/kernel";
 import { gameOps } from "@/lib/api/browser-api";
-import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 
 const TEXTAREA =
   "w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus";
@@ -101,14 +94,16 @@ export function IssueSuspensionButton({
   return (
     <>
       {compact ? (
-        <button
+        <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-1 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
           <Gavel className="h-3 w-3" strokeWidth={1.75} />
           {triggerLabel}
-        </button>
+        </Button>
       ) : (
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Gavel className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
@@ -181,9 +176,9 @@ export function IssueSuspensionButton({
             />
           </Field>
           {error ? (
-            <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -260,13 +255,15 @@ export function ChangeSuspensionGamesButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         Change games
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -289,9 +286,9 @@ export function ChangeSuspensionGamesButton({
             />
           </Field>
           {error ? (
-            <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -354,13 +351,15 @@ export function LiftSuspensionButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         Lift
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -380,9 +379,9 @@ export function LiftSuspensionButton({
             />
           </Field>
           {error ? (
-            <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

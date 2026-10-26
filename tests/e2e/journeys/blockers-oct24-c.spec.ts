@@ -5,7 +5,7 @@ import { IS_STAGING, signedInAs, stagingSql } from "./_helpers";
 
 /**
  * Follow-ups to SP-Changes (1), 24 Oct 2026: real profile photo upload,
- * and org admins editing their own organisation. Staging, browser.
+ * and org admins editing their own organization. Staging, browser.
  */
 test.skip(!IS_STAGING, "staging only");
 
@@ -84,7 +84,7 @@ test("player uploads a profile photo; it is stored, previewed, saved and served"
   await context.close();
 });
 
-test("org admin opens Organisation and edits their own organisation", async ({ browser }) => {
+test("org admin opens Organization and edits their own organization", async ({ browser }) => {
   test.setTimeout(180_000);
   const [before] = await stagingSql<{ id: string; legal_name: string }>(
     `select o.id, o.legal_name from orgs o where o.id = 'f7e62723-7685-4ba0-80e5-310c266c7b81'`
@@ -93,14 +93,14 @@ test("org admin opens Organisation and edits their own organisation", async ({ b
   const { page, context } = await signedInAs(browser, "orgAdmin");
   try {
     await page.goto(`${E2E_URLS.orgAdmin}/organization`);
-    await expect(page.getByRole("link", { name: "Organisation" }).first()).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "Edit organisation" }).click();
+    await expect(page.getByRole("link", { name: "Organization" }).first()).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Edit organization" }).click();
     await page.getByLabel("Legal name", { exact: true }).fill(changed);
-    await page.getByRole("button", { name: "Save organisation" }).click();
+    await page.getByRole("button", { name: "Save organization" }).click();
     await expect(page.getByText(changed).first()).toBeVisible({ timeout: 20_000 });
     const [after] = await stagingSql<{ legal_name: string }>(`select legal_name from orgs where id = $1`, [before!.id]);
     expect(after?.legal_name).toBe(changed);
-    console.log("[org] org admin saved the organisation");
+    console.log("[org] org admin saved the organization");
   } finally {
     await stagingSql(`update orgs set legal_name = $2 where id = $1`, [before!.id, before!.legal_name]);
     await context.close();

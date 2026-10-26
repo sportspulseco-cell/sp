@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, Loader2, Clock, Rocket, Radio
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, Field, Input, Select
+  Badge, Button, EmptyState, Field, Input, LocalDate, Select
 } from "@sportspulse/ui";
 import {
   createSchedulerSupabaseClient,
@@ -325,7 +325,7 @@ function LiveChannelBar({
       </div>
       {lastBroadcast && (
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg">
-          last: {lastBroadcast.gamesPublished} games @ {new Date(lastBroadcast.publishedAt).toLocaleTimeString("en-US")}
+          last: {lastBroadcast.gamesPublished} games @ <LocalDate iso={lastBroadcast.publishedAt} format="time" />
         </span>
       )}
     </div>

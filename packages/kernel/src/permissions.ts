@@ -311,7 +311,7 @@ export const SCOPE_TYPES: ReadonlyArray<ScopeType> = [
  */
 export const SCOPE_TYPE_LABELS: Record<ScopeType, string> = {
   platform: "Platform",
-  org: "Organisation",
+  org: "Organization",
   league: "League",
   season: "Season",
   division: "Division",
@@ -319,7 +319,7 @@ export const SCOPE_TYPE_LABELS: Record<ScopeType, string> = {
   game: "Game"
 };
 
-/** "an organisation", "a league": the label with its article, for prompts. */
+/** "an organization", "a league": the label with its article, for prompts. */
 export function scopeTypeWithArticle(scopeType: ScopeType): string {
   const label = SCOPE_TYPE_LABELS[scopeType].toLowerCase();
   return `${/^[aeiou]/.test(label) ? "an" : "a"} ${label}`;

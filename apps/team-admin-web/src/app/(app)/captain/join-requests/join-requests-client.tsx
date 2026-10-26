@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Mail, X } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogActions
-} from "@sportspulse/ui";
+import { Alert, Badge, Button, Dialog, DialogActions, LocalDate } from "@sportspulse/ui";
 import { registration } from "@/lib/api/browser-api";
 
 type Item = {
@@ -67,7 +62,7 @@ export function JoinRequestsClient({
       });
       setItems((arr) => arr.filter((i) => i.id !== item.id));
       setRejectTarget(null);
-      setFlash(`Denied ${item.playerName ?? "player"} — they'll be notified.`);
+      setFlash(`Denied ${item.playerName ?? "player"} . They'll be notified.`);
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -81,14 +76,14 @@ export function JoinRequestsClient({
   return (
     <div className="space-y-3">
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
       <ul className="space-y-3">
         {items.map((item) => {
@@ -130,11 +125,7 @@ export function JoinRequestsClient({
                     )}
                     <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                       Applied{" "}
-                      {new Date(item.appliedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric"
-                      })}
+                      <LocalDate iso={item.appliedAt} format="date" />
                     </p>
                   </div>
                 </div>

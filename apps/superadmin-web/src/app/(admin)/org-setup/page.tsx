@@ -6,7 +6,7 @@ import { OrgSetupShell } from "./org-setup-shell";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Org setup — SportsPulse" };
+export const metadata = { title: "Org setup · Super Admin" };
 
 export default async function OrgSetupPage() {
   // Bootstrap dropdown data once, on the server. Subsequent dependent
@@ -19,7 +19,7 @@ export default async function OrgSetupPage() {
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
   ]);
 
-  // No early empty state: super admins can create the first organisation
+  // No early empty state: super admins can create the first organization
   // from step 1 of the wizard.
   return (
     <OrgSetupShell

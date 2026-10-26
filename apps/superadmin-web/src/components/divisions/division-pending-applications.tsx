@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, useLocalDate } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -39,6 +40,7 @@ export function DivisionPendingApplications({
   initial: PendingApplication[];
 }) {
   const router = useRouter();
+  const localDate = useLocalDate();
   const [items, setItems] = useState<PendingApplication[]>(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export function DivisionPendingApplications({
     setError(null);
     try {
       await adminTransfers.rejectApplication(t.id, reason);
-      setFlash(`Denied ${t.teamName} — captain notified.`);
+      setFlash(`Denied ${t.teamName}. Captain notified.`);
       setItems((arr) => arr.filter((i) => i.id !== t.id));
       setRejectTarget(null);
       router.refresh();
@@ -104,14 +106,14 @@ export function DivisionPendingApplications({
       </header>
 
       {flash && (
-        <p className="mt-3 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" className="mt-3" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="mt-3 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="mt-3">
           {error}
-        </p>
+        </Alert>
       )}
 
       <ul className="mt-4 space-y-3">
@@ -177,18 +179,14 @@ export function DivisionPendingApplications({
                       spotsLeft == null
                         ? "—"
                         : full
-                          ? "0 — full"
+                          ? "0 (full)"
                           : `${spotsLeft}`
                     }
                     tone={full ? "rose" : "neutral"}
                   />
                   <Stat
                     label="Applied"
-                    value={new Date(t.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric"
-                    })}
+                    value={localDate(t.createdAt, "date")}
                   />
                 </div>
 
@@ -208,7 +206,7 @@ export function DivisionPendingApplications({
                     disabled={busy === t.id || full}
                     title={
                       full
-                        ? "Division is full — open a spot before approving."
+                        ? "Division is full. Open a spot before approving."
                         : undefined
                     }
                   >

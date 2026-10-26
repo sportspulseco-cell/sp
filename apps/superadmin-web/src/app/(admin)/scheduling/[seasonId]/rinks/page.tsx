@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SchedulingRinkNotifications } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Rink notifications — SportsPulse" };
+export const metadata = { title: "Rink notifications · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -40,7 +40,7 @@ export default async function RinksPage({
       <PageHeader
         eyebrow="schedule"
         title={`Notifications · ${season.name}`}
-        description="OUTBOUND webhook delivery + retry tracker. This tab tracks notifications SENT to rink partner systems (SportsEngine, etc.) when games are published or rescheduled. To configure venues, surfaces, and ice slots — the inputs the scheduler reads — use the Venues page."
+        description="OUTBOUND webhook delivery + retry tracker. This tab tracks notifications SENT to rink partner systems (SportsEngine, etc.) when games are published or rescheduled. To configure venues, surfaces, and ice slots. the inputs the scheduler reads. use the Venues page."
         action={
           <Link
             href={`/seasons/${season.id}`}

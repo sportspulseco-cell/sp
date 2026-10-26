@@ -4,13 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { compliance, orgs as orgsApi } from "@/lib/api/browser-api";
-import type {
-  EligibilityStatus,
-  Org,
-  Person,
-  Season
-} from "@/lib/api/types";
-import { Button, Dialog, DialogActions, Field, Select } from "@sportspulse/ui";
+import type { EligibilityStatus, Org, Person, Season } from "@/lib/api/types";
+import { Button, Dialog, DialogActions, Field, Select, Alert } from "@sportspulse/ui";
 
 const STATUSES: EligibilityStatus[] = [
   "pending",
@@ -106,14 +101,14 @@ export function CreateEligibilityButton({
           <Field
             label="Season"
             htmlFor="ce-season"
-            hint="Optional — leave blank for a platform-wide record."
+            hint="Optional. Leave blank for a platform-wide record."
           >
             <Select
               id="ce-season"
               value={form.seasonId}
               onChange={(e) => setForm({ ...form, seasonId: e.target.value })}
             >
-              <option value="">— No season —</option>
+              <option value="">No season</option>
               {seasons.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -141,8 +136,8 @@ export function CreateEligibilityButton({
             htmlFor="ce-gb"
             hint={
               governingBodies.length === 0
-                ? "No governing bodies / federations configured — leave blank."
-                : "Optional — for federation-scoped eligibility."
+                ? "No governing bodies / federations configured. Leave blank."
+                : "Optional. For federation-scoped eligibility."
             }
           >
             <Select
@@ -152,7 +147,7 @@ export function CreateEligibilityButton({
                 setForm({ ...form, governingBodyId: e.target.value })
               }
             >
-              <option value="">— None —</option>
+              <option value="">None</option>
               {governingBodies.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.displayName} ({o.orgType.replace(/_/g, " ")})
@@ -162,9 +157,9 @@ export function CreateEligibilityButton({
           </Field>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

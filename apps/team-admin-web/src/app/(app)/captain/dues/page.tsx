@@ -6,7 +6,7 @@ import { DuesScreen } from "./dues-screen";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Dues — SportsPulse" };
+export const metadata = { title: "Dues · Team Admin" };
 
 /**
  * Workflow 7C §6.7 + Spec 2 Phase 3 — captain dues tracker.

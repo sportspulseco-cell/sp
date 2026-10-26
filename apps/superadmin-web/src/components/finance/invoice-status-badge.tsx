@@ -1,22 +1,7 @@
 import { Badge } from "@sportspulse/ui";
 import type { InvoiceStatus } from "@/lib/api/types";
 
-const TONE: Record<
-  InvoiceStatus,
-  "info" | "success" | "warning" | "danger" | "neutral"
-> = {
-  draft: "neutral",
-  sent: "info",
-  paid: "success",
-  partial: "warning",
-  overdue: "danger",
-  void: "neutral"
-};
-
+/** Invoice status pill: shared word and colour from the kernel status map. */
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
-  return (
-    <Badge tone={TONE[status]} mono>
-      {status}
-    </Badge>
-  );
+  return <Badge status={status} />;
 }

@@ -15,11 +15,14 @@ import {
   tierOffersPlan,
   tierIsFull,
   planInstallments,
-  formatMoney
+  formatMoney,
+  formatCalendarDate,
+  formatInZone,
+  DATE_FORMATS
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi, RegistrationQuote } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
-import { Button, Chip, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Chip, Field, Input, LoadError, Skeleton, Select } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
 import { WaiverCard } from "./waiver-card";
 
@@ -875,16 +878,8 @@ function fmtDate(s: string, timeZone?: string) {
   // season's zone also gives the date the league means: a window closing
   // 23:59 ET on Nov 13 used to read "Nov 14" on a UTC server and caused
   // a hydration mismatch on every funnel mount.
-  const opts: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
-  try {
-    return new Date(s).toLocaleDateString("en-US", { ...opts, timeZone: timeZone || "UTC" });
-  } catch {
-    try {
-      return new Date(s).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
-    } catch {
-      return s;
-    }
-  }
+  const text = timeZone ? formatInZone(s, timeZone, DATE_FORMATS.date) : formatCalendarDate(s, DATE_FORMATS.date);
+  return text || s;
 }
 
 /**
@@ -1368,7 +1363,7 @@ function AccountStep({
                 required
               />
             </Field>
-            <Field label="Phone number" hint="Optional — used for SMS reminders">
+            <Field label="Phone number" hint="Optional. Used for SMS reminders.">
               <Input
                 type="tel"
                 value={phone}
@@ -1430,14 +1425,14 @@ function AccountStep({
       )}
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {mode === "create" && !pwMatches && confirmPassword.length > 0 ? (
-        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+        <Alert tone="warning">
           Passwords don't match.
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex items-center justify-between">
@@ -1549,9 +1544,9 @@ function ConsentStep({
       )}
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex items-center justify-between">
@@ -1639,7 +1634,7 @@ function WaiversStep({
       state: ageFail ? "fail" : "pass",
       body: ageFail
         ? flags.includes("dob_missing")
-          ? "Date of birth is missing — go back and add it in the Account step."
+          ? "Date of birth is missing. Go back and add it in the Account step."
           : "Age may not match the configured division range. Admin will review."
         : "You're within the allowed age range for this division."
     },
@@ -1647,7 +1642,7 @@ function WaiversStep({
       label: "No duplicate account",
       state: flags.includes("duplicate_subject") ? "fail" : "pass",
       body: flags.includes("duplicate_subject")
-        ? "Possible duplicate found — admin will review manually."
+        ? "Possible duplicate found. An admin will review it."
         : "No existing profile with matching name + DOB found."
     }
   ];
@@ -1658,7 +1653,7 @@ function WaiversStep({
       label: "USA Hockey ID",
       state: idMissing || idInvalid ? "fail" : "pass",
       body: idMissing
-        ? "USA Hockey ID is missing — add it on the Player details step."
+        ? "USA Hockey ID is missing. Add it on the Player details step."
         : idInvalid
           ? "USA Hockey ID format is invalid (6–12 alphanumeric)."
           : "Format valid."
@@ -1723,18 +1718,18 @@ function WaiversStep({
       {documents === null ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
           {loadError ? (
-            <div className="space-y-3">
-              <p role="alert" className="text-[13px] text-rose-700 dark:text-rose-300">
-                Could not load the documents you need to sign: {loadError}
-              </p>
-              <Button type="button" variant="secondary" onClick={onRetryLoad}>
-                Try again
-              </Button>
-            </div>
+            <LoadError
+              what="the documents you need to sign"
+              status={null}
+              message={loadError}
+              action={
+                <Button type="button" variant="secondary" onClick={onRetryLoad}>
+                  Try again
+                </Button>
+              }
+            />
           ) : (
-            <p className="flex items-center gap-2 text-[13px] text-fg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading the documents to sign…
-            </p>
+            <div role="status" aria-label="Loading the documents to sign" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
           )}
         </section>
       ) : null}
@@ -1796,12 +1791,9 @@ function WaiversStep({
       ) : null}
 
       {error ? (
-        <p
-          role="alert"
-          className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[13px] text-rose-700 dark:text-rose-300"
-        >
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       {outstanding.length > 0 ? (
@@ -1848,10 +1840,10 @@ function AcknowledgeCard({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[14px] font-semibold tracking-tight text-fg">{doc.name}</p>
         {doc.signed ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+          <Badge status="accepted">
             <Check className="h-3 w-3" strokeWidth={2.25} />
             Accepted
-          </span>
+          </Badge>
         ) : null}
       </div>
       <label className="mt-3 flex cursor-pointer items-start justify-between gap-3 rounded-md border border-border bg-bg-subtle p-4">
@@ -1887,9 +1879,9 @@ function AcknowledgeCard({
         )}
       </label>
       {err ? (
-        <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error" className="mt-2">
           Couldn't record your acceptance: {err}
-        </p>
+        </Alert>
       ) : null}
     </section>
   );
@@ -2018,7 +2010,7 @@ function TierStep({
                 <p className="font-mono text-[16px] font-semibold tabular-nums text-fg">
                   {free
                     ? "Free"
-                    : `${(t.fullPriceCents / 100).toFixed(2)} ${t.currency}`}
+                    : formatMoney(t.fullPriceCents, t.currency)}
                 </p>
                 {on && (
                   <Check
@@ -2206,12 +2198,11 @@ function QuestionsStep({
                   : "Pick the division your team will play in."
               }
             >
-              <select
+              <Select
                 value={teamDivision}
                 onChange={(e) => onTeamDivisionChange(e.target.value)}
                 required
                 disabled={divisions.length === 0}
-                className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent disabled:opacity-50"
               >
                 <option value="">
                   {divisions.length === 0
@@ -2224,7 +2215,7 @@ function QuestionsStep({
                     {d.tier ? ` · ${d.tier}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Team colour">
               <input
@@ -2244,7 +2235,7 @@ function QuestionsStep({
           Player details
         </p>
         <p className="mt-1 text-[12px] text-fg-muted">
-          Answers are saved against the question key — labels can be reworded
+          Answers are saved against the question key, so labels can be reworded
           in /forms without losing data. Configure these fields from the
           Form builder section in /forms/[id].
         </p>
@@ -2272,7 +2263,7 @@ function QuestionsStep({
           <p className="mt-1 text-[12px] text-fg-muted">
             {submissionType === "free_agent"
               ? "Captains in your division use this to evaluate fit before claiming you. All four are required."
-              : "Your skill level, position, and availability — used by your team's captain to slot you in lineups."}
+              : "Your skill level, position, and availability. Your team's captain uses them to set lineups."}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
@@ -2325,11 +2316,10 @@ function QuestionsStep({
               label="Skill level *"
               hint="The same levels the league uses for divisions. Admins check your level against the division."
             >
-              <select
+              <Select
                 value={skillLevel}
                 onChange={(e) => patchAnswers({ skill_level: e.target.value })}
                 required
-                className="h-10 w-full rounded-md border border-border bg-bg-subtle px-3 text-[13px] text-fg outline-none focus:border-accent"
               >
                 <option value="">Pick a level…</option>
                 {SKILL_LEVELS.map((l) => (
@@ -2337,7 +2327,7 @@ function QuestionsStep({
                     {SKILL_LEVEL_LABELS[l]} ({SKILL_LEVEL_HINTS[l].toLowerCase()})
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field
               label="Preferred positions *"
@@ -2493,7 +2483,7 @@ function ReviewStep({
             {tier.name}
             {!tier.isFree && (
               <span className="ml-2 font-mono text-[12px] text-fg-muted">
-                {(tier.fullPriceCents / 100).toFixed(2)} {tier.currency}
+                {formatMoney(tier.fullPriceCents, tier.currency)}
               </span>
             )}
           </Row>
@@ -2501,7 +2491,7 @@ function ReviewStep({
       </dl>
 
       {eligibilityFlags && eligibilityFlags.length > 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+        <Alert tone="warning" role="status">
           <p className="font-medium">Eligibility flags raised:</p>
           <ul className="ml-4 list-disc">
             {eligibilityFlags.map((f) => (
@@ -2511,16 +2501,16 @@ function ReviewStep({
             ))}
           </ul>
           <p className="mt-1">
-            Per spec §6.3 these don't block payment — admin will review
+            Per spec §6.3 these don't block payment. An admin will review
             asynchronously and may request resubmission.
           </p>
-        </div>
+        </Alert>
       )}
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex items-center justify-between">
@@ -2744,28 +2734,28 @@ function PaymentStep({
           <PaymentOption
             active={option === "full"}
             onSelect={() => setOption("full")}
-            title={`Full payment — ${fmt(totalCents)} today`}
+            title={`Full payment: ${fmt(totalCents)} today`}
             body="Single charge. No further payments."
           />
           {plan ? (
             <PaymentOption
               active={option === "plan"}
               onSelect={() => setOption("plan")}
-              title={`Payment plan — ${fmt(depositCents)} deposit today`}
+              title={`Payment plan: ${fmt(depositCents)} deposit today`}
               body={`then ${installments.length} installment${installments.length === 1 ? "" : "s"}, one every ${intervalDays} days`}
               extra={
                 <ul className="mt-3 space-y-1.5 text-[12px]">
                   <li className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
                     <span className="text-fg-muted">
-                      Today (deposit) — {fmt(depositCents)}
+                      Today (deposit): {fmt(depositCents)}
                     </span>
                   </li>
                   {installments.map((p) => (
                     <li key={p.installmentNumber} className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-blue-500" />
                       <span className="text-fg-muted">
-                        Installment {p.installmentNumber} — {fmt(p.amountCents)}, in {p.dueInDays} days
+                        Installment {p.installmentNumber}: {fmt(p.amountCents)}, in {p.dueInDays} days
                       </span>
                     </li>
                   ))}
@@ -2839,9 +2829,9 @@ function PaymentStep({
       ) : null}
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3037,17 +3027,17 @@ function DoneStep({
             <code className="flex-1 truncate rounded-md border border-border bg-bg-subtle px-3 py-2 font-mono text-[11px] text-[var(--tint-blue-fg)]">
               {splitPayLink}
             </code>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 if (typeof navigator !== "undefined" && navigator.clipboard) {
                   navigator.clipboard.writeText(splitPayLink).catch(() => undefined);
                 }
               }}
-              className="inline-flex h-9 items-center rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+              variant="outline" size="md" className="h-9"
             >
               Copy
-            </button>
+            </Button>
           </div>
         </section>
       ) : splitPayPending ? (
@@ -3056,15 +3046,13 @@ function DoneStep({
             <p className="text-[14px] font-semibold tracking-tight text-fg">
               Player invite link
             </p>
-            <span className="rounded-full bg-[var(--tint-amber-bg)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">
-              Pending approval
-            </span>
+            <Badge status="pending_approval" />
           </div>
           <p className="mt-1 text-[12px] text-fg-muted">
             Once admin approves your team registration we'll generate a
             shareable invite link for your roster. Check the My
             registrations tab in your player dashboard, or watch your
-            email — the link will land there too.
+            email. The link will land there too.
           </p>
         </section>
       ) : null}
@@ -3141,7 +3129,7 @@ function guidanceFor(
       return {
         headline: (r) => (r ? "Welcome back" : "Almost there"),
         body: isMinor
-          ? "We've flagged you as under 18. Next step: parental consent — we'll send a link to your parent / guardian. (Email delivery wires up next pass; for now look for the in-app prompt.)"
+          ? "We've flagged you as under 18. Next step: parental consent. We'll send a link to your parent / guardian. (Email delivery wires up next pass; for now look for the in-app prompt.)"
           : "We need parental consent before payment can proceed."
       };
     case "pending_payment":
@@ -3201,36 +3189,36 @@ function phaseHeadingFor(step: Step): {
     case "division":
       return {
         title: "Pick a division",
-        subtitle: "Step 1b — Which division you're registering for"
+        subtitle: "Step 1b: Which division you're registering for"
       };
     case "account":
       return {
         title: "Create your account",
-        subtitle: "Step 2 — Account creation & authentication"
+        subtitle: "Step 2: Account creation & authentication"
       };
     case "questions":
       return {
         title: "Your details",
-        subtitle: "Step 3 — Player & team information"
+        subtitle: "Step 3: Player & team information"
       };
     case "consent":
     case "waivers":
       return {
         title: "Compliance & waivers",
         subtitle:
-          "Step 4 — Documents, eligibility checks, and digital signatures"
+          "Step 4: Documents, eligibility checks, and digital signatures"
       };
     case "tier":
     case "review":
     case "payment":
       return {
         title: "Payment",
-        subtitle: "Step 5 — Invoice & payment selection"
+        subtitle: "Step 5: Invoice & payment selection"
       };
     case "done":
       return {
         title: "Registration submitted",
-        subtitle: "Step 6 — Confirmation & activation"
+        subtitle: "Step 6: Confirmation & activation"
       };
   }
 }

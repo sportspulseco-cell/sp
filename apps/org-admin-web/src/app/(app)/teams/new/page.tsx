@@ -7,7 +7,7 @@ import { NewTeamForm } from "./new-team-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "New team — Org admin" };
+export const metadata = { title: "New team · Org Admin" };
 
 export default async function NewTeamPage() {
   const scope = await loadMeScope();

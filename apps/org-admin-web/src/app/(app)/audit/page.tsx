@@ -3,33 +3,12 @@
  */
 import Link from "next/link";
 import { FileBarChart } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  SectionRail,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, LocalDate, PageHeader, SectionRail, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { audit, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Audit · Org Admin" };
-
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
 
 export default async function AuditPage() {
   const scope = await loadMeScope();
@@ -47,7 +26,7 @@ export default async function AuditPage() {
       <PageHeader
         eyebrow="History"
         title="Activity log"
-        description="Who changed what in your organisation, and when. Read-only."
+        description="Who changed what in your organization, and when. Read-only."
       />
 
       <section className="space-y-6">
@@ -81,7 +60,7 @@ export default async function AuditPage() {
                   <TR key={e.id}>
                     <TD className="font-mono text-[11px] text-fg-muted">
                       <Link href={`/audit/${e.id}`} className="hover:text-accent">
-                        {fmt(e.createdAt)}
+                        <LocalDate iso={e.createdAt} format="dateTime" />
                       </Link>
                     </TD>
                     <TD className="text-[12px] text-fg-muted">

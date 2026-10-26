@@ -66,7 +66,7 @@ function withCurrent(list: Array<{ value: string; label: string }>, current: str
 }
 
 /**
- * Create-organisation form (same fields as before), reused by the dialog
+ * Create-organization form (same fields as before), reused by the dialog
  * on /organizations and inline in Org setup step 1. Calls `onCreated`
  * with the new org; the caller then offers the org-admin step.
  */
@@ -271,10 +271,10 @@ export function CreateOrgForm({
 }
 
 /**
- * Step 2 after creating an organisation: choose its org admin. Reuses the
+ * Step 2 after creating an organization: choose its org admin. Reuses the
  * canonical RoleAssignmentPanel, so the admin can pick an existing user
  * by name or invite someone by email. Skippable; admins can be added
- * later from the organisation page.
+ * later from the organization page.
  */
 export function ChooseOrgAdmin({
   org,
@@ -336,7 +336,7 @@ function CreateOrgDialog({
       title={created ? "Choose the org admin" : "Create organization"}
       description={
         created
-          ? "Org admins manage this organisation's leagues, seasons, teams and registrations."
+          ? "Org admins manage this organization's leagues, seasons, teams and registrations."
           : "Tenants are top-level isolation units. Slug must be globally unique."
       }
       size="lg"

@@ -1,4 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
+import { formatCalendarDate } from "@sportspulse/kernel";
 /* Hallmark · page: list (seasons) · genre: editorial · theme: project
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -23,15 +24,10 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Seasons - Org Admin" };
+export const metadata = { title: "Seasons · Org Admin" };
 
 function fmt(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return formatCalendarDate(iso) || "—";
 }
 
 const OPEN_STATES = new Set([
@@ -173,15 +169,10 @@ export default async function SeasonsPage({
                     <TD className="text-fg-muted">{leagueMap.get(s.leagueId) ?? "Unknown league"}</TD>
                     <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{s.sportCode}</TD>
                     <TD className="text-[12px] text-fg-muted">
-                      {fmt(s.startDate)} — {fmt(s.endDate)}
+                      {fmt(s.startDate)} to {fmt(s.endDate)}
                     </TD>
                     <TD>
-                      <Badge
-                        mono
-                        tone={OPEN_STATES.has(s.status as string) ? "success" : "neutral"}
-                      >
-                        {s.status.replace(/_/g, " ")}
-                      </Badge>
+                      <Badge status={s.status} />
                     </TD>
                   </TR>
                 ))}

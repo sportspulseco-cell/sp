@@ -1,11 +1,12 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { Badge, EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, PageHeader, LoadError } from "@sportspulse/ui";
+import { formatCalendarDate, statusLabel } from "@sportspulse/kernel";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Compliance — SportsPulse" };
+export const metadata = { title: "Compliance · Team Admin" };
 
 /**
  * Workflow 7C §6.9 — read-only captain compliance tab.
@@ -30,10 +31,11 @@ export default async function CaptainCompliancePage() {
   }
 
   // Team-scoped endpoints: only this team's roster, with names.
-  const [records, suspended] = await Promise.all([
-    compliance.teamEligibility(myTeamId).catch(() => ({ items: [] })),
+  const [recordsResult, suspended] = await Promise.all([
+    load(compliance.teamEligibility(myTeamId)),
     load(compliance.teamSuspensions(myTeamId))
   ]);
+  const records = recordsResult.ok ? recordsResult.data : { items: [] };
   const suspendedItems = suspended.ok ? suspended.data.items : [];
 
   const counts = {
@@ -50,7 +52,7 @@ export default async function CaptainCompliancePage() {
       <PageHeader
         eyebrow="Captain console"
         title="Waivers & documents"
-        description="Per-player USA Hockey + playoff eligibility. Read-only — admins issue waivers."
+        description="Per-player USA Hockey + playoff eligibility. Read-only. Admins issue waivers."
       />
 
       <section className="rounded-xl border border-border bg-surface-1">
@@ -120,7 +122,9 @@ export default async function CaptainCompliancePage() {
         />
       </div>
 
-      {records.items.length === 0 ? (
+      {!recordsResult.ok ? (
+        <LoadError what="your team's eligibility" status={recordsResult.status} message={recordsResult.message} />
+      ) : records.items.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}
           title="No compliance records yet"
@@ -155,18 +159,16 @@ export default async function CaptainCompliancePage() {
                     {r.displayName ?? "Unnamed player"}
                   </div>
                   <div>
-                    <Badge tone={recordTone(r.status)} mono>
-                      {r.status.replace(/_/g, " ")}
-                    </Badge>
+                    <Badge status={r.status} domain="compliance" />
                   </div>
                   <div className="text-[12px] text-fg-muted">
                     USA Hockey:{" "}
                     {usah?.status
-                      ? `${usah.status}${usah.expiresAt ? ` · ${new Date(usah.expiresAt).toLocaleDateString("en-CA")}` : ""}`
+                      ? `${statusLabel(usah.status)}${usah.expiresAt ? ` · ${formatCalendarDate(usah.expiresAt)}` : ""}`
                       : "—"}
                   </div>
                   <div className="text-[12px] text-fg-muted">
-                    Playoff: {playoff?.status ?? "—"}
+                    Playoff: {playoff?.status ? statusLabel(playoff.status) : "—"}
                   </div>
                 </li>
               );
@@ -215,12 +217,3 @@ function SummaryTile({
   );
 }
 
-function recordTone(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "eligible") return "success";
-  if (status === "ineligible" || status === "expired") return "danger";
-  if (status === "expiring" || status === "flagged") return "warning";
-  if (status === "waived") return "info";
-  return "neutral";
-}

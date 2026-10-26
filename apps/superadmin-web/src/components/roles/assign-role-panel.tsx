@@ -1,24 +1,12 @@
 ﻿"use client";
 import { fetchAll } from "@sportspulse/api-client";
-
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
-import {
-  formatInZone,
-  GAME_TIME_WITH_ZONE,
-  SCOPE_TYPES,
-  SCOPE_TYPE_LABELS,
-  scopeTypeWithArticle
-} from "@sportspulse/kernel";
-import {
-  gameOps,
-  iam,
-  leagueMgmt,
-  orgs as orgsApi
-} from "@/lib/api/browser-api";
+import { formatInZone, GAME_TIME_WITH_ZONE, SCOPE_TYPES, SCOPE_TYPE_LABELS, scopeTypeWithArticle, DATE_FORMATS } from "@sportspulse/kernel";
+import { gameOps, iam, leagueMgmt, orgs as orgsApi } from "@/lib/api/browser-api";
 import type { Role, RoleScopeType } from "@/lib/api/types";
-import { Button, Field, Select } from "@sportspulse/ui";
+import { Button, Field, Select, Alert } from "@sportspulse/ui";
 
 // Scope codes and their human labels come from the kernel catalogue so
 // this panel and the invite dialog can never drift (SETUP-7).
@@ -322,14 +310,14 @@ export function AssignRolePanel({
       </div>
 
       {error ? (
-        <p className="lg:col-span-4 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="lg:col-span-4">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {success ? (
-        <p className="lg:col-span-4 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" className="lg:col-span-4" role="status">
           {success}
-        </p>
+        </Alert>
       ) : null}
     </form>
   );

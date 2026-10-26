@@ -2,15 +2,8 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Eyebrow, LoadError, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
-import {
-  formatInZone,
-  GAME_ENDING_LABELS,
-  HOCKEY_INFRACTION_LABELS,
-  HOCKEY_PENALTY_CLASS_LABELS,
-  MISCONDUCT_PENALTY_CLASSES,
-  penaltyClassOf
-} from "@sportspulse/kernel";
+import { Eyebrow, LoadError, TBody, TD, TH, THead, TR, Table, Badge } from "@sportspulse/ui";
+import { formatInZone, GAME_ENDING_LABELS, HOCKEY_INFRACTION_LABELS, HOCKEY_PENALTY_CLASS_LABELS, MISCONDUCT_PENALTY_CLASSES, penaltyClassOf } from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
 import { GameSubs } from "@/components/games/game-subs";
@@ -20,7 +13,7 @@ import { AppendEventButton } from "@/components/games/append-event-button";
 import { IssueSuspensionButton } from "@/components/discipline/suspension-buttons";
 import { getConsoleViewer } from "@/lib/console-mode";
 
-export const metadata = { title: "Game — SportsPulse" };
+export const metadata = { title: "Game · Super Admin" };
 
 // In the game's own zone (shown beside it), never the server's.
 function fmtTime(iso: string, tz: string) {
@@ -170,9 +163,7 @@ export default async function GameDetailPage({
           </div>
           <div className="flex items-center gap-2">
             {!game.publishedAt && game.status !== "cancelled" ? (
-              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-px font-mono text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                Draft
-              </span>
+              <Badge status="draft" />
             ) : null}
             <GameStatusBadge status={game.status} />
           </div>

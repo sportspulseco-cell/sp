@@ -1,18 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  Eyebrow,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate, EmptyState, Eyebrow, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
@@ -20,7 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AddMembershipButton } from "@/components/rosters/add-membership-button";
 import { DropMembershipButton } from "@/components/rosters/drop-membership-button";
 
-export const metadata = { title: "Memberships — SportsPulse" };
+export const metadata = { title: "Memberships · Super Admin" };
 
 export default async function RostersPage({
   searchParams
@@ -86,7 +73,7 @@ export default async function RostersPage({
         title="Rosters"
         description={
           activeOnly
-            ? "Active roster memberships across every team. Add and drop players via roster moves — moves are append-only, memberships are the projection."
+            ? "Active roster memberships across every team. Add and drop players via roster moves. Moves are append-only, memberships are the projection."
             : "Every membership including released and historical."
         }
         action={
@@ -211,9 +198,7 @@ export default async function RostersPage({
                   {m.positionCode ?? "—"}
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(m.currentStatus)} mono>
-                    {m.currentStatus}
-                  </Badge>
+                  <Badge status={m.currentStatus} />
                 </TD>
                 <TD className="text-right">
                   {m.currentStatus === "active" ? (
@@ -293,12 +278,7 @@ async function RecentMovesCard({
               </p>
             </div>
             <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-              {new Date(m.effectiveAt).toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit"
-              })}
+              <LocalDate iso={m.effectiveAt} format="dateTime" />
             </span>
           </li>
         ))}

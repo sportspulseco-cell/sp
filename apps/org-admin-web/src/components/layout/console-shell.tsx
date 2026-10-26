@@ -10,7 +10,7 @@ import { HOME, NAV, ROUTES } from "./nav-config";
 
 const BRAND = { name: "SportsPulse", console: "Org admin", icon: Building2 };
 
-/** Organisation console chrome, from the shared shell. */
+/** Organization console chrome, from the shared shell. */
 export function ConsoleShell({
   email,
   displayName,

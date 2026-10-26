@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, LocalDate, Select } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -87,7 +88,7 @@ export function ApplicationsQueue({
     setError(null);
     try {
       await adminTransfers.approveApplication(t.id);
-      setFlash(`Approved ${t.teamName} — they're now applied to ${t.divisionName}.`);
+      setFlash(`Approved ${t.teamName}. They're now applied to ${t.divisionName}.`);
       await refresh();
       router.refresh();
     } catch (e) {
@@ -102,7 +103,7 @@ export function ApplicationsQueue({
     setError(null);
     try {
       await adminTransfers.rejectApplication(t.id, reason);
-      setFlash(`Rejected ${t.teamName} — captain notified.`);
+      setFlash(`Rejected ${t.teamName}. Captain notified.`);
       setRejectTarget(null);
       await refresh();
       router.refresh();
@@ -120,14 +121,14 @@ export function ApplicationsQueue({
   return (
     <div className="space-y-4">
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -322,7 +323,7 @@ function ApplicationCard({
                 disabled={busy || full}
                 title={
                   full
-                    ? "This division is full — cannot approve until a slot opens."
+                    ? "This division is full. Approve once a slot opens."
                     : undefined
                 }
               >
@@ -390,17 +391,17 @@ function FilterSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <select
+    <Select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg focus:border-accent focus:outline-none"
+      className="text-[13px]"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -496,9 +497,5 @@ function extractColor(_colors: Record<string, unknown>): string | null {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }

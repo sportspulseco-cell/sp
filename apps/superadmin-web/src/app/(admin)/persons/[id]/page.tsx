@@ -1,50 +1,15 @@
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  ArrowLeft,
-  CalendarRange,
-  ClipboardList,
-  FileSignature,
-  Gavel,
-  Globe2,
-  ListChecks,
-  MessageSquare,
-  ShieldCheck,
-  type LucideIcon
-} from "lucide-react";
+import { ArrowLeft, CalendarRange, ClipboardList, FileSignature, Gavel, Globe2, ListChecks, MessageSquare, ShieldCheck, type LucideIcon } from "lucide-react";
 import { EditPersonButton } from "@/components/persons/edit-person-button";
 import { LinkPersonButton } from "@/components/persons/link-person-button";
-import {
-  IssueSuspensionButton,
-  ChangeSuspensionGamesButton,
-  LiftSuspensionButton
-} from "@/components/discipline/suspension-buttons";
+import { IssueSuspensionButton, ChangeSuspensionGamesButton, LiftSuspensionButton } from "@/components/discipline/suspension-buttons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  Badge,
-  Eyebrow,
-  IconTile,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
-import {
-  communications,
-  compliance,
-  gameOps,
-  iam,
-  leagueMgmt,
-  registration,
-  roster
-} from "@/lib/api/server-api";
+import { Badge, Eyebrow, IconTile, LoadError, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone, LocalDate } from "@sportspulse/ui";
+import { communications, compliance, gameOps, iam, leagueMgmt, registration, roster } from "@/lib/api/server-api";
 
-export const metadata = { title: "Person — SportsPulse" };
+export const metadata = { title: "Person · Super Admin" };
 
 function age(dob: string | null): number | null {
   if (!dob) return null;
@@ -54,23 +19,11 @@ function age(dob: string | null): number | null {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
-function fmtDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+function fmtDateTime(iso: string | null) {
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function PersonDetailPage({
@@ -184,7 +137,7 @@ export default async function PersonDetailPage({
               </li>
               <li className="inline-flex items-center gap-1.5">
                 <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                {person.countryCode ?? "country —"}
+                {person.countryCode ?? "No country"}
               </li>
               <li className="inline-flex items-center gap-1.5">
                 {person.userId ? (
@@ -264,9 +217,7 @@ export default async function PersonDetailPage({
                 />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-fg">
-                    <Badge tone={statusTone(e.status)} mono>
-                      {e.status}
-                    </Badge>
+                    <Badge status={e.status} />
                     <span className="ml-2 text-fg-muted">
                       {e.seasonId
                         ? (seasonMap.get(e.seasonId) ?? "Unknown season")
@@ -376,9 +327,7 @@ export default async function PersonDetailPage({
               {suspensionItems.map((s) => (
                 <TR key={s.id}>
                   <TD>
-                    <Badge tone={s.inForce ? "danger" : statusTone(s.status)} mono>
-                      {s.inForce ? "suspended" : s.status === "active" ? "ended" : s.status}
-                    </Badge>
+                    <Badge status={s.inForce ? "suspended" : s.status === "active" ? "ended" : s.status} />
                   </TD>
                   <TD className="text-fg">{s.label}</TD>
                   <TD className="max-w-[320px] text-fg-muted">{s.reason ?? "No reason recorded"}</TD>
@@ -424,7 +373,7 @@ export default async function PersonDetailPage({
         tint="blue"
         eyebrow="Communications"
         title="Recent notifications"
-        description="Outbound messages addressed to this person — newest first."
+        description="Outbound messages addressed to this person, newest first."
       >
         {notifications.length === 0 ? (
           <Empty message="No notifications sent to this person." />
@@ -444,9 +393,7 @@ export default async function PersonDetailPage({
                   </p>
                 </div>
                 <div className="text-right">
-                  <Badge tone={statusTone(n.status === "sent" ? "completed" : n.status)} mono>
-                    {n.status}
-                  </Badge>
+                  <Badge status={n.status} domain="notification" />
                   <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
                     {fmtDateTime(n.sentAt ?? n.createdAt)}
                   </p>
@@ -512,12 +459,10 @@ export default async function PersonDetailPage({
                       : "Org-level"}
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {fmtDate(r.submittedAt ?? r.createdAt)}
+                    <LocalDate iso={r.submittedAt ?? r.createdAt} format="date" fallback="—" />
                   </p>
                 </div>
-                <Badge tone={statusTone(r.status)} mono>
-                  {r.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={r.status} />
               </li>
             ))}
           </ul>

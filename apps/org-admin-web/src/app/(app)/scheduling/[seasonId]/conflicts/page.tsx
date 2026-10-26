@@ -6,7 +6,7 @@ import { SchedulingConflictsClient, ScheduleTimeZoneProvider } from "@sportspuls
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
-export const metadata = { title: "Conflicts — Org Admin" };
+export const metadata = { title: "Conflicts · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

@@ -1,17 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Alert,
-  Badge,
-  EmptyState,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
+import { Badge, Alert, LocalDate, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
@@ -25,7 +13,7 @@ import { UsersFilters } from "@/components/users/users-filters";
 import { resolvePrimaryRole } from "@/components/users/primary-role";
 import type { RoleAssignment } from "@/lib/api/types";
 
-export const metadata = { title: "Users — SportsPulse" };
+export const metadata = { title: "Users · Super Admin" };
 
 export default async function UsersPage({
   searchParams
@@ -160,7 +148,7 @@ export default async function UsersPage({
         <EmptyState
           icon={Users}
           title="No users yet"
-          description="Users sign up via Supabase Auth — they appear here once a profile is created."
+          description="Users sign up via Supabase Auth. They appear here once a profile is created."
         />
       ) : (
         <Table>
@@ -197,7 +185,7 @@ export default async function UsersPage({
                     {[u.countryCode, ...(u.regions ?? [])].filter(Boolean).join(" · ") || "—"}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(u.status)}>{u.status}</Badge>
+                    <Badge status={u.status} />
                   </TD>
                   <TD className="text-muted-foreground">
                     <UserTypeCell
@@ -214,7 +202,7 @@ export default async function UsersPage({
                     />
                   </TD>
                   <TD className="text-muted-foreground">
-                    {new Date(u.createdAt).toLocaleDateString("en-CA")}
+                    <LocalDate iso={u.createdAt} format="date" />
                   </TD>
                   <TD>
                     <UserActionsMenu user={u} userType={typeOf(u)?.code ?? null} />

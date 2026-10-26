@@ -1,30 +1,15 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatMoney, sortSeasonsByCurrency, DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CalendarRange,
-  CheckCircle2,
-  Clock,
-  Mail,
-  RotateCcw,
-  Send,
-  ShieldAlert,
-  Sparkles,
-  XCircle
-} from "lucide-react";
-import { Badge, EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
-import { sortSeasonsByCurrency } from "@sportspulse/kernel";
+import { ArrowRight, ArrowUpRight, CalendarRange, CheckCircle2, Clock, Mail, RotateCcw, Send, ShieldAlert, Sparkles, XCircle } from "lucide-react";
+import { Badge, EmptyState, Eyebrow, PageHeader, LocalDate, LoadError } from "@sportspulse/ui";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import {
-  latestApplicationPerSeason,
-  rejectionOf
-} from "@/lib/registration-call";
+import { latestApplicationPerSeason, rejectionOf } from "@/lib/registration-call";
 import { WithdrawButton } from "./withdraw-button";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Register your team — SportsPulse" };
+export const metadata = { title: "Register your team · Team Admin" };
 
 type Application = Awaited<
   ReturnType<typeof captain.myApplications>
@@ -67,10 +52,13 @@ export default async function CaptainRegisterPage({
   const team = await leagueMgmt.getTeam(teamId).catch(() => null);
   const teamName = team?.name ?? "Your team";
 
-  const [openSeasons, applications] = await Promise.all([
-    captain.openSeasons(teamId).catch(() => ({ items: [] })),
-    captain.myApplications(teamId).catch(() => ({ items: [] }))
+  const [openResult, applicationsResult] = await Promise.all([
+    load(captain.openSeasons(teamId)),
+    load(captain.myApplications(teamId))
   ]);
+  const openSeasons = openResult.ok ? openResult.data : { items: [] };
+  const applications = applicationsResult.ok ? applicationsResult.data : { items: [] };
+  const loadFailure = !applicationsResult.ok ? applicationsResult : !openResult.ok ? openResult : null;
 
   if (submitted) {
     const justSubmitted = applications.items.find(
@@ -142,6 +130,14 @@ export default async function CaptainRegisterPage({
         description="Your applications by season, and the open seasons your team can still register for."
       />
 
+      {loadFailure ? (
+        <LoadError
+          what={!applicationsResult.ok ? "your applications" : "open seasons"}
+          status={loadFailure.status}
+          message={loadFailure.message}
+        />
+      ) : null}
+
       {approvedApps.map((a) => (
         <ApprovedDetailCard key={a.id} teamName={teamName} app={a} />
       ))}
@@ -156,7 +152,7 @@ export default async function CaptainRegisterPage({
       ))}
 
       {otherOpen.length === 0 ? (
-        !hasCards && (
+        !hasCards && !loadFailure && (
           <EmptyState
             icon={Sparkles}
             title="No open registrations"
@@ -220,8 +216,8 @@ function SubmittedSuccessCard({
             steps={[
               { status: "done", title: "Application submitted", note: "league admin notified" },
               { status: "current", title: "Admin reviews your application and approves or denies it" },
-              { status: "future", title: "If approved — you'll be directed to invite your players and set up dues" },
-              { status: "future", title: "Once deposits collected — your team is confirmed and listed in the division" }
+              { status: "future", title: "If approved, you'll invite your players and set up dues" },
+              { status: "future", title: "Once deposits are collected, your team is confirmed and listed in the division" }
             ]}
           />
         </div>
@@ -466,10 +462,7 @@ function RejectionDetailCard({ app }: { app: Application }) {
 
 function SeasonCard({ season }: { season: OpenSeason }) {
   const startStr = season.startDate
-    ? new Date(season.startDate).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric"
-      })
+    ? formatCalendarDate(season.startDate, DATE_FORMATS.monthDay)
     : null;
   return (
     <Link
@@ -573,7 +566,7 @@ function StepList({ steps }: { steps: Step[] }) {
             >
               {s.title}
               {s.note && (
-                <span className="ml-1 font-normal text-fg-muted">— {s.note}</span>
+                <span className="ml-1 font-normal text-fg-muted">({s.note})</span>
               )}
             </p>
           </div>
@@ -612,20 +605,10 @@ function StepBullet({
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" />;
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" />;
 }
 

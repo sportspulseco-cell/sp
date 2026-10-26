@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { CalendarOff, Loader2, Plus, Trash2 } from "lucide-react";
-import { Button, Field, Input, Select } from "@sportspulse/ui";
+import { Button, EmptyState, Field, Input, Select, Skeleton } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 
 export interface BlackoutRow {
   id: string;
@@ -18,15 +19,13 @@ export interface BlackoutApi {
   list: () => Promise<BlackoutRow[]>;
   create: (body: { startDate: string; endDate?: string; surfaceId?: string; reason?: string }) => Promise<unknown>;
   remove: (id: string) => Promise<unknown>;
-  /** The season organisation's rinks, for a one-rink blackout. */
+  /** The season organization's rinks, for a one-rink blackout. */
   rinks: () => Promise<Array<{ id: string; label: string }>>;
 }
 
+/** A calendar day, not an instant, so it never shifts: "Sat, Nov 22, 2026". */
 function fmtDay(d: string) {
-  // A calendar day, not an instant: format it as UTC so it never shifts.
-  return new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
-    timeZone: "UTC", weekday: "short", month: "short", day: "numeric", year: "numeric"
-  });
+  return formatCalendarDate(d, { ...DATE_FORMATS.date, weekday: "short" });
 }
 
 /**
@@ -100,9 +99,9 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
       </div>
 
       {rows === null ? (
-        <p className="text-[13px] text-fg-muted">Loading blackout dates…</p>
+        <div role="status" aria-label="Loading blackout dates" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : rows.length === 0 ? (
-        <p className="text-[13px] text-fg-muted">No blackout dates yet.</p>
+        <EmptyState icon={CalendarOff} eyebrow="blackouts" title="No blackout dates yet" description="Add a date above and the scheduler keeps games off it." />
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border" aria-label="Blackout dates">
           {rows.map((b) => (
@@ -113,15 +112,15 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
               </span>
               <span className="text-fg-muted">{b.surfaceId ? b.rinkLabel ?? "One rink" : "All rinks"}</span>
               {b.reason ? <span className="truncate text-fg-muted">· {b.reason}</span> : null}
-              <button
+              <Button
                 type="button"
                 onClick={() => onRemove(b.id)}
                 disabled={busy || disabled}
-                className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-[12px] text-fg-muted hover:bg-bg-subtle hover:text-fg disabled:opacity-50"
+                variant="ghost" size="sm" className="ml-auto gap-1 text-fg-muted"
                 aria-label={`Remove blackout ${b.startDate}`}
               >
                 <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} /> Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

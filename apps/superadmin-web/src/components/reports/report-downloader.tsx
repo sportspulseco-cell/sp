@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Field, Select } from "@sportspulse/ui";
+import { Button, Field, Select, Alert } from "@sportspulse/ui";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
@@ -100,9 +100,9 @@ export function ReportDownloader({
       ))}
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       <Button

@@ -23,7 +23,7 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Divisions - Org Admin" };
+export const metadata = { title: "Divisions · Org Admin" };
 
 /** Filters live in the URL (?q=&seasonId=&region=&tier=&status=). */
 export default async function DivisionsPage({
@@ -188,9 +188,7 @@ export default async function DivisionsPage({
                       {d.maxTeams ?? "—"}
                     </TD>
                     <TD>
-                      <Badge mono tone={d.status === "active" ? "success" : "neutral"}>
-                        {d.status}
-                      </Badge>
+                      <Badge status={d.status} />
                     </TD>
                   </TR>
                 ))}

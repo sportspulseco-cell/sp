@@ -1,23 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Loader2,
-  Mail,
-  Pencil,
-  Plus,
-  Send,
-  Sparkles,
-  Trophy,
-  UserCheck,
-  Users,
-  X
-} from "lucide-react";
-import { Badge, Button, EmptyState, Field, Input, PageHeader } from "@sportspulse/ui";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, Loader2, Mail, Pencil, Plus, Send, Sparkles, Trophy, UserCheck, Users, X } from "lucide-react";
+import { Badge, Button, EmptyState, Field, Input, PageHeader, Alert } from "@sportspulse/ui";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import type { Team } from "@sportspulse/api-client";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
 
@@ -242,7 +228,7 @@ export function RegisterWizard({
                   ? "today"
                   : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
               </span>
-              . You can save and exit any time — Sprint 4 will persist the
+              . You can save and exit any time. Sprint 4 will persist the
               draft server-side; for now stay on this tab to keep your
               progress.
             </p>
@@ -257,7 +243,7 @@ export function RegisterWizard({
           {step === 1 ? (
             <StepCard
               title="Confirm your team"
-              subtitle="Pre-filled from your team record. Click the pencil to edit a field — changes save immediately."
+              subtitle="Pre-filled from your team record. Click the pencil to edit a field. Changes save immediately."
             >
               <EditableRow
                 label="Team name"
@@ -303,7 +289,7 @@ export function RegisterWizard({
               <div className="mt-2 flex items-center gap-2 rounded-md border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
                 <Check className="h-3.5 w-3.5" strokeWidth={2} />
                 Captain: <span className="font-medium">that's you</span> ·
-                already assigned — no re-entry needed.
+                already assigned. No re-entry needed.
               </div>
             </StepCard>
           ) : null}
@@ -387,7 +373,7 @@ export function RegisterWizard({
                         addEmail();
                       }
                     }}
-                    placeholder="player@example.com — Enter or comma to add"
+                    placeholder="player@example.com (Enter or comma to add)"
                     type="email"
                   />
                   <Button
@@ -503,7 +489,7 @@ export function RegisterWizard({
                     </span>
                     {splitMode === "even" ? (
                       <span className="font-mono text-[13px] tabular-nums text-fg">
-                        ${(s.amountCents / 100).toFixed(2)}
+                        {formatMoney(s.amountCents)}
                       </span>
                     ) : (
                       <div className="relative w-32">
@@ -514,7 +500,7 @@ export function RegisterWizard({
                           type="number"
                           min={0}
                           step="0.01"
-                          value={(s.amountCents / 100).toFixed(2)}
+                          value={centsToAmountInput(s.amountCents)}
                           onChange={(e) =>
                             setCustomCents((prev) => ({
                               ...prev,
@@ -538,9 +524,9 @@ export function RegisterWizard({
                   <span>
                     allocated{" "}
                     <span className="text-fg">
-                      ${(allocatedCents / 100).toFixed(2)}
+                      {formatMoney(allocatedCents)}
                     </span>{" "}
-                    / ${(totalFeeCents / 100).toFixed(2)}
+                    / {formatMoney(totalFeeCents)}
                   </span>
                   <span
                     className={
@@ -554,8 +540,8 @@ export function RegisterWizard({
                     {balanced
                       ? "balanced"
                       : remainingCents < 0
-                        ? `over by $${(Math.abs(remainingCents) / 100).toFixed(2)}`
-                        : `remaining $${(remainingCents / 100).toFixed(2)}`}
+                        ? `over by ${formatMoney(Math.abs(remainingCents))}`
+                        : `remaining ${formatMoney(remainingCents)}`}
                   </span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
@@ -578,26 +564,26 @@ export function RegisterWizard({
                 <p className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-[12px] text-fg-muted">
                   Your team confirms once{" "}
                   <span className="font-mono text-fg">
-                    ${(thresholdCents / 100).toFixed(2)}
+                    {formatMoney(thresholdCents)}
                   </span>{" "}
                   in deposits is collected. The progress bar appears once
                   you submit.
                 </p>
               ) : (
                 <p className="rounded-md border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
-                  Threshold is $0 — your team auto-confirms the moment you
+                  Threshold is $0. Your team auto-confirms the moment you
                   submit. No deposit collection needed first.
                 </p>
               )}
 
               {submitError ? (
-                <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+                <Alert tone="error">
                   <AlertCircle
                     className="mr-1 inline h-3.5 w-3.5 align-text-bottom"
                     strokeWidth={1.75}
                   />
                   {submitError}
-                </p>
+                </Alert>
               ) : null}
             </StepCard>
           ) : null}
@@ -605,7 +591,7 @@ export function RegisterWizard({
           {step === 4 && submittedDte ? (
             <StepCard
               title="Submitted"
-              subtitle="Your registration is in flight. Watch confirmation progress below — it polls every 10 seconds."
+              subtitle="Your registration is in flight. Watch confirmation progress below. It refreshes every 10 seconds."
             >
               <ConfirmationProgress dteId={submittedDte} teamName={team.name} />
             </StepCard>
@@ -850,7 +836,7 @@ function DivisionCard({
   onSelect?: () => void;
 }) {
   const fee = division.pricing
-    ? `${(division.pricing.fullPriceCents / 100).toFixed(0)}`
+    ? formatMoney(division.pricing.fullPriceCents, division.pricing.currency)
     : "—";
   const full =
     division.maxTeams !== null &&
@@ -874,7 +860,7 @@ function DivisionCard({
           {division.currentTeamCount}
           {division.maxTeams ? ` / ${division.maxTeams}` : ""} teams
         </span>
-        <span className="font-mono text-fg">${fee}</span>
+        <span className="font-mono text-fg">{fee}</span>
       </p>
     </>
   );
@@ -953,7 +939,7 @@ function PricingTimeline({ division }: { division: DivisionItem }) {
               {i.label}
             </p>
             <p className="mt-1 font-mono text-[15px] tabular-nums text-fg">
-              ${(i.amount / 100).toFixed(2)}
+              {formatMoney(i.amount, p.currency)}
             </p>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
               due · {i.due}
@@ -964,7 +950,7 @@ function PricingTimeline({ division }: { division: DivisionItem }) {
       <p className="mt-3 text-[12px] text-fg-muted">
         Total{" "}
         <span className="font-mono text-fg">
-          ${(p.fullPriceCents / 100).toFixed(2)}
+          {formatMoney(p.fullPriceCents, p.currency)}
         </span>{" "}
         · currency{" "}
         <span className="font-mono uppercase text-fg">{p.currency}</span>
@@ -1000,13 +986,13 @@ function SummaryBlock({
         label="Fee"
         value={
           division?.pricing
-            ? `$${(division.pricing.fullPriceCents / 100).toFixed(2)}`
+            ? formatMoney(division.pricing.fullPriceCents, division.pricing.currency)
             : "—"
         }
       />
       <Row
         label="Confirmation threshold"
-        value={`$${(thresholdCents / 100).toFixed(2)}`}
+        value={formatMoney(thresholdCents, division?.pricing?.currency)}
       />
       <Row
         label="Players invited"
@@ -1158,9 +1144,9 @@ function ConfirmationProgress({
   }
   if (err) {
     return (
-      <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+      <Alert tone="error">
         {err}
-      </p>
+      </Alert>
     );
   }
   if (!status) return null;
@@ -1187,7 +1173,7 @@ function ConfirmationProgress({
               ? `${teamName} is confirmed for the season`
               : autoConfirm
                 ? "Auto-confirming…"
-                : `Collecting deposits — ${status.pct}%`}
+                : `Collecting deposits: ${status.pct}%`}
           </p>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
             status · {status.entryStatus}
@@ -1199,8 +1185,8 @@ function ConfirmationProgress({
         <div>
           <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
             <span>
-              ${(status.collectedCents / 100).toFixed(2)} /{" "}
-              ${(status.thresholdCents / 100).toFixed(2)} collected
+              {formatMoney(status.collectedCents)} /{" "}
+              {formatMoney(status.thresholdCents)} collected
             </span>
             <span>{status.pct}%</span>
           </div>

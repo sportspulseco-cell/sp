@@ -112,9 +112,9 @@ export function SettingsClient({
   return (
     <div className="space-y-6">
       {error && (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       <section className="grid gap-4 sm:grid-cols-2">

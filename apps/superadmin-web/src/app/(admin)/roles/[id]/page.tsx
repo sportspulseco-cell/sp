@@ -2,35 +2,17 @@ import { ArrowLeft, Building2, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAll, load, type RoleAssignment } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  Eyebrow,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate, Eyebrow, EmptyState, IconTile, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { countEffectivePermissions } from "@sportspulse/kernel";
 import { iam, orgs } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 
-export const metadata = { title: "Role — SportsPulse" };
+export const metadata = { title: "Role · Super Admin" };
 
 function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
 function BackLink() {
@@ -245,9 +227,7 @@ export default async function RoleDetailPage({
                           {fmtDate(a.effectiveFrom)}
                         </TD>
                         <TD className="text-right">
-                          <Badge tone={statusTone("active")} mono>
-                            active
-                          </Badge>
+                          <Badge status="active" />
                         </TD>
                       </TR>
                     );

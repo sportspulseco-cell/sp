@@ -1,21 +1,15 @@
 import { load } from "@sportspulse/api-client";
-import { EmptyState, Eyebrow, LoadError, PageHeader, UrlFilters } from "@sportspulse/ui";
+import { EmptyState, Eyebrow, LoadError, PageHeader, UrlFilters, LocalDate } from "@sportspulse/ui";
 import { ScrollText, Activity, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { audit } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { MarqueeRail } from "@/components/motion/kinetic";
 
-export const metadata = { title: "Audit — SportsPulse" };
+export const metadata = { title: "Audit · Super Admin" };
 
 function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit"
-  });
+  return <LocalDate iso={iso} options={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }} />;
 }
 
 function dotColorFor(action: string) {

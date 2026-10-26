@@ -15,7 +15,7 @@ export interface ShellUser {
 
 /**
  * The console top bar. Left: menu button (phones) and the breadcrumb
- * trail. Right: app actions (e.g. the organisation switcher), the
+ * trail. Right: app actions (e.g. the organization switcher), the
  * theme toggle, and the account menu, which holds sign-out.
  */
 export function AppTopBar({

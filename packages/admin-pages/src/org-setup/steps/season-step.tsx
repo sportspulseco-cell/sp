@@ -1,16 +1,14 @@
 "use client";
 
+import { formatCalendarDate } from "@sportspulse/kernel";
 import type { SeasonDraft } from "../types";
 import { SectionHeader } from "./org-step";
-import { Field, FieldStyle } from "./league-step";
+import { Field } from "./league-step";
+import { Input } from "@sportspulse/ui";
 
+/** A YYYY-MM-DD draft date as written: "Nov 22, 2026". */
 function fmt(d: string): string {
-  if (!d) return "—";
-  return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return formatCalendarDate(d) || "—";
 }
 
 function todayIso(): string {
@@ -58,13 +56,12 @@ export function SeasonStep({
             required
             hint="Shown in all dashboards, emails, and registration links. Typically includes the region and year/period."
           >
-            <input
+            <Input
               type="text"
               value={draft.name}
               onChange={(e) => onChange({ name: e.target.value.slice(0, 120) })}
               maxLength={120}
               placeholder="e.g. NH Fall 2025"
-              className="input"
               required
             />
           </Field>
@@ -73,12 +70,12 @@ export function SeasonStep({
             label="League"
             hint="Auto-populated from step 2. This season belongs to this league and cannot be moved."
           >
-            <input
+            <Input
               type="text"
               value={leagueName || "—"}
               readOnly
               disabled
-              className="input cursor-not-allowed bg-bg-subtle text-fg-muted"
+              className="cursor-not-allowed text-fg-muted"
             />
           </Field>
 
@@ -87,12 +84,11 @@ export function SeasonStep({
             required
             hint="First day of the playing season. Games cannot be scheduled before this date."
           >
-            <input
+            <Input
               type="date"
               value={draft.startDate}
               onChange={(e) => onChange({ startDate: e.target.value })}
               min={today}
-              className="input"
               required
             />
           </Field>
@@ -102,12 +98,11 @@ export function SeasonStep({
             required
             hint="Last day of the playing season including playoffs. Must be after start date."
           >
-            <input
+            <Input
               type="date"
               value={draft.endDate}
               onChange={(e) => onChange({ endDate: e.target.value })}
               min={draft.startDate || today}
-              className="input"
               required
             />
           </Field>
@@ -117,12 +112,11 @@ export function SeasonStep({
             required
             hint="When the public registration link becomes active. Before this date the link shows a countdown."
           >
-            <input
+            <Input
               type="date"
               value={draft.registrationOpensAt}
               onChange={(e) => onChange({ registrationOpensAt: e.target.value })}
               min={today}
-              className="input"
               required
             />
           </Field>
@@ -132,14 +126,13 @@ export function SeasonStep({
             required
             hint="After this date, registration is closed. The public link shows a closed message."
           >
-            <input
+            <Input
               type="date"
               value={draft.registrationClosesAt}
               onChange={(e) =>
                 onChange({ registrationClosesAt: e.target.value })
               }
               min={draft.registrationOpensAt || today}
-              className="input"
               required
             />
           </Field>
@@ -148,20 +141,19 @@ export function SeasonStep({
             label="Roster lock date"
             hint="After this date no players can be added or removed from any team roster in this season. Leave blank for no lock."
           >
-            <input
+            <Input
               type="date"
               value={draft.rosterLockAt}
               onChange={(e) => onChange({ rosterLockAt: e.target.value })}
               min={today}
-              className="input"
             />
           </Field>
 
           <Field
             label="Playoff start date"
-            hint="When playoffs begin. The day before is the implicit regular-season finale. Optional — leave blank for seasons with no separate playoff."
+            hint="When playoffs begin. The day before is the implicit regular-season finale. Optional. Leave blank for seasons with no separate playoff."
           >
-            <input
+            <Input
               type="date"
               value={draft.playoffStartDate}
               onChange={(e) =>
@@ -169,7 +161,6 @@ export function SeasonStep({
               }
               min={draft.startDate || today}
               max={draft.endDate || undefined}
-              className="input"
             />
           </Field>
 
@@ -177,7 +168,7 @@ export function SeasonStep({
             label="Playoff end date"
             hint="Last playoff game. Must be on or before the season end date."
           >
-            <input
+            <Input
               type="date"
               value={draft.playoffEndDate}
               onChange={(e) =>
@@ -187,7 +178,6 @@ export function SeasonStep({
                 draft.playoffStartDate || draft.startDate || today
               }
               max={draft.endDate || undefined}
-              className="input"
             />
           </Field>
         </div>
@@ -233,7 +223,6 @@ export function SeasonStep({
         </dl>
       </section>
 
-      <FieldStyle />
     </div>
   );
 }

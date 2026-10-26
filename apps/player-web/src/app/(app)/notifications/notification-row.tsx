@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { IconTile } from "@sportspulse/ui";
+import { IconTile, useLocalDate } from "@sportspulse/ui";
 import type { Notification } from "@sportspulse/api-client";
 import { communications } from "@/lib/api/browser-api";
 import { iconFor, noticeAt, tintFor, titleOf } from "./notice-format";
 
-function fmt(iso: string | null): string {
+function fmt(iso: string | null, localDate: (iso: string) => string): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const minute = 60_000;
@@ -17,7 +17,7 @@ function fmt(iso: string | null): string {
   if (diff < hour) return `${Math.floor(diff / minute)} min ago`;
   if (diff < day) return `${Math.floor(diff / hour)} h ago`;
   if (diff < 7 * day) return `${Math.floor(diff / day)} d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return localDate(iso);
 }
 
 /**
@@ -31,6 +31,7 @@ function fmt(iso: string | null): string {
 export function NotificationRow({ notif }: { notif: Notification }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const localDate = useLocalDate();
   // Optimistic readAt — flips immediately on click so the row visually
   // settles before the server round-trip completes.
   const [optimisticReadAt, setOptimisticReadAt] = useState<string | null>(
@@ -73,7 +74,7 @@ export function NotificationRow({ notif }: { notif: Notification }) {
         </div>
         <p className="mt-0.5 line-clamp-3 text-[12px] text-fg-muted">{notif.body}</p>
       </div>
-      <p className="shrink-0 font-mono text-[10px] text-fg-muted">{fmt(noticeAt(notif))}</p>
+      <p className="shrink-0 font-mono text-[10px] text-fg-muted">{fmt(noticeAt(notif), (iso) => localDate(iso, "monthDay"))}</p>
     </li>
   );
 }

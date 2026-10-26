@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SchedulingConflictsClient, ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Conflicts — SportsPulse" };
+export const metadata = { title: "Conflicts · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

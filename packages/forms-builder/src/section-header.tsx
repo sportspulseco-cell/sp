@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-
+
+import { Alert } from "@sportspulse/ui";
 /**
  * Right-pane section header — title + subtitle on the left, optional
  * action button on the right. Mirrors the chrome at the top of every
@@ -27,9 +28,7 @@ export function SectionHeader({
           <p className="mt-1 text-[12px] text-fg-muted">{subtitle}</p>
         ) : null}
         {warning ? (
-          <p className="mt-1 text-[12px] text-amber-700 dark:text-amber-300">
-            {warning}
-          </p>
+          <Alert tone="warning" className="mt-1">{warning}</Alert>
         ) : null}
       </div>
       {action}

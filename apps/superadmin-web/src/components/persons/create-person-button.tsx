@@ -91,7 +91,7 @@ function CreatePersonDialog({
         <Field
           label="Preferred name"
           htmlFor="preferredName"
-          hint="Optional — what they go by"
+          hint="Optional. What they go by"
         >
           <Input
             id="preferredName"

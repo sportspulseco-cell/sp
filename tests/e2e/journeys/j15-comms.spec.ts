@@ -95,9 +95,9 @@ test("1. org_admin finds Communications → Compose and sees the UC-19 fields", 
   log("compose form:", t.slice(0, 900));
   await shot(p, "01-compose");
   // UC-19: recipients by league / division, schedule for later, attachments, multi-channel.
-  // MON-13: "Part of the organisation" picker, then a list of real leagues /
+  // MON-13: "Part of the organization" picker, then a list of real leagues /
   // seasons / divisions / teams (never a typed id).
-  const targetType = p.getByLabel("Part of the organisation");
+  const targetType = p.getByLabel("Part of the organization");
   await expect(targetType, "compose lets the admin target part of the org (UC-19)").toBeVisible();
   expect(await targetType.locator("option").allTextContents()).toEqual(
     expect.arrayContaining(["One league", "One season", "One division", "One team"])

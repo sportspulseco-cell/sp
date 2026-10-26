@@ -2,7 +2,7 @@ import { ArrowLeft, Building2, ShieldCheck, Trophy } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { Badge, Eyebrow, IconTile, LoadError, PageHeader, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LoadError, PageHeader, statusTone, LocalDate } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
 import { tintForScope } from "@/components/roles/role-scope-tint";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
@@ -13,15 +13,10 @@ import { SetPasswordButton } from "@/components/users/set-password-button";
 import { SendRecoveryEmailButton } from "@/components/users/send-recovery-email-button";
 import { resolvePrimaryRole, resolveProfileRoles } from "@/components/users/primary-role";
 
-export const metadata = { title: "User — SportsPulse" };
+export const metadata = { title: "User · Super Admin" };
 
 function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
 
 export default async function UserDetailPage({
@@ -73,9 +68,7 @@ export default async function UserDetailPage({
           <>
             <p className="text-[13px]">{user.email ?? "—"}</p>
             <div className="flex items-center gap-2 pt-2">
-              <Badge tone={statusTone(user.status)} mono>
-                {user.status}
-              </Badge>
+              <Badge status={user.status} />
               {user.isSuperAdmin ? (
                 <Badge tone="primary" mono>
                   SUPER ADMIN
@@ -120,7 +113,7 @@ export default async function UserDetailPage({
         {assignments.length === 0 ? (
           <p className="px-6 py-12 text-center text-sm text-fg-muted">
             {user.isSuperAdmin
-              ? "Super admin has implicit access to everything — no scoped roles needed."
+              ? "Super admin has implicit access to everything. No scoped roles needed."
               : "No active assignments. Use the panel below to grant a role."}
           </p>
         ) : (
@@ -226,9 +219,7 @@ export default async function UserDetailPage({
                       {m.membershipType}
                     </Badge>
                   )}
-                  <Badge tone={statusTone(m.currentStatus)} mono>
-                    {m.currentStatus}
-                  </Badge>
+                  <Badge status={m.currentStatus} />
                 </div>
               </li>
             ))}
@@ -242,7 +233,7 @@ export default async function UserDetailPage({
           <Eyebrow>Assign new role</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
             Pick a role + scope. Assigning the same (role, scope) twice is a
-            no-op — the existing active assignment is returned.
+            no-op: the existing active assignment is returned.
           </p>
         </header>
         <div className="p-6">

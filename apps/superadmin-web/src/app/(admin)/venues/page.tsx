@@ -39,7 +39,7 @@ export default function VenuesAdminPage() {
         description="The rinks and ice slots the schedule uses. Add a rink, then its surfaces, then single slots or a weekly pattern."
       />
       {orgsError ? (
-        <LoadError what="your organisations" status={null} message={orgsError} />
+        <LoadError what="your organizations" status={null} message={orgsError} />
       ) : null}
       <VenuesPage api={api} loadSeasons={loadSeasons} ownableOrgs={orgs} />
     </div>

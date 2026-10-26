@@ -9,7 +9,7 @@
  */
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Button, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { formatMoney } from "@sportspulse/kernel";
 
 export type FinanceExportKind = "invoices" | "payments" | "refunds" | "aging" | "team_balances" | "player_balances";
@@ -116,24 +116,24 @@ function BalanceTable({ title, head, rows, empty, more }: { title: string; head:
       {rows.length === 0 ? (
         <p className="text-[12px] text-fg-muted">{empty}</p>
       ) : (
-        <table className="w-full text-[12px]">
-          <thead>
-            <tr className="text-left text-fg-muted">
+        <Table className="text-[12px]">
+          <THead>
+            <TR>
               {head.map((h, i) => (
-                <th key={h} className={`pb-1 font-medium ${i > 0 ? "text-right" : ""}`}>{h}</th>
+                <TH key={h} className={`px-3 py-2 ${i > 0 ? "text-right" : ""}`}>{h}</TH>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+            </TR>
+          </THead>
+          <TBody>
             {rows.map((r, i) => (
-              <tr key={i}>
+              <TR key={i}>
                 {r.map((c, j) => (
-                  <td key={j} className={`py-1.5 ${j > 0 ? "text-right font-mono tabular-nums" : "text-fg"}`}>{c}</td>
+                  <TD key={j} className={`px-3 py-1.5 ${j > 0 ? "text-right font-mono tabular-nums" : "text-fg"}`}>{c}</TD>
                 ))}
-              </tr>
+              </TR>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       )}
       {more > 0 ? <p className="mt-1 text-[11px] text-fg-muted">And {more} more in the CSV.</p> : null}
     </div>

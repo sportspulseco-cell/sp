@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, UserMinus } from "lucide-react";
-import { Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 type Target = {
@@ -94,15 +94,15 @@ export function DropPlayerModal({
           </span>
         </label>
 
-        <div className="rounded-md border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] px-3 py-2 text-[12px] text-[var(--tint-amber-fg)] dark:text-[var(--tint-amber-fg)]">
+        <Alert tone="warning">
           If this player has paid any amount, a refund will be assessed by the
-          league admin — no immediate refund is issued.
-        </div>
+          league admin. No immediate refund is issued.
+        </Alert>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

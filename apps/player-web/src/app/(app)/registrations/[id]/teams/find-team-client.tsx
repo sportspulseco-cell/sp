@@ -7,7 +7,8 @@ import {
   Badge,
   Button,
   Dialog,
-  DialogActions
+  DialogActions,
+  Alert
 } from "@sportspulse/ui";
 import { registration } from "@/lib/api/browser-api";
 
@@ -63,9 +64,9 @@ export function FindTeamClient({
   return (
     <div className="space-y-3">
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
         {teams.map((t) => {
@@ -94,9 +95,7 @@ export function FindTeamClient({
                     {t.shortName ? ` · ${t.shortName}` : ""}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge tone={t.status === "active" ? "success" : "neutral"} mono>
-                      {t.status}
-                    </Badge>
+                    <Badge status={t.status} />
                     {!t.captainUserId && (
                       <Badge tone="warning" mono>
                         no captain yet
@@ -119,7 +118,7 @@ export function FindTeamClient({
                     disabled={!t.captainUserId}
                     title={
                       !t.captainUserId
-                        ? "Team has no captain yet — apply once one is assigned."
+                        ? "This team has no captain yet. Apply once one is assigned."
                         : undefined
                     }
                   >
@@ -183,7 +182,7 @@ function ApplyDialog({
           onChange={(e) => onMessage(e.target.value)}
           rows={3}
           maxLength={500}
-          placeholder="Anything the captain should know about you — position, level, availability."
+          placeholder="Anything the captain should know about you: position, level, availability."
           className="w-full rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg focus:border-accent focus:outline-none"
         />
         <span className="block text-right text-[10px] text-fg-muted">
@@ -191,9 +190,9 @@ function ApplyDialog({
         </span>
       </label>
       {error && (
-        <p className="mt-2 rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[13px] text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="mt-2">
           {error}
-        </p>
+        </Alert>
       )}
       <DialogActions>
         <Button variant="ghost" onClick={onClose} disabled={busy}>

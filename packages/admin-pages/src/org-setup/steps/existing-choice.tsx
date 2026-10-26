@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@sportspulse/ui";
+import { cn, Select } from "@sportspulse/ui";
 
 /**
  * "Create new" vs "Use existing" switch for Org setup steps 2 and 3
@@ -48,8 +48,7 @@ export function ExistingChoice({
       {usingExisting ? (
         <label className="block space-y-1.5">
           <span className="text-[12px] font-medium text-fg">{pickLabel}</span>
-          <select
-            className="input"
+          <Select
             value={selectedId ?? ""}
             onChange={(e) => onPick(e.target.value || null)}
             aria-label={pickLabel}
@@ -59,7 +58,7 @@ export function ExistingChoice({
                 {i.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : null}
     </div>

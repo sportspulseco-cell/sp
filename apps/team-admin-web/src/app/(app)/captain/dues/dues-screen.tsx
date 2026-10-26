@@ -1,21 +1,15 @@
 "use client";
 
-import { coverAmountProblem, formatMoney } from "@sportspulse/kernel";
+import { coverAmountProblem, formatMoney, DATE_FORMATS, centsToAmountInput, formatCalendarDate } from "@sportspulse/kernel";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bell,
-  CircleDollarSign,
-  Download,
-  Loader2
-} from "lucide-react";
-import { Badge, Button, Dialog, DialogActions, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Bell, CircleDollarSign, Download, Loader2 } from "lucide-react";
+import { Badge, Button, Dialog, DialogActions, Eyebrow, Field, Input, Alert, Select } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 type Breakdown = Awaited<ReturnType<typeof finance.captainDuesBreakdown>>;
 type SubInvoice = Breakdown["subInvoices"][number];
 
 type SplitMode = "even" | "custom";
-
 
 export function DuesScreen({
   teamId,
@@ -208,7 +202,7 @@ export function DuesScreen({
       setFlash(
         res.queued > 0
           ? `Queued ${res.queued} payment reminder${res.queued === 1 ? "" : "s"}.`
-          : "Nothing to remind — everyone is paid up."
+          : "Nothing to remind. Everyone is paid up."
       );
     } catch (e) {
       setError((e as Error).message);
@@ -233,7 +227,7 @@ export function DuesScreen({
       });
       setFlash(
         res.charged > 0
-          ? `Charged ${formatMoney(res.charged, currency)} — covered ${res.covered} player${res.covered === 1 ? "" : "s"}.`
+          ? `Charged ${formatMoney(res.charged, currency)}, covering ${res.covered} player${res.covered === 1 ? "" : "s"}.`
           : "Nothing outstanding."
       );
       await refresh();
@@ -256,7 +250,7 @@ export function DuesScreen({
 
   function openCover(sub: SubInvoice) {
     setCoverFor(sub);
-    setCoverDollars((Math.max(0, sub.totalCents - sub.paidCents) / 100).toFixed(2));
+    setCoverDollars(centsToAmountInput(Math.max(0, sub.totalCents - sub.paidCents)));
     setCoverKey(`cover-${sub.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
     setCoverError(null);
   }
@@ -334,7 +328,7 @@ export function DuesScreen({
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div>
             <h2 className="text-[16px] font-semibold tracking-tight text-fg">
-              Team dues — {data.teamName ?? "Team"}
+              Team dues: {data.teamName ?? "Team"}
               {data.seasonName && (
                 <span className="ml-1 text-fg-muted">· {data.seasonName}</span>
               )}
@@ -349,18 +343,18 @@ export function DuesScreen({
             {data.masters.length > 1 ? (
               <label className="flex items-center gap-1.5 text-[12px] text-fg-muted">
                 Team invoice
-                <select
+                <Select
                   value={data.masterInvoiceId ?? ""}
                   onChange={(e) => void openInvoice(e.target.value)}
                   disabled={busy !== null}
-                  className="h-8 max-w-[22rem] rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                  className="h-8 max-w-[22rem] text-[12px]"
                 >
                   {data.masters.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.label} · {m.invoiceNumber} · {formatMoney(m.totalCents, currency)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             ) : null}
             {data.masterInvoiceNumber && (
@@ -471,14 +465,14 @@ export function DuesScreen({
       </section>
 
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {data.subInvoices.length === 0 ? (
@@ -488,14 +482,14 @@ export function DuesScreen({
             <div className="flex flex-wrap items-center gap-3 text-[12px]">
               <label className="flex items-center gap-1.5 text-fg-muted">
                 Split:
-                <select
+                <Select
                   value={splitMode}
                   onChange={(e) => setSplitMode(e.target.value as SplitMode)}
-                  className="h-8 rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                  className="h-8 text-[12px]"
                 >
                   <option value="even">Even split</option>
                   <option value="custom">Custom split</option>
-                </select>
+                </Select>
               </label>
               {splitMode === "even" ? (
                 <label className="inline-flex items-center gap-1.5 text-fg-muted">
@@ -562,7 +556,7 @@ export function DuesScreen({
                             min={0}
                             aria-label={`Share for ${c.name}`}
                             readOnly={splitMode === "even"}
-                            value={(cents / 100).toFixed(2)}
+                            value={centsToAmountInput(cents)}
                             onChange={(e) => {
                               const dollars = parseFloat(e.target.value);
                               setFirstCustom((prev) => ({
@@ -595,14 +589,14 @@ export function DuesScreen({
           <div className="flex flex-wrap items-center gap-3 text-[12px]">
             <label className="flex items-center gap-1.5 text-fg-muted">
               Split:
-              <select
+              <Select
                 value={splitMode}
                 onChange={(e) => setSplitMode(e.target.value as SplitMode)}
-                className="h-8 rounded-md border border-border bg-bg px-2 text-fg focus:border-accent focus:outline-none"
+                className="h-8 text-[12px]"
               >
                 <option value="even">Even split</option>
                 <option value="custom">Custom split</option>
-              </select>
+              </Select>
             </label>
             {splitMode === "even" ? (
               <label className="inline-flex items-center gap-1.5 text-fg-muted">
@@ -700,7 +694,7 @@ export function DuesScreen({
                 type="number"
                 step="0.01"
                 min={0.01}
-                max={(coverOwed / 100).toFixed(2)}
+                max={centsToAmountInput(coverOwed)}
                 inputMode="decimal"
                 aria-label="Amount to pay"
                 value={coverDollars}
@@ -709,9 +703,7 @@ export function DuesScreen({
             </Field>
             {coverProblem && coverDollars ? <p className="text-[12px] text-[var(--tint-rose-fg)]">{coverProblem}</p> : null}
             {coverError ? (
-              <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
-                {coverError}
-              </p>
+              <Alert tone="error">{coverError}</Alert>
             ) : null}
             <p className="text-[11px] text-fg-muted">Test mode: no real card is charged.</p>
             <DialogActions>
@@ -791,7 +783,7 @@ function PlayerRow({
           step="0.01"
           min={0}
           readOnly={splitDisabled}
-          value={(splitCents / 100).toFixed(2)}
+          value={centsToAmountInput(splitCents)}
           onChange={(e) => {
             const dollars = parseFloat(e.target.value);
             if (Number.isFinite(dollars)) {
@@ -851,12 +843,7 @@ function PlayerRow({
               : "font-mono text-[12px] text-fg-muted"
           }
         >
-          {sub.dueAt
-            ? new Date(sub.dueAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric"
-              })
-            : "—"}
+          {sub.dueAt ? formatCalendarDate(sub.dueAt, DATE_FORMATS.monthDay) : "—"}
         </span>
       </td>
       <td className="px-5 py-3 text-right">

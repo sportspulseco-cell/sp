@@ -14,6 +14,7 @@ import {
   discountCodeTextProblem,
   discountRuleLabel,
   discountRuleProblem,
+  centsToAmountInput,
   formatMoney,
   normalizeDiscountCode
 } from "@sportspulse/kernel";
@@ -496,13 +497,13 @@ function FamilySection({
   currency: string;
   onSave: (body: FamilyPricingInput) => Promise<void>;
 }) {
-  const [max, setMax] = useState(family?.familyMaxCents != null ? (family.familyMaxCents / 100).toFixed(2) : "");
+  const [max, setMax] = useState(family?.familyMaxCents != null ? centsToAmountInput(family.familyMaxCents) : "");
   const [kind, setKind] = useState<"none" | "percent" | "fixed">(family?.siblingKind ?? "none");
   const [value, setValue] = useState(
     family?.siblingKind === "percent"
       ? String((family.siblingPercentBasisPoints ?? 0) / 100)
       : family?.siblingKind === "fixed"
-        ? ((family.siblingAmountCents ?? 0) / 100).toFixed(2)
+        ? centsToAmountInput(family.siblingAmountCents ?? 0)
         : ""
   );
   const [fromNth, setFromNth] = useState(String(family?.siblingFromNth ?? 2));
@@ -511,13 +512,13 @@ function FamilySection({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMax(family?.familyMaxCents != null ? (family.familyMaxCents / 100).toFixed(2) : "");
+    setMax(family?.familyMaxCents != null ? centsToAmountInput(family.familyMaxCents) : "");
     setKind(family?.siblingKind ?? "none");
     setValue(
       family?.siblingKind === "percent"
         ? String((family.siblingPercentBasisPoints ?? 0) / 100)
         : family?.siblingKind === "fixed"
-          ? ((family.siblingAmountCents ?? 0) / 100).toFixed(2)
+          ? centsToAmountInput(family.siblingAmountCents ?? 0)
           : ""
     );
     setFromNth(String(family?.siblingFromNth ?? 2));

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Network } from "lucide-react";
 import { orgs as orgsApi } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
-import { Button, Dialog, DialogActions, Field, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Select, Alert } from "@sportspulse/ui";
 
 export function LinkOrgButton({
   orgId,
@@ -49,14 +49,16 @@ export function LinkOrgButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         <Network className="h-3 w-3" strokeWidth={1.75} />
         Link org
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -102,16 +104,16 @@ export function LinkOrgButton({
                 setRelation(e.target.value as typeof relation)
               }
             >
-              <option value="owns">owns — full control</option>
-              <option value="sanctions">sanctions — governing-body endorsement</option>
-              <option value="member_of">member_of — federation membership</option>
+              <option value="owns">owns: full control</option>
+              <option value="sanctions">sanctions: governing-body endorsement</option>
+              <option value="member_of">member_of: federation membership</option>
             </Select>
           </Field>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

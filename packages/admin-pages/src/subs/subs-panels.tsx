@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Send, ShieldAlert, UserPlus, X } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Select } from "@sportspulse/ui";
 import type {
   AdminGameSubs,
   CaptainGameSubs,
@@ -19,15 +19,6 @@ import type {
  * changes without a reload. Transport-agnostic: each app passes its
  * `subs` SDK binding.
  */
-
-type Tone = "neutral" | "success" | "warning" | "danger" | "info";
-
-function statusTone(s: SubRequest["status"]): Tone {
-  if (s === "accepted") return "success";
-  if (s === "requested") return "info";
-  if (s === "declined") return "danger";
-  return "neutral";
-}
 
 function errText(e: unknown): string {
   return (e as Error)?.message || "Something went wrong. Try again.";
@@ -73,9 +64,7 @@ function RequestRows({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge mono tone={statusTone(r.status)}>
-              {r.statusLabel}
-            </Badge>
+            <Badge status={r.status}>{r.statusLabel}</Badge>
             {onCancel && r.status === "requested" ? (
               <Button size="sm" variant="ghost" onClick={() => onCancel(r)} disabled={busy !== null}>
                 {busy === `cancel:${r.id}` ? (
@@ -337,10 +326,10 @@ function AdminTeamSubs({
         <div className="space-y-2">
           <label className="block text-[12px] font-medium text-fg">
             Assign a sub
-            <select
+            <Select
               value={personId}
               onChange={(e) => setPersonId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg"
+              className="mt-1 w-full"
             >
               <option value="">Pick a player</option>
               {choices.map((c) => (
@@ -349,7 +338,7 @@ function AdminTeamSubs({
                   {c.eligible ? "" : ` · override: ${c.reasonText}`}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {picked && !picked.eligible ? (
             <Alert tone="warning">This assigns {picked.name} with an override: {picked.reasonText}. The override is recorded.</Alert>

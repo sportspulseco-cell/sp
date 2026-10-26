@@ -78,7 +78,7 @@ export function RoleCodePicker({
             </option>
           ))}
         </optgroup>
-        <option value="__custom__">— Custom code…</option>
+        <option value="__custom__">Custom code…</option>
       </Select>
 
       {mode === "custom" && (

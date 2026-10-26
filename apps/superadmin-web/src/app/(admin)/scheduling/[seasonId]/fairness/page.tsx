@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SchedulingFairnessForm } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Fairness report — SportsPulse" };
+export const metadata = { title: "Fairness report · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

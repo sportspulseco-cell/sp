@@ -1,18 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Alert,
-  Badge,
-  EmptyState,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  UrlFilters,
-  statusTone
-} from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, LocalDate, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
@@ -20,7 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { CreateOrgButton } from "@/components/orgs/create-org-button";
 import type { Org } from "@/lib/api/types";
 
-export const metadata = { title: "Organizations — SportsPulse" };
+export const metadata = { title: "Organizations · Super Admin" };
 
 /**
  * Filters live in the URL (?search=&status=&type=&country=). `search`
@@ -69,7 +56,7 @@ export default async function OrganizationsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Organisations"
+        eyebrow="Organizations"
         title="Organizations"
         description="Clubs, leagues and associations on the platform. Each one has its own leagues, seasons, teams and admins."
         action={<CreateOrgButton />}
@@ -179,10 +166,10 @@ export default async function OrganizationsPage({
                 <TD className="text-muted-foreground">{o.countryCode}</TD>
                 <TD className="text-muted-foreground">{o.defaultCurrency}</TD>
                 <TD>
-                  <Badge tone={statusTone(o.status)}>{o.status}</Badge>
+                  <Badge status={o.status} />
                 </TD>
                 <TD className="text-muted-foreground">
-                  {new Date(o.createdAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={o.createdAt} format="date" />
                 </TD>
               </TR>
             ))}
@@ -195,18 +182,11 @@ export default async function OrganizationsPage({
 
 function EmptyOrgs() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card/50 p-12 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-        <Building2 className="h-5 w-5 text-muted-foreground" />
-      </div>
-      <h3 className="text-base font-semibold">No organizations yet</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Create your first organization — it can be a club, federation,
-        league operator, association, or school.
-      </p>
-      <div className="mt-4">
-        <CreateOrgButton />
-      </div>
-    </div>
+    <EmptyState
+      icon={Building2}
+      title="No organizations yet"
+      description="Create your first organization. It can be a club, federation, league operator, association or school."
+      action={<CreateOrgButton />}
+    />
   );
 }

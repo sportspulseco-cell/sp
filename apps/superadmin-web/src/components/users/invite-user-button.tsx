@@ -21,6 +21,7 @@ import { iam } from "@/lib/api/browser-api";
 import { FormRenderer } from "@sportspulse/registration-funnel";
 import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 import { ResourcePicker } from "@/components/resources/resource-picker";
+import { Alert } from "@sportspulse/ui";
 
 /**
  * Global "Invite user" entry on /users.
@@ -227,7 +228,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
       setFlash(
         result.created
           ? setPwd
-            ? `Account created for ${result.email}. Invite message ${clipboardCopied ? "copied to clipboard" : "ready below"} — share the credentials directly.`
+            ? `Account created for ${result.email}. Invite message ${clipboardCopied ? "copied to clipboard" : "ready below"}. Share the credentials directly.`
             : result.emailDelivered === false
               ? // SETUP-8: never say "sent" when the email was not sent.
                 `Account created for ${result.email}, but the invite email was not sent. ${clipboardCopied ? "The message is copied to your clipboard" : "Copy the message below"} and send it yourself.`
@@ -417,7 +418,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                         title={
                           profileSource === "admin"
                             ? "Schema comes from a role_profile form configured in /forms"
-                            : "No admin form configured — using the kernel-default schema. Build one in /forms to override."
+                            : "No admin form configured. Using the kernel-default schema. Build one in /forms to override."
                         }
                         className={
                           profileSource === "admin"
@@ -444,14 +445,14 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
           )}
 
           {error && (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           )}
           {flash && (
-            <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+            <Alert tone="success" role="status">
               {flash}
-            </p>
+            </Alert>
           )}
 
           {renderedMessage && (
@@ -460,7 +461,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                 <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                   // Invite message · {renderedMessage.recipient}
                 </p>
-                <button
+                <Button
                   type="button"
                   onClick={async () => {
                     const ok = await copyToClipboard(
@@ -468,7 +469,9 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                     );
                     setCopied(ok);
                   }}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
                 >
                   {copied ? (
                     <>
@@ -479,7 +482,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                       <Copy className="h-3 w-3" strokeWidth={2} /> Copy again
                     </>
                   )}
-                </button>
+                </Button>
               </div>
               <p className="text-[12px] font-medium text-fg">
                 Subject: {renderedMessage.subject}
@@ -492,7 +495,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
               />
               <p className="text-[11px] text-fg-muted">
                 Email delivery via Resend lands in a follow-up. For now,
-                paste the message into Slack / WhatsApp / SMS — content is
+                paste the message into Slack / WhatsApp / SMS. The content is
                 already on your clipboard.
               </p>
             </div>

@@ -2,31 +2,14 @@ import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
 import { fetchAll, load } from "@sportspulse/api-client";
 import { ChannelStatusNotice } from "@sportspulse/admin-pages";
-import {
-  EmptyState,
-  Eyebrow,
-  IconTile,
-  LoadError,
-  PageHeader,
-  StatNumber,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  type Tint
-} from "@sportspulse/ui";
+import { LoadError, LocalDate, Eyebrow, EmptyState, IconTile, type Tint, StatNumber, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { communications, iam } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { NotificationStatusBadge } from "@/components/communications/notification-status-badge";
-import {
-  FlushQueuedButton,
-  RetryNotificationButton
-} from "@/components/communications/flush-queued-button";
+import { FlushQueuedButton, RetryNotificationButton } from "@/components/communications/flush-queued-button";
 import type { NotificationStatus } from "@/lib/api/types";
 
-export const metadata = { title: "Communications — SportsPulse" };
+export const metadata = { title: "Communications · Super Admin" };
 
 const STATUS_FILTERS: Array<{ key: NotificationStatus | "all"; label: string }> = [
   { key: "all", label: "All" },
@@ -38,12 +21,7 @@ const STATUS_FILTERS: Array<{ key: NotificationStatus | "all"; label: string }> 
 ];
 
 function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" />;
 }
 
 function tintForStatus(s: NotificationStatus): Tint {

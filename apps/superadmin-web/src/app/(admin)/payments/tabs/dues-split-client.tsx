@@ -98,14 +98,14 @@ export function DuesSplitClient({
             disabled={!DEMO_MODE}
             title={
               DEMO_MODE
-                ? "Demo flow — preview the coverage amount + player count without writing anything"
-                : "Coming soon — requires admin-funded coverage flow (see doc/deferred-integrations.md)"
+                ? "Demo flow: preview the coverage amount + player count without writing anything"
+                : "Coming soon: requires admin-funded coverage flow (see doc/deferred-integrations.md)"
             }
             onClick={() => {
               if (!DEMO_MODE) return;
               const preview = mockCoverOutstandingPreview(splits);
               window.alert(
-                `Demo preview\n\nWould cover ${fmtMoney(preview.coveredCents, currency)} across ${preview.players} player${preview.players === 1 ? "" : "s"}.\n\nWiring requires the admin-funded coverage spec — see doc/deferred-integrations.md.`
+                `Demo preview\n\nWould cover ${fmtMoney(preview.coveredCents, currency)} across ${preview.players} player${preview.players === 1 ? "" : "s"}.\n\nWiring requires the admin-funded coverage spec. See doc/deferred-integrations.md.`
               );
             }}
           >

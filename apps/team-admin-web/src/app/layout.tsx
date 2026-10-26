@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SportsPulse — Team Admin",
+  title: "SportsPulse · Team Admin",
   description: "Manage your roster, lineups, and team home."
 };
 

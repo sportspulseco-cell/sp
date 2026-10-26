@@ -3,15 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Badge, Button, LocalDate } from "@sportspulse/ui";
 import type { FreeAgentOffer } from "@sportspulse/api-client";
 import { FREE_AGENT_OFFER_STATUS_LABELS } from "@sportspulse/kernel";
 import { registrationV2 } from "@/lib/api/browser-api";
-
-function fmtDay(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 /**
  * Offer a free agent a spot (UC-03, CAP-9). The player is not added to
@@ -70,7 +65,7 @@ export function ClaimFreeAgentButton({
         </Badge>
         {offer.expiresAt ? (
           <span className="text-[10px] text-fg-muted">
-            Waiting for the player · expires {fmtDay(offer.expiresAt)}
+            Waiting for the player · expires <LocalDate iso={offer.expiresAt} format="monthDay" />
           </span>
         ) : null}
       </div>

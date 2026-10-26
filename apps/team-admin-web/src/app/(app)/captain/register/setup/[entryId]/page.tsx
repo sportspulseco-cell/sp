@@ -6,7 +6,7 @@ import { RegisterWizard } from "./register-wizard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Set up registration — SportsPulse" };
+export const metadata = { title: "Set up registration · Team Admin" };
 
 /**
  * Workflow 7A 4-step rollover wizard.

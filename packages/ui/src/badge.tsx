@@ -1,5 +1,6 @@
 import { cn } from "./lib/cn";
 import type { HTMLAttributes } from "react";
+import { statusLabel, statusTone, type StatusDomain } from "@sportspulse/kernel";
 
 type Tone =
   | "neutral"
@@ -34,26 +35,39 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;
   /** Mono uppercase label style (LOCKED, ROADMAP, BETA…) */
   mono?: boolean;
-  /** Render a tone-coloured dot inside the badge — pairs with mono. */
+  /** Render a tone-coloured dot inside the badge (pairs with mono). */
   dot?: boolean;
+  /**
+   * A record status (registration, invoice, game, invite, payment,
+   * roster...). Sets the shared tone and, without children, the shared
+   * word. Renders mono unless `mono={false}`.
+   */
+  status?: string | null;
+  /** Where the same word means something else (store orders, notifications, games, compliance, brackets). */
+  domain?: StatusDomain;
 }
 
 export function Badge({
-  tone = "neutral",
+  tone,
   mono,
   dot,
+  status,
+  domain,
   className,
   children,
   ...rest
 }: BadgeProps) {
+  const isStatus = status !== undefined;
+  const resolvedTone: Tone = tone ?? (isStatus ? statusTone(status, domain) : "neutral");
+  const resolvedMono = mono ?? isStatus;
   return (
     <span
       className={cn(
         "inline-flex h-5 items-center gap-1.5 rounded-md px-2",
-        mono
+        resolvedMono
           ? "font-mono text-[10px] font-medium uppercase tracking-[0.18em]"
           : "text-[11px] font-medium tracking-tight",
-        TONES[tone],
+        TONES[resolvedTone],
         className
       )}
       {...rest}
@@ -61,42 +75,16 @@ export function Badge({
       {dot ? (
         <span
           aria-hidden
-          className={cn("h-1.5 w-1.5 rounded-full", DOT_TONES[tone])}
+          className={cn("h-1.5 w-1.5 rounded-full", DOT_TONES[resolvedTone])}
         />
       ) : null}
-      {children}
+      {children ?? (isStatus ? statusLabel(status, domain) : null)}
     </span>
   );
 }
 
-export function statusTone(status: string): Tone {
-  switch (status) {
-    case "active":
-    case "approved":
-    case "eligible":
-    case "completed":
-    case "published":
-      return "success";
-    case "pending":
-    case "draft":
-    case "submitted":
-    case "under_review":
-    case "in_progress":
-    case "registration_open":
-    case "playoffs":
-    case "waitlisted":
-      return "info";
-    case "suspended":
-    case "warning":
-      return "warning";
-    case "rejected":
-    case "withdrawn":
-    case "deleted":
-    case "ineligible":
-    case "dissolved":
-    case "archived":
-      return "danger";
-    default:
-      return "neutral";
-  }
-}
+/**
+ * One word and one colour per status in every app: the map lives in
+ * @sportspulse/kernel (status-display.ts). Prefer `<Badge status={s} />`.
+ */
+export { statusLabel, statusTone } from "@sportspulse/kernel";

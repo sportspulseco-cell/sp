@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { signatureNameMatches } from "@sportspulse/kernel";
-import { Button, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Field, Input, LocalDate } from "@sportspulse/ui";
 import type { WaiverDoc } from "./types";
 
 /**
@@ -59,19 +59,19 @@ export function WaiverCard({
           {isSigned && signedAt ? (
             // Viewer-local date: server and browser zones may differ.
             <p className="mt-0.5 text-[12px] text-fg-muted" suppressHydrationWarning>
-              Signed on {fmtShortDate(signedAt)}
+              Signed on <LocalDate iso={signedAt} format="date" />
             </p>
           ) : null}
         </div>
         {isSigned ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+          <Badge status="signed">
             <Check className="h-3 w-3" strokeWidth={2.25} />
             Signed
-          </span>
+          </Badge>
         ) : (
-          <span className="rounded-full bg-rose-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
+          <Badge tone="danger" mono>
             Not signed
-          </span>
+          </Badge>
         )}
       </div>
       {!isSigned && (
@@ -119,9 +119,9 @@ export function WaiverCard({
             </Button>
           </div>
           {signError ? (
-            <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+            <Alert tone="error" className="mt-2">
               Couldn't sign: {signError}
-            </p>
+            </Alert>
           ) : null}
         </>
       )}
@@ -129,14 +129,3 @@ export function WaiverCard({
   );
 }
 
-function fmtShortDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    });
-  } catch {
-    return "";
-  }
-}

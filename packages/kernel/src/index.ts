@@ -40,6 +40,7 @@ export * from "./money";
 export * from "./invoice-terms";
 export * from "./eligibility-evaluation";
 export * from "./roster-entry";
+export * from "./status-display";
 export * from "./discounts";
 export * from "./phone";
 export * from "./aamva";

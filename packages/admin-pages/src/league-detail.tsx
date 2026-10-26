@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
-
 import Link from "next/link";
-import { Badge, PageHeader, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, PageHeader, Reveal, statusTone, Eyebrow, IconTile } from "@sportspulse/ui";
 import type { League, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
 const PRIVACY_LABEL: Record<string, string> = {
-  public: "Public — visible in league directory",
-  unlisted: "Unlisted — accessible via direct link only",
-  private: "Private — login required to view anything"
+  public: "Public: visible in league directory",
+  unlisted: "Unlisted: accessible via direct link only",
+  private: "Private: login required to view anything"
 };
 
 /**
@@ -76,9 +75,7 @@ export function LeagueDetail({
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Badge mono>{league.sportCode}</Badge>
               <Badge mono>{league.format}</Badge>
-              <Badge tone={statusTone(league.status)} mono>
-                {league.status}
-              </Badge>
+              <Badge status={league.status} />
               {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
             </div>
           </>
@@ -117,7 +114,7 @@ export function LeagueDetail({
           <Field label="Time zone" tag="metadata.timezone" mono>
             {md.timezone ?? "—"}
           </Field>
-          <Field label="Organisation" tag="leagues.org_id">
+          <Field label="Organization" tag="leagues.org_id">
             {org ? org.displayName ?? org.legalName : "Unknown org"}
           </Field>
           <Field label="Status" tag="leagues.status" mono>
@@ -208,9 +205,7 @@ export function LeagueDetail({
                 <span className="font-mono text-[11px] text-fg-muted">
                   {s.startDate} → {s.endDate}
                 </span>
-                <Badge mono tone={statusTone(s.status)}>
-                  {s.status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={s.status} />
               </li>
             ))}
           </ul>

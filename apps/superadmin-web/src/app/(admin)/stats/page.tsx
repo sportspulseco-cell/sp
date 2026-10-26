@@ -17,7 +17,7 @@ import Link from "next/link";
 import { leagueMgmt, stats } from "@/lib/api/server-api";
 import { RecomputeStandingsButton } from "@/components/stats/recompute-standings-button";
 
-export const metadata = { title: "Stats — SportsPulse" };
+export const metadata = { title: "Stats · Super Admin" };
 
 type Tab = "lines" | "standings" | "leaderboards";
 

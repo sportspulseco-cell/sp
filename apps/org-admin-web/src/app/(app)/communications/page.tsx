@@ -2,53 +2,24 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import Link from "next/link";
-import {
-  AlertOctagon,
-  CheckCircle2,
-  Clock,
-  Mail,
-  MailMinus,
-  RadioTower,
-  Send
-} from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  SectionRail,
-  StatTile,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { AlertOctagon, CheckCircle2, Clock, Mail, MailMinus, RadioTower, Send } from "lucide-react";
+import { Badge, LocalDate, EmptyState, PageHeader, SectionRail, StatTile, TBody, TD, TH, THead, TR, Table, LoadError } from "@sportspulse/ui";
 import { ChannelStatusNotice } from "@sportspulse/admin-pages";
 import { communications, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Communications · Org Admin" };
-
-function fmt(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
 
 export default async function CommunicationsPage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
-  const page = orgId
-    ? await communications
-        .listNotifications({ orgId, limit: 100 })
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  const pageResult = orgId
+    ? await load(communications.listNotifications({ orgId, limit: 100 }))
+    : null;
+  const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
   const channelStatus = await communications.channelStatus().catch(() => null);
 
   const counts = page.items.reduce(
@@ -133,7 +104,11 @@ export default async function CommunicationsPage() {
           meta={`${page.items.length} loaded`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {page.items.length === 0 ? (
+          {pageResult && !pageResult.ok ? (
+            <div className="p-6">
+              <LoadError what="messages" status={pageResult.status} message={pageResult.message} />
+            </div>
+          ) : page.items.length === 0 ? (
             <div className="px-6 py-12">
               <EmptyState
                 icon={Mail}
@@ -154,19 +129,6 @@ export default async function CommunicationsPage() {
               </THead>
               <TBody>
                 {page.items.map((n) => {
-                  const tone:
-                    | "success"
-                    | "warning"
-                    | "danger"
-                    | "info"
-                    | "neutral" =
-                    n.status === "sent"
-                      ? "success"
-                      : n.status === "failed"
-                        ? "danger"
-                        : n.status === "suppressed"
-                          ? "neutral"
-                          : "warning";
                   return (
                     <TR key={n.id}>
                       <TD className="font-mono text-[11px] text-fg-muted">
@@ -179,12 +141,10 @@ export default async function CommunicationsPage() {
                         {n.recipientEmail ?? n.recipientPersonId ?? "—"}
                       </TD>
                       <TD>
-                        <Badge mono tone={tone}>
-                          {n.status}
-                        </Badge>
+                        <Badge status={n.status} domain="notification" />
                       </TD>
                       <TD className="text-right text-[12px] text-fg-muted">
-                        {fmt(n.createdAt)}
+                        <LocalDate iso={n.createdAt} format="dateTime" />
                       </TD>
                     </TR>
                   );

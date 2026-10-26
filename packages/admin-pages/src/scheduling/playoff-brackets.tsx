@@ -8,7 +8,13 @@ import {
   Trophy, XCircle, Zap
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, Field, Input, Select
+  Badge,
+  Button,
+  EmptyState,
+  Field,
+  Input,
+  Select,
+  Skeleton
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -162,10 +168,7 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffG
       )}
 
       {loading && brackets.length === 0 ? (
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-          Loading brackets…
-        </div>
+        <div role="status" aria-label="Loading brackets" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : brackets.length === 0 ? (
         <EmptyState
           icon={Trophy}
@@ -359,13 +362,7 @@ function SlotCard({
           </Link>
         ) : null}
         {slot.gameStatus && (
-          <Badge tone={
-            slot.gameStatus === "completed" ? "success"
-              : slot.gameStatus === "in_play" ? "info"
-                : "neutral"
-          }>
-            {slot.gameStatus.replace(/_/g, " ")}
-          </Badge>
+          <Badge status={slot.gameStatus} domain="game" />
         )}
       </div>
       {canAdvance && (

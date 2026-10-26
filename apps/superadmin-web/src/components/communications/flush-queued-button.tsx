@@ -50,10 +50,9 @@ export function RetryNotificationButton({ id }: { id: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <button
+    <Button
       type="button"
       disabled={pending}
-      className="rounded-md border border-border bg-surface-1 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg disabled:opacity-50"
       onClick={() => {
         start(async () => {
           try {
@@ -64,8 +63,11 @@ export function RetryNotificationButton({ id }: { id: string }) {
           }
         });
       }}
+      variant="outline"
+      size="sm"
+      className="gap-1.5"
     >
       {pending ? "..." : "Retry"}
-    </button>
+    </Button>
   );
 }

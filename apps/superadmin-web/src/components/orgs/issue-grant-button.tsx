@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { KeyRound, Loader2 } from "lucide-react";
 import { crossOrgGrants, iam } from "@/lib/api/browser-api";
 import type { Org, Profile } from "@/lib/api/types";
-import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 
 export function IssueGrantButton({
   fromOrgId,
@@ -66,14 +66,16 @@ export function IssueGrantButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         <KeyRound className="h-3 w-3" strokeWidth={1.75} />
         Issue grant
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -92,7 +94,7 @@ export function IssueGrantButton({
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.email ?? u.displayName ?? "Unnamed user"}
-                  {u.email && u.displayName ? ` — ${u.displayName}` : ""}
+                  {u.email && u.displayName ? ` (${u.displayName})` : ""}
                 </option>
               ))}
             </Select>
@@ -128,9 +130,9 @@ export function IssueGrantButton({
           </Field>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

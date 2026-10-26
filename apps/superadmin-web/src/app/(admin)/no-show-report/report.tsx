@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, Loader2, Search } from "lucide-react";
 import { Button, Select, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
+import { Alert } from "@sportspulse/ui";
 
 type Season = { id: string; name: string; leagueId: string; status: string };
 type Item = {
@@ -74,7 +75,7 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
             value={lastSeasonId}
             onChange={(e) => setLastSeasonId(e.target.value)}
           >
-            <option value="">— pick —</option>
+            <option value="">Pick a season</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -90,7 +91,7 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
             value={newSeasonId}
             onChange={(e) => setNewSeasonId(e.target.value)}
           >
-            <option value="">— pick —</option>
+            <option value="">Pick a season</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -120,9 +121,9 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
       </div>
 
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {ran && items.length === 0 && !busy && (

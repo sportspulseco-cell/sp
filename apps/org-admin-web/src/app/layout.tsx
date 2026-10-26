@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SportsPulse — Org Admin",
+  title: "SportsPulse · Org Admin",
   description: "Manage your organization's leagues, seasons, and divisions."
 };
 

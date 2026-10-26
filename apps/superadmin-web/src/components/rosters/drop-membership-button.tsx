@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { roster } from "@/lib/api/browser-api";
-import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Alert } from "@sportspulse/ui";
 
 export function DropMembershipButton({
   teamId,
@@ -44,13 +44,15 @@ export function DropMembershipButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-rose-500/50 hover:text-rose-600 dark:hover:text-rose-400"
+        variant="outline"
+        size="sm"
+        className="gap-1.5 hover:border-[var(--tint-rose-fg)]/50 hover:text-[var(--tint-rose-fg)]"
       >
         Drop
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -61,7 +63,7 @@ export function DropMembershipButton({
           <Field
             label="Reason"
             htmlFor="dm-reason"
-            hint="Optional but recommended — appears in the audit trail."
+            hint="Optional but recommended. Appears in the audit trail."
           >
             <Input
               id="dm-reason"
@@ -71,9 +73,9 @@ export function DropMembershipButton({
             />
           </Field>
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
           <DialogActions>
             <Button

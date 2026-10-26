@@ -1,23 +1,12 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { LoadError, LocalDate, EmptyState, Badge, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { FileSignature, CheckCircle2, Layers, Building2 } from "lucide-react";
 import Link from "next/link";
 import { compliance, orgs } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { CreateDocumentButton } from "@/components/documents/create-document-button";
 
-export const metadata = { title: "Compliance documents — SportsPulse" };
+export const metadata = { title: "Compliance documents · Super Admin" };
 
 export default async function DocumentsPage() {
   const [docsResult, orgList] = await Promise.all([
@@ -69,7 +58,7 @@ export default async function DocumentsPage() {
         <EmptyState
           icon={FileSignature}
           title="No documents yet"
-          description="Create your first compliance document — waiver, code of conduct, media release, etc."
+          description="Create your first compliance document: a waiver, code of conduct, media release or similar."
           action={<CreateDocumentButton orgs={orgList.items} />}
         />
       ) : (
@@ -120,7 +109,7 @@ export default async function DocumentsPage() {
                   )}
                 </TD>
                 <TD className="text-fg-muted">
-                  {new Date(d.updatedAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={d.updatedAt} format="date" />
                 </TD>
               </TR>
             ))}

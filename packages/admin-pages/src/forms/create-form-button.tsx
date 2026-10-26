@@ -82,7 +82,7 @@ export interface CreateFormButtonProps {
   /** Hide the org picker (true when there's only one option). */
   lockOrg?: boolean;
   /**
-   * The organisation in view (e.g. the page's org filter). With several
+   * The organization in view (e.g. the page's org filter). With several
    * orgs and no default, the admin must choose (CAP-23: the dialog used
    * to preselect the alphabetically first tenant).
    */

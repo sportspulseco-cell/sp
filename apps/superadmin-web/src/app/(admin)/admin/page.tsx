@@ -6,7 +6,9 @@ import {
   Sparkles,
   Trophy
 } from "lucide-react";
+import { load } from "@sportspulse/api-client";
 import Link from "next/link";
+import { EmptyState, LoadError } from "@sportspulse/ui";
 import { admin } from "@/lib/api/server-api";
 import {
   Badge,
@@ -26,7 +28,7 @@ import { ToggleSportButton } from "@/components/admin/toggle-sport-button";
 import { UpsertSettingButton } from "@/components/admin/upsert-setting-button";
 import { UpsertFlagButton } from "@/components/admin/upsert-flag-button";
 
-export const metadata = { title: "Admin Console — SportsPulse" };
+export const metadata = { title: "Admin Console · Super Admin" };
 
 type Tab = "settings" | "flags" | "sports" | "health";
 
@@ -190,7 +192,11 @@ async function HealthTab() {
 // ---------- Settings ----------
 
 async function SettingsTab() {
-  const settings = await admin.listSettings().catch(() => []);
+  const settingsResult = await load(admin.listSettings());
+  if (!settingsResult.ok) {
+    return <LoadError what="system settings" status={settingsResult.status} message={settingsResult.message} />;
+  }
+  const settings = settingsResult.data;
 
   return (
     <section className="space-y-4">
@@ -204,17 +210,11 @@ async function SettingsTab() {
         <UpsertSettingButton />
       </header>
       {settings.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-surface-1 p-12 text-center">
-          <Settings2
-            className="mx-auto h-5 w-5 text-fg-muted"
-            strokeWidth={1.5}
-          />
-          <p className="mt-3 text-sm font-semibold text-fg">No settings yet</p>
-          <p className="mt-1 text-sm text-fg-muted">
-            Use the button above to add your first setting (support email,
-            default timezone, etc.).
-          </p>
-        </div>
+        <EmptyState
+          icon={Settings2}
+          title="No settings yet"
+          description="Use the button above to add your first setting (support email, default time zone and so on)."
+        />
       ) : (
         <Table>
           <THead>
@@ -257,7 +257,11 @@ async function SettingsTab() {
 // ---------- Flags ----------
 
 async function FlagsTab() {
-  const flags = await admin.listFlags().catch(() => []);
+  const flagsResult = await load(admin.listFlags());
+  if (!flagsResult.ok) {
+    return <LoadError what="feature flags" status={flagsResult.status} message={flagsResult.message} />;
+  }
+  const flags = flagsResult.data;
 
   return (
     <section className="space-y-4">
@@ -272,13 +276,11 @@ async function FlagsTab() {
         <UpsertFlagButton />
       </header>
       {flags.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-surface-1 p-12 text-center">
-          <Flag className="mx-auto h-5 w-5 text-fg-muted" strokeWidth={1.5} />
-          <p className="mt-3 text-sm font-semibold text-fg">No flags yet</p>
-          <p className="mt-1 text-sm text-fg-muted">
-            Use the button above to add your first feature flag.
-          </p>
-        </div>
+        <EmptyState
+          icon={Flag}
+          title="No flags yet"
+          description="Use the button above to add your first feature flag."
+        />
       ) : (
         <Table>
           <THead>
@@ -328,7 +330,11 @@ async function FlagsTab() {
 // ---------- Sports ----------
 
 async function SportsTab() {
-  const sports = await admin.listSports().catch(() => []);
+  const sportsResult = await load(admin.listSports());
+  if (!sportsResult.ok) {
+    return <LoadError what="the sports catalog" status={sportsResult.status} message={sportsResult.message} />;
+  }
+  const sports = sportsResult.data;
 
   return (
     <section className="space-y-4">

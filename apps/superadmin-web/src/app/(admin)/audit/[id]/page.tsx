@@ -4,7 +4,7 @@ import { LoadError } from "@sportspulse/ui";
 import { AuditEventDetail } from "@sportspulse/admin-pages";
 import { audit } from "@/lib/api/server-api";
 
-export const metadata = { title: "Audit event — SportsPulse" };
+export const metadata = { title: "Audit event · Super Admin" };
 
 export default async function AuditDetailPage({
   params

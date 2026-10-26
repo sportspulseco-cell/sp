@@ -10,7 +10,7 @@ import { IS_STAGING, RUN_TAG, signedInAs, stagingSql } from "./_helpers";
  * every Roles row linking to a 404. Staging, real browser.
  *
  * Also asserts what the role must NOT see: a user whose only role is in
- * another organisation never appears in the list, the search, or by URL.
+ * another organization never appears in the list, the search, or by URL.
  */
 test.skip(!IS_STAGING, "staging only");
 
@@ -69,7 +69,7 @@ test("league admin: every console page loads with data, none says 404 or access 
   await context.close();
 });
 
-test("league admin never sees a user whose only role is in another organisation", async ({ browser }) => {
+test("league admin never sees a user whose only role is in another organization", async ({ browser }) => {
   test.setTimeout(240_000);
   const tag = `E2E${RUN_TAG}`.toUpperCase();
   // profiles.id is an auth user, so borrow an existing account that holds

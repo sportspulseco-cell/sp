@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, CheckCircle2, Clock, Loader2, RefreshCw,
-  Radio, Send, XCircle, ZapOff
+  AlertTriangle, CheckCircle2, Clock, RefreshCw, Radio, Send, XCircle, ZapOff
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, TBody, TD, TH, THead, TR, Table
+  Badge,
+  Button,
+  EmptyState,
+  LocalDate,
+  Skeleton,
+  statusLabel,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR
 } from "@sportspulse/ui";
 import {
   scheduler,
@@ -17,13 +27,8 @@ import {
 
 interface Props { seasonId: string }
 
-function fmtTs(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso ?? "—"; }
+function fmtTs(iso: string | null) {
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 function circuitTone(
@@ -32,14 +37,6 @@ function circuitTone(
   if (state === "closed") return "success";
   if (state === "half_open") return "warning";
   if (state === "open") return "danger";
-  return "neutral";
-}
-
-function statusTone(s: string): "success" | "warning" | "danger" | "neutral" {
-  if (s === "delivered") return "success";
-  if (s === "pending") return "neutral";
-  if (s === "failed") return "warning";
-  if (s === "dead_letter") return "danger";
   return "neutral";
 }
 
@@ -70,10 +67,7 @@ export function SchedulingRinkNotifications({ seasonId }: Props) {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-        Loading rink notifications…
-      </div>
+      <div role="status" aria-label="Loading rink notifications" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
 
@@ -240,14 +234,14 @@ function OutboxRow({ row }: { row: RinkOutboxView }) {
         {row.eventType}
       </TD>
       <TD>
-        <Badge tone={statusTone(row.status)}>
+        <Badge status={row.status}>
           {row.status === "delivered" && (
             <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           )}
           {row.status === "dead_letter" && (
             <ZapOff className="h-3.5 w-3.5" strokeWidth={1.75} />
           )}
-          {row.status}
+          {statusLabel(row.status)}
         </Badge>
       </TD>
       <TD className="text-right">{row.attemptCount}</TD>

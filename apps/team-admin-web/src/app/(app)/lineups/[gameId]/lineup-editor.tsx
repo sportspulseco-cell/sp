@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button, LocalDate, Table, THead, TBody, TR, TH, TD } from "@sportspulse/ui";
 import { gameOps } from "@/lib/api/browser-api";
 
 type Bucket = "starters" | "bench" | "scratches";
@@ -206,120 +206,118 @@ export function LineupEditor({
       </section>
 
       {suspendedOnRoster.length > 0 ? (
-        <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           Suspended for this game:{" "}
           {suspendedOnRoster.map((p) => `${p.name} (${suspended[p.personId]})`).join(", ")}. They can
           only be scratched.
           {suspendedInSaved.length > 0 && !locked
             ? " Your saved lineup still dresses them; save again to update it."
             : ""}
-        </p>
+        </Alert>
       ) : null}
       {!suspensionsChecked ? (
-        <p className="rounded-md bg-[var(--tint-amber-bg)] px-3 py-2 text-sm text-[var(--tint-amber-fg)]">
+        <Alert tone="warning">
           Could not check suspensions. The lineup is still checked when you save.
-        </p>
+        </Alert>
       ) : null}
       {error && (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-        <table className="w-full divide-y divide-border">
-          <thead className="bg-surface-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            <tr>
-              <th className="px-4 py-2 text-left">Player</th>
-              <th className="px-2 py-2 text-center">#</th>
-              <th className="px-2 py-2 text-center">Pos</th>
-              <th className="px-2 py-2 text-center">Starter</th>
-              <th className="px-2 py-2 text-center">Bench</th>
-              <th className="px-2 py-2 text-center">Scratch</th>
-              <th className="px-4 py-2 text-left">Scratch reason</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {roster.map((p) => {
-              const a = assignments.get(p.personId);
-              if (!a) return null;
-              const suspendedLabel = suspended[p.personId];
-              return (
-                <tr key={p.personId}>
-                  <td className="px-4 py-2 text-[14px] font-medium text-fg">
-                    {p.name}
-                    {suspendedLabel ? (
-                      <span className="ml-2 align-middle">
-                        <Badge tone="danger" mono>
-                          Suspended · {suspendedLabel}
-                        </Badge>
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="text"
-                      value={a.jerseyNumber}
-                      onChange={(e) =>
-                        patch(p.personId, { jerseyNumber: e.target.value })
-                      }
-                      disabled={locked || a.bucket === "scratches"}
-                      maxLength={3}
-                      className="w-12 rounded-md border border-border bg-bg px-1.5 py-1 text-center text-[12px] disabled:opacity-50"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="text"
-                      value={a.positionCode}
-                      onChange={(e) =>
-                        patch(p.personId, { positionCode: e.target.value })
-                      }
-                      disabled={locked || a.bucket === "scratches"}
-                      maxLength={4}
-                      className="w-12 rounded-md border border-border bg-bg px-1.5 py-1 text-center text-[12px] uppercase disabled:opacity-50"
-                    />
-                  </td>
-                  {(["starters", "bench", "scratches"] as Bucket[]).map(
-                    (b) => (
-                      <td key={b} className="px-2 py-2 text-center">
-                        <input
-                          type="radio"
-                          name={`bucket-${p.personId}`}
-                          value={b}
-                          checked={a.bucket === b}
-                          disabled={locked || (!!suspendedLabel && b !== "scratches")}
-                          onChange={() => patch(p.personId, { bucket: b })}
-                          aria-label={`${p.name} · ${b}`}
-                        />
-                      </td>
-                    )
-                  )}
-                  <td className="px-4 py-2">
-                    <input
-                      type="text"
-                      value={a.reason}
-                      onChange={(e) =>
-                        patch(p.personId, { reason: e.target.value })
-                      }
-                      disabled={locked || a.bucket !== "scratches"}
-                      placeholder={
-                        a.bucket === "scratches" ? "Injury / suspension / etc." : ""
-                      }
-                      className="w-full rounded-md border border-border bg-bg px-2 py-1 text-[12px] disabled:opacity-30"
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Table className="divide-y divide-border">
+        <THead className="bg-surface-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          <TR>
+            <TH className="px-4 py-2 text-left">Player</TH>
+            <TH className="px-2 py-2 text-center">#</TH>
+            <TH className="px-2 py-2 text-center">Pos</TH>
+            <TH className="px-2 py-2 text-center">Starter</TH>
+            <TH className="px-2 py-2 text-center">Bench</TH>
+            <TH className="px-2 py-2 text-center">Scratch</TH>
+            <TH className="px-4 py-2 text-left">Scratch reason</TH>
+          </TR>
+        </THead>
+        <TBody className="divide-y divide-border">
+          {roster.map((p) => {
+            const a = assignments.get(p.personId);
+            if (!a) return null;
+            const suspendedLabel = suspended[p.personId];
+            return (
+              <TR key={p.personId}>
+                <TD className="px-4 py-2 text-[14px] font-medium text-fg">
+                  {p.name}
+                  {suspendedLabel ? (
+                    <span className="ml-2 align-middle">
+                      <Badge tone="danger" mono>
+                        Suspended · {suspendedLabel}
+                      </Badge>
+                    </span>
+                  ) : null}
+                </TD>
+                <TD className="px-2 py-2">
+                  <input
+                    type="text"
+                    value={a.jerseyNumber}
+                    onChange={(e) =>
+                      patch(p.personId, { jerseyNumber: e.target.value })
+                    }
+                    disabled={locked || a.bucket === "scratches"}
+                    maxLength={3}
+                    className="w-12 rounded-md border border-border bg-bg px-1.5 py-1 text-center text-[12px] disabled:opacity-50"
+                  />
+                </TD>
+                <TD className="px-2 py-2">
+                  <input
+                    type="text"
+                    value={a.positionCode}
+                    onChange={(e) =>
+                      patch(p.personId, { positionCode: e.target.value })
+                    }
+                    disabled={locked || a.bucket === "scratches"}
+                    maxLength={4}
+                    className="w-12 rounded-md border border-border bg-bg px-1.5 py-1 text-center text-[12px] uppercase disabled:opacity-50"
+                  />
+                </TD>
+                {(["starters", "bench", "scratches"] as Bucket[]).map(
+                  (b) => (
+                    <TD key={b} className="px-2 py-2 text-center">
+                      <input
+                        type="radio"
+                        name={`bucket-${p.personId}`}
+                        value={b}
+                        checked={a.bucket === b}
+                        disabled={locked || (!!suspendedLabel && b !== "scratches")}
+                        onChange={() => patch(p.personId, { bucket: b })}
+                        aria-label={`${p.name} · ${b}`}
+                      />
+                    </TD>
+                  )
+                )}
+                <TD className="px-4 py-2">
+                  <input
+                    type="text"
+                    value={a.reason}
+                    onChange={(e) =>
+                      patch(p.personId, { reason: e.target.value })
+                    }
+                    disabled={locked || a.bucket !== "scratches"}
+                    placeholder={
+                      a.bucket === "scratches" ? "Injury / suspension / etc." : ""
+                    }
+                    className="w-full rounded-md border border-border bg-bg px-2 py-1 text-[12px] disabled:opacity-30"
+                  />
+                </TD>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
 
       <div className="flex items-center justify-between gap-2">
         <p className="text-[12px] text-fg-muted">
@@ -327,11 +325,11 @@ export function LineupEditor({
             <>
               Last saved{" "}
               <span className="font-mono text-fg">
-                {new Date(submittedAt).toLocaleString("en-US")}
+                <LocalDate iso={submittedAt} format="dateTime" />
               </span>
             </>
           ) : locked ? (
-            <Badge tone="danger" mono>locked — game in play</Badge>
+            <Badge tone="danger" mono>Locked: game in play</Badge>
           ) : (
             <>No lineup saved yet.</>
           )}

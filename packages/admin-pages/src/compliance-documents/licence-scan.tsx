@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImageUp, Loader2 } from "lucide-react";
 import { Alert, Badge, Button } from "@sportspulse/ui";
-import { LICENCE_CHECK_FIELD_LABELS, parseAamva, type AamvaLicence } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatCalendarDate, LICENCE_CHECK_FIELD_LABELS, parseAamva, type AamvaLicence } from "@sportspulse/kernel";
 import type { LicenceIdCheck } from "@sportspulse/api-client";
 
 export interface LicenceScanApi {
@@ -36,14 +36,7 @@ async function decodePdf417(input: Blob | ImageData): Promise<string | null> {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "Not readable";
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1)).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC"
-  });
+  return formatCalendarDate(iso ? iso.slice(0, 10) : null, DATE_FORMATS.date) || "Not readable";
 }
 
 export function LicenceScan({

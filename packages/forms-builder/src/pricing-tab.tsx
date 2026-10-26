@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Division, PricingTier } from "@sportspulse/api-client";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
+import { LocalDate, Input, Button } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
 
 export function PricingTab({
@@ -77,15 +79,15 @@ export function PricingTab({
             (deposit + N installments). Auto-saves on blur.
           </p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={addTier}
           disabled={creating}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-fg px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-widest text-bg disabled:opacity-50"
+          variant="primary" size="sm" className="gap-1.5"
         >
           <Plus className="h-3 w-3" strokeWidth={2.25} />
           New tier
-        </button>
+        </Button>
       </header>
 
       {error && (
@@ -141,7 +143,7 @@ function TierCard({
             className="w-full bg-transparent text-[16px] font-semibold tracking-tight text-fg outline-none focus:bg-surface-2 focus:px-1 focus:py-0.5 focus:rounded"
           />
           <p className="mt-1 font-mono text-[11px] tabular-nums text-fg-muted">
-            Created {new Date(tier.createdAt).toLocaleDateString("en-CA")}
+            Created <LocalDate iso={tier.createdAt} format="date" />
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -229,13 +231,14 @@ function PaymentTimeline({ tier }: { tier: PricingTier }) {
           <div className="h-full w-1/4 rounded-full bg-success" />
         </div>
         <span className="font-mono tabular-nums text-fg">
-          ${(deposit / 100).toFixed(2)} <span className="text-fg-muted">deposit</span>
+          {formatMoney(deposit, tier.currency)} <span className="text-fg-muted">deposit</span>
         </span>
         {Array.from({ length: tier.installmentCount }).map((_, i) => (
           <FragmentRow
             key={i}
             day={tier.installmentIntervalDays * (i + 1)}
             amountCents={perInstallment}
+            currency={tier.currency}
           />
         ))}
       </div>
@@ -243,13 +246,13 @@ function PaymentTimeline({ tier }: { tier: PricingTier }) {
   );
 }
 
-function FragmentRow({ day, amountCents }: { day: number; amountCents: number }) {
+function FragmentRow({ day, amountCents, currency }: { day: number; amountCents: number; currency: string }) {
   return (
     <>
       <span className="font-mono text-fg-muted">Day {day}</span>
       <div className="h-1.5 rounded-full bg-surface-2" />
       <span className="font-mono tabular-nums text-fg">
-        ${(amountCents / 100).toFixed(2)}
+        {formatMoney(amountCents, currency)}
       </span>
     </>
   );
@@ -273,19 +276,19 @@ function MoneyField({
       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         {label}
       </span>
-      <input
+      <Input
         type="number"
         inputMode="decimal"
         step="0.01"
         min={0}
-        defaultValue={(cents / 100).toFixed(2)}
+        defaultValue={centsToAmountInput(cents)}
         onBlur={(e) => {
           const dollars = Number(e.target.value);
           if (!Number.isFinite(dollars) || dollars < 0) return;
           const next = Math.round(dollars * 100);
           if (next !== cents) onCommit(next);
         }}
-        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-fg focus:border-fg-muted focus:outline-none"
+        className="mt-1 bg-bg-elev font-mono tabular-nums"
       />
     </label>
   );
@@ -311,7 +314,7 @@ function NumberField({
       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         {label}
       </span>
-      <input
+      <Input
         type="number"
         defaultValue={defaultValue}
         min={min}
@@ -321,7 +324,7 @@ function NumberField({
           const v = Number(e.target.value);
           if (Number.isFinite(v) && v !== defaultValue) onCommit(v);
         }}
-        className="mt-1 w-full rounded-md border border-border bg-bg-elev px-2.5 py-1.5 font-mono text-[13px] tabular-nums text-fg focus:border-fg-muted focus:outline-none"
+        className="mt-1 bg-bg-elev font-mono tabular-nums"
       />
     </label>
   );

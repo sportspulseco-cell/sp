@@ -1,18 +1,16 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatCalendarDate, formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Receipt } from "lucide-react";
 import { isNotFound, load } from "@sportspulse/api-client";
-import { Badge, LoadError, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Badge, LoadError, PageHeader, TBody, TD, TH, THead, TR, Table, EmptyState } from "@sportspulse/ui";
 import { orgAdminFinance } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Invoice — SportsPulse" };
+export const metadata = { title: "Invoice · Org Admin" };
 
 function day(iso: string | null | undefined) {
-  return iso
-    ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
-    : "—";
+  return formatCalendarDate(iso) || "—";
 }
 
 /**
@@ -41,7 +39,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
         eyebrow={invoice.invoiceNumber}
         title={invoice.recipientEmail ?? "Invoice"}
         description={`Issued ${day(invoice.issuedAt)} · due ${day(invoice.dueAt)}`}
-        action={<Badge mono tone={invoice.status === "paid" ? "success" : invoice.status === "void" ? "neutral" : "warning"}>{invoice.status}</Badge>}
+        action={<Badge status={invoice.status} />}
       />
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -82,7 +80,11 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
       <section className="space-y-2">
         <h2 className="text-[15px] font-semibold text-fg">Payments</h2>
         {payments.length === 0 ? (
-          <p className="text-[13px] text-fg-muted">No payments yet. Record an offline payment from the Finance list.</p>
+          <EmptyState
+            icon={Receipt}
+            title="No payments yet"
+            description="Record an offline payment from the Finance list."
+          />
         ) : (
           <Table>
             <THead>
@@ -98,7 +100,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                 <TR key={p.id}>
                   <TD>{day(p.receivedAt)}</TD>
                   <TD>{p.method.replace(/_/g, " ")}</TD>
-                  <TD>{p.status}</TD>
+                  <TD><Badge status={p.status} /></TD>
                   <TD className="text-right font-mono tabular-nums">{formatMoney(p.amountCents, p.currency)}</TD>
                 </TR>
               ))}
@@ -124,7 +126,7 @@ export default async function OrgInvoicePage({ params }: { params: Promise<{ id:
                 <TR key={i.id}>
                   <TD>{i.installmentNumber === 0 ? "Deposit" : i.installmentNumber}</TD>
                   <TD>{day(i.dueDate)}</TD>
-                  <TD>{i.status}</TD>
+                  <TD><Badge status={i.status} /></TD>
                   <TD className="text-right font-mono tabular-nums">{formatMoney(i.amountCents, cur)}</TD>
                 </TR>
               ))}

@@ -111,7 +111,7 @@ function ReturningBanner() {
               // Welcome back
             </p>
             <p className="text-[14px] font-medium text-fg">
-              A new season is open — register again to keep playing
+              A new season is open. Register again to keep playing.
             </p>
             <p className="text-[12px] text-fg-muted">
               Your last season's data still shows below. Re-register to start

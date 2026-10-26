@@ -1,33 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  ArrowRightLeft,
-  Check,
-  Clock,
-  Lock,
-  Mail,
-  RotateCcw,
-  ShieldCheck,
-  UserMinus,
-  UserPlus,
-  Users
-} from "lucide-react";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Eyebrow,
-  PageHeader,
-  Select,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { AlertTriangle, ArrowRightLeft, Check, Clock, Lock, Mail, RotateCcw, ShieldCheck, UserMinus, UserPlus, Users } from "lucide-react";
+import { Badge, Button, EmptyState, Eyebrow, PageHeader, Select, TBody, TD, TH, THead, TR, Table, Alert, LocalDate, useLocalDate } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 import { AddPlayerModal } from "./add-player-modal";
 import { DropPlayerModal } from "./drop-player-modal";
@@ -204,9 +179,9 @@ export function RosterScreen({
       )}
 
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
 
       {/* Action bar — hidden ENTIRELY after rosterLockAt per spec §1.2 */}
@@ -317,7 +292,7 @@ export function RosterScreen({
         <EmptyState
           icon={Users}
           title="No guest appearances yet"
-          description="Guests are added from a specific game in the schedule view — they don't count against your roster cap."
+          description="Guests are added from a specific game in the schedule view. They don't count against your roster cap."
         />
       )}
 
@@ -471,7 +446,7 @@ function ActiveRosterTable({
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {new Date(m.effectiveFrom).toLocaleDateString("en-CA")}
+                  <LocalDate iso={m.effectiveFrom} format="date" />
                 </TD>
                 <TD className="text-right">
                   {isLocked ? (
@@ -645,25 +620,12 @@ function PendingInvitesTable({
               <TR key={i.id}>
                 <TD className="italic">{i.email ?? "—"}</TD>
                 <TD>
-                  <Badge
-                    mono
-                    tone={
-                      isExpired
-                        ? "warning"
-                        : i.status === "extended"
-                          ? "neutral"
-                          : "neutral"
-                    }
-                  >
-                    {i.status === "pending"
-                      ? "awaiting acceptance"
-                      : i.status.replace(/_/g, " ")}
+                  <Badge status={isExpired ? "expired" : i.status}>
+                    {!isExpired && i.status === "pending" ? "Awaiting acceptance" : undefined}
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {i.expiresAt
-                    ? new Date(i.expiresAt).toLocaleDateString("en-CA")
-                    : "—"}
+                  <LocalDate iso={i.expiresAt} format="date" fallback="—" />
                 </TD>
                 <TD className="text-[12px] text-fg-muted tabular-nums">
                   {i.extensionCount} / 2
@@ -701,6 +663,7 @@ function PendingInvitesTable({
 function useLockMeta(
   iso: string | null
 ): { label: string; tone: "neutral" | "amber" | "red" } | null {
+  const fmtDate = useLocalDate();
   return useMemo(() => {
     if (!iso) return null;
     const lock = new Date(iso).getTime();
@@ -708,7 +671,7 @@ function useLockMeta(
     const days = Math.ceil((lock - now) / (24 * 60 * 60 * 1000));
     if (days < 0) {
       return {
-        label: `Roster locked since ${new Date(iso).toLocaleDateString("en-CA")}`,
+        label: `Roster locked since ${fmtDate(iso, "date")}`,
         tone: "red"
       };
     }
@@ -725,7 +688,7 @@ function useLockMeta(
       return { label: `Locks in ${days} days`, tone: "amber" };
     }
     return { label: `Locks in ${days} days`, tone: "neutral" };
-  }, [iso]);
+  }, [iso, fmtDate]);
 }
 
 // Stub to suppress unused warnings on the icons we reserve for the

@@ -3,48 +3,26 @@
  */
 import Link from "next/link";
 import { FileSignature } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  SectionRail,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError, LocalDate, PageHeader, SectionRail, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { loadMeScope, orgAdminForms, orgs } from "@/lib/api/server-api";
 import { CreateFormButton } from "@/components/forms/create-form-button";
 import { getActiveOrgId } from "@/lib/active-org";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Forms - Org Admin" };
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-CA");
-}
+export const metadata = { title: "Forms · Org Admin" };
 
 export default async function FormsPage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
-  const [formsPage, orgList] = await Promise.all([
+  const [formsResult, orgList] = await Promise.all([
     orgId
-      ? orgAdminForms.list({ orgId }).catch(() => ({ items: [] }))
-      : Promise.resolve({
-          items: [] as Array<{
-            id: string;
-            name: string;
-            description: string | null;
-            seasonName: string | null;
-            purpose: string;
-            updatedAt: string;
-          }>
-        }),
+      ? load(orgAdminForms.list({ orgId }))
+      : Promise.resolve(null),
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
   ]);
+  const formsPage = formsResult?.ok ? formsResult.data : { items: [] };
   const activeOrg = orgId
     ? orgList.items.find((o) => o.id === orgId) ?? null
     : null;
@@ -54,7 +32,7 @@ export default async function FormsPage() {
       <PageHeader
         eyebrow="Registration"
         title="Registration forms"
-        description="Forms bound to your org's seasons. Each form drives a chunk of the public registration funnel — questions, waivers, pricing tiers, and email templates."
+        description="Forms bound to your org's seasons. Each form drives a chunk of the public registration funnel: questions, waivers, pricing tiers, and email templates."
         action={
           activeOrg ? (
             <CreateFormButton
@@ -69,11 +47,15 @@ export default async function FormsPage() {
         <SectionRail
           index="01"
           label="Published"
-          subtitle="Open one to edit its questions, divisions, pricing, and email templates. New forms can be created here directly — no platform-admin handoff."
+          subtitle="Open one to edit its questions, divisions, pricing, and email templates. New forms can be created here directly. No platform admin handoff."
           meta={`${formsPage.items.length} total`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {formsPage.items.length === 0 ? (
+          {formsResult && !formsResult.ok ? (
+            <div className="p-6">
+              <LoadError what="registration forms" status={formsResult.status} message={formsResult.message} />
+            </div>
+          ) : formsPage.items.length === 0 ? (
             <div className="px-6 py-12">
               <EmptyState
                 icon={FileSignature}
@@ -116,7 +98,7 @@ export default async function FormsPage() {
                       </Badge>
                     </TD>
                     <TD className="text-right text-[11px] text-fg-muted">
-                      {fmtDate(f.updatedAt)}
+                      <LocalDate iso={f.updatedAt} format="date" />
                     </TD>
                   </TR>
                 ))}

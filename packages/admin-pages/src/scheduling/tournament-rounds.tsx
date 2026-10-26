@@ -6,7 +6,7 @@ import {
   ArrowDown, ArrowRight, ArrowUp, ChevronsRight, Layers,
   Loader2, RefreshCw, Trophy, XCircle, Zap
 } from "lucide-react";
-import { Badge, Button, EmptyState, Field, Input, Select } from "@sportspulse/ui";
+import { Badge, Button, EmptyState, Field, Input, Select, Skeleton } from "@sportspulse/ui";
 import {
   scheduler,
   type TournamentRoundView,
@@ -95,8 +95,8 @@ export function SchedulingTournament({ seasonId, divisions, teams }: Props) {
           <span className="text-fg font-medium">Dynamic tournament mode.</span>{" "}
           Each round, teams play a round-robin within their tier. When the
           round is complete, the top quarter of each tier promotes and the
-          bottom quarter relegates — automatically generating fixtures for
-          the next round. Adjust promote / relegate fractions per round in
+          bottom quarter relegates. Games for the next round are then
+          generated automatically. Adjust promote / relegate fractions per round in
           the advance dialog.
         </p>
       </div>
@@ -121,10 +121,7 @@ export function SchedulingTournament({ seasonId, divisions, teams }: Props) {
       )}
 
       {loading && rounds.length === 0 ? (
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-          Loading rounds…
-        </div>
+        <div role="status" aria-label="Loading rounds" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : rounds.length === 0 ? (
         <EmptyState
           icon={Trophy}
@@ -359,7 +356,7 @@ function RoundCard({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             {allComplete
-              ? "All games complete — ready to advance to next round."
+              ? "All games complete. Ready to advance to the next round."
               : `${round.fixtureCount - round.completedCount} games remaining before advancing.`}
           </span>
           <Button

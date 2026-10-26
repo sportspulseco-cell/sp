@@ -2,19 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Package } from "lucide-react";
-import { Badge, Button, EmptyState, Eyebrow } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate, Input } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import { formatMoney } from "@sportspulse/kernel";
 import { teamStore } from "@/lib/api/browser-api";
 
-const STATUS_TONE: Record<StoreOrder["status"], "neutral" | "warning" | "success" | "danger" | "info"> = {
-  placed: "warning",
-  processing: "info",
-  shipped: "success",
-  cancelled: "neutral"
-};
-
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const day = (iso: string) => <LocalDate iso={iso} format="monthDay" />;
 
 /**
  * Orders from the team store (UC-26). Payment is the invoice's: an
@@ -70,10 +63,10 @@ export function StoreOrders({ teamId }: { teamId: string }) {
         ) : null}
       </div>
       {flash ? (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">{flash}</p>
+        <Alert tone="success" role="status">{flash}</Alert>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">{error}</p>
+        <Alert tone="error">{error}</Alert>
       ) : null}
       {orders === null ? (
         <p className="text-sm text-fg-muted">Loading orders…</p>
@@ -92,14 +85,14 @@ export function StoreOrders({ teamId }: { teamId: string }) {
                     {o.items.map((i) => (
                       <li key={i.id}>
                         {i.label}
-                        {i.backorder ? <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">backorder</span> : null}
+                        {i.backorder ? <Badge mono tone="warning" className="ml-2">Backorder</Badge> : null}
                       </li>
                     ))}
                   </ul>
                   {o.note ? <p className="mt-1 text-[12px] text-fg-muted">Note: {o.note}</p> : null}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
-                  <Badge mono tone={STATUS_TONE[o.status]}>{o.statusLabel}</Badge>
+                  <Badge status={o.status} domain="store_order">{o.statusLabel}</Badge>
                   <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                     {o.invoice?.status === "void" ? "Invoice void" : o.paid ? "Paid" : `Awaiting payment · ${o.invoice?.number ?? ""}`}
                   </span>
@@ -109,12 +102,11 @@ export function StoreOrders({ teamId }: { teamId: string }) {
                 <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
                   <label className="grid gap-1">
                     <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Note for {o.buyer.name} (optional)</span>
-                    <input
+                    <Input
                       value={note}
                       maxLength={300}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="e.g. Pick up at Thursday's game"
-                      className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-fg focus:border-accent focus:outline-none"
                     />
                   </label>
                   <div className="flex gap-2">

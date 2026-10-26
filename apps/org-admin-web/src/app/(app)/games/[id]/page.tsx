@@ -6,7 +6,7 @@ import { formatInZone, GAME_ENDING_LABELS } from "@sportspulse/kernel";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
-export const metadata = { title: "Game — Org Admin" };
+export const metadata = { title: "Game · Org Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

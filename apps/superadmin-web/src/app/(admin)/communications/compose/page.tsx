@@ -6,7 +6,7 @@ import { orgAdminBroadcast } from "@/lib/api/server-api";
 import { ComposeClient } from "./compose-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Send an announcement — SportsPulse" };
+export const metadata = { title: "Send an announcement · Super Admin" };
 
 const TARGET_TYPES = ["org", "league", "season", "division", "team"] as const;
 type TargetType = (typeof TARGET_TYPES)[number];

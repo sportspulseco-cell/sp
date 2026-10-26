@@ -8,7 +8,7 @@ import { DiscountsShell } from "./discounts-shell";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Discounts — Org Admin" };
+export const metadata = { title: "Discounts · Org Admin" };
 
 /**
  * Discount codes and family pricing for the active org's seasons. Same

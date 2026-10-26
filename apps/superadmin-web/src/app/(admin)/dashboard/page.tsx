@@ -1,37 +1,14 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Activity,
-  ArrowRight,
-  ArrowUpRight,
-  Building2,
-  CalendarRange,
-  CircleDot,
-  ClipboardList,
-  ListChecks,
-  Trophy,
-  Users
-} from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Building2, CalendarRange, CircleDot, ClipboardList, ListChecks, Trophy, Users } from "lucide-react";
 import Link from "next/link";
-import {
-  gameOps,
-  iam,
-  leagueMgmt,
-  orgs,
-  registration,
-  roster
-} from "@/lib/api/server-api";
+import { gameOps, iam, leagueMgmt, orgs, registration, roster } from "@/lib/api/server-api";
 import { Badge, IconTile, PageHeader, Reveal, statusTone, type Tint } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
-import {
-  EkgLine,
-  LiveDot,
-  MarqueeRail,
-  ScanSheen
-} from "@/components/motion/kinetic";
+import { EkgLine, LiveDot, MarqueeRail, ScanSheen } from "@/components/motion/kinetic";
 import { GameClock, ProgressBar, BarChart } from "./live-widgets";
 import { SeasonFlow } from "@/components/dashboard/season-flow";
 
-export const metadata = { title: "Dashboard — SportsPulse Super Admin" };
+export const metadata = { title: "Dashboard · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -92,7 +69,7 @@ export default async function DashboardPage() {
         eyebrow="platform"
         eyebrowDot
         title="Your leagues at a glance."
-        description="Live numbers across your organisations: registrations, rosters, games, and the queues waiting for you."
+        description="Live numbers across your organizations: registrations, rosters, games, and the queues waiting for you."
         action={
           <Link
             href="/registrations"
@@ -274,9 +251,7 @@ export default async function DashboardPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Badge tone={statusTone(o.status)} mono>
-                          {o.status}
-                        </Badge>
+                        <Badge status={o.status} />
                         <ArrowUpRight
                           className="h-3.5 w-3.5 text-fg-subtle opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
                           strokeWidth={1.75}

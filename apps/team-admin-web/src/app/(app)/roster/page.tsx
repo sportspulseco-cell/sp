@@ -1,23 +1,12 @@
-﻿import { fetchAll } from "@sportspulse/api-client";
+﻿import { fetchAll, load } from "@sportspulse/api-client";
 import { Users } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  SeasonSwitch,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, SeasonSwitch, TBody, TD, TH, THead, TR, Table, LoadError, LocalDate } from "@sportspulse/ui";
 import type { TeamMembership } from "@sportspulse/api-client";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import { iam, leagueMgmt, loadMeScope, roster } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Roster - Team Admin" };
+export const metadata = { title: "Roster · Team Admin" };
 
 function ageFromDob(dob: string | null | undefined): number | null {
   if (!dob) return null;
@@ -54,9 +43,10 @@ export default async function TeamAdminRosterPage({
   ]);
   // Every page of memberships: the team has dozens across seasons and the
   // first page alone missed newly added players (J8).
-  const allPage = await fetchAll((cursor) =>
-    roster.listMemberships({ teamId, activeOnly: true, limit: 100, cursor })
-  ).catch(() => ({ items: [] as TeamMembership[], nextCursor: null }));
+  const allResult = await load(
+    fetchAll((cursor) => roster.listMemberships({ teamId, activeOnly: true, limit: 100, cursor }))
+  );
+  const allPage = allResult.ok ? allResult.data : { items: [] as TeamMembership[], nextCursor: null };
   // One season's roster (CAP-19): the current season unless another is picked.
   // Same season rule as the captain roster (team's live seasons).
   const seasonRows: Array<{
@@ -120,7 +110,9 @@ export default async function TeamAdminRosterPage({
         description={`${page.items.length} active ${page.items.length === 1 ? "player" : "players"}${selectedSeason ? ` in ${selectedSeason.name}` : ""}.`}
       />
       <SeasonSwitch seasons={seasonOptions} selectedId={selectedSeason?.id ?? null} />
-      {page.items.length === 0 ? (
+      {!allResult.ok ? (
+        <LoadError what="the roster" status={allResult.status} message={allResult.message} />
+      ) : page.items.length === 0 ? (
         <EmptyState icon={Users} title="Empty roster" description="Add players from the captain console or super-admin." />
       ) : (
         <Table>
@@ -149,7 +141,7 @@ export default async function TeamAdminRosterPage({
                   <TD className="text-right font-mono tabular-nums">{m.jerseyNumber ?? "-"}</TD>
                   <TD className="text-fg-muted">{m.positionCode ?? "-"}</TD>
                   <TD><Badge mono tone="neutral">{m.membershipType}</Badge></TD>
-                  <TD className="text-[12px] text-fg-muted">{new Date(m.effectiveFrom).toLocaleDateString("en-CA")}</TD>
+                  <TD className="text-[12px] text-fg-muted"><LocalDate iso={m.effectiveFrom} format="date" /></TD>
                 </TR>
               );
             })}

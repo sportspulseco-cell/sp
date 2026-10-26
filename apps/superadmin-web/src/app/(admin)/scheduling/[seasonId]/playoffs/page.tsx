@@ -6,7 +6,7 @@ import { ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { PlayoffBrackets } from "@/components/scheduling/playoff-brackets";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Playoffs — SportsPulse" };
+export const metadata = { title: "Playoffs · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

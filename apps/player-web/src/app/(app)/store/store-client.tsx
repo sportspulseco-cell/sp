@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
-import { Badge, Button, Dialog, DialogActions, Eyebrow } from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, EmptyState, Eyebrow, LocalDate, Alert, Input, Select } from "@sportspulse/ui";
 import type { StoreOrder } from "@sportspulse/api-client";
 import {
   formatMoney,
@@ -35,13 +35,6 @@ interface CartLine {
   personalName: string | null;
   personalNumber: number | null;
 }
-
-const STATUS_TONE: Record<StoreOrder["status"], "neutral" | "warning" | "success" | "info"> = {
-  placed: "warning",
-  processing: "info",
-  shipped: "success",
-  cancelled: "neutral"
-};
 
 const newKey = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
@@ -133,9 +126,9 @@ export function StoreClient({
         </div>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       {cart.length > 0 ? (
@@ -212,28 +205,32 @@ export function StoreClient({
         <section className="space-y-3">
           <Eyebrow>Your orders</Eyebrow>
           {orders.length === 0 ? (
-            <p className="text-sm text-fg-muted">No orders yet.</p>
+            <EmptyState
+              icon={ShoppingBag}
+              title="No orders yet"
+              description="Items you order from the team store show here."
+            />
           ) : (
             <ul className="space-y-3">
               {orders.map((o) => (
                 <li key={o.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-surface-1 p-4">
                   <div>
                     <p className="text-sm font-medium text-fg">
-                      {new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} ·{" "}
+                      <LocalDate iso={o.createdAt} format="date" /> ·{" "}
                       {formatMoney(o.totalCents, o.currency)}
                     </p>
                     <ul className="mt-1 space-y-0.5 text-[13px] text-fg">
                       {o.items.map((i) => (
                         <li key={i.id}>
                           {i.label}
-                          {i.backorder ? <span className="ml-2 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">backorder</span> : null}
+                          {i.backorder ? <Badge mono tone="warning" className="ml-2">Backorder</Badge> : null}
                         </li>
                       ))}
                     </ul>
                     {o.note ? <p className="mt-1 text-[12px] text-fg-muted">From your captain: {o.note}</p> : null}
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
-                    <Badge mono tone={STATUS_TONE[o.status]}>{o.statusLabel}</Badge>
+                    <Badge status={o.status} domain="store_order">{o.statusLabel}</Badge>
                     {o.status === "cancelled" ? null : o.paid ? (
                       <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Paid</span>
                     ) : (
@@ -306,40 +303,39 @@ function PickDialog({
     onAdd(line);
   }
 
-  const field = "w-full rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-fg focus:border-accent focus:outline-none";
   return (
     <Dialog open onClose={onClose} title={product.name} description={`${formatMoney(product.priceCents, product.currency)} each`}>
       <div className="space-y-3">
         {o.sizes.length > 0 ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Size</span>
-            <select aria-label="Size" value={size} onChange={(e) => setSize(e.target.value)} className={field}>
+            <Select aria-label="Size" value={size} onChange={(e) => setSize(e.target.value)}>
               <option value="">Pick a size</option>
               {o.sizes.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
         <label className="grid gap-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Quantity</span>
-          <select aria-label="Quantity" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className={field}>
+          <Select aria-label="Quantity" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))}>
             {Array.from({ length: STORE_LINE_MAX_QTY }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
-          </select>
+          </Select>
         </label>
         {o.personalization.name ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Name on the back</span>
-            <input aria-label="Name on the back" value={name} maxLength={STORE_NAME_MAX} onChange={(e) => setName(e.target.value)} className={field} />
+            <Input aria-label="Name on the back" value={name} maxLength={STORE_NAME_MAX} onChange={(e) => setName(e.target.value)} />
             <span className="text-[11px] text-fg-muted">From your roster entry. Leave blank for none.</span>
           </label>
         ) : null}
         {o.personalization.number ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Number on the back</span>
-            <input aria-label="Number on the back" inputMode="numeric" value={num} onChange={(e) => setNum(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))} className={field} />
+            <Input aria-label="Number on the back" inputMode="numeric" value={num} onChange={(e) => setNum(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))} />
             <span className="text-[11px] text-fg-muted">{jerseyNumber != null ? "Your roster number." : "0 to 99. Leave blank for none."}</span>
           </label>
         ) : null}
@@ -349,7 +345,7 @@ function PickDialog({
           </p>
         ) : null}
         {error ? (
-          <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">{error}</p>
+          <Alert tone="error">{error}</Alert>
         ) : null}
         <DialogActions>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

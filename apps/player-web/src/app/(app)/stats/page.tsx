@@ -1,4 +1,4 @@
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatInZone } from "@sportspulse/kernel";
 import { ChartBar } from "lucide-react";
 import {
   Badge,
@@ -12,21 +12,17 @@ import {
   TH,
   THead,
   TR,
-  Table
+  Table,
+  LoadError,
+  LocalDate
 } from "@sportspulse/ui";
-import type { Game, StatLine } from "@sportspulse/api-client";
+import { load, type Game, type StatLine } from "@sportspulse/api-client";
 import { gameOps, loadMeScope, stats } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Stats — SportsPulse" };
+export const metadata = { title: "Stats · Player" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
-}
 
 function num(s: StatLine, key: string): number {
   const v = s.core?.[key];
@@ -63,10 +59,10 @@ export default async function StatsPage({
 
   // Pull every stat line for this player, derive the distinct
   // seasonIds for the selector, then narrow if a filter is applied.
-  const [allLinesPage, gamesPage] = await Promise.all([
-    stats
-      .listLines({ personId, limit: 200 })
-      .catch(() => ({ items: [], nextCursor: null })),
+  // A failed stats load is shown as an error, never as "No stats yet".
+  // Games only label rows and pick the leaders' division.
+  const [linesResult, gamesPage] = await Promise.all([
+    load(stats.listLines({ personId, limit: 200 })),
     myTeamId
       ? gameOps
           .listGames({ teamId: myTeamId, limit: 100 })
@@ -74,7 +70,7 @@ export default async function StatsPage({
       : Promise.resolve({ items: [], nextCursor: null })
   ]);
 
-  const allLines: StatLine[] = allLinesPage.items;
+  const allLines: StatLine[] = linesResult.ok ? linesResult.data.items : [];
   const seasonIds = Array.from(
     new Set(
       allLines
@@ -134,7 +130,7 @@ export default async function StatsPage({
       <PageHeader
         eyebrow="Stats"
         title="Stats"
-        description="Season totals and game-by-game log. Switch seasons via the selector below — totals + log re-aggregate on the fly."
+        description="Season totals and a game-by-game log. Switch seasons below to see that season."
       />
 
       {seasonIds.length > 1 ? (
@@ -172,7 +168,9 @@ export default async function StatsPage({
         </div>
       ) : null}
 
-      {lines.length === 0 ? (
+      {!linesResult.ok ? (
+        <LoadError what="your stats" status={linesResult.status} message={linesResult.message} />
+      ) : lines.length === 0 ? (
         <EmptyState
           icon={ChartBar}
           title="No stats yet"
@@ -294,8 +292,8 @@ export default async function StatsPage({
                     <TR key={s.id}>
                       <TD className="text-[12px] text-fg-muted">
                         {g
-                          ? formatInZone(g.scheduledStartTsUtc, g.tz, { month: "short", day: "numeric" })
-                          : fmtDate(s.derivedAt)}
+                          ? formatInZone(g.scheduledStartTsUtc, g.tz, DATE_FORMATS.monthDay)
+                          : <LocalDate iso={s.derivedAt} format="monthDay" />}
                       </TD>
                       <TD className="text-[12px] text-fg">
                         {g

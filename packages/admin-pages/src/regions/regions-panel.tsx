@@ -23,7 +23,7 @@ export interface RegionsApi {
 }
 
 /**
- * Manage an organisation's regions (the tier between a season and its
+ * Manage an organization's regions (the tier between a season and its
  * divisions: Season -> Region -> Division). Add, rename, archive and
  * restore. The API refuses to archive a region a live division still
  * uses; the row says so before the click instead of failing after it.
@@ -191,7 +191,7 @@ export function RegionsPanel({ api, initial }: { api: RegionsApi; initial: Regio
           <ul className="space-y-1">
             {archived.map((r) => (
               <li key={r.id} className="flex items-center gap-2 text-[12px] text-fg-muted">
-                <Badge tone="neutral">archived</Badge>
+                <Badge status="archived" />
                 {r.name}
                 <Button
                   type="button"

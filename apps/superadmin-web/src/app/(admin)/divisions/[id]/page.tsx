@@ -9,7 +9,7 @@ import { DivisionPendingApplications } from "@/components/divisions/division-pen
 import { DivisionRegionControl } from "@/components/divisions/division-region-control";
 import { PlaceTeam } from "@/components/divisions/place-team";
 
-export const metadata = { title: "Division — SportsPulse" };
+export const metadata = { title: "Division · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

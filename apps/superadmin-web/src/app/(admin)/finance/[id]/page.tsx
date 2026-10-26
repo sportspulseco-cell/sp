@@ -6,7 +6,7 @@ import { LoadError } from "@sportspulse/ui";
 import { finance } from "@/lib/api/server-api";
 import { InvoiceDetailClient } from "@/components/finance/invoice-detail-client";
 
-export const metadata = { title: "Invoice — SportsPulse" };
+export const metadata = { title: "Invoice · Super Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({

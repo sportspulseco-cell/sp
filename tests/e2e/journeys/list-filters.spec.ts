@@ -13,14 +13,14 @@ test.skip(!IS_STAGING, "staging only");
 type Check = { path: string; noun: string; filter: string };
 
 const SUPER: Check[] = [
-  { path: "/teams", noun: "teams", filter: "Organisation" },
+  { path: "/teams", noun: "teams", filter: "Organization" },
   { path: "/divisions", noun: "divisions", filter: "Season" },
   { path: "/seasons", noun: "seasons", filter: "League" },
-  { path: "/leagues", noun: "leagues", filter: "Organisation" },
+  { path: "/leagues", noun: "leagues", filter: "Organization" },
   { path: "/organizations", noun: "organizations", filter: "Status" },
   { path: "/games", noun: "games", filter: "Season" },
   { path: "/users", noun: "users", filter: "Type" },
-  { path: "/forms", noun: "forms", filter: "Organisation" }
+  { path: "/forms", noun: "forms", filter: "Organization" }
 ];
 
 const ORG: Check[] = [

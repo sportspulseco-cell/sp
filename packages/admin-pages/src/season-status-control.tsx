@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
-import { Alert, Badge, statusTone } from "@sportspulse/ui";
+import { Alert, Badge } from "@sportspulse/ui";
 import { nextSeasonStatuses } from "@sportspulse/kernel";
 
 const STATUSES: Array<{
@@ -90,9 +90,7 @@ export function SeasonStatusControl({
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-1.5 rounded-md border border-border bg-bg px-2.5 py-1 text-[12px] text-fg hover:border-fg-muted"
       >
-        <Badge tone={statusTone(shown)} mono>
-          {shown.replace(/_/g, " ")}
-        </Badge>
+        <Badge status={shown} />
         <ChevronDown className="h-3.5 w-3.5 text-fg-muted" strokeWidth={1.75} />
       </button>
       {open && (

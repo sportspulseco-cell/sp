@@ -476,7 +476,7 @@ export const complianceDocumentSubmissions = pgTable(
     personId: uuid("person_id")
       .notNull()
       .references(() => persons.id, { onDelete: "cascade" }),
-    /** The organisation whose admins review it (from the registration or team). */
+    /** The organization whose admins review it (from the registration or team). */
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),

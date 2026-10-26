@@ -1,5 +1,6 @@
-import { formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
+import { CalendarRange } from "lucide-react";
 import type {
   Division,
   Game,
@@ -11,7 +12,7 @@ import type {
   TeamMembership
 } from "@sportspulse/api-client";
 import { fetchAll } from "@sportspulse/api-client";
-import { Badge, statusTone } from "@sportspulse/ui";
+import { Badge, EmptyState } from "@sportspulse/ui";
 
 /**
  * "Where each season stands": the operator's home in both admin apps.
@@ -104,10 +105,13 @@ const ACTIVE_STATUSES = new Set(["draft", "registration_open", "in_progress", "p
 const STATUS_ORDER: Record<string, number> = { registration_open: 0, in_progress: 1, playoffs: 2, draft: 3 };
 const EMPTY = { items: [], nextCursor: null };
 
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+/**
+ * "Nov 22" for season, playoff and deadline dates in these one-line notes.
+ * The season carries no rink zone here, so deadlines read as their UTC
+ * day, the same on the server and in every browser.
+ */
+function fmtDate(value: string | null | undefined): string {
+  return formatCalendarDate(value, DATE_FORMATS.monthDay) || "—";
 }
 
 function plural(n: number, one: string, many = `${one}s`): string {
@@ -136,7 +140,7 @@ async function readSeason(
     safe("team applications", api.adminTransfers.listDivisionEntries({ status: "applied,pending_approval,accepted,confirmed" }), { items: [] }),
     safe("rosters", fetchAll((cursor) => api.roster.listMemberships({ seasonId: season.id, activeOnly: true, limit: 100, cursor })), EMPTY as Page<TeamMembership>),
     safe("games", fetchAll((cursor) => api.gameOps.listGames({ leagueId: season.leagueId, limit: 100, cursor })), EMPTY as Page<Game>),
-    // The season's organisation only. The org console rewrites this read
+    // The season's organization only. The org console rewrites this read
     // to /org-admin/forms, which requires orgId.
     safe("forms", fetchAll((cursor) => api.registration.listForms({ orgId: season.orgId, limit: 100, cursor })), EMPTY as Page<RegistrationForm>)
   ]);
@@ -210,7 +214,7 @@ async function readSeason(
       label: "Schedule",
       done: seasonGames.length > 0,
       note: seasonGames.length
-        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${formatInZone(nextGame.scheduledStartTsUtc, nextGame.tz, { month: "short", day: "numeric" })}` : ""}`
+        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${formatInZone(nextGame.scheduledStartTsUtc, nextGame.tz, DATE_FORMATS.monthDay)}` : ""}`
         : "No games yet",
       action: { label: "Generate the schedule", href: links.generate(season.id) }
     },
@@ -308,16 +312,20 @@ export async function SeasonFlow({
       </div>
 
       {reads.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-surface-1 p-8 text-center">
-          <p className="text-sm font-semibold text-fg">No live season yet</p>
-          <p className="mt-1 text-sm text-fg-muted">Org setup creates the league, season and divisions in four steps.</p>
-          <Link
-            href={links.orgSetup}
-            className="mt-4 inline-flex rounded-md bg-fg px-3 py-1.5 text-[13px] font-medium text-bg"
-          >
-            Start a season
-          </Link>
-        </div>
+        <EmptyState
+          icon={CalendarRange}
+          eyebrow="seasons"
+          title="No live season yet"
+          description="Org setup creates the league, season and divisions in four steps."
+          action={
+            <Link
+              href={links.orgSetup}
+              className="inline-flex rounded-md bg-fg px-3 py-1.5 text-[13px] font-medium text-bg"
+            >
+              Start a season
+            </Link>
+          }
+        />
       ) : (
         <div className="grid gap-4">
           {reads.map((r) => (
@@ -341,9 +349,7 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
             <Link href={links.season(season.id)} className="text-[16px] font-semibold text-fg hover:underline">
               {season.name}
             </Link>
-            <Badge tone={statusTone(season.status)} mono>
-              {season.status.replace(/_/g, " ")}
-            </Badge>
+            <Badge status={season.status} />
           </div>
           <p className="mt-0.5 text-[12px] text-fg-muted">{read.leagueName}</p>
         </div>

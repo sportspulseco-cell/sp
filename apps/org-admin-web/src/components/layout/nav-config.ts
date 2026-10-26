@@ -1,4 +1,4 @@
-// Navigation for the organisation console. The sidebar, the breadcrumb
+// Navigation for the organization console. The sidebar, the breadcrumb
 // trail and the shared shell (@sportspulse/ui AppShell) all read it.
 import {
   Building,
@@ -22,7 +22,7 @@ import type { ShellNavSection } from "@sportspulse/ui";
 export const HOME = { href: "/", label: "Home" } as const;
 
 // Same groups as the admin console (doc/ux/competitor-ia.md, section F),
-// filtered to what an organisation admin does.
+// filtered to what an organization admin does.
 export const NAV: ShellNavSection[] = [
   { items: [{ href: "/", label: "Home", icon: LayoutDashboard }] },
   {
@@ -54,7 +54,7 @@ export const NAV: ShellNavSection[] = [
   },
   { label: "Messages", items: [{ href: "/communications", label: "Messages", icon: Mail }] },
   { label: "Reports", items: [{ href: "/audit", label: "Activity log", icon: FileBarChart }] },
-  { label: "Settings", items: [{ href: "/organization", label: "Organisation", icon: Building }] }
+  { label: "Settings", items: [{ href: "/organization", label: "Organization", icon: Building }] }
 ];
 
 /** Every page of the console, so breadcrumbs only link to real pages. */

@@ -1,21 +1,11 @@
 "use client";
 
+import { Alert, Badge, LocalDate, Select, Input, Button, Dialog, DialogActions, Eyebrow } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate, centsToAmountInput } from "@sportspulse/kernel";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  Ban,
-  CalendarClock,
-  Check,
-  Coins,
-  Loader2,
-  RotateCcw,
-  Send,
-  ShieldOff,
-  Wallet
-} from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, Check, Coins, Loader2, RotateCcw, Send, ShieldOff, Wallet } from "lucide-react";
 import { formatMoney } from "@/components/finance/money";
-import { Badge, Button, Dialog, DialogActions, Eyebrow } from "@sportspulse/ui";
 import { RefundDialog } from "@/components/finance/refund-dialog";
 import { finance } from "@/lib/api/browser-api";
 import type { Invoice, Payment } from "@/lib/api/types";
@@ -168,14 +158,14 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
   return (
     <div className="space-y-6">
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {/* Header */}
@@ -196,12 +186,10 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
         <div className="flex items-center gap-2">
           {isOverdue ? (
             <Badge tone="danger" mono>
-              Overdue — {daysPastDue} day{daysPastDue === 1 ? "" : "s"}
+              Overdue {daysPastDue} day{daysPastDue === 1 ? "" : "s"}
             </Badge>
           ) : (
-            <Badge tone={statusTone(invoice.status)} mono>
-              {invoice.status}
-            </Badge>
+            <Badge status={invoice.status} />
           )}
         </div>
       </header>
@@ -243,7 +231,7 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
               if (typeof last !== "string") return null;
               return (
                 <p>
-                  Last reminder sent {new Date(last).toLocaleDateString("en-CA")}.
+                  Last reminder sent <LocalDate iso={last} format="date" />.
                 </p>
               );
             })()}
@@ -737,11 +725,10 @@ function ExtendDueDialog({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             New due date
           </span>
-          <input
+          <Input
             type="date"
             value={newDueAt}
             onChange={(e) => setNewDueAt(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           />
         </label>
         <label className="space-y-1 block">
@@ -756,9 +743,9 @@ function ExtendDueDialog({
           />
         </label>
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
       </div>
       <DialogActions>
@@ -819,9 +806,9 @@ function WaiveLateFeeDialog({
         className="w-full rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg focus:border-accent focus:outline-none"
       />
       {error && (
-        <p className="mt-2 rounded-md bg-rose-500/10 px-3 py-2 text-[13px] text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="mt-2">
           {error}
-        </p>
+        </Alert>
       )}
       <DialogActions>
         <Button variant="ghost" onClick={onClose} disabled={busy}>
@@ -881,20 +868,19 @@ function IssueWalletCreditDialog({
       open={open}
       onClose={onClose}
       title="Issue wallet credit"
-      description="Adds a credit to the recipient's wallet — applied automatically to the next invoice."
+      description="Adds a credit to the recipient's wallet, applied automatically to the next invoice."
     >
       <div className="space-y-3 text-[13px]">
         <label className="block space-y-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Amount ($)
           </span>
-          <input
+          <Input
             type="number"
             min={0}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           />
         </label>
         <label className="block space-y-1">
@@ -909,9 +895,9 @@ function IssueWalletCreditDialog({
           />
         </label>
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
       </div>
       <DialogActions>
@@ -990,7 +976,7 @@ function MarkPaidOfflineDialog({
   currency: string;
 }) {
   const router = useRouter();
-  const [amount, setAmount] = useState(((balance ?? 0) / 100).toFixed(2));
+  const [amount, setAmount] = useState(centsToAmountInput(balance ?? 0));
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1030,37 +1016,35 @@ function MarkPaidOfflineDialog({
       open={open}
       onClose={onClose}
       title="Mark as paid (offline)"
-      description="Record a manual payment — cash, check, e-transfer."
+      description="Record a manual payment: cash, check or e-transfer."
     >
       <div className="space-y-3 text-[13px]">
         <label className="block space-y-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Amount ($)
           </span>
-          <input
+          <Input
             type="number"
             min={0}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           />
         </label>
         <label className="block space-y-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Method
           </span>
-          <select
+          <Select
             value={method}
             onChange={(e) => setMethod(e.target.value)}
-            className="h-10 w-full rounded-md border border-border bg-bg px-3 text-fg focus:border-accent focus:outline-none"
           >
             <option value="cash">Cash</option>
             <option value="check">Check</option>
             <option value="etransfer">E-transfer</option>
             <option value="bank_transfer">Bank transfer</option>
             <option value="manual">Other / manual</option>
-          </select>
+          </Select>
         </label>
         <label className="block space-y-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
@@ -1074,9 +1058,9 @@ function MarkPaidOfflineDialog({
           />
         </label>
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
       </div>
       <DialogActions>
@@ -1091,30 +1075,7 @@ function MarkPaidOfflineDialog({
   );
 }
 
-function fmtDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(iso: string | null): string {
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
-function statusTone(
-  status: string
-): "info" | "success" | "warning" | "danger" | "neutral" {
-  switch (status) {
-    case "paid":
-      return "success";
-    case "partial":
-      return "warning";
-    case "overdue":
-      return "danger";
-    case "sent":
-      return "info";
-    case "void":
-    case "draft":
-    default:
-      return "neutral";
-  }
-}

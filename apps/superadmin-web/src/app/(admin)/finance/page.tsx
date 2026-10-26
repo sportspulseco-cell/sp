@@ -6,7 +6,7 @@ import { finance, orgs } from "@/lib/api/server-api";
 import { ArDashboardClient } from "@/components/finance/ar-dashboard-client";
 import { FinanceReports } from "@/components/finance/finance-reports";
 
-export const metadata = { title: "Invoices & AR — SportsPulse" };
+export const metadata = { title: "Invoices & AR · Super Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function FinancePage({

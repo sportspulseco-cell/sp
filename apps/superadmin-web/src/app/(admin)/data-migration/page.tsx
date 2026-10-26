@@ -1,19 +1,5 @@
 import { load } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  Eyebrow,
-  IconTile,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  type Tint
-} from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate, Eyebrow, EmptyState, IconTile, type Tint, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { Database, Upload, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { dataMigration, orgs } from "@/lib/api/server-api";
@@ -21,7 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { ImportRunner } from "@/components/data-migration/import-runner";
 import type { ImportStatus } from "@/lib/api/types";
 
-export const metadata = { title: "Data Migration — SportsPulse" };
+export const metadata = { title: "Data Migration · Super Admin" };
 
 function tintForStatus(s: ImportStatus): Tint {
   switch (s) {
@@ -40,21 +26,8 @@ function tintForStatus(s: ImportStatus): Tint {
   }
 }
 
-function statusTone(s: ImportStatus) {
-  if (s === "succeeded") return "success" as const;
-  if (s === "running" || s === "partial") return "warning" as const;
-  if (s === "failed") return "danger" as const;
-  return "neutral" as const;
-}
-
 function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function DataMigrationPage() {
@@ -115,7 +88,7 @@ export default async function DataMigrationPage() {
             </p>
             <p className="mt-0.5 text-[13px] text-fg-muted">
               Synchronous for ≤1k rows. The first line of the CSV is treated
-              as the header — column names map directly to entity fields.
+              as the header. Column names map directly to entity fields.
               Supported kinds: {supported.kinds.join(", ") || "(none)"}.
             </p>
           </div>
@@ -209,9 +182,7 @@ export default async function DataMigrationPage() {
                     {j.failedRows}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(j.status)} mono>
-                      {j.status}
-                    </Badge>
+                    <Badge status={j.status} />
                   </TD>
                   <TD className="font-mono text-[11px] text-fg-muted">
                     {fmt(j.startedAt)}

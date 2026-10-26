@@ -2,21 +2,14 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { Badge, Eyebrow, LoadError, PageHeader } from "@sportspulse/ui";
+import { Badge, Eyebrow, LoadError, PageHeader, LocalDate } from "@sportspulse/ui";
 import { compliance, orgs } from "@/lib/api/server-api";
 import { PublishDocumentVersionForm } from "@/components/documents/publish-document-version-form";
 
-export const metadata = { title: "Document — SportsPulse" };
+export const metadata = { title: "Document · Super Admin" };
 
 function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return <LocalDate iso={iso} format="dateTime" fallback="—" />;
 }
 
 export default async function DocumentDetailPage({

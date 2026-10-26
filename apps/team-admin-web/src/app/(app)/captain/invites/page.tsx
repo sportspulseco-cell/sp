@@ -1,16 +1,5 @@
 import { Mail, Star } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  Eyebrow,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, LocalDate, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import type { TeamInvite } from "@sportspulse/api-client";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
@@ -20,28 +9,11 @@ import { PastRosterInvite } from "./past-roster-invite";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Invites — SportsPulse" };
+export const metadata = { title: "Invites · Team Admin" };
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(iso: string | null) {
+  return <LocalDate iso={iso} format="date" fallback="—" />;
 }
-
-const STATUS_TONE: Record<
-  TeamInvite["status"],
-  "info" | "success" | "danger" | "warning" | "neutral"
-> = {
-  pending: "warning",
-  extended: "warning",
-  accepted: "success",
-  declined: "danger",
-  expired: "neutral",
-  revoked: "neutral"
-};
 
 /** Plain words for each invite state (FR-3.4.4: the captain sees Declined). */
 function statusLabel(inv: TeamInvite): string {
@@ -261,7 +233,7 @@ export default async function CaptainInvitesPage() {
                     )}
                   </TD>
                   <TD>
-                    <Badge tone={STATUS_TONE[inv.status] ?? "neutral"}>
+                    <Badge status={inv.status}>
                       {statusLabel(inv)}
                     </Badge>
                   </TD>

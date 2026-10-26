@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Wallet as WalletIcon } from "lucide-react";
-import { Badge, EmptyState } from "@sportspulse/ui";
+import { Badge, Button, EmptyState } from "@sportspulse/ui";
 import type { Invoice, Payment } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/server-api";
 import { fmtMoney, fmtDate } from "../lib/format";
@@ -93,9 +93,7 @@ export async function PlayerInvoiceTab({
               {invoice.notes ? ` · ${invoice.notes}` : ""}
             </p>
           </div>
-          <Badge mono tone={statusTone(invoice.status)}>
-            {invoice.status}
-          </Badge>
+          <Badge status={invoice.status} />
         </div>
 
         <table className="mt-4 w-full">
@@ -171,7 +169,7 @@ export async function PlayerInvoiceTab({
             ))}
             {successfulPayments.length === 0 && upcoming.length === 0 ? (
               <li className="text-[12px] text-fg-muted">
-                No payments recorded yet — when payments land they appear here in
+                No payments recorded yet. When payments land they appear here in
                 chronological order.
               </li>
             ) : null}
@@ -202,14 +200,16 @@ export async function PlayerInvoiceTab({
                 auto-charged to your card on file.
               </p>
             </div>
-            <button
+            <Button
               type="button"
               disabled
-              title="Stripe Checkout integration ships separately — see doc/deferred-integrations.md #1"
-              className="inline-flex h-9 items-center rounded-md bg-blue-600 px-4 font-mono text-[11px] uppercase tracking-widest text-white hover:bg-blue-700 disabled:opacity-60"
+              title="Stripe Checkout integration ships separately. See doc/deferred-integrations.md #1"
+              variant="primary"
+              size="sm"
+              className="gap-1.5"
             >
               Pay now
-            </button>
+            </Button>
           </div>
           {cardOnFile ? (
             <p className="font-mono text-[11px] text-fg-muted">
@@ -225,20 +225,24 @@ export async function PlayerInvoiceTab({
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <Button
               type="button"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
             >
               Update card
-            </button>
+            </Button>
             {wallet && wallet.balanceCents > 0 ? (
-              <button
+              <Button
                 type="button"
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
               >
                 <WalletIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
                 Use wallet ({fmtMoney(wallet.balanceCents, wallet.currency)})
-              </button>
+              </Button>
             ) : null}
           </div>
         </section>
@@ -379,14 +383,3 @@ function readUpcomingFromMetadata(invoice: Invoice): UpcomingEntry[] {
     .filter((x): x is UpcomingEntry => x !== null);
 }
 
-function statusTone(
-  status: string
-): "success" | "warning" | "danger" | "info" | "neutral" {
-  if (status === "paid") return "success";
-  // Mockup shows the "Partial" pill in soft blue rather than amber.
-  if (status === "partial") return "info";
-  if (status === "sent") return "warning";
-  if (status === "overdue") return "danger";
-  if (status === "void") return "neutral";
-  return "info";
-}

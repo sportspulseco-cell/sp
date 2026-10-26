@@ -9,37 +9,27 @@ import type {
   Season
 } from "@sportspulse/api-client";
 import {
+  DATE_FORMATS,
   SEASON_REGISTRATION_TYPE_LABELS,
+  formatCalendarDate,
+  formatInZone,
   seasonRegistrationType
 } from "@sportspulse/kernel";
 import { SectionHeader } from "./section-header";
 import { ReviewActions } from "./review-actions";
 
+import { Alert } from "@sportspulse/ui";
 // Season start/end are calendar dates (YYYY-MM-DD): format them in UTC so
 // no viewer sees the day before. Registration open/close are instants:
 // format them in the season's time zone. REG-11: a close at 23:59 Eastern
 // (04:59Z next day) was shown one day late.
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC"
-  });
+  return formatCalendarDate(iso, DATE_FORMATS.date) || "—";
 }
 
 function fmtDateShort(iso: string | null, timeZone?: string | null): string {
   if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      timeZone: timeZone || "America/New_York"
-    });
-  } catch {
-    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
+  return formatInZone(iso, timeZone || "America/New_York", DATE_FORMATS.monthDay) || "—";
 }
 
 
@@ -107,7 +97,7 @@ export function ReviewSection({
     issues.push(`${d.name} division has no pricing tier assigned. Go to Divisions to fix.`);
   }
   if (!form.activeVersionId) {
-    issues.push("No published form version yet — finish the Form builder section.");
+    issues.push("No published form version yet. Finish the Form builder section.");
   }
   if (templates.length === 0) {
     issues.push("No email templates configured. Add at least one in Email templates.");
@@ -164,7 +154,7 @@ export function ReviewSection({
               {assignedNames.length > 3 ? ` +${assignedNames.length - 3}` : ""}
             </p>
             {uncoveredDivisions.length > 0 ? (
-              <p className="font-mono text-[11px] text-amber-700 dark:text-amber-300">
+              <p className="font-mono text-[11px] text-[var(--tint-amber-fg)]">
                 ⚠ {uncoveredDivisions.length} unassigned
               </p>
             ) : (
@@ -201,7 +191,7 @@ export function ReviewSection({
         </div>
 
         {issues.length > 0 ? (
-          <div className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
+          <Alert tone="warning" className="flex items-start gap-3 p-4">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
             <div className="space-y-0.5">
               <p className="text-[13px] font-medium">
@@ -213,7 +203,7 @@ export function ReviewSection({
                 ))}
               </ul>
             </div>
-          </div>
+          </Alert>
         ) : null}
       </section>
 

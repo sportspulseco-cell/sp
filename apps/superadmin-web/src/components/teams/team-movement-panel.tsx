@@ -3,24 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import {
-  Alert,
-  Badge,
-  Button,
-  Dialog,
-  DialogActions,
-  Field,
-  Input,
-  LocalDate,
-  Select,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
+import { Alert, Badge, Button, Dialog, DialogActions, Field, Input, LocalDate, Select, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { leagueMgmt, teamMovement } from "@/lib/api/browser-api";
 import type { TeamEntry, TeamMovement, TeamMovementResult } from "@/lib/api/types";
 
@@ -30,14 +13,14 @@ const MODE_LABELS: Record<Mode, string> = {
   rollover: "Roll over to a new season",
   division_shift: "Change division (same season)",
   league_migration: "Move to another league",
-  org_move: "Move to another organisation"
+  org_move: "Move to another organization"
 };
 
 const MOVEMENT_LABELS: Record<TeamMovement["kind"], string> = {
   rollover: "Rolled over",
   division_shift: "Division changed",
   league_migration: "League changed",
-  org_move: "Organisation changed"
+  org_move: "Organization changed"
 };
 
 const LIVE = new Set(["pending_approval", "applied", "accepted", "confirmed"]);
@@ -53,7 +36,6 @@ interface NamedOpt {
   id: string;
   name: string;
 }
-
 
 /**
  * Lists a team's season instances and movement history, and runs the four
@@ -144,9 +126,7 @@ export function TeamMovementPanel({
                 <TD className="text-fg-muted">{e.leagueName}</TD>
                 <TD>{e.divisionName}</TD>
                 <TD>
-                  <Badge tone={e.entryStatus === "moved" ? "neutral" : statusTone(e.entryStatus)}>
-                    {e.entryStatus.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={e.entryStatus} />
                 </TD>
                 <TD className="text-fg-muted">
                   <LocalDate iso={e.joinedAt} />
@@ -406,7 +386,7 @@ function MoveTeamDialog({
         ) : null}
 
         {mode === "league_migration" ? (
-          <Field label="League" htmlFor="move-league" hint="Leagues of this organisation. Dues and roster rules differ per league and are flagged for review.">
+          <Field label="League" htmlFor="move-league" hint="Leagues of this organization. Dues and roster rules differ per league and are flagged for review.">
             <Select
               id="move-league"
               value={leagueId}
@@ -514,9 +494,9 @@ function MoveTeamDialog({
 
         {mode === "org_move" ? (
           <>
-            <Field label="Organisation" htmlFor="move-org" hint="Admins of the current organisation lose access to the team. Captain and coach roles stay.">
+            <Field label="Organization" htmlFor="move-org" hint="Admins of the current organization lose access to the team. Captain and coach roles stay.">
               <Select id="move-org" value={targetOrgId} onChange={(e) => setTargetOrgId(e.target.value)} required>
-                <option value="">Choose an organisation…</option>
+                <option value="">Choose an organization…</option>
                 {orgs
                   .filter((o) => o.id !== orgId)
                   .map((o) => (
@@ -528,7 +508,7 @@ function MoveTeamDialog({
             </Field>
             <label className="flex items-center gap-2 text-[13px] text-fg">
               <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
-              Move even though the team is still playing in this organisation&apos;s seasons
+              Move even though the team is still playing in this organization&apos;s seasons
             </label>
           </>
         ) : null}

@@ -122,6 +122,22 @@ export function formatInZone(
 const CALENDAR_DATE: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
 
 /**
+ * The date shapes every app uses. A table of created dates reads
+ * "Nov 22, 2026", a timestamp "Nov 22, 2026, 9:00 PM", a nearby day
+ * "Nov 22", a time "9:00 PM". Pass one to LocalDate, formatInZone or
+ * formatCalendarDate instead of writing options by hand.
+ */
+export const DATE_FORMATS = {
+  date: CALENDAR_DATE,
+  dateTime: { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" },
+  monthDay: { month: "short", day: "numeric" },
+  time: { hour: "numeric", minute: "2-digit" },
+  gameTime: GAME_TIME
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+export type DateFormat = keyof typeof DATE_FORMATS;
+
+/**
  * A calendar date ("2026-11-22", or that day at midnight UTC) as written:
  * "Nov 22, 2026" for every reader. Parsing a date-only value and printing
  * it in the browser's zone showed the day before for anyone west of UTC

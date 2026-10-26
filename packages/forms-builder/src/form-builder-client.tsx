@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Plus, Send } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Badge, Button } from "@sportspulse/ui";
 import {
   defaultWaiversConfig,
   emptyFormDefinition,
@@ -134,7 +134,7 @@ export function FormBuilderClient({
         schema: schema as unknown as Record<string, unknown>
       });
       await registration.publishFormVersion(formId, v.id);
-      setSuccess("Published — this is now the live version.");
+      setSuccess("Published. This is now the live version.");
       setEditing(false);
       router.refresh();
     } catch (err) {
@@ -172,7 +172,7 @@ export function FormBuilderClient({
     <div className="space-y-6">
       <SectionHeader
         title="Form builder"
-        subtitle="Custom questions with conditional logic — drag to reorder. Edits auto-save as a draft."
+        subtitle="Custom questions with conditional logic. Drag to reorder. Edits auto-save as a draft."
         action={
           <div className="flex items-center gap-2">
             <AutosaveBadge status={autosaveStatus} />
@@ -216,7 +216,7 @@ export function FormBuilderClient({
         </div>
         <p className="text-[12px] text-fg-muted">
           Drag questions to reorder. Use conditional logic to show questions
-          only when specific answers are given — e.g. show "Glove side?" only
+          only when specific answers are given, e.g. show "Glove side?" only
           if position = Goalie.
         </p>
 
@@ -235,11 +235,13 @@ export function FormBuilderClient({
           <FormBuilder value={schema} onChange={setSchema} initialPreview={previewRequested} />
         </div>
         {issues.length > 0 ? (
-          <ul className="space-y-1 rounded-md bg-rose-500/10 px-4 py-3 text-[12px] text-rose-700 dark:text-rose-300">
-            {issues.slice(0, 5).map((iss, i) => (
-              <li key={i}>{iss}</li>
-            ))}
-          </ul>
+          <Alert tone="error">
+            <ul className="space-y-1">
+              {issues.slice(0, 5).map((iss, i) => (
+                <li key={i}>{iss}</li>
+              ))}
+            </ul>
+          </Alert>
         ) : null}
       </section>
 
@@ -262,7 +264,7 @@ export function FormBuilderClient({
           <>
             <WaiverEditor
               title="Liability waiver"
-              subtitle="Digital signature required — registration blocked if skipped"
+              subtitle="Digital signature required. Registration is blocked if skipped."
               requiredHint="Required when enabled"
               editing={editing}
               config={waivers.liabilityWaiver}
@@ -282,7 +284,7 @@ export function FormBuilderClient({
 
         <WaiverEditor
           title="Photo / media release"
-          subtitle="Optional — player can decline without blocking"
+          subtitle="Optional. The player can decline without blocking."
           requiredHint="Always optional"
           editing={editing}
           config={waivers.photoRelease}
@@ -291,14 +293,14 @@ export function FormBuilderClient({
       </section>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {success ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           {success}
-        </p>
+        </Alert>
       ) : null}
 
       <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
@@ -343,33 +345,31 @@ function AutosaveBadge({
   if (status === "idle") return null;
   if (status === "dirty") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+      <Badge tone="warning" mono dot>
         Unsaved
-      </span>
+      </Badge>
     );
   }
   if (status === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-blue-700 dark:text-blue-300">
+      <Badge tone="info" mono>
         <Loader2 className="h-3 w-3 animate-spin" />
         Saving…
-      </span>
+      </Badge>
     );
   }
   if (status === "saved") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+      <Badge tone="success" mono>
         <Check className="h-3 w-3" strokeWidth={2.5} />
         Saved
-      </span>
+      </Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300">
-      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+    <Badge tone="danger" mono dot>
       Save failed
-    </span>
+    </Badge>
   );
 }
 
@@ -478,7 +478,7 @@ function WaiverEditor({
         <div className="mt-3">
           <label className="block">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              Document body — shown to the player
+              Document body (shown to the player)
             </span>
             <textarea
               value={config.content}

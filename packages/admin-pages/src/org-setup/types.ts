@@ -138,8 +138,8 @@ export const TIEBREAKER_LABELS: Record<TiebreakerCode, string> = {
   wins: "Wins (most wins is a tiebreaker)",
   head_to_head: "Head-to-head record (result of games between the two tied teams)",
   goal_diff: "Goal differential (goals for minus goals against across season)",
-  goals_for: "Goals for (total offensive output — more is better)",
-  goals_against: "Goals against (fewer is better — rewards defensive play)",
+  goals_for: "Goals for (total offensive output; more is better)",
+  goals_against: "Goals against (fewer is better; rewards defensive play)",
   coin_flip: "Coin flip (admin confirms manually in the system)"
 };
 

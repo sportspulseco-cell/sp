@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SchedulingParityWindows } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Parity windows — SportsPulse" };
+export const metadata = { title: "Parity windows · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

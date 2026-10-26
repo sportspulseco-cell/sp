@@ -30,7 +30,7 @@ export function CaptainConsoleBanner() {
             // captain console
           </p>
           <p className="mt-0.5 text-[14px] font-medium text-fg">
-            You&apos;re a captain — manage your team in the team admin console
+            You&apos;re a captain. Manage your team in the team admin console.
           </p>
           <p className="mt-0.5 text-[12px] text-fg-muted">
             Roster, invites, dues, compliance, and team registration all live there. Opens in a new tab.

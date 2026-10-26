@@ -1,18 +1,14 @@
 import { formatInZone } from "@sportspulse/kernel";
-import {
-  CalendarRange,
-  Clock,
-  MapPin
-} from "lucide-react";
-import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
-import type { Game } from "@sportspulse/api-client";
+import { CalendarRange, Clock, MapPin } from "lucide-react";
+import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, LoadError } from "@sportspulse/ui";
+import { load, type Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { ICalExportButton } from "./ical-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Schedule — SportsPulse" };
+export const metadata = { title: "Schedule · Player" };
 
 // In the game's own zone.
 function fmtDateTime(iso: string, tz: string): string {
@@ -56,19 +52,7 @@ function statusBadge(g: Game, myTeamId: string | null) {
       </Badge>
     );
   }
-  const tone =
-    g.status === "scheduled"
-      ? "info"
-      : g.status === "postponed"
-        ? "warning"
-        : g.status === "cancelled"
-          ? "danger"
-          : "neutral";
-  return (
-    <Badge mono tone={tone}>
-      {g.status.replace(/_/g, " ")}
-    </Badge>
-  );
+  return <Badge status={g.status} domain="game" />;
 }
 
 export default async function SchedulePage({
@@ -82,18 +66,18 @@ export default async function SchedulePage({
   const scope = await loadMeScope();
   const myTeamId = scope?.teamIds[0] ?? null;
 
-  const [gamesPage, team] = await Promise.all([
+  // A failed games load is shown as an error, never as "no games".
+  const [gamesResult, team] = await Promise.all([
     myTeamId
-      ? gameOps
-          .listGames({ teamId: myTeamId, limit: 100, publishedOnly: true })
-          .catch(() => ({ items: [], nextCursor: null }))
-      : Promise.resolve({ items: [], nextCursor: null }),
+      ? load(gameOps.listGames({ teamId: myTeamId, limit: 100, publishedOnly: true }))
+      : Promise.resolve(null),
     myTeamId
       ? leagueMgmt.getTeam(myTeamId).catch(() => null)
       : Promise.resolve(null)
   ]);
 
-  const all: Game[] = gamesPage.items;
+  const gamesFailed = gamesResult && !gamesResult.ok ? gamesResult : null;
+  const all: Game[] = gamesResult?.ok ? gamesResult.data.items : [];
   const now = Date.now();
   const upcoming = all
     .filter((g: Game) => new Date(g.scheduledStartTsUtc).getTime() >= now)
@@ -191,7 +175,9 @@ export default async function SchedulePage({
         </div>
       </div>
 
-      {list.length === 0 ? (
+      {gamesFailed ? (
+        <LoadError what="your schedule" status={gamesFailed.status} message={gamesFailed.message} />
+      ) : list.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No games scheduled yet"

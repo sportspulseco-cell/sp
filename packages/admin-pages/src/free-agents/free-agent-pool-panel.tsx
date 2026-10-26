@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Send, Star, UserPlus, X } from "lucide-react";
-import { Alert, Badge, Button, EmptyState, Table, TBody, TD, TH, THead, TR } from "@sportspulse/ui";
+import { Alert, Badge, Button, EmptyState, Skeleton, Table, TBody, TD, TH, THead, TR, Select } from "@sportspulse/ui";
 import type {
   FreeAgentOffer,
   FreeAgentOfferTeam,
@@ -363,9 +363,7 @@ function AssignToTeam({
         </button>
       </div>
       {teams === null && !error ? (
-        <p className="flex items-center gap-2 text-[12px] text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading teams…
-        </p>
+        <div role="status" aria-label="Loading teams" className="space-y-2"><Skeleton className="h-9" /><Skeleton className="h-9" /></div>
       ) : teams && teams.length === 0 ? (
         <p className="text-[12px] text-fg-muted">
           No team plays {row.seasonName ?? "this season"} yet. Place a team in one of its
@@ -375,11 +373,11 @@ function AssignToTeam({
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[11px] font-medium text-fg">
             Team
-            <select
+            <Select
               aria-label="Team"
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
-              className="h-9 min-w-[16rem] rounded-md border border-border bg-surface-1 px-3 text-[13px] text-fg"
+              className="min-w-[16rem]"
             >
               <option value="" disabled>
                 Pick a team…
@@ -389,7 +387,7 @@ function AssignToTeam({
                   {t.teamName} · {t.divisionName}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <Button type="button" size="sm" onClick={send} disabled={!teamId || busy}>
             {busy ? (
@@ -424,18 +422,17 @@ function FilterSelect({
   return (
     <label className="flex flex-col gap-1 text-[11px] font-medium text-fg">
       {label}
-      <select
+      <Select
         aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 rounded-md border border-border bg-surface-1 px-3 text-[13px] text-fg"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

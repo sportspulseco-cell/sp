@@ -1,14 +1,10 @@
 "use client";
 import { fetchAll } from "@sportspulse/api-client";
-import { Button, Field, Input, LocalDate, Select } from "@sportspulse/ui";
-
+import { Button, Field, Input, LocalDate, Select, Alert } from "@sportspulse/ui";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, ShieldCheck, UserPlus, X } from "lucide-react";
-import {
-  SYSTEM_ROLE_BY_CODE,
-  type ScopeType
-} from "@sportspulse/kernel";
+import { SYSTEM_ROLE_BY_CODE, type ScopeType } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile, RoleAssignment } from "@/lib/api/types";
 
@@ -178,7 +174,7 @@ export function RoleAssignmentPanel({
         setCopied(ok);
         setFlash(
           result.created
-            ? `Invite sent to ${result.email}. Message ${ok ? "copied to clipboard" : "ready below"} — paste anywhere if email delivery is delayed.`
+            ? `Invite sent to ${result.email}. Message ${ok ? "copied to clipboard" : "ready below"}. Paste anywhere if email delivery is delayed.`
             : `${result.email} already had an account. Role assigned. Message ${ok ? "copied" : "ready below"}.`
         );
         setEmail("");
@@ -213,7 +209,7 @@ export function RoleAssignmentPanel({
       {/* Existing assignments */}
       {assignments.length === 0 ? (
         <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-4 text-center text-[13px] text-fg-muted">
-          No admins assigned to this {scopeType} yet — use the form below to
+          No admins assigned to this {scopeType} yet. Use the form below to
           add one.
         </p>
       ) : (
@@ -294,7 +290,7 @@ export function RoleAssignmentPanel({
               const def = SYSTEM_ROLE_BY_CODE[code];
               return (
                 <option key={code} value={code}>
-                  {code} {def ? `— ${def.name}` : ""}
+                  {code} {def ? `(${def.name})` : ""}
                 </option>
               );
             })}
@@ -319,7 +315,7 @@ export function RoleAssignmentPanel({
                   Only show users who already have <span className="font-mono text-[11px]">{roleCode}</span>
                 </span>
                 <span className="ml-1 text-fg-muted">
-                  — turn off to search across all users.
+                  Turn off to search across all users.
                 </span>
               </span>
             </label>
@@ -328,9 +324,9 @@ export function RoleAssignmentPanel({
               label="User"
               hint={
                 selectedUser
-                  ? "Selected — clear to pick another."
+                  ? "Selected. Clear to pick another."
                   : filterToRole
-                  ? `${roleHolders?.length ?? 0} existing ${roleCode}${(roleHolders?.length ?? 0) === 1 ? "" : "s"} below — or type to filter.`
+                  ? `${roleHolders?.length ?? 0} existing ${roleCode}${(roleHolders?.length ?? 0) === 1 ? "" : "s"} below, or type to filter.`
                   : "Type a name or email; results appear below."
               }
             >
@@ -483,14 +479,14 @@ export function RoleAssignmentPanel({
         )}
 
         {error && (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
         {flash && (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-400">
+          <Alert tone="success" role="status">
             {flash}
-          </p>
+          </Alert>
         )}
 
         {renderedMessage && (
@@ -499,16 +495,18 @@ export function RoleAssignmentPanel({
               <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                 // Invite message · {renderedMessage.recipient}
               </p>
-              <button
+              <Button
                 type="button"
                 onClick={async () => {
                   const ok = await copyInviteToClipboard(renderedMessage);
                   setCopied(ok);
                 }}
-                className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-surface-1 px-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
               >
                 {copied ? "Copied" : "Copy again"}
-              </button>
+              </Button>
             </div>
             <p className="text-[12px] font-medium text-fg">
               Subject: {renderedMessage.subject}

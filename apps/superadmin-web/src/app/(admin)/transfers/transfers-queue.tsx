@@ -1,24 +1,10 @@
 "use client";
 
+import { Alert, Badge, LocalDate, Button, Dialog, DialogActions, Field, Input, Select, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
 import { TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogActions,
-  Field,
-  Input,
-  Select,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 const STATUS_OPTIONS = (
@@ -117,14 +103,14 @@ export function TransfersQueue({
       </div>
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {items.length === 0 ? (
@@ -160,12 +146,12 @@ export function TransfersQueue({
                   {t.reason ?? "—"}
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(t.status)}>
+                  <Badge status={t.status}>
                     {TRANSFER_STATE_LABELS[t.status]}
                   </Badge>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {new Date(t.initiatedAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={t.initiatedAt} format="date" />
                 </TD>
                 <TD className="text-right">
                   {t.status === "pending_admin" ? (
@@ -256,11 +242,3 @@ function RejectDialog({
   );
 }
 
-function statusTone(
-  s: string
-): "neutral" | "success" | "warning" | "danger" | "info" {
-  if (s === "approved") return "success";
-  if (s === "rejected" || s === "cancelled") return "danger";
-  if (s === "pending_admin") return "warning";
-  return "info";
-}

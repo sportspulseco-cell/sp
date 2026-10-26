@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
-import { Button, Dialog } from "@sportspulse/ui";
+import { Button, Dialog, Alert, Input } from "@sportspulse/ui";
 import {
   GOVERNING_BODY_ID_RULES,
   validateGoverningBodyId
@@ -82,7 +82,7 @@ export function UsaHockeyIdForm() {
             >
               USA Hockey ID
             </label>
-            <input
+            <Input
               id="usa-hockey-id"
               type="text"
               inputMode="text"
@@ -91,7 +91,7 @@ export function UsaHockeyIdForm() {
               onChange={(e) => setValue(e.target.value)}
               disabled={busy}
               required
-              className="mt-1 h-10 w-full rounded-md border border-border bg-surface-1 px-3 text-[14px] text-fg focus:border-accent focus:outline-none"
+              className="mt-1"
               placeholder="e.g. ABC1234567"
             />
             <p className="mt-1.5 text-[11px] text-fg-muted">
@@ -100,15 +100,15 @@ export function UsaHockeyIdForm() {
           </div>
 
           {error ? (
-            <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           {success ? (
-            <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-[12px] text-[var(--tint-emerald-fg)]">
-              Submitted — pending admin verification.
-            </p>
+            <Alert tone="success" role="status">
+              Submitted. Your admin will verify it.
+            </Alert>
           ) : null}
 
           <div className="flex items-center justify-end gap-2 border-t border-border pt-3">

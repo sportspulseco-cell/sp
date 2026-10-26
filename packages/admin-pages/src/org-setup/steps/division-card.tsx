@@ -3,7 +3,7 @@
 import { PointsRuleFields, pointsRuleForm } from "../../divisions/points-rule-fields";
 import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from "@sportspulse/kernel";
 import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
-import { Badge } from "@sportspulse/ui";
+import { Badge, Input, Select, Button } from "@sportspulse/ui";
 import { cn } from "@sportspulse/ui";
 import {
   NEW_REGION,
@@ -19,7 +19,7 @@ import {
   type Tier,
   type TiebreakerCode
 } from "../types";
-import { Field, FieldStyle } from "./league-step";
+import { Field } from "./league-step";
 
 // Same A–D labels players pick their level from (REG-21), plus Premier.
 export const TIERS: { value: NonNullable<Tier>; label: string }[] = [
@@ -41,12 +41,12 @@ const CLOCK_TYPES: { value: ClockType; label: string }[] = [
 
 const BODY_CHECKING: { value: BodyChecking; label: string }[] = [
   { value: "permitted", label: "Permitted" },
-  { value: "not_permitted_penalty", label: "Not permitted — penalty" },
-  { value: "not_permitted_no_penalty", label: "Not permitted — no penalty" }
+  { value: "not_permitted_penalty", label: "Not permitted, penalty" },
+  { value: "not_permitted_no_penalty", label: "Not permitted, no penalty" }
 ];
 
 const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
-  { value: "none", label: "None — score is final" },
+  { value: "none", label: "None: score is final" },
   { value: "sudden_death", label: "Sudden death (first goal wins)" },
   { value: "shootout", label: "Penalty shootout (skip OT)" },
   { value: "5_min", label: "5 min overtime period" },
@@ -62,19 +62,19 @@ const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
   },
   {
     value: "best_of_3",
-    label: "Best of 3 — first to win 2 games",
+    label: "Best of 3: first to win 2 games",
     description:
       "Max 3 games per matchup. Catches a single-game fluke. Requires roughly double the ice time of single-game format. Most common in rec leagues."
   },
   {
     value: "best_of_5",
-    label: "Best of 5 — first to win 3 games",
+    label: "Best of 5: first to win 3 games",
     description:
       "Max 5 games. Produces the most meaningful result. Used in competitive A divisions and finals. Significant ice-time commitment."
   },
   {
     value: "best_of_7",
-    label: "Best of 7 — first to win 4 games",
+    label: "Best of 7: first to win 4 games",
     description:
       "Max 7 games per round. NHL-style. Rare in rec leagues but available for competitive top divisions with long seasons."
   }
@@ -156,7 +156,7 @@ export function DivisionCard({
           </button>
           <p className="text-[14px] font-semibold tracking-tight text-fg">
             Division {index + 1}
-            {division.name ? ` — ${division.name}` : ""}
+            {division.name ? `: ${division.name}` : ""}
           </p>
           <Badge mono>{division.tier ?? "—"}</Badge>
           <Badge mono tone="info">
@@ -164,14 +164,14 @@ export function DivisionCard({
           </Badge>
         </div>
         {total > 1 ? (
-          <button
+          <Button
             type="button"
             onClick={onRemove}
-            className="flex items-center gap-1.5 rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-rose-fg)] transition-colors hover:border-[var(--tint-rose-fg)]/50"
+            variant="destructive" size="sm" className="gap-1.5"
           >
             <Trash2 className="h-3 w-3" strokeWidth={2} />
             Remove
-          </button>
+          </Button>
         ) : null}
       </header>
 
@@ -187,7 +187,6 @@ export function DivisionCard({
           <PostSeasonBlock division={division} onPatch={onPatch} />
         </div>
       ) : null}
-      <FieldStyle />
     </section>
   );
 }
@@ -210,13 +209,12 @@ function IdentityBlock({
   return (
     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       <Field label="Division name" required>
-        <input
+        <Input
           type="text"
           value={division.name}
           onChange={(e) => onPatch({ name: e.target.value.slice(0, 120) })}
           maxLength={120}
           placeholder="e.g. AHL"
-          className="input"
           required
         />
       </Field>
@@ -226,30 +224,29 @@ function IdentityBlock({
         required
         hint="Self-reported skill bucket. Used to set skater player registrations and filter free agent picks searched into the same division."
       >
-        <select
+        <Select
           value={division.tier ?? ""}
           onChange={(e) => onPatch({ tier: (e.target.value || null) as Tier })}
-          className="input"
         >
           {TIERS.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       <Field
         label="Region"
         hint={
           regions.length === 0 && division.regionId !== NEW_REGION
-            ? "Optional tier between the season and its divisions (e.g. Massachusetts, New Hampshire). This organisation has none yet; add one here."
+            ? "Optional tier between the season and its divisions (e.g. Massachusetts, New Hampshire). This organization has none yet; add one here."
             : regionLabel
               ? `Teams in this division play in ${regionLabel}.`
               : "Optional tier between the season and its divisions."
         }
       >
-        <select
+        <Select
           value={division.regionId ?? ""}
           onChange={(e) =>
             onPatch({
@@ -257,7 +254,6 @@ function IdentityBlock({
               regionName: e.target.value === NEW_REGION ? division.regionName : ""
             })
           }
-          className="input"
         >
           <option value="">No region</option>
           {regions.map((r) => (
@@ -266,16 +262,16 @@ function IdentityBlock({
             </option>
           ))}
           <option value={NEW_REGION}>+ New region…</option>
-        </select>
+        </Select>
         {division.regionId === NEW_REGION ? (
-          <input
+          <Input
             type="text"
             value={division.regionName}
             onChange={(e) => onPatch({ regionName: e.target.value.slice(0, 120) })}
             maxLength={120}
             placeholder="Region name, e.g. New Hampshire"
             aria-label="New region name"
-            className="input mt-2"
+            className="mt-2"
             required
           />
         ) : null}
@@ -286,26 +282,25 @@ function IdentityBlock({
         required
         hint="Who is eligible to register. Validated at registration and roster add."
       >
-        <select
+        <Select
           value={division.genderEligibility}
           onChange={(e) =>
             onPatch({ genderEligibility: e.target.value as Gender })
           }
-          className="input"
         >
           {GENDERS.map((g) => (
             <option key={g.value} value={g.value}>
               {g.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       <Field
         label="Min age"
         hint="Youngest player allowed (years). Leave blank for no minimum."
       >
-        <input
+        <Input
           type="number"
           min={0}
           max={120}
@@ -317,7 +312,6 @@ function IdentityBlock({
             })
           }
           placeholder="e.g. 18"
-          className="input"
         />
       </Field>
 
@@ -325,7 +319,7 @@ function IdentityBlock({
         label="Max age"
         hint="Oldest player allowed (years). Leave blank for no maximum."
       >
-        <input
+        <Input
           type="number"
           min={0}
           max={120}
@@ -337,22 +331,20 @@ function IdentityBlock({
             })
           }
           placeholder="e.g. 99"
-          className="input"
         />
       </Field>
 
       <Field
         label="Age group label"
-        hint='Friendly label shown on registration pages — e.g. "18+ adult", "U15", "Open age".'
+        hint='Friendly label shown on registration pages, e.g. "18+ adult", "U15", "Open age".'
       >
-        <input
+        <Input
           type="text"
           value={division.ageGroupLabel}
           onChange={(e) =>
             onPatch({ ageGroupLabel: e.target.value.slice(0, 60) })
           }
           placeholder="e.g. 18+ adult"
-          className="input"
         />
       </Field>
 
@@ -361,7 +353,7 @@ function IdentityBlock({
         required
         hint="Hard cap on teams accepted into this division. Once reached, new team registrations are halted. Should be at least 4 to seed a tier."
       >
-        <input
+        <Input
           type="number"
           min={2}
           max={64}
@@ -369,7 +361,6 @@ function IdentityBlock({
           onChange={(e) =>
             onPatch({ maxTeams: Math.max(2, parseInt(e.target.value) || 2) })
           }
-          className="input"
           required
         />
       </Field>
@@ -378,7 +369,7 @@ function IdentityBlock({
         label="Min skaters to start"
         hint="If a team can't ice this many skaters at puck drop, the game is forfeited."
       >
-        <input
+        <Input
           type="number"
           min={1}
           max={20}
@@ -391,7 +382,6 @@ function IdentityBlock({
               }
             })
           }
-          className="input"
         />
       </Field>
     </div>
@@ -419,7 +409,7 @@ function GameRulesBlock({
           required
           hint="How many periods in a regulation game. Hockey standard is 3, lacrosse normally has quarters."
         >
-          <input
+          <Input
             type="number"
             min={1}
             max={6}
@@ -432,7 +422,6 @@ function GameRulesBlock({
                 }
               })
             }
-            className="input"
           />
         </Field>
 
@@ -441,7 +430,7 @@ function GameRulesBlock({
           required
           hint="Length of each period in minutes. Affects total game duration and time-on-ice tracking. Standard hockey is 20 minutes."
         >
-          <input
+          <Input
             type="number"
             min={1}
             max={60}
@@ -454,7 +443,6 @@ function GameRulesBlock({
                 }
               })
             }
-            className="input"
           />
         </Field>
 
@@ -463,21 +451,20 @@ function GameRulesBlock({
           required
           hint="Stopped time pauses the clock on whistles. Official + league standard. Running time never stops, faster but used in casual leagues to keep things tight."
         >
-          <select
+          <Select
             value={r.clockType}
             onChange={(e) =>
               onPatch({
                 gameRules: { ...r, clockType: e.target.value as ClockType }
               })
             }
-            className="input"
           >
             {CLOCK_TYPES.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
 
         <Field
@@ -485,21 +472,20 @@ function GameRulesBlock({
           required
           hint="What happens if the game is tied after regulation. Sudden death = first goal wins. Shootout skips OT and goes straight to penalty shots."
         >
-          <select
+          <Select
             value={r.overtimeRule}
             onChange={(e) =>
               onPatch({
                 gameRules: { ...r, overtimeRule: e.target.value as OvertimeRule }
               })
             }
-            className="input"
           >
             {OVERTIME_RULES.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
 
         <Field
@@ -507,28 +493,27 @@ function GameRulesBlock({
           required
           hint="Default penalty handling for body contact. Drives referee guidance and roster eligibility."
         >
-          <select
+          <Select
             value={r.bodyChecking}
             onChange={(e) =>
               onPatch({
                 gameRules: { ...r, bodyChecking: e.target.value as BodyChecking }
               })
             }
-            className="input"
           >
             {BODY_CHECKING.map((b) => (
               <option key={b.value} value={b.value}>
                 {b.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
 
         <Field
           label="Max guest players per game"
           hint="Subs / backups borrowed from another team for a single game. Capped per game so teams can't stack with ringers."
         >
-          <input
+          <Input
             type="number"
             min={0}
             max={50}
@@ -544,7 +529,6 @@ function GameRulesBlock({
                 }
               })
             }
-            className="input"
           />
         </Field>
 
@@ -552,7 +536,7 @@ function GameRulesBlock({
           label="Max roster size"
           hint="Cap on permanent roster size for the season. Hockey leagues typically allow 18–25; lacrosse can go higher."
         >
-          <input
+          <Input
             type="number"
             min={1}
             max={60}
@@ -565,7 +549,6 @@ function GameRulesBlock({
                 }
               })
             }
-            className="input"
           />
         </Field>
       </div>
@@ -696,7 +679,7 @@ function PostSeasonBlock({
               required
               hint="How many teams qualify from the regular-season standings. Top 4 = only top 4 teams make playoffs. Top 8 = top 8 teams advance."
             >
-              <input
+              <Input
                 type="number"
                 min={2}
                 max={32}
@@ -709,7 +692,6 @@ function PostSeasonBlock({
                     }
                   })
                 }
-                className="input"
               />
             </Field>
 
@@ -718,13 +700,12 @@ function PostSeasonBlock({
               required
               hint="When the first playoff game can be played. Must be after the regular-season finale."
             >
-              <input
+              <Input
                 type="date"
                 value={p.startDate}
                 onChange={(e) =>
                   onPatch({ playoffConfig: { ...p, startDate: e.target.value } })
                 }
-                className="input"
               />
             </Field>
 
@@ -733,14 +714,13 @@ function PostSeasonBlock({
               required
               hint="Championship game must be played on or before this date. Must not exceed the season end date."
             >
-              <input
+              <Input
                 type="date"
                 value={p.endDate}
                 onChange={(e) =>
                   onPatch({ playoffConfig: { ...p, endDate: e.target.value } })
                 }
                 min={p.startDate || undefined}
-                className="input"
               />
             </Field>
           </div>
@@ -802,7 +782,7 @@ function PostSeasonBlock({
                 BRACKETS.find((b) => b.value === p.bracketType)?.description ?? ""
               }
             >
-              <select
+              <Select
                 value={p.bracketType}
                 onChange={(e) =>
                   onPatch({
@@ -812,14 +792,13 @@ function PostSeasonBlock({
                     }
                   })
                 }
-                className="input"
               >
                 {BRACKETS.map((b) => (
                   <option key={b.value} value={b.value}>
                     {b.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
 
             <Field
@@ -828,7 +807,7 @@ function PostSeasonBlock({
                 HOME_ICE.find((h) => h.value === p.homeIceRule)?.description ?? ""
               }
             >
-              <select
+              <Select
                 value={p.homeIceRule}
                 onChange={(e) =>
                   onPatch({
@@ -838,14 +817,13 @@ function PostSeasonBlock({
                     }
                   })
                 }
-                className="input"
               >
                 {HOME_ICE.map((h) => (
                   <option key={h.value} value={h.value}>
                     {h.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
           </div>
         </>

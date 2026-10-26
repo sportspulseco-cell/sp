@@ -1,23 +1,12 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { LoadError, LocalDate, EmptyState, Badge, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { UserCircle2, Link2, Cake, Globe2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { CreatePersonButton } from "@/components/persons/create-person-button";
 
-export const metadata = { title: "Persons — SportsPulse" };
+export const metadata = { title: "Persons · Super Admin" };
 
 export default async function PersonsPage() {
   const personsResult = await load(
@@ -132,7 +121,7 @@ export default async function PersonsPage() {
                     )}
                   </TD>
                   <TD className="text-muted-foreground">
-                    {new Date(p.createdAt).toLocaleDateString("en-CA")}
+                    <LocalDate iso={p.createdAt} format="date" />
                   </TD>
                 </TR>
               );

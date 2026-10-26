@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, FileUp, Loader2 } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow, Select } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Select, useLocalDate } from "@sportspulse/ui";
 import {
   COMPLIANCE_DOCUMENT_KINDS,
   COMPLIANCE_DOCUMENT_KIND_LABELS,
@@ -30,19 +30,8 @@ function targetLabel(t: ComplianceUploadTarget): string {
   return t.forMinor ? `${t.personName} · ${parts.join(" · ")}` : parts.join(" · ");
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 function mb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1);
-}
-
-function statusTone(s: ComplianceDocumentSubmission["status"]): "success" | "warning" | "danger" | "neutral" {
-  if (s === "approved") return "success";
-  if (s === "rejected") return "danger";
-  if (s === "resubmit_requested") return "warning";
-  return "neutral";
 }
 
 /** Downscale a large photo to a JPEG that fits the limit. Returns the original when it cannot. */
@@ -95,6 +84,7 @@ export function UploadDocuments({
   targets: ComplianceUploadTarget[];
 }) {
   const router = useRouter();
+  const fmtDate = useLocalDate();
   const [rows, setRows] = useState(items);
   useEffect(() => setRows(items), [items]);
 
@@ -311,7 +301,7 @@ export function UploadDocuments({
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Eyebrow>{COMPLIANCE_DOCUMENT_KIND_LABELS[r.kind]}</Eyebrow>
-                  <Badge mono tone={statusTone(r.status)}>
+                  <Badge status={r.status} domain="compliance">
                     {COMPLIANCE_DOCUMENT_STATUS_LABELS[r.status]}
                   </Badge>
                 </div>

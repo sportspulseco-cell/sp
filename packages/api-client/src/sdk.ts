@@ -2820,9 +2820,9 @@ export function createApi(f: Fetcher) {
         ),
       /**
        * One league's public registration page: the seasons of the
-       * organisation `org` (slug or id, from the league's registration
+       * organization `org` (slug or id, from the league's registration
        * link) that are open with a published form. Anonymous; there is no
-       * list across organisations.
+       * list across organizations.
        */
       listOpen: (org: string) =>
         f<{

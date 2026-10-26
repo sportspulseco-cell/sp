@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Upload } from "lucide-react";
 import { dataMigration } from "@/lib/api/browser-api";
 import type { ImportEntityKind, Org } from "@/lib/api/types";
-import { Button, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Field, Input, Select, Alert } from "@sportspulse/ui";
 
 const SAMPLE_HEADERS: Record<ImportEntityKind, string[]> = {
   persons: [
@@ -130,7 +130,7 @@ export function ImportRunner({
           <Field
             label="Organization"
             htmlFor="ir-org"
-            hint="Required — teams attach to one org."
+            hint="Required. Teams attach to one org."
           >
             <Select
               id="ir-org"
@@ -169,20 +169,22 @@ export function ImportRunner({
             placeholder={`${SAMPLE_HEADERS[entityKind].join(",")}\nJohn,Smith,Johnny,1990-01-15,US`}
             className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 font-mono text-[12px] text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus"
           />
-          <button
+          <Button
             type="button"
             onClick={loadSample}
-            className="font-mono text-[10px] uppercase tracking-wide text-fg-muted hover:text-fg"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
           >
             Insert sample header
-          </button>
+          </Button>
         </div>
       </Field>
 
       {error ? (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
 
       {result ? (

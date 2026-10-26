@@ -15,7 +15,7 @@ import type { Standing, StatLine } from "@sportspulse/api-client";
 import { captain, leagueMgmt, loadMeScope, stats } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Stats - Team Admin" };
+export const metadata = { title: "Stats · Team Admin" };
 
 interface PlayerTotals {
   personId: string;

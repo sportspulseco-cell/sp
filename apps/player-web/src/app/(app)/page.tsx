@@ -1,40 +1,22 @@
-import { formatMoney, registrationClosesLabel } from "@sportspulse/kernel";
+import { formatMoney, registrationClosesLabel, DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
-import { formatInZone } from "@sportspulse/kernel";
-import {
-  AlertCircle,
-  ArrowRight,
-  CalendarRange,
-  Check,
-  ClipboardList,
-  Clock,
-  Compass,
-  ExternalLink,
-  MapPin,
-  Trophy,
-  Wallet,
-  type LucideIcon
-} from "lucide-react";
-import { Badge, EmptyState, Eyebrow, IconTile, PageHeader } from "@sportspulse/ui";
-import type {
-  Game,
-  Notification,
-  Registration
-} from "@sportspulse/api-client";
+import type { ReactNode } from "react";
+import { AlertCircle, ArrowRight, CalendarRange, Check, ClipboardList, Clock, Compass, ExternalLink, MapPin, Trophy, Wallet, type LucideIcon } from "lucide-react";
+import { Badge, EmptyState, Eyebrow, IconTile, PageHeader, LocalDate } from "@sportspulse/ui";
+import type { Game, Notification, Registration } from "@sportspulse/api-client";
 import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster, subs } from "@/lib/api/server-api";
 import { TeamOffersCard } from "@/components/team-offers-card";
 import { SubRequestsCard } from "@/components/sub-requests-card";
-
-type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 import { RegistrationStateBanner } from "./registration-state-banner";
 import { CaptainConsoleBanner } from "@/components/captain-console-banner";
 import { iconFor, noticeAt, tintFor, titleOf } from "./notifications/notice-format";
+
+type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /* ----------------------------- helpers ----------------------------- */
-
 
 // In the game's own zone.
 function fmtDateTime(iso: string, tz: string): string {
@@ -47,14 +29,12 @@ function fmtDateTime(iso: string, tz: string): string {
   });
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
+// Due dates are calendar days.
+function fmtDate(value: string): string {
+  return formatCalendarDate(value, DATE_FORMATS.monthDay);
 }
 
-function relativeTime(iso: string, now: Date): string {
+function relativeTime(iso: string, now: Date): ReactNode {
   const diff = now.getTime() - new Date(iso).getTime();
   const abs = Math.abs(diff);
   const minute = 60_000;
@@ -64,7 +44,7 @@ function relativeTime(iso: string, now: Date): string {
   if (abs < hour) return `${Math.floor(abs / minute)} min ago`;
   if (abs < day) return `${Math.floor(abs / hour)} h ago`;
   if (abs < 7 * day) return `${Math.floor(abs / day)} d ago`;
-  return fmtDate(iso);
+  return <LocalDate iso={iso} format="monthDay" />;
 }
 
 function countdown(iso: string, now: Date): string {
@@ -78,7 +58,7 @@ function countdown(iso: string, now: Date): string {
   if (days >= 1) return "Tomorrow";
   const hours = Math.floor(diff / hour);
   const mins = Math.floor((diff % hour) / minute);
-  return `Today — ${hours}h ${mins}m away`;
+  return `Today, ${hours}h ${mins}m away`;
 }
 
 /* ------------------------------ page ------------------------------- */
@@ -565,16 +545,6 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
         <ul className="divide-y divide-border">
           {active.slice(0, 4).map((r) => {
             const status = r.status as string;
-            const tone: "success" | "warning" | "danger" | "info" | "neutral" =
-              status === "approved"
-                ? "success"
-                : status === "rejected" ||
-                    status === "withdrawn" ||
-                    status === "cancelled"
-                  ? "danger"
-                  : status.startsWith("pending") || status === "submitted"
-                    ? "warning"
-                    : "info";
             const title =
               r.seasonName ||
               r.formName ||
@@ -596,13 +566,11 @@ function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
                   <p className="truncate text-[11px] text-fg-muted">
                     {sub ||
                       (r.submittedAt
-                        ? `Submitted ${fmtDate(r.submittedAt)}`
+                        ? <>Submitted <LocalDate iso={r.submittedAt} format="monthDay" /></>
                         : "Draft")}
                   </p>
                 </div>
-                <Badge mono tone={tone}>
-                  {status.replace(/_/g, " ")}
-                </Badge>
+                <Badge status={status} />
               </li>
             );
           })}
@@ -827,7 +795,6 @@ async function fetchOpenRegistrations(): Promise<OpenRegistration[]> {
     return [];
   }
 }
-
 
 function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
   if (items.length === 0) return null;

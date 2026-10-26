@@ -1,16 +1,11 @@
 "use client";
 
+import { Alert, Badge, Button, Eyebrow, Field, IconTile, Input, Select, type Tint } from "@sportspulse/ui";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Flag } from "lucide-react";
 import { gameOps } from "@/lib/api/browser-api";
-import type {
-  GameOfficial,
-  GameOfficialRole,
-  GameOfficialStatus,
-  Person
-} from "@/lib/api/types";
-import { Badge, Button, Eyebrow, Field, IconTile, Input, Select, type Tint } from "@sportspulse/ui";
+import type { GameOfficial, GameOfficialRole, GameOfficialStatus, Person } from "@/lib/api/types";
 
 const ROLES: GameOfficialRole[] = [
   "referee",
@@ -39,12 +34,6 @@ function tintForRole(role: GameOfficialRole): Tint {
     default:
       return "neutral";
   }
-}
-
-function statusTone(s: GameOfficialStatus) {
-  if (s === "confirmed") return "success" as const;
-  if (s === "tentative") return "warning" as const;
-  return "danger" as const;
 }
 
 export function GameOfficialsPanel({
@@ -129,9 +118,7 @@ export function GameOfficialsPanel({
                   </p>
                 ) : null}
               </div>
-              <Badge tone={statusTone(o.status)} mono>
-                {o.status}
-              </Badge>
+              <Badge status={o.status} />
               {canEdit ? <RevokeOfficialBtn id={o.id} /> : null}
             </li>
           ))}
@@ -336,17 +323,17 @@ function AssignForm({
         </Button>
       </div>
       {clash ? (
-        <div className="md:col-span-5 flex flex-wrap items-center gap-3 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+        <Alert tone="warning" className="md:col-span-5 flex flex-wrap items-center gap-3">
           <span>{clash}</span>
           <Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void submit(true)}>
             Assign anyway
           </Button>
-        </div>
+        </Alert>
       ) : null}
       {error ? (
-        <p className="md:col-span-5 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error" className="md:col-span-5">
           {error}
-        </p>
+        </Alert>
       ) : null}
     </form>
   );
@@ -356,7 +343,7 @@ function RevokeOfficialBtn({ id }: { id: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   return (
-    <button
+    <Button
       type="button"
       disabled={loading}
       onClick={async () => {
@@ -371,9 +358,11 @@ function RevokeOfficialBtn({ id }: { id: string }) {
           setLoading(false);
         }
       }}
-      className="rounded-md border border-border bg-surface-1 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-rose-500/50 hover:text-rose-600 disabled:opacity-50 dark:hover:text-rose-400"
+      variant="outline"
+      size="sm"
+      className="gap-1.5 hover:border-[var(--tint-rose-fg)]/50 hover:text-[var(--tint-rose-fg)]"
     >
       {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Revoke"}
-    </button>
+    </Button>
   );
 }

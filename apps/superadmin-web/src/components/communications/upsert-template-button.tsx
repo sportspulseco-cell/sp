@@ -6,7 +6,7 @@ import { Loader2, Pencil, Plus } from "lucide-react";
 import { NOTIFICATION_TEMPLATE_CODES } from "@sportspulse/kernel";
 import { communications, orgs as orgsApi } from "@/lib/api/browser-api";
 import type { NotificationTemplate, Org } from "@/lib/api/types";
-import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 
 const CODES = NOTIFICATION_TEMPLATE_CODES;
 
@@ -71,14 +71,16 @@ export function UpsertTemplateButton({
   return (
     <>
       {isEdit ? (
-        <button
+        <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-md border border-border bg-surface-1 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
           <Pencil className="mr-1 inline h-3 w-3" strokeWidth={1.75} />
           Edit
-        </button>
+        </Button>
       ) : (
         <Button onClick={() => setOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -161,7 +163,7 @@ export function UpsertTemplateButton({
               id="ut-subject"
               value={form.subject}
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              placeholder="Registration approved — {{leagueName}}"
+              placeholder="Registration approved: {{leagueName}}"
             />
           </Field>
           <Field label="Body template" htmlFor="ut-body">
@@ -173,7 +175,7 @@ export function UpsertTemplateButton({
               onChange={(e) =>
                 setForm({ ...form, bodyTemplate: e.target.value })
               }
-              placeholder={"Hi {{personName}},\n\nGreat news — your registration for {{leagueName}} has been approved."}
+              placeholder={"Hi {{personName}},\n\nGreat news: your registration for {{leagueName}} has been approved."}
               className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 font-mono text-[12px] text-fg placeholder:text-fg-muted focus-visible:border-accent focus-visible:outline-none focus-visible:shadow-focus"
             />
           </Field>
@@ -201,9 +203,9 @@ export function UpsertTemplateButton({
           </label>
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

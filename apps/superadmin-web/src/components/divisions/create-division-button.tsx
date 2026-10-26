@@ -124,7 +124,7 @@ function CreateDivisionDialog({
           htmlFor="regionId"
           hint={
             regions.length === 0
-              ? "This organisation has no regions yet. Add them in Org setup."
+              ? "This organization has no regions yet. Add them in Org setup."
               : "Optional tier between the season and its divisions."
           }
         >

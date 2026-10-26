@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, EmptyState, LocalDate } from "@sportspulse/ui";
 import { useMemo, useState, type FormEvent } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { stats } from "@/lib/api/browser-api";
@@ -194,9 +195,9 @@ export function BuildLeaderboardForm({
           </Field>
         </div>
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? (
@@ -215,17 +216,11 @@ export function BuildLeaderboardForm({
         {result ? (
           <ResultPanel result={result} teamLookup={teamLookup} />
         ) : (
-          <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-            <Sparkles
-              className="h-5 w-5 text-[var(--tint-violet-fg)]"
-              strokeWidth={1.5}
-            />
-            <p className="text-sm font-medium text-fg">No leaderboard yet</p>
-            <p className="max-w-sm text-sm text-fg-muted">
-              Pick a scope and metric, then build to rank players from
-              projected stat lines.
-            </p>
-          </div>
+          <EmptyState
+            icon={Sparkles}
+            title="No leaderboard yet"
+            description="Pick a scope and metric, then build to rank players from projected stat lines."
+          />
         )}
       </div>
     </div>
@@ -250,17 +245,12 @@ function ResultPanel({
           </p>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-          {new Date(result.rankedAt).toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit"
-          })}
+          <LocalDate iso={result.rankedAt} format="dateTime" />
         </span>
       </header>
       {result.entries.length === 0 ? (
         <p className="px-6 py-12 text-center text-sm text-fg-muted">
-          No entries — no stat lines match this scope/metric yet.
+          No entries. No stat lines match this scope/metric yet.
         </p>
       ) : (
         <ol className="divide-y divide-border">

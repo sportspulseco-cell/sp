@@ -355,7 +355,7 @@ test.describe.serial("J3 · build and publish a registration form", () => {
     const publish = oa.getByRole("button", { name: /^publish$/i }).last();
     await expect(publish).toBeEnabled();
     await publish.click();
-    await expect(oa.getByText(/Published — this is now the live version/i)).toBeVisible({ timeout: 20_000 });
+    await expect(oa.getByText(/Published\. This is now the live version/i)).toBeVisible({ timeout: 20_000 });
     await shot(oa, "06-form-builder");
     const versions = await stagingSql<{ id: string; locked: boolean }>(
       "select id, locked from registration_form_versions where form_id = $1 order by created_at",

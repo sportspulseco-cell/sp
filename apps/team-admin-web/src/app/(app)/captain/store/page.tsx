@@ -1,12 +1,13 @@
 import { Star } from "lucide-react";
-import { EmptyState, PageHeader } from "@sportspulse/ui";
+import { EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { loadMeScope, teamStore } from "@/lib/api/server-api";
 import { StoreManager } from "./store-manager";
 import { StoreOrders } from "./store-orders";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Team store — SportsPulse" };
+export const metadata = { title: "Team store · Team Admin" };
 
 /**
  * Team store (UC-25, UC-26): generate the team's gear from the roster or
@@ -31,9 +32,8 @@ export default async function CaptainStorePage() {
     );
   }
 
-  const initial = await teamStore
-    .listForCaptain(myTeamId)
-    .catch(() => ({ items: [] }));
+  const initialResult = await load(teamStore.listForCaptain(myTeamId));
+  const initial = initialResult.ok ? initialResult.data : { items: [] };
 
   return (
     <div className="space-y-6">
@@ -42,7 +42,11 @@ export default async function CaptainStorePage() {
         title="Team store"
         description="Your team's gear. Players on the roster order it in their app and pay on their Payments page."
       />
-      <StoreManager teamId={myTeamId} initialItems={initial.items} />
+      {initialResult.ok ? (
+        <StoreManager teamId={myTeamId} initialItems={initial.items} />
+      ) : (
+        <LoadError what="your team store" status={initialResult.status} message={initialResult.message} />
+      )}
       <StoreOrders teamId={myTeamId} />
     </div>
   );

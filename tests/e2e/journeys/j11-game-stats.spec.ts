@@ -80,9 +80,9 @@ async function stagingSql<T = Record<string, any>>(q: string, params: unknown[] 
 async function createTeamViaUi(page: Page, name: string, tag: string): Promise<string> {
   const base = new URL(page.url()).origin;
   await page.goto(`${base}/teams/new`);
-  const org = page.getByLabel(/Organisation/i).first();
+  const org = page.getByLabel(/Organization/i).first();
   const shownOrg = await org.evaluate((el: HTMLSelectElement) => el.options[el.selectedIndex]?.text ?? "");
-  console.log(`[${tag}] new-team default organisation="${shownOrg}"`);
+  console.log(`[${tag}] new-team default organization="${shownOrg}"`);
   await org.selectOption({ label: "PPHL Staging" });
   await page.getByLabel(/Team name/i).fill(name);
   const sport = page.getByLabel(/Sport/i).first();
@@ -104,7 +104,7 @@ async function createTeamViaUi(page: Page, name: string, tag: string): Promise<s
   expect.soft(orphan.length, "SCH-18 failed create leaves no orphan team row").toBe(0);
   // Retry like a user.
   await page.getByRole("button", { name: /Create team/i }).click();
-  await expect(page.getByText(/already exists in this organisation/i).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/already exists in this organi[sz]ation/i).first()).toBeVisible({ timeout: 20_000 });
   const useExisting = page.getByRole("link", { name: /existing team/i });
   const hasLink = await useExisting.isVisible().catch(() => false);
   console.log(`[${tag}] duplicate guard shows "Use existing team" link: ${hasLink}`);
@@ -232,7 +232,7 @@ test.describe("J11 game day to stats", () => {
       await page.goto(`${app}/games`);
       await page.getByRole("button", { name: /New game/i }).first().click();
       const d = new Date(Date.now() + 3 * 86400_000);
-      // Any rink of the organisation will do for game-day checks.
+      // Any rink of the organization will do for game-day checks.
       await scheduleGame(page, {
         league: "PPHL Staging League",
         season: SEASON_NAME,

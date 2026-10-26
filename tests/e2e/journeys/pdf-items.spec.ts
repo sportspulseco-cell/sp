@@ -66,7 +66,7 @@ test("item 3: forms page has search, org and scope filters; no version ids", asy
   logApiErrors(page);
   await page.goto(`${E2E_URLS.superadmin}/forms`);
   await expect(page.getByLabel("Search forms by name")).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByLabel("Organisation")).toBeVisible();
+  await expect(page.getByLabel("Organization")).toBeVisible();
   await expect(page.getByLabel("Scope")).toBeVisible();
   const hex = await visibleHexFragments(page);
   expect(hex, `id fragments on /forms: ${hex.join(", ")}`).toEqual([]);

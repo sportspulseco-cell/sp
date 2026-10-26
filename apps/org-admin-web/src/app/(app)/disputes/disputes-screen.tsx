@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Gavel, Loader2, X } from "lucide-react";
@@ -37,21 +37,6 @@ interface Item {
   createdAt: string;
 }
 
-
-function statusTone(s: string): "warning" | "success" | "neutral" | "danger" {
-  switch (s) {
-    case "pending":
-      return "warning";
-    case "resolved_refund":
-      return "success";
-    case "resolved_no_refund":
-      return "neutral";
-    case "void":
-      return "danger";
-    default:
-      return "neutral";
-  }
-}
 
 const TABS: Array<{ value: Status; label: string }> = [
   { value: "pending", label: "Pending" },
@@ -106,7 +91,7 @@ export function DisputesScreen({
             <div>
               <p className="text-[13px] font-medium text-fg">
                 {status === "pending"
-                  ? "No pending disputes — nice."
+                  ? "No pending disputes."
                   : "No items match this filter."}
               </p>
               <p className="mt-1 text-[12px] text-fg-muted">
@@ -171,9 +156,7 @@ function DisputeRow({
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Badge mono tone={statusTone(item.status)}>
-            {item.status.replace(/_/g, " ")}
-          </Badge>
+          <Badge status={item.status} />
           <p className="font-mono text-xs tabular-nums text-fg">
             paid {formatMoney(item.paidCents, item.currency)}
           </p>
@@ -221,7 +204,7 @@ function ResolveForm({
 }) {
   const [decision, setDecision] = useState<Decision>("refund");
   const [refundDollars, setRefundDollars] = useState(
-    (item.paidCents / 100).toFixed(2)
+    centsToAmountInput(item.paidCents)
   );
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);

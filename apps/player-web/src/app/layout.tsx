@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SportsPulse — Player",
+  title: "SportsPulse · Player",
   description: "Your registrations, schedule, and team home."
 };
 

@@ -5,7 +5,18 @@ import {
   AlertTriangle, CheckCircle2, Clock, History, Loader2, Pause, XCircle
 } from "lucide-react";
 import {
-  Badge, Button, EmptyState, TBody, TD, TH, THead, TR, Table
+  Badge,
+  Button,
+  EmptyState,
+  LocalDate,
+  Skeleton,
+  statusLabel,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR
 } from "@sportspulse/ui";
 import {
   scheduler, type ScheduleRunListItem
@@ -13,31 +24,14 @@ import {
 
 interface Props { seasonId: string }
 
-function fmtTs(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString("en-US", {
-      year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit"
-    });
-  } catch { return iso; }
+function fmtTs(iso: string) {
+  return <LocalDate iso={iso} format="dateTime" />;
 }
 
 function fmtDuration(ms: number | null): string {
   if (ms === null) return "—";
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(1)} s`;
-}
-
-function statusTone(s: ScheduleRunListItem["status"]):
-  "success" | "info" | "warning" | "danger" | "neutral" {
-  switch (s) {
-    case "completed": return "success";
-    case "running":
-    case "queued": return "info";
-    case "partial": return "warning";
-    case "failed": return "danger";
-  }
 }
 
 function StatusIcon({ status }: { status: ScheduleRunListItem["status"] }) {
@@ -77,10 +71,7 @@ export function SchedulingRunsList({ seasonId }: Props) {
 
   if (loading && runs.length === 0) {
     return (
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-        Loading runs…
-      </div>
+      <div role="status" aria-label="Loading runs" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
     );
   }
 
@@ -152,9 +143,9 @@ export function SchedulingRunsList({ seasonId }: Props) {
                     {r.engine}
                   </TD>
                   <TD>
-                    <Badge tone={statusTone(r.status)}>
+                    <Badge status={r.status}>
                       <StatusIcon status={r.status} />
-                      {r.status}
+                      {statusLabel(r.status)}
                     </Badge>
                   </TD>
                   <TD className="text-right">
@@ -215,7 +206,7 @@ function RunDetails({ run }: { run: ScheduleRunListItem }) {
       )}
       <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
         The full <code>solution</code> + <code>constraint_snapshot</code> are stored
-        on the <code>schedule_runs</code> row (decision #4 — determinism by
+        on the <code>schedule_runs</code> row (decision #4: determinism by
         persistence). Forensic deep-dive UI lands when we wire game_provenance
         replay.
       </div>

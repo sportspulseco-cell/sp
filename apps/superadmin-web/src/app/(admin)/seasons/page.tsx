@@ -1,18 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Alert,
-  Badge,
-  EmptyState,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  UrlFilters,
-  statusTone
-} from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { CalendarRange, Wand2, Trophy, CircleDot, Archive } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -20,7 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Season } from "@/lib/api/types";
 
-export const metadata = { title: "Seasons — SportsPulse" };
+export const metadata = { title: "Seasons · Super Admin" };
 
 /** Season lifecycle states, in order, with the labels the UI uses. */
 const SEASON_STATUS_OPTIONS = [
@@ -204,9 +191,7 @@ export default async function SeasonsPage({
                 </TD>
                 <TD className="text-muted-foreground">{s.timezone}</TD>
                 <TD>
-                  <Badge tone={statusTone(s.status)}>
-                    {s.status.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={s.status} />
                 </TD>
                 <TD>
                   <AssignAdminCell

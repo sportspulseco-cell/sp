@@ -1,11 +1,11 @@
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import Link from "next/link";
 import { CalendarRange, Wand2 } from "lucide-react";
-import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, LoadError } from "@sportspulse/ui";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
-export const metadata = { title: "Schedule — Org Admin" };
+export const metadata = { title: "Schedule · Org Admin" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -18,11 +18,10 @@ export default async function OrgAdminSchedulingPage() {
   const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
-  const page = orgId
-    ? await fetchAll((cursor) => leagueMgmt
-        .listSeasons({ orgId, limit: 100, cursor }))
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
+  const pageResult = orgId
+    ? await load(fetchAll((cursor) => leagueMgmt.listSeasons({ orgId, limit: 100, cursor })))
+    : null;
+  const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
 
   return (
     <div className="space-y-8">
@@ -31,7 +30,9 @@ export default async function OrgAdminSchedulingPage() {
         title="Schedule"
         description="Pick a season to generate, publish, verify, or resolve conflicts."
       />
-      {page.items.length === 0 ? (
+      {pageResult && !pageResult.ok ? (
+        <LoadError what="seasons" status={pageResult.status} message={pageResult.message} />
+      ) : page.items.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No seasons yet"

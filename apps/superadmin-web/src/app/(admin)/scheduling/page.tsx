@@ -1,22 +1,10 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  LoadError,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone
-} from "@sportspulse/ui";
+import { Badge, LoadError, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { CalendarRange, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Schedule — SportsPulse" };
+export const metadata = { title: "Schedule · Super Admin" };
 
 /**
  * Scheduling index — list every season with a one-click "Generate"
@@ -89,9 +77,7 @@ export default async function SchedulingIndexPage() {
                   {s.startDate} → {s.endDate}
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(s.status)}>
-                    {s.status.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={s.status} />
                 </TD>
                 <TD className="text-right">
                   <Link

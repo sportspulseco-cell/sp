@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SchedulingTournament, ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { leagueMgmt } from "@/lib/api/server-api";
 
-export const metadata = { title: "Tournament — SportsPulse" };
+export const metadata = { title: "Tournament · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

@@ -1,27 +1,23 @@
 import Link from "next/link";
 import { Bell, CheckCheck, Settings as SettingsIcon } from "lucide-react";
-import { EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
-import type { Notification } from "@sportspulse/api-client";
+import { EmptyState, Eyebrow, PageHeader, LoadError } from "@sportspulse/ui";
+import { load, type Notification } from "@sportspulse/api-client";
 import { communications, loadMeScope } from "@/lib/api/server-api";
 import { NotificationRow } from "./notification-row";
 import { MarkAllReadButton } from "./mark-all-read";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Notifications — SportsPulse" };
+export const metadata = { title: "Notifications · Player" };
 
 export default async function NotificationsPage() {
   const scope = await loadMeScope();
   const personId = scope?.personId ?? null;
 
   // GET /notifications/me — the admin list endpoint 403s for players.
-  const page = personId
-    ? await communications
-        .myNotifications({ limit: 100 })
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
-
-  const notifs: Notification[] = page.items;
+  const result = personId ? await load(communications.myNotifications({ limit: 100 })) : null;
+  const failed = result && !result.ok ? result : null;
+  const notifs: Notification[] = result?.ok ? result.data.items : [];
   const unread = notifs.filter((n) => !n.readAt).length;
 
   return (
@@ -44,7 +40,9 @@ export default async function NotificationsPage() {
         }
       />
 
-      {notifs.length === 0 ? (
+      {failed ? (
+        <LoadError what="your notifications" status={failed.status} message={failed.message} />
+      ) : notifs.length === 0 ? (
         <EmptyState
           icon={Bell}
           title="You're all caught up"

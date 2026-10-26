@@ -6,8 +6,8 @@ import {
   Snowflake, Trash2, RefreshCw, X
 } from "lucide-react";
 import type { RinkAddress, RinkRemoval, RinkUsage } from "@sportspulse/api-client";
-import { isValidTimeZone, utcToZonedWallTime } from "@sportspulse/kernel";
-import { Alert, Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
+import { DATE_FORMATS, formatInZone, isValidTimeZone, utcToZonedWallTime } from "@sportspulse/kernel";
+import { Alert, Badge, Button, EmptyState, Field, Input, Skeleton, Select } from "@sportspulse/ui";
 import { TIMEZONES } from "../org-setup/steps/league-step";
 
 /**
@@ -136,7 +136,6 @@ export interface SeasonOption {
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SELECT_CLASS = "h-9 w-full rounded-md border border-border bg-bg px-2 text-fg";
 const ADDRESS_FIELDS: Array<{ key: keyof RinkAddress; label: string }> = [
   { key: "line1", label: "Street address" },
   { key: "line2", label: "Address line 2" },
@@ -146,18 +145,9 @@ const ADDRESS_FIELDS: Array<{ key: keyof RinkAddress; label: string }> = [
   { key: "countryCode", label: "Country code" }
 ];
 
+/** A slot time as the rink's clocks read it: "Nov 4, 9:00 PM". */
 function fmtSlotTime(iso: string, tz: string): string {
-  try {
-    return new Date(iso).toLocaleString("en-US", {
-      timeZone: tz,
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return iso;
-  }
+  return formatInZone(iso, tz, DATE_FORMATS.gameTime) || iso;
 }
 
 function errorText(e: unknown): string {
@@ -221,10 +211,7 @@ export function VenuesPage({ api, orgId, ownableOrgs, loadSeasons }: VenuesPageP
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       {loading && venues.length === 0 ? (
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-          Loading venues…
-        </div>
+        <div role="status" aria-label="Loading venues" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
       ) : venues.length === 0 && !showCreate ? (
         <EmptyState
           icon={Building2}
@@ -270,12 +257,11 @@ function TimeZoneSelect({
     [value]
   );
   return (
-    <select
+    <Select
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={SELECT_CLASS}
     >
       {value ? null : <option value="">Pick a time zone</option>}
       {options.map((tz) => (
@@ -283,7 +269,7 @@ function TimeZoneSelect({
           {tz}{isValidTimeZone(tz) ? "" : " (not a real time zone)"}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -302,7 +288,7 @@ function CreateVenueForm({
   const onlyOrg = ownableOrgs && ownableOrgs.length === 1 ? ownableOrgs[0]!.id : "";
   const [orgId, setOrgId] = useState(defaultOrgId ?? onlyOrg);
   const orgZone = (id: string) => ownableOrgs?.find((o) => o.id === id)?.timezone ?? "";
-  // The organisation's own zone, not UTC: a wrong zone shifts every slot.
+  // The organization's own zone, not UTC: a wrong zone shifts every slot.
   const [timezone, setTimezone] = useState(orgZone(defaultOrgId ?? onlyOrg));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -325,22 +311,18 @@ function CreateVenueForm({
       <div className="grid gap-3 sm:grid-cols-3">
         {!defaultOrgId && ownableOrgs && ownableOrgs.length > 0 ? (
           <Field label="Organization">
-            <select
+            <Select
               value={orgId}
               onChange={(e) => { setOrgId(e.target.value); setTimezone(orgZone(e.target.value) || timezone); }}
               disabled={busy}
-              className={SELECT_CLASS}
             >
               {orgId ? null : <option value="">Select an organization…</option>}
               {ownableOrgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            </Select>
           </Field>
         ) : orgsLoading ? (
           <Field label="Organization">
-            <p className="flex h-9 items-center gap-2 text-[12px] text-fg-muted">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-              Loading organisations…
-            </p>
+            <div role="status" aria-label="Loading organizations"><Skeleton className="h-9" /></div>
           </Field>
         ) : null}
         <Field label="Rink name">
@@ -350,13 +332,13 @@ function CreateVenueForm({
           <TimeZoneSelect value={timezone} onChange={setTimezone} disabled={busy} />
         </Field>
       </div>
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
         <Button
           onClick={async () => {
             if (!orgId || !name.trim() || !timezone) {
-              setError("Rink name, organisation and time zone are required.");
+              setError("Rink name, organization and time zone are required.");
               return;
             }
             setBusy(true);
@@ -464,7 +446,7 @@ function VenueRow({
               onSaved={(msg) => { setPanel(null); onNotice(msg); onChange(); void loadDetail(); }}
             />
           ) : (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading" className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           )}
         </div>
       ) : null}
@@ -499,9 +481,9 @@ function VenueRow({
             />
           ) : null}
           {loading && !surfaces ? (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading" className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           ) : surfaces && surfaces.length === 0 ? (
-            <p className="text-[12px] text-fg-muted">No surfaces yet. Add one above.</p>
+            <EmptyState icon={Snowflake} eyebrow="surfaces" title="No surfaces yet" description="Add a surface above. Ice slots and games attach to a surface." />
           ) : (
             <ul className="space-y-2">
               {(surfaces ?? []).map((s) => (
@@ -692,7 +674,7 @@ function AddSurfaceForm({
       <Field label="Surface label" hint='e.g. "Rink A", "Blue Sheet"'>
         <Input value={label} onChange={(e) => setLabel(e.target.value)} disabled={busy} autoFocus />
       </Field>
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
         <Button
@@ -845,9 +827,9 @@ function SurfaceRow({
             />
           ) : null}
           {loading && !slots ? (
-            <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Loading…</p>
+            <div role="status" aria-label="Loading" className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           ) : !slots || slots.length === 0 ? (
-            <p className="text-[12px] text-fg-muted">No ice slots yet. Add a weekly recurrence to fill a season quickly.</p>
+            <EmptyState icon={Snowflake} eyebrow="ice slots" title="No ice slots yet" description="Add a weekly recurrence to fill a season quickly." />
           ) : (
             <ul className="space-y-1.5 max-h-72 overflow-y-auto">
               {slots.map((s) => (
@@ -894,7 +876,7 @@ function SlotRow({
           {seasonName ? <span className="truncate text-fg-muted">· {seasonName}</span> : null}
           {slot.band ? <Badge tone="neutral" mono>{slot.band}</Badge> : null}
           {slot.isPlayoffReservation ? <Badge tone="warning" mono>playoff</Badge> : null}
-          {slot.status !== "available" ? <Badge tone="neutral" mono>{slot.status}</Badge> : null}
+          {slot.status !== "available" ? <Badge status={slot.status} /> : null}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1025,17 +1007,16 @@ function BandField({
 }) {
   return (
     <Field label={label}>
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value as "" | Band)}
         disabled={disabled}
-        className={SELECT_CLASS}
       >
         <option value="">—</option>
         <option value="early">early</option>
         <option value="mid">mid</option>
         <option value="late">late</option>
-      </select>
+      </Select>
     </Field>
   );
 }
@@ -1088,7 +1069,7 @@ function SingleSlotForm({
         <BandField value={band} onChange={setBand} disabled={busy} />
       </div>
       <PlayoffField checked={playoff} onChange={setPlayoff} disabled={busy} />
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
         <Button
@@ -1187,11 +1168,11 @@ function BulkSlotForm({
       </div>
       <PlayoffField checked={playoff} onChange={setPlayoff} disabled={busy} />
       {result ? (
-        <p className="text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           Created {result.created} slot{result.created === 1 ? "" : "s"}, skipped {result.skipped} (already existed).
-        </p>
+        </Alert>
       ) : null}
-      {error ? <p className="text-[12px] text-rose-700 dark:text-rose-300">{error}</p> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Done</Button>
         <Button
@@ -1237,19 +1218,19 @@ function SeasonField({
   return (
     <Field
       label="Season"
-      hint={seasons.length === 0 ? "This venue's organisation has no seasons yet. Create one first." : "The scheduler only uses slots tagged with its season."}
+      hint={seasons.length === 0 ? "This venue's organization has no seasons yet. Create one first." : "The scheduler only uses slots tagged with its season."}
     >
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || seasons.length === 0}
-        className="h-9 w-full rounded-md border border-border bg-bg px-2 text-fg sm:w-72"
+        className="sm:w-72"
       >
         <option value="">Pick a season</option>
         {seasons.map((s) => (
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
-      </select>
+      </Select>
     </Field>
   );
 }

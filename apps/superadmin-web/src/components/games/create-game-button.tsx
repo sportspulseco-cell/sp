@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { fetchAll } from "@sportspulse/api-client";
-import { Button, Combobox, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Combobox, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 import { gameOps, leagueMgmt } from "@/lib/api/browser-api";
 import type { Division, League, Season, Team } from "@/lib/api/types";
 import { useOrgRinks } from "./use-org-rinks";
@@ -58,7 +58,7 @@ function onlyOne<T extends { id: string }>(items: T[]): string {
  * New game (UC-07 fallback, SCH-5 / SCH-20). League, then one of its
  * seasons, then one of that season's divisions; both teams come from the
  * teams entered in that division (every page, type to search); the rink
- * comes from the organisation's Rinks & ice time; the start is typed in
+ * comes from the organization's Rinks & ice time; the start is typed in
  * the rink's time zone and converted on the server. The server checks
  * all of it again and refuses a rink or team clash unless the admin
  * schedules it anyway with a reason.
@@ -378,7 +378,7 @@ function CreateGameDialog({
                 : rinks === null
                   ? "Loading rinks…"
                   : rinks.length === 0
-                    ? "No rinks set up for this organisation yet."
+                    ? "No rinks set up for this organization yet."
                     : undefined)
             }
           >
@@ -450,13 +450,13 @@ function CreateGameDialog({
         </label>
 
         {loadError ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {loadError}
-          </p>
+          </Alert>
         ) : null}
 
         {clash ? (
-          <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-800 dark:text-amber-300">
+          <Alert tone="warning" className="space-y-2">
             <p>{clash}</p>
             <Field label="Reason" htmlFor="clashReason" hint="Required to schedule over the clash. Kept on the game.">
               <Input
@@ -467,13 +467,13 @@ function CreateGameDialog({
                 maxLength={500}
               />
             </Field>
-          </div>
+          </Alert>
         ) : null}
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
 
         <DialogActions>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
-import { Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions, Input } from "@sportspulse/ui";
 import type { Person } from "@sportspulse/api-client";
 import { captain, iam } from "@/lib/api/browser-api";
 
@@ -92,7 +92,7 @@ export function AddGuestModal({
       description={
         opponentName || gameDate
           ? `vs ${opponentName ?? "TBD"}${gameDate ? ` · ${gameDate}` : ""}`
-          : "Guests are added to this game's lineup only — they do not count against your roster cap."
+          : "Guests are added to this game's lineup only. They do not count against your roster cap."
       }
       size="lg"
     >
@@ -122,11 +122,10 @@ export function AddGuestModal({
       <div className="space-y-3 pt-3">
         {mode === "user" ? (
           <>
-            <input
+            <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search by name…"
-              className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
               autoFocus
             />
             {results.length > 0 && !picked && (
@@ -165,11 +164,10 @@ export function AddGuestModal({
             )}
           </>
         ) : (
-          <input
+          <Input
             value={walkInName}
             onChange={(e) => setWalkInName(e.target.value)}
             placeholder="Guest's full name"
-            className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
             autoFocus
           />
         )}
@@ -180,9 +178,9 @@ export function AddGuestModal({
         </p>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

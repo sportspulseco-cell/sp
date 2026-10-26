@@ -6,10 +6,10 @@ import { OrgActions } from "@/components/edit/detail-actions";
 import { RegionsSection } from "@/components/regions/regions-section";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Organisation - Org Admin" };
+export const metadata = { title: "Organization · Org Admin" };
 
 /**
- * The org admin's own organisation: its details with Edit organisation
+ * The org admin's own organization: its details with Edit organization
  * (the same shared dialog super admins use; the API only lets this
  * org's org admins save) and its regions.
  */
@@ -25,11 +25,11 @@ export default async function OrganizationPage() {
   if (!org) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Organisation" title="Organisation" />
+        <PageHeader eyebrow="Organization" title="Organization" />
         <EmptyState
           icon={Building2}
-          title="No organisation selected"
-          description="You don't hold an org admin role on any organisation yet. Ask the platform admin to grant you the role."
+          title="No organization selected"
+          description="You don't hold an org admin role on any organization yet. Ask the platform admin to grant you the role."
         />
       </div>
     );
@@ -49,13 +49,13 @@ export default async function OrganizationPage() {
   return (
     <div className="space-y-12">
       <PageHeader
-        eyebrow="Organisation"
+        eyebrow="Organization"
         title={org.displayName}
-        description="Your organisation's details. Changes apply everywhere the organisation is shown."
+        description="Your organization's details. Changes apply everywhere the organization is shown."
         action={<OrgActions org={org} />}
       />
       <section className="space-y-6">
-        <SectionRail index="01" label="Details" subtitle="Slug and type are fixed once the organisation exists." />
+        <SectionRail index="01" label="Details" subtitle="Slug and type are fixed once the organization exists." />
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border border-border bg-surface-1 p-6 sm:grid-cols-2">
           {rows.map(([label, value]) => (
             <div key={label}>

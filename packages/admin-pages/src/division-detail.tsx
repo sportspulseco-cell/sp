@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { POINTS_RULE_LABELS, resolvePointsRule } from "@sportspulse/kernel";
-
+import { POINTS_RULE_LABELS, resolvePointsRule, formatCalendarDate } from "@sportspulse/kernel";
 import Link from "next/link";
-import { Badge, Eyebrow, PageHeader, Reveal, statusTone } from "@sportspulse/ui";
+import { Badge, Eyebrow, PageHeader, Reveal, statusTone, IconTile, LocalDate } from "@sportspulse/ui";
+import { ArrowLeft, Layers } from "lucide-react";
 import type { Division, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 
@@ -22,13 +22,9 @@ const SERIES_LABELS: Record<string, string> = {
   best_of_7: "Best of 7"
 };
 
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+/** A calendar date (playoff start and end): the same day for every reader. */
+function fmtDate(value: string | null | undefined): string {
+  return formatCalendarDate(value) || "—";
 }
 
 export type DivisionTeamRow = {
@@ -153,9 +149,7 @@ export function DivisionDetail({
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {division.tier ? <Badge mono>{division.tier}</Badge> : null}
               <Badge mono>{division.genderEligibility}</Badge>
-              <Badge tone={statusTone(division.status)} mono>
-                {division.status}
-              </Badge>
+              <Badge status={division.status} />
               {parentSeason ? (
                 <Link
                   href={`${seasonHref}/${parentSeason.id}`}
@@ -413,14 +407,12 @@ export function DivisionDetail({
                       </span>
                     )}
                   </div>
-                  <Badge tone={statusTone(t.entryStatus)}>
-                    {t.entryStatus.replace(/_/g, " ")}
-                  </Badge>
+                  <Badge status={t.entryStatus} />
                   <span className="font-mono text-[11px] text-fg-muted tabular-nums">
                     {pct}% confirmed
                   </span>
                   <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    applied {new Date(t.appliedAt).toLocaleDateString("en-CA")}
+                    applied <LocalDate iso={t.appliedAt} format="date" />
                   </span>
                 </li>
               );

@@ -4,14 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Mail, X } from "lucide-react";
-import { Alert, Button, Eyebrow } from "@sportspulse/ui";
+import { Alert, Button, Eyebrow, useLocalDate } from "@sportspulse/ui";
 import type { MyTeamInvite } from "@sportspulse/api-client";
 import { captain } from "@/lib/api/browser-api";
-
-function fmtDay(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 type Answer = { kind: "accepted" | "declined"; teamName: string };
 
@@ -24,6 +19,7 @@ type Answer = { kind: "accepted" | "declined"; teamName: string };
  * the API confirmed. Renders nothing when there is nothing to answer.
  */
 export function TeamOffersCard({ items }: { items: MyTeamInvite[] }) {
+  const localDate = useLocalDate();
   const router = useRouter();
   const [open, setOpen] = useState<MyTeamInvite[]>(items);
   const [busy, setBusy] = useState<string | null>(null);
@@ -108,7 +104,7 @@ export function TeamOffersCard({ items }: { items: MyTeamInvite[] }) {
               <p className="mt-0.5 text-[11px] text-fg-muted">
                 {inv.kind === "free_agent_offer" ? "Offer from the free-agent pool" : "Team invite"}
                 {inv.seasonName ? ` · ${inv.seasonName}` : ""}
-                {inv.expiresAt ? ` · answer by ${fmtDay(inv.expiresAt)}` : ""}
+                {inv.expiresAt ? ` · answer by ${localDate(inv.expiresAt, "monthDay")}` : ""}
               </p>
             </div>
             <div className="flex gap-2">

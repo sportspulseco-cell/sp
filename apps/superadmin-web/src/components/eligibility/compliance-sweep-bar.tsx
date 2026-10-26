@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, Select } from "@sportspulse/ui";
 import { compliance } from "@/lib/api/browser-api";
+import { Alert } from "@sportspulse/ui";
 
 type SeasonOption = { id: string; name: string };
 
@@ -79,7 +80,7 @@ export function ComplianceSweepBar({
           }.`
         : "";
       setFlash(
-        `Eligibility sweep complete — ${res.evaluated} evaluated, ${res.flagged} need attention${byStatus ? ` (${byStatus})` : ""}.${kept}`
+        `Eligibility sweep complete: ${res.evaluated} evaluated, ${res.flagged} need attention${byStatus ? ` (${byStatus})` : ""}.${kept}`
       );
       await refresh();
       // The records table is server-rendered; refresh it too (COMP-6).
@@ -98,7 +99,7 @@ export function ComplianceSweepBar({
     try {
       const res = await compliance.runLockSweep(seasonId);
       setFlash(
-        `Lock sweep complete — ${res.expiring} expiring, ${res.expired} expired.`
+        `Lock sweep complete: ${res.expiring} expiring, ${res.expired} expired.`
       );
       await refresh();
       // The records table is server-rendered; refresh it too (COMP-6).
@@ -141,7 +142,7 @@ export function ComplianceSweepBar({
             Season
           </label>
           <Select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
-            <option value="">— pick a season —</option>
+            <option value="">Pick a season</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -191,14 +192,14 @@ export function ComplianceSweepBar({
       </div>
 
       {flash && (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       )}
 
       {seasonId && summary && (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
-import { Button, Eyebrow } from "@sportspulse/ui";
+import { Alert, Button, Eyebrow, Input } from "@sportspulse/ui";
 import { STORE_GENERATE_ITEMS, STORE_KIND_LABELS } from "@sportspulse/kernel";
 import { teamStore } from "@/lib/api/browser-api";
 
@@ -88,14 +88,13 @@ export function GenerateStore({
               </p>
               <label className="grid gap-1">
                 <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">Price (USD)</span>
-                <input
+                <Input
                   aria-label={`${label} price`}
                   inputMode="decimal"
                   placeholder="0.00"
                   disabled={!picked[g.kind]}
                   value={prices[g.kind] ?? ""}
                   onChange={(e) => setPrices((p) => ({ ...p, [g.kind]: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-fg focus:border-accent focus:outline-none disabled:opacity-50"
                 />
               </label>
             </li>
@@ -107,9 +106,9 @@ export function GenerateStore({
         Email the players on the roster that the store is open
       </label>
       {error ? (
-        <p role="alert" className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       <Button onClick={generate} disabled={busy || chosen.length === 0}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Sparkles className="mr-2 h-4 w-4" /> Generate store</>}

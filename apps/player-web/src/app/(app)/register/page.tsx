@@ -1,18 +1,10 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarRange,
-  Layers,
-  Sparkles,
-  Trophy,
-  UserPlus,
-  Users
-} from "lucide-react";
-import { PageHeader } from "@sportspulse/ui";
+import { ArrowRight, CalendarRange, Layers, Sparkles, Trophy, UserPlus, Users } from "lucide-react";
+import { PageHeader, EmptyState } from "@sportspulse/ui";
 import { publicRegistration } from "@/lib/api/server-api";
 import { registrationClosesLabel } from "@sportspulse/kernel";
 
-export const metadata = { title: "Find a team — SportsPulse" };
+export const metadata = { title: "Find a team · Player" };
 export const dynamic = "force-dynamic";
 
 interface OpenSeason {
@@ -37,7 +29,6 @@ async function listOpen(): Promise<OpenSeason[]> {
     return [];
   }
 }
-
 
 export default async function FindATeamPage() {
   // A league link (/register?org=) never reaches here: the middleware
@@ -68,19 +59,11 @@ export default async function FindATeamPage() {
         </header>
 
         {open.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-surface-1 px-6 py-10 text-center">
-            <Sparkles
-              className="mx-auto h-6 w-6 text-fg-muted"
-              strokeWidth={1.5}
-            />
-            <p className="mt-3 text-[14px] font-medium text-fg">
-              Nothing open in your leagues right now
-            </p>
-            <p className="mt-1 text-[12px] text-fg-muted">
-              New to a league? Open the registration link your league
-              shares; its open seasons are listed there.
-            </p>
-          </div>
+          <EmptyState
+            icon={Sparkles}
+            title="Nothing open in your leagues right now"
+            description="New to a league? Open the registration link your league shares; its open seasons are listed there."
+          />
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
             {open.map((s) => (

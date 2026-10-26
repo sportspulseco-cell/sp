@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { Button } from "@sportspulse/ui";
 import { iam } from "@/lib/api/browser-api";
 
 export function SuspendUserButton({
@@ -15,7 +16,7 @@ export function SuspendUserButton({
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <button
+    <Button
       type="button"
       disabled={pending}
       onClick={() => {
@@ -37,13 +38,15 @@ export function SuspendUserButton({
           }
         });
       }}
+      variant="outline"
+      size="sm"
       className={
         suspended
-          ? "inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-emerald-700 transition-colors duration-fast ease-ease hover:border-border-strong dark:text-emerald-400"
-          : "inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-rose-500/50 hover:text-rose-600 dark:hover:text-rose-400"
+          ? "gap-1.5 text-[var(--tint-emerald-fg)]"
+          : "gap-1.5 hover:border-[var(--tint-rose-fg)]/50 hover:text-[var(--tint-rose-fg)]"
       }
     >
       {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : suspended ? "Reactivate" : "Suspend"}
-    </button>
+    </Button>
   );
 }

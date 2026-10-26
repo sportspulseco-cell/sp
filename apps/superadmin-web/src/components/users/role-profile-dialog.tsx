@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { SYSTEM_ROLE_BY_CODE } from "@sportspulse/kernel";
 import { RoleProfileFields, useRoleProfile } from "@sportspulse/registration-funnel";
 import { iam } from "@/lib/api/browser-api";
-import { Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Alert } from "@sportspulse/ui";
 
 /**
  * Role-specific profile editor.
@@ -85,7 +85,7 @@ export function RoleProfileDialog({
       description={
         userType
           ? `Profile fields for the ${roleDef?.name ?? userType} role. Stored under profiles.metadata.roleProfile.${userType}.`
-          : "User has no role assigned yet — assign a type from the user row first."
+          : "User has no role assigned yet. Assign a type from the user row first."
       }
       size="lg"
     >
@@ -106,14 +106,14 @@ export function RoleProfileDialog({
           <RoleProfileFields state={state} roleCode={userType} showErrors={tried} />
 
           {error && (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           )}
           {flash && (
-            <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+            <Alert tone="success" role="status">
               {flash}
-            </p>
+            </Alert>
           )}
 
           <DialogActions>

@@ -3,14 +3,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil } from "lucide-react";
-import {
-  RoleProfileFields,
-  useRoleProfile,
-  type RoleProfileState
-} from "@sportspulse/registration-funnel";
+import { RoleProfileFields, useRoleProfile, type RoleProfileState } from "@sportspulse/registration-funnel";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
-import { Button, Dialog, DialogActions, Field, Input } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Alert } from "@sportspulse/ui";
 
 const transport = {
   getRoleProfile: (id: string, code: string) => iam.getRoleProfile(id, code),
@@ -81,14 +77,16 @@ export function EditUserButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-1 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-fg-muted transition-colors duration-fast ease-ease hover:border-border-strong hover:text-fg"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
       >
         <Pencil className="h-3 w-3" strokeWidth={1.75} />
         Edit profile
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -157,9 +155,9 @@ export function EditUserButton({
           )}
 
           {error ? (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-400">
+            <Alert tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <DialogActions>

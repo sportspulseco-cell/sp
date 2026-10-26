@@ -668,6 +668,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@sportspulse/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       clsx:
         specifier: ^2.1.1
         version: 2.1.1

@@ -1,12 +1,7 @@
 import Link from "next/link";
-import {
-  AlertCircle,
-  ArrowRight,
-  Check,
-  ShieldCheck,
-  Upload
-} from "lucide-react";
-import { Badge, EmptyState, Eyebrow, LoadError, PageHeader } from "@sportspulse/ui";
+import { AlertCircle, ArrowRight, Check, ShieldCheck, Upload } from "lucide-react";
+import { Badge, EmptyState, Eyebrow, LoadError, PageHeader, Alert, LocalDate } from "@sportspulse/ui";
+import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { load, type EligibilityRecord } from "@sportspulse/api-client";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
 import { UsaHockeyIdForm } from "./usa-hockey-id-form";
@@ -15,14 +10,10 @@ import { UploadDocuments } from "./upload-documents";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Compliance — SportsPulse" };
+export const metadata = { title: "Compliance · Player" };
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  });
+function fmtDate(value: string): string {
+  return formatCalendarDate(value, DATE_FORMATS.date);
 }
 
 const STATUS_COPY: Record<
@@ -37,7 +28,7 @@ const STATUS_COPY: Record<
   pending: {
     label: "Pending",
     tone: "warning",
-    description: "Verification in progress — admin will follow up if anything is missing."
+    description: "Verification in progress. Your admin will follow up if anything is missing."
   },
   ineligible: {
     label: "Ineligible",
@@ -71,13 +62,11 @@ export default async function CompliancePage() {
   const scope = await loadMeScope();
   const personId = scope?.personId ?? null;
 
-  const eligibilityPage = personId
-    ? await compliance
-        .myEligibility()
-        .catch(() => ({ items: [], nextCursor: null }))
-    : { items: [], nextCursor: null };
-
-  const items: EligibilityRecord[] = eligibilityPage.items;
+  // A failed eligibility load is shown as an error, never as "no
+  // requirements yet".
+  const eligibilityResult = personId ? await load(compliance.myEligibility()) : null;
+  const eligibilityFailed = eligibilityResult && !eligibilityResult.ok ? eligibilityResult : null;
+  const items: EligibilityRecord[] = eligibilityResult?.ok ? eligibilityResult.data.items : [];
 
   // Required registration documents (liability waiver, code of conduct)
   // with signed state, from the same rule the funnel and the pay gate
@@ -125,7 +114,7 @@ export default async function CompliancePage() {
 
       {/* Overall banner */}
       {blocking.length > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-rose-bg)] px-4 py-3 text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           <div>
             <p className="text-[13px] font-medium">
@@ -136,9 +125,9 @@ export default async function CompliancePage() {
               Resolve the blocking items below to be cleared to play.
             </p>
           </div>
-        </div>
+        </Alert>
       ) : unsignedDocs > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-amber-bg)] px-4 py-3 text-[var(--tint-amber-fg)]">
+        <Alert tone="warning" className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           <div>
             <p className="text-[13px] font-medium">
@@ -148,9 +137,9 @@ export default async function CompliancePage() {
               Your registration cannot be submitted until they are signed.
             </p>
           </div>
-        </div>
+        </Alert>
       ) : pending.length > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-amber-bg)] px-4 py-3 text-[var(--tint-amber-fg)]">
+        <Alert tone="warning" className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           <div>
             <p className="text-[13px] font-medium">
@@ -158,22 +147,22 @@ export default async function CompliancePage() {
               {pending.length === 1 ? "" : "s"} pending verification
             </p>
             <p className="mt-0.5 text-[12px] opacity-80">
-              Your admin is reviewing — you don't need to do anything right now.
+              Your admin is reviewing. You don't need to do anything right now.
             </p>
           </div>
-        </div>
-      ) : items.length > 0 || docItems.length > 0 ? (
-        <div className="flex items-start gap-3 rounded-md bg-[var(--tint-emerald-bg)] px-4 py-3 text-[var(--tint-emerald-fg)]">
+        </Alert>
+      ) : !eligibilityFailed && (items.length > 0 || docItems.length > 0) ? (
+        <Alert tone="success" role="status" className="flex items-start gap-3">
           <Check className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
           <div>
             <p className="text-[13px] font-medium">
-              All clear — you're fully compliant.
+              All clear. You're fully compliant.
             </p>
-            <p className="mt-0.5 text-[12px] opacity-80">
+            <p className="mt-0.5 opacity-80">
               Nothing needs your attention right now.
             </p>
           </div>
-        </div>
+        </Alert>
       ) : null}
 
       {!docsResult.ok ? (
@@ -209,7 +198,13 @@ export default async function CompliancePage() {
         )}
       </section>
 
-      {sorted.length === 0 && docItems.length > 0 ? null : sorted.length === 0 ? (
+      {eligibilityFailed ? (
+        <LoadError
+          what="your eligibility checks"
+          status={eligibilityFailed.status}
+          message={eligibilityFailed.message}
+        />
+      ) : sorted.length === 0 && docItems.length > 0 ? null : sorted.length === 0 ? (
         <EmptyState
           icon={ShieldCheck}
           title="No requirements yet"
@@ -251,7 +246,7 @@ export default async function CompliancePage() {
                     {rec.effectiveTo
                       ? ` → ${fmtDate(rec.effectiveTo)}`
                       : ""}{" "}
-                    · Last evaluated {fmtDate(rec.evaluatedAt)}
+                    · Last evaluated <LocalDate iso={rec.evaluatedAt} format="date" />
                   </p>
                 </div>
                 {/* Per-rule action — for blocking statuses, the player

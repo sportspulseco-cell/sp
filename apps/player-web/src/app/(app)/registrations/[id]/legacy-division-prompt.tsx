@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, Button, Select } from "@sportspulse/ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Layers, Loader2 } from "lucide-react";
@@ -54,7 +55,7 @@ export function LegacyDivisionPrompt({
           <p className="mt-0.5 text-[12px] text-fg-muted">
             Your registration isn&apos;t tied to a specific division yet.
             Captains can only see your join request if it matches their
-            team&apos;s division — pick one to unlock the Find-a-team flow.
+            team&apos;s division. Pick one to unlock Find a team.
           </p>
         </div>
       </header>
@@ -62,11 +63,10 @@ export function LegacyDivisionPrompt({
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="flex-1">
           <span className="sr-only">Division</span>
-          <select
+          <Select
             value={picked}
             onChange={(e) => setPicked(e.target.value)}
             disabled={saving}
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-[13px] text-fg focus:border-accent focus:outline-none"
           >
             {divisions.map((d) => (
               <option key={d.id} value={d.id}>
@@ -74,26 +74,26 @@ export function LegacyDivisionPrompt({
                 {d.tier ? ` · Tier ${d.tier}` : ""}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-        <button
+        <Button
           type="button"
           onClick={save}
           disabled={saving || !picked}
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--warning)] px-3 py-2 text-[13px] font-medium text-white hover:bg-[var(--warning)] disabled:opacity-50"
+          className="gap-2"
         >
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
             "Save division"
           )}
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <p className="mt-3 rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="mt-3">
           {error}
-        </p>
+        </Alert>
       )}
     </section>
   );

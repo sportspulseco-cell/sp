@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { LocalDate } from "@sportspulse/ui";
 import { ParentalConsentClient } from "./consent-client";
 
 const API =
@@ -33,7 +34,7 @@ async function fetchContext(token: string): Promise<ConsentContext | null> {
 }
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Parental consent — SportsPulse" };
+export const metadata = { title: "Parental consent · Player" };
 
 /**
  * Parent-facing consent portal. The parent clicks the URL we emailed
@@ -72,14 +73,19 @@ export default async function ParentalConsentPage({
             tone="amber"
             icon={<Clock className="h-6 w-6" strokeWidth={1.75} />}
             title="This link has expired"
-            body="Consent links expire 24 hours after they're sent. Ask the player to resend the consent email — they can do that from the registration funnel."
+            body="Consent links expire 24 hours after they're sent. Ask the player to resend the consent email from their registration."
           />
         ) : ctx.confirmedAt ? (
           <Card
             tone="emerald"
             icon={<CheckCircle2 className="h-6 w-6" strokeWidth={1.75} />}
             title="Consent already on file"
-            body={`${ctx.signedBy ? `${ctx.signedBy} signed` : "You confirmed"} ${ctx.childDisplayName}'s registration on ${new Date(ctx.confirmedAt).toLocaleDateString("en-CA")}. Nothing else to do here.`}
+            body={
+              <>
+                {ctx.signedBy ? `${ctx.signedBy} signed` : "You confirmed"} {ctx.childDisplayName}&apos;s registration on{" "}
+                <LocalDate iso={ctx.confirmedAt} format="date" />. Nothing else to do here.
+              </>
+            }
           />
         ) : ctx.status !== "pending_consent" ? (
           <Card
@@ -107,7 +113,7 @@ export default async function ParentalConsentPage({
           You&apos;re seeing this page because someone listed you as the
           parent or guardian of a minor registering for a SportsPulse
           league. If you weren&apos;t expecting this, you can safely
-          ignore — no action means the registration won&apos;t advance.
+          ignore it. Without your consent the registration won&apos;t advance.
         </p>
       </div>
     </div>
@@ -123,7 +129,7 @@ function Card({
   tone: "rose" | "emerald" | "amber";
   icon: React.ReactNode;
   title: string;
-  body: string;
+  body: React.ReactNode;
 }) {
   const toneClass: Record<typeof tone, string> = {
     rose: "border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] dark:bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]",

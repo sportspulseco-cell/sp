@@ -1,21 +1,5 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import {
-  Badge,
-  EmptyState,
-  Eyebrow,
-  IconTile,
-  LoadError,
-  PageHeader,
-  StatNumber,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  statusTone,
-  type Tint
-} from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate, EmptyState, Eyebrow, IconTile, type Tint, StatNumber, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
@@ -26,7 +10,7 @@ import { ComplianceSweepBar } from "@/components/eligibility/compliance-sweep-ba
 import { DocumentReviewQueue } from "@/components/eligibility/document-review-queue";
 import type { EligibilityStatus } from "@/lib/api/types";
 
-export const metadata = { title: "Eligibility — SportsPulse" };
+export const metadata = { title: "Eligibility · Super Admin" };
 
 const STATUS_FILTERS: Array<{
   key: EligibilityStatus | "all";
@@ -210,9 +194,7 @@ export default async function EligibilityPage({
                   </Link>
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(e.status)} mono>
-                    {e.status}
-                  </Badge>
+                  <Badge status={e.status} domain="compliance" />
                 </TD>
                 <TD className="text-fg-muted">
                   {e.seasonId
@@ -225,12 +207,7 @@ export default async function EligibilityPage({
                   {e.status === "waived" ? (e.waiverReason ?? "—") : "—"}
                 </TD>
                 <TD className="font-mono text-[11px] text-fg-muted">
-                  {new Date(e.evaluatedAt).toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit"
-                  })}
+                  <LocalDate iso={e.evaluatedAt} format="dateTime" />
                 </TD>
                 <TD className="text-right">
                   {e.status !== "waived" ? (

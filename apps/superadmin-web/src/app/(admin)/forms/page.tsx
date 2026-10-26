@@ -1,20 +1,15 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, LocalDate } from "@sportspulse/ui";
 import { FileSignature, CheckCircle2, FileQuestion, Layers } from "lucide-react";
 import Link from "next/link";
-import {
-  FORM_PURPOSE_LABELS,
-  FORM_PURPOSES,
-  SYSTEM_ROLE_BY_CODE,
-  type FormPurpose
-} from "@sportspulse/kernel";
+import { FORM_PURPOSE_LABELS, FORM_PURPOSES, SYSTEM_ROLE_BY_CODE, type FormPurpose } from "@sportspulse/kernel";
 import { orgs, registration } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { CreateFormButton } from "@/components/forms/create-form-button";
 import { FormsFilters } from "@/components/forms/forms-filters";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Forms — SportsPulse" };
+export const metadata = { title: "Forms · Super Admin" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -162,7 +157,7 @@ export default async function FormsPage({
         <EmptyState
           icon={FileSignature}
           title="No forms match these filters"
-          description="Clear the search or pick a different organisation, division or scope."
+          description="Clear the search or pick a different organization, division or scope."
         />
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -174,7 +169,7 @@ export default async function FormsPage({
           }
           description={
             filterPurpose === "role_profile"
-              ? "Role-profile forms are surfaced when admins invite a user — the new user fills it out at first sign-in."
+              ? "Role-profile forms are surfaced when admins invite a user. The new user fills it out at first sign-in."
               : filterPurpose === "season_registration"
                 ? "Season-registration forms drive the /registration multistep wizard. Pick or create one to begin."
                 : "Create the first form for any organization."
@@ -248,7 +243,7 @@ export default async function FormsPage({
                   )}
                 </TD>
                 <TD className="text-fg-muted">
-                  {new Date(f.updatedAt).toLocaleDateString("en-CA")}
+                  <LocalDate iso={f.updatedAt} format="date" />
                 </TD>
               </TR>
             ))}

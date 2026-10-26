@@ -3,44 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
-import { Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button, useLocalDate, Select } from "@sportspulse/ui";
 import type { FormSubmissionRow, FormSubmissions } from "@sportspulse/api-client";
 import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
 import { useFormsBuilderApi } from "./context";
 import { SectionHeader } from "./section-header";
-
-const STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "danger" | "info" | "neutral"
-> = {
-  approved: "success",
-  rejected: "danger",
-  withdrawn: "neutral",
-  cancelled: "neutral",
-  draft: "neutral",
-  submitted: "info",
-  under_review: "info",
-  pending_payment: "warning",
-  pending_consent: "warning",
-  pending_verification: "warning",
-  pending_review: "warning",
-  pending_offline: "warning",
-  incomplete: "warning",
-  waitlisted: "info"
-};
-
-function statusLabel(status: string): string {
-  if (status === "under_review" || status === "pending_review") return "pending review";
-  if (status === "pending_offline") return "pending offline payment";
-  return status.replace(/_/g, " ");
-}
-
-function whenLabel(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
 
 function matches(filter: SubmissionStatusFilter, status: string): boolean {
   const f = SUBMISSION_STATUS_FILTERS.find((x) => x.value === filter);
@@ -63,6 +30,7 @@ export function SubmissionsClient({
 }) {
   const { registration: regApi } = useFormsBuilderApi();
   const router = useRouter();
+  const whenLabel = useLocalDate();
   const [filter, setFilter] = useState<SubmissionStatusFilter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -125,18 +93,17 @@ export function SubmissionsClient({
         subtitle={`${counts.all ?? 0} total · ${counts.pending_review ?? 0} pending review · ${counts.pending_payment ?? 0} pending payment · ${counts.approved ?? 0} approved · ${counts.rejected ?? 0} rejected`}
         action={
           <div className="flex items-center gap-2">
-            <select
+            <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value as SubmissionStatusFilter)}
               aria-label="Filter by status"
-              className="h-9 rounded-md border border-border bg-surface-1 px-2 text-[12px] text-fg"
             >
               {SUBMISSION_STATUS_FILTERS.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label} ({counts[f.value] ?? 0})
                 </option>
               ))}
-            </select>
+            </Select>
             <Button type="button" variant="ghost" size="sm" onClick={exportCsv} disabled={exporting || filtered.length === 0}>
               {exporting ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -150,14 +117,14 @@ export function SubmissionsClient({
       />
 
       {error ? (
-        <p role="alert" className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+        <Alert tone="error">
           {error}
-        </p>
+        </Alert>
       ) : null}
       {notice ? (
-        <p role="status" className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <Alert tone="success" role="status">
           {notice}
-        </p>
+        </Alert>
       ) : null}
       {submissions.truncated ? (
         <p className="text-[12px] text-fg-muted">Showing the newest 5,000 submissions.</p>
@@ -182,9 +149,7 @@ export function SubmissionsClient({
                         .join(" · ")}
                     </p>
                   </div>
-                  <Badge mono tone={STATUS_TONE[r.status] ?? "neutral"}>
-                    {statusLabel(r.status)}
-                  </Badge>
+                  <Badge status={r.status} />
                   <Button
                     type="button"
                     variant="ghost"

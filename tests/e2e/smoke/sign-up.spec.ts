@@ -17,7 +17,7 @@ for (const app of APPS) {
     await page.goto(`${app.url}/sign-up`);
     await expect(page.getByText(/Step 1 of 4/i)).toBeVisible();
     await expect(
-      page.getByText(new RegExp(`Join SportsPulse — ${app.copy}`, "i"))
+      page.getByText(new RegExp(`Join SportsPulse: ${app.copy}`, "i"))
     ).toBeVisible();
     await page.getByRole("button", { name: /Get started/i }).click();
     await expect(page.getByText(/Step 2 of 4/i)).toBeVisible();

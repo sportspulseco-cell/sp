@@ -3,7 +3,7 @@ import { fetchAll } from "@sportspulse/api-client";
 
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import { Button, Dialog, DialogActions } from "@sportspulse/ui";
+import { Alert, Button, Dialog, DialogActions, Select } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { ROSTER_DROP_REASON_MIN_CHARS } from "@sportspulse/kernel";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
@@ -98,18 +98,17 @@ export function InitiateTransferModal({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Destination team
           </span>
-          <select
+          <Select
             value={toTeamId}
             onChange={(e) => setToTeamId(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
           >
-            <option value="">— pick a team —</option>
+            <option value="">Pick a team</option>
             {teams.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="grid gap-1.5">
@@ -131,9 +130,9 @@ export function InitiateTransferModal({
         </label>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>

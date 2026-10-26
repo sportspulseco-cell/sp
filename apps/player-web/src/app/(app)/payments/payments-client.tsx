@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMoney } from "@sportspulse/kernel";
+import { DATE_FORMATS, centsToAmountInput, formatCalendarDate, formatMoney } from "@sportspulse/kernel";
 import { useState } from "react";
 import {
   AlertOctagon,
@@ -11,13 +11,7 @@ import {
   RefreshCw,
   Wallet as WalletIcon
 } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogActions,
-  Eyebrow
-} from "@sportspulse/ui";
+import { Badge, Button, Dialog, DialogActions, Eyebrow, useLocalDate, Alert, Input, Select } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 type Wallet = Awaited<ReturnType<typeof finance.myWallet>>;
@@ -31,6 +25,7 @@ export function PaymentsClient({
 }: {
   initial: { wallet: Wallet; invoices: Invoices };
 }) {
+  const localDate = useLocalDate();
   const [wallet, setWallet] = useState<Wallet>(initial.wallet);
   const [invoices, setInvoices] = useState<Invoices>(initial.invoices);
   const [payTarget, setPayTarget] = useState<{ invoice: Invoice; presetCents: number } | null>(null);
@@ -70,9 +65,9 @@ export function PaymentsClient({
   return (
     <div className="space-y-6">
       {flash && (
-        <p className="rounded-md bg-[var(--tint-emerald-bg)] px-3 py-2 text-sm text-[var(--tint-emerald-fg)]">
+        <Alert tone="success" role="status">
           {flash}
-        </p>
+        </Alert>
       )}
 
       {/* Wallet card — mock 3 */}
@@ -132,11 +127,9 @@ export function PaymentsClient({
                       : ""}
                   </span>
                   <span className="flex items-center gap-2">
-                    <Badge tone={inv.status === "paid" ? "success" : "neutral"} mono>
-                      {inv.status}
-                    </Badge>
+                    <Badge status={inv.status} />
                     {inv.paidCents > 0 ? (
-                      <Button variant="ghost" size="sm" onClick={() => downloadReceipt(inv)}>
+                      <Button variant="ghost" size="sm" onClick={() => downloadReceipt(inv, localDate)}>
                         <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
                         Receipt
                       </Button>
@@ -177,7 +170,7 @@ export function PaymentsClient({
         onClose={() => setUpdateCardTarget(null)}
         onSaved={() => {
           setUpdateCardTarget(null);
-          setFlash("Card updated — wired to Stripe element in next sprint.");
+          setFlash("Card updated. Card entry through Stripe is coming soon.");
         }}
       />
     </div>
@@ -195,6 +188,7 @@ function InvoiceCard({
   onRetry: (ins: Installment) => void;
   onUpdateCard: () => void;
 }) {
+  const localDate = useLocalDate();
   const outstanding = Math.max(0, invoice.totalCents - invoice.paidCents);
   const range = invoice.payRange;
   // On a payment plan the player can pay the next installment instead of everything.
@@ -230,20 +224,17 @@ function InvoiceCard({
       </header>
 
       {oldestFailed && (
-        <div className="mx-5 mb-3 flex items-start gap-2 rounded-md border border-[var(--tint-rose-fg)]/30 bg-[var(--tint-rose-bg)] px-3 py-2 text-[12px] text-[var(--tint-rose-fg)] dark:bg-[var(--tint-rose-bg)] dark:text-[var(--tint-rose-fg)]">
+        <Alert tone="error" className="mx-5 mb-3 flex items-start gap-2">
           <AlertOctagon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <span>
             Your{" "}
             {oldestFailed.dueDate
-              ? new Date(oldestFailed.dueDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric"
-                })
+              ? formatCalendarDate(oldestFailed.dueDate, DATE_FORMATS.monthDay)
               : `installment #${oldestFailed.installmentNumber}`}{" "}
             payment of {formatMoney(oldestFailed.amountCents, invoice.currency)} failed.
             Update your card and retry.
           </span>
-        </div>
+        </Alert>
       )}
 
       {/* Line items breakdown — mock 3 */}
@@ -341,10 +332,7 @@ function InvoiceCard({
                       {ins.status === "failed"
                         ? "Failed"
                         : ins.dueDate
-                          ? new Date(ins.dueDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric"
-                            })
+                          ? formatCalendarDate(ins.dueDate, DATE_FORMATS.monthDay)
                           : "Pending"}
                     </p>
                   </div>
@@ -383,7 +371,7 @@ function InvoiceCard({
         {invoice.paidCents > 0 && (
           <Button
             variant="ghost"
-            onClick={() => downloadReceipt(invoice)}
+            onClick={() => downloadReceipt(invoice, localDate)}
           >
             <Download className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
             Download receipt
@@ -465,23 +453,7 @@ function installmentLabel(ins: Installment, idx: number) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<
-    string,
-    { tone: "info" | "success" | "warning" | "danger" | "neutral"; label: string }
-  > = {
-    paid: { tone: "success", label: "Paid" },
-    partial: { tone: "warning", label: "Partial" },
-    overdue: { tone: "danger", label: "Overdue" },
-    sent: { tone: "info", label: "Sent" },
-    draft: { tone: "neutral", label: "Draft" },
-    void: { tone: "neutral", label: "Void" }
-  };
-  const entry = map[status] ?? { tone: "neutral" as const, label: status };
-  return (
-    <Badge tone={entry.tone} mono>
-      {entry.label}
-    </Badge>
-  );
+  return <Badge status={status} />;
 }
 
 /**
@@ -519,11 +491,11 @@ function TeamLink({
  * total, paid, refunded, balance. Opens in a new tab; the browser's
  * Print saves it as a PDF (MON-18). Values are escaped before writing.
  */
-function downloadReceipt(inv: Invoice) {
+function downloadReceipt(inv: Invoice, localDate: (iso: string) => string) {
   const esc = (v: unknown) =>
     String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
   const day = (iso: string | null | undefined) =>
-    iso ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+    iso ? localDate(iso) : "";
   const refunded = inv.refundedCents ?? 0;
   const balance = Math.max(0, inv.totalCents - inv.paidCents);
   // The same lines the Payments card shows (MON-18): what each charge was for.
@@ -571,7 +543,7 @@ function PayDialog({
   onPaid: (msg: string) => void;
 }) {
   const [walletAmount, setWalletAmount] = useState<string>("");
-  const [amountText, setAmountText] = useState<string>((presetCents / 100).toFixed(2));
+  const [amountText, setAmountText] = useState<string>(centsToAmountInput(presetCents));
   // One key per opened dialog: a double click or a retry charges once.
   const [payKey] = useState(() =>
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -646,7 +618,7 @@ function PayDialog({
                 type="button"
                 size="sm"
                 variant={amount === range.minCents ? "primary" : "ghost"}
-                onClick={() => setAmountText((range.minCents / 100).toFixed(2))}
+                onClick={() => setAmountText(centsToAmountInput(range.minCents))}
               >
                 Next installment {formatMoney(range.minCents, invoice.currency)}
               </Button>
@@ -654,7 +626,7 @@ function PayDialog({
                 type="button"
                 size="sm"
                 variant={amount === range.maxCents ? "primary" : "ghost"}
-                onClick={() => setAmountText((range.maxCents / 100).toFixed(2))}
+                onClick={() => setAmountText(centsToAmountInput(range.maxCents))}
               >
                 Whole balance {formatMoney(range.maxCents, invoice.currency)}
               </Button>
@@ -664,15 +636,14 @@ function PayDialog({
                 Or another amount between {formatMoney(range.minCents, invoice.currency)} and{" "}
                 {formatMoney(range.maxCents, invoice.currency)}
               </span>
-              <input
+              <Input
                 aria-label="Amount to pay now"
                 type="number"
                 step="0.01"
-                min={range.minCents / 100}
-                max={range.maxCents / 100}
+                min={centsToAmountInput(range.minCents)}
+                max={centsToAmountInput(range.maxCents)}
                 value={amountText}
                 onChange={(e) => setAmountText(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
               />
             </label>
             {!amountOk ? (
@@ -692,7 +663,7 @@ function PayDialog({
                 invoice.currency
               )})
             </span>
-            <input
+            <Input
               type="number"
               step="0.01"
               min="0"
@@ -700,7 +671,6 @@ function PayDialog({
               value={walletAmount}
               onChange={(e) => setWalletAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
             />
           </label>
         ) : (
@@ -735,23 +705,22 @@ function PayDialog({
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               Test payment: no real card is charged while the league is testing. Pick the outcome to simulate
             </span>
-            <select
+            <Select
               value={mockOutcome}
               onChange={(e) =>
                 setMockOutcome(e.target.value as "succeeded" | "failed")
               }
-              className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg"
             >
               <option value="succeeded">Succeeds</option>
               <option value="failed">Fails (test decline path)</option>
-            </select>
+            </Select>
           </label>
         )}
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>
@@ -809,7 +778,7 @@ function RetryDialog({
       open={true}
       onClose={onClose}
       title={`Retry installment #${target.ins.installmentNumber}`}
-      description={`${formatMoney(target.ins.amountCents, target.inv.currency)} — previous attempt declined.`}
+      description={`${formatMoney(target.ins.amountCents, target.inv.currency)} (previous attempt declined).`}
     >
       <div className="space-y-3">
         {target.inv.cardOnFile && (
@@ -826,22 +795,21 @@ function RetryDialog({
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
             Mock outcome (Stripe wires later)
           </span>
-          <select
+          <Select
             value={mockOutcome}
             onChange={(e) =>
               setMockOutcome(e.target.value as "succeeded" | "failed")
             }
-            className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg"
           >
             <option value="succeeded">Card succeeds</option>
             <option value="failed">Card declines again</option>
-          </select>
+          </Select>
         </label>
 
         {error && (
-          <p className="rounded-md bg-[var(--tint-rose-bg)] px-3 py-2 text-sm text-[var(--tint-rose-fg)]">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         )}
 
         <DialogActions>
@@ -872,7 +840,7 @@ function UpdateCardDialog({
       open={true}
       onClose={onClose}
       title="Update card on file"
-      description="Stripe Elements wire in the next sprint. For now this is a stub — captain still won't see your card details."
+      description="Card entry through Stripe is coming soon. Your captain never sees your card details."
     >
       <div className="space-y-3 text-[13px]">
         <div className="rounded-md border border-dashed border-border bg-bg-subtle p-4 text-fg-muted">

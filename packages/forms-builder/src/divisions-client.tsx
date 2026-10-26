@@ -4,7 +4,7 @@ import { SEASON_CONFIG_DEFAULTS } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button } from "@sportspulse/ui";
+import { Alert, Button, Input } from "@sportspulse/ui";
 import type {
   Division,
   PricingTier,
@@ -177,7 +177,7 @@ export function DivisionsClient({
 
         {tiers.length === 0 ? (
           <p className="text-[12px] text-fg-muted">
-            No pricing tiers yet — create one in the Pricing section first.
+            No pricing tiers yet. Create one in the Pricing section first.
           </p>
         ) : (
           <>
@@ -249,7 +249,7 @@ export function DivisionsClient({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Default max roster size">
-            <input
+            <Input
               type="number"
               min={1}
               max={100}
@@ -257,7 +257,6 @@ export function DivisionsClient({
               onChange={(e) =>
                 setMaxRosterSize(Math.max(1, parseInt(e.target.value) || 1))
               }
-              className="input"
             />
             {/* REG-18: a division's own max roster wins (CAP-21); this is the
                 fallback, so say so instead of looking like a second setting. */}
@@ -266,11 +265,10 @@ export function DivisionsClient({
             </p>
           </Field>
           <Field label="Roster lock date">
-            <input
+            <Input
               type="date"
               value={rosterLockAt}
               onChange={(e) => setRosterLockAt(e.target.value)}
-              className="input"
             />
           </Field>
         </div>
@@ -283,7 +281,7 @@ export function DivisionsClient({
         />
         <ToggleRow
           label="Require liability waiver"
-          hint="Hard block — registration cannot complete without signature"
+          hint="Required: registration cannot complete without a signature"
           checked={requireLiabilityWaiver}
           onChange={setRequireLiabilityWaiver}
         />
@@ -297,7 +295,7 @@ export function DivisionsClient({
         ) : null}
         <ToggleRow
           label="Require code of conduct"
-          hint="Hard block — registrant must check the acknowledgment"
+          hint="Required: the registrant must check the acknowledgment"
           checked={requireCodeOfConduct}
           onChange={setRequireCodeOfConduct}
         />
@@ -323,14 +321,14 @@ export function DivisionsClient({
         />
 
         {error ? (
-          <p className="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+          <Alert tone="error">
             {error}
-          </p>
+          </Alert>
         ) : null}
         {configSaved ? (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-700 dark:text-emerald-300">
+          <Alert tone="success" role="status">
             Eligibility rules saved.
-          </p>
+          </Alert>
         ) : null}
 
         <div className="flex justify-end border-t border-border pt-4">
@@ -345,7 +343,6 @@ export function DivisionsClient({
         </div>
       </section>
 
-      <FieldStyle />
     </div>
   );
 }
@@ -444,20 +441,3 @@ function Field({
   );
 }
 
-function FieldStyle() {
-  return (
-    <style>{`
-      .input {
-        height: 2.5rem;
-        width: 100%;
-        border-radius: 0.375rem;
-        border: 1px solid var(--border);
-        background: var(--surface-1);
-        padding: 0 0.75rem;
-        color: var(--fg);
-        font-size: 13px;
-      }
-      .input:focus { outline: none; border-color: var(--accent); }
-    `}</style>
-  );
-}

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
-import { Badge, EmptyState, PageHeader } from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
+import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Lineups — SportsPulse" };
+export const metadata = { title: "Lineups · Team Admin" };
 
 // In the game's own zone.
 function fmt(iso: string, tz: string): string {
@@ -46,9 +47,8 @@ export default async function LineupsIndexPage() {
     );
   }
 
-  const games = await gameOps
-    .listGames({ teamId: myTeamId, limit: 50 })
-    .catch(() => ({ items: [], nextCursor: null }));
+  const gamesResult = await load(gameOps.listGames({ teamId: myTeamId, limit: 50 }));
+  const games = gamesResult.ok ? gamesResult.data : { items: [], nextCursor: null };
 
   const upcoming = games.items
     .filter((g) => g.status === "scheduled" || g.status === "in_play")
@@ -66,7 +66,9 @@ export default async function LineupsIndexPage() {
         description="Pick starters, bench, and scratches per game. Locked the moment the game starts."
       />
 
-      {upcoming.length === 0 ? (
+      {!gamesResult.ok ? (
+        <LoadError what="your games" status={gamesResult.status} message={gamesResult.message} />
+      ) : upcoming.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           title="No upcoming games"

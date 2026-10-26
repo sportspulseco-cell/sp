@@ -9,7 +9,7 @@ import { RegionsSection } from "@/components/regions/regions-section";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const metadata = { title: "Org setup — Org Admin" };
+export const metadata = { title: "Org setup · Org Admin" };
 
 /**
  * Same shared @sportspulse/admin-pages OrgSetupWizard sa-web uses,

@@ -1,6 +1,7 @@
 ﻿import { ShieldCheck, Sparkles, Layers } from "lucide-react";
+import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
-import { fetchAll } from "@sportspulse/api-client";
+import { fetchAll, load } from "@sportspulse/api-client";
 import { iam, orgs } from "@/lib/api/server-api";
 import {
   Badge,
@@ -21,15 +22,17 @@ import { DeleteRoleButton } from "@/components/roles/delete-role-button";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 
-export const metadata = { title: "Roles — SportsPulse" };
+export const metadata = { title: "Roles · Super Admin" };
 
 export default async function RolesPage() {
-  const [page, orgList] = await Promise.all([
-    iam
-      .listRoles({ limit: 200 })
-      .catch(() => ({ items: [], nextCursor: null })),
+  const [rolesResult, orgList] = await Promise.all([
+    load(iam.listRoles({ limit: 200 })),
     fetchAll((cursor) => orgs.list({ limit: 100, cursor })).catch(() => ({ items: [] }))
   ]);
+  if (!rolesResult.ok) {
+    return <LoadError what="roles" status={rolesResult.status} message={rolesResult.message} />;
+  }
+  const page = rolesResult.data;
   const orgMap = new Map(orgList.items.map((o) => [o.id, o.displayName]));
 
   const sorted = [...page.items].sort((a, b) => {
@@ -105,7 +108,7 @@ export default async function RolesPage() {
         <header>
           <Eyebrow>System roles</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Seeded with the platform. Read-only — names + permissions are
+            Seeded with the platform. Read-only: names + permissions are
             managed via migrations.
           </p>
         </header>

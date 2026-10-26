@@ -1,18 +1,5 @@
 ﻿import { fetchAll } from "@sportspulse/api-client";
-import {
-  Alert,
-  Badge,
-  EmptyState,
-  PageHeader,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  UrlFilters,
-  statusTone
-} from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Network, Building2, Layers, Trophy, Plus } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
@@ -20,7 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Team } from "@/lib/api/types";
 
-export const metadata = { title: "Teams — SportsPulse" };
+export const metadata = { title: "Teams · Super Admin" };
 
 export default async function TeamsPage({
   searchParams
@@ -84,7 +71,7 @@ export default async function TeamsPage({
       <PageHeader
         eyebrow="Teams"
         title="Teams"
-        description="Every team. A team belongs to an organisation and plays in a division each season."
+        description="Every team. A team belongs to an organization and plays in a division each season."
         action={newTeamCta}
       />
       <KineticStrip
@@ -108,9 +95,9 @@ export default async function TeamsPage({
 
       <div className="space-y-2">
         <UrlFilters
-          searchPlaceholder="Search teams by name, short name, organisation or captain"
+          searchPlaceholder="Search teams by name, short name, organization or captain"
           selects={[
-            { param: "org", label: "Organisation", allLabel: "All organisations", options: orgOptions },
+            { param: "org", label: "Organization", allLabel: "All organizations", options: orgOptions },
             { param: "sport", label: "Sport", allLabel: "All sports", options: sportOptions },
             {
               param: "status",
@@ -143,7 +130,7 @@ export default async function TeamsPage({
         <EmptyState
           icon={Network}
           title="No teams match these filters"
-          description="Clear the search or pick a different organisation, sport or status."
+          description="Clear the search or pick a different organization, sport or status."
         />
       ) : (
         <Table>
@@ -177,7 +164,7 @@ export default async function TeamsPage({
                   </Link>
                 </TD>
                 <TD>
-                  <Badge tone={statusTone(t.status)}>{t.status}</Badge>
+                  <Badge status={t.status} />
                 </TD>
                 <TD>
                   <AssignAdminCell

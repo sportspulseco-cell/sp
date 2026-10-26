@@ -23,7 +23,7 @@ import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Teams - Org Admin" };
+export const metadata = { title: "Teams · Org Admin" };
 
 export default async function TeamsPage({
   searchParams
@@ -150,9 +150,7 @@ export default async function TeamsPage({
                     <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{t.sportCode}</TD>
                     <TD className="text-fg-muted">{t.captainName ?? "—"}</TD>
                     <TD>
-                      <Badge mono tone={(t.status as string) === "active" ? "success" : "neutral"}>
-                        {t.status}
-                      </Badge>
+                      <Badge status={t.status} />
                     </TD>
                   </TR>
                 ))}
