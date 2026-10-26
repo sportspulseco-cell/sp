@@ -977,6 +977,20 @@ export function createApi(f: Fetcher) {
        * outstanding, overdue (cents) + counts. Powers the 4-tile row at
        * the top of the admin Invoices & AR dashboard.
        */
+      /** Balances per team and per player on open invoices, scoped to the caller (FR-3.1.1). */
+      balances: (orgId?: string) =>
+        f<{
+          teams: Array<{ teamId: string; teamName: string; openInvoices: number; billedCents: number; paidCents: number; outstandingCents: number; overdueCents: number }>;
+          players: Array<{ personId: string; name: string | null; email: string | null; openInvoices: number; outstandingCents: number; overdueCents: number }>;
+        }>(`/finance/balances${qs({ orgId })}`),
+      /** CSV for accounting (FR-3.1.4), scoped like the invoice list. */
+      exportReport: (q: {
+        kind: "invoices" | "payments" | "refunds" | "aging" | "team_balances" | "player_balances";
+        orgId?: string;
+        status?: string;
+        billingScope?: string;
+        search?: string;
+      }) => f<{ filename: string; csv: string; rowCount: number }>(`/finance/export${qs(q)}`),
       dashboardSummary: (orgId?: string) =>
         f<{
           totalInvoicedCents: number;

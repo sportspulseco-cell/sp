@@ -10,7 +10,10 @@ import {
   Wallet
 } from "lucide-react";
 import { SectionRail, StatTile } from "@sportspulse/ui";
-import { loadMeScope, orgAdminFinance } from "@/lib/api/server-api";
+import { load } from "@sportspulse/api-client";
+import { LoadError } from "@sportspulse/ui";
+import { finance, loadMeScope, orgAdminFinance } from "@/lib/api/server-api";
+import { FinanceReports } from "./finance-reports";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceTable } from "./invoice-table";
@@ -45,13 +48,14 @@ export default async function FinancePage() {
     (i) => i.status === "overdue"
   ).length;
   const currency = invoicesPage.items[0]?.currency ?? "USD";
+  const balancesResult = orgId ? await load(finance.balances(orgId)) : null;
 
   return (
     <div className="space-y-12">
       <PageHeader
         eyebrow="Finance"
         title="Finance"
-        description="Outstanding receivables for your org. Issue new invoices, record offline payments inline. Aging-bucket reporting lives in the super-admin console."
+        description="Outstanding receivables for your org. Issue new invoices, record offline payments inline, export reports."
         action={
           orgId ? (
             <Link
@@ -105,6 +109,21 @@ export default async function FinancePage() {
         />
         <InvoiceTable invoices={invoicesPage.items} />
       </section>
+
+      {orgId && balancesResult ? (
+        <section className="space-y-6">
+          <SectionRail
+            index="03"
+            label="Balances and reports"
+            subtitle="What each team and player owes, and CSV files for your accountant: invoices, payments, refunds and AR aging."
+          />
+          {balancesResult.ok ? (
+            <FinanceReports balances={balancesResult.data} filters={{ orgId }} />
+          ) : (
+            <LoadError what="balances" status={balancesResult.status} message={balancesResult.message} />
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

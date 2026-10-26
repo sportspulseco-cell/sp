@@ -628,3 +628,32 @@ test("14. composer: a Discount line lowers the total; a late fee is stored on th
   );
   expect(rows[0], "invoice total 90.00 with a 10.00 discount and a 5.00 late fee").toMatchObject({ total_cents: 9000, discount_cents: 1000, late_fee_cents: 500 });
 });
+
+test("15. balances per team and player, and CSV exports that match the screen (FR-3.1.1, FR-3.1.4)", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  const [org] = await stagingSql<{ id: string }>(`select id from orgs where display_name = $1`, [ORG_NAME]);
+  await p.goto(`${new URL(p.url()).origin}/finance?orgId=${org!.id}`);
+  const panel = p.getByRole("region", { name: "Balances and exports" });
+  await expect(panel.getByText("By team"), "balances by team").toBeVisible({ timeout: 30_000 });
+  await expect(panel.getByText("By player")).toBeVisible();
+  // AR aging CSV: its total is the Outstanding tile.
+  const outstandingTile = (await p.locator("main").innerText()).replace(/\s+/g, " ");
+  const dl = p.waitForEvent("download");
+  await panel.getByRole("button", { name: "AR aging CSV" }).click();
+  const file = await dl;
+  const csv = await file.createReadStream().then(async (s) => {
+    let out = "";
+    for await (const c of s) out += c.toString();
+    return out;
+  });
+  log("aging csv:", csv);
+  const total = /^Total,\d+,([\d.]+)$/m.exec(csv)?.[1];
+  expect(total, "aging CSV has a Total row").toBeTruthy();
+  const shown = Number(total).toLocaleString("en-US", { minimumFractionDigits: 2 });
+  expect.soft(outstandingTile, `Outstanding tile shows the aging total ${shown}`).toContain(shown);
+  // Invoices CSV downloads too.
+  const dl2 = p.waitForEvent("download");
+  await panel.getByRole("button", { name: "Invoices CSV" }).click();
+  expect((await dl2).suggestedFilename(), "invoices file").toMatch(/^invoices-.*\.csv$/);
+  await shot(p, "15-balances-exports");
+});

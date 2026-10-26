@@ -32,6 +32,25 @@ export function registrationInvoiceDueAt(input: {
   return new Date(due);
 }
 
+/** AR aging buckets, oldest last, as accountants read them. */
+export const AGING_BUCKETS = ["Current", "1-30 days", "31-60 days", "61-90 days", "Over 90 days"] as const;
+export type AgingBucket = (typeof AGING_BUCKETS)[number];
+
+/**
+ * Aging bucket of an open balance by days past its due date. Not yet due
+ * (or no due date) is Current; one day past due is "1-30 days".
+ */
+export function agingBucket(dueAt: Date | string | null, now: Date = new Date()): AgingBucket {
+  if (!dueAt) return "Current";
+  const due = new Date(dueAt).getTime();
+  const days = Math.floor((now.getTime() - due) / DAY_MS);
+  if (!Number.isFinite(days) || now.getTime() <= due) return "Current";
+  if (days <= 30) return "1-30 days";
+  if (days <= 60) return "31-60 days";
+  if (days <= 90) return "61-90 days";
+  return "Over 90 days";
+}
+
 export interface PayPlanRow {
   installmentNumber: number;
   amountCents: number;

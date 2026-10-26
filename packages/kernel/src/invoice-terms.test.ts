@@ -2,6 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { invoiceLineLabel, invoiceLineTotals, invoicePayRange, invoiceTitle, registrationInvoiceDueAt, signedLineAmount } from "./invoice-terms";
 
+test("aging buckets by days past due", async () => {
+  const { agingBucket } = await import("./invoice-terms");
+  const now = new Date("2026-10-26T12:00:00Z");
+  const ago = (d: number) => new Date(now.getTime() - d * 86_400_000);
+  assert.equal(agingBucket(null, now), "Current");
+  assert.equal(agingBucket(ago(-3), now), "Current");
+  assert.equal(agingBucket(ago(0.5), now), "1-30 days");
+  assert.equal(agingBucket(ago(30), now), "1-30 days");
+  assert.equal(agingBucket(ago(31), now), "31-60 days");
+  assert.equal(agingBucket(ago(90), now), "61-90 days");
+  assert.equal(agingBucket(ago(91), now), "Over 90 days");
+});
+
 const plan = [
   { installmentNumber: 0, amountCents: 5000, status: "succeeded" },
   { installmentNumber: 1, amountCents: 5000, status: "scheduled" },

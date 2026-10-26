@@ -9,6 +9,7 @@ import { FinanceEscalationsController } from "./interface/escalations.controller
 import { FinanceQuickbooksSyncController } from "./interface/quickbooks-sync.controller";
 import { PlayerPaymentsController } from "./interface/player-payments.controller";
 import { FinanceArActionsController } from "./interface/ar-actions.controller";
+import { FinanceReportsController } from "./interface/finance-reports.controller";
 import { CaptainDuesController } from "./interface/captain-dues.controller";
 import { FinanceInvoicingController } from "./interface/invoicing.controller";
 import { FinanceService } from "./application/finance.service";
@@ -46,6 +47,7 @@ import {
     FinanceQuickbooksSyncController,
     PlayerPaymentsController,
     FinanceArActionsController,
+    FinanceReportsController,
     CaptainDuesController,
     FinanceInvoicingController
   ],
