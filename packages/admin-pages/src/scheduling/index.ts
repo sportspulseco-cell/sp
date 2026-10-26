@@ -11,3 +11,4 @@ export { SchedulingPlayoffBrackets } from "./playoff-brackets";
 export { SchedulingTournament } from "./tournament-rounds";
 export { ScheduleRealtimeBridge } from "./schedule-realtime-bridge";
 export * from "./scheduler-client";
+export * from "./blackout-dates";

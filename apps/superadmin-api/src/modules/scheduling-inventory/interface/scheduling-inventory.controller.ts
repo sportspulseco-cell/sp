@@ -72,6 +72,17 @@ import { gameTimeLabel } from "../../game-operations/application/games/game-noti
  * with the kernel helper, so the result never depends on the browser.
  */
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Blackout dates for the schedule generator (FR-3.8.4). */
+class CreateBlackoutDto {
+  @Matches(DAY) startDate!: string;
+  @IsOptional() @Matches(DAY) endDate?: string;
+  /** One rink only; omit for every rink in the season. */
+  @IsOptional() @IsUUID() surfaceId?: string;
+  @IsOptional() @IsString() @Length(0, 200) reason?: string;
+}
+
 const WALL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 /** Game statuses that still need the rink. */
 const UNFINISHED_GAME_STATUSES = ["scheduled", "in_play", "postponed"];
@@ -1015,6 +1026,104 @@ export class SchedulingInventoryController {
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString()
     };
+  }
+
+  // ---------------------------------------------------------------
+  //  Blackout dates (FR-3.8.4). The generator leaves every ice slot on
+  //  these days out (supabase/functions/scheduler-generate). Dates are
+  //  the season's calendar days; no rink = every rink.
+  // ---------------------------------------------------------------
+  @Get("seasons/:seasonId/blackouts")
+  async listBlackouts(@CurrentUser() user: AuthPrincipal, @Param("seasonId") seasonId: string) {
+    const season = await this.requireSeason(user, seasonId, "read");
+    const rows = await this.db
+      .select({
+        id: schema.scheduleBlackouts.id,
+        startDate: schema.scheduleBlackouts.startDate,
+        endDate: schema.scheduleBlackouts.endDate,
+        surfaceId: schema.scheduleBlackouts.surfaceId,
+        reason: schema.scheduleBlackouts.reason,
+        createdAt: schema.scheduleBlackouts.createdAt,
+        surfaceLabel: schema.surfaces.label,
+        venueName: schema.venues.name
+      })
+      .from(schema.scheduleBlackouts)
+      .leftJoin(schema.surfaces, eq(schema.surfaces.id, schema.scheduleBlackouts.surfaceId))
+      .leftJoin(schema.venues, eq(schema.venues.id, schema.surfaces.venueId))
+      .where(eq(schema.scheduleBlackouts.seasonId, seasonId))
+      .orderBy(asc(schema.scheduleBlackouts.startDate));
+    return {
+      seasonId,
+      timezone: season.timezone,
+      items: rows.map((r) => ({
+        ...r,
+        rinkLabel: r.surfaceId ? [r.venueName, r.surfaceLabel].filter(Boolean).join(" · ") : null,
+        createdAt: r.createdAt.toISOString()
+      }))
+    };
+  }
+
+  @Post("seasons/:seasonId/blackouts")
+  async createBlackout(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("seasonId") seasonId: string,
+    @Body() body: CreateBlackoutDto
+  ) {
+    const season = await this.requireSeason(user, seasonId, "write");
+    const endDate = body.endDate ?? body.startDate;
+    if (endDate < body.startDate) {
+      throw new UnprocessableEntityException("The last day is before the first day. Pick the dates again.");
+    }
+    if (body.surfaceId) {
+      const surface = await this.requireSurface(user, body.surfaceId, "read");
+      if (surface.venue.orgId !== season.orgId) {
+        throw new UnprocessableEntityException("That rink is not one of this season's organisation. Pick another rink.");
+      }
+    }
+    const [row] = await this.db
+      .insert(schema.scheduleBlackouts)
+      .values({
+        seasonId,
+        surfaceId: body.surfaceId ?? null,
+        startDate: body.startDate,
+        endDate,
+        reason: body.reason?.trim() || null,
+        createdByUserId: user.userId
+      })
+      .returning();
+    log.log(`blackout.create id=${row!.id} season=${seasonId} ${body.startDate}..${endDate} surface=${body.surfaceId ?? "all"} by=${user.userId}`);
+    return { ...row!, createdAt: row!.createdAt.toISOString() };
+  }
+
+  @Delete("blackouts/:id")
+  async deleteBlackout(@CurrentUser() user: AuthPrincipal, @Param("id") id: string) {
+    const [row] = await this.db
+      .select({ seasonId: schema.scheduleBlackouts.seasonId })
+      .from(schema.scheduleBlackouts)
+      .where(eq(schema.scheduleBlackouts.id, id))
+      .limit(1);
+    if (!row) throw new NotFoundException("Blackout not found");
+    await this.requireSeason(user, row.seasonId, "write");
+    const gone = await this.db
+      .delete(schema.scheduleBlackouts)
+      .where(eq(schema.scheduleBlackouts.id, id))
+      .returning({ id: schema.scheduleBlackouts.id });
+    log.log(`blackout.delete id=${id} rows=${gone.length} by=${user.userId}`);
+    return { id, deleted: gone.length === 1 };
+  }
+
+  /** Live season in the caller's scope: 404 outside read scope, 403 when read-only. */
+  private async requireSeason(user: AuthPrincipal, seasonId: string, mode: "read" | "write") {
+    const [season] = await this.db
+      .select({ id: schema.seasons.id, orgId: schema.seasons.orgId, timezone: schema.seasons.timezone })
+      .from(schema.seasons)
+      .where(and(eq(schema.seasons.id, seasonId), isNull(schema.seasons.deletedAt)))
+      .limit(1);
+    if (!season || !(await this.canReadOrg(user, season.orgId))) {
+      throw new NotFoundException("Season not found");
+    }
+    if (mode === "write") await this.requireOrgWrite(user, season.orgId);
+    return season;
   }
 
   // ---------------------------------------------------------------

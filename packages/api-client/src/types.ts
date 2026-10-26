@@ -1476,3 +1476,15 @@ export interface TeamStoreProduct {
   createdAt: string;
   updatedAt: string;
 }
+
+/** A blackout day or range for the schedule generator (FR-3.8.4). */
+export interface ScheduleBlackout {
+  id: string;
+  startDate: string;
+  endDate: string;
+  /** null = every rink. */
+  surfaceId: string | null;
+  rinkLabel?: string | null;
+  reason: string | null;
+  createdAt: string;
+}

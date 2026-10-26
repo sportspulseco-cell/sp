@@ -1,5 +1,6 @@
 import type {
   AuditEvent,
+  ScheduleBlackout,
   AuditFacets,
   CaptainDuesBreakdown,
   ConsentSignature,
@@ -3382,6 +3383,22 @@ export function createApi(f: Fetcher) {
     // The data the scheduler reads from. Previously seeded via SQL
     // only; now mountable from the admin UI.
     schedulingInventory: {
+      /** Blackout dates the schedule generator leaves out (FR-3.8.4). */
+      listBlackouts: (seasonId: string) =>
+        f<{ seasonId: string; timezone: string; items: ScheduleBlackout[] }>(
+          `/scheduling/seasons/${seasonId}/blackouts`
+        ),
+      /** `surfaceId` omitted = every rink; `endDate` omitted = one day. */
+      createBlackout: (
+        seasonId: string,
+        body: { startDate: string; endDate?: string; surfaceId?: string; reason?: string }
+      ) =>
+        f<ScheduleBlackout>(`/scheduling/seasons/${seasonId}/blackouts`, {
+          method: "POST",
+          body: JSON.stringify(body)
+        }),
+      deleteBlackout: (id: string) =>
+        f<{ id: string; deleted: boolean }>(`/scheduling/blackouts/${id}`, { method: "DELETE" }),
       listVenues: (q?: { orgId?: string }) =>
         f<{
           items: Array<{

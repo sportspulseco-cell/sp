@@ -32,6 +32,8 @@ export interface GenerateRequest {
   timeLimitSeconds?: number;
   seed?: string;
   maxLateFraction?: number;
+  /** Report teams with more games than this in one week (not enforced). */
+  maxGamesPerTeamPerWeek?: number;
 }
 
 export interface GenerateResponse {
@@ -40,6 +42,14 @@ export interface GenerateResponse {
   gamesCreated: number;
   gamesLockedPreserved?: number;
   solveTimeMs?: number;
+  /** One plain sentence: what was created, replaced and kept. */
+  message?: string;
+  draftsReplaced?: number;
+  kept?: { published: number; playoff: number; locked: number; played: number; total: number };
+  slotsBlackedOut?: number;
+  homeAway?: Record<string, { home: number; away: number }>;
+  maxHomeAwayImbalance?: number;
+  weeklyOverLimit?: Array<{ teamId: string; weekStart: string; games: number }>;
   infeasibility?: {
     summary: string;
     hardViolations: Array<{ type: string; description: string; resolutionHint?: string }>;
