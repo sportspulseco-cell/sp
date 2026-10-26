@@ -4300,7 +4300,7 @@ export interface TransferRequest {
 }
 
 // ----- public registration types -----
-import type { FormDefinition } from "@sportspulse/kernel";
+import type { FormDefinition, PriceAudience } from "@sportspulse/kernel";
 
 export interface PublicSeasonContext {
   season: {
@@ -4329,6 +4329,8 @@ export interface PricingTier {
   divisionId: string | null;
   /** Divisions this price is for, from the Divisions grid; empty = whole season (REG-18). */
   divisionIds?: string[];
+  /** Who the price is for: any | team | player | free_agent (F-2). Older prices are any. */
+  audience: PriceAudience;
   currency: string;
   fullPriceCents: number;
   isFree: boolean;
@@ -4364,6 +4366,7 @@ export interface PricingTierInput {
   customUrlSlug?: string | null;
   isReturningTeamPricing?: boolean;
   isActive?: boolean;
+  audience?: PriceAudience;
 }
 
 export type EmailEventType =

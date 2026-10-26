@@ -11,7 +11,7 @@ import {
   SKILL_LEVEL_HINTS,
   SKILL_LEVEL_LABELS,
   SKILL_LEVELS,
-  tiersForDivision,
+  tiersForPath,
   tierOffersPlan,
   tierIsFull,
   planInstallments,
@@ -170,20 +170,22 @@ export function RegistrationFunnel({
   } | null>(null);
   const [eligibilityFlags, setEligibilityFlags] = useState<string[] | null>(null);
 
-  // Only the prices for the registrant's division (REG-18); the server
+  // Only the prices for the registrant's division (REG-18) and path: a
+  // team sees team prices, a player player prices (F-2). The server
   // refuses any other at the price step and again at payment.
   const registrantDivision =
     submissionType === "team" ? teamDivision || null : divisionId;
   const tiers = useMemo(
     () =>
-      tiersForDivision(
+      tiersForPath(
         context.pricingTiers.map((t) => ({
           ...t,
           divisionIds: t.divisionIds ?? (t.divisionId ? [t.divisionId] : [])
         })),
-        registrantDivision
+        registrantDivision,
+        submissionType
       ),
-    [context.pricingTiers, registrantDivision]
+    [context.pricingTiers, registrantDivision, submissionType]
   );
   // A division change can leave a picked price that is not offered there.
   useEffect(() => {

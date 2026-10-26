@@ -82,6 +82,12 @@ export const pricingTiers = pgTable(
       .notNull()
       .default(false),
     isActive: boolean("is_active").notNull().default(true),
+    /**
+     * Who the price is for: any | team | player | free_agent (kernel
+     * PRICE_AUDIENCES). The funnel offers a price only on its path and the
+     * server refuses it on another (F-2). Older prices are `any`.
+     */
+    audience: text("audience").notNull().default("any"),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -91,6 +97,10 @@ export const pricingTiers = pgTable(
       .defaultNow()
   },
   (t) => ({
+    audienceCheck: check(
+      "pricing_tier_audience_check",
+      sql`${t.audience} IN ('any','team','player','free_agent')`
+    ),
     seasonIdx: index("pricing_tier_season_idx").on(t.seasonId),
     divisionIdx: index("pricing_tier_division_idx").on(t.divisionId),
     codeUniq: uniqueIndex("pricing_tier_code_uniq").on(t.seasonId, t.code),
