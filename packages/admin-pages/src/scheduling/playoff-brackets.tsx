@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSlotTime } from "./time-zone";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import {
@@ -24,8 +25,11 @@ interface Props {
    * app binds its SDK: gameOps.publishSchedule with gameType "playoff").
    */
   publishPlayoffGames?: (req: { seasonId: string; divisionId: string }) => Promise<{ gamesPublished: number; notificationsQueued?: number }>;
-  /** Link to a game's page in this console. */
-  gameHref?: (gameId: string) => string;
+  /**
+   * Link to a game's page in this console. Required, so no console ships
+   * a bracket whose games cannot be opened (the org admin's did).
+   */
+  gameHref: (gameId: string) => string;
 }
 
 
@@ -297,7 +301,8 @@ function SlotCard({
   onAdvanced: () => void;
   gameHref?: (gameId: string) => string;
 }) {
-  const fmtTs = useSlotTime();
+  // The rink's clock with its zone: "Nov 4, 9:00 PM EST" (SCH-28).
+  const fmtTs = useSlotTime({ withZone: true });
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -349,9 +354,9 @@ function SlotCard({
           {slot.bye ? "Goes through without a game" : `${slot.venueName ?? "Rink"} · ${slot.surfaceLabel ?? ""}`}
         </span>
         {slot.gameId && gameHref ? (
-          <a href={gameHref(slot.gameId)} className="text-[12px] font-medium text-fg underline-offset-2 hover:underline">
+          <Link href={gameHref(slot.gameId)} className="text-[12px] font-medium text-fg underline-offset-2 hover:underline">
             Open game{slot.published === false ? " (draft)" : ""}
-          </a>
+          </Link>
         ) : null}
         {slot.gameStatus && (
           <Badge tone={

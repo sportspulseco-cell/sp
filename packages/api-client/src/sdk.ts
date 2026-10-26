@@ -2329,8 +2329,11 @@ export function createApi(f: Fetcher) {
         f<GameOfficial[]>(`/game-officials/for-person/${personId}`),
       assignOfficial: (
         gameId: string,
-        body: {
-          personId: string;
+        body: (
+          | { personId: string; email?: never }
+          /** An existing account's full email (exact match), not part of one. */
+          | { email: string; personId?: never }
+        ) & {
           role: GameOfficialRole;
           slot?: string | null;
           status?: GameOfficialStatus;
