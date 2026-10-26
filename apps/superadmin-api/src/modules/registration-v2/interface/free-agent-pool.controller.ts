@@ -33,7 +33,7 @@ import { userIsCaptainOfTeam } from "../../../shared/auth/captain";
 import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
-import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { loadAdminScope, type UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { FreeAgentOffersService } from "../application/free-agent-offers.service";
 
@@ -112,6 +112,9 @@ export class FreeAgentPoolController {
     // the result set. The free-agent pool exposes player PII + skill
     // levels; without a seasonId we'd return the entire platform pool.
     if (!scope.isSuperAdmin) {
+      // Admin roles only: a rostered player's scope also carries their
+      // team's org, which must not open the pool's PII to them.
+      const admin = await loadAdminScope(this.db, user.userId);
       if (!q.seasonId) {
         throw new BadRequestException(
           "seasonId or forTeamId is required for non-super-admin callers"
@@ -129,9 +132,9 @@ export class FreeAgentPoolController {
         throw new NotFoundException(`Season not found: ${q.seasonId}`);
       }
       const inLeagueScope =
-        scope.leagueIds === null || scope.leagueIds.includes(season.leagueId);
+        admin.leagueIds === null || admin.leagueIds.includes(season.leagueId);
       const inOrgScope =
-        scope.orgIds === null || scope.orgIds.includes(season.orgId);
+        admin.orgIds === null || admin.orgIds.includes(season.orgId);
       if (!inLeagueScope && !inOrgScope) {
         throw new NotFoundException(`Season not found: ${q.seasonId}`);
       }
@@ -142,12 +145,45 @@ export class FreeAgentPoolController {
   @Post()
   @AllowScopedWrite()
   @ApiOperation({ summary: "Upsert a free agent entry (one per player+season)" })
-  upsert(@Body() body: UpsertFreeAgentBodyDto) {
-    // Self-write: a player creates a free-agent entry for themselves.
-    // We don't have a fast user→person lookup at this layer, so we
-    // accept the body's playerPersonId as-is and let the unique
-    // constraint (player_id, season_id) prevent abuse. League/org
-    // admins can create on behalf of others as before.
+  async upsert(
+    @Body() body: UpsertFreeAgentBodyDto,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
+  ) {
+    // A player writes their own entry. Anyone else must be an admin over
+    // the season (super admin, or league/org scope); otherwise 404, so the
+    // endpoint never confirms another person's entry exists.
+    const [own] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(
+        and(
+          eq(schema.persons.id, body.playerPersonId),
+          eq(schema.persons.userId, user.userId),
+          isNull(schema.persons.deletedAt)
+        )
+      )
+      .limit(1);
+    if (!own && !scope.isSuperAdmin) {
+      const [season] = await this.db
+        .select({ leagueId: schema.seasons.leagueId, orgId: schema.seasons.orgId })
+        .from(schema.seasons)
+        .where(eq(schema.seasons.id, body.seasonId))
+        .limit(1);
+      const reach = await loadAdminScope(this.db, user.userId);
+      const admin =
+        !!season &&
+        (reach.leagueIds === null ||
+          reach.leagueIds.includes(season.leagueId) ||
+          reach.orgIds === null ||
+          reach.orgIds.includes(season.orgId));
+      if (!admin) {
+        console.warn(
+          `[free-agent-pool] refused upsert by user=${user.userId} for person=${body.playerPersonId} season=${body.seasonId}`
+        );
+        throw new NotFoundException(`Player not found: ${body.playerPersonId}`);
+      }
+    }
     return this.svc.upsertFreeAgentEntry({
       playerPersonId: body.playerPersonId,
       seasonId: body.seasonId,
