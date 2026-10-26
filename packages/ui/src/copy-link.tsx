@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import { writeClipboard } from "./lib/clipboard";
 
 /**
  * A link an admin shares (a league's public registration page): the URL,
@@ -10,12 +11,7 @@ import { Check, Copy, ExternalLink } from "lucide-react";
 export function CopyLink({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState<"yes" | "no" | null>(null);
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied("yes");
-    } catch {
-      setCopied("no");
-    }
+    setCopied((await writeClipboard(value)) ? "yes" : "no");
     setTimeout(() => setCopied(null), 2500);
   }
   return (

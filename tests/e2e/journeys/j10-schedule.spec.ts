@@ -488,7 +488,10 @@ test.describe("J10 schedule generate and publish", () => {
     const hadBracket = !(await gen.isVisible().catch(() => false));
     if (!hadBracket) {
       await page.getByLabel("Division").selectOption(divisionId).catch(() => {});
-      await page.getByLabel("Teams in the bracket").fill("4");
+      // As many teams as the division has (at most 4); the product refuses a
+      // bracket bigger than the division (insufficient_teams).
+      const [{ n: entered }] = await stagingSql<{ n: number }>(`select count(*)::int n from division_team_entries where division_id = $1 and left_at is null and entry_status in ('applied','accepted','confirmed')`, [divisionId]);
+      await page.getByLabel("Teams in the bracket").fill(String(Math.min(4, Math.max(2, entered))));
       const r = await edgeCall(page, "scheduler-bracket-generate", () => gen.click());
       console.log(`[J10] bracket generate → ${r}`);
       expect(r, "bracket generated (2xx)").toMatch(/^http 2/);

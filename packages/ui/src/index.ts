@@ -30,6 +30,7 @@ export * from "./copy-link";
 // next/link + next/navigation, which would couple this package to
 // Next.js). If we ever need a framework-neutral version, factor here.
 export { cn } from "./lib/cn";
+export { writeClipboard } from "./lib/clipboard";
 export * from "./season-switch";
 export * from "./link-tabs";
 export * from "./breadcrumbs";

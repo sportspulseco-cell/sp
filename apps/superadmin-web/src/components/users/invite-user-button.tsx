@@ -19,7 +19,7 @@ import {
 } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
 import { FormRenderer } from "@sportspulse/registration-funnel";
-import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, writeClipboard } from "@sportspulse/ui";
 import { ResourcePicker } from "@/components/resources/resource-picker";
 import { Alert } from "@sportspulse/ui";
 
@@ -227,6 +227,10 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
           );
         }
       }
+      // Record the invite before anything that can wait (the clipboard can
+      // hang on a permission prompt): closing the dialog then shows the row.
+      setInvitedSinceOpen(result.userId);
+      router.refresh();
       setRenderedMessage(result.message);
       // Auto-copy on success so the admin can paste into Slack/WhatsApp
       // immediately without an extra click. Falls back gracefully if
@@ -249,8 +253,6 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
       setSetPwd(false);
       setSetupProfile(false);
       setProfileAnswers({});
-      setInvitedSinceOpen(result.userId);
-      router.refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -542,27 +544,6 @@ function formatForClipboard(m: {
   return [`To: ${m.recipient}`, `Subject: ${m.subject}`, "", m.body].join("\n");
 }
 
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through to legacy path
-  }
-  // Legacy fallback for non-secure contexts. Best-effort.
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
+function copyToClipboard(text: string): Promise<boolean> {
+  return writeClipboard(text);
 }
