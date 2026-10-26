@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CommunicationsModule } from "../communications/communications.module";
+import { FinanceModule } from "../finance/finance.module";
 import { RegistrationV2Service } from "./application/registration-v2.service";
 import { RegistrationRequirementsService } from "./application/registration-requirements.service";
 import { FreeAgentOffersService } from "./application/free-agent-offers.service";
@@ -17,7 +18,8 @@ import { AdminReviewController } from "./interface/admin-review.controller";
 @Module({
   // NotificationService: personal team invites queue the TEAM_INVITE_NEW
   // email (before this the /captain/invites "Invite sent" sent nothing, CAP-4).
-  imports: [CommunicationsModule],
+  // FinanceModule: the PaymentProcessor seam that charges registration fees.
+  imports: [CommunicationsModule, FinanceModule],
   controllers: [
     PricingTiersController,
     PricingTierDivisionsController,

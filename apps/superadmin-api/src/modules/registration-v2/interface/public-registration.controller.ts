@@ -66,6 +66,8 @@ import { SupabaseAdminService } from "../../../shared/auth/supabase-admin.servic
 import { EmailDispatcherService } from "../../../shared/notifications/email-dispatcher.service";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { loadSeasonTiers } from "../application/season-tiers";
+import { reserveInvoiceNumbers } from "../../finance/application/services/invoice-number";
+import { PAYMENT_PROCESSOR, PaymentProcessor } from "../../../shared/payments/payment-processor";
 import {
   RegistrationRequirementsService,
   requestClientIp,
@@ -242,6 +244,11 @@ class StartSubmissionBodyDto {
  * Resource bound is the season — by ID for now; slug support comes when
  * we add `seasons.slug`.
  */
+type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+/** A declined card inside the pay transaction; rolls it back. */
+class CardDeclined extends Error {}
+
 @ApiTags("public/registration")
 @Controller("public/registration")
 export class PublicRegistrationController {
@@ -253,7 +260,8 @@ export class PublicRegistrationController {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly supabase: SupabaseAdminService,
     private readonly email: EmailDispatcherService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor
   ) {}
 
   @Get("open")
@@ -1954,119 +1962,25 @@ export class PublicRegistrationController {
       throw new ConflictException({ error: "tier_required", message: "Pick a price before paying." });
     }
 
-    // Offline branch — no card charge, admin marks paid later. We still
-    // create an invoice in `sent` status so Finance has a tracked record
-    // of who owes what; previously this branch wrote nothing to the
-    // invoices table and the league had to manually reconcile.
-    if (outcome === "offline") {
-      assertValidTransition(row.status, "pending_offline");
-      const idempotencyKey = `submission:${submissionId}`;
-      const [existing] = await this.db
-        .select()
+    // The invoice, its line, any payment and the registration state are
+    // written in one transaction. The number comes from the org sequence
+    // (INV-YYYY-NNNNN, MON-25); the idempotency check runs after the
+    // per-org lock, so a double click reuses the first invoice instead of
+    // failing on its key.
+    const idempotencyKey = `submission:${submissionId}`;
+    const findInvoice = (tx: Tx) =>
+      tx
+        .select({
+          id: schema.invoices.id,
+          totalCents: schema.invoices.totalCents,
+          paidCents: schema.invoices.paidCents
+        })
         .from(schema.invoices)
         .where(eq(schema.invoices.idempotencyKey, idempotencyKey))
-        .limit(1);
-      let offlineInvoiceId: string;
-      if (existing) {
-        offlineInvoiceId = existing.id;
-      } else {
-        const invoiceNumber = `INV-${Date.now().toString().slice(-9)}`;
-        const [inv] = await this.db
-          .insert(schema.invoices)
-          .values({
-            orgId: row.orgId,
-            invoiceNumber,
-            registrationId: submissionId,
-            recipientPersonId: row.subjectPersonId,
-            recipientEmail: meta.email as string,
-            currency,
-            subtotalCents: amountCents,
-            totalCents: amountCents,
-            paidCents: 0,
-            status: "sent",
-            issuedAt: new Date(),
-            idempotencyKey,
-            metadata: { paymentMethod: "offline", tierId }
-          })
-          .returning();
-        offlineInvoiceId = inv!.id;
-        await this.db.insert(schema.invoiceItems).values({
-          invoiceId: offlineInvoiceId,
-          kind: "registration_fee",
-          description: tierName,
-          quantity: 1,
-          unitAmountCents: amountCents,
-          amountCents
-        });
-      }
-
-      await this.db
-        .update(schema.registrations)
-        .set({
-          status: "pending_offline",
-          metadata: mergeMetadata(meta, {
-            payment: {
-              outcome: "offline",
-              amountCents,
-              currency,
-              invoiceId: offlineInvoiceId
-            }
-          }),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.registrations.id, submissionId));
-      return {
-        id: submissionId,
-        status: "pending_offline" as const,
-        invoiceId: offlineInvoiceId,
-        amountCents,
-        currency,
-        mock: true
-      };
-    }
-
-    if (outcome === "failed") {
-      // Spec §7.2: stay in pending_payment, surface decline message.
-      await this.db
-        .update(schema.registrations)
-        .set({
-          metadata: mergeMetadata(meta, {
-            payment: {
-              outcome: "failed",
-              attemptedAt: new Date().toISOString(),
-              reason: "Mock decline — card_declined"
-            }
-          }),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.registrations.id, submissionId));
-      return {
-        id: submissionId,
-        status: "pending_payment" as const,
-        invoiceId: null,
-        mock: true,
-        declineReason: "Your card was declined (mock)."
-      };
-    }
-
-    // Happy path: succeeded. Create invoice + line item, mark paid,
-    // transition to pending_review.
-    const invoiceNumber = `INV-${Date.now().toString().slice(-9)}`;
-    const idempotencyKey = `submission:${submissionId}`;
-
-    // Idempotency — if invoice already exists for this submission,
-    // reuse it.
-    const existing = await this.db
-      .select()
-      .from(schema.invoices)
-      .where(eq(schema.invoices.idempotencyKey, idempotencyKey))
-      .limit(1);
-
-    let invoiceId: string;
-    if (existing[0]) {
-      invoiceId = existing[0].id;
-    } else {
-      const [inv] = await this.db
+        .limit(1)
+        .then((r) => r[0] ?? null);
+    const createInvoice = async (tx: Tx, invoiceNumber: string, metadata: Record<string, unknown>) => {
+      const [inv] = await tx
         .insert(schema.invoices)
         .values({
           orgId: row.orgId,
@@ -2077,45 +1991,139 @@ export class PublicRegistrationController {
           currency,
           subtotalCents: amountCents,
           totalCents: amountCents,
-          paidCents: amountCents,
-          status: "paid",
+          paidCents: 0,
+          status: "sent",
           issuedAt: new Date(),
-          paidAt: new Date(),
           idempotencyKey,
-          metadata: { mockStripe: true, tierId }
+          metadata
         })
-        .returning();
-      invoiceId = inv!.id;
-      await this.db.insert(schema.invoiceItems).values({
-        invoiceId,
+        .returning({ id: schema.invoices.id });
+      await tx.insert(schema.invoiceItems).values({
+        invoiceId: inv!.id,
         kind: "registration_fee",
         description: tierName,
         quantity: 1,
         unitAmountCents: amountCents,
         amountCents
       });
+      return { id: inv!.id, totalCents: amountCents, paidCents: 0 };
+    };
+
+    // Offline: no card charge; the admin marks it paid later. The invoice
+    // stays `sent` so Finance tracks who owes what.
+    if (outcome === "offline") {
+      assertValidTransition(row.status, "pending_offline");
+      const offlineInvoiceId = await this.db.transaction(async (tx) => {
+        const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
+        const invoice =
+          (await findInvoice(tx)) ??
+          (await createInvoice(tx, invoiceNumber!, { paymentMethod: "offline", tierId }));
+        await tx
+          .update(schema.registrations)
+          .set({
+            status: "pending_offline",
+            metadata: mergeMetadata(meta, {
+              payment: { outcome: "offline", amountCents, currency, invoiceId: invoice.id }
+            }),
+            updatedAt: new Date()
+          })
+          .where(eq(schema.registrations.id, submissionId));
+        return invoice.id;
+      });
+      this.log.log(`pay offline: registration=${submissionId} invoice=${offlineInvoiceId} amount=${amountCents}`);
+      return {
+        id: submissionId,
+        status: "pending_offline" as const,
+        invoiceId: offlineInvoiceId,
+        amountCents,
+        currency,
+        mock: true
+      };
     }
 
+    // Card: charged through the shared PaymentProcessor seam (mock until
+    // Stripe is wired, by founder decision) and recorded as a credit_card
+    // payment, so refunds to card and payment reports see it. Before this
+    // the invoice was marked paid with no payment row, and a refund to the
+    // card was refused ("has no card payment to refund"). A decline rolls
+    // the whole transaction back and leaves the registration in
+    // pending_payment.
     assertValidTransition(row.status, "pending_review");
-    await this.db
-      .update(schema.registrations)
-      .set({
-        status: "pending_review",
-        submittedAt: new Date(),
-        metadata: mergeMetadata(meta, {
-          payment: {
-            outcome: "succeeded",
-            paidAt: new Date().toISOString(),
-            amountCents,
+    let invoiceId: string;
+    try {
+      invoiceId = await this.db.transaction(async (tx) => {
+        const [invoiceNumber] = await reserveInvoiceNumbers(tx, row.orgId, 1);
+        const invoice =
+          (await findInvoice(tx)) ??
+          (await createInvoice(tx, invoiceNumber!, { mockStripe: true, tierId }));
+        const due = invoice.totalCents - invoice.paidCents;
+        if (due > 0) {
+          const charge = await this.processor.charge({
+            amountCents: due,
             currency,
-            invoiceId,
-            mockStripe: true
+            description: `Registration ${tierName}`,
+            mockOutcome: outcome
+          });
+          if (charge.status !== "succeeded") {
+            throw new CardDeclined(charge.failureMessage ?? "Your card was declined. Update your card and try again.");
           }
-        }),
-        updatedAt: new Date()
-      })
-      .where(eq(schema.registrations.id, submissionId));
-
+          await tx.insert(schema.payments).values({
+            orgId: row.orgId,
+            invoiceId: invoice.id,
+            method: "credit_card",
+            status: "succeeded",
+            amountCents: due,
+            currency,
+            externalProviderId: charge.intentId,
+            metadata: { source: "card", registrationId: submissionId }
+          });
+        }
+        await tx
+          .update(schema.invoices)
+          .set({ paidCents: invoice.totalCents, status: "paid", paidAt: new Date(), updatedAt: new Date() })
+          .where(eq(schema.invoices.id, invoice.id));
+        await tx
+          .update(schema.registrations)
+          .set({
+            status: "pending_review",
+            submittedAt: new Date(),
+            metadata: mergeMetadata(meta, {
+              payment: {
+                outcome: "succeeded",
+                paidAt: new Date().toISOString(),
+                amountCents,
+                currency,
+                invoiceId: invoice.id,
+                mockStripe: true
+              }
+            }),
+            updatedAt: new Date()
+          })
+          .where(eq(schema.registrations.id, submissionId));
+        return invoice.id;
+      });
+    } catch (e) {
+      if (!(e instanceof CardDeclined)) throw e;
+      // Spec 7.2: stay in pending_payment and show the decline.
+      await this.db
+        .update(schema.registrations)
+        .set({
+          metadata: mergeMetadata(meta, {
+            payment: { outcome: "failed", attemptedAt: new Date().toISOString(), reason: e.message }
+          }),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.registrations.id, submissionId));
+      this.log.log(`pay declined: registration=${submissionId} amount=${amountCents}`);
+      return {
+        id: submissionId,
+        status: "pending_payment" as const,
+        invoiceId: null,
+        mock: true,
+        declineReason: e.message
+      };
+    }
+    this.log.log(`pay card: registration=${submissionId} invoice=${invoiceId} amount=${amountCents}`);
     return {
       id: submissionId,
       status: "pending_review" as const,

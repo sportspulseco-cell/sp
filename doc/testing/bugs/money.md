@@ -390,8 +390,32 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Evidence: local API against staging with the gap still there, regfa/verify-invoice-numbers.mjs 3/3: three invoices
     sent at once all 201, numbers 01092-01094, distinct and above the highest. MON-23 walk 17/17 again (composer team
     invoice, split into 27 shares). Store orders 21/21.
-  Not changed: registration and transfer invoices still number themselves from the clock (INV-<digits>, INV-T-<digits>),
-    a separate format.
+  Not changed here: registration and transfer invoices numbered themselves from the clock. Fixed in MON-26.
+
+[MON-26] A registration fee paid by card cannot be refunded to the card · major
+  Found: reading the last clock-numbered invoice writers after MON-25 (26 Oct). The same check run against the deployed
+    staging API (ceddb07) failed 7 of 15: the admin refund answered 409 "INV-983423270 has no card payment to refund.
+    Refund it as wallet credit instead."
+  Root cause: the registration pay step (public-registration.controller payInner) marked the invoice paid but wrote no
+    payment row and never called the PaymentProcessor seam. Refunds look for a succeeded credit_card payment, so a
+    player who paid by card could only get wallet credit. The invoice, its line and the registration status were also
+    three separate writes, and the number was INV-<last 9 digits of the clock>, outside the org sequence. Transfer
+    approval numbered its destination sub-invoice INV-T-<clock>, and picked one of a team's division entries in no
+    fixed order, so a team entered in two divisions could get no destination sub-invoice.
+  Production exposure (read-only query, 26 Oct): 1 paid registration invoice with no payment row; 8 offline
+    registration invoices with clock numbers. Left as they are; changing them is a production data change.
+  Fix: card pay charges through the PaymentProcessor (mock until Stripe, by founder decision) and writes the invoice,
+    line, credit_card payment and registration status in one transaction; a decline rolls it all back and records the
+    failure on the registration. Offline pay is one transaction too. Both take the number from reserveInvoiceNumbers
+    and check the idempotency key after the per-org lock, so a double click reuses the first invoice. Transfer approval
+    takes its number from the same helper and prefers the division entry that has the team invoice.
+  Evidence: local API against staging. regfa/verify-regpay.mjs 15/15 (deployed old code: 8/15): card pay gives
+    INV-2026-01107 (next after 01106), invoice paid 123.45, one credit_card payment mock_pi_...; refund of 23.45 to the
+    card succeeds and paid drops to 100.00; a decline writes no invoice and leaves pending_payment, paying again works
+    with one payment; offline gives one sent invoice with no payment; two pay clicks at once give one invoice and one
+    payment, both answers 201; four numbers distinct and increasing. regfa/verify-transfer-number.mjs 3/3: destination
+    sub-invoice INV-2026-01107 under the destination team invoice. Cleanup verified (0 rows left).
+  Not verified: the funnel pay step in a browser on staging (runs in the next staging journey pass, j04).
 
 ## Gaps
 

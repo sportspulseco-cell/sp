@@ -31,6 +31,7 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { NotificationService } from "../../communications/application/notification.service";
 import { notifyTransfer } from "../application/transfer-notices";
 import { withTransferNames } from "../application/transfer-names";
+import { reserveInvoiceNumbers } from "../../finance/application/services/invoice-number";
 
 class RejectBodyDto {
   @IsString() @MinLength(ROSTER_DROP_REASON_MIN_CHARS) reason!: string;
@@ -196,6 +197,9 @@ export class AdminTransfersController {
             eq(schema.divisions.seasonId, tr.seasonId)
           )
         )
+        // A team entered in two divisions of the season has two entries;
+        // the one with the team invoice is the one to settle against.
+        .orderBy(sql`${schema.divisionTeamEntries.invoiceId} IS NULL`)
         .limit(1);
 
       // Capture pricing context so we can carry it to the destination.
@@ -262,6 +266,7 @@ export class AdminTransfersController {
             eq(schema.divisions.seasonId, tr.seasonId)
           )
         )
+        .orderBy(sql`${schema.divisionTeamEntries.invoiceId} IS NULL`)
         .limit(1);
 
       let destinationInvoiceId: string | null = null;
@@ -270,11 +275,14 @@ export class AdminTransfersController {
           0,
           sourceAllocatedCents - sourcePaidCents
         );
+        // The org sequence (MON-25), not the clock: numbers stay in order
+        // and two approvals in one millisecond cannot collide.
+        const [invoiceNumber] = await reserveInvoiceNumbers(tx, tr.orgId, 1);
         const invRows = await tx
           .insert(schema.invoices)
           .values({
             orgId: tr.orgId,
-            invoiceNumber: `INV-T-${Date.now().toString().slice(-9)}`,
+            invoiceNumber: invoiceNumber!,
             recipientPersonId: tr.personId,
             currency: sourceCurrency,
             subtotalCents: destinationAmount,
