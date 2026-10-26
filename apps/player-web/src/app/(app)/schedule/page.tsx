@@ -16,7 +16,7 @@ import {
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
 import { ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
-import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
+import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ICalExportButton } from "./ical-button";
 
@@ -79,7 +79,7 @@ export default async function SchedulePage({
   const sp = await searchParams;
   const filter = sp?.filter ?? "all";
 
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const myTeamId = scope?.teamIds[0] ?? null;
 
   const [gamesPage, team] = await Promise.all([

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
 import { SchedulingVerifyForm } from "@sportspulse/admin-pages";
-import { iam, leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -30,7 +30,7 @@ export default async function OrgAdminVerifyPage({
   }
   const season = seasonResult.data;
 
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const activeOrgId = await getActiveOrgId(scope);
   if (activeOrgId && season.orgId !== activeOrgId) notFound();
 

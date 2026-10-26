@@ -1,6 +1,6 @@
 import { Settings, Star } from "lucide-react";
 import { EmptyState, Eyebrow } from "@sportspulse/ui";
-import { iam, leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeamProfileForm } from "./team-profile-form";
 
@@ -9,7 +9,7 @@ export const revalidate = 0;
 export const metadata = { title: "Manage team — SportsPulse" };
 
 export default async function CaptainTeamPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 
   if (!isCaptain) {

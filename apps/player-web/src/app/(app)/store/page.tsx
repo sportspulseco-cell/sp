@@ -1,6 +1,6 @@
 import { ShoppingBag, UsersRound } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, teamStore } from "@/lib/api/server-api";
+import { loadMeScope, teamStore } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { StoreClient } from "./store-client";
 
@@ -14,7 +14,7 @@ export const metadata = { title: "Team store — SportsPulse" };
  * store browses only.
  */
 export default async function StorePage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const myTeamId = scope?.teamIds[0] ?? null;
 
   if (!myTeamId) {

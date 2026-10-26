@@ -2,7 +2,7 @@ import { Building2 } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
 import { fetchAll } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
-import { admin, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
+import { admin, leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { OrgSetupShell } from "./org-setup-shell";
@@ -24,7 +24,7 @@ export const metadata = { title: "Org setup — Org Admin" };
  * confidential.
  */
 export default async function OrgAdminOrgSetupPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const activeOrgId = await getActiveOrgId(scope);
 
   const [orgsPage, sports, governingBodies, leaguesPage] = await Promise.all([

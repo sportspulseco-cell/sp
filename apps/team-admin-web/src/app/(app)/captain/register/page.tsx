@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
-import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
+import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   latestApplicationPerSeason,
@@ -48,7 +48,7 @@ export default async function CaptainRegisterPage({
 }) {
   const { submitted } = await searchParams;
 
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const teamId = scope?.teamIds[0] ?? null;
 

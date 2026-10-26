@@ -268,3 +268,17 @@ Crawl totals (pages visited / pages with a problem):
     /communications, /users, /teams, /eligibility, /audit).
   Not swept: about 35 other client components format moments without a zone (lists filled after the page loads, so
     no mismatch, but the zone is the browser's). Org, captain and player apps not probed in dev mode this round.
+
+[CONSOLE-19] A failed call for the user's scope reads as an empty org, team or player · major
+  Found: list-filters on staging 006939b (26 Oct): the org /leagues page showed "0 active · 0 total" and "No leagues
+    yet" for an org with 79 leagues. The staging org admin's assignment was unchanged; the list call itself was not
+    reached because the scope call had failed.
+  Actual: 55 pages in the org, captain and player apps loaded the scope with iam.meScope().catch(() => null). A failure
+    left no org or team id, so the page rendered as if the user had none: "No leagues yet", "Captain role required",
+    "Not on a roster yet". The data was there; only the call had failed. A user with no org gets a scope with empty
+    lists, never null, so null only ever meant a failure.
+  Fix: each app's server API exports loadMeScope(): one retry, then the error goes to the app's error screen ("We
+    couldn't load this page ... Try again"). All 55 call sites use it.
+  Evidence: local org app against staging: with the API up /leagues shows "Showing 85 of 85 leagues"; with the API
+    stopped it shows the error screen, not "No leagues yet". Typecheck of the three apps.
+  Not found: why the scope call failed during the staging run (no reproduction; pages load in about 1 s on their own).

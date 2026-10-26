@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { ShieldAlert, UserPlus } from "lucide-react";
 import { EmptyState, LoadError } from "@sportspulse/ui";
 import type { FreeAgentPoolEntry, Season } from "@sportspulse/api-client";
-import { iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { FreeAgentForm } from "./free-agent-form";
 
@@ -20,7 +20,7 @@ export const metadata = { title: "Join free-agent pool — SportsPulse" };
  * entry we render a status banner instead of the form.
  */
 export default async function FreeAgentPoolPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const personId = scope?.personId ?? null;
   const orgId = scope?.orgIds[0] ?? null;
 

@@ -10,7 +10,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Standing, StatLine } from "@sportspulse/api-client";
-import { captain, iam, leagueMgmt, stats } from "@/lib/api/server-api";
+import { captain, leagueMgmt, loadMeScope, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ function n(line: StatLine, key: string): number {
  * Finalize on the server; this page only reads them.
  */
 export default async function TeamAdminStatsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const teamId = scope?.teamIds[0] ?? null;
 
   if (!teamId) {

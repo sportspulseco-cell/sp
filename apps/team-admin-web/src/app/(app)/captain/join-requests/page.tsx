@@ -1,6 +1,6 @@
 import { Inbox, ShieldAlert } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, registration } from "@/lib/api/server-api";
+import { loadMeScope, registration } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { JoinRequestsClient } from "./join-requests-client";
 
@@ -9,7 +9,7 @@ export const revalidate = 0;
 export const metadata = { title: "Join requests — SportsPulse" };
 
 export default async function CaptainJoinRequestsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const teamId = scope?.teamIds[0] ?? null;
   if (!isCaptain || !teamId) {

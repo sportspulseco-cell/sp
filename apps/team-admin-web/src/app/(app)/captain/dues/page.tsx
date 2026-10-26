@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { finance, iam } from "@/lib/api/server-api";
+import { finance, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { DuesScreen } from "./dues-screen";
 
@@ -25,7 +25,7 @@ export default async function CaptainDuesPage({
   searchParams: Promise<{ invoiceId?: string }>;
 }) {
   const { invoiceId } = await searchParams;
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const myTeamId = scope?.teamIds[0] ?? null;
   if (!isCaptain || !myTeamId) {

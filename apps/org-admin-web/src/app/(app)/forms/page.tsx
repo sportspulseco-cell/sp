@@ -14,7 +14,7 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import { iam, orgAdminForms, orgs } from "@/lib/api/server-api";
+import { loadMeScope, orgAdminForms, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { CreateFormButton } from "@/components/forms/create-form-button";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -27,7 +27,7 @@ function fmtDate(iso: string): string {
 }
 
 export default async function FormsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   const [formsPage, orgList] = await Promise.all([

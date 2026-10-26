@@ -16,7 +16,7 @@ import {
   freeAgentLevelLabel,
   freeAgentPositionLabel
 } from "@sportspulse/kernel";
-import { iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ClaimFreeAgentButton } from "./claim-button";
 
@@ -49,7 +49,7 @@ const OFFER_TONE: Record<FreeAgentOffer["status"], "info" | "success" | "danger"
 };
 
 export default async function CaptainFreeAgentsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 
   if (!isCaptain) {

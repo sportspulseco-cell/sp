@@ -23,7 +23,7 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import { communications, iam } from "@/lib/api/server-api";
+import { communications, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -40,7 +40,7 @@ function fmt(iso: string): string {
 }
 
 export default async function CommunicationsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   const page = orgId

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { fetchAll } from "@sportspulse/api-client";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { ComposeForm, type ComposeTargets } from "./compose-form";
@@ -14,7 +14,7 @@ export const metadata = { title: "Compose broadcast — Org admin" };
 const empty = { items: [], nextCursor: null };
 
 export default async function ComposePage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   if (!orgId) {

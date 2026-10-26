@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import { SeasonDetail, SeasonFlow } from "@sportspulse/admin-pages";
 import { SeasonActions } from "@/components/edit/detail-actions";
-import { adminTransfers, gameOps, iam, leagueMgmt, registration, roster } from "@/lib/api/server-api";
+import { adminTransfers, gameOps, leagueMgmt, loadMeScope, registration, roster } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
 
@@ -42,7 +42,7 @@ export default async function OrgAdminSeasonDetailPage({
   // Defense in depth — the API already 404s out-of-scope seasons for
   // org_admin reads, but verify the season belongs to the caller's
   // active org before rendering.
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const activeOrgId = await getActiveOrgId(scope);
   if (activeOrgId && season.orgId !== activeOrgId) notFound();
 

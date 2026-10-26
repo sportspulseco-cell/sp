@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Lock } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
+import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { RegisterWizard } from "./register-wizard";
 
@@ -28,7 +28,7 @@ export default async function CaptainRegisterSetupPage({
 }) {
   const { entryId } = await params;
 
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const teamId = scope?.teamIds[0] ?? null;
   if (!teamId) {
     return (

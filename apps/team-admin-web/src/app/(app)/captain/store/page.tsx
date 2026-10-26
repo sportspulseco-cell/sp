@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, teamStore } from "@/lib/api/server-api";
+import { loadMeScope, teamStore } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { StoreManager } from "./store-manager";
 import { StoreOrders } from "./store-orders";
@@ -15,7 +15,7 @@ export const metadata = { title: "Team store — SportsPulse" };
  * Players pay an order's invoice on their Payments page (mock card).
  */
 export default async function CaptainStorePage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const myTeamId = scope?.teamIds[0] ?? null;
 

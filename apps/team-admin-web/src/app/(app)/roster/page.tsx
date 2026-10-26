@@ -13,7 +13,7 @@ import {
 } from "@sportspulse/ui";
 import type { TeamMembership } from "@sportspulse/api-client";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
-import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
+import { iam, leagueMgmt, loadMeScope, roster } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function TeamAdminRosterPage({
   searchParams?: Promise<{ season?: string }>;
 }) {
   const sp = (await searchParams) ?? {};
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const teamId = scope?.teamIds[0] ?? null;
 
   if (!teamId) {

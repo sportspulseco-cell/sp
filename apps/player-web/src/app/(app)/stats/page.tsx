@@ -13,7 +13,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Game, StatLine } from "@sportspulse/api-client";
-import { gameOps, iam, stats } from "@/lib/api/server-api";
+import { gameOps, loadMeScope, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function StatsPage({
 }) {
   const sp = await searchParams;
   const seasonFilter = sp?.seasonId;
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const personId = scope?.personId ?? null;
   const myTeamId = scope?.teamIds[0] ?? null;
 

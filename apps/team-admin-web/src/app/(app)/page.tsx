@@ -1,6 +1,6 @@
 import { Star, Users } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
+import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { OffSeasonView } from "@/components/dashboard/off-season-view";
 import { RegistrationOpenView } from "@/components/dashboard/registration-open-view";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  * shell (top bar + sidebar) is kept stable in (app)/layout.tsx.
  */
 export default async function TeamAdminHome() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const myTeamId = scope?.teamIds[0] ?? null;
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 

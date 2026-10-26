@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeamMessageForm } from "./message-form";
 
@@ -13,7 +13,7 @@ export const metadata = { title: "Message the team — SportsPulse" };
  * caller captains the team.
  */
 export default async function CommsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const teamId = scope?.teamIds[0] ?? null;
   if (!isCaptain || !teamId) {

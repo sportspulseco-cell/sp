@@ -12,6 +12,21 @@ export const iam = {
   me: cache(api.iam.me),
   meScope: cache(api.iam.meScope)
 };
+
+/**
+ * The caller's scope for this request. One retry, then the error is
+ * thrown so the page shows its error screen. Pages used to catch a
+ * failure as `null` and render "no org" / "captain role required" /
+ * "No leagues yet" when the data was there and only the call had failed.
+ */
+export const loadMeScope = cache(async () => {
+  try {
+    return await api.iam.meScope();
+  } catch (first) {
+    console.error("[scope] meScope failed, retrying once", first);
+    return await api.iam.meScope();
+  }
+});
 export const orgs = {
   ...api.orgs,
   get: cache(api.orgs.get)

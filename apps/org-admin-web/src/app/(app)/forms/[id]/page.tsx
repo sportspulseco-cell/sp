@@ -21,14 +21,7 @@ import {
   type SectionKey,
   type SectionState
 } from "@sportspulse/forms-builder";
-import {
-  iam,
-  leagueMgmt,
-  orgs,
-  publicRegistration,
-  registration,
-  registrationV2
-} from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope, orgs, publicRegistration, registration, registrationV2 } from "@/lib/api/server-api";
 import { FormsBuilderProviderClient } from "./forms-builder-provider-client";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -68,7 +61,7 @@ export default async function OrgAdminFormSetupPage({
   const sectionParam = (sp.section ?? "season") as SectionKey;
   const active = VALID_SECTIONS.includes(sectionParam) ? sectionParam : "season";
 
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const activeOrgId = await getActiveOrgId(scope);
 
   const formResult = await load(registration.getForm(id));

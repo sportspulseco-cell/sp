@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
 import { Badge, EmptyState } from "@sportspulse/ui";
-import { gameOps, iam } from "@/lib/api/server-api";
+import { gameOps, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ function fmt(iso: string, tz: string): string {
  * Backlog #5 / flow E3.
  */
 export default async function LineupsIndexPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const myTeamId = scope?.teamIds[0] ?? null;
   if (!myTeamId) {
     return (

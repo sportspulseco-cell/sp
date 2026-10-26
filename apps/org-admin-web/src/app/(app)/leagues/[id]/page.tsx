@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import { LeagueDetail } from "@sportspulse/admin-pages";
 import { LeagueActions } from "@/components/edit/detail-actions";
-import { iam, leagueMgmt, orgs } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const metadata = { title: "League — Org Admin" };
@@ -41,7 +41,7 @@ export default async function OrgAdminLeagueDetailPage({
   // Defense in depth — the API already 404s out-of-scope leagues for
   // org_admin reads, but verify the league belongs to the caller's
   // active org before rendering.
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const activeOrgId = await getActiveOrgId(scope);
   if (activeOrgId && league.orgId !== activeOrgId) notFound();
 

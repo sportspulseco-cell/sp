@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { iam, orgs } from "@/lib/api/server-api";
+import { loadMeScope, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { NewTeamForm } from "./new-team-form";
@@ -11,7 +11,7 @@ export const revalidate = 0;
 export const metadata = { title: "New team — Org admin" };
 
 export default async function NewTeamPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   if (!orgId) {

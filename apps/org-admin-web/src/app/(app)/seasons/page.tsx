@@ -18,7 +18,7 @@ import {
   UrlFilters
 } from "@sportspulse/ui";
 import type { Season } from "@sportspulse/api-client";
-import { iam, leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -57,7 +57,7 @@ export default async function SeasonsPage({
   searchParams?: Promise<{ q?: string; leagueId?: string; status?: string }>;
 }) {
   const sp = (await searchParams) ?? {};
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   let loadFailed = false;

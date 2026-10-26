@@ -1,6 +1,6 @@
 import { Star, Users } from "lucide-react";
 import { EmptyState } from "@sportspulse/ui";
-import { captain, iam } from "@/lib/api/server-api";
+import { captain, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { RosterScreen } from "./roster-screen";
 
@@ -9,7 +9,7 @@ export const revalidate = 0;
 export const metadata = { title: "Manage roster — SportsPulse" };
 
 export default async function CaptainRosterPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 
   if (!isCaptain) {

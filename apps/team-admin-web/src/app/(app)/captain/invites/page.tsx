@@ -12,7 +12,7 @@ import {
 } from "@sportspulse/ui";
 import type { TeamInvite } from "@sportspulse/api-client";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
-import { captain, iam, leagueMgmt, registrationV2 } from "@/lib/api/server-api";
+import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
@@ -42,7 +42,7 @@ const STATUS_TONE: Record<
 };
 
 export default async function CaptainInvitesPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 
   if (!isCaptain) {

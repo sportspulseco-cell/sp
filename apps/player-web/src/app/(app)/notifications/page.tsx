@@ -5,7 +5,7 @@ import {
   Eyebrow
 } from "@sportspulse/ui";
 import type { Notification } from "@sportspulse/api-client";
-import { communications, iam } from "@/lib/api/server-api";
+import { communications, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { NotificationRow } from "./notification-row";
 import { MarkAllReadButton } from "./mark-all-read";
@@ -15,7 +15,7 @@ export const revalidate = 0;
 export const metadata = { title: "Notifications — SportsPulse" };
 
 export default async function NotificationsPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const personId = scope?.personId ?? null;
 
   // GET /notifications/me — the admin list endpoint 403s for players.

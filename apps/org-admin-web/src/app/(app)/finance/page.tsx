@@ -10,7 +10,7 @@ import {
   Wallet
 } from "lucide-react";
 import { SectionRail, StatTile } from "@sportspulse/ui";
-import { iam, orgAdminFinance } from "@/lib/api/server-api";
+import { loadMeScope, orgAdminFinance } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceTable } from "./invoice-table";
@@ -20,7 +20,7 @@ export const metadata = { title: "Finance - Org Admin" };
 
 
 export default async function FinancePage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   const invoicesPage = orgId

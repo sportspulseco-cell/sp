@@ -1,7 +1,7 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
 import { Badge, EmptyState, Eyebrow } from "@sportspulse/ui";
-import { compliance, iam } from "@/lib/api/server-api";
+import { compliance, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export const metadata = { title: "Compliance — SportsPulse" };
  * with the games or date left (UC-14, COMP-12); lineups refuse them.
  */
 export default async function CaptainCompliancePage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const myTeamId = scope?.teamIds[0] ?? null;
   if (!isCaptain || !myTeamId) {

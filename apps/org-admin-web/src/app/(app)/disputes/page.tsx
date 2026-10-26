@@ -3,7 +3,7 @@
  */
 import { Gavel } from "lucide-react";
 import { EmptyState, SectionRail } from "@sportspulse/ui";
-import { iam, orgAdminRefundAssessments } from "@/lib/api/server-api";
+import { loadMeScope, orgAdminRefundAssessments } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { DisputesScreen } from "./disputes-screen";
@@ -26,7 +26,7 @@ export default async function DisputesPage({
     | "all"
     | undefined) ?? "pending";
 
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   if (!orgId) {

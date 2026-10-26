@@ -14,7 +14,7 @@ import {
   Table
 } from "@sportspulse/ui";
 import type { Standing, TeamMembership } from "@sportspulse/api-client";
-import { captain, iam, leagueMgmt, registration, roster, stats } from "@/lib/api/server-api";
+import { captain, iam, leagueMgmt, loadMeScope, registration, roster, stats } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeamOffersCard } from "@/components/team-offers-card";
 import { JoinTeamButton } from "./join-team-button";
@@ -38,7 +38,7 @@ export default async function TeamPage({
 }) {
   const sp = (await searchParams) ?? {};
   const [scope, myInvites] = await Promise.all([
-    iam.meScope().catch(() => null),
+    loadMeScope(),
     // Team offers / invites waiting for this player's answer (CAP-9).
     captain.myInvites().catch(() => ({ items: [] }))
   ]);

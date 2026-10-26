@@ -16,7 +16,7 @@ import {
 } from "@sportspulse/ui";
 import type { Game } from "@sportspulse/api-client";
 import { ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
-import { gameOps, iam } from "@/lib/api/server-api";
+import { gameOps, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ function fmtDateTime(iso: string, tz: string): string {
 }
 
 export default async function TeamAdminSchedulePage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const teamId = scope?.teamIds[0] ?? null;
 
   const page = teamId

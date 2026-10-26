@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
 import { DivisionDetail } from "@sportspulse/admin-pages";
 import { DivisionActions } from "@/components/edit/detail-actions";
-import { adminTransfers, iam, leagueMgmt, orgs } from "@/lib/api/server-api";
+import { adminTransfers, leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { DivisionRegionControl } from "@/components/divisions/division-region-control";
 import { PlaceTeam } from "@/components/divisions/place-team";
@@ -67,7 +67,7 @@ export default async function OrgAdminDivisionDetailPage({
   // Defense in depth — the API already 404s out-of-scope divisions
   // for org_admin, but verify the parent season's org matches the
   // caller's active org before rendering.
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const activeOrgId = await getActiveOrgId(scope);
   if (parentSeason && activeOrgId && parentSeason.orgId !== activeOrgId) {
     notFound();

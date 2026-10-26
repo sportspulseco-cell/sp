@@ -1,6 +1,6 @@
 import { Building2 } from "lucide-react";
 import { EmptyState, SectionRail } from "@sportspulse/ui";
-import { iam, orgs } from "@/lib/api/server-api";
+import { loadMeScope, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { OrgActions } from "@/components/edit/detail-actions";
@@ -15,7 +15,7 @@ export const metadata = { title: "Organisation - Org Admin" };
  * org's org admins save) and its regions.
  */
 export default async function OrganizationPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
   const org = orgId ? await orgs.get(orgId).catch(() => null) : null;
 

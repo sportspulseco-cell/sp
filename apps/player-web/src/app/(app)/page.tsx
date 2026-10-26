@@ -21,17 +21,7 @@ import type {
   Notification,
   Registration
 } from "@sportspulse/api-client";
-import {
-  captain,
-  communications,
-  finance,
-  gameOps,
-  iam,
-  leagueMgmt,
-  publicRegistration,
-  registration,
-  roster
-} from "@/lib/api/server-api";
+import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster } from "@/lib/api/server-api";
 import { TeamOffersCard } from "@/components/team-offers-card";
 
 type MyInvoice = Awaited<ReturnType<typeof finance.myInvoices>>["items"][number];
@@ -97,7 +87,7 @@ export default async function PlayerHome() {
 
   const [profile, scope] = await Promise.all([
     iam.me().catch(() => null),
-    iam.meScope().catch(() => null)
+    loadMeScope()
   ]);
 
   if (!profile || !scope) {

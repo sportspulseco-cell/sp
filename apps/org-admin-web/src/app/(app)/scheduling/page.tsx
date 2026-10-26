@@ -11,7 +11,7 @@ import {
   TR,
   Table
 } from "@sportspulse/ui";
-import { iam, leagueMgmt } from "@/lib/api/server-api";
+import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  * assignment scope, so defense-in-depth is in place.
  */
 export default async function OrgAdminSchedulingPage() {
-  const scope = await iam.meScope().catch(() => null);
+  const scope = await loadMeScope();
   const orgId = await getActiveOrgId(scope);
 
   const page = orgId
