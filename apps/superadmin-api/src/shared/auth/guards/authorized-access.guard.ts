@@ -12,6 +12,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { DRIZZLE } from "../../database/database.tokens";
 import { ALLOW_SCOPED_WRITE_KEY } from "../decorators/allow-scoped-write.decorator";
 import { loadUserScope } from "../scope";
+import { loadOfficialAssignments } from "../game-access";
 
 /**
  * Tiered authorization:
@@ -83,7 +84,9 @@ export class AuthorizedAccessGuard implements CanActivate {
           )
         )
         .limit(1);
-      if (!anyAssignment) {
+      // A crew spot on a game (Officials panel) is a grant on that game
+      // too: the assigned scorekeeper reads and runs its scoresheet.
+      if (!anyAssignment && (await loadOfficialAssignments(this.db, principal.userId)).length === 0) {
         throw new ForbiddenException("No active role assignment");
       }
     }

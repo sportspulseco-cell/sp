@@ -1961,9 +1961,19 @@ export function createApi(f: Fetcher) {
            *  (published_at IS NOT NULL). Consumer apps (player, team-admin)
            *  pass this so captains never see draft fixtures. */
           publishedOnly?: boolean;
+          /** A game-day official's own games (role or crew spot). */
+          assignedToMe?: boolean;
         } = {}
       ) => f<Page<Game>>(`/games${qs(q)}`),
       getGame: (id: string) => f<Game>(`/games/${id}`),
+      /** Does the caller run games (scorekeeper / referee role or a crew spot)? */
+      officiating: () => f<{ officiates: boolean }>("/games/officiating"),
+      /** Players the scoresheet may name, per team (season roster + guests). */
+      gamePlayers: (id: string) =>
+        f<Array<{
+          teamId: string;
+          players: Array<{ personId: string; name: string; jerseyNumber: number | null; guest: boolean }>;
+        }>>(`/games/${id}/players`),
       /**
        * Hand-made game in a division at a rink (SCH-5). Both teams must
        * be entered in the division (422 otherwise). The server reads the

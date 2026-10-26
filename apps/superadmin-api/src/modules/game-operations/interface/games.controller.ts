@@ -25,6 +25,8 @@ import {
   gameAccessFor,
   gameVisible,
   requireGamePermission,
+  officiatingFilter,
+  userOfficiatesGames,
   userCanSeeDraftGamesAnywhere,
   viewerGamePermissions
 } from "../../../shared/auth/game-access";
@@ -32,7 +34,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { GameDto, GamePageDto } from "../application/dtos/game.dto";
 import {
   ApplyScoreHandler,
@@ -146,6 +148,17 @@ export class GamesController {
     // Same team-scope bypass as rosters/teams: when the query narrows
     // to a team the user holds directly, drop the league filter so
     // captain / coach / player sessions can read their own schedule.
+    // An official's "My games": the games they run, drafts included
+    // (they were put on them), whatever their league scope says.
+    if (q.assignedToMe) {
+      const { assignedToMe: _mine, ...rest } = q;
+      const f = await officiatingFilter(this.db, user.userId);
+      const page = await this.listH.execute({
+        ...rest,
+        officiating: f.all ? undefined : f
+      });
+      return { ...page, items: await this.withNames(page.items) };
+    }
     const inDirectTeamScope =
       q.teamId && (scope.teamIds?.includes(q.teamId) ?? false);
     // Drafts are for admins, officials and schedulers. Everyone else
@@ -163,6 +176,16 @@ export class GamesController {
     return { ...page, items: await this.withNames(page.items) };
   }
 
+  /**
+   * Does the caller run games (a scorekeeper / referee role, or a crew
+   * spot on a game)? The admin console uses it to let game-day officials
+   * in with the scoresheet only.
+   */
+  @Get("officiating")
+  async officiating(@CurrentUser() user: AuthPrincipal): Promise<{ officiates: boolean }> {
+    return { officiates: await userOfficiatesGames(this.db, user.userId) };
+  }
+
   @Get(":id") async getOne(
     @Param("id") id: string,
     @UserScope() scope: UserScopeType,
@@ -178,6 +201,81 @@ export class GamesController {
     }
     const dto = await this.getH.execute({ id });
     return this.one({ ...dto, viewerPermissions: viewerGamePermissions(access) });
+  }
+
+  /**
+   * The players the scoresheet may name, per team: the team's active
+   * roster for the game's season plus anyone checked in to this game for
+   * it (guests). The same set the event log accepts. Lets a scorekeeper
+   * whose role covers only this game pick players by name without reading
+   * the league's people list.
+   */
+  @Get(":id/players")
+  async players(
+    @Param("id") id: string,
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<Array<{ teamId: string; players: Array<{ personId: string; name: string; jerseyNumber: number | null; guest: boolean }> }>> {
+    const access = await gameAccessFor(this.db, user.userId, id);
+    if (!access || !gameVisible(access, scope)) {
+      throw new NotFoundException(`Game not found: ${id}`);
+    }
+    const g = access.game;
+    const teamIds = [g.homeTeamId, g.awayTeamId];
+    const [members, guests] = await Promise.all([
+      this.db
+        .select({
+          teamId: schema.teamMemberships.teamId,
+          personId: schema.teamMemberships.personId,
+          jerseyNumber: schema.teamMemberships.jerseyNumber,
+          first: schema.persons.legalFirstName,
+          last: schema.persons.legalLastName,
+          preferred: schema.persons.preferredName
+        })
+        .from(schema.teamMemberships)
+        .innerJoin(schema.persons, eq(schema.persons.id, schema.teamMemberships.personId))
+        .where(
+          and(
+            inArray(schema.teamMemberships.teamId, teamIds),
+            eq(schema.teamMemberships.currentStatus, "active"),
+            ...(g.seasonId ? [eq(schema.teamMemberships.seasonId, g.seasonId)] : [])
+          )
+        ),
+      this.db
+        .select({
+          teamId: schema.gameAttendance.teamId,
+          personId: schema.gameAttendance.personId,
+          jerseyNumber: schema.gameAttendance.jerseyNumberUsed,
+          first: schema.persons.legalFirstName,
+          last: schema.persons.legalLastName,
+          preferred: schema.persons.preferredName
+        })
+        .from(schema.gameAttendance)
+        .innerJoin(schema.persons, eq(schema.persons.id, schema.gameAttendance.personId))
+        .where(eq(schema.gameAttendance.gameId, id))
+    ]);
+    return teamIds.map((teamId) => {
+      const byPerson = new Map<string, { personId: string; name: string; jerseyNumber: number | null; guest: boolean }>();
+      for (const r of members.filter((m) => m.teamId === teamId)) {
+        byPerson.set(r.personId, {
+          personId: r.personId,
+          name: r.preferred?.trim() || `${r.first} ${r.last}`.trim(),
+          jerseyNumber: r.jerseyNumber ?? null,
+          guest: false
+        });
+      }
+      for (const r of guests.filter((m) => m.teamId === teamId)) {
+        if (byPerson.has(r.personId)) continue;
+        byPerson.set(r.personId, {
+          personId: r.personId,
+          name: r.preferred?.trim() || `${r.first} ${r.last}`.trim(),
+          jerseyNumber: r.jerseyNumber ?? null,
+          guest: true
+        });
+      }
+      const players = [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name));
+      return { teamId, players };
+    });
   }
 
   @Get(":id/reschedule-preview")

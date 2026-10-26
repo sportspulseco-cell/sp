@@ -13,6 +13,14 @@ export interface ListGamesQuery extends PageQuery {
   leagueIdsFilter?: string[];
   /** When true, restrict to games with `published_at IS NOT NULL`. */
   publishedOnly?: boolean;
+  /** When set, only games inside one of these scopes (an official's games). */
+  officiating?: {
+    orgIds: string[];
+    leagueIds: string[];
+    seasonIds: string[];
+    divisionIds: string[];
+    gameIds: string[];
+  };
 }
 
 export interface GameRepository {

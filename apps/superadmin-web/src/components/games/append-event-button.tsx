@@ -11,8 +11,7 @@ import {
   HOCKEY_SPORT_CODE,
   validateHockeyEvent
 } from "@sportspulse/kernel";
-import { gameOps, iam, roster } from "@/lib/api/browser-api";
-import type { Person } from "@/lib/api/types";
+import { gameOps } from "@/lib/api/browser-api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
@@ -36,8 +35,17 @@ interface TeamLite {
   label: string;
 }
 
-function personName(p: Person): string {
-  return p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`;
+/** One player the scoresheet may name (GET /games/:id/players). */
+interface Pickable {
+  id: string;
+  name: string;
+  jerseyNumber: number | null;
+  guest: boolean;
+}
+
+function personName(p: Pickable): string {
+  const num = p.jerseyNumber !== null ? `#${p.jerseyNumber} ` : "";
+  return `${num}${p.name}${p.guest ? " (guest)" : ""}`;
 }
 
 export function AppendEventButton({
@@ -104,7 +112,7 @@ function AppendDialog({
     period: 1,
     clockRemainingSec: ""
   });
-  const [persons, setPersons] = useState<Person[]>([]);
+  const [persons, setPersons] = useState<Pickable[]>([]);
   const [personsLoading, setPersonsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,17 +125,16 @@ function AppendDialog({
     setForm((f) => ({ ...f, primaryPersonId: "", assist1: "", assist2: "" }));
     (async () => {
       try {
-        const memberships = await roster.listMemberships({
-          teamId: form.teamId,
-          seasonId: seasonId ?? undefined,
-          activeOnly: true,
-          limit: 100
-        });
-        const personIds = [...new Set(memberships.items.map((m) => m.personId))];
-        const rostered = (
-          await Promise.all(personIds.map((id) => iam.getPerson(id).catch(() => null)))
-        ).filter((p): p is Person => p !== null);
-        rostered.sort((a, b) => personName(a).localeCompare(personName(b)));
+        // The game's own player list: the team's roster for the game's
+        // season plus guests checked in to this game. Works for a
+        // scorekeeper whose role covers only this game.
+        const teams = await gameOps.gamePlayers(gameId);
+        const rostered: Pickable[] = (teams.find((t) => t.teamId === form.teamId)?.players ?? []).map((p) => ({
+          id: p.personId,
+          name: p.name,
+          jerseyNumber: p.jerseyNumber,
+          guest: p.guest
+        }));
         if (cancelled) return;
         setPersons(rostered);
       } catch {
@@ -140,7 +147,7 @@ function AppendDialog({
     return () => {
       cancelled = true;
     };
-  }, [form.teamId, seasonId]);
+  }, [form.teamId, gameId]);
 
   const isGoal = form.eventType === "goal";
   const isPenalty = form.eventType === "penalty";

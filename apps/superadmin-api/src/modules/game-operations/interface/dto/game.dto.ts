@@ -128,6 +128,15 @@ export class ListGamesQueryDto {
   @Transform(({ value }) => value === true || value === "true")
   @IsBoolean()
   publishedOnly?: boolean;
+  /**
+   * "My games" for a game-day official: only games they run, through a
+   * scorekeeper / referee role or a crew spot on the game.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  assignedToMe?: boolean;
 }
 
 // Game events

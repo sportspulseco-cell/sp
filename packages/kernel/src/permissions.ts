@@ -526,6 +526,48 @@ export const SYSTEM_ROLE_CODES: string[] = SYSTEM_ROLES.map((r) => r.code);
 export const SYSTEM_ROLE_BY_CODE: Record<string, RoleDefinition> =
   Object.fromEntries(SYSTEM_ROLES.map((r) => [r.code, r]));
 
+/** Crew roles on one game (game_officials.role). */
+export const GAME_OFFICIAL_ROLES = [
+  "referee",
+  "linesman",
+  "scorekeeper",
+  "timekeeper",
+  "video_review",
+  "commissioner",
+  "other"
+] as const;
+export type GameOfficialRoleCode = (typeof GAME_OFFICIAL_ROLES)[number];
+
+export const GAME_OFFICIAL_ROLE_LABELS: Record<GameOfficialRoleCode, string> = {
+  referee: "Referee",
+  linesman: "Linesman",
+  scorekeeper: "Scorekeeper",
+  timekeeper: "Timekeeper",
+  video_review: "Video review",
+  commissioner: "Commissioner",
+  other: "Other"
+};
+
+/**
+ * What an official assigned to ONE game may do on that game. The
+ * Officials panel row is the grant: a referee gets the referee role's
+ * game rights, a scorekeeper or timekeeper the scorekeeper's (start,
+ * events, score, finalize), anyone else on the crew may read the game.
+ * A declined or revoked assignment grants nothing. Only on that game;
+ * nothing widens elsewhere.
+ */
+export function gameOfficialPermissions(role: string, status: string): PermissionString[] {
+  if (status === "declined") return [];
+  if (role === "referee") return SYSTEM_ROLE_BY_CODE.referee?.defaultPermissions ?? [];
+  if (role === "scorekeeper" || role === "timekeeper") {
+    return SYSTEM_ROLE_BY_CODE.scorekeeper?.defaultPermissions ?? [];
+  }
+  return ["game.read"];
+}
+
+/** Role codes that run game day in the admin console (scoresheet only). */
+export const GAME_DAY_ROLE_CODES = ["scorekeeper", "referee"] as const;
+
 /**
  * Curated suggestions for *custom* role codes — populates the dropdown
  * on the create-role form so admins don't have to type a free-form code.

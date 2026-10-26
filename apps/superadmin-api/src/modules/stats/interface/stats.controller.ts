@@ -27,6 +27,8 @@ import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import {
   accessCan,
   accessForScope,
+  gameAccessFor,
+  gameVisible,
   requireGamePermission
 } from "../../../shared/auth/game-access";
 import {
@@ -104,31 +106,15 @@ export class StatsController {
   @Get("lines/for-game/:gameId")
   async forGame(
     @Param("gameId") gameId: string,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<StatLineDto[]> {
-    // Verify the caller can see this game before returning stats.
-    // 404 (not 403) on miss — no-leak rule. Mirrors games.controller's
-    // getOne scope check (league OR either-team match).
-    if (!scope.isSuperAdmin) {
-      const [game] = await this.db
-        .select({
-          leagueId: schema.games.leagueId,
-          homeTeamId: schema.games.homeTeamId,
-          awayTeamId: schema.games.awayTeamId
-        })
-        .from(schema.games)
-        .where(eq(schema.games.id, gameId))
-        .limit(1);
-      if (!game) throw new NotFoundException(`Game not found: ${gameId}`);
-      const inLeagueScope =
-        scope.leagueIds === null || scope.leagueIds.includes(game.leagueId);
-      const onEitherTeam =
-        !!scope.teamIds &&
-        (scope.teamIds.includes(game.homeTeamId) ||
-          scope.teamIds.includes(game.awayTeamId));
-      if (!inLeagueScope && !onEitherTeam) {
-        throw new NotFoundException(`Game not found: ${gameId}`);
-      }
+    // Same visibility as the game itself (shared/auth/game-access): league
+    // or team in scope, or a role or crew spot covering the game, so the
+    // scorekeeper of one game sees its stat lines. 404 on miss (no leak).
+    const access = await gameAccessFor(this.db, user.userId, gameId);
+    if (!access || !gameVisible(access, scope)) {
+      throw new NotFoundException(`Game not found: ${gameId}`);
     }
     return this.withNames(await this.forGameH.execute({ gameId }));
   }

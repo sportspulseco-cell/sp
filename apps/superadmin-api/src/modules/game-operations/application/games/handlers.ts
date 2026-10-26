@@ -61,6 +61,14 @@ export interface ListGamesInput {
   leagueIdsFilter?: string[];
   /** When true, restrict to games with `published_at IS NOT NULL`. */
   publishedOnly?: boolean;
+  /** An official's games only (shared/auth/game-access officiatingFilter). */
+  officiating?: {
+    orgIds: string[];
+    leagueIds: string[];
+    seasonIds: string[];
+    divisionIds: string[];
+    gameIds: string[];
+  };
 }
 
 @Injectable()

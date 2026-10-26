@@ -848,6 +848,8 @@ export interface GameOfficial {
   id: string;
   gameId: string;
   personId: string;
+  /** Filled by the per-game list. */
+  personName?: string | null;
   role: GameOfficialRole;
   slot: string | null;
   status: GameOfficialStatus;

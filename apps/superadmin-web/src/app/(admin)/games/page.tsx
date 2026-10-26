@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import { CreateGameButton } from "@/components/games/create-game-button";
+import { OfficialGames } from "@/components/games/official-games";
+import { getConsoleViewer } from "@/lib/console-mode";
 import type { Division, Game, GameStatus, Season } from "@/lib/api/types";
 
 export const metadata = { title: "Games — SportsPulse" };
@@ -56,6 +58,8 @@ export default async function GamesPage({
   }>;
 }) {
   const sp = (await searchParams) ?? {};
+  // Game-day officials see only the games they run (SCH-12).
+  if ((await getConsoleViewer())?.mode === "official") return <OfficialGames sp={sp} />;
   const status = sp.status;
   const leagueId = sp.leagueId;
   let loadFailed = false;

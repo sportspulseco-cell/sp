@@ -111,8 +111,16 @@ const PROJECT_NAV: NavItem[] = [
   { href: "/data-migration", label: "Import data", icon: Database, superOnly: true }
 ];
 
-export function Sidebar({ isSuperAdmin = true }: { isSuperAdmin?: boolean }) {
+export function Sidebar({
+  isSuperAdmin = true,
+  mode = "admin"
+}: {
+  isSuperAdmin?: boolean;
+  /** "official": game-day officials see no module navigation (top bar links their games). */
+  mode?: "admin" | "official";
+}) {
   const { open, setOpen } = useNav();
+  if (mode === "official") return null;
   const platformNav = navFor(PLATFORM_NAV, isSuperAdmin);
 
   return (

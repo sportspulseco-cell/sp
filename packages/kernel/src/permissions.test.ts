@@ -1,6 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SYSTEM_ROLE_BY_CODE, permissionGranted } from "./permissions";
+import { SYSTEM_ROLE_BY_CODE, gameOfficialPermissions, permissionGranted } from "./permissions";
+
+test("an official assigned to a game: referee and scorekeeper run the scoresheet, a linesman only reads, declined gets nothing", () => {
+  for (const role of ["referee", "scorekeeper", "timekeeper"]) {
+    for (const p of ["game.read", "game.start", "game_event.write", "score.write", "game.finalize"]) {
+      assert.equal(permissionGranted(gameOfficialPermissions(role, "confirmed"), p), true, `${role} ${p}`);
+    }
+    assert.equal(permissionGranted(gameOfficialPermissions(role, "confirmed"), "game.reschedule"), false);
+  }
+  assert.equal(permissionGranted(gameOfficialPermissions("referee", "tentative"), "suspension.issue"), true);
+  assert.equal(permissionGranted(gameOfficialPermissions("scorekeeper", "confirmed"), "suspension.issue"), false);
+  assert.deepEqual(gameOfficialPermissions("linesman", "confirmed"), ["game.read"]);
+  assert.deepEqual(gameOfficialPermissions("referee", "declined"), []);
+});
 
 const perms = (code: string) => SYSTEM_ROLE_BY_CODE[code]!.defaultPermissions;
 

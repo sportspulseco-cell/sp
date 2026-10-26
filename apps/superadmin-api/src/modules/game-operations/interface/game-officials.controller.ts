@@ -28,6 +28,7 @@ import {
   requireGamePermission
 } from "../../../shared/auth/game-access";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { resolveEntityNames } from "../../../shared/display/entity-names";
 import {
   AssignGameOfficialHandler,
   GameOfficialDto,
@@ -67,12 +68,19 @@ export class GameOfficialsController {
     @Param("gameId") gameId: string,
     @UserScope() scope: UserScopeType,
     @CurrentUser() user: AuthPrincipal
-  ): Promise<GameOfficialDto[]> {
+  ): Promise<Array<GameOfficialDto & { personName: string | null }>> {
     const access = await gameAccessFor(this.db, user.userId, gameId);
     if (!access || !gameVisible(access, scope)) {
       throw new NotFoundException(`Game not found: ${gameId}`);
     }
-    return this.listH.execute({ gameId });
+    const rows = await this.listH.execute({ gameId });
+    // Names, so a crew member whose scope is this one game (no people
+    // list) still sees who else is on the crew.
+    const names = await resolveEntityNames(
+      this.db,
+      rows.map((r) => ({ type: "person" as const, id: r.personId }))
+    );
+    return rows.map((r) => ({ ...r, personName: names.get(`person:${r.personId}`) ?? null }));
   }
 
   @Get("game-officials/for-person/:personId")
