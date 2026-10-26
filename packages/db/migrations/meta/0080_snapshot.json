@@ -1,6 +1,6 @@
 {
   "id": "a03379c2-ac41-4b90-85ff-b50f7fce4ef7",
-  "prevId": "e70517ec-d411-4b10-b112-0578914ce50a",
+  "prevId": "a839914d-e163-4dba-bf28-c6023f1e2aa4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8464,6 +8464,295 @@
         "game_official_status_check": {
           "name": "game_official_status_check",
           "value": "\"game_officials\".\"status\" IN ('confirmed','tentative','declined')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.substitute_requests": {
+      "name": "substitute_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "season_id": {
+          "name": "season_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "substitute_person_id": {
+          "name": "substitute_person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'requested'"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "roster_override": {
+          "name": "roster_override",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancel_reason": {
+          "name": "cancel_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_by_user_id": {
+          "name": "requested_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_user_id": {
+          "name": "decided_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attendance_id": {
+          "name": "attendance_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "log": {
+          "name": "log",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "substitute_request_open_uniq": {
+          "name": "substitute_request_open_uniq",
+          "columns": [
+            {
+              "expression": "game_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "substitute_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"substitute_requests\".\"status\" = 'requested'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "substitute_request_game_idx": {
+          "name": "substitute_request_game_idx",
+          "columns": [
+            {
+              "expression": "game_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "substitute_request_person_idx": {
+          "name": "substitute_request_person_idx",
+          "columns": [
+            {
+              "expression": "substitute_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "substitute_requests_game_id_games_id_fk": {
+          "name": "substitute_requests_game_id_games_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_team_id_teams_id_fk": {
+          "name": "substitute_requests_team_id_teams_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_season_id_seasons_id_fk": {
+          "name": "substitute_requests_season_id_seasons_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "seasons",
+          "columnsFrom": [
+            "season_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_substitute_person_id_persons_id_fk": {
+          "name": "substitute_requests_substitute_person_id_persons_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "persons",
+          "columnsFrom": [
+            "substitute_person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_requested_by_user_id_users_id_fk": {
+          "name": "substitute_requests_requested_by_user_id_users_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "requested_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_decided_by_user_id_users_id_fk": {
+          "name": "substitute_requests_decided_by_user_id_users_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "decided_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_attendance_id_game_attendance_id_fk": {
+          "name": "substitute_requests_attendance_id_game_attendance_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "game_attendance",
+          "columnsFrom": [
+            "attendance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "substitute_request_status_check": {
+          "name": "substitute_request_status_check",
+          "value": "\"substitute_requests\".\"status\" IN ('requested','accepted','declined','cancelled','expired')"
+        },
+        "substitute_request_source_check": {
+          "name": "substitute_request_source_check",
+          "value": "\"substitute_requests\".\"source\" IS NULL OR \"substitute_requests\".\"source\" IN ('free_agent','league_player')"
         }
       },
       "isRLSEnabled": false
@@ -17112,6 +17401,571 @@
       },
       "isRLSEnabled": false
     },
+    "public.discount_code_redemptions": {
+      "name": "discount_code_redemptions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "discount_code_id": {
+          "name": "discount_code_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_id": {
+          "name": "registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "released_reason": {
+          "name": "released_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "discount_redemption_code_reg_uniq": {
+          "name": "discount_redemption_code_reg_uniq",
+          "columns": [
+            {
+              "expression": "discount_code_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "discount_redemption_code_idx": {
+          "name": "discount_redemption_code_idx",
+          "columns": [
+            {
+              "expression": "discount_code_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "discount_redemption_reg_idx": {
+          "name": "discount_redemption_reg_idx",
+          "columns": [
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "discount_code_redemptions_discount_code_id_discount_codes_id_fk": {
+          "name": "discount_code_redemptions_discount_code_id_discount_codes_id_fk",
+          "tableFrom": "discount_code_redemptions",
+          "tableTo": "discount_codes",
+          "columnsFrom": [
+            "discount_code_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "discount_code_redemptions_registration_id_registrations_id_fk": {
+          "name": "discount_code_redemptions_registration_id_registrations_id_fk",
+          "tableFrom": "discount_code_redemptions",
+          "tableTo": "registrations",
+          "columnsFrom": [
+            "registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "discount_code_redemptions_invoice_id_invoices_id_fk": {
+          "name": "discount_code_redemptions_invoice_id_invoices_id_fk",
+          "tableFrom": "discount_code_redemptions",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "discount_code_redemptions_person_id_persons_id_fk": {
+          "name": "discount_code_redemptions_person_id_persons_id_fk",
+          "tableFrom": "discount_code_redemptions",
+          "tableTo": "persons",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "discount_redemption_status_check": {
+          "name": "discount_redemption_status_check",
+          "value": "\"discount_code_redemptions\".\"status\" IN ('active','released')"
+        },
+        "discount_redemption_amount_check": {
+          "name": "discount_redemption_amount_check",
+          "value": "\"discount_code_redemptions\".\"amount_cents\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.discount_codes": {
+      "name": "discount_codes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "season_id": {
+          "name": "season_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "percent_basis_points": {
+          "name": "percent_basis_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usage_limit": {
+          "name": "usage_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usage_count": {
+          "name": "usage_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "valid_from": {
+          "name": "valid_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valid_to": {
+          "name": "valid_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "division_ids": {
+          "name": "division_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "pricing_tier_ids": {
+          "name": "pricing_tier_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "discount_code_season_code_uniq": {
+          "name": "discount_code_season_code_uniq",
+          "columns": [
+            {
+              "expression": "season_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "discount_code_org_idx": {
+          "name": "discount_code_org_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "discount_codes_org_id_orgs_id_fk": {
+          "name": "discount_codes_org_id_orgs_id_fk",
+          "tableFrom": "discount_codes",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "discount_codes_season_id_seasons_id_fk": {
+          "name": "discount_codes_season_id_seasons_id_fk",
+          "tableFrom": "discount_codes",
+          "tableTo": "seasons",
+          "columnsFrom": [
+            "season_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "discount_codes_created_by_user_id_users_id_fk": {
+          "name": "discount_codes_created_by_user_id_users_id_fk",
+          "tableFrom": "discount_codes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "discount_code_kind_check": {
+          "name": "discount_code_kind_check",
+          "value": "\"discount_codes\".\"kind\" IN ('percent','fixed')"
+        },
+        "discount_code_value_check": {
+          "name": "discount_code_value_check",
+          "value": "(\"discount_codes\".\"kind\" = 'percent' AND \"discount_codes\".\"percent_basis_points\" BETWEEN 1 AND 10000 AND \"discount_codes\".\"amount_cents\" IS NULL)\n        OR (\"discount_codes\".\"kind\" = 'fixed' AND \"discount_codes\".\"amount_cents\" > 0 AND \"discount_codes\".\"percent_basis_points\" IS NULL)"
+        },
+        "discount_code_usage_check": {
+          "name": "discount_code_usage_check",
+          "value": "\"discount_codes\".\"usage_count\" >= 0 AND (\"discount_codes\".\"usage_limit\" IS NULL OR (\"discount_codes\".\"usage_limit\" >= 0 AND \"discount_codes\".\"usage_count\" <= \"discount_codes\".\"usage_limit\"))"
+        },
+        "discount_code_dates_check": {
+          "name": "discount_code_dates_check",
+          "value": "\"discount_codes\".\"valid_from\" IS NULL OR \"discount_codes\".\"valid_to\" IS NULL OR \"discount_codes\".\"valid_from\" <= \"discount_codes\".\"valid_to\""
+        },
+        "discount_code_code_check": {
+          "name": "discount_code_code_check",
+          "value": "\"discount_codes\".\"code\" ~ '^[A-Z0-9][A-Z0-9_-]{2,31}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.season_family_pricing": {
+      "name": "season_family_pricing",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "season_id": {
+          "name": "season_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "family_max_cents": {
+          "name": "family_max_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sibling_kind": {
+          "name": "sibling_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sibling_percent_basis_points": {
+          "name": "sibling_percent_basis_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sibling_amount_cents": {
+          "name": "sibling_amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sibling_from_nth": {
+          "name": "sibling_from_nth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "updated_by_user_id": {
+          "name": "updated_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "season_family_pricing_season_uniq": {
+          "name": "season_family_pricing_season_uniq",
+          "columns": [
+            {
+              "expression": "season_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "season_family_pricing_season_id_seasons_id_fk": {
+          "name": "season_family_pricing_season_id_seasons_id_fk",
+          "tableFrom": "season_family_pricing",
+          "tableTo": "seasons",
+          "columnsFrom": [
+            "season_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "season_family_pricing_updated_by_user_id_users_id_fk": {
+          "name": "season_family_pricing_updated_by_user_id_users_id_fk",
+          "tableFrom": "season_family_pricing",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "season_family_pricing_max_check": {
+          "name": "season_family_pricing_max_check",
+          "value": "\"season_family_pricing\".\"family_max_cents\" IS NULL OR \"season_family_pricing\".\"family_max_cents\" >= 0"
+        },
+        "season_family_pricing_nth_check": {
+          "name": "season_family_pricing_nth_check",
+          "value": "\"season_family_pricing\".\"sibling_from_nth\" BETWEEN 2 AND 20"
+        },
+        "season_family_pricing_sibling_check": {
+          "name": "season_family_pricing_sibling_check",
+          "value": "(\"season_family_pricing\".\"sibling_kind\" IS NULL AND \"season_family_pricing\".\"sibling_percent_basis_points\" IS NULL AND \"season_family_pricing\".\"sibling_amount_cents\" IS NULL)\n        OR (\"season_family_pricing\".\"sibling_kind\" = 'percent' AND \"season_family_pricing\".\"sibling_percent_basis_points\" BETWEEN 1 AND 10000 AND \"season_family_pricing\".\"sibling_amount_cents\" IS NULL)\n        OR (\"season_family_pricing\".\"sibling_kind\" = 'fixed' AND \"season_family_pricing\".\"sibling_amount_cents\" > 0 AND \"season_family_pricing\".\"sibling_percent_basis_points\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.feature_flags": {
       "name": "feature_flags",
       "schema": "",
@@ -17890,571 +18744,6 @@
         "audit_events_retention_check": {
           "name": "audit_events_retention_check",
           "value": "\"audit_events\".\"retention_class\" IN ('default','financial','legal_hold')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.discount_codes": {
-      "name": "discount_codes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "season_id": {
-          "name": "season_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "percent_basis_points": {
-          "name": "percent_basis_points",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_cents": {
-          "name": "amount_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "usage_limit": {
-          "name": "usage_limit",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "usage_count": {
-          "name": "usage_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "valid_to": {
-          "name": "valid_to",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "division_ids": {
-          "name": "division_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
-        "pricing_tier_ids": {
-          "name": "pricing_tier_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "discount_code_season_code_uniq": {
-          "name": "discount_code_season_code_uniq",
-          "columns": [
-            {
-              "expression": "season_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "discount_code_org_idx": {
-          "name": "discount_code_org_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "discount_codes_org_id_orgs_id_fk": {
-          "name": "discount_codes_org_id_orgs_id_fk",
-          "tableFrom": "discount_codes",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "discount_codes_season_id_seasons_id_fk": {
-          "name": "discount_codes_season_id_seasons_id_fk",
-          "tableFrom": "discount_codes",
-          "tableTo": "seasons",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "discount_codes_created_by_user_id_users_id_fk": {
-          "name": "discount_codes_created_by_user_id_users_id_fk",
-          "tableFrom": "discount_codes",
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "discount_code_kind_check": {
-          "name": "discount_code_kind_check",
-          "value": "\"discount_codes\".\"kind\" IN ('percent','fixed')"
-        },
-        "discount_code_value_check": {
-          "name": "discount_code_value_check",
-          "value": "(\"discount_codes\".\"kind\" = 'percent' AND \"discount_codes\".\"percent_basis_points\" BETWEEN 1 AND 10000 AND \"discount_codes\".\"amount_cents\" IS NULL)\n        OR (\"discount_codes\".\"kind\" = 'fixed' AND \"discount_codes\".\"amount_cents\" > 0 AND \"discount_codes\".\"percent_basis_points\" IS NULL)"
-        },
-        "discount_code_usage_check": {
-          "name": "discount_code_usage_check",
-          "value": "\"discount_codes\".\"usage_count\" >= 0 AND (\"discount_codes\".\"usage_limit\" IS NULL OR (\"discount_codes\".\"usage_limit\" >= 0 AND \"discount_codes\".\"usage_count\" <= \"discount_codes\".\"usage_limit\"))"
-        },
-        "discount_code_dates_check": {
-          "name": "discount_code_dates_check",
-          "value": "\"discount_codes\".\"valid_from\" IS NULL OR \"discount_codes\".\"valid_to\" IS NULL OR \"discount_codes\".\"valid_from\" <= \"discount_codes\".\"valid_to\""
-        },
-        "discount_code_code_check": {
-          "name": "discount_code_code_check",
-          "value": "\"discount_codes\".\"code\" ~ '^[A-Z0-9][A-Z0-9_-]{2,31}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.discount_code_redemptions": {
-      "name": "discount_code_redemptions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "discount_code_id": {
-          "name": "discount_code_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "registration_id": {
-          "name": "registration_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invoice_id": {
-          "name": "invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "person_id": {
-          "name": "person_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_cents": {
-          "name": "amount_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "released_at": {
-          "name": "released_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "released_reason": {
-          "name": "released_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "discount_redemption_code_reg_uniq": {
-          "name": "discount_redemption_code_reg_uniq",
-          "columns": [
-            {
-              "expression": "discount_code_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "registration_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "discount_redemption_code_idx": {
-          "name": "discount_redemption_code_idx",
-          "columns": [
-            {
-              "expression": "discount_code_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "discount_redemption_reg_idx": {
-          "name": "discount_redemption_reg_idx",
-          "columns": [
-            {
-              "expression": "registration_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "discount_code_redemptions_discount_code_id_discount_codes_id_fk": {
-          "name": "discount_code_redemptions_discount_code_id_discount_codes_id_fk",
-          "tableFrom": "discount_code_redemptions",
-          "tableTo": "discount_codes",
-          "columnsFrom": [
-            "discount_code_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "discount_code_redemptions_registration_id_registrations_id_fk": {
-          "name": "discount_code_redemptions_registration_id_registrations_id_fk",
-          "tableFrom": "discount_code_redemptions",
-          "tableTo": "registrations",
-          "columnsFrom": [
-            "registration_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "discount_code_redemptions_invoice_id_invoices_id_fk": {
-          "name": "discount_code_redemptions_invoice_id_invoices_id_fk",
-          "tableFrom": "discount_code_redemptions",
-          "tableTo": "invoices",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "discount_code_redemptions_person_id_persons_id_fk": {
-          "name": "discount_code_redemptions_person_id_persons_id_fk",
-          "tableFrom": "discount_code_redemptions",
-          "tableTo": "persons",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "discount_redemption_status_check": {
-          "name": "discount_redemption_status_check",
-          "value": "\"discount_code_redemptions\".\"status\" IN ('active','released')"
-        },
-        "discount_redemption_amount_check": {
-          "name": "discount_redemption_amount_check",
-          "value": "\"discount_code_redemptions\".\"amount_cents\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.season_family_pricing": {
-      "name": "season_family_pricing",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "season_id": {
-          "name": "season_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "family_max_cents": {
-          "name": "family_max_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sibling_kind": {
-          "name": "sibling_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sibling_percent_basis_points": {
-          "name": "sibling_percent_basis_points",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sibling_amount_cents": {
-          "name": "sibling_amount_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sibling_from_nth": {
-          "name": "sibling_from_nth",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 2
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "season_family_pricing_season_uniq": {
-          "name": "season_family_pricing_season_uniq",
-          "columns": [
-            {
-              "expression": "season_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "season_family_pricing_season_id_seasons_id_fk": {
-          "name": "season_family_pricing_season_id_seasons_id_fk",
-          "tableFrom": "season_family_pricing",
-          "tableTo": "seasons",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "season_family_pricing_updated_by_user_id_users_id_fk": {
-          "name": "season_family_pricing_updated_by_user_id_users_id_fk",
-          "tableFrom": "season_family_pricing",
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "season_family_pricing_max_check": {
-          "name": "season_family_pricing_max_check",
-          "value": "\"season_family_pricing\".\"family_max_cents\" IS NULL OR \"season_family_pricing\".\"family_max_cents\" >= 0"
-        },
-        "season_family_pricing_nth_check": {
-          "name": "season_family_pricing_nth_check",
-          "value": "\"season_family_pricing\".\"sibling_from_nth\" BETWEEN 2 AND 20"
-        },
-        "season_family_pricing_sibling_check": {
-          "name": "season_family_pricing_sibling_check",
-          "value": "(\"season_family_pricing\".\"sibling_kind\" IS NULL AND \"season_family_pricing\".\"sibling_percent_basis_points\" IS NULL AND \"season_family_pricing\".\"sibling_amount_cents\" IS NULL)\n        OR (\"season_family_pricing\".\"sibling_kind\" = 'percent' AND \"season_family_pricing\".\"sibling_percent_basis_points\" BETWEEN 1 AND 10000 AND \"season_family_pricing\".\"sibling_amount_cents\" IS NULL)\n        OR (\"season_family_pricing\".\"sibling_kind\" = 'fixed' AND \"season_family_pricing\".\"sibling_amount_cents\" > 0 AND \"season_family_pricing\".\"sibling_percent_basis_points\" IS NULL)"
         }
       },
       "isRLSEnabled": false

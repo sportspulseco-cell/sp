@@ -1,6 +1,6 @@
 {
   "id": "ed3c7807-2586-4e0b-8145-fc83be14c0e3",
-  "prevId": "d0504b81-be9c-4469-b04d-00907c93dd8b",
+  "prevId": "a03379c2-ac41-4b90-85ff-b50f7fce4ef7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -17498,6 +17498,295 @@
         "audit_events_retention_check": {
           "name": "audit_events_retention_check",
           "value": "\"audit_events\".\"retention_class\" IN ('default','financial','legal_hold')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.substitute_requests": {
+      "name": "substitute_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "season_id": {
+          "name": "season_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "substitute_person_id": {
+          "name": "substitute_person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'requested'"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "roster_override": {
+          "name": "roster_override",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancel_reason": {
+          "name": "cancel_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_by_user_id": {
+          "name": "requested_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_user_id": {
+          "name": "decided_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attendance_id": {
+          "name": "attendance_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "log": {
+          "name": "log",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "substitute_request_open_uniq": {
+          "name": "substitute_request_open_uniq",
+          "columns": [
+            {
+              "expression": "game_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "substitute_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"substitute_requests\".\"status\" = 'requested'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "substitute_request_game_idx": {
+          "name": "substitute_request_game_idx",
+          "columns": [
+            {
+              "expression": "game_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "substitute_request_person_idx": {
+          "name": "substitute_request_person_idx",
+          "columns": [
+            {
+              "expression": "substitute_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "substitute_requests_game_id_games_id_fk": {
+          "name": "substitute_requests_game_id_games_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_team_id_teams_id_fk": {
+          "name": "substitute_requests_team_id_teams_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_season_id_seasons_id_fk": {
+          "name": "substitute_requests_season_id_seasons_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "seasons",
+          "columnsFrom": [
+            "season_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_substitute_person_id_persons_id_fk": {
+          "name": "substitute_requests_substitute_person_id_persons_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "persons",
+          "columnsFrom": [
+            "substitute_person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_requested_by_user_id_users_id_fk": {
+          "name": "substitute_requests_requested_by_user_id_users_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "requested_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_decided_by_user_id_users_id_fk": {
+          "name": "substitute_requests_decided_by_user_id_users_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "decided_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "substitute_requests_attendance_id_game_attendance_id_fk": {
+          "name": "substitute_requests_attendance_id_game_attendance_id_fk",
+          "tableFrom": "substitute_requests",
+          "tableTo": "game_attendance",
+          "columnsFrom": [
+            "attendance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "substitute_request_status_check": {
+          "name": "substitute_request_status_check",
+          "value": "\"substitute_requests\".\"status\" IN ('requested','accepted','declined','cancelled','expired')"
+        },
+        "substitute_request_source_check": {
+          "name": "substitute_request_source_check",
+          "value": "\"substitute_requests\".\"source\" IS NULL OR \"substitute_requests\".\"source\" IN ('free_agent','league_player')"
         }
       },
       "isRLSEnabled": false
