@@ -63,15 +63,19 @@ export const BYPASS_STATE_PATH = `${OUTPUT_DIR}-state/staging-bypass-state.json`
  * (`next build && next start`, pointed at staging Supabase and a local
  * API). For proving a change before it can be deployed to staging.
  * Ports: superadmin 3141 (league admins too), org 3142, team 3143,
- * player 3140. Landing stays on staging.
+ * player 3140. Landing stays on staging. E2E_LOCAL_PORT_OFFSET shifts
+ * all four (e.g. 10 → 3151/3152/3153/3150) when parallel runs share a
+ * machine.
  */
+const LOCAL_PORT_OFFSET = Number(process.env.E2E_LOCAL_PORT_OFFSET ?? 0) || 0;
+const localApp = (port: number) => `http://localhost:${port + LOCAL_PORT_OFFSET}`;
 const LOCAL_STAGING_URLS = {
   landing: STAGING_URLS.landing,
-  league: "http://localhost:3141",
-  superadmin: "http://localhost:3141",
-  orgAdmin: "http://localhost:3142",
-  teamAdmin: "http://localhost:3143",
-  player: "http://localhost:3140"
+  league: localApp(3141),
+  superadmin: localApp(3141),
+  orgAdmin: localApp(3142),
+  teamAdmin: localApp(3143),
+  player: localApp(3140)
 };
 
 export const E2E_URLS =
