@@ -127,8 +127,8 @@ async function walkWizard(
   page: Page,
   opts: { orgName: string | null; league: string; season: string; divisions: string[] }
 ) {
-  // Step 1 — organisation
-  await expect(page.getByRole("heading", { name: "Pick the organisation." })).toBeVisible();
+  // Step 1 — organization
+  await expect(page.getByRole("heading", { name: "Pick the organization." })).toBeVisible();
   if (opts.orgName) {
     await page.getByRole("button", { name: new RegExp(opts.orgName) }).click();
   }
@@ -287,7 +287,7 @@ test.describe.serial("J1 · org/league/season/division setup", () => {
       const sport = page.getByRole("combobox", { name: "Sport *" });
       const sportDefault = await sport.locator("option:checked").textContent();
       await softly(async () => expect(sportDefault, "SETUP-3: team Sport defaults to first alphabetical sport, not the org's sport").toMatch(/hockey/i));
-      await page.getByRole("combobox", { name: "Organisation *" }).selectOption({ label: ORG_NAME });
+      await page.getByRole("combobox", { name: "Organization *" }).selectOption({ label: ORG_NAME });
       await page.getByRole("textbox", { name: "Team name *" }).fill(name);
       if (rink) await page.getByRole("textbox", { name: "Home rink" }).fill(rink);
       await sport.selectOption({ label: "Ice Hockey" });

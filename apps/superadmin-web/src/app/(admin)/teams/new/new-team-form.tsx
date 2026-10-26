@@ -1,29 +1,12 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent
-} from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowRight,
-  Check,
-  Loader2,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  X
-} from "lucide-react";
-import { Alert, Button } from "@sportspulse/ui";
+import { AlertCircle, ArrowRight, Check, Loader2, Search, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Button, Field, Input, Select, Alert } from "@sportspulse/ui";
 import type { Org, Profile, Sport } from "@/lib/api/types";
 import { iam, leagueMgmt } from "@/lib/api/browser-api";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 
 /**
  * Workflow 7A Phase 1 · /teams/new client form.
@@ -178,7 +161,7 @@ export function NewTeamForm({
           if (dup?.existingTeamId) {
             setExistingTeamId(dup.existingTeamId);
             setError(
-              "A team with this name already exists in this organisation."
+              "A team with this name already exists in this organization."
             );
             setBusy(false);
             return;
@@ -203,7 +186,7 @@ export function NewTeamForm({
           title="Identity"
           subtitle="Org-level record. The team keeps this name across every season."
         >
-          <Field label="Organisation *">
+          <Field label="Organization *">
             <Select
               value={orgId}
               onChange={(e) => {
@@ -239,7 +222,7 @@ export function NewTeamForm({
             <Alert tone="warning" className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
-                A team with this name already exists in this organisation.
+                A team with this name already exists in this organization.
               </span>
               <Link
                 href={`/teams/${existingTeamId}`}

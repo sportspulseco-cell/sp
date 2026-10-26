@@ -136,6 +136,48 @@ export class SupabaseAdminService {
   }
 
   static readonly COMPLIANCE_BUCKET = "compliance-documents";
+  static readonly BROADCAST_BUCKET = "broadcast-attachments";
+
+  /**
+   * Store an announcement attachment (UC-19) in the PRIVATE
+   * `broadcast-attachments` bucket, created on first use with
+   * `public: false`. Path `{orgId}/{uuid}.{ext}`. Read only through
+   * {@link signComplianceDocumentUrl}-style short-lived signed URLs after
+   * the API checks a signed link. Refuses a bucket made public by hand.
+   */
+  async uploadBroadcastAttachment(input: {
+    orgId: string;
+    contentType: string;
+    extension: string;
+    bytes: Buffer;
+  }): Promise<{ bucket: string; path: string }> {
+    const storage = this.get().storage;
+    const bucket = SupabaseAdminService.BROADCAST_BUCKET;
+    const { data: existing } = await storage.getBucket(bucket);
+    if (existing) {
+      if (existing.public) {
+        throw new Error(`Storage bucket ${bucket} is public. It must be private before attachments are stored in it.`);
+      }
+    } else {
+      const { error } = await storage.createBucket(bucket, {
+        public: false,
+        fileSizeLimit: 3 * 1024 * 1024,
+        allowedMimeTypes: ["application/pdf", "image/png", "image/jpeg", "image/webp"]
+      });
+      if (error && !/already exists/i.test(error.message)) {
+        throw new Error(`Could not create the ${bucket} bucket: ${error.message}`);
+      }
+      this.log.log(`Created private storage bucket ${bucket}`);
+    }
+    const path = `${input.orgId}/${randomUUID()}.${input.extension}`;
+    const { error } = await storage.from(bucket).upload(path, input.bytes, {
+      contentType: input.contentType,
+      upsert: false
+    });
+    if (error) throw new Error(`Could not store the attachment: ${error.message}`);
+    this.log.log(`broadcast attachment stored org=${input.orgId} bytes=${input.bytes.length} path=${path}`);
+    return { bucket, path };
+  }
 
   /**
    * Send a Supabase-managed invite email. Returns the new auth user id and
@@ -222,7 +264,11 @@ export class SupabaseAdminService {
       this.log.log(`verifyPassword rejected for ${email}: ${error?.message ?? "no user"}`);
       return null;
     }
-    await c.auth.signOut().catch(() => undefined);
+    // Revoke only the session this check opened. A bare signOut() is
+    // scope "global": it ended every session the person had, so a player
+    // signed in on player-web was signed out the moment the registration
+    // funnel checked their password (J6.5, J8.2 on staging, 26 Oct).
+    await c.auth.signOut({ scope: "local" }).catch(() => undefined);
     return data.user.id;
   }
 

@@ -3,17 +3,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil } from "lucide-react";
-import {
-  RoleProfileFields,
-  useRoleProfile,
-  type RoleProfileState
-} from "@sportspulse/registration-funnel";
+import { RoleProfileFields, useRoleProfile, type RoleProfileState } from "@sportspulse/registration-funnel";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Alert } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Alert } from "@sportspulse/ui";
 
 const transport = {
   getRoleProfile: (id: string, code: string) => iam.getRoleProfile(id, code),

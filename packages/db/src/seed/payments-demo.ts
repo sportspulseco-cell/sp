@@ -68,7 +68,7 @@ async function main() {
   const [org] = await db.select().from(schema.orgs).limit(1);
   if (!org) {
     console.error(
-      "❌  No org found. Create at least one organisation before seeding the payments demo."
+      "❌  No org found. Create at least one organization before seeding the payments demo."
     );
     process.exit(1);
   }

@@ -11,7 +11,6 @@ import { fetchAll } from "@sportspulse/api-client";
  * exposes the sp-superadmin URL.
  */
 
-import { useRouter } from "next/navigation";
 import { CreateFormButton as SharedCreateFormButton } from "@sportspulse/admin-pages";
 import { leagueMgmt, registration } from "@/lib/api/browser-api";
 
@@ -22,7 +21,6 @@ export function CreateFormButton({
   activeOrgId: string;
   activeOrgName: string;
 }) {
-  const router = useRouter();
   return (
     <SharedCreateFormButton
       orgs={[{ id: activeOrgId, displayName: activeOrgName }]}
@@ -40,11 +38,7 @@ export function CreateFormButton({
         return page.items.map((d) => ({ id: d.id, name: d.name }));
       }}
       createForm={(input) => registration.createForm(input)}
-      onCreated={(formId) => {
-        router.push(`/forms/${formId}`);
-        // No router.refresh() here: it can cancel the push and leave the
-        // user on this form (J11). The new page loads fresh server data.
-      }}
+      formHref={(formId) => `/forms/${formId}`}
     />
   );
 }

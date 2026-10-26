@@ -205,8 +205,8 @@ export function LeagueStep({
         </div>
 
         <Field
-          label="Organisation"
-          hint="Locked to the organisation selected in step 1. Cannot be changed after creation."
+          label="Organization"
+          hint="Locked to the organization selected in step 1. Cannot be changed after creation."
         >
           <Input
             type="text"

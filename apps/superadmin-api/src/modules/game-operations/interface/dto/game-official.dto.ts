@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID } from "class-validator";
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
 
 const ROLES = [
   "referee",
@@ -14,7 +14,13 @@ const ROLES = [
 const STATUSES = ["confirmed", "tentative", "declined"] as const;
 
 export class AssignGameOfficialBodyDto {
-  @ApiProperty() @IsUUID() personId!: string;
+  /** The person to assign. Give this or `email`, not both. */
+  @ApiPropertyOptional() @IsOptional() @IsUUID() personId?: string;
+  /**
+   * An existing account's full email (exact match, any case), for an
+   * official with no tie to the league yet. Never matched in part.
+   */
+  @ApiPropertyOptional() @IsOptional() @IsEmail() @MaxLength(320) email?: string;
   @ApiProperty({ enum: ROLES })
   @IsIn(ROLES as unknown as string[])
   role!: (typeof ROLES)[number];

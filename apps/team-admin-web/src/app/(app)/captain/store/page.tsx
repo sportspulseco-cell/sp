@@ -1,7 +1,6 @@
 import { Star } from "lucide-react";
-import { EmptyState, LoadError } from "@sportspulse/ui";
+import { EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { loadMeScope, teamStore } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { StoreManager } from "./store-manager";
 import { StoreOrders } from "./store-orders";
 import { load } from "@sportspulse/api-client";

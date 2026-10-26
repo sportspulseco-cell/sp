@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation";
 import { Link2, Loader2 } from "lucide-react";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Alert } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Select, Alert } from "@sportspulse/ui";
 
 export function LinkPersonButton({ personId }: { personId: string }) {
   const router = useRouter();

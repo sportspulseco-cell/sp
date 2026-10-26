@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, X } from "lucide-react";
-import { Alert, Badge, Button, LocalDate, TBody, TD, TH, THead, TR, Table, Input } from "@sportspulse/ui";
-import { orgAdminRegistrations } from "@/lib/api/browser-api";
+import { Check, Loader2, Paperclip, X } from "lucide-react";
+import { Alert, Badge, Button, TBody, TD, TH, THead, TR, Table, LocalDate, Input } from "@sportspulse/ui";
+import { orgAdminRegistrations, registrationV2Admin } from "@/lib/api/browser-api";
 
 interface Item {
   id: string;
@@ -13,6 +13,8 @@ interface Item {
   season: string | null;
   status: string;
   submittedAt: string | null;
+  /** Files uploaded on the registration form (FR-3.4.5). */
+  files: Array<{ key: string; fileName: string }>;
 }
 
 function fmtDate(iso: string | null) {
@@ -33,6 +35,17 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
   // refresh that started while the page's link prefetches were in flight
   // was sometimes dropped, leaving "pending review" on an approved row.
   const [decided, setDecided] = useState<Record<string, string>>({});
+
+  // Same signed link the super admin review dialog opens (5 minutes).
+  async function openFile(id: string, key: string) {
+    setError(null);
+    try {
+      const link = await registrationV2Admin.fileLink(id, key);
+      window.open(link.url, "_blank", "noopener");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   async function decide(id: string, action: "approve" | "reject", reason?: string) {
     setError(null);
@@ -70,6 +83,21 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
             <TR key={r.id}>
               <TD className="text-[13px] font-medium text-fg">
                 {r.name ?? "Unnamed"}
+                {r.files.length > 0 ? (
+                  <div className="mt-1 flex flex-col items-start gap-0.5">
+                    {r.files.map((f) => (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => openFile(r.id, f.key)}
+                        className="inline-flex items-center gap-1 text-[11px] font-normal text-accent underline"
+                      >
+                        <Paperclip className="h-3 w-3" strokeWidth={1.75} />
+                        Open {f.fileName}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </TD>
               <TD className="text-[12px] text-fg-muted">{r.email ?? "Not provided"}</TD>
               <TD className="text-[12px] text-fg-muted">{r.season ?? "No season"}</TD>

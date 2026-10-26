@@ -75,7 +75,7 @@ export function RefundForm({
         : "the card the invoice was paid with";
       return `Sent back to ${card} through the payment processor. While the league is testing, payments run on a test processor and no real card is refunded. The player gets a refund notice.`;
     }
-    return "Added to the player's SportsPulse wallet for this organisation right away. The player gets a refund notice.";
+    return "Added to the player's SportsPulse wallet for this organization right away. The player gets a refund notice.";
   }, [dest, cardOnFileBrand, cardOnFileLast4]);
 
   async function submit(e: React.FormEvent) {

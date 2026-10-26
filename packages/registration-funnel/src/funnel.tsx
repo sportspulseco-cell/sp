@@ -20,7 +20,7 @@ import {
   formatInZone,
   DATE_FORMATS
 } from "@sportspulse/kernel";
-import type { PublicRegistrationApi } from "./public-api";
+import type { PublicRegistrationApi, RegistrationQuote } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
 import { Alert, Badge, Button, Chip, Field, Input, LoadError, Skeleton, Select } from "@sportspulse/ui";
 import { FormRenderer } from "./form-renderer";
@@ -835,6 +835,8 @@ export function RegistrationFunnel({
             onPay={(paymentOption, useWallet) => pay("succeeded", paymentOption, useWallet)}
             onPayOffline={() => pay("offline")}
             loadWallet={submissionId ? () => api.walletBalance(submissionId, email.trim()) : undefined}
+            loadQuote={submissionId ? () => api.quote(submissionId, email.trim()) : undefined}
+            applyCode={submissionId ? (code) => api.applyDiscountCode(submissionId, { email: email.trim(), code }) : undefined}
             onBack={back}
           />
         )}
@@ -2548,6 +2550,8 @@ function PaymentStep({
   onPay,
   onPayOffline,
   loadWallet,
+  loadQuote,
+  applyCode,
   onBack
 }: {
   tier: PricingTier | null;
@@ -2556,8 +2560,46 @@ function PaymentStep({
   onPay: (paymentOption: "full" | "plan", useWallet: boolean) => void;
   onPayOffline: () => void;
   loadWallet?: () => Promise<{ balanceCents: number; currency: string; frozen: boolean }>;
+  /** The server's price for this registration, with family and code discounts. */
+  loadQuote?: () => Promise<RegistrationQuote>;
+  applyCode?: (code: string | null) => Promise<RegistrationQuote>;
   onBack: () => void;
 }) {
+  // The bill comes from the server (never computed here): the price, a
+  // sibling discount, the applied code and the family maximum.
+  const [quote, setQuote] = useState<RegistrationQuote | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadQuote?.()
+      .then((q) => {
+        if (!live) return;
+        setQuote(q);
+        if (q.codeRefusal) setCodeError(`${q.codeRefusal.message} Remove the code to pay the full price.`);
+      })
+      .catch((e) => live && setQuoteError((e as Error).message));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  async function submitCode(code: string | null) {
+    if (!applyCode) return;
+    setCodeBusy(true);
+    setCodeError(null);
+    try {
+      const q = await applyCode(code);
+      setQuote(q);
+      setCodeInput("");
+    } catch (e) {
+      setCodeError((e as Error).message);
+    } finally {
+      setCodeBusy(false);
+    }
+  }
   // Full payment is selected first; a plan is the player's choice.
   const [option, setOption] = useState<"full" | "plan" | "offline">("full");
   // Wallet credit in this league (FR-3.6.2): offered only when there is some.
@@ -2579,10 +2621,11 @@ function PaymentStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const free = !tier || tier.isFree || tier.fullPriceCents === 0;
-  const currency = tier?.currency ?? "USD";
+  const currency = quote?.currency ?? tier?.currency ?? "USD";
   const fullPriceCents = tier?.fullPriceCents ?? 0;
-  const totalCents = fullPriceCents;
+  const totalCents = quote ? quote.totalCents : fullPriceCents;
+  const free = totalCents === 0 && (quote !== null || !tier || tier.isFree || tier.fullPriceCents === 0);
+  const lines = quote?.lines ?? [{ kind: "registration_fee", description: tier?.name ?? "Registration fee", amountCents: fullPriceCents }];
   const intervalDays = tier?.installmentIntervalDays ?? 30;
   const plan =
     tier && tierOffersPlan(tier)
@@ -2610,16 +2653,18 @@ function PaymentStep({
         <p className="text-[14px] font-semibold tracking-tight text-fg">
           Your invoice
         </p>
-        <table className="mt-4 w-full">
+        <table className="mt-4 w-full" data-testid="funnel-invoice-lines">
           <tbody className="divide-y divide-border">
-            <tr>
-              <td className="py-2 pr-3 text-[13px] text-fg">
-                {tier?.name ?? "Registration fee"}
-              </td>
-              <td className="py-2 text-right font-mono text-[13px] tabular-nums text-fg">
-                {fmt(fullPriceCents)}
-              </td>
-            </tr>
+            {lines.map((l, i) => (
+              <tr key={`${l.kind}-${i}`}>
+                <td className={`py-2 pr-3 text-[13px] ${l.kind === "discount" ? "text-[var(--tint-emerald-fg)]" : "text-fg"}`}>
+                  {l.description}
+                </td>
+                <td className={`py-2 text-right font-mono text-[13px] tabular-nums ${l.kind === "discount" ? "text-[var(--tint-emerald-fg)]" : "text-fg"}`}>
+                  {l.kind === "discount" ? `−${fmt(l.amountCents)}` : fmt(l.amountCents)}
+                </td>
+              </tr>
+            ))}
             <tr className="border-t-2 border-border">
               <td className="py-2 pr-3 text-[13px] font-medium text-fg">
                 Total due
@@ -2630,7 +2675,54 @@ function PaymentStep({
             </tr>
           </tbody>
         </table>
+        {quoteError ? (
+          <p className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+            We could not load your price: {quoteError}
+          </p>
+        ) : null}
 
+        {applyCode && fullPriceCents > 0 ? (
+          <div className="mt-4 border-t border-border pt-4">
+            {quote?.discountCode ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                <span className="text-fg">
+                  Discount code <span className="font-mono font-semibold">{quote.discountCode}</span> applied
+                </span>
+                <Button type="button" variant="ghost" size="sm" disabled={codeBusy || submitting} onClick={() => void submitCode(null)}>
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <form
+                className="flex flex-wrap items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (codeInput.trim()) void submitCode(codeInput);
+                }}
+              >
+                <div className="min-w-[12rem] flex-1">
+                  <Field label="Discount code">
+                    <Input
+                      value={codeInput}
+                      onChange={(e) => setCodeInput(e.target.value)}
+                      placeholder="Enter a code"
+                      autoComplete="off"
+                      aria-label="Discount code"
+                    />
+                  </Field>
+                </div>
+                <Button type="submit" variant="secondary" disabled={codeBusy || submitting || !codeInput.trim()}>
+                  {codeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                </Button>
+              </form>
+            )}
+            {codeError ? (
+              <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
+                {codeError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {/* Card 2 — Payment options */}
@@ -2642,14 +2734,14 @@ function PaymentStep({
           <PaymentOption
             active={option === "full"}
             onSelect={() => setOption("full")}
-            title={`Full payment — ${fmt(totalCents)} today`}
+            title={`Full payment: ${fmt(totalCents)} today`}
             body="Single charge. No further payments."
           />
           {plan ? (
             <PaymentOption
               active={option === "plan"}
               onSelect={() => setOption("plan")}
-              title={`Payment plan — ${fmt(depositCents)} deposit today`}
+              title={`Payment plan: ${fmt(depositCents)} deposit today`}
               body={`then ${installments.length} installment${installments.length === 1 ? "" : "s"}, one every ${intervalDays} days`}
               extra={
                 <ul className="mt-3 space-y-1.5 text-[12px]">

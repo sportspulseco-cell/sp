@@ -1,13 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { DATE_FORMATS, formatInZone, formatMoney } from "@sportspulse/kernel";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarRange,
-  CircleDollarSign,
-  MapPin,
-  ShieldCheck
-} from "lucide-react";
+import { ArrowRight, CalendarRange, CircleDollarSign, MapPin, ShieldCheck } from "lucide-react";
 import { Badge, Eyebrow } from "@sportspulse/ui";
 import { gameOps, roster, stats } from "@/lib/api/server-api";
 import type { DashboardState, DashboardTeam } from "./shared-types";
@@ -173,6 +167,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
             {outcomeLabel(g, teamId)}
           </Badge>
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+            {/* The rink's date: a late game is not "tomorrow" on a UTC server. */}
             {formatInZone(g.scheduledStartTsUtc, g.tz, DATE_FORMATS.monthDay)}
           </span>
         </li>

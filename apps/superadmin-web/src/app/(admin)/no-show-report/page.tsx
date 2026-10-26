@@ -1,7 +1,6 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { NoShowReport } from "./report";
 
 export const metadata = { title: "No-show report · Super Admin" };

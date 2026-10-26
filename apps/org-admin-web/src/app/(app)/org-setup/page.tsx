@@ -1,9 +1,8 @@
 import { Building2 } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { fetchAll } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { OrgSetupShell } from "./org-setup-shell";
 import { RegionsSection } from "@/components/regions/regions-section";

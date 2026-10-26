@@ -150,7 +150,7 @@ export function ParentalConsentClient({
           )}
           {orgName && (
             <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <dt className="text-fg-muted">Organisation</dt>
+              <dt className="text-fg-muted">Organization</dt>
               <dd className="font-medium text-fg">{orgName}</dd>
             </div>
           )}

@@ -288,7 +288,7 @@ function CreateVenueForm({
   const onlyOrg = ownableOrgs && ownableOrgs.length === 1 ? ownableOrgs[0]!.id : "";
   const [orgId, setOrgId] = useState(defaultOrgId ?? onlyOrg);
   const orgZone = (id: string) => ownableOrgs?.find((o) => o.id === id)?.timezone ?? "";
-  // The organisation's own zone, not UTC: a wrong zone shifts every slot.
+  // The organization's own zone, not UTC: a wrong zone shifts every slot.
   const [timezone, setTimezone] = useState(orgZone(defaultOrgId ?? onlyOrg));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -338,7 +338,7 @@ function CreateVenueForm({
         <Button
           onClick={async () => {
             if (!orgId || !name.trim() || !timezone) {
-              setError("Rink name, organisation and time zone are required.");
+              setError("Rink name, organization and time zone are required.");
               return;
             }
             setBusy(true);
@@ -1218,7 +1218,7 @@ function SeasonField({
   return (
     <Field
       label="Season"
-      hint={seasons.length === 0 ? "This venue's organisation has no seasons yet. Create one first." : "The scheduler only uses slots tagged with its season."}
+      hint={seasons.length === 0 ? "This venue's organization has no seasons yet. Create one first." : "The scheduler only uses slots tagged with its season."}
     >
       <Select
         value={value}

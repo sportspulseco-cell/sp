@@ -1,19 +1,9 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, Badge, EmptyState, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, LocalDate, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Building2, Globe2, Layers, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { UrlFilters } from "@/components/ui/url-filters";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { CreateOrgButton } from "@/components/orgs/create-org-button";
 import type { Org } from "@/lib/api/types";
 
@@ -66,7 +56,7 @@ export default async function OrganizationsPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Organisations"
+        eyebrow="Organizations"
         title="Organizations"
         description="Clubs, leagues and associations on the platform. Each one has its own leagues, seasons, teams and admins."
         action={<CreateOrgButton />}

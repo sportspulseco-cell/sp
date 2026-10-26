@@ -1,8 +1,4 @@
-import {
-  PageHeaderSkeleton,
-  Skeleton,
-  StatCardSkeleton
-} from "@/components/ui/skeleton";
+import { PageHeaderSkeleton, Skeleton, StatCardSkeleton } from "@sportspulse/ui";
 
 export default function AdminLoading() {
   return (

@@ -2,31 +2,10 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import Link from "next/link";
-import {
-  AlertOctagon,
-  CheckCircle2,
-  Clock,
-  Mail,
-  MailMinus,
-  RadioTower,
-  Send
-} from "lucide-react";
-import {
-  Badge,
-  LocalDate,
-  EmptyState,
-  SectionRail,
-  StatTile,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  LoadError
-} from "@sportspulse/ui";
+import { AlertOctagon, CheckCircle2, Clock, Mail, MailMinus, RadioTower, Send } from "lucide-react";
+import { Badge, LocalDate, EmptyState, PageHeader, SectionRail, StatTile, TBody, TD, TH, THead, TR, Table, LoadError } from "@sportspulse/ui";
+import { ChannelStatusNotice } from "@sportspulse/admin-pages";
 import { communications, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { load } from "@sportspulse/api-client";
 
@@ -41,6 +20,7 @@ export default async function CommunicationsPage() {
     ? await load(communications.listNotifications({ orgId, limit: 100 }))
     : null;
   const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
+  const channelStatus = await communications.channelStatus().catch(() => null);
 
   const counts = page.items.reduce(
     (acc, n) => {
@@ -73,6 +53,8 @@ export default async function CommunicationsPage() {
           </Link>
         }
       />
+
+      <ChannelStatusNotice status={channelStatus} />
 
       <section className="space-y-6">
         <SectionRail

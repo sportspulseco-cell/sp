@@ -14,8 +14,8 @@ export class ListNotificationsQueryDto {
   status?: "queued" | "sending" | "sent" | "failed" | "suppressed";
   @ApiPropertyOptional() @IsOptional() @IsUUID() recipientPersonId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() templateCode?: string;
-  @ApiPropertyOptional({ enum: ["email", "sms", "in_app"] })
+  @ApiPropertyOptional({ enum: ["email", "sms", "in_app", "push"] })
   @IsOptional()
-  @IsIn(["email", "sms", "in_app"])
-  channel?: "email" | "sms" | "in_app";
+  @IsIn(["email", "sms", "in_app", "push"])
+  channel?: "email" | "sms" | "in_app" | "push";
 }

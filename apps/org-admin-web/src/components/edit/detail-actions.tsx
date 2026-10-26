@@ -16,7 +16,7 @@ import { leagueMgmt, orgs } from "@/lib/api/browser-api";
 /**
  * Binds the shared edit / add-child dialogs (@sportspulse/admin-pages)
  * to this app's browser SDK. The API enforces scope: org admins can only
- * edit records of their own organisation.
+ * edit records of their own organization.
  */
 
 export function OrgActions({ org }: { org: Org }) {

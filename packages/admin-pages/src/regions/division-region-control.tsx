@@ -7,7 +7,7 @@ import { Alert, Button, Select } from "@sportspulse/ui";
 
 /**
  * Set or change the region of an existing division (Season -> Region ->
- * Division). Regions belong to the organisation; `manageHref` points at
+ * Division). Regions belong to the organization; `manageHref` points at
  * the page where the consuming app manages them. Transport is injected:
  * `save` resolves with the region id the server now holds.
  */
@@ -77,7 +77,7 @@ export function DivisionRegionControl({
         </Button>
         {saved && !dirty ? <span className="text-[12px] text-fg-muted">Saved</span> : null}
         <span className="text-[12px] text-fg-muted">
-          {regions.length === 0 ? "This organisation has no regions yet. " : ""}
+          {regions.length === 0 ? "This organization has no regions yet. " : ""}
           {manageHref ? (
             <a href={manageHref} className="underline-offset-2 hover:underline">
               Manage regions

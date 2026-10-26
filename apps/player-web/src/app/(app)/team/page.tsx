@@ -5,6 +5,7 @@ import {
   Badge,
   EmptyState,
   Eyebrow,
+  PageHeader,
   SeasonSwitch,
   TBody,
   TD,
@@ -17,7 +18,6 @@ import {
 } from "@sportspulse/ui";
 import type { Standing, TeamMembership } from "@sportspulse/api-client";
 import { captain, iam, leagueMgmt, loadMeScope, registration, roster, stats } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { TeamOffersCard } from "@/components/team-offers-card";
 import { JoinTeamButton } from "./join-team-button";
 

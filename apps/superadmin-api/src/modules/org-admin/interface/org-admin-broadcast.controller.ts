@@ -2,19 +2,27 @@ import {
   BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
+  Delete,
   Get,
   Inject,
   Logger,
   NotFoundException,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
+  Req,
+  Res,
   UseGuards
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { Request, Response } from "express";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
+  IsISO8601,
   IsIn,
   IsOptional,
   IsString,
@@ -22,9 +30,7 @@ import {
   Length,
   MaxLength
 } from "class-validator";
-import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
-import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
@@ -33,30 +39,16 @@ import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-w
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
-import { holdsRoleInOrg } from "../../../shared/auth/org-permission";
-import { ADMIN_SCOPE_ROLE_CODES } from "../../../shared/auth/scope";
-import {
-  announcementOrgs,
-  announcementReach,
-  reachHolds,
-  reachIsEmpty
-} from "../../../shared/audience/announcement-reach";
-import {
-  assertTargetInOrg,
-  ORG_TARGET_TYPES,
-  type OrgTargetType,
-  teamIdsInTarget
-} from "../../../shared/audience/org-targets";
-import { NotificationService } from "../../communications/application/notification.service";
+import { CronSecretGuard } from "../../../shared/auth/guards/cron-secret.guard";
+import { announcementOrgs, announcementReach } from "../../../shared/audience/announcement-reach";
+import { ORG_TARGET_TYPES, type OrgTargetType } from "../../../shared/audience/org-targets";
 import {
   ANNOUNCEMENT_AUDIENCES,
   ANNOUNCEMENT_CHANNELS,
-  resolveAnnouncementRecipients,
-  sendAnnouncement,
   type AnnouncementAudience,
-  type AnnouncementChannel,
-  type AnnouncementTarget
+  type AnnouncementChannel
 } from "../../../shared/audience/announcements";
+import { BroadcastService, apiPublicBase } from "../application/broadcast.service";
 
 const AUDIENCES = ANNOUNCEMENT_AUDIENCES;
 type Audience = AnnouncementAudience;
@@ -90,9 +82,30 @@ class BroadcastBodyDto {
    * same key returns the first result instead of sending again.
    */
   @IsOptional() @IsUUID() idempotencyKey?: string;
+  /**
+   * Schedule for later (UC-19): an ISO time at least 2 minutes and at
+   * most 180 days ahead. Needs idempotencyKey. Omit to send now.
+   */
+  @IsOptional() @IsISO8601({ strict: true }) sendAt?: string;
+  /** Files uploaded first through POST /org-admin/broadcast/attachments. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsUUID("4", { each: true })
+  attachmentIds?: string[];
 }
 
-type TargetScope = AnnouncementTarget;
+class AttachmentUploadDto {
+  @IsUUID() orgId!: string;
+  @IsString() @Length(1, 200) fileName!: string;
+  /** The file, base64. Up to 3 MB decoded; PDF, PNG, JPEG or WebP (checked by its bytes). */
+  @IsString() @MaxLength(4_300_000) dataBase64!: string;
+}
+
+class ScheduledListQueryDto {
+  @IsUUID() orgId!: string;
+}
+
 
 class TargetsQueryDto {
   /** The org to list targets for. Default: the first org the caller can reach. */
@@ -103,18 +116,18 @@ class TargetsQueryDto {
  * League announcement (UC-19). An org admin or a league admin (any role
  * granting `communication.send`) picks who (captains, coaches, players,
  * referees, admins), where (whole org, a league, season, division or
- * team: real entities picked from lists, never typed ids), and how
- * (email, in-app, or both).
+ * team: real entities picked from lists, never typed ids), how (email,
+ * in-app or both; people who turned on text or push for Announcements
+ * also get those copies), when (now, or a scheduled time a durable job
+ * honours, cancellable until it goes) and with what (up to 5 files in a
+ * private bucket, linked in the message by signed links).
  *
  * The server owns the recipient list: the target must sit in the org
  * (404 otherwise) and inside the caller's reach (announcement-reach.ts:
  * a league admin reaches their own leagues and below, never the whole
- * org or a sibling league; 404 outside it). Every recipient is
- * resolved from that target inside the org. Each recipient gets one
- * notification per channel, idempotent on
- * `broadcast-<key>-<personId>-<channel>`.
- *
- * Not built (no model yet): schedule for later, attachments, SMS, push.
+ * org or a sibling league; 404 outside it), at compose time and again at
+ * send time. Each recipient gets one notification per channel,
+ * idempotent on `broadcast-<key>-<personId>-<channel>`.
  */
 @ApiTags("org-admin/broadcast")
 @ApiBearerAuth()
@@ -125,7 +138,8 @@ export class OrgAdminBroadcastController {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly notify: NotificationService
+    private readonly broadcasts: BroadcastService,
+    @Inject(ConfigService) private readonly config: ConfigService
   ) {}
 
   @Get("targets")
@@ -151,38 +165,20 @@ export class OrgAdminBroadcastController {
   @AllowScopedWrite()
   @ApiOperation({
     summary:
-      "Send an announcement to chosen audiences in the whole org or one league / season / division / team of it, on one or more channels. Recipients are resolved on the server inside the caller's org. Idempotent on idempotencyKey."
+      "Send an announcement now, or with sendAt schedule it for later. Chosen audiences in the whole org or one league / season / division / team of it, on one or more channels, with optional attachments. Recipients are resolved on the server inside the caller's org at send time. Idempotent on idempotencyKey."
   })
   async broadcast(
     @Body() body: BroadcastBodyDto,
     @CurrentUser() user: AuthPrincipal,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @Req() req: Request
   ) {
     const targetType: OrgTargetType = body.targetType ?? "org";
     const targetId = targetType === "org" ? body.orgId : body.targetId;
     if (!targetId) {
       throw new BadRequestException(`Pick the ${targetType} to send to.`);
     }
-    await assertTargetInOrg(this.db, targetType, targetId, body.orgId);
-    if (!scope.isSuperAdmin) {
-      const reach = await announcementReach(this.db, user.userId, body.orgId);
-      if (reachIsEmpty(reach)) {
-        if (await holdsRoleInOrg(this.db, user.userId, body.orgId, ADMIN_SCOPE_ROLE_CODES)) {
-          throw new ForbiddenException(
-            "Your role cannot send announcements here. Ask your org admin."
-          );
-        }
-        throw new NotFoundException("Org not found");
-      }
-      if (!reachHolds(reach, targetType, targetId)) {
-        if (targetType === "org") {
-          throw new ForbiddenException(
-            "You can send to your own leagues, not the whole organisation. Pick one of your leagues."
-          );
-        }
-        throw new NotFoundException("Target not found");
-      }
-    }
+    await this.broadcasts.assertCanSend(user.userId, scope.isSuperAdmin, body.orgId, targetType, targetId);
 
     const channels: Channel[] = Array.from(
       new Set(body.channels ?? (body.channel ? [body.channel] : []))
@@ -190,114 +186,120 @@ export class OrgAdminBroadcastController {
     if (channels.length === 0) {
       throw new BadRequestException("Pick at least one channel.");
     }
-    const audiences = Array.from(new Set(body.audiences));
-    return sendAnnouncement(this.db, this.notify, this.log, {
+    const request = {
       orgId: body.orgId,
-      idempotencyKey: body.idempotencyKey,
+      audiences: Array.from(new Set(body.audiences)),
+      targetType,
+      targetId,
+      subject: body.subject,
+      body: body.body,
       channels,
-      recipients: async () =>
-        resolveAnnouncementRecipients(
-          this.db,
-          await this.targetScope(targetType, targetId, body.orgId),
-          body.orgId,
-          audiences
-        ),
-      payload: { subject: body.subject, body: body.body, targetType, targetId, audiences },
-      sourceEvent: "org.broadcast",
-      describe: `org=${body.orgId} target=${targetType}:${targetId} audiences=${audiences.join(",")}`
+      attachmentIds: body.attachmentIds ?? []
+    };
+    if (body.sendAt) {
+      if (!body.idempotencyKey) throw new BadRequestException("A scheduled announcement needs its idempotencyKey.");
+      const res = await this.broadcasts.schedule({
+        userId: user.userId,
+        request,
+        idempotencyKey: body.idempotencyKey,
+        sendAt: new Date(body.sendAt)
+      });
+      // `id` / `orgId` for the audit interceptor.
+      return { id: res.scheduled.id, orgId: body.orgId, scheduled: res.scheduled, idempotent: res.idempotent };
+    }
+    return this.broadcasts.sendNow({
+      userId: user.userId,
+      request,
+      idempotencyKey: body.idempotencyKey,
+      publicBase: apiPublicBase(this.config, req as unknown as Parameters<typeof apiPublicBase>[1])
     });
   }
 
-  /** Teams, leagues, seasons and divisions that sit under the target. */
-  private async targetScope(
-    type: OrgTargetType,
-    targetId: string,
-    orgId: string
-  ): Promise<TargetScope> {
-    const teamIds = await teamIdsInTarget(this.db, type, targetId, orgId);
+  @Get("scheduled")
+  @ApiOperation({ summary: "Scheduled announcements of one org the caller reaches: waiting, sending, failed, and those sent or cancelled in the last 7 days." })
+  scheduled(@Query() q: ScheduledListQueryDto, @CurrentUser() user: AuthPrincipal, @UserScope() scope: UserScopeType) {
+    return this.broadcasts.listScheduled(user.userId, scope.isSuperAdmin, q.orgId).then((items) => ({ items }));
+  }
 
-    if (type === "org") {
-      const leagues = await this.db
-        .select({ id: schema.leagues.id })
-        .from(schema.leagues)
-        .where(eq(schema.leagues.orgId, orgId));
-      const seasons = await this.db
-        .select({ id: schema.seasons.id })
-        .from(schema.seasons)
-        .where(eq(schema.seasons.orgId, orgId));
-      const divisions = seasons.length
-        ? await this.db
-            .select({ id: schema.divisions.id })
-            .from(schema.divisions)
-            .where(inArray(schema.divisions.seasonId, seasons.map((s) => s.id)))
-        : [];
-      return {
-        teamIds,
-        leagueIds: leagues.map((l) => l.id),
-        seasonIds: seasons.map((s) => s.id),
-        divisionIds: divisions.map((d) => d.id)
-      };
-    }
+  @Get("scheduled/:id")
+  @ApiOperation({ summary: "One scheduled announcement. 404 outside the caller's reach." })
+  scheduledOne(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    return this.broadcasts.getScheduledFor(user.userId, scope.isSuperAdmin, id);
+  }
 
-    // Divisions under the target, with their season and league.
-    const where =
-      type === "league"
-        ? eq(schema.seasons.leagueId, targetId)
-        : type === "season"
-          ? eq(schema.divisions.seasonId, targetId)
-          : type === "division"
-            ? eq(schema.divisions.id, targetId)
-            : teamIds.length
-              ? inArray(
-                  schema.divisions.id,
-                  this.db
-                    .select({ id: schema.divisionTeamEntries.divisionId })
-                    .from(schema.divisionTeamEntries)
-                    .where(
-                      and(
-                        inArray(schema.divisionTeamEntries.teamId, teamIds),
-                        inArray(schema.divisionTeamEntries.entryStatus, [
-                          "applied",
-                          "confirmed"
-                        ])
-                      )
-                    )
-                )
-              : sql`false`;
-    const rows = await this.db
-      .select({
-        divisionId: schema.divisions.id,
-        seasonId: schema.seasons.id,
-        leagueId: schema.seasons.leagueId
-      })
-      .from(schema.divisions)
-      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.divisions.seasonId))
-      .where(and(where, eq(schema.seasons.orgId, orgId)));
+  @Post("scheduled/:id/cancel")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Cancel a scheduled announcement before it goes. 409 once sending started or it was sent." })
+  async cancel(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    const row = await this.broadcasts.cancel(user.userId, scope.isSuperAdmin, id);
+    return { id: row.id, orgId: row.orgId, scheduled: row };
+  }
 
-    const leagueIds = new Set(rows.map((r) => r.leagueId));
-    const seasonIds = new Set(rows.map((r) => r.seasonId));
-    if (type === "league") {
-      leagueIds.add(targetId);
-      const seasons = await this.db
-        .select({ id: schema.seasons.id })
-        .from(schema.seasons)
-        .where(eq(schema.seasons.leagueId, targetId));
-      for (const x of seasons) seasonIds.add(x.id);
-    }
-    if (type === "season") {
-      seasonIds.add(targetId);
-      const [s] = await this.db
-        .select({ leagueId: schema.seasons.leagueId })
-        .from(schema.seasons)
-        .where(eq(schema.seasons.id, targetId))
-        .limit(1);
-      if (s) leagueIds.add(s.leagueId);
-    }
-    return {
-      teamIds,
-      leagueIds: [...leagueIds],
-      seasonIds: [...seasonIds],
-      divisionIds: rows.map((r) => r.divisionId)
-    };
+  @Post("attachments")
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Upload one file for an announcement (PDF, PNG, JPEG or WebP, up to 3 MB, type checked by its bytes) to the private broadcast-attachments bucket. Then pass its id in attachmentIds."
+  })
+  upload(@Body() body: AttachmentUploadDto, @CurrentUser() user: AuthPrincipal, @UserScope() scope: UserScopeType) {
+    return this.broadcasts.uploadAttachment({
+      userId: user.userId,
+      isSuperAdmin: scope.isSuperAdmin,
+      orgId: body.orgId,
+      fileName: body.fileName,
+      dataBase64: body.dataBase64
+    });
+  }
+
+  @Delete("attachments/:id")
+  @AllowScopedWrite()
+  @ApiOperation({ summary: "Remove an uploaded file that is not part of a sent or scheduled announcement." })
+  removeAttachment(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
+  ) {
+    return this.broadcasts.removeAttachment(user.userId, scope.isSuperAdmin, id);
+  }
+}
+
+/**
+ * Routes with no user session: the cron job (X-Cron-Secret) and the
+ * signed attachment links in sent messages.
+ */
+@ApiTags("org-admin/broadcast")
+@Controller()
+export class BroadcastJobsController {
+  constructor(
+    private readonly broadcasts: BroadcastService,
+    @Inject(ConfigService) private readonly config: ConfigService
+  ) {}
+
+  @Post("org-admin/broadcast/cron/due")
+  @UseGuards(CronSecretGuard)
+  @ApiOperation({ summary: "Durable job (pg_cron every minute, 0087): send scheduled announcements whose time has come." })
+  due(@Req() req: Request) {
+    return this.broadcasts.runDue(apiPublicBase(this.config, req as unknown as Parameters<typeof apiPublicBase>[1]));
+  }
+
+  @Get("public/broadcast-attachments/:id")
+  @ApiOperation({ summary: "Open an announcement attachment from its signed link: 302 to a 5-minute private storage URL. 404 for a bad or expired link." })
+  async open(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Query("e") e: string,
+    @Query("s") s: string,
+    @Res() res: Response
+  ) {
+    const url = await this.broadcasts.openSignedAttachment(id, e, s);
+    res.setHeader("Cache-Control", "no-store");
+    res.redirect(302, url);
   }
 }

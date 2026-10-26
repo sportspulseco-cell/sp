@@ -148,9 +148,9 @@ async function edgeCall(page: Page, fn: string, action: () => Promise<void>): Pr
 async function createTeamViaUi(page: Page, name: string, tag: string): Promise<string> {
   const base = new URL(page.url()).origin;
   await page.goto(`${base}/teams/new`);
-  const org = page.getByLabel(/Organisation/i).first();
+  const org = page.getByLabel(/Organization/i).first();
   const shownOrg = await org.evaluate((el: HTMLSelectElement) => el.options[el.selectedIndex]?.text ?? "");
-  console.log(`[${tag}] new-team default organisation="${shownOrg}"`);
+  console.log(`[${tag}] new-team default organization="${shownOrg}"`);
   await org.selectOption({ label: "PPHL Staging" });
   await page.getByLabel(/Team name/i).fill(name);
   const sport = page.getByLabel(/Sport/i).first();
@@ -172,7 +172,7 @@ async function createTeamViaUi(page: Page, name: string, tag: string): Promise<s
   expect.soft(orphan.length, "SCH-18 failed create leaves no orphan team row").toBe(0);
   // Retry like a user.
   await page.getByRole("button", { name: /Create team/i }).click();
-  await expect(page.getByText(/already exists in this organisation/i).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/already exists in this organi[sz]ation/i).first()).toBeVisible({ timeout: 20_000 });
   const useExisting = page.getByRole("link", { name: /existing team/i });
   const hasLink = await useExisting.isVisible().catch(() => false);
   console.log(`[${tag}] duplicate guard shows "Use existing team" link: ${hasLink}`);
@@ -441,7 +441,14 @@ test.describe("J10 schedule generate and publish", () => {
     const local = made.map((g) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(g.t)));
     expect(local.filter((d) => d === BLACKOUT_DAY), "no game on the blackout day").toEqual([]);
     expect(made.every((g) => g.tz !== "UTC"), "games carry the rink zone, not UTC").toBe(true);
-    expect(body.maxHomeAwayImbalance ?? 99, "home and away balanced (gap at most 1)").toBeLessThanOrEqual(1);
+    // Kept games cannot be flipped: the staging seed has Staging Skaters at
+    // home in all 32 of them, so the season-wide gap is the seed's, not the
+    // generator's. The team this run adds has no kept games: its gap must be
+    // at most 1. The overall figure is logged.
+    console.log(`[J10] max home/away gap across the division (incl. kept games): ${body.maxHomeAwayImbalance}`);
+    const mine = body.homeAway?.[newTeamId] as { home: number; away: number } | undefined;
+    expect(mine, "the new team's home/away count is reported").toBeTruthy();
+    expect(Math.abs(mine!.home - mine!.away), "the new team's home and away are balanced (gap at most 1)").toBeLessThanOrEqual(1);
 
     const pub = page.waitForResponse((x) => /\/api\/games\/publish-schedule$/.test(x.url()), { timeout: 60_000 });
     await page.getByRole("button", { name: /^Publish$/ }).click();

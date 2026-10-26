@@ -1,22 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  ArrowRightLeft,
-  Check,
-  Clock,
-  Lock,
-  Mail,
-  RotateCcw,
-  ShieldCheck,
-  UserMinus,
-  UserPlus,
-  Users
-} from "lucide-react";
-import { Alert, Badge, Button, EmptyState, Eyebrow, LocalDate, Select, Table, TBody, TD, TH, THead, TR, useLocalDate } from "@sportspulse/ui";
+import { AlertTriangle, ArrowRightLeft, Check, Clock, Lock, Mail, RotateCcw, ShieldCheck, UserMinus, UserPlus, Users } from "lucide-react";
+import { Badge, Button, EmptyState, Eyebrow, PageHeader, Select, TBody, TD, TH, THead, TR, Table, Alert, LocalDate, useLocalDate } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { AddPlayerModal } from "./add-player-modal";
 import { DropPlayerModal } from "./drop-player-modal";
 import { InitiateTransferModal } from "./initiate-transfer-modal";

@@ -179,6 +179,12 @@ export async function sendAnnouncement(
   args: {
     orgId: string;
     idempotencyKey?: string;
+    /**
+     * Scheduled sends (UC-19): finish a send a crashed run started, instead
+     * of answering "already sent". Every row is still idempotent per person
+     * and channel, so nobody gets it twice.
+     */
+    resume?: boolean;
     channels: AnnouncementChannel[];
     /** Resolved lazily so a replay does not look anyone up. */
     recipients: () => Promise<Array<{ personId: string; email: string | null }>>;
@@ -192,7 +198,7 @@ export async function sendAnnouncement(
     args.idempotencyKey ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const keyPrefix = `broadcast-${broadcastId}-`;
 
-  if (args.idempotencyKey) {
+  if (args.idempotencyKey && !args.resume) {
     const [prior] = await db
       .select({
         rows: sql<number>`COUNT(*)::int`,

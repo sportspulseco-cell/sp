@@ -1,9 +1,8 @@
 import { Gavel, ShieldCheck, ShieldAlert, ShieldOff, Star } from "lucide-react";
 import { load } from "@sportspulse/api-client";
+import { Badge, EmptyState, Eyebrow, PageHeader, LoadError } from "@sportspulse/ui";
 import { formatCalendarDate, statusLabel } from "@sportspulse/kernel";
-import { Badge, EmptyState, Eyebrow, LoadError } from "@sportspulse/ui";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

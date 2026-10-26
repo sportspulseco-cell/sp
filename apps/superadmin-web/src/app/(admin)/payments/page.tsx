@@ -43,7 +43,7 @@ export default async function PaymentsPage({
   const orgId = sp.orgId ?? null;
   const orgsResult = orgId ? null : await load(orgs.list({ limit: 1 }));
   if (orgsResult && !orgsResult.ok) {
-    // A failed organisation list is not "no organisation in scope".
+    // A failed organization list is not "no organization in scope".
     console.error("[payments] orgs.list failed", orgsResult.status, orgsResult.message);
     return (
       <LoadError
@@ -61,7 +61,7 @@ export default async function PaymentsPage({
     return (
       <EmptyState
         icon={Wallet}
-        title="No organisation in scope"
+        title="No organization in scope"
         description="The Payment & invoicing surface needs an org. Create or select one first."
       />
     );

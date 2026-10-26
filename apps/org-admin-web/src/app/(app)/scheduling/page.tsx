@@ -1,19 +1,8 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import Link from "next/link";
 import { CalendarRange, Wand2 } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  LoadError
-} from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, LoadError } from "@sportspulse/ui";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const metadata = { title: "Schedule · Org Admin" };

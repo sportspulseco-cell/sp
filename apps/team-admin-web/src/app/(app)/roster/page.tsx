@@ -1,22 +1,9 @@
 ﻿import { fetchAll, load } from "@sportspulse/api-client";
 import { Users } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table,
-  SeasonSwitch,
-  LocalDate,
-  LoadError
-} from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, SeasonSwitch, TBody, TD, TH, THead, TR, Table, LoadError, LocalDate } from "@sportspulse/ui";
 import type { TeamMembership } from "@sportspulse/api-client";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import { iam, leagueMgmt, loadMeScope, roster } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Roster · Team Admin" };

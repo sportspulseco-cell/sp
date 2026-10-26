@@ -383,7 +383,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {props.orgs.length > 1 ? (
-            <Field label="Organisation" htmlFor="org">
+            <Field label="Organization" htmlFor="org">
               <Select
                 id="org"
                 value={orgId}
@@ -505,7 +505,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
             </label>
             {orgSchedules.length === 0 ? (
               <p className="text-[12px] text-fg-muted">
-                No fee schedules for this organisation yet. Enter the lines below.
+                No fee schedules for this organization yet. Enter the lines below.
               </p>
             ) : (
               <>

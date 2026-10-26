@@ -46,3 +46,5 @@ export const captain = {
   myApplications: cache(api.captain.myApplications)
 };
 export const teamStore = api.teamStore;
+// Substitute requests (UC-31).
+export const subs = api.subs;

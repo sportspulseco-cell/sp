@@ -15,6 +15,7 @@ import { FreeAgentPoolController } from "./interface/free-agent-pool.controller"
 import { FreeAgentPoolAdminController } from "./interface/free-agent-pool-admin.controller";
 import { SeasonRolloverController } from "./interface/season-rollover.controller";
 import { AdminReviewController } from "./interface/admin-review.controller";
+import { DiscountsAdminController } from "./interface/discounts-admin.controller";
 
 @Module({
   // NotificationService: personal team invites queue the TEAM_INVITE_NEW
@@ -31,7 +32,8 @@ import { AdminReviewController } from "./interface/admin-review.controller";
     FreeAgentPoolController,
     FreeAgentPoolAdminController,
     SeasonRolloverController,
-    AdminReviewController
+    AdminReviewController,
+    DiscountsAdminController
   ],
   // RegistrationRequirementsService: form binding, registration window and
   // required-document signatures, shared with the player /compliance page.

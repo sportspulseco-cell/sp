@@ -28,9 +28,9 @@ export function PostSeasonView({
         <Eyebrow className="text-white/70">post-season</Eyebrow>
         <div className="mt-1 flex items-center gap-3">
           <Trophy className="h-7 w-7 text-[var(--tint-amber-fg)]" strokeWidth={1.75} />
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            {team.name}: playoffs
-          </h1>
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+            Playoffs
+          </h2>
         </div>
         <p className="mt-2 text-sm text-white/80">
           {state.seasonName} · Bracket view goes live with the playoff sprint.

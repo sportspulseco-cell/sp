@@ -12,9 +12,7 @@ import {
   ShieldCheck,
   Trophy
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Badge, Button, Select } from "@sportspulse/ui";
 import { compliance } from "@/lib/api/browser-api";
 import { Alert } from "@sportspulse/ui";
 

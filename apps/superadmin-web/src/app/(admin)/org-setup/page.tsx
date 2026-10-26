@@ -1,7 +1,7 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, leagueMgmt, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { OrgSetupShell } from "./org-setup-shell";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export default async function OrgSetupPage() {
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
   ]);
 
-  // No early empty state: super admins can create the first organisation
+  // No early empty state: super admins can create the first organization
   // from step 1 of the wizard.
   return (
     <OrgSetupShell

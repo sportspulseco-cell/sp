@@ -26,7 +26,7 @@ type LeaguePage =
  * shares (/join?org=<slug>). Anonymous: a visitor sees that league's open
  * seasons without signing in, and signs in or creates an account only when
  * they register. There is no list across leagues, so nobody can browse other
- * organisations from here (the API refuses a request that names no league).
+ * organizations from here (the API refuses a request that names no league).
  */
 async function loadLeague(org: string): Promise<LeaguePage> {
   try {

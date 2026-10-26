@@ -387,7 +387,7 @@ function WelcomeStep({
       <StepHeader
         step={1}
         total={STEP_ORDER.length}
-        title={`Join SportsPulse — ${appName}`}
+        title={`Join SportsPulse: ${appName}`}
         hint={`This sign-up is for ${roleLabel}. Different role? Pick the matching console from the SportsPulse landing page.`}
       />
       <ul className="space-y-2 rounded-md border border-border bg-bg-subtle p-4 text-[13px] text-fg-muted">

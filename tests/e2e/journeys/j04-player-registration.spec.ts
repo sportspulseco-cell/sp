@@ -341,7 +341,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     test.skip(!submissionId, "BLOCKED: no submission");
     // Player-facing mock controls should not exist on a real payment page.
     softExpect(await player.getByRole("button", { name: /Simulate decline/i }).count(), "'Simulate decline' button shown to players").toBe(0);
-    const planOpt = player.getByText(/Payment plan — \$50/).first();
+    const planOpt = player.getByText(/Payment plan: \$50/).first();
     if (await planOpt.isVisible().catch(() => false)) await planOpt.click();
     const payBtn = player.getByRole("button", { name: /^Pay \$/ });
     const payLabel = (await payBtn.innerText()).trim();

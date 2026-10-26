@@ -3,20 +3,20 @@ import { LoadError } from "@sportspulse/ui";
 import Link from "next/link";
 import { fetchAll, load } from "@sportspulse/api-client";
 import { iam, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
-import { IconTile } from "@/components/ui/icon-tile";
 import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  IconTile,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
   Table
-} from "@/components/ui/table";
+} from "@sportspulse/ui";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { CreateRoleButton } from "@/components/roles/create-role-button";
 import { DeleteRoleButton } from "@/components/roles/delete-role-button";
 import { PermissionBadges } from "@/components/permissions/permission-badges";

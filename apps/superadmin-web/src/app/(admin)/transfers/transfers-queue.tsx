@@ -1,22 +1,10 @@
 "use client";
 
-import { Alert, Badge, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, LocalDate, Button, Dialog, DialogActions, Field, Input, Select, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
 import { TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
-import { Button } from "@/components/ui/button";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 const STATUS_OPTIONS = (

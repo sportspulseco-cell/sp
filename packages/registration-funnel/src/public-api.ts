@@ -68,6 +68,18 @@ const qs = (q: Record<string, string | undefined>) => {
   return s ? `?${s}` : "";
 };
 
+export interface RegistrationQuote {
+  invoiceId: string | null;
+  currency: string;
+  /** Every amount positive; a "discount" line takes it off. */
+  lines: Array<{ kind: string; description: string; amountCents: number }>;
+  chargesCents: number;
+  discountCents: number;
+  totalCents: number;
+  discountCode: string | null;
+  codeRefusal: { error: string; message: string } | null;
+}
+
 export interface PublicRegistrationApi {
   getSeasonContext(seasonId: string): Promise<PublicSeasonContext>;
   startSubmission(
@@ -265,6 +277,10 @@ export interface PublicRegistrationApi {
     submissionId: string,
     email: string
   ): Promise<{ passed: boolean; flags: string[] }>;
+  /** The bill the pay step will write, priced on the server (price, sibling discount, code, family maximum). */
+  quote(submissionId: string, email: string): Promise<RegistrationQuote>;
+  /** Apply a discount code (null removes it). 422 with a sentence when the code cannot be used. */
+  applyDiscountCode(submissionId: string, body: { email: string; code: string | null }): Promise<RegistrationQuote>;
   /** The registrant's wallet credit in this registration's org. */
   walletBalance(submissionId: string, email: string): Promise<{ balanceCents: number; currency: string; frozen: boolean }>;
   pay(
@@ -354,6 +370,12 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
       f(`/public/registration/submissions/${id}/eligibility-check`, {
         method: "POST",
         body: JSON.stringify({ email })
+      }),
+    quote: (id, email) => f(`/public/registration/submissions/${id}/quote${qs({ email })}`),
+    applyDiscountCode: (id, body) =>
+      f(`/public/registration/submissions/${id}/discount-code`, {
+        method: "POST",
+        body: JSON.stringify(body)
       }),
     walletBalance: (id, email) =>
       f(`/public/registration/submissions/${id}/wallet?email=${encodeURIComponent(email)}`),

@@ -59,6 +59,7 @@ import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
 import { FreeAgentOffersService } from "../../registration-v2/application/free-agent-offers.service";
 import { RosterEntryService } from "../../registration-v2/application/roster-entry.service";
+import { addGameGuest } from "../application/game-guests";
 
 /** Invite statuses that can still be accepted or declined (`extended` = reminded with a new expiry). */
 const OPEN_INVITE_STATUSES = ["pending", "extended"];
@@ -1310,7 +1311,7 @@ export class CaptainRosterController {
   @Post(":teamId/guest")
   @ApiOperation({
     summary:
-      "Add a guest player to a single game's lineup. Enforces maxGuestPlayersPerGame, guestPlayerSeasonLimit, and not-already-rostered. Writes game_attendance + a roster_moves: guest_add audit row only — NO team_memberships."
+      "Add a guest player to a single game's lineup. Enforces maxGuestPlayersPerGame, guestPlayerSeasonLimit, not-already-rostered, not suspended and not already in the game. Writes game_attendance + a roster_moves: guest_add audit row only, no team_memberships."
   })
   async addGuest(
     @CurrentUser() user: AuthPrincipal,
@@ -1327,164 +1328,20 @@ export class CaptainRosterController {
     const season = await this.loadSeason(body.seasonId);
     if (!season) throw new NotFoundException("Season not found");
 
-    const [game] = await this.db
-      .select()
-      .from(schema.games)
-      .where(eq(schema.games.id, body.gameId))
-      .limit(1);
-    if (!game) throw new NotFoundException("Game not found");
-    if (game.homeTeamId !== teamId && game.awayTeamId !== teamId) {
-      throw new ForbiddenException("This game is not on your team's schedule");
-    }
-
-    // Workflow 7C §4.1 — playoff eligibility guard. Only enforced on
-    // playoff games, and only when we have a registered personId
-    // (walk-in guests are accepted; admin discretion).
-    if (game.gameType === "playoff" && body.personId) {
-      const [er] = await this.db
-        .select({ ruleEvaluation: schema.eligibilityRecords.ruleEvaluation })
-        .from(schema.eligibilityRecords)
-        .where(
-          and(
-            eq(schema.eligibilityRecords.personId, body.personId),
-            eq(schema.eligibilityRecords.seasonId, season.id)
-          )
-        )
-        .limit(1);
-      const playoff =
-        (er?.ruleEvaluation as Record<string, unknown> | undefined)?.[
-          "playoffEligibility"
-        ] as Record<string, unknown> | undefined;
-      if (playoff && playoff.status === "ineligible") {
-        throw new ConflictException({
-          error: "playoff_ineligible",
-          message:
-            "Player is not eligible for playoff games in this season.",
-          personId: body.personId,
-          reason: playoff
-        });
-      }
-    }
-
-    const division = await this.loadCurrentDivision(teamId, season.id);
-    const rules = resolveDivisionRules(
-      (division?.ruleSetOverrides as Record<string, unknown>) ?? null
-    );
-
-    return await this.db.transaction(async (tx) => {
-      // Lock guest count for this game+team to serialise the cap check.
-      await tx.execute(sql`
-        SELECT id FROM game_attendance
-        WHERE game_id = ${body.gameId}
-          AND team_id = ${teamId}
-          AND is_guest = true
-        FOR UPDATE
-      `);
-
-      const currentGuests = await tx
-        .select({ count: sql<number>`COUNT(*)::int` })
-        .from(schema.gameAttendance)
-        .where(
-          and(
-            eq(schema.gameAttendance.gameId, body.gameId),
-            eq(schema.gameAttendance.teamId, teamId),
-            eq(schema.gameAttendance.isGuest, true)
-          )
-        );
-      const guestsThisGame = currentGuests[0]?.count ?? 0;
-      if (guestsThisGame >= rules.maxGuestPlayersPerGame) {
-        throw new ConflictException({
-          error: "Max guests per game",
-          message: `Maximum guest players per game (${rules.maxGuestPlayersPerGame}) reached.`
-        });
-      }
-
-      // Per-player season limit (only when we know personId).
-      if (body.personId) {
-        const rostered = await tx
-          .select({ id: schema.teamMemberships.id })
-          .from(schema.teamMemberships)
-          .where(
-            and(
-              eq(schema.teamMemberships.teamId, teamId),
-              eq(schema.teamMemberships.seasonId, season.id),
-              eq(schema.teamMemberships.personId, body.personId),
-              eq(schema.teamMemberships.currentStatus, "active")
-            )
-          )
-          .limit(1);
-        if (rostered[0]) {
-          throw new ConflictException({
-            error: "Already on roster",
-            message: "This player is on your active roster — not a guest."
-          });
-        }
-
-        const seasonGuests = await tx
-          .select({ count: sql<number>`COUNT(*)::int` })
-          .from(schema.gameAttendance)
-          .innerJoin(
-            schema.games,
-            eq(schema.games.id, schema.gameAttendance.gameId)
-          )
-          .where(
-            and(
-              eq(schema.gameAttendance.personId, body.personId),
-              eq(schema.gameAttendance.teamId, teamId),
-              eq(schema.gameAttendance.isGuest, true),
-              // The limit is per season; this counted every season before.
-              eq(schema.games.seasonId, season.id)
-            )
-          );
-        const count = seasonGuests[0]?.count ?? 0;
-        if (count >= rules.guestPlayerSeasonLimit) {
-          throw new ConflictException({
-            error: "Max guest appearances",
-            message: `This player has reached the maximum guest appearances (${rules.guestPlayerSeasonLimit}) for your team this season.`
-          });
-        }
-      }
-
-      let personId = body.personId;
-      if (!personId) {
-        // Walk-in guest — record a thin shell person row so the FK holds.
-        const [first, ...rest] = (body.guestName ?? "Guest Player").split(" ");
-        const created = await tx
-          .insert(schema.persons)
-          .values({
-            legalFirstName: first || "Guest",
-            legalLastName: rest.join(" ") || "Player"
-          })
-          .returning({ id: schema.persons.id });
-        personId = created[0]!.id;
-      }
-
-      const attRows = await tx
-        .insert(schema.gameAttendance)
-        .values({
-          gameId: body.gameId,
-          teamId,
-          personId,
-          status: "sub",
-          isGuest: true
-        })
-        .returning();
-      const att = attRows[0]!;
-
-      await tx.insert(schema.rosterMoves).values({
+    // The one guest path (shared with sub requests, UC-31): game on the
+    // team's schedule, playoff guard, per-game and per-season limits,
+    // not rostered, not suspended, not already in the game.
+    const added = await this.db.transaction((tx) =>
+      addGameGuest(tx, {
         teamId,
-        personId,
         seasonId: season.id,
-        moveType: "guest_add",
-        membershipType: "call_up",
-        effectiveAt: new Date(),
-        sourceEventId: `guest-${att.id}`,
-        createdByUserId: user.userId,
-        metadata: { gameId: body.gameId }
-      });
-
-      return { attendance: att };
-    });
+        gameId: body.gameId,
+        personId: body.personId,
+        guestName: body.guestName,
+        actorUserId: user.userId
+      })
+    );
+    return { attendance: added.attendance };
   }
 
   // -------------------------------------------------------------------

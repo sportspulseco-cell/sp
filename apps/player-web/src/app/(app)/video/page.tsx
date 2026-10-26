@@ -1,6 +1,5 @@
 import { Video } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
-import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 
 export const metadata = { title: "Video · Player" };
 

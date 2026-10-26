@@ -4,9 +4,9 @@ import { leagueMgmt } from "@/lib/api/server-api";
 import { RegionsPanel } from "./regions-panel";
 
 /**
- * Regions of the active organisation (Season -> Region -> Division),
+ * Regions of the active organization (Season -> Region -> Division),
  * shown above the Org setup wizard so the structure is set up in one
- * place. Same shared panel sa-web mounts on the organisation page.
+ * place. Same shared panel sa-web mounts on the organization page.
  */
 export async function RegionsSection({ orgId, orgName }: { orgId: string; orgName: string }) {
   const regions = await leagueMgmt.listRegions({ orgId }).catch(() => ({ items: [] }));
@@ -18,7 +18,7 @@ export async function RegionsSection({ orgId, orgName }: { orgId: string; orgNam
           <Eyebrow>Regions</Eyebrow>
           <p className="mt-0.5 text-base font-semibold tracking-tight text-fg">Regions of {orgName}</p>
           <p className="mt-0.5 text-[13px] text-fg-muted">
-            One list for the whole organisation, reused every season. Divisions pick a region in
+            One list for the whole organization, reused every season. Divisions pick a region in
             the wizard below or on the division page.
           </p>
         </div>

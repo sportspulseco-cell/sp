@@ -4,17 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { compliance, orgs as orgsApi } from "@/lib/api/browser-api";
-import type {
-  EligibilityStatus,
-  Org,
-  Person,
-  Season
-} from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Alert } from "@sportspulse/ui";
+import type { EligibilityStatus, Org, Person, Season } from "@/lib/api/types";
+import { Button, Dialog, DialogActions, Field, Select, Alert } from "@sportspulse/ui";
 
 const STATUSES: EligibilityStatus[] = [
   "pending",

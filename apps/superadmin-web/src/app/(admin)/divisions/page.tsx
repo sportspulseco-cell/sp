@@ -1,20 +1,9 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, Badge } from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Layers, Wand2, Network, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UrlFilters } from "@/components/ui/url-filters";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Division, Season } from "@/lib/api/types";
 

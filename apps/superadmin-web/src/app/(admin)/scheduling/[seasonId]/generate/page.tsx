@@ -1,10 +1,9 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { GenerateForm } from "@/components/scheduling/generate-form";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata = { title: "Generate schedule · Super Admin" };
 export const dynamic = "force-dynamic";

@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
 import type { League } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 
 /**
  * Post-flip: a season belongs to a LEAGUE (not directly to an org).

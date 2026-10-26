@@ -1,6 +1,6 @@
 "use client";
 
-import { useSlotTime } from "./time-zone";
+import { useSlotTime, useWallTimeToUtc } from "./time-zone";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUp, ChevronsRight, Layers,
@@ -159,6 +159,7 @@ function InitRoundForm({
   const [perTeamTier, setPerTeamTier] = useState<Record<string, TournamentTier>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rinkTime = useWallTimeToUtc();
 
   const eligible = useMemo(
     () => teams.filter((t) => t.divisionId === divisionId),
@@ -178,8 +179,8 @@ function InitRoundForm({
         divisionId,
         roundIndex: 1,
         label: "Round 1",
-        startsAt: startsAt ? new Date(startsAt).toISOString() : undefined,
-        endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
+        startsAt: rinkTime.toUtc(startsAt),
+        endsAt: rinkTime.toUtc(endsAt),
         assignments: eligible.map((t) => ({ teamId: t.id, tier: tierFor(t.id) }))
       });
       await onDone();
@@ -214,7 +215,7 @@ function InitRoundForm({
             ))}
           </Select>
         </Field>
-        <Field label="Round starts (optional)">
+        <Field label="Round starts (optional)" hint={rinkTime.hint}>
           <Input
             type="datetime-local"
             value={startsAt}
@@ -222,7 +223,7 @@ function InitRoundForm({
             disabled={submitting}
           />
         </Field>
-        <Field label="Round ends (optional)">
+        <Field label="Round ends (optional)" hint={rinkTime.hint}>
           <Input
             type="datetime-local"
             value={endsAt}
@@ -393,6 +394,7 @@ function AdvancePane({
   const [newLabel, setNewLabel] = useState(`Round ${round.roundIndex + 1}`);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rinkTime = useWallTimeToUtc();
 
   async function submit() {
     setSubmitting(true); setError(null);
@@ -401,8 +403,8 @@ function AdvancePane({
         seasonId,
         fromRoundId: round.id,
         newLabel: newLabel || undefined,
-        newStartsAt: newStartsAt ? new Date(newStartsAt).toISOString() : undefined,
-        newEndsAt: newEndsAt ? new Date(newEndsAt).toISOString() : undefined,
+        newStartsAt: rinkTime.toUtc(newStartsAt),
+        newEndsAt: rinkTime.toUtc(newEndsAt),
         topFraction: Number(topFraction),
         bottomFraction: Number(bottomFraction)
       });
@@ -442,7 +444,7 @@ function AdvancePane({
           />
         </Field>
         <div />
-        <Field label="Next round starts (optional)">
+        <Field label="Next round starts (optional)" hint={rinkTime.hint}>
           <Input
             type="datetime-local"
             value={newStartsAt}
@@ -450,7 +452,7 @@ function AdvancePane({
             disabled={submitting}
           />
         </Field>
-        <Field label="Next round ends (optional)">
+        <Field label="Next round ends (optional)" hint={rinkTime.hint}>
           <Input
             type="datetime-local"
             value={newEndsAt}

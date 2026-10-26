@@ -25,21 +25,21 @@ import { DivisionsStep } from "./steps/divisions-step";
 import { ExistingChoice } from "./steps/existing-choice";
 
 const STEP_LABELS: Record<WizardStep, string> = {
-  1: "Organisation",
+  1: "Organization",
   2: "League",
   3: "Season",
   4: "Divisions"
 };
 
 const STEP_HEADLINES: Record<WizardStep, string> = {
-  1: "Pick the organisation.",
+  1: "Pick the organization.",
   2: "Frame the league.",
   3: "Open the season.",
   4: "Carve the divisions."
 };
 
 const STEP_SUBTITLES: Record<WizardStep, string> = {
-  1: "Every league nests under exactly one organisation. Pick the tenant this whole setup belongs to.",
+  1: "Every league nests under exactly one organization. Pick the tenant this whole setup belongs to.",
   2: "Sport, format, governing body, branding, privacy. The league frame everything else hangs from.",
   3: "Dates, registration window, roster lock. The clock that drives the rest of the year.",
   4: "Skill tiers, age ranges, gender eligibility, rule overrides. Every team plays inside one of these."
@@ -154,7 +154,7 @@ export function OrgSetupWizard({
   /** Called after a successful run. Consuming app decides where to send the admin. */
   onComplete: (result: { leagueId: string }) => void;
   /**
-   * Step 1 "New organisation" (super admin only). The app renders its own
+   * Step 1 "New organization" (super admin only). The app renders its own
    * create form + org-admin picker and calls `onCreated` with the new org.
    * Omitted (org-admin console) = no create option.
    */
@@ -190,7 +190,7 @@ export function OrgSetupWizard({
     seasonId?: string;
     divisionUids: Set<string>;
   }>({ divisionUids: new Set() });
-  // What was saved for one organisation / league choice must not be
+  // What was saved for one organization / league choice must not be
   // reused for another.
   useEffect(() => {
     progress.current = { divisionUids: new Set() };

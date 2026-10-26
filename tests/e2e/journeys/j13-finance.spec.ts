@@ -122,7 +122,7 @@ test("2. '+ New invoice' opens the shared composer: individual invoice with paym
   await expect(p.locator("select#scope")).toBeVisible({ timeout: 60_000 });
   const org = p.locator("select#org");
   if (await org.count()) {
-    expect.soft(await org.locator("option").allTextContents(), "organisation picker lists the staging org").toContain(ORG_NAME);
+    expect.soft(await org.locator("option").allTextContents(), "organization picker lists the staging org").toContain(ORG_NAME);
     await org.selectOption({ label: ORG_NAME });
   }
   await p.locator("select#scope").selectOption("individual");

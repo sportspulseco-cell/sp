@@ -3,20 +3,8 @@
  */
 import Link from "next/link";
 import { FileBarChart } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  LocalDate,
-  SectionRail,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, LocalDate, PageHeader, SectionRail, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { audit, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +26,7 @@ export default async function AuditPage() {
       <PageHeader
         eyebrow="History"
         title="Activity log"
-        description="Who changed what in your organisation, and when. Read-only."
+        description="Who changed what in your organization, and when. Read-only."
       />
 
       <section className="space-y-6">

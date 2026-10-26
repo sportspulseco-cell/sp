@@ -1,10 +1,9 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { coverAmountProblem, formatMoney } from "@sportspulse/kernel";
 import {
   BadRequestException,
   Body,
   ConflictException,
   Controller,
-  ForbiddenException,
   Get,
   Inject,
   Logger,
@@ -23,11 +22,13 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsString,
   IsUUID,
+  MaxLength,
   Min,
   ValidateNested
 } from "class-validator";
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
@@ -42,6 +43,24 @@ import {
 import { activeMemberPersonIds } from "../../../shared/audience/org-targets";
 import { InvoiceNoticesService } from "../application/services/invoice-notices";
 import { settleInstallments } from "../application/services/installments";
+import { statusForMoney } from "../domain/invoice-money";
+import { NotificationService } from "../../communications/application/notification.service";
+
+class CoverShareBodyDto {
+  /** Cents the captain pays toward this share: 1 up to what it still owes. */
+  @IsInt() @Min(1) amountCents!: number;
+  /**
+   * One key per Pay dialog. A repeat with the same key (double click,
+   * retry after a lost response) returns the first result and charges
+   * nothing.
+   */
+  @IsString() @MaxLength(100) idempotencyKey!: string;
+  @IsOptional()
+  @IsIn(["succeeded", "failed"])
+  mockOutcome?: "succeeded" | "failed";
+  /** The team invoice the share belongs to (default: any of the team's). */
+  @IsOptional() @IsUUID() masterInvoiceId?: string;
+}
 
 class CoverOutstandingBodyDto {
   @IsOptional()
@@ -138,7 +157,8 @@ export class CaptainDuesController {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor,
-    private readonly notices: InvoiceNoticesService
+    private readonly notices: InvoiceNoticesService,
+    private readonly notify: NotificationService
   ) {}
 
   // -------------------------------------------------------------------
@@ -701,6 +721,8 @@ export class CaptainDuesController {
     }
 
     return await this.db.transaction(async (tx) => {
+      // Locked: a second click waits for the first and then finds the
+      // shares paid, instead of charging the captain twice.
       const subs = await tx
         .select()
         .from(schema.invoices)
@@ -709,7 +731,8 @@ export class CaptainDuesController {
             eq(schema.invoices.parentInvoiceId, masterId),
             eq(schema.invoices.invoiceType, "sub_invoice")
           )
-        );
+        )
+        .for("update");
 
       const outstanding = subs
         .filter((s) => s.paidCents < s.totalCents)
@@ -798,6 +821,172 @@ export class CaptainDuesController {
   }
 
   // -------------------------------------------------------------------
+  // POST /captain/dues/:teamId/cover/:invoiceId
+  // UC-16 "captain pays for missing balance": part or all of one
+  // player's share, charged to the captain through the mock processor
+  // and recorded on the share with the captain as payer.
+  // -------------------------------------------------------------------
+  @Post(":teamId/cover/:invoiceId")
+  @ApiOperation({
+    summary:
+      "Captain pays part or all of one player's unpaid share (sub-invoice) of this team's dues. One transaction under a row lock: card charge (mock processor), payment on the share with the captain as payer, share balance and status, plan installments. Idempotent per idempotencyKey. 404 when the share is not this team's. The player and the captain are notified after commit. Returns the fresh breakdown."
+  })
+  async coverShare(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("teamId") teamId: string,
+    @Param("invoiceId") invoiceId: string,
+    @Body() body: CoverShareBodyDto
+  ) {
+    const team = await this.requireCaptainTeam(user.userId, teamId);
+    const { masters } = await this.loadMasters(teamId);
+    const masterIds = masters.map((m) => m.id).filter((id) => !body.masterInvoiceId || id === body.masterInvoiceId);
+    if (masterIds.length === 0) throw new NotFoundException("Player share not found on this team");
+    const [captain] = await this.db
+      .select({
+        personId: schema.persons.id,
+        first: schema.persons.legalFirstName,
+        last: schema.persons.legalLastName,
+        preferred: schema.persons.preferredName,
+        displayName: schema.profiles.displayName,
+        email: schema.profiles.email
+      })
+      .from(schema.profiles)
+      .leftJoin(schema.persons, eq(schema.persons.userId, schema.profiles.id))
+      .where(eq(schema.profiles.id, user.userId))
+      .limit(1);
+    const captainName =
+      captain?.preferred || [captain?.first, captain?.last].filter(Boolean).join(" ") || captain?.displayName || "Your captain";
+
+    const result = await this.db.transaction(async (tx) => {
+      const [share] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(
+          and(
+            eq(schema.invoices.id, invoiceId),
+            eq(schema.invoices.invoiceType, "sub_invoice"),
+            inArray(schema.invoices.parentInvoiceId, masterIds)
+          )
+        )
+        .for("update");
+      if (!share) throw new NotFoundException("Player share not found on this team");
+
+      const earlier = await tx
+        .select({ id: schema.payments.id, amountCents: schema.payments.amountCents })
+        .from(schema.payments)
+        .where(
+          and(
+            eq(schema.payments.invoiceId, share.id),
+            sql`${schema.payments.metadata}->>'source' = 'captain_cover'`,
+            sql`${schema.payments.metadata}->>'payKey' = ${body.idempotencyKey}`
+          )
+        );
+      if (earlier.length > 0) {
+        this.logger.log(`captain.cover replay share=${share.id} key=${body.idempotencyKey} by=${user.userId}`);
+        return { share, paidNow: earlier.reduce((a, p) => a + p.amountCents, 0), replay: true as const, chargeId: null };
+      }
+      if (share.status === "void" || share.status === "draft") {
+        throw new ConflictException({ error: "not_payable", message: `This share is ${share.status === "void" ? "voided" : "not issued yet"}; there is nothing to pay.` });
+      }
+      const owed = Math.max(0, share.totalCents - share.paidCents);
+      const problem = coverAmountProblem(body.amountCents, owed);
+      if (problem) {
+        this.logger.log(`captain.cover refused share=${share.id} amount=${body.amountCents} owed=${owed}: ${problem}`);
+        throw new ConflictException({ error: owed <= 0 ? "share_paid" : "bad_amount", message: problem, owedCents: owed });
+      }
+      const charge = await this.processor.charge({
+        amountCents: body.amountCents,
+        currency: share.currency,
+        description: `${team.name}: ${share.invoiceNumber} covered by captain`,
+        mockOutcome: body.mockOutcome
+      });
+      if (charge.status !== "succeeded") {
+        throw new ConflictException({ error: "card_declined", message: charge.failureMessage ?? "Your card was declined. Nothing was charged." });
+      }
+      await tx.insert(schema.payments).values({
+        orgId: share.orgId,
+        invoiceId: share.id,
+        amountCents: body.amountCents,
+        currency: share.currency,
+        method: "credit_card",
+        status: "succeeded",
+        externalProviderId: charge.intentId,
+        recordedByUserId: user.userId,
+        notes: `Paid by the captain (${captainName})`,
+        metadata: {
+          source: "captain_cover",
+          payKey: body.idempotencyKey,
+          payerUserId: user.userId,
+          payerPersonId: captain?.personId ?? null,
+          teamId,
+          chargeId: charge.intentId
+        }
+      });
+      const paidCents = share.paidCents + body.amountCents;
+      const status = statusForMoney({ status: share.status, totalCents: share.totalCents, paidCents });
+      const updated = await tx
+        .update(schema.invoices)
+        .set({ paidCents, status, paidAt: status === "paid" ? new Date() : null, updatedAt: new Date() })
+        .where(and(eq(schema.invoices.id, share.id), eq(schema.invoices.paidCents, share.paidCents)))
+        .returning({ id: schema.invoices.id });
+      if (updated.length !== 1) throw new Error(`share update wrote ${updated.length} rows`);
+      const settled = await settleInstallments(tx, share.id);
+      this.logger.log(
+        `captain.cover share=${share.id} team=${teamId} amount=${body.amountCents} paid=${paidCents}/${share.totalCents} status=${status} installments=${settled} by=${user.userId}`
+      );
+      const [after] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, share.id)).limit(1);
+      return { share: after!, paidNow: body.amountCents, replay: false as const, chargeId: charge.intentId };
+    });
+
+    if (!result.replay) {
+      const s = result.share;
+      const owedLabel = formatMoney(Math.max(0, s.totalCents - s.paidCents), s.currency);
+      const amountLabel = formatMoney(result.paidNow, s.currency);
+      const [player] = s.recipientPersonId
+        ? await this.db
+            .select({ first: schema.persons.legalFirstName, last: schema.persons.legalLastName, preferred: schema.persons.preferredName })
+            .from(schema.persons)
+            .where(eq(schema.persons.id, s.recipientPersonId))
+            .limit(1)
+        : [];
+      const playerName = player?.preferred || [player?.first, player?.last].filter(Boolean).join(" ") || s.recipientEmail || "the player";
+      const common = { invoiceId: s.id, invoiceNumber: s.invoiceNumber, teamName: team.name, amountLabel, owedLabel, chargeId: result.chargeId };
+      await this.notify.queue({
+        orgId: s.orgId,
+        templateCode: "captain.covered_dues",
+        idempotencyKey: `captain-cover:${s.id}:${body.idempotencyKey}:player`,
+        recipientPersonId: s.recipientPersonId,
+        recipientEmail: s.recipientEmail,
+        payload: { ...common, captainName },
+        sourceEvent: "captain.cover_share"
+      });
+      if (captain?.personId || captain?.email) {
+        await this.notify.queue({
+          orgId: s.orgId,
+          templateCode: "captain.cover_receipt",
+          idempotencyKey: `captain-cover:${s.id}:${body.idempotencyKey}:captain`,
+          recipientPersonId: captain?.personId ?? null,
+          recipientEmail: captain?.email ?? null,
+          payload: { ...common, playerName },
+          sourceEvent: "captain.cover_share"
+        });
+      }
+    }
+    const breakdown = await this.getBreakdown(user, teamId, result.share.parentInvoiceId ?? undefined);
+    return {
+      ...breakdown,
+      cover: {
+        invoiceId: result.share.id,
+        paidNowCents: result.paidNow,
+        paidCents: result.share.paidCents,
+        totalCents: result.share.totalCents,
+        status: result.share.status,
+        replay: result.replay
+      }
+    };
+  }
+
+  // -------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------
   private async requireCaptainTeam(userId: string, teamId: string) {
@@ -818,7 +1007,8 @@ export class CaptainDuesController {
       teamId,
       team.captainUserId
     );
-    if (!ok) throw new ForbiddenException("Not the captain of this team");
+    // 404, never 403: a captain does not learn which other teams exist.
+    if (!ok) throw new NotFoundException("Team not found");
     return team;
   }
 

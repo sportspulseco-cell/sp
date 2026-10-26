@@ -134,7 +134,7 @@ export function FormBuilderClient({
         schema: schema as unknown as Record<string, unknown>
       });
       await registration.publishFormVersion(formId, v.id);
-      setSuccess("Published — this is now the live version.");
+      setSuccess("Published. This is now the live version.");
       setEditing(false);
       router.refresh();
     } catch (err) {

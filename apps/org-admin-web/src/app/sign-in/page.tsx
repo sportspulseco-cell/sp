@@ -38,7 +38,7 @@ function SignInForm() {
   // when it first mounted never showed (J17).
   const roleError =
     sp.get("error") === "wrong_role"
-      ? "You're signed in, but this account isn't an admin of an organisation. Sign in with another account here, or use “Pick another app” for the app that fits your role."
+      ? "You're signed in, but this account isn't an admin of an organization. Sign in with another account here, or use “Pick another app” for the app that fits your role."
       : null;
   const shownError = error ?? roleError;
 
@@ -70,10 +70,10 @@ function SignInForm() {
         <div className="space-y-1">
           <Eyebrow>SportsPulse</Eyebrow>
           <h1 className="text-[28px] font-semibold tracking-tight text-fg">
-            Sign in to your organisation
+            Sign in to your organization
           </h1>
           <p className="text-[12px] text-fg-muted">
-            For people who run a club or organisation: leagues, seasons, teams and invoices.{" "}
+            For people who run a club or organization: leagues, seasons, teams and invoices.{" "}
             <a href={(process.env.NEXT_PUBLIC_LANDING_URL ?? "https://sportspulse.us") + "/sign-in"} className="underline underline-offset-2 hover:text-fg">
               Not you? Pick another app
             </a>

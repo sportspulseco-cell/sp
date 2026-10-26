@@ -10,7 +10,9 @@ import { OrgAdminRefundAssessmentsController } from "./interface/org-admin-refun
 import { OrgAdminLeaguesController } from "./interface/org-admin-leagues.controller";
 import { OrgAdminSeasonsController } from "./interface/org-admin-seasons.controller";
 import { OrgAdminDivisionsController } from "./interface/org-admin-divisions.controller";
-import { OrgAdminBroadcastController } from "./interface/org-admin-broadcast.controller";
+import { BroadcastJobsController, OrgAdminBroadcastController } from "./interface/org-admin-broadcast.controller";
+import { BroadcastService } from "./application/broadcast.service";
+import { CronSecretGuard } from "../../shared/auth/guards/cron-secret.guard";
 import { OrgAdminFinanceController } from "./interface/org-admin-finance.controller";
 import { OrgAdminRegistrationsController } from "./interface/org-admin-registrations.controller";
 import { OrgAdminFormsController } from "./interface/org-admin-forms.controller";
@@ -45,11 +47,13 @@ import { OrgAdminPersonsController } from "./interface/org-admin-persons.control
     OrgAdminSeasonsController,
     OrgAdminDivisionsController,
     OrgAdminBroadcastController,
+    BroadcastJobsController,
     OrgAdminFinanceController,
     OrgAdminRegistrationsController,
     OrgAdminFormsController,
     OrgAdminFormBuilderController,
     OrgAdminPersonsController
-  ]
+  ],
+  providers: [BroadcastService, CronSecretGuard]
 })
 export class OrgAdminModule {}

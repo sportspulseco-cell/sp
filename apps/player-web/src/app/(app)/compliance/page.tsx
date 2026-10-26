@@ -1,16 +1,9 @@
 import Link from "next/link";
-import {
-  AlertCircle,
-  ArrowRight,
-  Check,
-  ShieldCheck,
-  Upload
-} from "lucide-react";
-import { Alert, Badge, EmptyState, Eyebrow, LoadError, LocalDate } from "@sportspulse/ui";
+import { AlertCircle, ArrowRight, Check, ShieldCheck, Upload } from "lucide-react";
+import { Badge, EmptyState, Eyebrow, LoadError, PageHeader, Alert, LocalDate } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { load, type EligibilityRecord } from "@sportspulse/api-client";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { UsaHockeyIdForm } from "./usa-hockey-id-form";
 import { DocumentsToSign } from "./documents-to-sign";
 import { UploadDocuments } from "./upload-documents";

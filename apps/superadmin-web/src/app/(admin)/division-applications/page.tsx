@@ -1,7 +1,6 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { DivisionApplicationsQueue } from "./queue";
 
 export const metadata = { title: "Division applications · Super Admin" };

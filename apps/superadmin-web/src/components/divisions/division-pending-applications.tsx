@@ -5,10 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowUpRight, Check, Loader2, Mail, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Badge, Button, Dialog, DialogActions, Input } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 type PendingApplication = {

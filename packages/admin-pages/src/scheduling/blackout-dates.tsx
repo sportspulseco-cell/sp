@@ -19,7 +19,7 @@ export interface BlackoutApi {
   list: () => Promise<BlackoutRow[]>;
   create: (body: { startDate: string; endDate?: string; surfaceId?: string; reason?: string }) => Promise<unknown>;
   remove: (id: string) => Promise<unknown>;
-  /** The season organisation's rinks, for a one-rink blackout. */
+  /** The season organization's rinks, for a one-rink blackout. */
   rinks: () => Promise<Array<{ id: string; label: string }>>;
 }
 

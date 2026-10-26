@@ -1,20 +1,8 @@
 import { Mail, Star } from "lucide-react";
-import {
-  Badge,
-  EmptyState,
-  Eyebrow,
-  LocalDate,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@sportspulse/ui";
+import { Badge, EmptyState, Eyebrow, LocalDate, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import type { TeamInvite } from "@sportspulse/api-client";
 import { sortSeasonsByCurrency } from "@sportspulse/kernel";
 import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
 import { PastRosterInvite } from "./past-roster-invite";

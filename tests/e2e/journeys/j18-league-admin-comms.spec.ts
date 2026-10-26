@@ -45,9 +45,9 @@ test("1. league admin sends an announcement to their own league only", async ({ 
   await expect(page.getByTestId("announcement-composer")).toBeVisible({ timeout: 30_000 });
 
   // Never the whole org, never a typed id: real pickers of their league.
-  const targetType = page.getByLabel("Part of the organisation");
+  const targetType = page.getByLabel("Part of the organization");
   const types = await targetType.locator("option").allTextContents();
-  expect(types, "a league admin is not offered the whole organisation").not.toContain("The whole organisation");
+  expect(types, "a league admin is not offered the whole organization").not.toContain("The whole organization");
   expect(types).toContain("One league");
   await targetType.selectOption("league");
   const league = page.getByLabel("League", { exact: true });

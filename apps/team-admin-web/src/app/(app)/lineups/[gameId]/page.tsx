@@ -3,9 +3,8 @@ import { formatInZone } from "@sportspulse/kernel";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock, Users } from "lucide-react";
-import { Badge, EmptyState, LoadError } from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError, PageHeader } from "@sportspulse/ui";
 import { captain, compliance, gameOps, iam } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { LineupEditor } from "./lineup-editor";
 
 export const dynamic = "force-dynamic";

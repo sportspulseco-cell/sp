@@ -4,9 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
 import { compliance } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Alert } from "@sportspulse/ui";
+import { Button, Field, Input, Alert } from "@sportspulse/ui";
 
 export function PublishDocumentVersionForm({
   documentId

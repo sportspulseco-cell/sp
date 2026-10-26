@@ -1,15 +1,6 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarRange,
-  Layers,
-  Sparkles,
-  Trophy,
-  UserPlus,
-  Users
-} from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
-import { PageHeader } from "@/components/layout/page-header";
+import { ArrowRight, CalendarRange, Layers, Sparkles, Trophy, UserPlus, Users } from "lucide-react";
+import { PageHeader, EmptyState } from "@sportspulse/ui";
 import { publicRegistration } from "@/lib/api/server-api";
 import { registrationClosesLabel } from "@sportspulse/kernel";
 
@@ -38,7 +29,6 @@ async function listOpen(): Promise<OpenSeason[]> {
     return [];
   }
 }
-
 
 export default async function FindATeamPage() {
   // A league link (/register?org=) never reaches here: the middleware

@@ -78,7 +78,7 @@ export default async function OrgAdminDivisionDetailPage({
       division={division}
       parentSeason={parentSeason}
       parentOrg={parentOrg}
-      // org-admin has one organisation page, not /organizations/:id (crawl 24 Oct: 404).
+      // org-admin has one organization page, not /organizations/:id (crawl 24 Oct: 404).
       orgHref="/organization"
       addTeam={<PlaceTeam divisionId={division.id} divisionName={division.name} teams={candidateTeams} />}
       divisionTeams={divisionTeams.items}

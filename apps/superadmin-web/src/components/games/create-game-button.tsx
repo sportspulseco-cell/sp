@@ -5,13 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, Combobox } from "@sportspulse/ui";
+import { Button, Combobox, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 import { gameOps, leagueMgmt } from "@/lib/api/browser-api";
 import type { Division, League, Season, Team } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { useOrgRinks } from "./use-org-rinks";
 
 /** Context the Games page passes in: its current URL filters. */
@@ -62,7 +58,7 @@ function onlyOne<T extends { id: string }>(items: T[]): string {
  * New game (UC-07 fallback, SCH-5 / SCH-20). League, then one of its
  * seasons, then one of that season's divisions; both teams come from the
  * teams entered in that division (every page, type to search); the rink
- * comes from the organisation's Rinks & ice time; the start is typed in
+ * comes from the organization's Rinks & ice time; the start is typed in
  * the rink's time zone and converted on the server. The server checks
  * all of it again and refuses a rink or team clash unless the admin
  * schedules it anyway with a reason.
@@ -382,7 +378,7 @@ function CreateGameDialog({
                 : rinks === null
                   ? "Loading rinks…"
                   : rinks.length === 0
-                    ? "No rinks set up for this organisation yet."
+                    ? "No rinks set up for this organization yet."
                     : undefined)
             }
           >

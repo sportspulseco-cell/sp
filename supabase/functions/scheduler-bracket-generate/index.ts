@@ -126,12 +126,19 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const allIce = (iceRows ?? []) as any[];
   const heldIds = new Set<string>();
-  if (allIce.length) {
-    const { data: held } = await sb
+  // In batches (a long in.(...) URL fails to send), and a failed read stops
+  // the run: treating ice as free when the read failed would double-book it.
+  const iceIds = allIce.map((i) => i.id as string);
+  for (let i = 0; i < iceIds.length; i += 150) {
+    const { data: held, error: heldErr } = await sb
       .from("games")
       .select("slot_id")
-      .in("slot_id", allIce.map((i) => i.id))
+      .in("slot_id", iceIds.slice(i, i + 150))
       .not("status", "in", "(cancelled,postponed)");
+    if (heldErr) {
+      console.error(`[scheduler-bracket-generate] held ice batch ${i / 150} failed: ${heldErr.message}`);
+      return json({ error: "load_held_ice_failed", detail: heldErr.message }, 500);
+    }
     for (const h of held ?? []) heldIds.add(h.slot_id as string);
   }
   const ice: BracketIce[] = allIce.filter((i) => !heldIds.has(i.id)).map((i) => ({

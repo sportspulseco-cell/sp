@@ -2,9 +2,8 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarX, Users } from "lucide-react";
-import { EmptyState, LoadError } from "@sportspulse/ui";
+import { CrumbName, EmptyState, LoadError, PageHeader } from "@sportspulse/ui";
 import { leagueMgmt, registration } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { FindTeamClient } from "./find-team-client";
 
 export const dynamic = "force-dynamic";
@@ -109,6 +108,7 @@ export default async function FindTeamPage({
         Back to registration
       </Link>
 
+      <CrumbName id={id} name={r.seasonName ?? r.formName ?? r.orgName} />
       <PageHeader
         eyebrow={`// ${r.orgName ?? "find a team"}`}
         title="Find a team"

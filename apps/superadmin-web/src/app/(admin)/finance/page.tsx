@@ -1,9 +1,8 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { finance, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { ArDashboardClient } from "@/components/finance/ar-dashboard-client";
 import { FinanceReports } from "@/components/finance/finance-reports";
 
@@ -60,13 +59,21 @@ export default async function FinancePage({
         title="Invoices"
         description="Every invoice: sent, paid, outstanding, overdue. Create an invoice, or open one to record a payment or refund."
         action={
-          <Link
-            href="/finance/create"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
-          >
-            <Receipt className="h-3.5 w-3.5" strokeWidth={2} />
-            New invoice
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/finance/discounts"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-[12px] font-medium text-fg hover:bg-bg-subtle"
+            >
+              Discounts
+            </Link>
+            <Link
+              href="/finance/create"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-[var(--accent-hover)]"
+            >
+              <Receipt className="h-3.5 w-3.5" strokeWidth={2} />
+              New invoice
+            </Link>
+          </div>
         }
       />
       {!invoicesResult.ok ? (

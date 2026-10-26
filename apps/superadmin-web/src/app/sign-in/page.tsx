@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { ShieldCheck, Globe2, Activity, Users } from "lucide-react";
 import { SignInForm } from "@/components/auth/sign-in-form";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@sportspulse/ui";
 
 export const metadata = { title: "Sign in · Super Admin" };
 

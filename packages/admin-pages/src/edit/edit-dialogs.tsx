@@ -13,7 +13,7 @@ import { readDisciplineRules, validateDisciplineRules, type DisciplineRules } fr
 
 /**
  * Edit / add-child dialogs for the admin detail pages (SP-Changes item 2):
- * edit an organisation, a league, a season or a division, add a season
+ * edit an organization, a league, a season or a division, add a season
  * under a league and a division under a season. Shared by sa-web and
  * org-admin-web; each app injects its own SDK call, so the dialogs never
  * know which console they are in. Every save refreshes the page data.
@@ -99,7 +99,7 @@ function toDateInput(iso: string | null | undefined): string {
 const startOfDay = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null);
 const endOfDay = (d: string) => (d ? new Date(`${d}T23:59:59`).toISOString() : null);
 
-// ---------- organisation ----------
+// ---------- organization ----------
 
 export interface OrgUpdateBody {
   legalName?: string;
@@ -130,8 +130,8 @@ export function EditOrgButton({
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   return (
     <>
-      <Trigger label="Edit organisation" icon="edit" onClick={() => setOpen(true)} />
-      <Dialog open={open} onClose={() => setOpen(false)} title="Edit organisation" size="lg">
+      <Trigger label="Edit organization" icon="edit" onClick={() => setOpen(true)} />
+      <Dialog open={open} onClose={() => setOpen(false)} title="Edit organization" size="lg">
         <form
           className="space-y-4"
           onSubmit={(e: FormEvent) => {
@@ -167,9 +167,9 @@ export function EditOrgButton({
               ))}
             </Select>
           </Field>
-          <p className="text-[12px] text-fg-muted">The slug and organisation type cannot be changed.</p>
+          <p className="text-[12px] text-fg-muted">The slug and organization type cannot be changed.</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
-          <Actions busy={busy} label="Save organisation" onCancel={() => setOpen(false)} />
+          <Actions busy={busy} label="Save organization" onCancel={() => setOpen(false)} />
         </form>
       </Dialog>
     </>
@@ -352,7 +352,7 @@ export function EditLeagueButton({
               <p className="text-[12px] text-fg-muted">Admins can still suspend a player from a penalty on the game page.</p>
             )}
           </fieldset>
-          <p className="text-[12px] text-fg-muted">Sport and organisation are fixed once the league exists.</p>
+          <p className="text-[12px] text-fg-muted">Sport and organization are fixed once the league exists.</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Save league" onCancel={() => setOpen(false)} />
         </form>
@@ -598,7 +598,7 @@ function DivisionFields({
         <Field label="Division name">
           <Input required maxLength={120} value={f.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-        <Field label="Region" hint={regions.length === 0 ? "This organisation has no regions yet." : undefined}>
+        <Field label="Region" hint={regions.length === 0 ? "This organization has no regions yet." : undefined}>
           <Select value={f.regionId} onChange={(e) => set("regionId", e.target.value)} disabled={regions.length === 0}>
             <option value="">No region</option>
             {regions.map((r) => (
@@ -831,7 +831,7 @@ export interface TeamUpdateBody {
 
 /**
  * Edit a team's identity, branding and confirmation threshold (SETUP-2).
- * Same fields and labels as New team. Sport, organisation and captain are
+ * Same fields and labels as New team. Sport, organization and captain are
  * not edited here (captain has its own panel on the team page).
  */
 export function EditTeamButton({
@@ -904,7 +904,7 @@ export function EditTeamButton({
           <Field label="Confirmation threshold (USD)" hint="Whole dollars. Deposits needed before a division entry confirms. 0 confirms on approval.">
             <Input type="number" min={0} step={1} value={f.threshold} onChange={(e) => set("threshold", e.target.value)} />
           </Field>
-          <p className="text-[12px] text-fg-muted">Sport and organisation are fixed once the team exists. Change the captain below.</p>
+          <p className="text-[12px] text-fg-muted">Sport and organization are fixed once the team exists. Change the captain below.</p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Save team" onCancel={() => setOpen(false)} />
         </form>

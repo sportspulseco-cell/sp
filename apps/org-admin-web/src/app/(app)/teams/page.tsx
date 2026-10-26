@@ -8,6 +8,7 @@ import {
   Alert,
   Badge,
   EmptyState,
+  PageHeader,
   SectionRail,
   TBody,
   TD,
@@ -19,7 +20,6 @@ import {
 } from "@sportspulse/ui";
 import type { Team } from "@sportspulse/api-client";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";

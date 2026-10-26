@@ -240,7 +240,7 @@ function IdentityBlock({
         label="Region"
         hint={
           regions.length === 0 && division.regionId !== NEW_REGION
-            ? "Optional tier between the season and its divisions (e.g. Massachusetts, New Hampshire). This organisation has none yet; add one here."
+            ? "Optional tier between the season and its divisions (e.g. Massachusetts, New Hampshire). This organization has none yet; add one here."
             : regionLabel
               ? `Teams in this division play in ${regionLabel}.`
               : "Optional tier between the season and its divisions."

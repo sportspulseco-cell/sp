@@ -1,35 +1,10 @@
 import { fetchAll } from "@sportspulse/api-client";
-import {
-  Building2,
-  Trophy,
-  Users,
-  ListChecks,
-  ClipboardList,
-  ArrowUpRight,
-  ArrowRight,
-  CircleDot,
-  CalendarRange,
-  Activity,
-  Sparkles
-} from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Building2, CalendarRange, CircleDot, ClipboardList, ListChecks, Trophy, Users } from "lucide-react";
 import Link from "next/link";
-import {
-  gameOps,
-  iam,
-  leagueMgmt,
-  orgs,
-  registration,
-  roster
-} from "@/lib/api/server-api";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Badge, Reveal } from "@sportspulse/ui";
+import { gameOps, iam, leagueMgmt, orgs, registration, roster } from "@/lib/api/server-api";
+import { Badge, IconTile, PageHeader, Reveal, statusTone, type Tint } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
-import {
-  EkgLine,
-  LiveDot,
-  MarqueeRail,
-  ScanSheen
-} from "@/components/motion/kinetic";
+import { EkgLine, LiveDot, MarqueeRail, ScanSheen } from "@/components/motion/kinetic";
 import { GameClock, ProgressBar, BarChart } from "./live-widgets";
 import { SeasonFlow } from "@/components/dashboard/season-flow";
 
@@ -90,12 +65,26 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-12">
+      <PageHeader
+        eyebrow="platform"
+        eyebrowDot
+        title="Your leagues at a glance."
+        description="Live numbers across your organizations: registrations, rosters, games, and the queues waiting for you."
+        action={
+          <Link
+            href="/registrations"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-[var(--accent-hover)]"
+          >
+            Review queue
+            <ArrowUpRight className="h-4 w-4" strokeWidth={2} />
+          </Link>
+        }
+      />
       {/* Operator home: the season lifecycle with one next step each
           (PPHL, 24 Oct 2026: "could not understand the flow"). */}
       <SeasonFlow seasons={seasonsPage.items} leagues={leaguesPage.items} registrations={regsPage.items} />
 
-      {/* HERO — the landing-style page-of-record, with the live dashboard
-          strip embedded INSIDE the hero (per the landing's pattern). */}
+      {/* Live dashboard strip on the landing-style backdrop. */}
       <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-surface-1">
         {/* Layered backdrop */}
         <div
@@ -112,48 +101,10 @@ export default async function DashboardPage() {
           className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[820px] -translate-x-1/2 animate-pulse-slow rounded-full bg-[--accent]/10 blur-[140px]"
         />
 
-        <div className="relative px-7 pb-10 pt-12 lg:px-10 lg:pb-14 lg:pt-16">
-          {/* Mono eyebrow with live dot */}
-          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
-            <LiveDot tone="accent" />
-            <span className="text-fg/80">platform</span>
-            <span className="text-fg-subtle">·</span>
-            <span>v2.0</span>
-          </div>
-
-          <h1 className="mt-5 max-w-[18ch] text-balance font-sans text-[clamp(40px,7vw,96px)] font-semibold leading-[0.92] tracking-tighter text-fg">
-            Your leagues at a glance.
-          </h1>
-
-          <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
-            Live numbers across your organisations: registrations, rosters,
-            games, and the queues waiting for you.
-          </p>
-
-          {/* Pill CTAs */}
-          <div className="mt-8 flex flex-wrap items-center gap-2.5">
-            <Link
-              href="/registrations"
-              className="group inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-bg transition-transform hover:scale-[1.02] active:scale-100"
-            >
-              Review queue
-              <ArrowUpRight
-                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                strokeWidth={2.25}
-              />
-            </Link>
-            <Link
-              href="/org-setup"
-              className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-bg-subtle px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
-            >
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Start a season
-            </Link>
-          </div>
-
+        <div className="relative p-5 lg:p-8">
           {/* DASHBOARD STRIP — three specialized live cards + one
               full-width stat band, per landing hero pattern. */}
-          <Reveal delay={0.18} y={32} className="mt-14 lg:mt-20">
+          <Reveal delay={0.18} y={32}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <LiveGameCard liveCount={liveGames} scheduled={scheduledGames} />
               <ReviewQueueCard

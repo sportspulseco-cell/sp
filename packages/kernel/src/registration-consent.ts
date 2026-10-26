@@ -10,7 +10,7 @@
  *     account email itself, so there is no `pending_verification` step).
  *
  * The guardian signs a short consent text naming the season and the
- * organisation. The text is stored as a document version and the
+ * organization. The text is stored as a document version and the
  * signature as a consent record, so the exact words are kept with the
  * signature.
  */

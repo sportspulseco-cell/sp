@@ -15,7 +15,7 @@ export interface RinkOption {
 }
 
 /**
- * Rinks of an organisation from the scheduling inventory (Rinks & ice
+ * Rinks of an organization from the scheduling inventory (Rinks & ice
  * time), sorted by name. `rinks` is null while loading; [] when the org
  * has none (callers show where to add one). Shared by New game and
  * Reschedule so both offer the same list.

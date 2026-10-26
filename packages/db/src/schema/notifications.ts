@@ -214,3 +214,104 @@ export const pushSubscriptions = pgTable(
     )
   })
 );
+
+// =====================================================================
+// SCHEDULED_BROADCASTS — UC-19 "schedule for later". The composed
+// announcement waits here until `send_at`; the cron job
+// (/org-admin/broadcast/cron/due, pg_cron migration 0087) claims due rows
+// (scheduled -> sending), re-checks the sender's reach, resolves the
+// audience at send time and queues one notification per person per
+// channel, idempotent on `broadcast-<idempotency_key>-...`. Cancellable
+// while still `scheduled`. Migration 0086.
+// =====================================================================
+export const scheduledBroadcasts = pgTable(
+  "scheduled_broadcasts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    /** The composer's key: also the broadcast id once sent. */
+    idempotencyKey: uuid("idempotency_key").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    sendAt: timestamp("send_at", { withTimezone: true }).notNull(),
+    /** scheduled | sending | sent | cancelled | failed */
+    status: text("status").notNull().default("scheduled"),
+    /** { audiences, targetType, targetId, subject, body, channels, attachmentIds } */
+    request: jsonb("request").notNull(),
+    /** sendAnnouncement result once sent. */
+    result: jsonb("result"),
+    lastError: text("last_error"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledByUserId: uuid("cancelled_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    keyUniq: uniqueIndex("sched_bc_key_uniq").on(t.idempotencyKey),
+    dueIdx: index("sched_bc_due_idx").on(t.status, t.sendAt),
+    orgIdx: index("sched_bc_org_idx").on(t.orgId, t.sendAt),
+    statusCheck: check(
+      "sched_bc_status_check",
+      sql`${t.status} IN ('scheduled','sending','sent','cancelled','failed')`
+    )
+  })
+);
+
+// =====================================================================
+// BROADCAST_ATTACHMENTS — UC-19 files attached to an announcement. The
+// file is in the PRIVATE `broadcast-attachments` storage bucket; email and
+// in-app bodies link to an API URL signed per recipient, which checks the
+// signature and redirects to a 5-minute storage signed URL. `broadcast_key`
+// ties the file to the composed announcement once it is sent or
+// scheduled; files never attached are removed by their uploader.
+// Migration 0086.
+// =====================================================================
+export const broadcastAttachments = pgTable(
+  "broadcast_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null"
+    }),
+    broadcastKey: uuid("broadcast_key"),
+    storageBucket: text("storage_bucket").notNull().default("broadcast-attachments"),
+    storagePath: text("storage_path").notNull(),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    pathUniq: uniqueIndex("bc_att_path_uniq").on(t.storagePath),
+    keyIdx: index("bc_att_key_idx").on(t.broadcastKey),
+    orgIdx: index("bc_att_org_idx").on(t.orgId),
+    contentTypeCheck: check(
+      "bc_att_content_type_check",
+      sql`${t.contentType} IN ('application/pdf','image/png','image/jpeg','image/webp')`
+    ),
+    sizeCheck: check("bc_att_size_check", sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 3145728`),
+    shaCheck: check("bc_att_sha256_check", sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
+    fileNameCheck: check(
+      "bc_att_file_name_check",
+      sql`char_length(${t.fileName}) BETWEEN 1 AND 200`
+    )
+  })
+);

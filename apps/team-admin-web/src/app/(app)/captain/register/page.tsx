@@ -1,26 +1,9 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatMoney, sortSeasonsByCurrency, DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CalendarRange,
-  CheckCircle2,
-  Clock,
-  Mail,
-  RotateCcw,
-  Send,
-  ShieldAlert,
-  Sparkles,
-  XCircle
-} from "lucide-react";
-import { Badge, EmptyState, Eyebrow, LocalDate, LoadError } from "@sportspulse/ui";
-import { DATE_FORMATS, formatCalendarDate, sortSeasonsByCurrency } from "@sportspulse/kernel";
+import { ArrowRight, ArrowUpRight, CalendarRange, CheckCircle2, Clock, Mail, RotateCcw, Send, ShieldAlert, Sparkles, XCircle } from "lucide-react";
+import { Badge, EmptyState, Eyebrow, PageHeader, LocalDate, LoadError } from "@sportspulse/ui";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import {
-  latestApplicationPerSeason,
-  rejectionOf
-} from "@/lib/registration-call";
+import { latestApplicationPerSeason, rejectionOf } from "@/lib/registration-call";
 import { WithdrawButton } from "./withdraw-button";
 import { load } from "@sportspulse/api-client";
 

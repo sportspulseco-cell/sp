@@ -5,7 +5,7 @@ import { Loader2, ShieldPlus, Users } from "lucide-react";
 import type { ScopeType } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
 import type { RoleAssignment } from "@/lib/api/types";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog } from "@sportspulse/ui";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 import { Alert, Button } from "@sportspulse/ui";
 

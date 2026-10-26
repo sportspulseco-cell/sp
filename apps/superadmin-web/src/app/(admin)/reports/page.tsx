@@ -2,9 +2,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import { ClipboardList, FileBarChart, ListChecks, Trophy } from "lucide-react";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
 import Link from "next/link";
-import { PageHeader } from "@/components/layout/page-header";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
+import { Eyebrow, IconTile, PageHeader } from "@sportspulse/ui";
 import { ReportDownloader } from "@/components/reports/report-downloader";
 
 export const metadata = { title: "Reports · Super Admin" };

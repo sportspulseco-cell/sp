@@ -1,18 +1,8 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Building2,
-  CalendarRange,
-  CheckCircle2,
-  Layers,
-  ScrollText,
-  Trophy,
-  Users
-} from "lucide-react";
-import { Badge, EmptyState, LoadError, LocalDate } from "@sportspulse/ui";
+import { ArrowRight, Building2, CalendarRange, CheckCircle2, Layers, ScrollText, Trophy, Users } from "lucide-react";
+import { Badge, EmptyState, PageHeader, LoadError, LocalDate } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
 import { registration } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,7 +11,6 @@ export const metadata = { title: "My registrations · Player" };
 type Row = Awaited<
   ReturnType<typeof registration.listMyRegistrations>
 >["items"][number];
-
 
 function statusCopy(status: string): string {
   switch (status) {

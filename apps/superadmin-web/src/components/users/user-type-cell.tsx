@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { iam } from "@/lib/api/browser-api";
 import type { Role } from "@/lib/api/types";
-import { Dialog } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { Badge, Dialog } from "@sportspulse/ui";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 
 /**

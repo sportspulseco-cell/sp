@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, Megaphone } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { EmptyState, LoadError, PageHeader } from "@sportspulse/ui";
 import { orgAdminBroadcast } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
 import { ComposeClient } from "./compose-client";
 
 export const dynamic = "force-dynamic";

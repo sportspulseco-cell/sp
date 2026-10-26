@@ -30,3 +30,5 @@ export const teamMovement = api.teamMovement;
 export const orgAdminBroadcast = api.orgAdminBroadcast;
 // Alias for cleaner read in season-setup pages.
 export const league = api.leagueMgmt;
+// Substitute requests (UC-31).
+export const subs = api.subs;

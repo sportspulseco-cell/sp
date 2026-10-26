@@ -1,20 +1,9 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { LoadError, LocalDate, EmptyState, Badge, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { UserCircle2, Link2, Cake, Globe2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { CreatePersonButton } from "@/components/persons/create-person-button";
 
 export const metadata = { title: "Persons · Super Admin" };

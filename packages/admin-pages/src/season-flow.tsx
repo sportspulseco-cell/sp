@@ -140,7 +140,7 @@ async function readSeason(
     safe("team applications", api.adminTransfers.listDivisionEntries({ status: "applied,pending_approval,accepted,confirmed" }), { items: [] }),
     safe("rosters", fetchAll((cursor) => api.roster.listMemberships({ seasonId: season.id, activeOnly: true, limit: 100, cursor })), EMPTY as Page<TeamMembership>),
     safe("games", fetchAll((cursor) => api.gameOps.listGames({ leagueId: season.leagueId, limit: 100, cursor })), EMPTY as Page<Game>),
-    // The season's organisation only. The org console rewrites this read
+    // The season's organization only. The org console rewrites this read
     // to /org-admin/forms, which requires orgId.
     safe("forms", fetchAll((cursor) => api.registration.listForms({ orgId: season.orgId, limit: 100, cursor })), EMPTY as Page<RegistrationForm>)
   ]);

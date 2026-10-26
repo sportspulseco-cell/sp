@@ -22,10 +22,7 @@ import {
 import type { GameReschedulePlan } from "@sportspulse/api-client";
 import { gameOps, stats } from "@/lib/api/browser-api";
 import type { Game } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 import { useOrgRinks } from "./use-org-rinks";
 import { Alert } from "@sportspulse/ui";
 
@@ -44,7 +41,7 @@ export function GameActions({
   game: Game;
   homeName: string;
   awayName: string;
-  /** The league's organisation, for the rink picker. */
+  /** The league's organization, for the rink picker. */
   orgId: string | null;
   /** Periods in regulation for this division (hockey default 3). */
   regulationPeriods: number;
@@ -614,7 +611,7 @@ function RescheduleDialog({
               (rinks === null
                 ? "Loading rinks…"
                 : rinks.length === 0
-                  ? "No rinks set up for this organisation. Add them under Venues."
+                  ? "No rinks set up for this organization. Add them under Venues."
                   : undefined)
             }
           >

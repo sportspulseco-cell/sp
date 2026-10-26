@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send } from "lucide-react";
 import { communications } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
+import { Button } from "@sportspulse/ui";
 
 export function FlushQueuedButton({ count }: { count: number }) {
   const router = useRouter();

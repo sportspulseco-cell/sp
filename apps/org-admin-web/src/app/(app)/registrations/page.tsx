@@ -2,10 +2,9 @@
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
 import { ScrollText } from "lucide-react";
-import { EmptyState, SectionRail, LoadError } from "@sportspulse/ui";
+import { EmptyState, PageHeader, SectionRail, LoadError } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
 import { compliance, loadMeScope, registrationV2Admin } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { RegistrationsTable } from "./registrations-table";
 import { FreeAgentPoolSection } from "./free-agent-pool-section";
@@ -64,14 +63,23 @@ export default async function RegistrationsPage() {
           ) : (
             <RegistrationsTable
               items={page.items.map((r) => {
-                const m = (r.metadata ?? {}) as { fullName?: string; email?: string };
+                const m = (r.metadata ?? {}) as {
+                  fullName?: string;
+                  email?: string;
+                  files?: Record<string, { fileName?: string }>;
+                };
                 return {
                   id: r.id,
                   name: m.fullName ?? null,
                   email: m.email ?? null,
                   season: r.seasonName ?? null,
                   status: r.status,
-                  submittedAt: r.submittedAt
+                  submittedAt: r.submittedAt,
+                  // FR-3.4.5: files uploaded on the registration form.
+                  files: Object.entries(m.files ?? {}).map(([key, f]) => ({
+                    key,
+                    fileName: f?.fileName ?? key
+                  }))
                 };
               })}
             />

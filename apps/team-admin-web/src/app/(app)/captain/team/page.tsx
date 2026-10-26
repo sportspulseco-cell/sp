@@ -1,7 +1,6 @@
 import { Settings, Star } from "lucide-react";
-import { EmptyState, Eyebrow } from "@sportspulse/ui";
+import { EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { TeamProfileForm } from "./team-profile-form";
 
 export const dynamic = "force-dynamic";

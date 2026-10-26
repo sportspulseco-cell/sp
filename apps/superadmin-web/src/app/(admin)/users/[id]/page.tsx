@@ -1,11 +1,9 @@
-import { ArrowLeft, Building2, ShieldCheck, Trophy, UserCog } from "lucide-react";
+import { ArrowLeft, Building2, ShieldCheck, Trophy } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { Badge, LoadError, LocalDate } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LoadError, PageHeader, statusTone, LocalDate } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
 import { tintForScope } from "@/components/roles/role-scope-tint";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { RevokeAssignmentButton } from "@/components/roles/revoke-assignment-button";
@@ -63,48 +61,42 @@ export default async function UserDetailPage({
 
   return (
     <div className="space-y-10">
-      <Link
-        href="/users"
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All users
-      </Link>
+      <PageHeader
+        eyebrow="User"
+        title={display}
+        description={
+          <>
+            <p className="text-[13px]">{user.email ?? "—"}</p>
+            <div className="flex items-center gap-2 pt-2">
+              <Badge status={user.status} />
+              {user.isSuperAdmin ? (
+                <Badge tone="primary" mono>
+                  SUPER ADMIN
+                </Badge>
+              ) : null}
+              <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
+                joined {fmtDate(user.createdAt)}
+              </span>
+            </div>
+          </>
+        }
+        action={
+          <EditUserButton
+            user={user}
+            profileRoles={resolveProfileRoles(user.isSuperAdmin ?? false, assignments)}
+          />
+        }
+      />
 
-      {/* Header */}
-      <header className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={UserCog} tint="emerald" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>USER</Eyebrow>
-          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {display}
-          </h1>
-          <p className="text-[13px] text-fg-muted">{user.email ?? "—"}</p>
-          <div className="flex items-center gap-2 pt-1">
-            <Badge status={user.status} />
-            {user.isSuperAdmin ? (
-              <Badge tone="primary" mono>
-                SUPER ADMIN
-              </Badge>
-            ) : null}
-            <span className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-              joined {fmtDate(user.createdAt)}
-            </span>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <EditUserButton
-              user={user}
-              profileRoles={resolveProfileRoles(user.isSuperAdmin ?? false, assignments)}
-            />
-            <SetPasswordButton userId={user.id} email={user.email} />
-            <SendRecoveryEmailButton userId={user.id} email={user.email} />
-            <SuspendUserButton
-              userId={user.id}
-              suspended={user.status === "suspended"}
-            />
-          </div>
-        </div>
-      </header>
+      {/* Account actions */}
+      <div className="-mt-4 flex flex-wrap items-center gap-2">
+        <SetPasswordButton userId={user.id} email={user.email} />
+        <SendRecoveryEmailButton userId={user.id} email={user.email} />
+        <SuspendUserButton
+          userId={user.id}
+          suspended={user.status === "suspended"}
+        />
+      </div>
 
       {/* Active role assignments */}
       <section className="rounded-xl border border-border bg-surface-1">

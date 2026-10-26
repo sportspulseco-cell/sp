@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { formatInZone } from "@sportspulse/kernel";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
-import { Badge, EmptyState, LoadError } from "@sportspulse/ui";
+import { Badge, EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { load } from "@sportspulse/api-client";
 
 export const dynamic = "force-dynamic";

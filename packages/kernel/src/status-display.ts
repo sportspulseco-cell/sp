@@ -74,6 +74,7 @@ const TONES: Record<string, StatusTone> = {
   appealed: "warning",
   postponed: "warning",
   late: "warning",
+  requested: "warning",
 
   // Moving on its own
   scheduled: "info",
@@ -89,7 +90,6 @@ const TONES: Record<string, StatusTone> = {
   registration_open: "info",
   playoffs: "info",
   waitlisted: "info",
-  requested: "info",
   assigned: "info",
   available: "info",
 

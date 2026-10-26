@@ -2,13 +2,12 @@ import { MapPin } from "lucide-react";
 import { LoadError } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
+import { Eyebrow, IconTile } from "@sportspulse/ui";
 import { RegionsPanel } from "./regions-panel";
 
 /**
- * Server wrapper: an organisation's regions with add / rename / archive.
- * Drops into the organisation detail page. Regions are reused by every
+ * Server wrapper: an organization's regions with add / rename / archive.
+ * Drops into the organization detail page. Regions are reused by every
  * season of the org; divisions point at them.
  */
 export async function RegionsSection({ orgId, orgName }: { orgId: string; orgName: string }) {
@@ -23,7 +22,7 @@ export async function RegionsSection({ orgId, orgName }: { orgId: string; orgNam
             Regions of {orgName}
           </p>
           <p className="mt-0.5 text-[13px] text-fg-muted">
-            Season → Region → Division. One list for the whole organisation, reused every season.
+            Season → Region → Division. One list for the whole organization, reused every season.
           </p>
         </div>
       </header>

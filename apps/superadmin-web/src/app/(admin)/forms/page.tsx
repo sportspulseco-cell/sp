@@ -1,26 +1,10 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, LocalDate } from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, LocalDate } from "@sportspulse/ui";
 import { FileSignature, CheckCircle2, FileQuestion, Layers } from "lucide-react";
 import Link from "next/link";
-import {
-  FORM_PURPOSE_LABELS,
-  FORM_PURPOSES,
-  SYSTEM_ROLE_BY_CODE,
-  type FormPurpose
-} from "@sportspulse/kernel";
+import { FORM_PURPOSE_LABELS, FORM_PURPOSES, SYSTEM_ROLE_BY_CODE, type FormPurpose } from "@sportspulse/kernel";
 import { orgs, registration } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { CreateFormButton } from "@/components/forms/create-form-button";
 import { FormsFilters } from "@/components/forms/forms-filters";
 import { cn } from "@/lib/utils";
@@ -173,7 +157,7 @@ export default async function FormsPage({
         <EmptyState
           icon={FileSignature}
           title="No forms match these filters"
-          description="Clear the search or pick a different organisation, division or scope."
+          description="Clear the search or pick a different organization, division or scope."
         />
       ) : filtered.length === 0 ? (
         <EmptyState

@@ -1,6 +1,6 @@
+import { Eyebrow, PageHeader, Reveal, LocalDate } from "@sportspulse/ui";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Eyebrow, LocalDate, Reveal } from "@sportspulse/ui";
 import { DATE_FORMATS } from "@sportspulse/kernel";
 import type { AuditEvent } from "@sportspulse/api-client";
 
@@ -24,32 +24,24 @@ export function AuditEventDetail({
 }) {
   return (
     <div className="space-y-8">
-      <Link
-        href={backHref ?? "/audit"}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All audit events
-      </Link>
-
-      <Reveal as="header" className="space-y-2 border-b border-border pb-6">
-        <Eyebrow>AUDIT · {event.id.slice(0, 8)}</Eyebrow>
-        <h1 className="font-mono text-[28px] font-semibold tracking-tight text-fg">
-          {event.action}
-        </h1>
-        <p className="text-[13px] text-fg-muted">
-          on{" "}
-          <span className="font-mono uppercase tracking-wide">
-            {event.resourceType}
-          </span>
-          {event.resourceName ? (
-            <span className="ml-1">· {event.resourceName}</span>
-          ) : event.resourceId ? (
-            <span className="ml-1 font-mono">· {event.resourceId}</span>
-          ) : null}
-          <span className="ml-2 text-fg-muted">at <LocalDate iso={event.tsUtc} options={AUDIT_TIME} /></span>
-        </p>
-      </Reveal>
+      <PageHeader
+        eyebrow={`Audit · ${event.id.slice(0, 8)}`}
+        title={<span className="font-mono">{event.action}</span>}
+        description={
+          <p className="text-[13px]">
+            on{" "}
+            <span className="font-mono uppercase tracking-wide">
+              {event.resourceType}
+            </span>
+            {event.resourceName ? (
+              <span className="ml-1">· {event.resourceName}</span>
+            ) : event.resourceId ? (
+              <span className="ml-1 font-mono">· {event.resourceId}</span>
+            ) : null}
+            <span className="ml-2">at <LocalDate iso={event.tsUtc} options={AUDIT_TIME} /></span>
+          </p>
+        }
+      />
 
       <Reveal as="section" delay={0.05} className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <DetailRow label="Actor user" value={event.actorName ?? event.actorUserId} />

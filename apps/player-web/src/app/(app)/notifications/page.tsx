@@ -1,13 +1,8 @@
 import Link from "next/link";
 import { Bell, CheckCheck, Settings as SettingsIcon } from "lucide-react";
-import {
-  EmptyState,
-  Eyebrow,
-  LoadError
-} from "@sportspulse/ui";
+import { EmptyState, Eyebrow, PageHeader, LoadError } from "@sportspulse/ui";
 import { load, type Notification } from "@sportspulse/api-client";
 import { communications, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { NotificationRow } from "./notification-row";
 import { MarkAllReadButton } from "./mark-all-read";
 

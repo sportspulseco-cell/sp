@@ -1,8 +1,7 @@
 import { Wallet } from "lucide-react";
+import { EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
-import { EmptyState, LoadError } from "@sportspulse/ui";
 import { finance } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { PaymentsClient } from "./payments-client";
 
 export const dynamic = "force-dynamic";

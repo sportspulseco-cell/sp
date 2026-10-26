@@ -1,7 +1,6 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import { communications } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { SettingsClient } from "./settings-client";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +17,16 @@ export default async function NotificationSettingsPage() {
       <PageHeader
         eyebrow="Notifications · Settings"
         title="Notification settings"
-        description="Choose what reaches you by email and in the app. Everything is on until you switch it off. In-app covers your Notifications inbox."
+        description="Choose what reaches you by email, in the app, by text and by push. Email and in-app are on until you switch them off; text is off until you turn it on."
       />
 
       {prefs.ok ? (
         <SettingsClient
           topics={prefs.data.topics}
           channels={prefs.data.channels}
+          channelDefaults={prefs.data.channelDefaults ?? { email: true, in_app: true, sms: false, push: true }}
+          channelStatus={prefs.data.channelStatus ?? null}
+          sms={prefs.data.sms ?? { phoneMasked: null, hasPhone: false }}
           initialItems={prefs.data.items}
         />
       ) : (

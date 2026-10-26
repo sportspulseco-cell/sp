@@ -1,23 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Loader2,
-  Mail,
-  Pencil,
-  Plus,
-  Send,
-  Sparkles,
-  Trophy,
-  UserCheck,
-  Users,
-  X
-} from "lucide-react";
-import { Alert, Badge, Button, EmptyState, Field, Input } from "@sportspulse/ui";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, Loader2, Mail, Pencil, Plus, Send, Sparkles, Trophy, UserCheck, Users, X } from "lucide-react";
+import { Badge, Button, EmptyState, Field, Input, PageHeader, Alert } from "@sportspulse/ui";
 import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import type { Team } from "@sportspulse/api-client";
 import { captain, leagueMgmt } from "@/lib/api/browser-api";
@@ -230,32 +215,26 @@ export function RegisterWizard({
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
-          <span className="text-fg-subtle">//</span>
-          <span>rollover</span>
-          <span className="text-fg-subtle">·</span>
-          <span>{league.name}</span>
-          <span className="text-fg-subtle">·</span>
-          <span>{season.name}</span>
-        </p>
-        <h1 className="max-w-[28ch] text-balance font-sans text-[clamp(28px,3.6vw,44px)] font-semibold leading-[0.98] tracking-tighter text-fg">
-          Register {team.name} for the season
-        </h1>
-        {daysLeft !== null ? (
-          <p className="text-[13px] text-fg-muted">
-            Registration closes in{" "}
-            <span className="font-mono text-fg">
-              {daysLeft === 0
-                ? "today"
-                : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
-            </span>
-            . You can save and exit any time. Sprint 4 will persist the
-            draft server-side; for now stay on this tab to keep your
-            progress.
-          </p>
-        ) : null}
-      </header>
+      <PageHeader
+        className="mb-4"
+        eyebrow={`Rollover · ${league.name} · ${season.name}`}
+        title={`Register ${team.name} for the season`}
+        description={
+          daysLeft !== null ? (
+            <p className="text-[13px]">
+              Registration closes in{" "}
+              <span className="font-mono text-fg">
+                {daysLeft === 0
+                  ? "today"
+                  : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
+              </span>
+              . You can save and exit any time. Sprint 4 will persist the
+              draft server-side; for now stay on this tab to keep your
+              progress.
+            </p>
+          ) : undefined
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <StepRail step={step} onJump={(s) => setStep(s)} />

@@ -61,6 +61,11 @@ export { FreeAgentPoolPanel } from "./free-agents/free-agent-pool-panel";
 export type { FreeAgentPoolApi } from "./free-agents/free-agent-pool-panel";
 export { DocumentReviewQueue } from "./compliance-documents/document-review-queue";
 export type { DocumentReviewApi } from "./compliance-documents/document-review-queue";
+export { LicenceScan } from "./compliance-documents/licence-scan";
+export type { LicenceScanApi } from "./compliance-documents/licence-scan";
+export { WebPushControl } from "./communications/web-push-control";
+export type { WebPushApi } from "./communications/web-push-control";
+export { ChannelStatusNotice } from "./communications/channel-status-notice";
 export { VenuesPage } from "./venues/venues-page";
 export type { VenuesPageProps, VenuesApi } from "./venues/venues-page";
 export * from "./scheduling";
@@ -89,3 +94,7 @@ export type {
   AnnouncementTargetType
 } from "./communications/announcement-composer";
 export * from "./live-score-refresh";
+export { DiscountsPanel } from "./finance/discounts-panel";
+export type { DiscountsApi, DiscountsPanelProps } from "./finance/discounts-panel";
+export { CaptainSubsPanel, GameSubsAdminPanel } from "./subs/subs-panels";
+export type { AdminSubsApi, CaptainSubsApi } from "./subs/subs-panels";

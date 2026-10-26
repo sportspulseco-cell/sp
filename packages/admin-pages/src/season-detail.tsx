@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, CalendarRange } from "lucide-react";
 import Link from "next/link";
-import { Badge, Eyebrow, IconTile, LocalDate, Reveal } from "@sportspulse/ui";
+import { Badge, PageHeader, Reveal, Eyebrow, IconTile, LocalDate } from "@sportspulse/ui";
 import type { Division, League, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
 import { SEASON_CONFIG_DEFAULTS, formatCalendarDate } from "@sportspulse/kernel";
@@ -78,54 +77,49 @@ export function SeasonDetail({
 
   return (
     <div className="space-y-8">
-      <Link
-        href={backTo}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        All seasons
-      </Link>
-
-      <Reveal as="header" className="flex items-start gap-5 border-b border-border pb-8">
-        <IconTile icon={CalendarRange} tint="violet" size="lg" />
-        <div className="space-y-2">
-          <Eyebrow dot>SEASON · {parentLeague?.name ?? "Unknown league"}</Eyebrow>
-          <h1 className="text-[36px] font-semibold leading-[1.05] tracking-tighter text-fg">
-            {season.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Badge mono>{season.sportCode}</Badge>
-            {parentLeague ? (
-              <Link
-                href={`${leagueHref}/${parentLeague.id}`}
-                className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
-              >
-                {parentLeague.name} →
-              </Link>
-            ) : null}
-          </div>
-        </div>
-        <div className="ml-auto flex flex-col items-end gap-2">
-          {statusControl}
-          {actions}
-          {setupHref ? (
-            <Link
-              href={setupHref}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-            >
-              Open registration setup →
-            </Link>
-          ) : null}
-          {schedulingHref ? (
-            <Link
-              href={schedulingHref}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-            >
-              Schedule →
-            </Link>
-          ) : null}
-        </div>
-      </Reveal>
+      <PageHeader
+        eyebrow={<>SEASON · {parentLeague?.name ?? "Unknown league"}</>}
+        title={season.name}
+        description={
+          <>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Badge mono>{season.sportCode}</Badge>
+              {parentLeague ? (
+                <Link
+                  href={`${leagueHref}/${parentLeague.id}`}
+                  className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
+                >
+                  {parentLeague.name} →
+                </Link>
+              ) : null}
+            </div>
+          </>
+        }
+        action={
+          <>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              {statusControl}
+              {actions}
+              {setupHref ? (
+                <Link
+                  href={setupHref}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+                >
+                  Open registration setup →
+                </Link>
+              ) : null}
+              {schedulingHref ? (
+                <Link
+                  href={schedulingHref}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
+                >
+                  Schedule →
+                </Link>
+              ) : null}
+            </div>
+          </>
+        }
+      />
 
       {lifecycle}
 

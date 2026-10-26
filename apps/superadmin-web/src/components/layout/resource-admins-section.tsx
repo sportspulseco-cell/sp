@@ -2,8 +2,7 @@ import { Users } from "lucide-react";
 import { iam } from "@/lib/api/server-api";
 import { SYSTEM_ROLE_CODES, type ScopeType } from "@sportspulse/kernel";
 import { viewerRoleGrants } from "@/lib/role-grants";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
+import { Eyebrow, IconTile } from "@sportspulse/ui";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 
 /**

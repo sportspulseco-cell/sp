@@ -3,22 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
-import {
-  EJECTION_LABELS,
-  EJECTION_TYPES,
-  HOCKEY_INFRACTIONS,
-  HOCKEY_PENALTY_MINUTES,
-  HOCKEY_PENALTY_MINUTE_LABELS,
-  HOCKEY_SCORESHEET_EVENT_TYPES,
-  HOCKEY_SPORT_CODE,
-  validateHockeyEvent
-} from "@sportspulse/kernel";
+import { EJECTION_LABELS, EJECTION_TYPES, HOCKEY_INFRACTIONS, HOCKEY_PENALTY_MINUTES, HOCKEY_PENALTY_MINUTE_LABELS, HOCKEY_SCORESHEET_EVENT_TYPES, HOCKEY_SPORT_CODE, validateHockeyEvent } from "@sportspulse/kernel";
 import { gameOps } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Alert } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 
 // Assists ride on the goal (Assist 1 / Assist 2), never as their own
 // event, so each one is counted once (SCH-13). Penalties carry an

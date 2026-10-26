@@ -1,20 +1,9 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, Badge } from "@sportspulse/ui";
+import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Trophy, Wand2, Network, Archive, Layers } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UrlFilters } from "@/components/ui/url-filters";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import type { League } from "@/lib/api/types";
@@ -128,9 +117,9 @@ export default async function LeaguesPage({
 
       <div className="space-y-2">
         <UrlFilters
-          searchPlaceholder="Search leagues by name, organisation, sport or format"
+          searchPlaceholder="Search leagues by name, organization, sport or format"
           selects={[
-            { param: "orgId", label: "Organisation", allLabel: "All organisations", options: orgOptions },
+            { param: "orgId", label: "Organization", allLabel: "All organizations", options: orgOptions },
             {
               param: "status",
               label: "Status",
@@ -164,14 +153,14 @@ export default async function LeaguesPage({
         <EmptyState
           icon={Trophy}
           title="No leagues match these filters"
-          description="Clear the search or pick a different organisation, status or sport."
+          description="Clear the search or pick a different organization, status or sport."
         />
       ) : (
         <Table>
           <THead>
             <TR>
               <TH>Name</TH>
-              <TH>Organisation</TH>
+              <TH>Organization</TH>
               <TH>Sport</TH>
               <TH>Format</TH>
               <TH>Status</TH>

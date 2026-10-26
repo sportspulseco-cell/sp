@@ -2,8 +2,7 @@
 
 import { VenuesPage, type VenuesApi } from "@sportspulse/admin-pages";
 import { useCallback, useEffect, useState } from "react";
-import { LoadError } from "@sportspulse/ui";
-import { PageHeader } from "@/components/layout/page-header";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import * as browser from "@/lib/api/browser-api";
 
 interface OrgRow { id: string; name: string; timezone: string }
@@ -40,7 +39,7 @@ export default function VenuesAdminPage() {
         description="The rinks and ice slots the schedule uses. Add a rink, then its surfaces, then single slots or a weekly pattern."
       />
       {orgsError ? (
-        <LoadError what="your organisations" status={null} message={orgsError} />
+        <LoadError what="your organizations" status={null} message={orgsError} />
       ) : null}
       <VenuesPage api={api} loadSeasons={loadSeasons} ownableOrgs={orgs} />
     </div>

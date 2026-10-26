@@ -1,19 +1,9 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { Badge, Alert, LocalDate } from "@sportspulse/ui";
+import { Badge, Alert, LocalDate, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { Users, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { InviteUserButton } from "@/components/users/invite-user-button";
 import { viewerRoleGrants } from "@/lib/role-grants";
 import { ManageUserRolesCell } from "@/components/users/manage-user-roles-cell";

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { CalendarRange, ChevronRight, ShieldAlert, Sparkles, Users } from "lucide-react";
-import { EmptyState, LocalDate } from "@sportspulse/ui";
+import { EmptyState, PageHeader, LocalDate } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { captain, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { DivisionPicker } from "./division-picker";
 
 export const dynamic = "force-dynamic";

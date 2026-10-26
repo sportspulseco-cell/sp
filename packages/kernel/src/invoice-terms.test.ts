@@ -21,6 +21,18 @@ const plan = [
   { installmentNumber: 2, amountCents: 5000, status: "scheduled" }
 ];
 
+test("captain cover amount: one cent to the balance", async () => {
+  const { coverAmountProblem } = await import("./invoice-terms");
+  assert.equal(coverAmountProblem(1, 5000), null);
+  assert.equal(coverAmountProblem(5000, 5000), null);
+  assert.match(coverAmountProblem(5001, 5000)!, /more than/);
+  assert.match(coverAmountProblem(0, 5000)!, /at least/);
+  assert.match(coverAmountProblem(-100, 5000)!, /at least/);
+  assert.match(coverAmountProblem(10.5, 5000)!, /dollars and cents/);
+  assert.match(coverAmountProblem(100, 0)!, /already paid/);
+  assert.equal(coverAmountProblem(2_000_000_000, 2_000_000_000), null);
+});
+
 test("no plan: the whole balance is due", () => {
   assert.deepEqual(invoicePayRange({ totalCents: 9000, paidCents: 2000, installments: [] }), { minCents: 7000, maxCents: 7000, nextInstallment: null });
 });

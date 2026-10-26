@@ -1,18 +1,8 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { Badge, LoadError } from "@sportspulse/ui";
+import { Badge, LoadError, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { CalendarRange, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 
 export const metadata = { title: "Schedule · Super Admin" };
 

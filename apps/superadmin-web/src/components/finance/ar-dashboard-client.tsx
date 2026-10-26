@@ -4,15 +4,7 @@ import { Button, Select } from "@sportspulse/ui";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
+import { Badge, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { formatMoney } from "@/components/finance/money";
 import type { Org } from "@/lib/api/types";
 

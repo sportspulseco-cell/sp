@@ -6,7 +6,7 @@ import type { Org } from "@sportspulse/api-client";
 import { cn } from "@sportspulse/ui";
 
 /**
- * Phase 0 — Select organisation. The single-select list maps directly
+ * Phase 0 — Select organization. The single-select list maps directly
  * to leagues.orgId (FK locked once the league is created in Phase 1).
  */
 export function OrgStep({
@@ -19,8 +19,8 @@ export function OrgStep({
   selectedId: string | null;
   onSelect: (id: string) => void;
   /**
-   * Super admin only: renders the create-organisation form; the callback
-   * closes it. Omitted (org-admin console) = no "New organisation" option.
+   * Super admin only: renders the create-organization form; the callback
+   * closes it. Omitted (org-admin console) = no "New organization" option.
    */
   renderCreateOrg?: (close: () => void) => ReactNode;
 }) {
@@ -28,7 +28,7 @@ export function OrgStep({
   return (
     <div className="space-y-6">
       <SectionHeader
-        title="Organisation"
+        title="Organization"
         hint="All orgs you have access to"
       />
 
@@ -44,7 +44,7 @@ export function OrgStep({
             <span className="flex h-10 w-10 items-center justify-center rounded-md bg-bg-subtle">
               <Plus className="h-4 w-4" strokeWidth={2} />
             </span>
-            New organisation
+            New organization
             <span className="ml-auto font-mono text-[11px] text-fg-muted">create it and choose its org admin</span>
           </button>
         )

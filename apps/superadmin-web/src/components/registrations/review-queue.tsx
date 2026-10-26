@@ -1,32 +1,11 @@
 "use client";
 
-import { Alert, Badge, LocalDate, Skeleton } from "@sportspulse/ui";
+import { Alert, Badge, LocalDate, Skeleton, Button, Dialog, DialogActions, Field, Input, Select, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  Check,
-  Loader2,
-  Mail,
-  RotateCcw,
-  ShieldAlert,
-  Wallet,
-  X
-} from "lucide-react";
+import { AlertTriangle, Check, Loader2, Mail, RotateCcw, ShieldAlert, Wallet, X } from "lucide-react";
 import { REGISTRATION_STATE_LABELS, REGISTRATION_STATES, type RegistrationState, formatMoney } from "@sportspulse/kernel";
 import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 
 interface Submission {
   id: string;

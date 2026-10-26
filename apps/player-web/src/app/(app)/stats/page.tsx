@@ -5,6 +5,8 @@ import {
   EmptyState,
   Eyebrow,
   IconTile,
+  PageHeader,
+  SeasonLeadersBlock,
   TBody,
   TD,
   TH,
@@ -16,8 +18,6 @@ import {
 } from "@sportspulse/ui";
 import { load, type Game, type StatLine } from "@sportspulse/api-client";
 import { gameOps, loadMeScope, stats } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { SeasonLeadersBlock } from "@sportspulse/ui";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

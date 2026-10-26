@@ -9,12 +9,10 @@ import {
   Receipt,
   Wallet
 } from "lucide-react";
-import { SectionRail, StatTile } from "@sportspulse/ui";
+import { LoadError, PageHeader, SectionRail, StatTile } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
 import { finance, loadMeScope, orgAdminFinance } from "@/lib/api/server-api";
 import { FinanceReports } from "./finance-reports";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { InvoiceTable } from "./invoice-table";
 
@@ -55,13 +53,21 @@ export default async function FinancePage() {
         description="Outstanding receivables for your org. Issue new invoices, record offline payments inline, export reports."
         action={
           orgId ? (
-            <Link
-              href="/finance/create"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg transition-colors duration-fast ease-ease hover:bg-[var(--accent-hover)]"
-            >
-              <Receipt className="h-3.5 w-3.5" strokeWidth={2} />
-              New invoice
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/finance/discounts"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-[12px] font-medium text-fg transition-colors duration-fast ease-ease hover:bg-bg-subtle"
+              >
+                Discounts
+              </Link>
+              <Link
+                href="/finance/create"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg transition-colors duration-fast ease-ease hover:bg-[var(--accent-hover)]"
+              >
+                <Receipt className="h-3.5 w-3.5" strokeWidth={2} />
+                New invoice
+              </Link>
+            </div>
           ) : null
         }
       />

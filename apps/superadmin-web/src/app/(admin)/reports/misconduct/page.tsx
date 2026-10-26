@@ -1,13 +1,20 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import { formatInZone } from "@sportspulse/kernel";
-import { LoadError } from "@sportspulse/ui";
+import {
+  EmptyState,
+  LoadError,
+  PageHeader,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+  UrlFilters
+} from "@sportspulse/ui";
 import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { gameOps, leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UrlFilters } from "@/components/ui/url-filters";
-import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 
 export const metadata = { title: "Misconduct report · Super Admin" };
 

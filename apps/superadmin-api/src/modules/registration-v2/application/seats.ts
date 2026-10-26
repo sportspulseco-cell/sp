@@ -2,6 +2,7 @@ import { ConflictException, Logger } from "@nestjs/common";
 import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
+import { releaseCodeUses } from "./discounts";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -66,7 +67,8 @@ export async function releaseSeat(
 
 /**
  * What closing a registration (rejected or cancelled) does to its money:
- * the seat on a limited price goes back, and an invoice nothing was paid
+ * the seat on a limited price goes back, a discount code use goes back
+ * (the code counts one use fewer), and an invoice nothing was paid
  * on is voided, so Finance stops counting it as owed and overdue
  * reminders stop. A paid invoice stays as it is; the admin refunds it
  * from the invoice. Run in the transaction that closes the registration.
@@ -77,6 +79,7 @@ export async function closeRegistrationMoney(
   why: string
 ): Promise<void> {
   await releaseSeat(tx, registration);
+  await releaseCodeUses(tx, registration.id, why);
   const voided = await tx
     .update(schema.invoices)
     .set({

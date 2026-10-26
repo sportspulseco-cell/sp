@@ -201,7 +201,7 @@ test.describe.serial("J17 · role isolation", () => {
       ids.bLeague = page.url().split("/leagues/")[1]!.split(/[?#]/)[0]!;
       // Team in org B (Home rink filled: blank rink 500s, see SETUP-6)
       await page.goto(`${SA}/teams/new`);
-      await page.getByRole("combobox", { name: "Organisation *" }).selectOption({ label: B.org });
+      await page.getByRole("combobox", { name: "Organization *" }).selectOption({ label: B.org });
       await page.getByRole("textbox", { name: "Team name *" }).fill(B.team);
       await page.getByRole("textbox", { name: "Home rink" }).fill(`B Rink ${RUN_TAG}`);
       await page.getByRole("combobox", { name: "Sport *" }).selectOption({ label: "Ice Hockey" });

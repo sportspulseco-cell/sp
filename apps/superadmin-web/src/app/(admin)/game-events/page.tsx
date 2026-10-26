@@ -1,20 +1,9 @@
 import { fetchAll, load, mapLimit } from "@sportspulse/api-client";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { LoadError, LocalDate, Eyebrow, EmptyState, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { Activity, Layers, Clock, CircleDot } from "lucide-react";
 import Link from "next/link";
 import { gameOps, iam, leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { EmptyState } from "@/components/ui/empty-state";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 
 export const metadata = { title: "Game events · Super Admin" };
 

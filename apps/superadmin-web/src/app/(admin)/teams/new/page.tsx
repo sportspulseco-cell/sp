@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { LoadError, PageHeader } from "@sportspulse/ui";
 import { fetchAll, load } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
 import { admin, orgs, leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { NewTeamForm } from "./new-team-form";
 
 export const metadata = { title: "New team · Super Admin" };
@@ -16,7 +15,7 @@ export const dynamic = "force-dynamic";
  * is the multi-step UX — admin team creation is a one-shot record.
  *
  * URL form: /teams/new?orgId={id}. The `orgId` query param pre-selects
- * the organisation so deep-links from /organizations/[id] work.
+ * the organization so deep-links from /organizations/[id] work.
  */
 export default async function NewTeamPage({
   searchParams
@@ -30,7 +29,7 @@ export default async function NewTeamPage({
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null }))
   ]);
   if (!orgsResult.ok) {
-    // A failed organisation list is not "no organisations".
+    // A failed organization list is not "no organizations".
     return (
       <LoadError
         what="organizations"

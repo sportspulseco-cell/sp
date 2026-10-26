@@ -10,18 +10,19 @@ import { load } from "@sportspulse/api-client";
 import Link from "next/link";
 import { EmptyState, LoadError } from "@sportspulse/ui";
 import { admin } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Badge } from "@/components/ui/badge";
 import {
+  Badge,
+  Eyebrow,
+  IconTile,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  type Tint
+} from "@sportspulse/ui";
 import { ToggleFlagButton } from "@/components/admin/toggle-flag-button";
 import { ToggleSportButton } from "@/components/admin/toggle-sport-button";
 import { UpsertSettingButton } from "@/components/admin/upsert-setting-button";

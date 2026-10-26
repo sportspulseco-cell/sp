@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { load } from "@sportspulse/api-client";
-import { EmptyState, LoadError } from "@sportspulse/ui";
+import { EmptyState, LoadError, PageHeader } from "@sportspulse/ui";
 import { iam, loadMeScope, orgAdminBroadcast } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
 import { ComposeForm } from "./compose-form";
 
@@ -55,7 +54,7 @@ export default async function ComposePage({
       <PageHeader
         eyebrow="Compose"
         title="Send a broadcast"
-        description="Send an announcement to people in the whole organisation or in one league, season, division or team."
+        description="Send an announcement to people in the whole organization or in one league, season, division or team."
       />
       {!res.ok || !res.data.reach ? (
         <LoadError

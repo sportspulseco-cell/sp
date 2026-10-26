@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Lock } from "lucide-react";
-import { EmptyState } from "@sportspulse/ui";
+import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { RegisterWizard } from "./register-wizard";
 
 export const dynamic = "force-dynamic";

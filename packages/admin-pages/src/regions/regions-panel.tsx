@@ -23,7 +23,7 @@ export interface RegionsApi {
 }
 
 /**
- * Manage an organisation's regions (the tier between a season and its
+ * Manage an organization's regions (the tier between a season and its
  * divisions: Season -> Region -> Division). Add, rename, archive and
  * restore. The API refuses to archive a region a live division still
  * uses; the row says so before the click instead of failing after it.

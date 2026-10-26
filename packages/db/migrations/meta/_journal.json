@@ -386,6 +386,34 @@
       "when": 1792970391760,
       "tag": "0056_team_store_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1793016182079,
+      "tag": "0076_substitute_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1793016995030,
+      "tag": "0085_licence_id_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1793033396091,
+      "tag": "0086_scheduled_broadcasts",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1793033397091,
+      "tag": "0080_discounts",
+      "breakpoints": true
     }
   ]
 }

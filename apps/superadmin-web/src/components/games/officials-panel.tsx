@@ -1,21 +1,11 @@
 "use client";
 
-import { Alert, Badge } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, IconTile, Input, Select, type Tint } from "@sportspulse/ui";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Flag } from "lucide-react";
 import { gameOps } from "@/lib/api/browser-api";
-import type {
-  GameOfficial,
-  GameOfficialRole,
-  GameOfficialStatus,
-  Person
-} from "@/lib/api/types";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import type { GameOfficial, GameOfficialRole, GameOfficialStatus, Person } from "@/lib/api/types";
 
 const ROLES: GameOfficialRole[] = [
   "referee",
@@ -151,6 +141,10 @@ function AssignForm({
   // who hold a referee or scorekeeper role for this game's league.
   const [candidates, setCandidates] = useState<Array<{ personId: string; name: string; roles: string[]; busyWith: string | null }> | null>(null);
   const [everyone, setEveryone] = useState(false);
+  // An official with no tie to the league yet: their account email, typed
+  // in full. The API matches it exactly and never lists accounts.
+  const [byEmail, setByEmail] = useState(false);
+  const [email, setEmail] = useState("");
   const [clash, setClash] = useState<string | null>(null);
   useEffect(() => {
     gameOps.officialCandidates(gameId).then(setCandidates).catch(() => setCandidates([]));
@@ -170,7 +164,7 @@ function AssignForm({
     setError(null);
     try {
       await gameOps.assignOfficial(gameId, {
-        personId: form.personId,
+        ...(byEmail ? { email: email.trim() } : { personId: form.personId }),
         role: form.role,
         slot: form.slot || null,
         status: form.status,
@@ -197,6 +191,23 @@ function AssignForm({
       onSubmit={onSubmit}
       className="grid gap-4 border-b border-border px-6 py-5 md:grid-cols-[1fr_1fr_120px_140px_auto]"
     >
+      {byEmail ? (
+        <Field label="Account email" htmlFor="ao-email" hint="Their full sign-in email. They need an account first.">
+          <Input
+            id="ao-email"
+            type="email"
+            required
+            autoComplete="off"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+          />
+          <label className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-muted">
+            <input type="checkbox" checked={byEmail} onChange={(e) => setByEmail(e.target.checked)} />
+            Add by email
+          </label>
+        </Field>
+      ) : (
       <Field
         label="Person"
         htmlFor="ao-person"
@@ -247,7 +258,20 @@ function AssignForm({
           />
           Show everyone
         </label>
+        <label className="mt-1 flex items-center gap-1.5 text-[12px] text-fg-muted">
+          <input
+            type="checkbox"
+            checked={byEmail}
+            onChange={(e) => {
+              setByEmail(e.target.checked);
+              setForm({ ...form, personId: "" });
+              setClash(null);
+            }}
+          />
+          Add by email
+        </label>
       </Field>
+      )}
       <Field label="Role" htmlFor="ao-role">
         <Select
           id="ao-role"

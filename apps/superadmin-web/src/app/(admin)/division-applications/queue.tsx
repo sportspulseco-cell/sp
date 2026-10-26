@@ -3,19 +3,7 @@
 import { formatMoney } from "@sportspulse/kernel";
 import { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
-import { Alert, Badge, LocalDate } from "@sportspulse/ui";
-import { Button } from "@/components/ui/button";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Alert, Badge, LocalDate, Button, Dialog, DialogActions, Field, Input, Select, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 type DteItem = {

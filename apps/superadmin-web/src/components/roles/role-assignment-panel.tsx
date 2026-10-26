@@ -1,19 +1,12 @@
 "use client";
 import { fetchAll } from "@sportspulse/api-client";
-import { Alert, LocalDate } from "@sportspulse/ui";
-
+import { Button, Field, Input, LocalDate, Select, Alert } from "@sportspulse/ui";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, ShieldCheck, UserPlus, X } from "lucide-react";
-import {
-  SYSTEM_ROLE_BY_CODE,
-  type ScopeType
-} from "@sportspulse/kernel";
+import { SYSTEM_ROLE_BY_CODE, type ScopeType } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile, RoleAssignment } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 
 /**
  * Reusable "manage admins for this resource" panel.

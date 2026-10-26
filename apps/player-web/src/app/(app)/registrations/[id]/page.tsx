@@ -156,7 +156,7 @@ export default async function RegistrationDetailPage({
         {/* Detail table */}
         <dl className="mt-6 divide-y divide-border rounded-xl border border-border bg-bg-subtle text-[13px]">
           <DetailRow label="Registration form" value={r.formName ?? "—"} />
-          <DetailRow label="Organisation" value={r.orgName ?? "—"} />
+          <DetailRow label="Organization" value={r.orgName ?? "—"} />
           {r.seasonName && <DetailRow label="Season" value={r.seasonName} />}
           {r.leagueName && <DetailRow label="League" value={r.leagueName} />}
           {r.divisionName && (

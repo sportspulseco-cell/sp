@@ -3,29 +3,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus } from "lucide-react";
+import { NOTIFICATION_TEMPLATE_CODES } from "@sportspulse/kernel";
 import { communications, orgs as orgsApi } from "@/lib/api/browser-api";
 import type { NotificationTemplate, Org } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Alert } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, Alert } from "@sportspulse/ui";
 
-const CODES = [
-  "registration.submitted",
-  "registration.approved",
-  "registration.rejected",
-  "registration.waitlisted",
-  "game.scheduled",
-  "game.rescheduled",
-  "game.postponed",
-  "game.cancelled",
-  "game.finalized",
-  "suspension.issued",
-  "suspension.lifted",
-  "roster.added",
-  "roster.dropped"
-];
+const CODES = NOTIFICATION_TEMPLATE_CODES;
 
 export function UpsertTemplateButton({
   template

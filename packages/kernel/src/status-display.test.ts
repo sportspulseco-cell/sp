@@ -18,6 +18,14 @@ test("waiting statuses are warning, including every pending registration state",
   }
 });
 
+test("substitute requests read waiting, done, refused or ended", () => {
+  assert.equal(statusTone("requested"), "warning");
+  assert.equal(statusTone("accepted"), "success");
+  assert.equal(statusTone("declined"), "danger");
+  assert.equal(statusTone("cancelled"), "neutral");
+  assert.equal(statusTone("expired"), "neutral");
+});
+
 test("refusals and failures are danger", () => {
   for (const s of ["rejected", "failed", "declined", "overdue", "forfeited", "disqualified"]) {
     assert.equal(statusTone(s), "danger", s);

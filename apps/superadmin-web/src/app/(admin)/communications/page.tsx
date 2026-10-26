@@ -1,27 +1,12 @@
 import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError, LocalDate } from "@sportspulse/ui";
+import { ChannelStatusNotice } from "@sportspulse/admin-pages";
+import { LoadError, LocalDate, Eyebrow, EmptyState, IconTile, type Tint, StatNumber, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import { communications, iam } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { EmptyState } from "@/components/ui/empty-state";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { StatNumber } from "@/components/ui/stat-number";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { NotificationStatusBadge } from "@/components/communications/notification-status-badge";
-import {
-  FlushQueuedButton,
-  RetryNotificationButton
-} from "@/components/communications/flush-queued-button";
+import { FlushQueuedButton, RetryNotificationButton } from "@/components/communications/flush-queued-button";
 import type { NotificationStatus } from "@/lib/api/types";
 
 export const metadata = { title: "Communications · Super Admin" };
@@ -88,6 +73,7 @@ export default async function CommunicationsPage({
     ])
   );
 
+  const channelStatus = await communications.channelStatus().catch(() => null);
   const allItems = (allPage ?? filteredPage).items;
   const counts = {
     queued: allItems.filter((n) => n.status === "queued").length,
@@ -121,6 +107,8 @@ export default async function CommunicationsPage({
           </div>
         }
       />
+
+      <ChannelStatusNotice status={channelStatus} />
 
       <KineticStrip
         cards={[

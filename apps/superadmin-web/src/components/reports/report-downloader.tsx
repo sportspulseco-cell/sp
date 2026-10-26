@@ -3,10 +3,7 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Alert } from "@sportspulse/ui";
+import { Button, Field, Select, Alert } from "@sportspulse/ui";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 

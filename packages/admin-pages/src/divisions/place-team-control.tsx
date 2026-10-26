@@ -8,7 +8,7 @@ import { Alert, Button, Input } from "@sportspulse/ui";
 /**
  * "Add a team" on a division page (SCH-4). Captains reach a division
  * through apply + approval; an admin needs a direct path when a team has
- * no captain yet or registered on paper. Picks from the organisation's
+ * no captain yet or registered on paper. Picks from the organization's
  * teams that are not already in this division; the server refuses a team
  * that already plays in another division of the season and says what to
  * do instead.
@@ -45,7 +45,7 @@ export function PlaceTeamControl({
           Add a team
         </Button>
         {teams.length === 0 ? (
-          <span className="text-[12px] text-fg-muted">Every team of this organisation is already here.</span>
+          <span className="text-[12px] text-fg-muted">Every team of this organization is already here.</span>
         ) : null}
         {done ? <span className="text-[12px] text-fg-muted">{done}</span> : null}
       </div>

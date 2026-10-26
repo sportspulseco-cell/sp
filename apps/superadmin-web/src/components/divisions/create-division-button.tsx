@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
 import type { Region, Season } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 
 export function CreateDivisionButton({ seasons }: { seasons: Season[] }) {
   const [open, setOpen] = useState(false);
@@ -127,7 +124,7 @@ function CreateDivisionDialog({
           htmlFor="regionId"
           hint={
             regions.length === 0
-              ? "This organisation has no regions yet. Add them in Org setup."
+              ? "This organization has no regions yet. Add them in Org setup."
               : "Optional tier between the season and its divisions."
           }
         >

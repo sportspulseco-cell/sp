@@ -21,7 +21,8 @@ export {
 } from "./role-profile-editor";
 export {
   createPublicRegistration,
-  type PublicRegistrationApi
+  type PublicRegistrationApi,
+  type RegistrationQuote
 } from "./public-api";
 export type {
   PublicSeasonContext,
