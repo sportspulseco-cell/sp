@@ -5,7 +5,7 @@ import { BYPASS_STATE_PATH, OUTPUT_DIR } from "../../../playwright.config";
 import { IS_STAGING, RUN_TAG, stagingSql, watchErrors } from "./_helpers";
 
 /**
- * J23 · Discount code at registration (finance gap 1).
+ * J25 · Discount code at registration (finance gap 1).
  *
  * Needs J3 (an open RUN_TAG season with a published form and the
  * "<runTag> Adult" price). Without its state file the journey is BLOCKED.
@@ -26,7 +26,7 @@ import { IS_STAGING, RUN_TAG, stagingSql, watchErrors } from "./_helpers";
 const J3_STATE = `${OUTPUT_DIR}-state/registration-j03.json`;
 const SHOTS = `${OUTPUT_DIR}/j23`;
 const PASSWORD = "E2e!Pass-2026x";
-const CODE = `J23${RUN_TAG.slice(-6)}`;
+const CODE = `J25${RUN_TAG.slice(-6)}`;
 
 async function newCtx(browser: Browser) {
   return browser.newContext({
@@ -88,7 +88,7 @@ async function walkToPayment(page: Page, j3: Record<string, string>, who: { firs
   await expect(page.getByTestId("funnel-invoice-lines")).toBeVisible({ timeout: 30_000 });
 }
 
-test.describe.serial("J23 · discount code at registration", () => {
+test.describe.serial("J25 · discount code at registration", () => {
   test.skip(!IS_STAGING, "journeys mutate data — staging only");
   test.setTimeout(240_000);
 
