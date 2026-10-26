@@ -5,13 +5,14 @@ import {
   ForbiddenException,
   Get,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Post,
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { IsIn, IsInt, IsOptional, Max, Min } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -25,6 +26,8 @@ import {
 } from "../../../shared/payments/payment-processor";
 import { NotificationService } from "../../communications/application/notification.service";
 import { settleInstallments } from "../application/services/installments";
+import { statusForMoney } from "../domain/invoice-money";
+import { formatMoney, invoiceLineLabel, invoicePayRange, invoiceTitle } from "@sportspulse/kernel";
 
 function fmtMoneyCents(cents: number, currency: string): string {
   const amount = (cents / 100).toFixed(2);
@@ -44,6 +47,13 @@ class PayInvoiceBodyDto {
   @IsOptional()
   @IsIn(["succeeded", "failed"])
   mockOutcome?: "succeeded" | "failed";
+  /**
+   * One key per Pay dialog. A second request with the same key (double
+   * click, retry after a lost response) returns the first result and
+   * charges nothing: a part payment on a plan would otherwise be taken
+   * twice, since the second one still fits the next installment.
+   */
+  @IsOptional() @IsString() @MaxLength(100) idempotencyKey?: string;
 }
 
 class RetryInstallmentBodyDto {
@@ -69,6 +79,7 @@ class RetryInstallmentBodyDto {
 @Controller("finance")
 @UseGuards(JwtAuthGuard)
 export class PlayerPaymentsController {
+  private readonly log = new Logger(PlayerPaymentsController.name);
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(PAYMENT_PROCESSOR) private readonly processor: PaymentProcessor,
@@ -159,6 +170,24 @@ export class PlayerPaymentsController {
       : [];
     const refundedBy = new Map(refundRows.map((r) => [r.invoiceId, Number(r.cents)]));
 
+    // The lines say what each invoice is for (registration, team dues
+    // share, store order, the admin's own description, late fee).
+    const lineRows = invoiceIds.length
+      ? await this.db
+          .select({
+            invoiceId: schema.invoiceItems.invoiceId,
+            kind: schema.invoiceItems.kind,
+            description: schema.invoiceItems.description,
+            quantity: schema.invoiceItems.quantity,
+            amountCents: schema.invoiceItems.amountCents
+          })
+          .from(schema.invoiceItems)
+          .where(inArray(schema.invoiceItems.invoiceId, invoiceIds))
+          .orderBy(schema.invoiceItems.createdAt)
+      : [];
+    const linesBy = new Map<string, typeof lineRows>();
+    for (const l of lineRows) linesBy.set(l.invoiceId, [...(linesBy.get(l.invoiceId) ?? []), l]);
+
     const byInvoice = new Map<string, typeof installments>();
     for (const ins of installments) {
       const arr = byInvoice.get(ins.invoiceId) ?? [];
@@ -170,6 +199,31 @@ export class PlayerPaymentsController {
       items: invoices.map((inv) => ({
         id: inv.id,
         orgId: inv.orgId,
+        registrationId: inv.registrationId,
+        title: invoiceTitle({
+          invoiceType: inv.invoiceType,
+          registrationId: inv.registrationId,
+          metadata: inv.metadata as Record<string, unknown>,
+          lines: linesBy.get(inv.id) ?? []
+        }),
+        lines: (linesBy.get(inv.id) ?? []).map((l) => ({
+          kind: l.kind,
+          label: invoiceLineLabel(l),
+          quantity: l.quantity,
+          amountCents: l.amountCents
+        })),
+        // What the player may pay now: the next installment up to the
+        // whole balance on a plan, the balance otherwise (same rule as pay).
+        payRange: invoicePayRange({
+          totalCents: inv.totalCents,
+          paidCents: inv.paidCents,
+          installments: (byInvoice.get(inv.id) ?? []).map((ins) => ({
+            installmentNumber: ins.installmentNumber,
+            amountCents: ins.amountCents,
+            status: ins.status,
+            dueDate: ins.dueDate ? ins.dueDate.toISOString() : null
+          }))
+        }),
         teamId: inv.teamId,
         teamName: inv.teamName,
         invoiceNumber: inv.invoiceNumber,
@@ -208,7 +262,7 @@ export class PlayerPaymentsController {
   @Post("invoices/:id/pay")
   @ApiOperation({
     summary:
-      "Combined invoice payment. Apply wallet credit (optional), charge card for remainder (optional). At least one of walletAmountCents / cardAmountCents must be > 0 and their sum must equal the outstanding balance. Atomic: all writes succeed or none."
+      "Combined invoice payment. Apply wallet credit (optional), charge card for remainder (optional). At least one of walletAmountCents / cardAmountCents must be > 0. Without a payment plan their sum must equal the outstanding balance; on a plan it may be anything from the next installment up to the balance. Atomic: all writes succeed or none."
   })
   async pay(
     @CurrentUser() user: AuthPrincipal,
@@ -244,6 +298,31 @@ export class PlayerPaymentsController {
         throw new ForbiddenException("Not your invoice");
       }
 
+      if (body.idempotencyKey) {
+        const earlier = await tx
+          .select({ id: schema.payments.id, amountCents: schema.payments.amountCents, source: sql<string>`${schema.payments.metadata}->>'source'` })
+          .from(schema.payments)
+          .where(
+            and(
+              eq(schema.payments.invoiceId, invoiceId),
+              sql`${schema.payments.metadata}->>'payKey' = ${body.idempotencyKey}`
+            )
+          );
+        if (earlier.length > 0) {
+          this.log.log(`player pay replay invoice=${invoiceId} key=${body.idempotencyKey} payments=${earlier.length}`);
+          return {
+            invoiceId,
+            status: locked.status,
+            paidCents: locked.paidCents,
+            totalCents: locked.totalCents,
+            walletApplied: earlier.filter((p) => p.source === "wallet").reduce((a, p) => a + p.amountCents, 0),
+            cardCharged: earlier.filter((p) => p.source === "card").reduce((a, p) => a + p.amountCents, 0),
+            idempotent: true,
+            _emailContext: null
+          };
+        }
+      }
+
       if (locked.status === "paid" || locked.status === "void") {
         throw new ConflictException({
           error: "not_payable",
@@ -253,11 +332,32 @@ export class PlayerPaymentsController {
 
       const totalCents = locked.totalCents;
       const paidAlready = locked.paidCents;
-      const outstanding = totalCents - paidAlready;
-      if (wallet + card !== outstanding) {
+      // A payer on a payment plan may pay the next installment, or any
+      // amount up to the whole balance; without a plan the balance is
+      // due in full (kernel invoicePayRange). Before, a plan payer could
+      // only pay everything at once.
+      const plan = await tx
+        .select({
+          installmentNumber: schema.installmentSchedules.installmentNumber,
+          amountCents: schema.installmentSchedules.amountCents,
+          status: schema.installmentSchedules.status
+        })
+        .from(schema.installmentSchedules)
+        .where(eq(schema.installmentSchedules.invoiceId, invoiceId));
+      const range = invoicePayRange({ totalCents, paidCents: paidAlready, installments: plan });
+      const amount = wallet + card;
+      if (amount > range.maxCents) {
         throw new ConflictException({
-          error: "amount_mismatch",
-          message: `Provided ${wallet + card} cents; outstanding is ${outstanding}.`
+          error: "amount_too_high",
+          message: `That is more than the ${formatMoney(range.maxCents, locked.currency)} you owe on this invoice.`
+        });
+      }
+      if (amount < range.minCents) {
+        throw new ConflictException({
+          error: "amount_too_low",
+          message: range.nextInstallment
+            ? `Pay at least the next installment, ${formatMoney(range.minCents, locked.currency)}.`
+            : `Pay the whole balance, ${formatMoney(range.minCents, locked.currency)}.`
         });
       }
 
@@ -320,8 +420,10 @@ export class PlayerPaymentsController {
           status: "succeeded",
           amountCents: wallet,
           currency,
-          externalProviderId: `wallet:${walletAcct.id}:${invoiceId}`,
-          metadata: { source: "wallet" }
+          // One wallet payment per invoice per pay request (the old key
+          // allowed only one wallet payment per invoice ever).
+          externalProviderId: `wallet:${walletAcct.id}:${invoiceId}:${paidAlready}`,
+          metadata: { source: "wallet", ...(body.idempotencyKey ? { payKey: body.idempotencyKey } : {}) }
         });
       }
 
@@ -352,13 +454,14 @@ export class PlayerPaymentsController {
           amountCents: card,
           currency,
           externalProviderId: charge.intentId,
-          metadata: { source: "card" }
+          metadata: { source: "card", ...(body.idempotencyKey ? { payKey: body.idempotencyKey } : {}) }
         });
       }
 
-      // 3. Update invoice paidCents + status
+      // 3. Update invoice paidCents + status (overdue stays overdue while
+      //    a balance remains; only the sweep or an extension moves it).
       const newPaid = paidAlready + wallet + card;
-      const newStatus = newPaid >= totalCents ? "paid" : "partial";
+      const newStatus = statusForMoney({ status: locked.status, totalCents, paidCents: newPaid });
       await tx
         .update(schema.invoices)
         .set({
@@ -369,7 +472,10 @@ export class PlayerPaymentsController {
         })
         .where(eq(schema.invoices.id, invoiceId));
       // The plan follows the money (MON-27).
-      await settleInstallments(tx, invoiceId);
+      const settled = await settleInstallments(tx, invoiceId);
+      this.log.log(
+        `player pay invoice=${invoiceId} wallet=${wallet} card=${card} paid=${newPaid}/${totalCents} status=${newStatus} installmentsSettled=${settled}`
+      );
 
       return {
         invoiceId,
@@ -392,6 +498,11 @@ export class PlayerPaymentsController {
       // commits. Audit P3-2 / §1.3: include the team name in the
       // subject + body so the player sees what this invoice was for.
       const ctx = result._emailContext;
+      if (!ctx) {
+        const { _emailContext: _none, ...replay } = result;
+        void _none;
+        return replay;
+      }
       let teamName: string | null = null;
       if (ctx.teamId) {
         const [t] = await this.db

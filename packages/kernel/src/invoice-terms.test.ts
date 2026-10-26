@@ -1,6 +1,70 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { registrationInvoiceDueAt } from "./invoice-terms";
+import { invoiceLineLabel, invoiceLineTotals, invoicePayRange, invoiceTitle, registrationInvoiceDueAt, signedLineAmount } from "./invoice-terms";
+
+const plan = [
+  { installmentNumber: 0, amountCents: 5000, status: "succeeded" },
+  { installmentNumber: 1, amountCents: 5000, status: "scheduled" },
+  { installmentNumber: 2, amountCents: 5000, status: "scheduled" }
+];
+
+test("no plan: the whole balance is due", () => {
+  assert.deepEqual(invoicePayRange({ totalCents: 9000, paidCents: 2000, installments: [] }), { minCents: 7000, maxCents: 7000, nextInstallment: null });
+});
+
+test("a plan: pay the next installment, or anything up to the balance", () => {
+  const r = invoicePayRange({ totalCents: 15000, paidCents: 5000, installments: plan });
+  assert.equal(r.minCents, 5000);
+  assert.equal(r.maxCents, 10000);
+  assert.equal(r.nextInstallment?.installmentNumber, 1);
+});
+
+test("a part-paid installment asks only for the rest of it", () => {
+  const r = invoicePayRange({ totalCents: 15000, paidCents: 7000, installments: plan });
+  assert.equal(r.minCents, 3000);
+  assert.equal(r.nextInstallment?.installmentNumber, 1);
+});
+
+test("a late fee beyond a covered plan is the balance; a paid invoice has nothing to pay", () => {
+  assert.deepEqual(invoicePayRange({ totalCents: 17500, paidCents: 15000, installments: plan }), { minCents: 2500, maxCents: 2500, nextInstallment: null });
+  assert.deepEqual(invoicePayRange({ totalCents: 15000, paidCents: 15000, installments: plan }), { minCents: 0, maxCents: 0, nextInstallment: null });
+});
+
+test("cancelled installments are skipped", () => {
+  const r = invoicePayRange({ totalCents: 10000, paidCents: 5000, installments: [plan[0]!, { ...plan[1]!, status: "cancelled" }, plan[2]!] });
+  assert.equal(r.nextInstallment?.installmentNumber, 2);
+  assert.equal(r.minCents, 5000);
+});
+
+test("a discount line takes its amount off the charges", () => {
+  const t = invoiceLineTotals([{ kind: "registration_fee", unitAmountCents: 10000 }, { kind: "discount", unitAmountCents: 1000 }]);
+  assert.deepEqual(t, { ok: true, chargesCents: 10000, discountCents: 1000, totalCents: 9000 });
+  assert.deepEqual(invoiceLineTotals([{ kind: "jersey", unitAmountCents: 2500, quantity: 2 }]), { ok: true, chargesCents: 5000, discountCents: 0, totalCents: 5000 });
+});
+
+test("a total can reach zero but never go below it", () => {
+  assert.deepEqual(invoiceLineTotals([{ kind: "other", unitAmountCents: 1000 }, { kind: "discount", unitAmountCents: 1000 }]), { ok: true, chargesCents: 1000, discountCents: 1000, totalCents: 0 });
+  assert.equal(invoiceLineTotals([{ kind: "other", unitAmountCents: 1000 }, { kind: "discount", unitAmountCents: 1001 }]).ok, false);
+  assert.equal(invoiceLineTotals([{ kind: "discount", unitAmountCents: 1 }]).ok, false);
+});
+
+test("discount lines are stored negative so lines add up to the total", () => {
+  assert.equal(signedLineAmount("discount", 1000), -1000);
+  assert.equal(signedLineAmount("discount", -1000), -1000);
+  assert.equal(signedLineAmount("jersey", 1000), 1000);
+});
+
+test("an invoice is titled by what it is for", () => {
+  assert.equal(invoiceTitle({ invoiceType: "standard", metadata: { kind: "store_order" }, lines: [{ kind: "store_item", description: "Jersey (L)" }] }), "Team store order");
+  assert.equal(invoiceTitle({ invoiceType: "sub_invoice", lines: [{ kind: "registration_fee", description: "INV-1: your share" }] }), "Team dues share");
+  assert.equal(invoiceTitle({ invoiceType: "team_dues" }), "Team dues");
+  assert.equal(invoiceTitle({ invoiceType: "standard", registrationId: "r1", lines: [{ kind: "registration_fee", description: "Adult" }] }), "Registration");
+  assert.equal(invoiceTitle({ invoiceType: "standard", lines: [{ kind: "jersey", description: "Away jersey" }, { kind: "late_fee", description: "Late fee" }] }), "Away jersey");
+  assert.equal(invoiceTitle({ invoiceType: "standard", lines: [{ kind: "jersey", description: "Away jersey" }, { kind: "other", description: "Socks" }] }), "Away jersey and 1 more");
+  assert.equal(invoiceTitle({ invoiceType: "standard" }), "Invoice");
+  assert.equal(invoiceLineLabel({ kind: "late_fee", description: "" }), "Late fee");
+  assert.equal(invoiceLineLabel({ kind: "jersey", description: "Home jersey" }), "Home jersey");
+});
 
 const DAY = 86_400_000;
 const issued = new Date("2026-10-26T10:00:00Z");

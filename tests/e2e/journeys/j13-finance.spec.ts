@@ -556,3 +556,40 @@ test("12. org-admin @ org-admin-web /finance parity and isolation", async ({ bro
     log("OA errors:", JSON.stringify(errs));
   }
 });
+
+test("13. player pays only the next installment of the plan invoice; cards say what each invoice is for", async ({ browser }) => {
+  // The plan invoice from test 2: $50.00, $10.00 deposit, 3 installments.
+  const rows = await stagingSql<{ id: string; invoice_number: string; paid_cents: number }>(
+    `select i.id, i.invoice_number, i.paid_cents from invoices i join invoice_items it on it.invoice_id = i.id
+      where it.description = $1 limit 1`,
+    [`${TAG} J13 plan invoice`]
+  );
+  test.skip(!rows[0], "no plan invoice for this run");
+  const inv = rows[0]!;
+  const p = (await as(browser, "player")).page;
+  await p.goto(`${new URL(p.url()).origin}/payments`);
+  const card = p.locator("main div.rounded-xl").filter({ hasText: inv.invoice_number }).first();
+  await expect(card, "plan invoice card").toBeVisible();
+  // Titled by the admin's line, never the old hard-coded "Registration fee".
+  await expect(card.getByText(`${TAG} J13 plan invoice`).first(), "card title is the admin's description").toBeVisible();
+  expect.soft(await card.getByText("Registration fee", { exact: true }).count(), "no hard-coded Registration fee label").toBe(0);
+  const next = card.getByRole("button", { name: /^Pay next installment \$10\.00/ });
+  await expect(next, "a plan offers the next installment, not only the whole balance").toBeVisible();
+  await expect(card.getByRole("button", { name: /^Pay all \$50\.00/ })).toBeVisible();
+  await next.click();
+  const dlg = p.getByRole("dialog");
+  await expect(dlg.getByLabel("Amount to pay now")).toHaveValue("10.00");
+  await shot(p, "13-pay-next-installment");
+  const respP = p.waitForResponse((r) => /\/finance\/invoices\/.+\/pay$/.test(r.url()));
+  await dlg.getByRole("button", { name: "Pay now" }).click();
+  const resp = await respP;
+  log("pay next installment →", resp.status(), (await resp.text()).slice(0, 200));
+  expect(resp.status()).toBeLessThan(300);
+  const db = await stagingSql<{ status: string; paid_cents: number }>(`select status, paid_cents from invoices where id = $1`, [inv.id]);
+  expect(db[0], "invoice paid 10.00 of 50.00").toMatchObject({ status: "partial", paid_cents: 1000 });
+  const plan = await stagingSql<{ n: number; status: string }>(`select installment_number n, status from installment_schedules where invoice_id = $1 order by 1`, [inv.id]);
+  expect(plan[0]?.status, "deposit row marked paid").toBe("succeeded");
+  expect(plan.slice(1).every((r) => r.status === "scheduled"), "later installments still open").toBe(true);
+  // Same page, no reload: the card now offers the following installment.
+  await expect(card.getByRole("button", { name: /^Pay next installment/ })).toBeVisible();
+});

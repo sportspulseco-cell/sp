@@ -33,7 +33,7 @@ export function PaymentsClient({
 }) {
   const [wallet, setWallet] = useState<Wallet>(initial.wallet);
   const [invoices, setInvoices] = useState<Invoices>(initial.invoices);
-  const [payTarget, setPayTarget] = useState<Invoice | null>(null);
+  const [payTarget, setPayTarget] = useState<{ invoice: Invoice; presetCents: number } | null>(null);
   const [retryTarget, setRetryTarget] = useState<{
     inv: Invoice;
     ins: Installment;
@@ -92,7 +92,10 @@ export function PaymentsClient({
         </div>
         <Button
           disabled={!nextUnpaidInvoice || totalBalance === 0}
-          onClick={() => nextUnpaidInvoice && setPayTarget(nextUnpaidInvoice)}
+          onClick={() =>
+            nextUnpaidInvoice &&
+            setPayTarget({ invoice: nextUnpaidInvoice, presetCents: nextUnpaidInvoice.payRange.minCents })
+          }
         >
           Apply to next payment
         </Button>
@@ -105,7 +108,7 @@ export function PaymentsClient({
             <InvoiceCard
               key={inv.id}
               invoice={inv}
-              onPay={() => setPayTarget(inv)}
+              onPay={(presetCents) => setPayTarget({ invoice: inv, presetCents })}
               onRetry={(ins) => setRetryTarget({ inv, ins })}
               onUpdateCard={() => setUpdateCardTarget(inv)}
             />
@@ -147,7 +150,9 @@ export function PaymentsClient({
       )}
 
       <PayDialog
-        invoice={payTarget}
+        key={payTarget ? `${payTarget.invoice.id}-${payTarget.presetCents}` : "none"}
+        invoice={payTarget?.invoice ?? null}
+        presetCents={payTarget?.presetCents ?? 0}
         wallet={wallet}
         onClose={() => setPayTarget(null)}
         onPaid={async (msg) => {
@@ -186,11 +191,15 @@ function InvoiceCard({
   onUpdateCard
 }: {
   invoice: Invoice;
-  onPay: () => void;
+  onPay: (presetCents: number) => void;
   onRetry: (ins: Installment) => void;
   onUpdateCard: () => void;
 }) {
   const outstanding = Math.max(0, invoice.totalCents - invoice.paidCents);
+  const range = invoice.payRange;
+  // On a payment plan the player can pay the next installment instead of everything.
+  const nextOnly = range.nextInstallment !== null && range.minCents > 0 && range.minCents < range.maxCents;
+  const hasLateFeeLine = invoice.lines.some((l) => l.kind === "late_fee");
   const overdue = invoice.status === "overdue";
   const failedInstallments = invoice.installments.filter(
     (i) => i.status === "failed"
@@ -202,7 +211,7 @@ function InvoiceCard({
       <header className="flex items-start justify-between gap-3 px-5 py-4">
         <div>
           <p className="text-[15px] font-semibold tracking-tight text-fg">
-            {invoiceTitleFor(invoice)}
+            {invoice.title}
           </p>
           <p className="font-mono text-[11px] text-fg-muted">
             {invoice.invoiceNumber}
@@ -239,10 +248,25 @@ function InvoiceCard({
 
       {/* Line items breakdown — mock 3 */}
       <dl className="space-y-1 border-t border-border px-5 py-3 text-[13px]">
-        <BreakdownRow
-          label="Registration fee"
-          value={formatMoney(invoice.subtotalCents, invoice.currency)}
-        />
+        {invoice.lines.length > 0 ? (
+          invoice.lines.map((l, i) => (
+            <BreakdownRow
+              key={i}
+              label={l.quantity > 1 ? `${l.label} × ${l.quantity}` : l.label}
+              value={
+                l.amountCents < 0
+                  ? "−" + formatMoney(-l.amountCents, invoice.currency)
+                  : formatMoney(l.amountCents, invoice.currency)
+              }
+              tone={l.kind === "late_fee" ? "rose" : l.amountCents < 0 ? "emerald" : undefined}
+            />
+          ))
+        ) : (
+          <BreakdownRow
+            label={invoice.title}
+            value={formatMoney(invoice.subtotalCents, invoice.currency)}
+          />
+        )}
         {invoice.walletCreditAppliedCents > 0 && (
           <BreakdownRow
             label="Wallet credit applied"
@@ -250,7 +274,7 @@ function InvoiceCard({
             tone="emerald"
           />
         )}
-        {invoice.lateFeeAppliedCents > 0 && (
+        {invoice.lateFeeAppliedCents > 0 && !hasLateFeeLine && (
           <BreakdownRow
             label="Late fee"
             value={"+" + formatMoney(invoice.lateFeeAppliedCents, invoice.currency)}
@@ -338,8 +362,18 @@ function InvoiceCard({
             <RefreshCw className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
             Retry now
           </Button>
+        ) : outstanding > 0 && nextOnly ? (
+          <>
+            <Button onClick={() => onPay(range.minCents)}>
+              <CreditCard className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
+              Pay next installment {formatMoney(range.minCents, invoice.currency)}
+            </Button>
+            <Button variant="ghost" onClick={() => onPay(range.maxCents)}>
+              Pay all {formatMoney(range.maxCents, invoice.currency)}
+            </Button>
+          </>
         ) : outstanding > 0 ? (
-          <Button onClick={onPay}>
+          <Button onClick={() => onPay(outstanding)}>
             <CreditCard className="mr-2 h-3.5 w-3.5" strokeWidth={1.75} />
             Pay {formatMoney(outstanding, invoice.currency)}
           </Button>
@@ -480,22 +514,6 @@ function TeamLink({
   );
 }
 
-function invoiceTitleFor(inv: Invoice): string {
-  switch (inv.invoiceType) {
-    case "registration":
-    case "sub_invoice":
-      return "Registration";
-    case "team_dues":
-      return "Team dues";
-    case "referee_payroll":
-      return "Officiating fee";
-    case "standard":
-      return "Invoice";
-    default:
-      return inv.invoiceType.replace(/_/g, " ");
-  }
-}
-
 /**
  * A printable receipt from the invoice the player already sees: lines,
  * total, paid, refunded, balance. Opens in a new tab; the browser's
@@ -508,7 +526,14 @@ function downloadReceipt(inv: Invoice) {
     iso ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
   const refunded = inv.refundedCents ?? 0;
   const balance = Math.max(0, inv.totalCents - inv.paidCents);
-  const lines = `<tr><td>${esc(invoiceTitleFor(inv))}${inv.teamName ? ` · ${esc(inv.teamName)}` : ""}</td><td class="n">1</td><td class="n">${esc(formatMoney(inv.totalCents, inv.currency))}</td></tr>`;
+  // The same lines the Payments card shows (MON-18): what each charge was for.
+  const money = (cents: number) => (cents < 0 ? "−" + formatMoney(-cents, inv.currency) : formatMoney(cents, inv.currency));
+  const lines =
+    inv.lines.length > 0
+      ? inv.lines
+          .map((l) => `<tr><td>${esc(l.label)}</td><td class="n">${esc(l.quantity)}</td><td class="n">${esc(money(l.amountCents))}</td></tr>`)
+          .join("")
+      : `<tr><td>${esc(inv.title)}</td><td class="n">1</td><td class="n">${esc(formatMoney(inv.subtotalCents, inv.currency))}</td></tr>`;
   const win = window.open("", "_blank");
   if (!win) return;
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(inv.invoiceNumber)}</title>
@@ -516,7 +541,7 @@ function downloadReceipt(inv: Invoice) {
 h1{font-size:20px;margin:0 0 4px}p{margin:2px 0;color:#444}table{width:100%;border-collapse:collapse;margin:16px 0}
 td,th{padding:6px 4px;border-bottom:1px solid #ddd;text-align:left}.n{text-align:right}.tot td{font-weight:600}
 @media print{button{display:none}}</style></head><body>
-<h1>Receipt</h1><p>SportsPulse</p><p>Invoice ${esc(inv.invoiceNumber)}${inv.issuedAt ? ` · issued ${esc(day(inv.issuedAt))}` : ""} · printed ${esc(day(new Date().toISOString()))}</p>
+<h1>Receipt</h1><p>SportsPulse</p><p>${esc(inv.title)}${inv.teamName ? ` · ${esc(inv.teamName)}` : ""}</p><p>Invoice ${esc(inv.invoiceNumber)}${inv.issuedAt ? ` · issued ${esc(day(inv.issuedAt))}` : ""} · printed ${esc(day(new Date().toISOString()))}</p>
 <table><thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Price</th></tr></thead><tbody>${lines}</tbody></table>
 <table><tbody>
 <tr><td>Total</td><td class="n">${esc(formatMoney(inv.totalCents, inv.currency))}</td></tr>
@@ -534,16 +559,25 @@ ${refunded > 0 ? `<tr><td>Refunded</td><td class="n">${esc(formatMoney(refunded,
 // ---------------------------------------------------------------------
 function PayDialog({
   invoice,
+  presetCents,
   wallet,
   onClose,
   onPaid
 }: {
   invoice: Invoice | null;
+  presetCents: number;
   wallet: Wallet;
   onClose: () => void;
   onPaid: (msg: string) => void;
 }) {
   const [walletAmount, setWalletAmount] = useState<string>("");
+  const [amountText, setAmountText] = useState<string>((presetCents / 100).toFixed(2));
+  // One key per opened dialog: a double click or a retry charges once.
+  const [payKey] = useState(() =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
   const [mockOutcome, setMockOutcome] = useState<"succeeded" | "failed">(
     "succeeded"
   );
@@ -553,15 +587,22 @@ function PayDialog({
   if (!invoice) return null;
 
   const outstanding = Math.max(0, invoice.totalCents - invoice.paidCents);
+  const range = invoice.payRange;
+  const flexible = range.minCents < range.maxCents;
+  // What the player pays now: fixed to the balance without a plan; on a
+  // plan anything from the next installment up to the balance.
+  const parsedAmount = Math.round(parseFloat(amountText || "0") * 100);
+  const amount = flexible ? (Number.isFinite(parsedAmount) ? parsedAmount : 0) : outstanding;
+  const amountOk = amount >= range.minCents && amount <= range.maxCents && amount > 0;
   const walletForOrg = wallet.accounts.find(
     (a) => a.orgId === invoice.orgId && a.currency === invoice.currency
   );
   const walletAvailable = walletForOrg?.balanceCents ?? 0;
   const walletParsed = Math.round(parseFloat(walletAmount || "0") * 100);
   const walletApplied = Number.isFinite(walletParsed)
-    ? Math.max(0, Math.min(walletParsed, walletAvailable, outstanding))
+    ? Math.max(0, Math.min(walletParsed, walletAvailable, Math.max(0, amount)))
     : 0;
-  const cardCharge = outstanding - walletApplied;
+  const cardCharge = Math.max(0, amount - walletApplied);
 
   async function confirm() {
     setBusy(true);
@@ -570,7 +611,8 @@ function PayDialog({
       const res = await finance.payInvoice(invoice!.id, {
         walletAmountCents: walletApplied || undefined,
         cardAmountCents: cardCharge || undefined,
-        mockOutcome
+        mockOutcome,
+        idempotencyKey: payKey
       });
       const parts: string[] = [];
       if (res.walletApplied > 0)
@@ -594,12 +636,59 @@ function PayDialog({
       size="lg"
     >
       <div className="space-y-3">
+        {flexible ? (
+          <div className="grid gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+              Amount to pay now
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={amount === range.minCents ? "primary" : "ghost"}
+                onClick={() => setAmountText((range.minCents / 100).toFixed(2))}
+              >
+                Next installment {formatMoney(range.minCents, invoice.currency)}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={amount === range.maxCents ? "primary" : "ghost"}
+                onClick={() => setAmountText((range.maxCents / 100).toFixed(2))}
+              >
+                Whole balance {formatMoney(range.maxCents, invoice.currency)}
+              </Button>
+            </div>
+            <label className="grid gap-1">
+              <span className="text-[12px] text-fg-muted">
+                Or another amount between {formatMoney(range.minCents, invoice.currency)} and{" "}
+                {formatMoney(range.maxCents, invoice.currency)}
+              </span>
+              <input
+                aria-label="Amount to pay now"
+                type="number"
+                step="0.01"
+                min={range.minCents / 100}
+                max={range.maxCents / 100}
+                value={amountText}
+                onChange={(e) => setAmountText(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+              />
+            </label>
+            {!amountOk ? (
+              <p className="text-[12px] text-[var(--tint-rose-fg)]">
+                Enter an amount between {formatMoney(range.minCents, invoice.currency)} and{" "}
+                {formatMoney(range.maxCents, invoice.currency)}.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {walletAvailable > 0 ? (
           <label className="grid gap-1">
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               From wallet (max{" "}
               {formatMoney(
-                Math.min(walletAvailable, outstanding),
+                Math.min(walletAvailable, Math.max(0, amount)),
                 invoice.currency
               )})
             </span>
@@ -607,7 +696,7 @@ function PayDialog({
               type="number"
               step="0.01"
               min="0"
-              max={Math.min(walletAvailable, outstanding) / 100}
+              max={Math.min(walletAvailable, Math.max(0, amount)) / 100}
               value={walletAmount}
               onChange={(e) => setWalletAmount(e.target.value)}
               placeholder="0.00"
@@ -669,7 +758,7 @@ function PayDialog({
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button onClick={confirm} disabled={busy || walletApplied + cardCharge !== outstanding}>
+          <Button onClick={confirm} disabled={busy || !amountOk || walletApplied + cardCharge !== amount}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pay now"}
           </Button>
         </DialogActions>

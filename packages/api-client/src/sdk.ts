@@ -676,6 +676,18 @@ export function createApi(f: Fetcher) {
           items: Array<{
             id: string;
             orgId: string;
+            /** Set when the invoice is a registration fee. */
+            registrationId: string | null;
+            /** What the invoice is for: Registration, Team dues share, Team store order, the admin's line... */
+            title: string;
+            /** The invoice's lines; discounts are negative, late fees are their own line. */
+            lines: Array<{ kind: string; label: string; quantity: number; amountCents: number }>;
+            /** What may be paid now: the next installment up to the balance on a plan, else the balance. */
+            payRange: {
+              minCents: number;
+              maxCents: number;
+              nextInstallment: { installmentNumber: number; owedCents: number; dueDate: string | null } | null;
+            };
             teamId: string | null;
             teamName: string | null;
             invoiceNumber: string;
@@ -709,10 +721,13 @@ export function createApi(f: Fetcher) {
           walletAmountCents?: number;
           cardAmountCents?: number;
           mockOutcome?: "succeeded" | "failed";
+          /** One per Pay dialog: a repeat with the same key charges nothing more. */
+          idempotencyKey?: string;
         }
       ) =>
         f<{
           invoiceId: string;
+          idempotent?: boolean;
           status: string;
           paidCents: number;
           totalCents: number;
