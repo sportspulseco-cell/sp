@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, Star } from "lucide-react";
 import { cn } from "../lib/cn";
 import { ThemeToggle } from "../theme-toggle";
 import { useNav } from "./nav-context";
@@ -154,5 +154,21 @@ function AccountMenu({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A role pill for the top bar's `badge` slot, e.g. "Captain" in the
+ * team and player consoles. Same look in every console.
+ */
+export function RolePill({ label, title }: { label: string; title?: string }) {
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-1 rounded-full border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]"
+    >
+      <Star className="h-3 w-3" strokeWidth={2} />
+      {label}
+    </span>
   );
 }

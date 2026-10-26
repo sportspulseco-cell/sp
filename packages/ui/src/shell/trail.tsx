@@ -20,8 +20,8 @@ function humanize(segment: string): string {
  * same words never appear twice (crumb and title).
  *
  * - A path that is a sidebar entry takes the sidebar's label.
- * - An id takes the record's name when the page or `resolveName`
- *   supplied it, else "Details".
+ * - An id with its own page takes the record's name when the page or
+ *   `resolveName` supplied it, else "Details".
  * - Other parts appear only when they are a page of the app
  *   (`routes`), so the trail never links to a 404 or shows a folder
  *   name like "captain".
@@ -47,11 +47,10 @@ export function shellTrail(
     const navLabel = byHref.get(path);
     if (navLabel) {
       if (path !== opts.home.href) crumbs.push({ label: navLabel, href: path });
-    } else if (isIdSegment(segment)) {
-      crumbs.push({
-        label: opts.names?.[segment] ?? "Details",
-        href: isRoute(path, opts.routes) ? path : undefined
-      });
+    } else if (isIdSegment(segment) && isRoute(path, opts.routes)) {
+      // A record with its own page. A record id that is only a folder
+      // (/scheduling/:seasonId/...) is skipped: the page title names it.
+      crumbs.push({ label: opts.names?.[segment] ?? "Details", href: path });
     } else if (isRoute(path, opts.routes)) {
       crumbs.push({ label: humanize(segment), href: path });
     }

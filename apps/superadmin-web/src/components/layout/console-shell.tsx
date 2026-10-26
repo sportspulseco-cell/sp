@@ -24,9 +24,7 @@ const NAME_BY_SECTION: Record<string, (id: string) => Promise<string>> = {
   seasons: async (id) => (await leagueMgmt.getSeason(id)).name,
   divisions: async (id) => (await leagueMgmt.getDivision(id)).name,
   teams: async (id) => (await leagueMgmt.getTeam(id)).name,
-  forms: async (id) => (await registration.getForm(id)).name,
-  // The schedule pages sit under /scheduling/:seasonId.
-  scheduling: async (id) => (await leagueMgmt.getSeason(id)).name
+  forms: async (id) => (await registration.getForm(id)).name
 };
 
 async function resolveName(section: string, id: string): Promise<string | null> {
