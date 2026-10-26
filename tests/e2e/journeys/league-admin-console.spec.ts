@@ -112,3 +112,44 @@ test("league admin never sees a user whose only role is in another organisation"
     await stagingSql(`delete from orgs where id = $1`, [orgB!.id]);
   }
 });
+
+test("league admin: Invoices shows their league's totals and invoices, never another league's", async ({ browser }) => {
+  test.setTimeout(180_000);
+  // One invoice in the league admin's league, one in a sibling league of the same org.
+  const tag = `${RUN_TAG}LAFIN`;
+  const [own] = await stagingSql<{ id: string }>(
+    `select s.id from seasons s join leagues l on l.id = s.league_id where l.name = 'PPHL Staging League' order by s.created_at limit 1`
+  );
+  const [sib] = await stagingSql<{ id: string; org_id: string }>(
+    `select s.id, s.org_id from seasons s join leagues l on l.id = s.league_id
+      where l.name <> 'PPHL Staging League' and l.org_id = (select org_id from leagues where name = 'PPHL Staging League' limit 1) limit 1`
+  );
+  test.skip(!own || !sib, "needs a season in the league and in a sibling league");
+  const ids: string[] = [];
+  for (const [n, season] of [["own", own!.id], ["sibling", sib!.id]] as const) {
+    const [r] = await stagingSql<{ id: string }>(
+      `insert into invoices (org_id, invoice_number, status, subtotal_cents, total_cents, season_id, issued_at, due_at)
+       values ($1, $2, 'sent', 1234, 1234, $3, now(), now() + interval '9 days') returning id`,
+      [sib!.org_id, `${tag}-${n}`, season]
+    );
+    ids.push(r!.id);
+  }
+  const { page, context } = await signedInAs(browser, "leagueAdmin", { app: E2E_URLS.superadmin });
+  try {
+    await page.goto(`${E2E_URLS.superadmin}/finance`);
+    const main = page.locator("main").first();
+    await expect(main.getByText("Total invoiced").first(), "AR tiles render").toBeVisible({ timeout: 30_000 });
+    expect.soft((await main.innerText()).replace(/\s+/g, " "), "no access or load error").not.toMatch(FORBIDDEN);
+    await page.getByPlaceholder("Search name, email, invoice #").fill(tag);
+    await page.getByPlaceholder("Search name, email, invoice #").press("Enter");
+    await page.waitForURL(/[?&]q=/);
+    await expect(main.getByText(`${tag}-own`), "own league's invoice listed").toBeVisible({ timeout: 20_000 });
+    await expect(main.getByText(`${tag}-sibling`), "sibling league's invoice not listed").toHaveCount(0);
+    // Opening the sibling invoice by URL is a not-found, not its details.
+    await page.goto(`${E2E_URLS.superadmin}/finance/${ids[1]}`);
+    expect.soft(await page.getByText(`${tag}-sibling`).count(), "sibling invoice detail not shown").toBe(0);
+  } finally {
+    await context.close();
+    await stagingSql(`delete from invoices where id = any($1::uuid[])`, [ids]);
+  }
+});

@@ -56,6 +56,8 @@ export class BulkCreateInvoiceBodyDto {
   @IsDateString() dueAt!: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsUUID() feeScheduleId?: string;
+  /** Added once by the overdue sweep a day after the due date; 0 = none. */
+  @IsOptional() @IsInt() @Min(0) lateFeeCents?: number;
   @IsOptional() paymentPlanEnabled?: boolean;
   @IsOptional() @IsInt() @Min(0) depositCents?: number;
   @IsOptional() @IsInt() @Min(1) @Max(12) installmentCount?: number;

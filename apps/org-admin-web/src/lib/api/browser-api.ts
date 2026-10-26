@@ -121,6 +121,7 @@ const api = createApi(apiFetch);
 export const iam = api.iam;
 export const gameOps = api.gameOps;
 export const orgs = api.orgs;
+export const finance = api.finance;
 export const schedulingInventory = api.schedulingInventory;
 export const orgAdminPersons = api.orgAdminPersons;
 export const orgAdminTeams = api.orgAdminTeams;

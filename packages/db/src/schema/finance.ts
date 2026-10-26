@@ -110,6 +110,14 @@ export const invoices = pgTable(
     lateFeeAppliedCents: integer("late_fee_applied_cents")
       .notNull()
       .default(0),
+    /**
+     * Late fee configured on this invoice (0060): added once by the
+     * overdue sweep a day after the due date. 0 = none (the fee
+     * schedule's late fee applies, if any).
+     */
+    lateFeeCents: integer("late_fee_cents").notNull().default(0),
+    /** Admin stopped the overdue sweep's reminders for this invoice (0061, UC-18). */
+    autoRemindersPaused: boolean("auto_reminders_paused").notNull().default(false),
     /** Manual invoice billing scope at creation time. */
     billingScope: text("billing_scope"),
     /** Targeting columns for bulk invoices (team/division/league/season). */

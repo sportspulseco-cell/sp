@@ -12,6 +12,8 @@
  * page extracted lands here one at a time.
  */
 export { LeagueDetail } from "./league-detail";
+export { FinanceReportsPanel } from "./finance/finance-reports-panel";
+export type { FinanceBalances, FinanceExportKind, FinanceReportsPanelProps } from "./finance/finance-reports-panel";
 export { SeasonDetail } from "./season-detail";
 export { SeasonFlow } from "./season-flow";
 export type { SeasonFlowApi, SeasonFlowLinks } from "./season-flow";

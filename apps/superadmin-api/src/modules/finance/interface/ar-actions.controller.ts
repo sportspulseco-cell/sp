@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  IsBoolean,
   IsDateString,
   IsInt,
   IsOptional,
@@ -28,6 +29,11 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
+import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
+import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { assertInvoiceInScope } from "../application/services/finance-scope";
 import { RefundService } from "../application/services/refund.service";
 import { statusForMoney } from "../domain/invoice-money";
 
@@ -39,6 +45,10 @@ class WaiveLateFeeBodyDto {
 class ExtendDueDateBodyDto {
   @IsDateString() newDueAt!: string;
   @IsOptional() @IsString() reason?: string;
+}
+
+class SetRemindersBodyDto {
+  @IsBoolean() paused!: boolean;
 }
 
 class ManualRemindBodyDto {
@@ -72,8 +82,11 @@ class RetryQbSyncBodyDto {
 @ApiTags("finance/ar-actions")
 @ApiBearerAuth()
 @Controller("finance")
-@UseGuards(JwtAuthGuard, SuperAdminGuard)
+@UseGuards(JwtAuthGuard)
 export class FinanceArActionsController {
+  // Invoice actions are open to scoped admins inside their scope (404
+  // outside it); wallet credit for a person and QuickBooks stay super
+  // admin only.
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly refunds: RefundService
@@ -83,6 +96,8 @@ export class FinanceArActionsController {
   // POST /finance/invoices/:id/waive-late-fee  (Phase 6)
   // -------------------------------------------------------------------
   @Post("invoices/:id/waive-late-fee")
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Remove the auto-applied late_fee invoice_item, recalculate total_cents, and flag the escalation as waived."
@@ -90,8 +105,10 @@ export class FinanceArActionsController {
   async waiveLateFee(
     @CurrentUser() user: AuthPrincipal,
     @Param("id") invoiceId: string,
-    @Body() body: WaiveLateFeeBodyDto
+    @Body() body: WaiveLateFeeBodyDto,
+    @UserScope() scope: UserScopeType
   ) {
+    await assertInvoiceInScope(this.db, scope, invoiceId);
     return await this.db.transaction(async (tx) => {
       const [inv] = await tx
         .select()
@@ -169,6 +186,8 @@ export class FinanceArActionsController {
   // POST /finance/invoices/:id/extend-due-date  (Phase 6)
   // -------------------------------------------------------------------
   @Post("invoices/:id/extend-due-date")
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Move the invoice's due date forward; remove the overdue flag if applicable."
@@ -176,8 +195,10 @@ export class FinanceArActionsController {
   async extendDueDate(
     @CurrentUser() user: AuthPrincipal,
     @Param("id") invoiceId: string,
-    @Body() body: ExtendDueDateBodyDto
+    @Body() body: ExtendDueDateBodyDto,
+    @UserScope() scope: UserScopeType
   ) {
+    await assertInvoiceInScope(this.db, scope, invoiceId);
     const newDue = new Date(body.newDueAt);
     return await this.db.transaction(async (tx) => {
       const [inv] = await tx
@@ -232,6 +253,8 @@ export class FinanceArActionsController {
   // POST /finance/invoices/:id/remind  (Phase 6)
   // -------------------------------------------------------------------
   @Post("invoices/:id/remind")
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Send an out-of-schedule manual reminder for an invoice. Logs to overdue_reminder_log + queues a notification."
@@ -239,8 +262,10 @@ export class FinanceArActionsController {
   async manualRemind(
     @CurrentUser() user: AuthPrincipal,
     @Param("id") invoiceId: string,
-    @Body() body: ManualRemindBodyDto
+    @Body() body: ManualRemindBodyDto,
+    @UserScope() scope: UserScopeType
   ) {
+    await assertInvoiceInScope(this.db, scope, invoiceId);
     const [inv] = await this.db
       .select()
       .from(schema.invoices)
@@ -249,13 +274,21 @@ export class FinanceArActionsController {
     if (!inv) throw new NotFoundException("Invoice not found");
 
     const channel = body.channel ?? "email";
+    if (channel === "email" && !inv.recipientEmail) {
+      throw new ConflictException({
+        error: "no_recipient_email",
+        message: `Invoice ${inv.invoiceNumber} has no email address to send a reminder to.`
+      });
+    }
 
+    // A subject, so the email can be sent at all and reads as what it is.
     await this.db.insert(schema.notifications).values({
       orgId: inv.orgId,
       idempotencyKey: `manual-remind-${invoiceId}-${Date.now()}`,
       templateCode: "INVOICE_MANUAL_REMIND",
       channel,
-      body: `Reminder: please complete payment on invoice ${inv.invoiceNumber}.`,
+      subject: `Reminder: invoice ${inv.invoiceNumber} is waiting for payment`,
+      body: `Reminder: please complete payment on invoice ${inv.invoiceNumber}. The balance is ${(Math.max(0, inv.totalCents - inv.paidCents) / 100).toFixed(2)} ${inv.currency}.`,
       recipientPersonId: inv.recipientPersonId,
       recipientEmail: inv.recipientEmail,
       payload: { invoiceId },
@@ -280,13 +313,45 @@ export class FinanceArActionsController {
       });
     }
 
-    return { invoiceId, channel, status: "queued" as const };
+    return { invoiceId, channel, status: "queued" as const, recipientEmail: inv.recipientEmail };
+  }
+
+  // -------------------------------------------------------------------
+  // POST /finance/invoices/:id/reminders  (UC-18 alternative flow)
+  // -------------------------------------------------------------------
+  @Post("invoices/:id/reminders")
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
+  @ApiOperation({
+    summary:
+      "Stop or resume the overdue sweep's automatic reminders for one invoice. The invoice still goes overdue and a configured late fee still applies."
+  })
+  async setReminders(
+    @CurrentUser() user: AuthPrincipal,
+    @Param("id", new ParseUUIDPipe()) invoiceId: string,
+    @Body() body: SetRemindersBodyDto,
+    @UserScope() scope: UserScopeType
+  ) {
+    await assertInvoiceInScope(this.db, scope, invoiceId);
+    const rows = await this.db
+      .update(schema.invoices)
+      .set({
+        autoRemindersPaused: body.paused,
+        metadata: sql`(case when jsonb_typeof(${schema.invoices.metadata}) = 'object' then ${schema.invoices.metadata} else '{}'::jsonb end) || ${JSON.stringify({ remindersPausedBy: user.userId, remindersPausedAt: new Date().toISOString(), remindersPaused: body.paused })}::jsonb`,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.invoices.id, invoiceId))
+      .returning({ paused: schema.invoices.autoRemindersPaused });
+    if (rows.length !== 1) throw new NotFoundException("Invoice not found");
+    return { invoiceId, autoRemindersPaused: rows[0]!.paused };
   }
 
   // -------------------------------------------------------------------
   // POST /finance/invoices/:id/refund-split  (Phase 4, MON-9)
   // -------------------------------------------------------------------
   @Post("invoices/:id/refund-split")
+  @UseGuards(ScopedAdminGuard)
+  @AllowScopedWrite()
   @ApiOperation({
     summary:
       "Refund an invoice: card part back through the payment processor and/or wallet credit. One transaction; total refunds can never exceed what is still paid; the invoice total and paid amount both drop by the refund. Requires X-Idempotency-Key. Reason required."
@@ -295,8 +360,10 @@ export class FinanceArActionsController {
     @CurrentUser() user: AuthPrincipal,
     @Param("id", new ParseUUIDPipe()) invoiceId: string,
     @Body() body: SplitRefundBodyDto,
-    @Headers("x-idempotency-key") idempotencyKey: string | undefined
+    @Headers("x-idempotency-key") idempotencyKey: string | undefined,
+    @UserScope() scope: UserScopeType
   ) {
+    await assertInvoiceInScope(this.db, scope, invoiceId);
     return this.refunds.issue({
       invoiceId,
       cardAmountCents: body.cardAmountCents,
@@ -312,6 +379,7 @@ export class FinanceArActionsController {
   // Standalone wallet credit issuance (not tied to a refund).
   // -------------------------------------------------------------------
   @Post("persons/:personId/wallet-credit")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Issue a wallet credit to a player not tied to an existing invoice. Use for admin discretionary credits."
@@ -403,6 +471,7 @@ export class FinanceArActionsController {
   // GET /finance/qb/queue  +  POST /finance/qb/retry/:id  (Phase 7)
   // -------------------------------------------------------------------
   @Get("qb/queue")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "QuickBooks sync queue + dead-letter view. Returns the 100 most recent rows; admin can retry failed ones."
@@ -431,6 +500,7 @@ export class FinanceArActionsController {
   }
 
   @Post("qb/retry/:id")
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Re-queue a failed QB sync event from the dead-letter list. The next cron pass picks it up."

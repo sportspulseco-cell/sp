@@ -693,7 +693,8 @@ function PaymentsSummary({
                           : "bg-[var(--tint-blue-fg)]")
                     }
                   />
-                  <span className="truncate font-mono text-[11px] text-fg">
+                  <span className="truncate text-[12px] text-fg">{inv.title}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-fg-muted">
                     {inv.invoiceNumber}
                   </span>
                   {inv.dueAt ? (

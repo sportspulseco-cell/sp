@@ -556,3 +556,125 @@ test("12. org-admin @ org-admin-web /finance parity and isolation", async ({ bro
     log("OA errors:", JSON.stringify(errs));
   }
 });
+
+test("13. player pays only the next installment of the plan invoice; cards say what each invoice is for", async ({ browser }) => {
+  // The plan invoice from test 2: $50.00, $10.00 deposit, 3 installments.
+  const rows = await stagingSql<{ id: string; invoice_number: string; paid_cents: number }>(
+    `select i.id, i.invoice_number, i.paid_cents from invoices i join invoice_items it on it.invoice_id = i.id
+      where it.description = $1 limit 1`,
+    [`${TAG} J13 plan invoice`]
+  );
+  test.skip(!rows[0], "no plan invoice for this run");
+  const inv = rows[0]!;
+  const p = (await as(browser, "player")).page;
+  await p.goto(`${new URL(p.url()).origin}/payments`);
+  const card = p.locator("main div.rounded-xl").filter({ hasText: inv.invoice_number }).first();
+  await expect(card, "plan invoice card").toBeVisible();
+  // Titled by the admin's line, never the old hard-coded "Registration fee".
+  await expect(card.getByText(`${TAG} J13 plan invoice`).first(), "card title is the admin's description").toBeVisible();
+  expect.soft(await card.getByText("Registration fee", { exact: true }).count(), "no hard-coded Registration fee label").toBe(0);
+  const next = card.getByRole("button", { name: /^Pay next installment \$10\.00/ });
+  await expect(next, "a plan offers the next installment, not only the whole balance").toBeVisible();
+  await expect(card.getByRole("button", { name: /^Pay all \$50\.00/ })).toBeVisible();
+  await next.click();
+  const dlg = p.getByRole("dialog");
+  await expect(dlg.getByLabel("Amount to pay now")).toHaveValue("10.00");
+  await shot(p, "13-pay-next-installment");
+  const respP = p.waitForResponse((r) => /\/finance\/invoices\/.+\/pay$/.test(r.url()));
+  await dlg.getByRole("button", { name: "Pay now" }).click();
+  const resp = await respP;
+  log("pay next installment →", resp.status(), (await resp.text()).slice(0, 200));
+  expect(resp.status()).toBeLessThan(300);
+  const db = await stagingSql<{ status: string; paid_cents: number }>(`select status, paid_cents from invoices where id = $1`, [inv.id]);
+  expect(db[0], "invoice paid 10.00 of 50.00").toMatchObject({ status: "partial", paid_cents: 1000 });
+  const plan = await stagingSql<{ n: number; status: string }>(`select installment_number n, status from installment_schedules where invoice_id = $1 order by 1`, [inv.id]);
+  expect(plan[0]?.status, "deposit row marked paid").toBe("succeeded");
+  expect(plan.slice(1).every((r) => r.status === "scheduled"), "later installments still open").toBe(true);
+  // Same page, no reload: the card now offers the following installment.
+  await expect(card.getByRole("button", { name: /^Pay next installment/ })).toBeVisible();
+});
+
+test("14. composer: a Discount line lowers the total; a late fee is stored on the invoice", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  await composeTeamInvoice(p, "", "");
+  await p.locator("select#scope").selectOption("individual");
+  const playerOpt = (await p.locator("select#target option").allTextContents()).find((o) => /staging-player@/i.test(o));
+  expect(playerOpt, "composer lists the staging player").toBeTruthy();
+  await p.locator("select#target").selectOption({ label: playerOpt! });
+  await p.getByPlaceholder("e.g. 2026 Spring season registration").fill(`${TAG} J13 discounted fee`);
+  await p.getByPlaceholder("0.00").first().fill("100.00");
+  await p.getByRole("button", { name: "Add line" }).click();
+  const second = p.locator("form div.grid.grid-cols-12").nth(1);
+  await second.locator("select").selectOption("discount");
+  await second.locator("input").first().fill(`${TAG} sibling discount`);
+  await second.locator("input[type='number']").last().fill("10.00");
+  await expect(p.getByText("$90.00").first(), "total shows 100 - 10").toBeVisible();
+  await p.getByLabel(/Late fee \(USD\)/).fill("5.00");
+  // A discount over the charges blocks the form.
+  await second.locator("input[type='number']").last().fill("150.00");
+  await expect(p.getByText(/cannot go below zero/)).toBeVisible();
+  await expect(p.getByRole("button", { name: "Create and send" })).toBeDisabled();
+  await second.locator("input[type='number']").last().fill("10.00");
+  await p.locator("input[type='date']").first().fill(inTwoDaysIso());
+  await shot(p, "14-composer-discount");
+  const respP = p.waitForResponse((r) => /invoices\/bulk/.test(r.url()) && r.request().method() === "POST");
+  await p.getByRole("button", { name: "Create and send" }).click();
+  const resp = await respP;
+  expect(resp.status(), "discounted invoice created").toBeLessThan(300);
+  const rows = await stagingSql<{ total_cents: number; discount_cents: number; late_fee_cents: number }>(
+    `select i.total_cents, i.discount_cents, i.late_fee_cents from invoices i join invoice_items it on it.invoice_id = i.id
+      where it.description = $1 limit 1`,
+    [`${TAG} J13 discounted fee`]
+  );
+  expect(rows[0], "invoice total 90.00 with a 10.00 discount and a 5.00 late fee").toMatchObject({ total_cents: 9000, discount_cents: 1000, late_fee_cents: 500 });
+});
+
+test("15. balances per team and player, and CSV exports that match the screen (FR-3.1.1, FR-3.1.4)", async ({ browser }) => {
+  const p = (await as(browser, "superAdmin")).page;
+  const [org] = await stagingSql<{ id: string }>(`select id from orgs where display_name = $1`, [ORG_NAME]);
+  await p.goto(`${new URL(p.url()).origin}/finance?orgId=${org!.id}`);
+  const panel = p.getByRole("region", { name: "Balances and exports" });
+  await expect(panel.getByText("By team"), "balances by team").toBeVisible({ timeout: 30_000 });
+  await expect(panel.getByText("By player")).toBeVisible();
+  // AR aging CSV: its total is the Outstanding tile.
+  const outstandingTile = (await p.locator("main").innerText()).replace(/\s+/g, " ");
+  const dl = p.waitForEvent("download");
+  await panel.getByRole("button", { name: "AR aging CSV" }).click();
+  const file = await dl;
+  const csv = await file.createReadStream().then(async (s) => {
+    let out = "";
+    for await (const c of s) out += c.toString();
+    return out;
+  });
+  log("aging csv:", csv);
+  const total = /^Total,\d+,([\d.]+)$/m.exec(csv)?.[1];
+  expect(total, "aging CSV has a Total row").toBeTruthy();
+  const shown = Number(total).toLocaleString("en-US", { minimumFractionDigits: 2 });
+  expect.soft(outstandingTile, `Outstanding tile shows the aging total ${shown}`).toContain(shown);
+  // Invoices CSV downloads too.
+  const dl2 = p.waitForEvent("download");
+  await panel.getByRole("button", { name: "Invoices CSV" }).click();
+  expect((await dl2).suggestedFilename(), "invoices file").toMatch(/^invoices-.*\.csv$/);
+  await shot(p, "15-balances-exports");
+});
+
+test("16. admin stops and resumes automatic reminders on one invoice (UC-18 alternative flow)", async ({ browser }) => {
+  const { b } = await runInvoices();
+  test.skip(!b, "no invoice B for this run");
+  const p = (await as(browser, "superAdmin")).page;
+  await p.goto(`${new URL(p.url()).origin}/finance/${b!.id}`);
+  await expect(p.getByText("Admin actions")).toBeVisible({ timeout: 30_000 });
+  await p.getByRole("button", { name: "Stop automatic reminders" }).click();
+  await expect(p.getByText(/Automatic reminders stopped for this invoice/)).toBeVisible();
+  const paused = await stagingSql<{ p: boolean }>(`select auto_reminders_paused p from invoices where id = $1`, [b!.id]);
+  expect(paused[0]?.p, "paused on the invoice").toBe(true);
+  // Same page, no reload: the action now offers to resume.
+  await expect(p.getByRole("button", { name: "Resume automatic reminders" })).toBeVisible();
+  await p.getByRole("button", { name: "Resume automatic reminders" }).click();
+  await expect(p.getByText(/Automatic reminders resumed/)).toBeVisible();
+  const resumed = await stagingSql<{ p: boolean }>(`select auto_reminders_paused p from invoices where id = $1`, [b!.id]);
+  expect(resumed[0]?.p, "resumed").toBe(false);
+  // The manual reminder names who is emailed (only the recipient).
+  await p.getByRole("button", { name: "Send manual reminder" }).click();
+  await expect(p.getByText(/Reminder queued for staging-player@sportspulse\.us/)).toBeVisible();
+});

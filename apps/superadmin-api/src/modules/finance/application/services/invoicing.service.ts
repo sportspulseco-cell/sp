@@ -19,6 +19,7 @@ import {
 } from "../../../../shared/audience/org-targets";
 import type { BulkCreateInvoiceBodyDto } from "../../interface/dto/bulk-invoice.dto";
 import { reserveInvoiceNumbers } from "./invoice-number";
+import { invoiceLineTotals, signedLineAmount } from "@sportspulse/kernel";
 
 /**
  * Bulk invoice creation extracted from FinanceInvoicingController so the
@@ -95,11 +96,15 @@ export class InvoicingService {
       );
     }
 
-    const subtotalCents = body.items.reduce(
-      (a, i) => a + (i.unitAmountCents ?? 0) * (i.quantity ?? 1),
-      0
-    );
-    const totalCents = subtotalCents;
+    // A "discount" line takes its amount off the charges (kernel
+    // invoiceLineTotals). Before, every line was added, so a $100 fee
+    // with a $10 discount billed $110. A discount larger than the
+    // charges is refused: a total never goes below zero.
+    const totals = invoiceLineTotals(body.items);
+    if (!totals.ok) throw new BadRequestException(totals.reason);
+    const subtotalCents = totals.chargesCents;
+    const discountCents = totals.discountCents;
+    const totalCents = totals.totalCents;
     const planEnabled =
       !!body.paymentPlanEnabled &&
       body.installmentCount != null &&
@@ -110,6 +115,22 @@ export class InvoicingService {
         "The deposit must be less than the invoice total."
       );
     }
+    // A picked fee schedule must be this org's. The late fee is the one
+    // the admin entered, else the schedule's; the overdue sweep adds it
+    // once a day after the due date (0060).
+    let scheduleLateFeeCents = 0;
+    if (body.feeScheduleId) {
+      const [schedule] = await this.db
+        .select({ orgId: schema.feeSchedules.orgId, lateFeeCents: schema.feeSchedules.lateFeeCents })
+        .from(schema.feeSchedules)
+        .where(eq(schema.feeSchedules.id, body.feeScheduleId))
+        .limit(1);
+      if (!schedule || schedule.orgId !== body.orgId) {
+        throw new NotFoundException("Fee schedule not found in this org");
+      }
+      scheduleLateFeeCents = schedule.lateFeeCents;
+    }
+    const lateFeeCents = body.lateFeeCents ?? scheduleLateFeeCents;
     const isBulk = personIds.length > 1;
     const bulkJobId = isBulk ? randomUUID() : null;
     const currency = "USD";
@@ -148,6 +169,7 @@ export class InvoicingService {
             seasonId: body.billingScope === "season" ? body.targetId : null,
             bulkJobId,
             subtotalCents,
+            discountCents,
             totalCents,
             paidCents: 0,
             currency,
@@ -160,6 +182,7 @@ export class InvoicingService {
               ? `${idempotencyKey}-${personId}`
               : idempotencyKey,
             feeScheduleId: body.feeScheduleId ?? null,
+            lateFeeCents,
             issuedAt: new Date()
           })
           .returning();
@@ -172,8 +195,9 @@ export class InvoicingService {
             kind: item.kind,
             description: item.description,
             quantity: qty,
-            unitAmountCents: item.unitAmountCents,
-            amountCents: item.unitAmountCents * qty,
+            // Discount lines are stored negative, so the lines add up to the total.
+            unitAmountCents: signedLineAmount(item.kind, item.unitAmountCents),
+            amountCents: signedLineAmount(item.kind, item.unitAmountCents * qty),
             feeScheduleId: body.feeScheduleId ?? null
           });
         }

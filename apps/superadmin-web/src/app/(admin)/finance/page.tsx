@@ -5,6 +5,7 @@ import { Receipt } from "lucide-react";
 import { finance, orgs } from "@/lib/api/server-api";
 import { PageHeader } from "@/components/layout/page-header";
 import { ArDashboardClient } from "@/components/finance/ar-dashboard-client";
+import { FinanceReports } from "@/components/finance/finance-reports";
 
 export const metadata = { title: "Invoices & AR — SportsPulse" };
 export const dynamic = "force-dynamic";
@@ -28,22 +29,23 @@ export default async function FinancePage({
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const limit = 25;
 
-  const [summary, invoicesResult, orgList] = await Promise.all([
-    finance
-      .dashboardSummary(orgId)
-      .catch(() => ({
-        totalInvoicedCents: 0,
-        collectedCents: 0,
-        outstandingCents: 0,
-        overdueCents: 0,
-        invoiceCount: 0,
-        overdueCount: 0
-      })),
+  // A failed call is a load error on screen, never $0 tiles (a league
+  // admin used to get $0 from a silent catch while the API refused them).
+  const [summaryResult, invoicesResult, orgList, balancesResult] = await Promise.all([
+    load(finance.dashboardSummary(orgId)),
     load(
       finance.adminInvoicesList({ orgId, status, billingScope: scope, search, page, limit })
     ),
-    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null }))
+    orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
+    load(finance.balances(orgId))
   ]);
+  if (!summaryResult.ok) {
+    console.error("[finance] dashboardSummary failed", summaryResult.status, summaryResult.message);
+    return (
+      <LoadError what="the invoice totals" status={summaryResult.status} message={summaryResult.message} />
+    );
+  }
+  const summary = summaryResult.data;
   if (!invoicesResult.ok) {
     console.error("[finance] adminInvoicesList failed", invoicesResult.status, invoicesResult.message);
   }
@@ -80,6 +82,14 @@ export default async function FinancePage({
         orgs={orgList.items}
         filters={{ orgId, status, scope, search, page }}
       />
+      {balancesResult.ok ? (
+        <FinanceReports
+          balances={balancesResult.data}
+          filters={{ orgId, status, billingScope: scope, search }}
+        />
+      ) : (
+        <LoadError what="balances" status={balancesResult.status} message={balancesResult.message} />
+      )}
     </div>
   );
 }

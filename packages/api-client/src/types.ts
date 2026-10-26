@@ -625,6 +625,8 @@ export interface InvoiceEscalationWithInvoice extends InvoiceEscalation {
     currency: string;
     dueAt: string | null;
     recipientPersonId: string | null;
+    /** Late fee the overdue sweep added (already inside totalCents). */
+    lateFeeAppliedCents: number;
   };
 }
 

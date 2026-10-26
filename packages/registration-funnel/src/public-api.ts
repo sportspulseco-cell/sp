@@ -254,6 +254,8 @@ export interface PublicRegistrationApi {
     submissionId: string,
     email: string
   ): Promise<{ passed: boolean; flags: string[] }>;
+  /** The registrant's wallet credit in this registration's org. */
+  walletBalance(submissionId: string, email: string): Promise<{ balanceCents: number; currency: string; frozen: boolean }>;
   pay(
     submissionId: string,
     body: {
@@ -261,6 +263,8 @@ export interface PublicRegistrationApi {
       mockOutcome?: "succeeded" | "failed" | "offline";
       /** "plan": deposit today, the rest in installments. */
       paymentOption?: "full" | "plan";
+      /** Spend wallet credit in this org first (FR-3.6.2). */
+      useWallet?: boolean;
     }
   ): Promise<{
     id: string;
@@ -335,6 +339,8 @@ export function createPublicRegistration(apiUrl: string): PublicRegistrationApi 
         method: "POST",
         body: JSON.stringify({ email })
       }),
+    walletBalance: (id, email) =>
+      f(`/public/registration/submissions/${id}/wallet?email=${encodeURIComponent(email)}`),
     pay: (id, body) =>
       f(`/public/registration/submissions/${id}/pay`, {
         method: "POST",

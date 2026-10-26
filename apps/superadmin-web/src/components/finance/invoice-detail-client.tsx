@@ -36,6 +36,7 @@ type Bundle = {
     divisionId?: string | null;
     leagueId?: string | null;
     seasonId?: string | null;
+    autoRemindersPaused?: boolean;
   };
   items: Array<{
     id: string;
@@ -109,8 +110,27 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
     setBusy("remind");
     setError(null);
     try {
-      await finance.manualRemind(invoice.id, "email");
-      setFlash("Reminder queued — captain + recipient will get an email.");
+      const res = await finance.manualRemind(invoice.id, "email");
+      // Only the invoice's recipient is emailed; say so.
+      setFlash(`Reminder queued for ${res.recipientEmail ?? "the recipient"}.`);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function toggleReminders() {
+    setBusy("reminders");
+    setError(null);
+    try {
+      const res = await finance.setReminders(invoice.id, !invoice.autoRemindersPaused);
+      setFlash(
+        res.autoRemindersPaused
+          ? "Automatic reminders stopped for this invoice. It still goes overdue; you can still send one by hand."
+          : "Automatic reminders resumed for this invoice."
+      );
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -444,6 +464,14 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
                 busy={busy === "remind"}
               >
                 Send manual reminder
+              </ActionButton>
+              <ActionButton
+                icon={ShieldOff}
+                onClick={toggleReminders}
+                disabled={busy === "reminders" || invoice.status === "void"}
+                busy={busy === "reminders"}
+              >
+                {invoice.autoRemindersPaused ? "Resume automatic reminders" : "Stop automatic reminders"}
               </ActionButton>
               <ActionButton
                 icon={CalendarClock}

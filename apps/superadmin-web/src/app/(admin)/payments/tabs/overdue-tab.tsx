@@ -183,13 +183,12 @@ function EscalationRow({
       ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
       : "bg-amber-500/15 text-amber-700 dark:text-amber-300";
 
-  // Late fee → derived from invoice metadata when the worker has stamped
-  // it. Fallback: assume the difference between outstanding and the
-  // round invoice total is the fee (covers the mockup's "$3,925 incl.
-  // late fee" subtitle when amount > original balance).
-  const md = inv as unknown as { metadata?: { lateFeeCents?: number } };
-  const lateFeeCents = md.metadata?.lateFeeCents ?? 0;
-  const grossOutstanding = outstanding + lateFeeCents;
+  // The sweep adds its late fee to the invoice total and records it in
+  // late_fee_applied_cents (0060), so the balance already includes it.
+  // Before, this read metadata.lateFeeCents (never written; the sweep
+  // writes lateFeeAppliedCents) and would have added the fee twice.
+  const lateFeeCents = inv.lateFeeAppliedCents ?? 0;
+  const grossOutstanding = outstanding;
 
   return (
     <li className={`px-5 py-3 transition-colors ${rowBgClass}`}>

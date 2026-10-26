@@ -717,6 +717,18 @@ export function createApi(f: Fetcher) {
           items: Array<{
             id: string;
             orgId: string;
+            /** Set when the invoice is a registration fee. */
+            registrationId: string | null;
+            /** What the invoice is for: Registration, Team dues share, Team store order, the admin's line... */
+            title: string;
+            /** The invoice's lines; discounts are negative, late fees are their own line. */
+            lines: Array<{ kind: string; label: string; quantity: number; amountCents: number }>;
+            /** What may be paid now: the next installment up to the balance on a plan, else the balance. */
+            payRange: {
+              minCents: number;
+              maxCents: number;
+              nextInstallment: { installmentNumber: number; owedCents: number; dueDate: string | null } | null;
+            };
             teamId: string | null;
             teamName: string | null;
             invoiceNumber: string;
@@ -750,10 +762,13 @@ export function createApi(f: Fetcher) {
           walletAmountCents?: number;
           cardAmountCents?: number;
           mockOutcome?: "succeeded" | "failed";
+          /** One per Pay dialog: a repeat with the same key charges nothing more. */
+          idempotencyKey?: string;
         }
       ) =>
         f<{
           invoiceId: string;
+          idempotent?: boolean;
           status: string;
           paidCents: number;
           totalCents: number;
@@ -799,11 +814,17 @@ export function createApi(f: Fetcher) {
           `/finance/invoices/${invoiceId}/note`,
           { method: "PUT", body: JSON.stringify({ note }) }
         ),
+      /** Stop or resume the overdue sweep's automatic reminders for one invoice (UC-18). */
+      setReminders: (invoiceId: string, paused: boolean) =>
+        f<{ invoiceId: string; autoRemindersPaused: boolean }>(`/finance/invoices/${invoiceId}/reminders`, {
+          method: "POST",
+          body: JSON.stringify({ paused })
+        }),
       manualRemind: (
         invoiceId: string,
         channel: "email" | "sms" | "in_app" = "email"
       ) =>
-        f<{ invoiceId: string; channel: string; status: "queued" }>(
+        f<{ invoiceId: string; channel: string; status: "queued"; recipientEmail: string | null }>(
           `/finance/invoices/${invoiceId}/remind`,
           { method: "POST", body: JSON.stringify({ channel }) }
         ),
@@ -1003,6 +1024,20 @@ export function createApi(f: Fetcher) {
        * outstanding, overdue (cents) + counts. Powers the 4-tile row at
        * the top of the admin Invoices & AR dashboard.
        */
+      /** Balances per team and per player on open invoices, scoped to the caller (FR-3.1.1). */
+      balances: (orgId?: string) =>
+        f<{
+          teams: Array<{ teamId: string; teamName: string; openInvoices: number; billedCents: number; paidCents: number; outstandingCents: number; overdueCents: number }>;
+          players: Array<{ personId: string; name: string | null; email: string | null; openInvoices: number; outstandingCents: number; overdueCents: number }>;
+        }>(`/finance/balances${qs({ orgId })}`),
+      /** CSV for accounting (FR-3.1.4), scoped like the invoice list. */
+      exportReport: (q: {
+        kind: "invoices" | "payments" | "refunds" | "aging" | "team_balances" | "player_balances";
+        orgId?: string;
+        status?: string;
+        billingScope?: string;
+        search?: string;
+      }) => f<{ filename: string; csv: string; rowCount: number }>(`/finance/export${qs(q)}`),
       dashboardSummary: (orgId?: string) =>
         f<{
           totalInvoicedCents: number;
@@ -1107,6 +1142,8 @@ export function createApi(f: Fetcher) {
           }>;
           dueAt: string;
           feeScheduleId?: string | null;
+          /** Added once by the overdue sweep a day after the due date; 0 = none. */
+          lateFeeCents?: number;
           notes?: string | null;
           paymentPlanEnabled?: boolean;
           depositCents?: number;
@@ -3381,6 +3418,8 @@ export function createApi(f: Fetcher) {
           dueAt: string;
           notes?: string | null;
           feeScheduleId?: string;
+          /** Added once by the overdue sweep a day after the due date; 0 = none. */
+          lateFeeCents?: number;
           paymentPlanEnabled?: boolean;
           depositCents?: number;
           installmentCount?: number;
