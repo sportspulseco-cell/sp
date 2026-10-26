@@ -248,6 +248,9 @@ Crawl totals (pages visited / pages with a problem):
   Evidence: local API against staging, scratchpad regfa/verify-keyset.mjs, walking with small pages and comparing with the database: 8/8 lists exact (role assignments 144/144, roles 13/13, games 25/25, invoices 893/893 in pages of 97 and of 23, in-app notifications 173/173, all notifications 1495/1495, game events 37/37 in pages of 6); 3 runs in a row 8/8. One earlier run had one failing case that was not captured (likely rows written to staging during the walk; not verified). Unit tests 3/3.
 
   Not changed: notification templates sort by code, channel and locale and still page by id; production has 0 template rows (the catalogue is in code).
+  Templates, 26 Oct: they now page on code, channel, locale and id (an old id cursor starts from the top). Local API
+    against staging with 7 throwaway rows inserted out of order (regfa/verify-template-paging.mjs 2/2): pages of 3 give
+    the same 7 in the same order as one page.
 
 [CONSOLE-18] Dates follow the viewer's time zone: hydration errors, and a season date shown a day early · major
   Found: 26 Oct, React #418 on /leagues/<id> during the CONSOLE-14 probes; the dev server named the text.

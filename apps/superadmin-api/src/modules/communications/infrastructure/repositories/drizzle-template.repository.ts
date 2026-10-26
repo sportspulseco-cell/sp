@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -10,6 +10,24 @@ import type {
   NotificationTemplateRow,
   UpsertTemplateInput
 } from "../../domain/repositories/template.repository";
+
+type TemplateCursor = { code: string; channel: string; locale: string; id: string };
+
+function encodeTemplateCursor(r: TemplateCursor): string {
+  return Buffer.from(JSON.stringify([r.code, r.channel, r.locale, r.id])).toString("base64url");
+}
+
+/** An unreadable cursor (including an old id-only one) starts from the top. */
+function decodeTemplateCursor(cursor: string | undefined | null): TemplateCursor | null {
+  if (!cursor) return null;
+  try {
+    const [code, channel, locale, id] = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if ([code, channel, locale, id].every((v) => typeof v === "string")) return { code, channel, locale, id };
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
 
 @Injectable()
 export class DrizzleNotificationTemplateRepository
@@ -24,7 +42,14 @@ export class DrizzleNotificationTemplateRepository
     if (q.code) cs.push(eq(schema.notificationTemplates.code, q.code));
     if (q.channel) cs.push(eq(schema.notificationTemplates.channel, q.channel));
     if (q.locale) cs.push(eq(schema.notificationTemplates.locale, q.locale));
-    if (q.cursor) cs.push(gt(schema.notificationTemplates.id, q.cursor));
+    // Page on the same keys the list is sorted by (CONSOLE-17 rule); the
+    // old id-only cursor skipped or repeated templates on page 2.
+    const after = decodeTemplateCursor(q.cursor);
+    if (after) {
+      cs.push(
+        sql`(${schema.notificationTemplates.code}, ${schema.notificationTemplates.channel}, ${schema.notificationTemplates.locale}, ${schema.notificationTemplates.id}) > (${after.code}, ${after.channel}, ${after.locale}, ${after.id}::uuid)`
+      );
+    }
 
     const rows = await this.db
       .select()
@@ -33,7 +58,8 @@ export class DrizzleNotificationTemplateRepository
       .orderBy(
         asc(schema.notificationTemplates.code),
         asc(schema.notificationTemplates.channel),
-        asc(schema.notificationTemplates.locale)
+        asc(schema.notificationTemplates.locale),
+        asc(schema.notificationTemplates.id)
       )
       .limit(q.limit + 1);
 
@@ -41,7 +67,11 @@ export class DrizzleNotificationTemplateRepository
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
       this.toRow(r)
     );
-    return { items, nextCursor: hasMore ? rows[q.limit - 1]!.id : null };
+    const last = rows[q.limit - 1];
+    return {
+      items,
+      nextCursor: hasMore && last ? encodeTemplateCursor(last) : null
+    };
   }
 
   async findById(id: string): Promise<NotificationTemplateRow | null> {
