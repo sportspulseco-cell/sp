@@ -318,10 +318,19 @@ test("J8.3 revoked invite token still resolves on the public endpoint", async ({
     await anon.close();
     return;
   }
+  // The public lookup answers with the invite's status so the page can
+  // say it was revoked; what matters is what the link holder sees and
+  // can do: a revoked message, no Join button, and no way to join.
   const res = await ap.goto(`https://staging-api.sportspulse.us/api/public/registration/invites/${genericToken}`);
   const body = await ap.locator("body").innerText();
   writeFileSync(`${OUT}/32-revoked-resolve.txt`, `${res?.status()} ${body.replace(genericToken, "<token>")}`);
-  finding(res?.status() !== 200, `CAP: revoked invite token still resolves 200 on GET /public/registration/invites/:token`);
+  finding(res?.status() !== 200 || /"status":"revoked"/.test(body), `CAP: the public invite lookup does not say the token is revoked (${res?.status()})`);
+  await ap.goto(`${E2E_URLS.player}/invite/${genericToken}`);
+  await settle(ap);
+  const page = await ap.locator("main, body").first().innerText();
+  writeFileSync(`${OUT}/33-revoked-invite-page.txt`, page.replace(genericToken, "<token>"));
+  finding(/This invite is revoked/i.test(page), "CAP: the invite page does not say a revoked link is revoked");
+  finding((await ap.getByRole("button", { name: /^Join /i }).count()) === 0, "CAP: the invite page offers Join on a revoked link");
   await anon.close();
 });
 
