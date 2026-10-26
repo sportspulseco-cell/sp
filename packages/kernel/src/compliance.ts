@@ -155,3 +155,31 @@ export function resolvePlayoffConfig(
 ): PlayoffConfig {
   return { ...PLAYOFF_CONFIG_DEFAULTS, ...(raw ?? {}) };
 }
+
+/**
+ * Games played for the playoff minimum (FR-3.11.3). A game counts when
+ * it is a finalized regular-season game of the team and the player is
+ * on its record: a stat line, the lineup (starters or bench, not
+ * scratches) or a non-guest check-in. The count is only trusted when
+ * every finalized game of the team has a record; otherwise (or before
+ * any game is finalized) it is unknown and the check needs review, never
+ * a failure the player is told about.
+ */
+export function playoffGamesPlayedVerdict(input: {
+  played: number;
+  teamFinalizedGames: number;
+  teamRecordedGames: number;
+  minRequired: number;
+}): { known: boolean; meets: boolean | null; reason: string | null } {
+  if (input.teamFinalizedGames === 0) {
+    return { known: false, meets: null, reason: "The team has no finalized games yet." };
+  }
+  if (input.teamRecordedGames < input.teamFinalizedGames) {
+    return {
+      known: false,
+      meets: null,
+      reason: `${input.teamFinalizedGames - input.teamRecordedGames} of the team's ${input.teamFinalizedGames} finalized games have no lineup, stats or check-in recorded.`
+    };
+  }
+  return { known: true, meets: input.played >= input.minRequired, reason: null };
+}

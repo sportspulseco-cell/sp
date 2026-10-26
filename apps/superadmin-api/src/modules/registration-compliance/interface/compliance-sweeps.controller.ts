@@ -14,6 +14,7 @@ import { and, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 import {
   evaluateSeasonEligibility,
   resolveDivisionRules,
+  playoffGamesPlayedVerdict,
   resolvePlayoffConfig,
   suspensionInForce,
   sweepOutcome
@@ -63,6 +64,7 @@ const log = new Logger("ComplianceSweeps");
 // open to scoped admins for seasons inside their scope (404 otherwise).
 @UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class ComplianceSweepsController {
+  private readonly log = new Logger(ComplianceSweepsController.name);
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notify: NotificationService
@@ -300,12 +302,18 @@ export class ComplianceSweepsController {
     const now = new Date();
     let eligible = 0;
     let ineligible = 0;
+    let flagged = 0;
     const breakdown: Array<{
       personId: string;
       teamId: string;
-      status: "eligible" | "ineligible";
+      status: "eligible" | "ineligible" | "flagged";
       failed: string[];
     }> = [];
+    // Games played come from what the games record (lineups, stat lines,
+    // check-ins of finalized regular-season games). They used to come from
+    // game_attendance alone, which only the guest endpoint writes, so the
+    // sweep marked every rostered player ineligible and told them so.
+    const gp = await this.loadGamesPlayed(seasonId);
 
     for (const m of members) {
       const division = await this.loadDivisionForTeam(m.teamId, seasonId);
@@ -313,21 +321,17 @@ export class ComplianceSweepsController {
         (division?.ruleSetOverrides as Record<string, unknown>) ?? null
       );
 
-      // Check 1: minimum games played as a non-guest
-      const [c1] = await this.db
-        .select({ count: sql<number>`COUNT(*)::int` })
-        .from(schema.gameAttendance)
-        .where(
-          and(
-            eq(schema.gameAttendance.personId, m.personId),
-            eq(schema.gameAttendance.teamId, m.teamId),
-            eq(schema.gameAttendance.isGuest, false)
-          )
-        );
-      const gamesPlayed = c1?.count ?? 0;
-      const check1 =
-        gamesPlayed >=
-        Math.min(playoffConfig.minGamesPlayedToQualify, rules.minGamesForPlayoffs);
+      // Check 1: minimum games played on this team (not as a guest)
+      const minRequired = Math.min(playoffConfig.minGamesPlayedToQualify, rules.minGamesForPlayoffs);
+      const gamesPlayed = gp.played.get(`${m.personId}:${m.teamId}`) ?? 0;
+      const team = gp.teams.get(m.teamId) ?? { finalized: 0, recorded: 0 };
+      const verdict = playoffGamesPlayedVerdict({
+        played: gamesPlayed,
+        teamFinalizedGames: team.finalized,
+        teamRecordedGames: team.recorded,
+        minRequired
+      });
+      const check1 = verdict.meets !== false;
 
       // Check 2: USA Hockey valid at playoffConfig.startDate
       let check2 = true;
@@ -344,15 +348,17 @@ export class ComplianceSweepsController {
         check2 = !!idRow?.expiresAt && idRow.expiresAt >= cutoff;
       }
 
-      // Check 3: guest appearances within season limit
+      // Check 3: guest appearances within the season limit (this season's games only)
       const [c3] = await this.db
         .select({ count: sql<number>`COUNT(*)::int` })
         .from(schema.gameAttendance)
+        .innerJoin(schema.games, eq(schema.games.id, schema.gameAttendance.gameId))
         .where(
           and(
             eq(schema.gameAttendance.personId, m.personId),
             eq(schema.gameAttendance.teamId, m.teamId),
-            eq(schema.gameAttendance.isGuest, true)
+            eq(schema.gameAttendance.isGuest, true),
+            eq(schema.games.seasonId, seasonId)
           )
         );
       const guestAppearances = c3?.count ?? 0;
@@ -368,16 +374,18 @@ export class ComplianceSweepsController {
       if (!check2) failed.push("usaHockeyValidAtPlayoffStart");
       if (!check3) failed.push("guestSeasonLimit");
       if (!check4) failed.push("suspended");
-      const status: "eligible" | "ineligible" =
-        failed.length === 0 ? "eligible" : "ineligible";
+      // An unknown games count is for the league to review, not a verdict.
+      const status: "eligible" | "ineligible" | "flagged" =
+        failed.length > 0 ? "ineligible" : verdict.known ? "eligible" : "flagged";
 
       const playoffBlock = {
         playoffEligibility: {
-          gamesPlayed,
-          minRequired: Math.min(
-            playoffConfig.minGamesPlayedToQualify,
-            rules.minGamesForPlayoffs
-          ),
+          gamesPlayed: verdict.known ? gamesPlayed : null,
+          gamesPlayedRecorded: gamesPlayed,
+          gamesPlayedKnown: verdict.known,
+          gamesPlayedNote: verdict.reason ?? undefined,
+          teamFinalizedGames: team.finalized,
+          minRequired,
           usaHockeyValidAtPlayoffStart: check2,
           guestAppearancesForThisTeam: guestAppearances,
           guestSeasonLimit: rules.guestPlayerSeasonLimit,
@@ -387,7 +395,9 @@ export class ComplianceSweepsController {
       };
       await this.upsertEligibility(m.personId, seasonId, playoffBlock, status);
 
-      if (status === "ineligible") {
+      if (status === "flagged") {
+        flagged++;
+      } else if (status === "ineligible") {
         ineligible++;
         void this.notify.queue({
           orgId: m.orgId,
@@ -407,7 +417,66 @@ export class ComplianceSweepsController {
       });
     }
 
-    return { totalPlayers: members.length, eligible, ineligible, breakdown };
+    this.log.log(
+      `playoff sweep season=${seasonId} players=${members.length} eligible=${eligible} ineligible=${ineligible} flagged=${flagged} teamsWithFinalizedGames=${[...gp.teams.values()].filter((t) => t.finalized > 0).length}`
+    );
+    return { totalPlayers: members.length, eligible, ineligible, flagged, breakdown };
+  }
+
+  /**
+   * Per (person, team): finalized regular-season games of the season the
+   * player is on the record of (stat line with games-played, lineup
+   * starters or bench, non-guest check-in). Per team: finalized games and
+   * how many of them have any record.
+   */
+  private async loadGamesPlayed(seasonId: string): Promise<{
+    played: Map<string, number>;
+    teams: Map<string, { finalized: number; recorded: number }>;
+  }> {
+    const rows = (await this.db.execute(sql`
+      WITH fin AS (
+        SELECT id, home_team_id, away_team_id FROM games
+        WHERE season_id = ${seasonId}
+          AND game_type = 'regular'
+          AND (status = 'completed' OR finalized_at IS NOT NULL)
+      ),
+      played AS (
+        SELECT sl.person_id, sl.team_id, sl.game_id
+          FROM stat_lines sl JOIN fin ON fin.id = sl.game_id
+         WHERE sl.gp_increment > 0
+        UNION
+        SELECT (e->>'personId')::uuid, gl.team_id, gl.game_id
+          FROM game_lineups gl JOIN fin ON fin.id = gl.game_id,
+               jsonb_array_elements(
+                 (CASE WHEN jsonb_typeof(gl.lineup->'starters') = 'array' THEN gl.lineup->'starters' ELSE '[]'::jsonb END) ||
+                 (CASE WHEN jsonb_typeof(gl.lineup->'bench') = 'array' THEN gl.lineup->'bench' ELSE '[]'::jsonb END)
+               ) e
+         WHERE (e->>'personId') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        UNION
+        SELECT ga.person_id, ga.team_id, ga.game_id
+          FROM game_attendance ga JOIN fin ON fin.id = ga.game_id
+         WHERE ga.is_guest = false AND ga.status IN ('present', 'late')
+      ),
+      team_games AS (
+        SELECT home_team_id AS team_id, id AS game_id FROM fin
+        UNION ALL
+        SELECT away_team_id, id FROM fin
+      )
+      SELECT 'p' AS kind, person_id::text AS person_id, team_id::text AS team_id, COUNT(DISTINCT game_id)::int AS n, 0 AS r
+        FROM played GROUP BY person_id, team_id
+      UNION ALL
+      SELECT 't', NULL, tg.team_id::text, COUNT(DISTINCT tg.game_id)::int,
+             COUNT(DISTINCT p.game_id)::int
+        FROM team_games tg LEFT JOIN played p ON p.team_id = tg.team_id AND p.game_id = tg.game_id
+       GROUP BY tg.team_id
+    `)) as unknown as Array<{ kind: string; person_id: string | null; team_id: string; n: number; r: number }>;
+    const played = new Map<string, number>();
+    const teams = new Map<string, { finalized: number; recorded: number }>();
+    for (const r of rows) {
+      if (r.kind === "p") played.set(`${r.person_id}:${r.team_id}`, Number(r.n));
+      else teams.set(r.team_id, { finalized: Number(r.n), recorded: Number(r.r) });
+    }
+    return { played, teams };
   }
 
   // -------------------------------------------------------------------

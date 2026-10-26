@@ -119,7 +119,9 @@ export function ComplianceSweepBar({
     try {
       const res = await compliance.runPlayoffSweep(seasonId);
       setFlash(
-        `Playoff sweep complete — ${res.eligible}/${res.totalPlayers} eligible, ${res.ineligible} ineligible.`
+        `Playoff sweep complete: ${res.eligible} of ${res.totalPlayers} eligible, ${res.ineligible} ineligible${
+          res.flagged ? `, ${res.flagged} to review (games played not recorded yet)` : ""
+        }.`
       );
       await refresh();
       // The records table is server-rendered; refresh it too (COMP-6).

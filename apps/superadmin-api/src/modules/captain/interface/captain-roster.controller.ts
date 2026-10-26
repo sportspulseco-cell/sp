@@ -1303,7 +1303,9 @@ export class CaptainRosterController {
             and(
               eq(schema.gameAttendance.personId, body.personId),
               eq(schema.gameAttendance.teamId, teamId),
-              eq(schema.gameAttendance.isGuest, true)
+              eq(schema.gameAttendance.isGuest, true),
+              // The limit is per season; this counted every season before.
+              eq(schema.games.seasonId, season.id)
             )
           );
         const count = seasonGuests[0]?.count ?? 0;

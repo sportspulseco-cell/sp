@@ -475,10 +475,12 @@ export function createApi(f: Fetcher) {
           totalPlayers: number;
           eligible: number;
           ineligible: number;
+          /** Games played could not be counted yet (no finalized games, or games with no lineup or stats): for review, nobody told. */
+          flagged?: number;
           breakdown: Array<{
             personId: string;
             teamId: string;
-            status: "eligible" | "ineligible";
+            status: "eligible" | "ineligible" | "flagged";
             failed: string[];
           }>;
         }>(`/compliance/eligibility/season/${seasonId}/playoff-sweep`, {
