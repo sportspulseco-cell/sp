@@ -2,7 +2,7 @@ import { fetchAll, load } from "@sportspulse/api-client";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { Eyebrow, LoadError, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
 import {
   formatInZone,
   GAME_ENDING_LABELS,
@@ -13,15 +13,6 @@ import {
 } from "@sportspulse/kernel";
 import { gameOps, iam, leagueMgmt, stats } from "@/lib/api/server-api";
 import { GameOfficialsPanel } from "@/components/games/officials-panel";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import { GameActions } from "@/components/games/game-actions";
 import { AppendEventButton } from "@/components/games/append-event-button";

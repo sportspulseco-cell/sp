@@ -10,12 +10,7 @@ import type {
   GameOfficialStatus,
   Person
 } from "@/lib/api/types";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Badge, Button, Eyebrow, Field, IconTile, Input, Select, type Tint } from "@sportspulse/ui";
 
 const ROLES: GameOfficialRole[] = [
   "referee",

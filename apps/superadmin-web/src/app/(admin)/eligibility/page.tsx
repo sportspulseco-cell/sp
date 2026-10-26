@@ -1,23 +1,25 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
-import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
-import Link from "next/link";
-import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { StatNumber } from "@/components/ui/stat-number";
 import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  IconTile,
+  LoadError,
+  PageHeader,
+  StatNumber,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  statusTone,
+  type Tint
+} from "@sportspulse/ui";
+import { ShieldCheck, Clock, ShieldAlert, ShieldOff } from "lucide-react";
+import Link from "next/link";
+import { compliance, iam, leagueMgmt } from "@/lib/api/server-api";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { WaiveEligibilityButton } from "@/components/eligibility/waive-eligibility-button";
 import { CreateEligibilityButton } from "@/components/eligibility/create-eligibility-button";
 import { ComplianceSweepBar } from "@/components/eligibility/compliance-sweep-bar";

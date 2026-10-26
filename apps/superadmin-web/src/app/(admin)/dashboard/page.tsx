@@ -21,9 +21,7 @@ import {
   registration,
   roster
 } from "@/lib/api/server-api";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { IconTile, type Tint } from "@/components/ui/icon-tile";
-import { Reveal } from "@sportspulse/ui";
+import { Badge, IconTile, Reveal, statusTone, type Tint } from "@sportspulse/ui";
 import { Counter } from "@/components/motion/counter";
 import {
   EkgLine,

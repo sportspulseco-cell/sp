@@ -21,7 +21,19 @@ import {
 } from "@/components/discipline/suspension-buttons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import {
+  Badge,
+  Eyebrow,
+  IconTile,
+  LoadError,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+  statusTone
+} from "@sportspulse/ui";
 import {
   communications,
   compliance,
@@ -31,17 +43,6 @@ import {
   registration,
   roster
 } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { IconTile } from "@/components/ui/icon-tile";
-import {
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  Table
-} from "@/components/ui/table";
 
 export const metadata = { title: "Person — SportsPulse" };
 

@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Network } from "lucide-react";
 import { orgs as orgsApi } from "@/lib/api/browser-api";
 import type { Org } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Select } from "@sportspulse/ui";
 
 export function LinkOrgButton({
   orgId,

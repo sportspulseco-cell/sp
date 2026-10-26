@@ -2,11 +2,8 @@ import { ArrowLeft, FileSignature } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LoadError } from "@sportspulse/ui";
 import { compliance, orgs } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
-import { IconTile } from "@/components/ui/icon-tile";
 import { PublishDocumentVersionForm } from "@/components/documents/publish-document-version-form";
 
 export const metadata = { title: "Document — SportsPulse" };

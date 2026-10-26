@@ -1,21 +1,21 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { formatInZone } from "@sportspulse/kernel";
-import { Alert } from "@sportspulse/ui";
-import { CalendarRange, CircleDot, Flag, Clock } from "lucide-react";
-import Link from "next/link";
-import { gameOps, leagueMgmt } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UrlFilters } from "@/components/ui/url-filters";
 import {
+  Alert,
+  EmptyState,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  UrlFilters
+} from "@sportspulse/ui";
+import { CalendarRange, CircleDot, Flag, Clock } from "lucide-react";
+import Link from "next/link";
+import { gameOps, leagueMgmt } from "@/lib/api/server-api";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import { CreateGameButton } from "@/components/games/create-game-button";
 import { OfficialGames } from "@/components/games/official-games";

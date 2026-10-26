@@ -2,22 +2,23 @@ import { ArrowLeft, Building2, Layers, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAll, load, type RoleAssignment } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
-import { countEffectivePermissions } from "@sportspulse/kernel";
-import { iam, orgs } from "@/lib/api/server-api";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { IconTile } from "@/components/ui/icon-tile";
 import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  IconTile,
+  LoadError,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  statusTone
+} from "@sportspulse/ui";
+import { countEffectivePermissions } from "@sportspulse/kernel";
+import { iam, orgs } from "@/lib/api/server-api";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { PermissionBadges } from "@/components/permissions/permission-badges";
 import { HIERARCHY, hierarchyOrder } from "@/components/roles/hierarchy";
 

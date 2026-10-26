@@ -1,14 +1,10 @@
 import { load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
+import { EmptyState, Eyebrow, LoadError, PageHeader, UrlFilters } from "@sportspulse/ui";
 import { ScrollText, Activity, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { audit } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { MarqueeRail } from "@/components/motion/kinetic";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { UrlFilters } from "@/components/ui/url-filters";
 
 export const metadata = { title: "Audit — SportsPulse" };
 

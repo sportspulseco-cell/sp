@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CopyLink, LoadError } from "@sportspulse/ui";
+import { Badge, CopyLink, Eyebrow, IconTile, LoadError, statusTone } from "@sportspulse/ui";
 import {
   crossOrgGrants,
   iam,
@@ -22,9 +22,6 @@ import {
   publicRegistration,
   registration
 } from "@/lib/api/server-api";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { IconTile } from "@/components/ui/icon-tile";
 import { LinkOrgButton } from "@/components/orgs/link-org-button";
 import { UnlinkRelationButton } from "@/components/orgs/unlink-relation-button";
 import { IssueGrantButton } from "@/components/orgs/issue-grant-button";

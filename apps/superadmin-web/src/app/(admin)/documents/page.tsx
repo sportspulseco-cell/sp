@@ -1,20 +1,20 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { LoadError } from "@sportspulse/ui";
-import { FileSignature, CheckCircle2, Layers, Building2 } from "lucide-react";
-import Link from "next/link";
-import { compliance, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
 import {
+  Badge,
+  EmptyState,
+  LoadError,
+  PageHeader,
   TBody,
   TD,
   TH,
   THead,
   TR,
   Table
-} from "@/components/ui/table";
+} from "@sportspulse/ui";
+import { FileSignature, CheckCircle2, Layers, Building2 } from "lucide-react";
+import Link from "next/link";
+import { compliance, orgs } from "@/lib/api/server-api";
+import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { CreateDocumentButton } from "@/components/documents/create-document-button";
 
 export const metadata = { title: "Compliance documents — SportsPulse" };

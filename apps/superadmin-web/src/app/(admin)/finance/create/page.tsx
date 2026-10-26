@@ -1,6 +1,6 @@
 import { fetchAll, mapLimit } from "@sportspulse/api-client";
 import { finance, leagueMgmt, orgAdminPersons, orgs } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { InvoiceComposerShell } from "./invoice-composer-shell";
 
 export const dynamic = "force-dynamic";

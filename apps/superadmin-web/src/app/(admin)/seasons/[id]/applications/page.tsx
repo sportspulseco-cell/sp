@@ -1,5 +1,5 @@
 import { adminTransfers } from "@/lib/api/server-api";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader } from "@sportspulse/ui";
 import { ApplicationsQueue } from "./applications-queue";
 
 export const dynamic = "force-dynamic";

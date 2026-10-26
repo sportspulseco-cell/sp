@@ -1,7 +1,4 @@
-import {
-  PageHeaderSkeleton,
-  TableSkeleton
-} from "@/components/ui/skeleton";
+import { PageHeaderSkeleton, TableSkeleton } from "@sportspulse/ui";
 
 // Default fallback for any (admin)/* route while RSC streams.
 // Specific routes can override with their own loading.tsx.

@@ -2,11 +2,8 @@ import { ArrowLeft, Building2, ShieldCheck, Trophy, UserCog } from "lucide-react
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LoadError, statusTone } from "@sportspulse/ui";
 import { iam } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { IconTile } from "@/components/ui/icon-tile";
 import { tintForScope } from "@/components/roles/role-scope-tint";
 import { AssignRolePanel } from "@/components/roles/assign-role-panel";
 import { RevokeAssignmentButton } from "@/components/roles/revoke-assignment-button";

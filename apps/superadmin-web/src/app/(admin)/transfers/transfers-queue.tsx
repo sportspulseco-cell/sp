@@ -4,19 +4,21 @@ import { useEffect, useState } from "react";
 import { Check, Loader2, ShieldCheck, X } from "lucide-react";
 import type { TransferRequest } from "@sportspulse/api-client";
 import { TRANSFER_STATE_LABELS } from "@sportspulse/kernel";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  Field,
+  Input,
+  Select,
   TBody,
   TD,
   TH,
   THead,
   TR,
   Table
-} from "@/components/ui/table";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+} from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 const STATUS_OPTIONS = (

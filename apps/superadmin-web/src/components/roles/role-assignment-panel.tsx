@@ -1,6 +1,6 @@
 "use client";
 import { fetchAll } from "@sportspulse/api-client";
-import { LocalDate } from "@sportspulse/ui";
+import { Button, Field, Input, LocalDate, Select } from "@sportspulse/ui";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -11,9 +11,6 @@ import {
 } from "@sportspulse/kernel";
 import { iam } from "@/lib/api/browser-api";
 import type { Profile, RoleAssignment } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 
 /**
  * Reusable "manage admins for this resource" panel.

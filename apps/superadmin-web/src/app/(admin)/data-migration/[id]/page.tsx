@@ -2,11 +2,8 @@ import { ArrowLeft, Database } from "lucide-react";
 import Link from "next/link";
 import { load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
-import { LoadError } from "@sportspulse/ui";
+import { Badge, Eyebrow, IconTile, LoadError } from "@sportspulse/ui";
 import { dataMigration } from "@/lib/api/server-api";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Badge } from "@/components/ui/badge";
-import { IconTile } from "@/components/ui/icon-tile";
 
 export const metadata = { title: "Import job — SportsPulse" };
 

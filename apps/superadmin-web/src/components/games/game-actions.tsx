@@ -22,10 +22,7 @@ import {
 import type { GameReschedulePlan } from "@sportspulse/api-client";
 import { gameOps, stats } from "@/lib/api/browser-api";
 import type { Game } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 import { useOrgRinks } from "./use-org-rinks";
 
 /**

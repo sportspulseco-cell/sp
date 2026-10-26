@@ -16,9 +16,7 @@ import {
   orgs as orgsApi
 } from "@/lib/api/browser-api";
 import type { Role, RoleScopeType } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Button, Field, Select } from "@sportspulse/ui";
 
 // Scope codes and their human labels come from the kernel catalogue so
 // this panel and the invite dialog can never drift (SETUP-7).

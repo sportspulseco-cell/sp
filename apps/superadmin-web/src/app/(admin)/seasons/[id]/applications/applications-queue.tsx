@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Eye, Loader2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Badge, Button, Dialog, DialogActions, Input } from "@sportspulse/ui";
 import { adminTransfers } from "@/lib/api/browser-api";
 
 type Item = {

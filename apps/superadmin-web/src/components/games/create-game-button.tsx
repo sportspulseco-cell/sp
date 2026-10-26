@@ -5,13 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { fetchAll } from "@sportspulse/api-client";
-import { Combobox } from "@sportspulse/ui";
+import { Button, Combobox, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 import { gameOps, leagueMgmt } from "@/lib/api/browser-api";
 import type { Division, League, Season, Team } from "@/lib/api/types";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { useOrgRinks } from "./use-org-rinks";
 
 /** Context the Games page passes in: its current URL filters. */

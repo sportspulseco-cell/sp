@@ -18,19 +18,22 @@ import {
   type RegistrationState
 } from "@sportspulse/kernel";
 import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
-import { Button } from "@/components/ui/button";
-import { Badge, statusTone } from "@/components/ui/badge";
-import { Dialog, DialogActions } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import {
+  Badge,
+  Button,
+  Dialog,
+  DialogActions,
+  Field,
+  Input,
+  Select,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table
-} from "@/components/ui/table";
+  Table,
+  statusTone
+} from "@sportspulse/ui";
 
 interface Submission {
   id: string;
