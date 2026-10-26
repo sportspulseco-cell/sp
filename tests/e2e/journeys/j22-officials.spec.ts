@@ -1,6 +1,6 @@
 import { stagingDbUrl, supabaseFetch } from "./_helpers";
 /**
- * J18 · Game-day official runs the scoresheet (SCH-12, PPHL 7.1, UC-11/12)
+ * J22 · Game-day official runs the scoresheet (SCH-12, PPHL 7.1, UC-11/12)
  *
  * The league admin console assigns a person as scorekeeper on one game
  * (Officials panel). That person signs in to the admin console on an iPad
@@ -66,15 +66,15 @@ async function context(browser: Browser, viewport?: { width: number; height: num
   });
 }
 async function shot(page: Page, name: string) {
-  await page.screenshot({ path: `${OUTPUT_DIR}/j18/${name}.png`, fullPage: true }).catch(() => {});
+  await page.screenshot({ path: `${OUTPUT_DIR}/j22/${name}.png`, fullPage: true }).catch(() => {});
 }
 
-test.describe("J18 game-day official", () => {
-  test.skip(!IS_STAGING, "J18 mutates data; staging only");
+test.describe("J22 game-day official", () => {
+  test.skip(!IS_STAGING, "J22 mutates data; staging only");
   test.setTimeout(600_000);
 
-  test("J18 journey: crew spot → My games → scoresheet on an iPad", async ({ browser }) => {
-    const tag = `${RUN_TAG}J18`;
+  test("J22 journey: crew spot → My games → scoresheet on an iPad", async ({ browser }) => {
+    const tag = `${RUN_TAG}J22`;
     const email = `staging-e2e+${tag.toLowerCase()}-keeper@sportspulse.us`;
     const password = `Keep!${tag}x9`;
     const w: Record<string, any> = { teams: [] as Array<{ id: string; name: string; player: string; playerName: string }> };
