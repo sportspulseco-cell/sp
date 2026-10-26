@@ -222,7 +222,11 @@ export class SupabaseAdminService {
       this.log.log(`verifyPassword rejected for ${email}: ${error?.message ?? "no user"}`);
       return null;
     }
-    await c.auth.signOut().catch(() => undefined);
+    // Revoke only the session this check opened. A bare signOut() is
+    // scope "global": it ended every session the person had, so a player
+    // signed in on player-web was signed out the moment the registration
+    // funnel checked their password (J6.5, J8.2 on staging, 26 Oct).
+    await c.auth.signOut({ scope: "local" }).catch(() => undefined);
     return data.user.id;
   }
 

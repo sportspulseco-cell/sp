@@ -1,5 +1,5 @@
 import { normalizeSkillLevel } from "@sportspulse/kernel";
-import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
@@ -13,6 +13,7 @@ import { buildTeamInvitePayload } from "../../communications/domain/templates/te
 import { withTierDivisions } from "./season-tiers";
 import { RosterEntryService } from "./roster-entry.service";
 import { FreeAgentOffersService } from "./free-agent-offers.service";
+import { teamNameVerdict } from "./team-names";
 
 /**
  * Registration v2 service — thin direct-Drizzle handlers for the new
@@ -641,6 +642,82 @@ export class RegistrationV2Service {
    *   5. write the new team_id back onto registrations.team_id so this
    *      stays idempotent
    */
+  /**
+   * A returning team (same name, same captain): enter it in the new
+   * division, make sure the captain role and the captain's roster spot for
+   * this season exist, and stamp the team on the registration. Each step
+   * skips what is already there, so a repeated approval adds nothing.
+   */
+  private async reenterReturningTeam(input: {
+    registrationId: string;
+    submitterUserId: string;
+    captainPersonId: string;
+    seasonId: string;
+    divisionId: string | null;
+    teamId: string;
+  }): Promise<{ teamId: string; created: boolean }> {
+    const { teamId } = input;
+    if (input.divisionId) {
+      const [entry] = await this.db
+        .select({ id: schema.divisionTeamEntries.id })
+        .from(schema.divisionTeamEntries)
+        .where(
+          and(
+            eq(schema.divisionTeamEntries.teamId, teamId),
+            eq(schema.divisionTeamEntries.divisionId, input.divisionId),
+            isNull(schema.divisionTeamEntries.leftAt)
+          )
+        )
+        .limit(1);
+      if (!entry) {
+        await this.db.insert(schema.divisionTeamEntries).values({ teamId, divisionId: input.divisionId, entryStatus: "applied" });
+      }
+    }
+    const [captainRole] = await this.db.select({ id: schema.roles.id }).from(schema.roles).where(eq(schema.roles.code, "captain")).limit(1);
+    if (captainRole) {
+      const [held] = await this.db
+        .select({ id: schema.userRoleAssignments.id })
+        .from(schema.userRoleAssignments)
+        .where(
+          and(
+            eq(schema.userRoleAssignments.userId, input.submitterUserId),
+            eq(schema.userRoleAssignments.roleId, captainRole.id),
+            eq(schema.userRoleAssignments.scopeType, "team"),
+            eq(schema.userRoleAssignments.scopeId, teamId),
+            isNull(schema.userRoleAssignments.revokedAt)
+          )
+        )
+        .limit(1);
+      if (!held) {
+        await this.db.insert(schema.userRoleAssignments).values({
+          userId: input.submitterUserId, roleId: captainRole.id, scopeType: "team", scopeId: teamId,
+          effectiveFrom: new Date(), metadata: { source: "team_registration_approval" }
+        });
+      }
+    }
+    const [spot] = await this.db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, teamId),
+          eq(schema.teamMemberships.personId, input.captainPersonId),
+          eq(schema.teamMemberships.seasonId, input.seasonId),
+          eq(schema.teamMemberships.currentStatus, "active")
+        )
+      )
+      .limit(1);
+    if (!spot) {
+      await this.db.insert(schema.teamMemberships).values({
+        teamId, personId: input.captainPersonId, seasonId: input.seasonId,
+        membershipType: "primary", currentStatus: "active", effectiveFrom: new Date()
+      });
+    }
+    await this.db.update(schema.registrations).set({ teamId, updatedAt: new Date() }).where(eq(schema.registrations.id, input.registrationId));
+    this.log.log(`[team registration] registration=${input.registrationId} re-entered returning team=${teamId} division=${input.divisionId ?? "-"}`);
+    return { teamId, created: false };
+  }
+
   async createTeamFromRegistration(input: {
     registrationId: string;
     submitterUserId: string;
@@ -658,6 +735,14 @@ export class RegistrationV2Service {
       .where(eq(schema.registrations.id, input.registrationId))
       .limit(1);
     if (reg?.teamId) return { teamId: reg.teamId, created: false };
+
+    // A name already used in the org: the same captain's returning team is
+    // re-entered; anyone else's name is refused (see team-names.ts).
+    const verdict = await teamNameVerdict(this.db, input.orgId, input.teamName, input.submitterUserId);
+    if (verdict.kind === "taken") throw new ConflictException(verdict.message);
+    if (verdict.kind === "returning") {
+      return this.reenterReturningTeam({ ...input, teamId: verdict.teamId });
+    }
 
     // 1. teams row
     const [team] = await this.db
@@ -924,16 +1009,32 @@ export class RegistrationV2Service {
           (meta.team as { name?: string; color?: string } | undefined) ?? {};
         const teamName = team.name?.trim();
         if (teamName) {
-          await this.createTeamFromRegistration({
-            registrationId: row.id,
-            submitterUserId: row.submittedByUserId,
-            captainPersonId: row.subjectPersonId,
-            orgId: row.orgId,
-            seasonId: row.seasonId,
-            divisionId: row.divisionId ?? null,
-            teamName,
-            teamColor: team.color ?? null
-          });
+          try {
+            const made = await this.createTeamFromRegistration({
+              registrationId: row.id,
+              submitterUserId: row.submittedByUserId,
+              captainPersonId: row.subjectPersonId,
+              orgId: row.orgId,
+              seasonId: row.seasonId,
+              divisionId: row.divisionId ?? null,
+              teamName,
+              teamColor: team.color ?? null
+            });
+            roster = { status: made.created ? "team_created" : "team_reentered" };
+          } catch (e) {
+            // Never an approved, paid team registration with no team and
+            // nobody told: record why on the registration and return it.
+            const reason = (e as Error).message;
+            roster = { status: "team_not_created", reason };
+            await this.db
+              .update(schema.registrations)
+              .set({
+                metadata: sql`${schema.registrations.metadata} || (${JSON.stringify({ teamPlacement: { status: "failed", reason, at: new Date().toISOString() } })}::text)::jsonb`,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.registrations.id, row.id));
+            console.error(`[applyApprovalSideEffects] team-registration ${row.id}: team not created: ${reason}`);
+          }
         } else {
           console.warn(
             `[applyApprovalSideEffects] team-registration ${row.id} has no metadata.team.name; skipping team creation`
