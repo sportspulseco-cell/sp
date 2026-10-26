@@ -38,7 +38,7 @@ const ROLES: Array<{ role: Role; app: string }> = [
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const SKIP = /\/(sign-out|logout|auth\/callback)(\/|$)|^mailto:|^tel:|\.(pdf|csv|png|jpg)$/i;
-const NOT_FOUND = /(This page could not be found|404|Page not found|not be found)/i;
+const NOT_FOUND = /(This page could not be found|This page is not here|404|Page not found|not be found)/i;
 const ERROR_BOUNDARY = /(Something went wrong|Application error|Unhandled Runtime Error|Could not complete|server problem on our side)/i;
 const COULD_NOT_LOAD = /(Could not load|Couldn't load|Failed to load|Sign in expired)/i;
 const PLACEHOLDER = /(coming soon|not built yet|not yet available|under construction|placeholder|will appear here once|is on the roadmap)/i;
@@ -141,7 +141,7 @@ async function crawl(role: Role, app: string, context: BrowserContext, page: Pag
 
     visits.push({
       role, url: key, pattern, from: item.from, depth: item.depth, status, finalUrl, title, h1, ms,
-      notFound: (status === 404) || NOT_FOUND.test(h1) || /This page could not be found/.test(text),
+      notFound: (status === 404) || NOT_FOUND.test(h1) || /This page could not be found|This page is not here|404 · not found/i.test(text),
       errorBoundary: ERROR_BOUNDARY.test(text) || (status !== null && status >= 500),
       couldNotLoad: COULD_NOT_LOAD.test(text),
       placeholder: PLACEHOLDER.test(text),

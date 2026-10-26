@@ -124,7 +124,7 @@ test("rule A: rollover clones the team into the next season and copies the roste
   await expect(page.getByText(/Rolled over · now in .* Season 2027/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Dues are not copied/)).toBeVisible();
   const row = page.getByRole("row", { name: new RegExp(`${TAG} Season 2027`) });
-  await expect(row).toContainText("applied");
+  await expect(row).toContainText(/applied/i);
   await expect(row).toContainText("Rolled over from");
 
   // Durable record and downstream effect.

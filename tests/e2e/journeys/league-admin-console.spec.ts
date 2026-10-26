@@ -15,7 +15,8 @@ import { IS_STAGING, RUN_TAG, signedInAs, stagingSql } from "./_helpers";
 test.skip(!IS_STAGING, "staging only");
 
 const FORBIDDEN = /Super admin access required|Requires super_admin|Requires an admin role|Could not load|does not have access/i;
-const NOT_FOUND = /This page could not be found/;
+// Next's default text, or the shared NotFoundPanel in the console shell.
+const NOT_FOUND = /This page could not be found|This page is not here/;
 
 test("league admin: every console page loads with data, none says 404 or access required", async ({ browser }) => {
   test.setTimeout(300_000);
@@ -52,7 +53,8 @@ test("league admin: every console page loads with data, none says 404 or access 
   expect(orgAdmin, "staging org admin account exists").toBeTruthy();
   await page.goto(`${E2E_URLS.superadmin}/users/${orgAdmin!.id}`);
   await expect(page.locator("h1").first()).not.toHaveText(/404/);
-  await expect(page.getByRole("link", { name: "All users" })).toBeVisible({ timeout: 20_000 });
+  // The way back is the breadcrumb (the shared shell dropped repeated back links).
+  await expect(page.getByRole("navigation", { name: /breadcrumb/i }).getByRole("link", { name: "Users" })).toBeVisible({ timeout: 20_000 });
 
   // Roles: a row opens a real page (was a 404 for everyone).
   await page.goto(`${E2E_URLS.superadmin}/roles`);

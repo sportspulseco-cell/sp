@@ -135,7 +135,7 @@ test("3. league admin sees an org page's admin list read-only", async ({ browser
   await page.goto(`${E2E_URLS.superadmin}/organizations/${la!.org_id}`);
   await page.waitForLoadState("networkidle").catch(() => {});
   const text = await mainText(page);
-  if (/could not be found|Could not load/i.test(text)) {
+  if (/could not be found|This page is not here|Could not load/i.test(text)) {
     console.log("[j18] org page not open to a league admin; nothing to check");
   } else {
     await expect(page.getByText("Your role cannot add admins here. Ask your org admin.")).toBeVisible();
