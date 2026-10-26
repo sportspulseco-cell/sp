@@ -488,6 +488,16 @@ reading local `main`, not observed at runtime (usually because an earlier bug bl
   Fix: both lists order by the share number (-01, -02, ...).
   Evidence: staging rows read back after the J14 save (13 shares, amounts on the intended players); J14 in the next run.
 
+[MON-31] The team store had no menu entry in the captain or player app · major (regression)
+  Found: J16 rewritten for the rebuilt store, staging 26 Oct: no link to /captain/store or /store in either sidebar; a
+    captain could not reach the store, a player only from the "store is open" email.
+  Cause: CONSOLE-7 (c66e81f) took the entries out while the store had no checkout; MON-15 (8663a4a) added checkout but
+    did not put them back.
+  Fix: "Team store" in the captain's "This season" group and the player's "My team" group.
+  Evidence: J16 (new) walks generate, order, pay, process, ship with database readbacks: 7 of 10 passed on staging before
+    this fix; the 3 failures were this and the Payments label (handed to the finance work). Typecheck of both apps.
+  Not verified: the menu entries on staging (next push).
+
 ## Gaps
 
 Backend without UI

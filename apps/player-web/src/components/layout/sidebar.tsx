@@ -10,6 +10,7 @@ import {
   CreditCard,
   LayoutDashboard,
   ShieldCheck,
+  ShoppingBag,
   User,
   UsersRound,
   X,
@@ -60,9 +61,9 @@ const BASE_NAV: NavSection[] = [
   {
     label: "My team",
     items: [
-      { href: "/team", label: "Team", icon: UsersRound }
-      // Release 1: Team store (/store) has no checkout yet; the route
-      // stays reachable by URL, not from the navigation.
+      { href: "/team", label: "Team", icon: UsersRound },
+      // Back in the menu now that players can order and pay (MON-15).
+      { href: "/store", label: "Team store", icon: ShoppingBag }
     ]
   },
   {

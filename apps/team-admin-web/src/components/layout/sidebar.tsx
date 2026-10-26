@@ -12,6 +12,7 @@ import {
   Mail,
   Settings,
   ShieldCheck,
+  ShoppingBag,
   Sparkles,
   Star,
   Users,
@@ -85,9 +86,9 @@ const CAPTAIN_SECTIONS: NavSection[] = [
       // the time-bound signal; this is the permanent route.
       { href: "/captain/register", label: "Register the team", icon: Sparkles },
       { href: "/captain/dues", label: "Dues", icon: CircleDollarSign },
-      { href: "/captain/compliance", label: "Waivers & documents", icon: ShieldCheck }
-      // Release 1: Team store (/captain/store) has no checkout yet; the
-      // route stays reachable by URL, not from the navigation.
+      { href: "/captain/compliance", label: "Waivers & documents", icon: ShieldCheck },
+      // Back in the menu now that players can order and pay (MON-15).
+      { href: "/captain/store", label: "Team store", icon: ShoppingBag }
     ]
   }
 ];
