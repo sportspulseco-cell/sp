@@ -110,7 +110,7 @@ export function SeasonStep({
           <Field
             label="Registration opens"
             required
-            hint="When the public registration link becomes active. Before this date the link shows a countdown."
+            hint="When the public registration link becomes active. Today or later; today opens it now. Before this date the link shows a countdown."
           >
             <Input
               type="date"

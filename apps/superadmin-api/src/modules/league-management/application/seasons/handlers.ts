@@ -5,6 +5,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
   clampLimit,
+  DomainError,
   NotFoundError,
   type CommandHandler,
   type QueryHandler
@@ -193,6 +194,25 @@ export interface UpdateSeasonInput {
   playoffEndDate?: string | null;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * One rule for create and edit (PPHL test F-6, 26 Oct 2026): a
+ * registration or roster-lock date the admin sets must be today or later,
+ * with the same one day of timezone slack as @IsFutureOrToday on create.
+ * A date already saved stays valid, so editing a season whose
+ * registration opened last month still saves. "Unchanged" allows a day of
+ * drift because the edit dialog resends the date as local midnight.
+ */
+export function keepsOrMovesForward(message: string, next: string | null | undefined, current: Date | null): void {
+  if (!next) return;
+  const at = new Date(next);
+  if (Number.isNaN(at.getTime())) throw new DomainError("INVALID_SEASON_DATES", message);
+  if (current && Math.abs(at.getTime() - current.getTime()) < DAY_MS) return;
+  const earliest = new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
+  if (at.toISOString().slice(0, 10) < earliest) throw new DomainError("INVALID_SEASON_DATES", message);
+}
+
 @Injectable()
 export class UpdateSeasonHandler
   implements CommandHandler<UpdateSeasonInput, SeasonDto>
@@ -213,6 +233,9 @@ export class UpdateSeasonHandler
       );
     }
     if (input.timezone !== undefined) season.setTimezone(input.timezone);
+    keepsOrMovesForward("Registration cannot open in the past.", input.registrationOpensAt, season.registrationOpensAt);
+    keepsOrMovesForward("Registration cannot close in the past.", input.registrationClosesAt, season.registrationClosesAt);
+    keepsOrMovesForward("Roster lock cannot be in the past.", input.rosterLockAt, season.rosterLockAt);
     if (
       input.registrationOpensAt !== undefined ||
       input.registrationClosesAt !== undefined

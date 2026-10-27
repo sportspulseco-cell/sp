@@ -389,18 +389,22 @@ type SeasonForm = {
   rosterLockAt: string;
 };
 
-/** Same checks as Org setup step 3; past dates allowed only when editing. */
-function seasonProblem(f: SeasonForm, creating: boolean): string | null {
+/**
+ * Same checks as Org setup step 3. Registration and roster-lock dates
+ * follow one rule on create and edit (the API applies it too): a date you
+ * set or change must be today or later; a date already saved stays.
+ * Season dates may be corrected into the past only when editing.
+ */
+function seasonProblem(f: SeasonForm, saved: SeasonForm | null): string | null {
   const t = today();
+  const moved = (k: keyof SeasonForm) => !!f[k] && f[k] < t && f[k] !== saved?.[k];
   if (!f.name.trim()) return "Season name is required.";
   if (!f.startDate || !f.endDate) return "Season start and end dates are required.";
   if (f.endDate < f.startDate) return "Season end must be on or after its start.";
-  if (creating) {
-    if (f.startDate < t || f.endDate < t) return "A new season cannot start or end in the past.";
-    if (f.registrationOpensAt && f.registrationOpensAt < t) return "Registration cannot open in the past.";
-    if (f.registrationClosesAt && f.registrationClosesAt < t) return "Registration cannot close in the past.";
-    if (f.rosterLockAt && f.rosterLockAt < t) return "Roster lock cannot be in the past.";
-  }
+  if (!saved && (f.startDate < t || f.endDate < t)) return "A new season cannot start or end in the past.";
+  if (moved("registrationOpensAt")) return "Registration cannot open in the past.";
+  if (moved("registrationClosesAt")) return "Registration cannot close in the past.";
+  if (moved("rosterLockAt")) return "Roster lock cannot be in the past.";
   if (f.registrationOpensAt && f.registrationClosesAt && f.registrationClosesAt < f.registrationOpensAt)
     return "Registration must close on or after it opens.";
   const anyPlayoff = !!f.playoffStartDate || !!f.playoffEndDate;
@@ -433,9 +437,9 @@ function SeasonFields({ f, set }: { f: SeasonForm; set: (k: keyof SeasonForm, v:
         {date("playoffEndDate", "Playoff end", "Optional")}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {date("registrationOpensAt", "Registration opens")}
-        {date("registrationClosesAt", "Registration closes")}
-        {date("rosterLockAt", "Roster lock", "Optional")}
+        {date("registrationOpensAt", "Registration opens", "Today or later. Today opens it now.")}
+        {date("registrationClosesAt", "Registration closes", "Today or later")}
+        {date("rosterLockAt", "Roster lock", "Optional. Today or later")}
       </div>
     </>
   );
@@ -483,7 +487,7 @@ export function NewSeasonButton({
           className="space-y-4"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            const p = seasonProblem(f, true);
+            const p = seasonProblem(f, null);
             if (p) return setError(p);
             void run(
               () => create({ ...toSeasonBody(f), leagueId: league.id, sportCode: league.sportCode, timezone: tz }),
@@ -529,7 +533,7 @@ export function EditSeasonButton({
           className="space-y-4"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            const p = seasonProblem(f, false);
+            const p = seasonProblem(f, initial);
             if (p) return setError(p);
             void run(() => save(toSeasonBody(f)), () => setOpen(false));
           }}
