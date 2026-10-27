@@ -83,6 +83,15 @@ goes to `test-results-season/`. Every record carries the run tag
 names are unique per organization. Run it before each production
 release.
 
+`SEASON_TARGET=production pnpm test:season` runs the same season on
+production, but only in "Smoke Test Org", as the smoke-test users.
+Every SQL query is read-only; all writes go through the API. Accounts
+use `sportspulse.smoketest+…@gmail.com`, so production mail never
+bounces. Output goes to `test-results-season-production/`.
+`SEASON_TARGET=production node tests/e2e/season/load.mjs` is the
+registration-night load test: waves of 20 and 40 players register and
+pay at once. Archive the test leagues afterwards.
+
 CI runs the full suite on every PR + push to main via
 `.github/workflows/e2e.yml`. Push events sleep 90s first to let
 Vercel finish redeploying.

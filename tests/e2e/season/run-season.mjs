@@ -1,5 +1,5 @@
-// Full-season integration run on STAGING (org "PPHL Staging"), through the
-// same API calls the apps make. Nothing is written to production.
+// Full-season integration run (SEASON_TARGET=staging: org "PPHL Staging"; production: "Smoke Test Org" only),
+// through the same API calls the apps make. See lib.mjs for what each target may touch.
 //
 // The brief's steps, as they exist in SportsPulse:
 //   league/season/divisions  -> org admin creates them (league-management API)
@@ -17,12 +17,12 @@
 //                               standings and leaders read back
 // Every step logs; findings are collected; everything lands in test-results-season/run-<tag>.json.
 import { writeFileSync } from "node:fs";
-import { call, edge, env, login, q, sql, msgOf, dobYearsAgo, OUT } from "./lib.mjs";
+import { call, edge, login, q, sql, msgOf, dobYearsAgo, OUT, CFG, TARGET } from "./lib.mjs";
 
 const TAG = `S${Date.now().toString(36).toUpperCase()}`;
 const PW = `Play!${TAG}x9`;
 const SFX = TAG.slice(-4); // team names carry the run, since names are unique per org (F-1)
-const mail = (k) => `staging-e2e+${TAG.toLowerCase()}-${k}@sportspulse.us`;
+const mail = (k) => CFG.mail(TAG, k);
 const steps = [];
 const findings = [];
 const ids = { tag: TAG, divisions: {}, teams: {}, players: {}, captains: {}, games: [] };
@@ -56,11 +56,11 @@ const tomorrow = new Date(Date.now() + 86400000);
 let oa, sa;
 try {
   // ---------------- 1. Hierarchy ----------------
-  oa = await login(env.STAGING_ORG_EMAIL, env.STAGING_ORG_PASSWORD);
-  sa = await login(env.STAGING_SUPERADMIN_EMAIL, env.STAGING_SUPERADMIN_PASSWORD);
-  const [org] = await q(`select id, display_name as name, slug from orgs where slug = 'pphl-staging'`);
+  oa = await login(CFG.orgAdmin.email, CFG.orgAdmin.password);
+  sa = await login(CFG.superAdmin.email, CFG.superAdmin.password);
+  const [org] = await q(`select id, display_name as name, slug from orgs where slug = $1`, [CFG.orgSlug]);
   ids.orgId = org.id;
-  step("setup", `target org is the staging copy of PPHL ("${org.name}"); production PPHL is never touched`, !!org);
+  step("setup", `target org on ${TARGET} is "${org?.name}" (${CFG.orgSlug}); PPHL's real org is never written`, !!org && org.slug === CFG.orgSlug);
 
   let leagueName = "Test League Oct";
   const [dupe] = await q(`select id from leagues where org_id = $1 and name = $2 and deleted_at is null`, [org.id, leagueName]).catch(() => q(`select id from leagues where org_id = $1 and name = $2`, [org.id, leagueName]));
@@ -96,7 +96,7 @@ try {
 
   // Registration form (copy of the org's newest published season form) and prices.
   const [src] = await q(`select f.purpose, f.applies_to_roles, v.schema from registration_forms f join registration_form_versions v on v.id = f.active_version_id
-     where f.org_id = $1 and f.deleted_at is null and f.season_id is not null and f.purpose = 'season_registration' order by f.created_at desc limit 1`, [org.id]);
+     where f.org_id = (select id from orgs where slug = $1) and f.deleted_at is null and f.season_id is not null and f.purpose = 'season_registration' order by f.created_at desc limit 1`, [CFG.formSourceSlug]);
   const fm = await call("POST", "/org-admin/forms", { orgId: org.id, scope: "league", scopeId: ids.leagueId, seasonId: ids.seasonId, name: `${seasonName} Registration`, purpose: src.purpose, appliesToRoles: src.applies_to_roles ?? undefined }, oa);
   step("setup", "org admin creates the season's registration form", fm.status < 300, `${fm.status} ${msgOf(fm)}`);
   const fv = await call("POST", `/org-admin/forms/${fm.json.id}/versions`, { schema: src.schema }, oa);
@@ -257,7 +257,7 @@ try {
 
   // ---------------- 5. Roster lock ----------------
   // Fresh sign-in: registration takes ~40 minutes and the first token expires.
-  oa = await login(env.STAGING_ORG_EMAIL, env.STAGING_ORG_PASSWORD);
+  oa = await login(CFG.orgAdmin.email, CFG.orgAdmin.password);
   {
     const lockAt = new Date(Date.now() - 60000).toISOString();
     const lk = await call("PATCH", `/league/seasons/${ids.seasonId}`, { rosterLockAt: lockAt }, oa);
@@ -349,7 +349,7 @@ try {
   save();
 
   // ---------------- 7. Game day ----------------
-  oa = await login(env.STAGING_ORG_EMAIL, env.STAGING_ORG_PASSWORD);
+  oa = await login(CFG.orgAdmin.email, CFG.orgAdmin.password);
   const playersOf = async (teamId) => q(`select m.person_id from team_memberships m where m.team_id = $1 and m.current_status = 'active' order by m.jersey_number nulls last, m.created_at`, [teamId]);
   const first = await q(`select id, division_id, home_team_id, away_team_id, scheduled_start_ts_utc from games where season_id = $1 and status = 'scheduled' order by scheduled_start_ts_utc, id`, [ids.seasonId]);
   const pick = [];

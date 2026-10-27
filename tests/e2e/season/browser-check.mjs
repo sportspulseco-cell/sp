@@ -1,10 +1,10 @@
 // Destination check for the full-season run, in a real browser signed in
-// as each role on its own staging app. Reads the accounts the run made from
-// test-results-season/latest.json (or the run file given as argv[2]).
+// as each role on its own app (staging or production, see lib.mjs). Reads the accounts the run made from
+// the target's output folder (latest.json) (or the run file given as argv[2]).
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { env, OUT, ROOT, SUPABASE_IP } from "./lib.mjs";
+import { CFG, OUT, ROOT, SUPABASE_IP, q, sql } from "./lib.mjs";
 
 const { chromium } = createRequire(path.join(ROOT, "package.json"))("@playwright/test");
 const runFile = process.argv[2] ?? path.join(OUT, "latest.json");
@@ -12,7 +12,7 @@ const { ids } = JSON.parse(readFileSync(runFile, "utf8"));
 const PW = `Play!${ids.tag}x9`;
 const SHOTS = path.join(OUT, "shots");
 mkdirSync(SHOTS, { recursive: true });
-const URLS = { player: "https://staging-player.sportspulse.us", team: "https://staging-team.sportspulse.us", org: "https://staging-org.sportspulse.us" };
+const URLS = CFG.apps;
 const results = [];
 const check = (what, ok, detail = "") => { results.push({ what, ok, detail }); console.log(`${ok ? "PASS" : "FAIL"} ${what}${detail ? `  -- ${String(detail).slice(0, 200)}` : ""}`); };
 
@@ -22,7 +22,7 @@ async function as(app, email, password) {
   const p = await ctx.newPage();
   p.setDefaultNavigationTimeout(90000);
   // Staging apps sit behind Vercel protection: set the bypass cookie first.
-  const secret = env[`STAGING_VERCEL_BYPASS_${app.toUpperCase()}`];
+  const secret = CFG.bypass(app);
   const url = new URL("/sign-in", URLS[app]);
   if (secret) { url.searchParams.set("x-vercel-protection-bypass", secret); url.searchParams.set("x-vercel-set-bypass-cookie", "true"); }
   await p.goto(url.toString());
@@ -68,15 +68,26 @@ try {
   }
   // Org admin: the season and its divisions.
   {
-    const { ctx, p } = await as("org", env.STAGING_ORG_EMAIL, env.STAGING_ORG_PASSWORD);
+    const { ctx, p } = await as("org", CFG.orgAdmin.email, CFG.orgAdmin.password);
     const se = await look(p, `/seasons/${ids.seasonId}`, "org-season");
     check("org-admin season page shows Season 2026 and its divisions", se.includes("Season 2026") && se.includes("Div A") && se.includes("Div C"), se.slice(0, 200));
+    // A season in an org this admin does not manage stays hidden.
+    const [foreign] = await q(
+      `select s.id from seasons s where s.org_id not in (
+         select a.scope_id from user_role_assignments a join auth.users u on u.id = a.user_id
+          where u.email = $1 and a.scope_type = 'org' and a.revoked_at is null)
+       order by s.created_at desc limit 1`, [CFG.orgAdmin.email]);
+    if (foreign) {
+      const fx = await look(p, `/seasons/${foreign.id}`, "org-foreign-season");
+      check("org-admin: a season in an org they don't manage is not shown", /not here|not found/i.test(fx), fx.slice(0, 160));
+    }
     await ctx.close();
   }
 } catch (e) {
   check("browser walk finished", false, String(e).slice(0, 300));
 } finally {
   await b.close();
+  await sql.end();
   writeFileSync(runFile.replace(/\.json$/, "-browser.json"), JSON.stringify(results, null, 2));
   const pass = results.filter((r) => r.ok).length;
   console.log(`${pass}/${results.length} browser checks passed`);
