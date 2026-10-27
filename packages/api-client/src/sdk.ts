@@ -2241,7 +2241,7 @@ export function createApi(f: Fetcher) {
        * rebuilds the game's stat lines and the league standings, then
        * notifies both teams. `endedIn` is required when the score is not tied.
        */
-      finalizeGame: (id: string, body: { endedIn?: GameEnding } = {}) =>
+      finalizeGame: (id: string, body: { endedIn?: GameEnding; shootoutWinner?: "home" | "away" } = {}) =>
         f<Game & { finalizeSummary: GameFinalizeSummary }>(`/games/${id}/finalize`, {
           method: "POST",
           body: JSON.stringify(body)

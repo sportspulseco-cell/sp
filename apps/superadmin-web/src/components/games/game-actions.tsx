@@ -394,12 +394,16 @@ function FinalizeDialog({
   onDone: (message: string) => void;
 }) {
   const tied = game.homeScore === game.awayScore;
-  const options = GAME_ENDINGS.filter((e) => !(tied && e === "shootout"));
+  const options = GAME_ENDINGS;
   // Default from the period the scorekeeper last recorded: past
   // regulation means overtime. Ties may leave it blank.
   const [endedIn, setEndedIn] = useState<GameEnding | "">(
     tied ? "" : game.period > regulationPeriods ? "overtime" : "regulation"
   );
+  // A tied score that went to a shootout: who won it. Finalize adds the
+  // winner's one shootout goal on the server (PPHL test F-7).
+  const [shootoutWinner, setShootoutWinner] = useState<"home" | "away" | "">("");
+  const needsWinner = tied && endedIn === "shootout";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -407,7 +411,10 @@ function FinalizeDialog({
     setLoading(true);
     setError(null);
     try {
-      const r = await gameOps.finalizeGame(game.id, endedIn ? { endedIn } : {});
+      const r = await gameOps.finalizeGame(
+        game.id,
+        endedIn ? { endedIn, ...(needsWinner && shootoutWinner ? { shootoutWinner } : {}) } : {}
+      );
       const s = r.finalizeSummary;
       // Suspended players of either team served this game (COMP-10).
       const served = s.suspensionsServed
@@ -470,6 +477,48 @@ function FinalizeDialog({
               </label>
             ))}
           </div>
+          {endedIn === "shootout" ? (
+            <p className="text-[12px] text-fg-muted">
+              Log regulation and overtime goals as goals. Shootout goals are not logged; the
+              shootout winner gets one goal on the score.
+            </p>
+          ) : null}
+          {needsWinner ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-fg">Who won the shootout?</p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["away", awayName],
+                    ["home", homeName]
+                  ] as const
+                ).map(([side, name]) => (
+                  <label
+                    key={side}
+                    className={
+                      "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm " +
+                      (shootoutWinner === side ? "border-fg bg-surface-2 text-fg" : "border-border text-fg-muted")
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="shootoutWinner"
+                      value={side}
+                      checked={shootoutWinner === side}
+                      onChange={() => setShootoutWinner(side)}
+                    />
+                    {name}
+                  </label>
+                ))}
+              </div>
+              {shootoutWinner ? (
+                <p className="text-[12px] text-fg-muted">
+                  Final score will be {game.awayScore + (shootoutWinner === "away" ? 1 : 0)} –{" "}
+                  {game.homeScore + (shootoutWinner === "home" ? 1 : 0)}.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <details className="text-[12px] text-fg-muted">
             <summary className="cursor-pointer">What finalizing does</summary>
             <p className="mt-1">
@@ -494,7 +543,7 @@ function FinalizeDialog({
           <Button
             type="button"
             onClick={confirm}
-            disabled={loading || (!tied && !endedIn)}
+            disabled={loading || (!tied && !endedIn) || (needsWinner && !shootoutWinner)}
           >
             {loading ? (
               <>

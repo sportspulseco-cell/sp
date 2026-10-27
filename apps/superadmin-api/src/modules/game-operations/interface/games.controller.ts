@@ -468,7 +468,12 @@ export class GamesController {
   ) {
     await requireGamePermission(this.db, user.userId, scope, id, "game.finalize", "finalize games");
     return this.one(
-      await this.finalizeH.execute({ id, userId: user.userId, endedIn: body.endedIn ?? null })
+      await this.finalizeH.execute({
+        id,
+        userId: user.userId,
+        endedIn: body.endedIn ?? null,
+        shootoutWinner: body.shootoutWinner ?? null
+      })
     );
   }
 

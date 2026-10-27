@@ -370,7 +370,7 @@ export function checkFinalResult(input: FinalResultInput): FinalResultVerdict {
       ok: false,
       code: "FINAL_SHOOTOUT_TIED",
       message:
-        "A shootout always has a winner. Add one goal to the shootout winner's score, then finalize."
+        "A shootout always has a winner. Pick the shootout winner, and finalize adds their one shootout goal."
     };
   }
   if (goalEvents.withoutTeam > 0) {

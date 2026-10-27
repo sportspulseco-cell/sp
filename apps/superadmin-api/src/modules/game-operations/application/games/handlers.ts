@@ -974,7 +974,7 @@ export interface FinalizeSummary {
 export class FinalizeGameHandler
   implements
     CommandHandler<
-      { id: string; userId: string; endedIn?: GameEnding | null },
+      { id: string; userId: string; endedIn?: GameEnding | null; shootoutWinner?: "home" | "away" | null },
       GameDto & { finalizeSummary: FinalizeSummary }
     >
 {
@@ -988,6 +988,7 @@ export class FinalizeGameHandler
     id: string;
     userId: string;
     endedIn?: GameEnding | null;
+    shootoutWinner?: "home" | "away" | null;
   }): Promise<GameDto & { finalizeSummary: FinalizeSummary }> {
     const done = await this.db.transaction(async (tx) => {
       const g = await lockGame(tx, input.id);
@@ -1011,6 +1012,24 @@ export class FinalizeGameHandler
         if (r.teamId === g.homeTeamId) goalEvents.home += r.n;
         else if (r.teamId === g.awayTeamId) goalEvents.away += r.n;
         else goalEvents.withoutTeam += r.n;
+      }
+      // Shootout on a tied score: add the winner's one shootout goal here,
+      // inside the lock, then run the same score check (PPHL test F-7).
+      if (input.shootoutWinner) {
+        if (input.endedIn !== "shootout") {
+          throw new DomainError("FINAL_SHOOTOUT_WINNER_WITHOUT_SHOOTOUT", "A shootout winner is only set when the game ended in a shootout.");
+        }
+        if (g.homeScore !== g.awayScore) {
+          throw new DomainError(
+            "FINAL_SHOOTOUT_ALREADY_DECIDED",
+            `The score is already home ${g.homeScore}, away ${g.awayScore}. Pick a shootout winner only while the score is tied.`
+          );
+        }
+        g.applyScore(
+          g.homeScore + (input.shootoutWinner === "home" ? 1 : 0),
+          g.awayScore + (input.shootoutWinner === "away" ? 1 : 0)
+        );
+        log.log(`game.shootout_goal game=${input.id} winner=${input.shootoutWinner} score=${g.homeScore}-${g.awayScore}`);
       }
       const verdict = checkFinalResult({
         homeScore: g.homeScore,

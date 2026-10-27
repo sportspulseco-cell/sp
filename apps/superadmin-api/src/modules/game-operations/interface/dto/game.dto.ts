@@ -64,6 +64,15 @@ export class FinalizeGameBodyDto {
   @IsOptional()
   @IsIn(GAME_ENDINGS as unknown as string[])
   endedIn?: (typeof GAME_ENDINGS)[number];
+  /**
+   * Shootout on a tied score (PPHL test F-7): the side that won the
+   * shootout. Finalize adds its one shootout goal to the score in the
+   * same transaction, so the scorekeeper never edits the score by hand.
+   */
+  @ApiPropertyOptional({ enum: ["home", "away"] })
+  @IsOptional()
+  @IsIn(["home", "away"])
+  shootoutWinner?: "home" | "away";
 }
 
 /** Publish a generated schedule: the season, optionally narrowed (SCH-8). */
