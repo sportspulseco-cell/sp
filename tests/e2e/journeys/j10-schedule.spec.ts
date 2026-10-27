@@ -643,8 +643,16 @@ test.describe("J10 schedule generate and publish", () => {
       const [{ n: mine }] = await stagingSql<{ n: number }>(
         `select count(*)::int n from games where schedule_run_id = $1 and published_at is not null and (select id from teams where name = $2 and deleted_at is null limit 1) in (home_team_id, away_team_id)`, [runId, BASE_TEAM]);
       expect(mine, "db: the player's team has published generated games").toBeGreaterThan(0);
-      // Times read in the rink's zone: 7:30 PM, never the UTC 12:30 AM.
-      expect(plText, "player schedule shows the 7:30 PM local start").toMatch(/7:30\s?PM/);
+      // Times read in the rink's zone, never UTC. Shared staging has other
+      // runs' rink slots, so the generator may pick one of those: check the
+      // local time of the game it actually made, not a fixed 7:30 PM.
+      const [first] = await stagingSql<{ local: string }>(
+        `select trim(to_char(scheduled_start_ts_utc at time zone 'America/New_York', 'FMHH12:MI AM')) as local
+           from games where schedule_run_id = $1 and published_at is not null
+            and (select id from teams where name = $2 and deleted_at is null limit 1) in (home_team_id, away_team_id)
+          order by scheduled_start_ts_utc limit 1`, [runId, BASE_TEAM]);
+      const local = first.local.replace(" ", "\\s?");
+      expect(plText, `player schedule shows the generated game's local start (${first.local})`).toMatch(new RegExp(local));
     }
     // iCal export exists on player schedule (download only, no subscribe URL).
     const ical = pl.page.getByRole("button", { name: /calendar|ical|\.ics/i });

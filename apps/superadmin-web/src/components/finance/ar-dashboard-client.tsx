@@ -4,7 +4,7 @@ import { Button, Select } from "@sportspulse/ui";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { Badge, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Badge, TBody, TD, TH, THead, TR, Table, navigateInPlace } from "@sportspulse/ui";
 import { formatMoney } from "@/components/finance/money";
 import type { Org } from "@/lib/api/types";
 
@@ -88,7 +88,7 @@ export function ArDashboardClient({
     if (merged.search) params.set("q", merged.search);
     if (merged.page && merged.page > 1) params.set("page", String(merged.page));
     const qs = params.toString();
-    router.push(qs ? `/finance?${qs}` : "/finance");
+    navigateInPlace((h) => router.push(h), qs ? `/finance?${qs}` : "/finance");
   }
 
   const hasNext = invoices.items.length === invoices.limit;

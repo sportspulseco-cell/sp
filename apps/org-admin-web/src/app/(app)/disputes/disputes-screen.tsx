@@ -4,7 +4,7 @@ import { centsToAmountInput, formatMoney } from "@sportspulse/kernel";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Gavel, Loader2, X } from "lucide-react";
-import { Alert, Badge, Button, Eyebrow, Field, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Eyebrow, Field, Input, navigateInPlace } from "@sportspulse/ui";
 import { orgAdminRefundAssessments } from "@/lib/api/browser-api";
 
 type Status =
@@ -61,7 +61,7 @@ export function DisputesScreen({
 
   function changeTab(next: Status) {
     const url = next === "pending" ? "/disputes" : `/disputes?status=${next}`;
-    startTransition(() => router.replace(url));
+    startTransition(() => navigateInPlace((h) => router.replace(h), url));
   }
 
   return (

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
+import { navigateInPlace } from "./lib/navigate-in-place";
 
 export interface UrlFilterSelect {
   /** Query-string key, e.g. "status". */
@@ -45,7 +46,7 @@ export function UrlFilters({
     if (value) next.set(key, value);
     else next.delete(key);
     intended.current = next;
-    router.replace(`${pathname}${next.size ? `?${next}` : ""}`);
+    navigateInPlace((h) => router.replace(h), `${pathname}${next.size ? `?${next}` : ""}`);
   }
 
   // Debounced search.
