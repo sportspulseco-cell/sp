@@ -4,7 +4,7 @@ import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { SchedulingVerifyForm } from "@sportspulse/admin-pages";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 
 export const metadata = { title: "Verify tiebreaker · Org Admin" };
 export const dynamic = "force-dynamic";
@@ -30,8 +30,7 @@ export default async function OrgAdminVerifyPage({
   const season = seasonResult.data;
 
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
-  if (activeOrgId && season.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, season.orgId, `/scheduling/${seasonId}/verify`);
 
   const divisionsPage = await fetchAll((cursor) => leagueMgmt
     .listDivisions({ seasonId: season.id, limit: 100, cursor }))

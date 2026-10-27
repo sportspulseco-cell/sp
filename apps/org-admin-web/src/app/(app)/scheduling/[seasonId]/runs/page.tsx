@@ -4,7 +4,7 @@ import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { SchedulingRunsList } from "@sportspulse/admin-pages";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 
 export const metadata = { title: "Run history · Org Admin" };
 export const dynamic = "force-dynamic";
@@ -30,8 +30,7 @@ export default async function OrgAdminRunsPage({
   const season = seasonResult.data;
 
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
-  if (activeOrgId && season.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, season.orgId, `/scheduling/${seasonId}/runs`);
 
   return (
     <div className="space-y-8">

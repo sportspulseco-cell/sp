@@ -4,7 +4,7 @@ import { LoadError } from "@sportspulse/ui";
 import { LeagueDetail } from "@sportspulse/admin-pages";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import { leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 
 export const metadata = { title: "League · Org Admin" };
 export const dynamic = "force-dynamic";
@@ -42,8 +42,7 @@ export default async function OrgAdminLeagueDetailPage({
   // org_admin reads, but verify the league belongs to the caller's
   // active org before rendering.
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
-  if (activeOrgId && league.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, league.orgId, `/leagues/${id}`);
 
   const [org, governingBodies, seasonsPage] = await Promise.all([
     orgs.get(league.orgId).catch(() => null),

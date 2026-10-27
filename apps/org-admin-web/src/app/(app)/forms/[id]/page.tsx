@@ -23,7 +23,7 @@ import {
 } from "@sportspulse/forms-builder";
 import { leagueMgmt, loadMeScope, orgs, publicRegistration, registration, registrationV2 } from "@/lib/api/server-api";
 import { FormsBuilderProviderClient } from "./forms-builder-provider-client";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -62,7 +62,6 @@ export default async function OrgAdminFormSetupPage({
   const active = VALID_SECTIONS.includes(sectionParam) ? sectionParam : "season";
 
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
 
   const formResult = await load(registration.getForm(id));
   if (!formResult.ok) {
@@ -79,7 +78,7 @@ export default async function OrgAdminFormSetupPage({
   // Scope safety net — the proxy already enforces this, but a
   // defense-in-depth check here avoids leaking form metadata if the
   // proxy ever drifts.
-  if (activeOrgId && form.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, form.orgId, `/forms/${id}`);
 
   const [season, org, appLinks] = await Promise.all([
     form.seasonId

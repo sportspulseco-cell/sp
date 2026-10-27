@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { PlayoffBrackets } from "@/components/scheduling/playoff-brackets";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 
 export const metadata = { title: "Playoffs · Org Admin" };
 export const dynamic = "force-dynamic";
@@ -31,8 +31,7 @@ export default async function OrgAdminPlayoffsPage({
   const season = seasonResult.data;
 
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
-  if (activeOrgId && season.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, season.orgId, `/scheduling/${seasonId}/playoffs`);
 
   const divisionsPage = await fetchAll((cursor) => leagueMgmt
     .listDivisions({ seasonId: season.id, limit: 100, cursor }))

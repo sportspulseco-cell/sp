@@ -4,7 +4,7 @@ import { LoadError } from "@sportspulse/ui";
 import { DivisionDetail } from "@sportspulse/admin-pages";
 import { DivisionActions } from "@/components/edit/detail-actions";
 import { adminTransfers, leagueMgmt, loadMeScope, orgs } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 import { DivisionRegionControl } from "@/components/divisions/division-region-control";
 import { PlaceTeam } from "@/components/divisions/place-team";
 
@@ -68,10 +68,7 @@ export default async function OrgAdminDivisionDetailPage({
   // for org_admin, but verify the parent season's org matches the
   // caller's active org before rendering.
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
-  if (parentSeason && activeOrgId && parentSeason.orgId !== activeOrgId) {
-    notFound();
-  }
+  await openInActiveOrg(scope, parentSeason?.orgId, `/divisions/${id}`);
 
   return (
     <DivisionDetail

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge, LoadError, PageHeader } from "@sportspulse/ui";
 import { formatInZone, GAME_ENDING_LABELS } from "@sportspulse/kernel";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 
 export const metadata = { title: "Game · Org Admin" };
 export const dynamic = "force-dynamic";
@@ -50,8 +50,7 @@ export default async function OrgAdminGamePage({ params }: { params: Promise<{ i
     loadMeScope(),
     leagueMgmt.getLeague(game.leagueId).catch(() => null)
   ]);
-  const activeOrgId = await getActiveOrgId(scope);
-  if (activeOrgId && league && league.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, league?.orgId, `/games/${id}`);
 
   const home = game.homeTeamName ?? "Home";
   const away = game.awayTeamName ?? "Away";

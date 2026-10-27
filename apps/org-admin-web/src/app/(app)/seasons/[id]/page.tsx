@@ -4,7 +4,7 @@ import { LoadError } from "@sportspulse/ui";
 import { SeasonDetail, SeasonFlow } from "@sportspulse/admin-pages";
 import { SeasonActions } from "@/components/edit/detail-actions";
 import { adminTransfers, gameOps, leagueMgmt, loadMeScope, registration, roster } from "@/lib/api/server-api";
-import { getActiveOrgId } from "@/lib/active-org";
+import { openInActiveOrg } from "@/lib/active-org";
 import { ChangeSeasonStatusButton } from "./change-season-status-button";
 
 export const metadata = { title: "Season · Org Admin" };
@@ -43,8 +43,7 @@ export default async function OrgAdminSeasonDetailPage({
   // org_admin reads, but verify the season belongs to the caller's
   // active org before rendering.
   const scope = await loadMeScope();
-  const activeOrgId = await getActiveOrgId(scope);
-  if (activeOrgId && season.orgId !== activeOrgId) notFound();
+  await openInActiveOrg(scope, season.orgId, `/seasons/${id}`);
 
   const [parentLeague, divisionsPage, formsPage, regions] = await Promise.all([
     leagueMgmt.getLeague(season.leagueId).catch(() => null),
