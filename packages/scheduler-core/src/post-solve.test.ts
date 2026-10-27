@@ -106,3 +106,41 @@ test("slot times: rink zone kept; an unset (UTC) slot is read in the season's zo
   assert.deepEqual(gameStartForSlot("2027-01-14T19:30:00Z", "UTC", "UTC"), { startTsUtc: "2027-01-14T19:30:00.000Z", tz: "UTC" });
   assert.deepEqual(gameStartForSlot("2027-01-14T19:30:00Z", "Bogus/Zone", null), { startTsUtc: "2027-01-14T19:30:00.000Z", tz: "UTC" });
 });
+
+test("home/away with games that stay: reaches the best worst-team gap a brute force finds", () => {
+  // Seeded leagues of 4-5 teams where one team is at home in every game
+  // that stays (the staging seed's shape, J10 27 Oct). The date-order pass
+  // alone missed the best worst-team gap in 18 of 300; with the pass, 2.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  let missed = 0;
+  for (let trial = 0; trial < 300; trial++) {
+    const teams = ["A", "B", "C", "D", "E"].slice(0, 4 + Math.floor(rnd() * 2));
+    const fixed = Array.from({ length: Math.floor(rnd() * 8) }, (_, i) => ({
+      homeTeamId: teams[0]!,
+      awayTeamId: teams[1 + Math.floor(rnd() * (teams.length - 2))]!,
+      startTsUtc: new Date(Date.UTC(2026, 0, 1 + i)).toISOString()
+    }));
+    const placed: PlacedGame[] = [];
+    for (let i = 0; i < teams.length; i++)
+      for (let j = i + 1; j < teams.length; j++) {
+        const met = fixed.some((f) => [f.homeTeamId, f.awayTeamId].sort().join() === [teams[i], teams[j]].sort().join());
+        if (met && j !== teams.length - 1) continue;
+        placed.push({ slotId: `s${placed.length}`, startTsUtc: "", teamA: teams[i]!, teamB: teams[j]! });
+      }
+    placed.sort(() => rnd() - 0.5).forEach((g, k) => (g.startTsUtc = new Date(Date.UTC(2026, 2, 1 + k)).toISOString()));
+
+    const { maxImbalance } = balanceHomeAway(placed, fixed);
+    let best = Infinity;
+    for (let m = 0; m < 1 << placed.length; m++) {
+      const d: Record<string, number> = {};
+      const add = (t: string, k: number) => (d[t] = (d[t] ?? 0) + k);
+      for (const f of fixed) add(f.homeTeamId, 1), add(f.awayTeamId, -1);
+      placed.forEach((p, i) => ((m >> i) & 1 ? (add(p.teamA, 1), add(p.teamB, -1)) : (add(p.teamB, 1), add(p.teamA, -1))));
+      best = Math.min(best, Math.max(...Object.values(d).map(Math.abs)));
+    }
+    if (maxImbalance > best) missed++;
+  }
+  // Turning whole pairs around one at a time is a local search, not exhaustive.
+  assert.ok(missed <= 2, `missed the best gap in ${missed} of 300`);
+});

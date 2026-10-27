@@ -150,9 +150,78 @@ export function balanceHomeAway(
     lastHome.set(key, home);
     out.set(e.g.slotId, { ...e.g, homeTeamId: home, awayTeamId: away });
   }
+  improveHomeAway(events, out, counts);
   const games = placed.map((g) => out.get(g.slotId)!);
   const maxImbalance = Object.values(counts).reduce((m, x) => Math.max(m, Math.abs(x.home - x.away)), 0);
   return { games, counts, maxImbalance };
+}
+
+/**
+ * The date-order pass above never revisits a choice, so games that stay
+ * (all home for one team, say) can leave a team 3-1 when 2-2 was possible
+ * (J10 on staging, 27 Oct). This turns a pair's
+ * meetings around, all together so they still alternate, whenever that
+ * lowers the worst team's gap, or keeps it and evens the others. Only
+ * meetings before any game that stays can turn. Deterministic.
+ */
+function improveHomeAway(
+  events: ReadonlyArray<
+    | { kind: "fixed"; g: FixedGame }
+    | { kind: "placed"; g: PlacedGame }
+  >,
+  out: Map<string, BalancedGame>,
+  counts: Record<string, HomeAwayCount>
+): void {
+  const groups = new Map<string, string[]>();
+  const closed = new Set<string>();
+  for (const e of events) {
+    const key = e.kind === "fixed" ? pairKey(e.g.homeTeamId, e.g.awayTeamId) : pairKey(e.g.teamA, e.g.teamB);
+    if (e.kind === "fixed") {
+      closed.add(key);
+      continue;
+    }
+    if (closed.has(key)) continue;
+    const ids = groups.get(key) ?? [];
+    ids.push(e.g.slotId);
+    groups.set(key, ids);
+  }
+  const keys = [...groups.keys()].sort();
+  const diff = (t: string) => counts[t]!.home - counts[t]!.away;
+  const score = (d: Map<string, number>) => {
+    let max = 0;
+    let sq = 0;
+    for (const t of Object.keys(counts)) {
+      const v = d.get(t) ?? diff(t);
+      max = Math.max(max, Math.abs(v));
+      sq += v * v;
+    }
+    return max * 1_000_000 + sq;
+  };
+  let current = score(new Map());
+  for (let pass = 0; pass < 50; pass++) {
+    let improved = false;
+    for (const key of keys) {
+      const changed = new Map<string, number>();
+      for (const id of groups.get(key)!) {
+        const g = out.get(id)!;
+        changed.set(g.homeTeamId, (changed.get(g.homeTeamId) ?? diff(g.homeTeamId)) - 2);
+        changed.set(g.awayTeamId, (changed.get(g.awayTeamId) ?? diff(g.awayTeamId)) + 2);
+      }
+      const next = score(changed);
+      if (next >= current) continue;
+      for (const id of groups.get(key)!) {
+        const g = out.get(id)!;
+        counts[g.homeTeamId]!.home--;
+        counts[g.homeTeamId]!.away++;
+        counts[g.awayTeamId]!.away--;
+        counts[g.awayTeamId]!.home++;
+        out.set(id, { ...g, homeTeamId: g.awayTeamId, awayTeamId: g.homeTeamId });
+      }
+      current = next;
+      improved = true;
+    }
+    if (!improved) break;
+  }
 }
 
 /** Monday ("YYYY-MM-DD") of the week holding `day`. */
