@@ -66,6 +66,23 @@ pnpm test:e2e:ui
 E2E_TARGET=local pnpm test:e2e
 ```
 
+### Full PPHL season (staging only)
+
+`pnpm test:season` runs a whole season on staging in about 7 minutes:
+3 divisions, 12 teams registered and paid (mock card), 48 players
+rostered from team links, roster lock, a double round robin generated
+and published, 6 games played and finalized (regulation, overtime and
+a shootout), then standings, leaders and stat lines checked against
+the events. It then signs in as a player, a captain and the org admin
+in a browser and checks each one sees the result on their own app.
+
+It reads the `STAGING_*` keys from the repo-root `.env.local` and
+refuses any API that isn't staging. Output, including screenshots,
+goes to `test-results-season/`. Every record carries the run tag
+(`S…`), and team names end with its last 4 characters, because team
+names are unique per organization. Run it before each production
+release.
+
 CI runs the full suite on every PR + push to main via
 `.github/workflows/e2e.yml`. Push events sleep 90s first to let
 Vercel finish redeploying.

@@ -17,7 +17,8 @@
     "web:dev": "pnpm --filter @sportspulse/superadmin-web dev",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:install": "playwright install --with-deps chromium"
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "test:season": "node tests/e2e/season/run-season.mjs && node tests/e2e/season/browser-check.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
