@@ -6,6 +6,7 @@ import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import { fetchAll } from "@sportspulse/api-client";
 import { NewOrgInline } from "@/components/orgs/new-org-inline";
 import { leagueMgmt } from "@/lib/api/browser-api";
+import { navigateInPlace } from "@sportspulse/ui";
 
 /**
  * Sa-web binding for the shared @sportspulse/admin-pages OrgSetupWizard.
@@ -52,7 +53,7 @@ export function OrgSetupShell({
         leagueMgmt.changeLeagueStatus(id, status)
       }
       onComplete={({ leagueId }) => {
-        router.push(`/leagues/${leagueId}`);
+        navigateInPlace((h) => router.push(h), `/leagues/${leagueId}`, 8000);
         // No router.refresh() here: it can cancel the push and leave the
         // user on this form (J11). The new page loads fresh server data.
       }}

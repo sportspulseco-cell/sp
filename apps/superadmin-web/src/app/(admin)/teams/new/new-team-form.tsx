@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, Check, Loader2, Search, ShieldCheck, Sparkles, X } from "lucide-react";
-import { Button, Field, Input, Select, Alert } from "@sportspulse/ui";
+import { Button, Field, Input, Select, Alert, navigateInPlace } from "@sportspulse/ui";
 import type { Org, Profile, Sport } from "@/lib/api/types";
 import { iam, leagueMgmt } from "@/lib/api/browser-api";
 
@@ -142,7 +142,7 @@ export function NewTeamForm({
         captainUserId: captain?.id,
         confirmationThresholdCents: cents
       });
-      router.push(`/teams/${created.id}`);
+      navigateInPlace((h) => router.push(h), `/teams/${created.id}`, 8000);
       // No router.refresh() here: it can cancel the push and leave the
       // user on this form (J11). The new page loads fresh server data.
     } catch (err) {

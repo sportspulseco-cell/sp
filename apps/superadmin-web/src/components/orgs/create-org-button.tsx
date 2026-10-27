@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { slugify } from "@sportspulse/admin-pages";
 import { Plus, Loader2 } from "lucide-react";
-import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { Button, Dialog, DialogActions, Field, Input, Select, navigateInPlace } from "@sportspulse/ui";
 import { orgs } from "@/lib/api/browser-api";
 import type { Org, OrgType } from "@/lib/api/types";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
@@ -324,7 +324,7 @@ function CreateOrgDialog({
     if (created) {
       const params = new URLSearchParams(window.location.search);
       params.set("created", created.id);
-      router.replace(`/organizations?${params}`);
+      navigateInPlace((h) => router.replace(h), `/organizations?${params}`, 8000);
     }
     setCreated(null);
     onClose();
@@ -348,7 +348,7 @@ function CreateOrgDialog({
           onDone={() => {
             const id = created.id;
             close();
-            router.push(`/organizations/${id}`);
+            navigateInPlace((h) => router.push(h), `/organizations/${id}`, 8000);
             // No router.refresh() here: it can cancel the push and leave the
             // user on this form (J11). The new page loads fresh server data.
           }}

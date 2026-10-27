@@ -36,7 +36,10 @@ async function exercise(page: Page, app: string, c: Check, failures: string[]) {
     if (r.status() >= 500 && /staging-api/.test(r.url())) errors.push(`${r.status()} ${r.url()}`);
   });
   await page.goto(`${app}${c.path}`);
-  const count = page.getByText(new RegExp(`Showing \\d+ of \\d+ (loaded )?${c.noun}`));
+  // .first(): while a page streams, React holds a hidden copy of the
+  // content for a moment, and a check that matches two elements fails at
+  // once (the "no Showing line" flake, 27 Oct). Users never see the copy.
+  const count = page.getByText(new RegExp(`Showing \\d+ of \\d+ (loaded )?${c.noun}`)).first();
   try {
     await expect(count).toBeVisible({ timeout: 20_000 });
   } catch {
@@ -50,7 +53,7 @@ async function exercise(page: Page, app: string, c: Check, failures: string[]) {
   }
   const before = await count.innerText();
   const total = Number(before.match(/of (\d+)/)![1]);
-  const select = page.getByLabel(c.filter, { exact: true });
+  const select = page.getByLabel(c.filter, { exact: true }).first();
   const options = await select.locator("option").evaluateAll((os) =>
     os.map((o) => ({ value: (o as HTMLOptionElement).value, label: o.textContent ?? "" }))
   );

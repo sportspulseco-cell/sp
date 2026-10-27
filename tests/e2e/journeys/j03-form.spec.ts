@@ -112,11 +112,10 @@ test.describe.serial("J3 · build and publish a registration form", () => {
   const formName = `${RUN_TAG} Registration`;
   // Dates are typed into an America/New_York browser, so "today" is ET's today.
   const etToday = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-  // The API validates dates against the server's UTC date, so between 8pm
-  // and midnight ET "today" is refused (see REG bug log). Use the later of
-  // ET today and UTC today so the journey can proceed.
-  const utcToday = new Date().toISOString().slice(0, 10);
-  const today = new Date(`${utcToday > etToday ? utcToday : etToday}T12:00:00`);
+  // The API accepts ET's today at any hour (IsFutureOrToday allows a day
+  // of slack, 24 Oct). Using UTC's date after 8pm ET opened registration
+  // tomorrow, and J4/J25 then found it "not open yet" (27 Oct).
+  const today = new Date(`${etToday}T12:00:00`);
   const opens = ymd(today);
   const closes = ymd(new Date(today.getTime() + 21 * 86400_000));
   const start = ymd(new Date(today.getTime() + 30 * 86400_000));

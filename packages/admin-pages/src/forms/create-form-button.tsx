@@ -35,7 +35,8 @@ import {
   DialogActions,
   Field,
   Input,
-  Select
+  Select,
+  navigateInPlace
 } from "@sportspulse/ui";
 
 export interface CreateFormOrg {
@@ -256,7 +257,7 @@ function CreateFormDialog({
       setCreatedHref(href);
       // No router.refresh(): it can supersede the push (J11). The editor
       // loads fresh server data on its own.
-      startNavigation(() => router.push(href));
+      startNavigation(() => navigateInPlace((h) => router.push(h), href, 8000));
     } catch (err) {
       setError((err as Error).message);
     } finally {

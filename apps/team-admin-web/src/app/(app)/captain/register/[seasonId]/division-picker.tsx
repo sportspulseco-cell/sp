@@ -13,7 +13,7 @@ import {
   User,
   Users
 } from "lucide-react";
-import { Alert, Badge, Button } from "@sportspulse/ui";
+import { Alert, Badge, Button, navigateInPlace } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 type Division = {
@@ -67,7 +67,7 @@ export function DivisionPicker({
         seasonId,
         divisionId: picked
       });
-      router.push(`/captain/register?submitted=${entry.id}`);
+      navigateInPlace((h) => router.push(h), `/captain/register?submitted=${entry.id}`, 8000);
       // No router.refresh() here: it can cancel the push and leave the
       // user on this form (J11). The new page loads fresh server data.
     } catch (e) {

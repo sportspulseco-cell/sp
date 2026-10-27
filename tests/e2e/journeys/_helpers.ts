@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import https from "node:https";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { E2E_URLS, SMOKE_USERS, signIn } from "../fixtures";
@@ -36,9 +36,47 @@ export function appFor(role: Role): string {
 
 /** Fresh browser context (own cookies) carrying the staging Vercel bypass. */
 export async function freshContext(browser: Browser): Promise<BrowserContext> {
-  return browser.newContext(
+  const context = await browser.newContext(
     IS_STAGING && existsSync(BYPASS_STATE_PATH) ? { storageState: BYPASS_STATE_PATH } : {}
   );
+  logSlowRequests(context);
+  return context;
+}
+
+const SLOW_MS = 8_000;
+const SLOW_LOG = resolve("test-results-audit/slow-requests.jsonl");
+
+/**
+ * Evidence for page changes that hang: every request that took longer
+ * than 8 s, or was still open when the context closed, goes to
+ * test-results-audit/slow-requests.jsonl with its URL and kind (RSC page
+ * data, API call, document). Navigations stalled 20-30 s on staging with
+ * no error (J17, J7.3, 27 Oct); this says which server was slow.
+ */
+function logSlowRequests(context: BrowserContext) {
+  const started = new Map<object, { url: string; method: string; rsc: boolean; at: number }>();
+  const write = (row: Record<string, unknown>) => {
+    try {
+      mkdirSync(dirname(SLOW_LOG), { recursive: true });
+      appendFileSync(SLOW_LOG, JSON.stringify({ when: new Date().toISOString(), ...row }) + "\n");
+    } catch {
+      /* evidence only */
+    }
+  };
+  context.on("request", (r) => {
+    const h = r.headers();
+    started.set(r, { url: r.url(), method: r.method(), rsc: h["rsc"] === "1", at: Date.now() });
+  });
+  const done = (r: object, outcome: string) => {
+    const s = started.get(r);
+    started.delete(r);
+    if (s && Date.now() - s.at > SLOW_MS) write({ ...s, ms: Date.now() - s.at, outcome });
+  };
+  context.on("requestfinished", (r) => done(r, "finished"));
+  context.on("requestfailed", (r) => done(r, `failed: ${r.failure()?.errorText ?? "?"}`));
+  context.on("close", () => {
+    for (const s of started.values()) if (Date.now() - s.at > SLOW_MS) write({ ...s, ms: Date.now() - s.at, outcome: "still open at close" });
+  });
 }
 
 /**

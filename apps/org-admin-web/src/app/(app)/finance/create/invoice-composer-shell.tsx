@@ -17,6 +17,7 @@ import {
   type InvoiceComposerPerson
 } from "@sportspulse/admin-pages";
 import { orgAdminFinance } from "@/lib/api/browser-api";
+import { navigateInPlace } from "@sportspulse/ui";
 
 export function InvoiceComposerShell({
   activeOrgId,
@@ -51,7 +52,7 @@ export function InvoiceComposerShell({
       // (MON-19), so it only creates sent invoices.
       allowDraft={false}
       onSuccess={() => {
-        router.push("/finance");
+        navigateInPlace((h) => router.push(h), "/finance", 8000);
         // No router.refresh() here: it can cancel the push and leave the
         // user on this form (J11). The new page loads fresh server data.
       }}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Mail, X } from "lucide-react";
-import { Alert, Button, Eyebrow, useLocalDate } from "@sportspulse/ui";
+import { Alert, Button, Eyebrow, useLocalDate, navigateInPlace } from "@sportspulse/ui";
 import type { MyTeamInvite } from "@sportspulse/api-client";
 import { captain } from "@/lib/api/browser-api";
 
@@ -36,7 +36,7 @@ export function TeamOffersCard({ items }: { items: MyTeamInvite[] }) {
         const res = await captain.acceptInvite(inv.token);
         // No season registration yet: register with this team set (UC-04).
         if (res.status === "registration_required" && res.registerPath) {
-          router.push(res.registerPath);
+          navigateInPlace((h) => router.push(h), res.registerPath, 8000);
           return;
         }
       } else await captain.declineInvite(inv.token);

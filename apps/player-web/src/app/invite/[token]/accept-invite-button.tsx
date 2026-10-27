@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Alert, Button } from "@sportspulse/ui";
+import { Alert, Button, navigateInPlace } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
 
 export function AcceptInviteButton({
@@ -30,7 +30,7 @@ export function AcceptInviteButton({
       // UC-04: a player joins by completing the season's registration.
       // No registration yet: the funnel opens with this team set.
       if (res.status === "registration_required" && res.registerPath) {
-        router.push(res.registerPath);
+        navigateInPlace((h) => router.push(h), res.registerPath, 8000);
         return;
       }
       // Registered, waiting for the league: the team is recorded.
@@ -39,7 +39,7 @@ export function AcceptInviteButton({
         setBusy(null);
         return;
       }
-      router.push("/team");
+      navigateInPlace((h) => router.push(h), "/team", 8000);
       // No router.refresh() here: it can cancel the push and leave the
       // user on this form (J11). The new page loads fresh server data.
     } catch (e) {
