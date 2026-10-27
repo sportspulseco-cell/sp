@@ -535,7 +535,13 @@ export function EditSeasonButton({
             e.preventDefault();
             const p = seasonProblem(f, initial);
             if (p) return setError(p);
-            void run(() => save(toSeasonBody(f)), () => setOpen(false));
+            // Send only the timestamps the admin changed: resending an
+            // untouched date as local midnight moved it (PPHL F-6 check).
+            const body: SeasonUpdateBody = toSeasonBody(f);
+            for (const k of ["registrationOpensAt", "registrationClosesAt", "rosterLockAt"] as const) {
+              if (f[k] === initial[k]) delete body[k];
+            }
+            void run(() => save(body), () => setOpen(false));
           }}
         >
           <SeasonFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} />
