@@ -34,7 +34,7 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
-import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
@@ -741,50 +741,7 @@ export class PublicRegistrationController {
     // Whichever path we take, ensure the row ends up with userId set,
     // otherwise iam.meScope returns null personId and the player
     // dashboard renders "Finish onboarding first".
-    let personId: string | undefined;
-    const [byUser] = await this.db
-      .select({ id: schema.persons.id })
-      .from(schema.persons)
-      .where(eq(schema.persons.userId, userId))
-      .limit(1);
-    if (byUser) {
-      personId = byUser.id;
-    } else {
-      const existingPersonRow = await this.db
-        .select({ id: schema.persons.id, userId: schema.persons.userId })
-        .from(schema.persons)
-        .where(
-          and(
-            eq(schema.persons.legalFirstName, firstName(body.fullName)),
-            eq(schema.persons.legalLastName, lastName(body.fullName))
-          )
-        )
-        .limit(1);
-      if (existingPersonRow[0]) {
-        personId = existingPersonRow[0].id;
-        // Adopt this name-matched row only when it isn't already
-        // claimed by a different auth user — otherwise we'd silently
-        // hijack someone else's profile.
-        if (!existingPersonRow[0].userId) {
-          await this.db
-            .update(schema.persons)
-            .set({ userId, updatedAt: new Date() })
-            .where(eq(schema.persons.id, personId));
-        }
-      } else {
-        const [person] = await this.db
-          .insert(schema.persons)
-          .values({
-            userId,
-            legalFirstName: firstName(body.fullName),
-            legalLastName: lastName(body.fullName),
-            dobDate: body.dobDate ?? null,
-            externalIds: { email, supabaseUserId: userId }
-          })
-          .returning({ id: schema.persons.id });
-        personId = person!.id;
-      }
-    }
+    const personId: string | undefined = await this.personForAccount(userId, body.fullName, email, body.dobDate ?? null);
 
     // Resume support, per (email, season, path), latest registration:
     //   - not submitted yet, or sent back as `incomplete`: resume it and
@@ -1025,48 +982,8 @@ export class PublicRegistrationController {
 
     const baseKey = `${email}|${seasonId}|${submissionType}`;
 
-    // Find-or-create person row — same priority as startSubmission:
-    // by userId first, then by name (and back-fill userId if missing).
-    let personId: string | undefined;
-    const [byUser] = await this.db
-      .select({ id: schema.persons.id })
-      .from(schema.persons)
-      .where(eq(schema.persons.userId, userId))
-      .limit(1);
-    if (byUser) {
-      personId = byUser.id;
-    } else {
-      const existingPersonRow = await this.db
-        .select({ id: schema.persons.id, userId: schema.persons.userId })
-        .from(schema.persons)
-        .where(
-          and(
-            eq(schema.persons.legalFirstName, firstName(fullName)),
-            eq(schema.persons.legalLastName, lastName(fullName))
-          )
-        )
-        .limit(1);
-      if (existingPersonRow[0]) {
-        personId = existingPersonRow[0].id;
-        if (!existingPersonRow[0].userId) {
-          await this.db
-            .update(schema.persons)
-            .set({ userId, updatedAt: new Date() })
-            .where(eq(schema.persons.id, personId));
-        }
-      } else {
-        const [person] = await this.db
-          .insert(schema.persons)
-          .values({
-            userId,
-            legalFirstName: firstName(fullName),
-            legalLastName: lastName(fullName),
-            externalIds: { email, supabaseUserId: userId }
-          })
-          .returning({ id: schema.persons.id });
-        personId = person!.id;
-      }
-    }
+    // Find-or-create person row — same rule as startSubmission.
+    const personId: string | undefined = await this.personForAccount(userId, fullName, email, null);
 
     // Same rule as startSubmission: resume the latest registration unless
     // it ended (rejected / cancelled / withdrawn), in which case this is a
@@ -2756,6 +2673,58 @@ export class PublicRegistrationController {
    * chain is followed by prefix (starts_with, not LIKE: emails contain
    * `_`).
    */
+  /**
+   * The person row this account registers as.
+   *   1. The row already linked to the account.
+   *   2. An unclaimed row (no account yet, e.g. an imported roster) with
+   *      the same legal name and, when both are known, the same DOB. The
+   *      claim is one conditional UPDATE, so two sign-ups can't share it.
+   *   3. A new row.
+   * A row linked to another account is never used: a name and DOB are not
+   * proof of identity. Using it put a new player on the roster as another
+   * player with the same name (PPHL season re-run, 27 Oct 2026).
+   */
+  private async personForAccount(userId: string, fullName: string, email: string, dobDate: string | null): Promise<string> {
+    const [byUser] = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(eq(schema.persons.userId, userId))
+      .limit(1);
+    if (byUser) return byUser.id;
+
+    const first = firstName(fullName), last = lastName(fullName);
+    const unclaimed = await this.db
+      .select({ id: schema.persons.id })
+      .from(schema.persons)
+      .where(
+        and(
+          eq(schema.persons.legalFirstName, first),
+          eq(schema.persons.legalLastName, last),
+          isNull(schema.persons.userId),
+          dobDate ? or(isNull(schema.persons.dobDate), eq(schema.persons.dobDate, dobDate)) : undefined
+        )
+      )
+      .limit(1);
+    if (unclaimed[0]) {
+      const claimed = await this.db
+        .update(schema.persons)
+        .set({ userId, updatedAt: new Date() })
+        .where(and(eq(schema.persons.id, unclaimed[0].id), isNull(schema.persons.userId)))
+        .returning({ id: schema.persons.id });
+      if (claimed[0]) {
+        this.log.log(`person ${claimed[0].id} claimed by user ${userId} (unclaimed name match)`);
+        return claimed[0].id;
+      }
+    }
+
+    const [person] = await this.db
+      .insert(schema.persons)
+      .values({ userId, legalFirstName: first, legalLastName: last, dobDate, externalIds: { email, supabaseUserId: userId } })
+      .returning({ id: schema.persons.id });
+    this.log.log(`person ${person!.id} created for user ${userId}`);
+    return person!.id;
+  }
+
   private async findLatestRegistration(baseKey: string) {
     const [row] = await this.db
       .select()
