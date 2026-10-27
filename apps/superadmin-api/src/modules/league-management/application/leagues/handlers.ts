@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
   clampLimit,
+  ConflictError,
   NotFoundError,
   type CommandHandler,
   type QueryHandler
@@ -72,6 +73,16 @@ export class GetLeagueHandler
   }
 }
 
+/** Two live leagues with one name in an org can't be told apart in any picker. */
+async function refuseNameClash(leagues: LeagueRepository, orgId: string, name: string, excludeId?: string): Promise<void> {
+  const clash = await leagues.findNameClash(orgId, name, excludeId);
+  if (clash) {
+    throw new ConflictError(
+      `A league named "${name.trim()}" already exists in this organization. Pick another name, or archive the old league first.`
+    );
+  }
+}
+
 export interface CreateLeagueInput {
   orgId: string;
   sportCode: string;
@@ -88,6 +99,7 @@ export class CreateLeagueHandler
 {
   constructor(@Inject(LEAGUE_REPOSITORY) private readonly leagues: LeagueRepository) {}
   async execute(input: CreateLeagueInput): Promise<LeagueDto> {
+    await refuseNameClash(this.leagues, input.orgId, input.name);
     const league = League.create({
       id: LeagueId.of(randomUUID()),
       orgId: OrgId.of(input.orgId),
@@ -122,6 +134,11 @@ export class UpdateLeagueHandler
   async execute(input: UpdateLeagueInput): Promise<LeagueDto> {
     const league = await this.leagues.findById(LeagueId.of(input.id));
     if (!league) throw new NotFoundError("League", input.id);
+    // Only a changed name is checked, so a league that already shares its
+    // name (from before this rule) can still save its other fields.
+    if (input.name !== undefined && input.name.trim().toLowerCase() !== league.name.trim().toLowerCase()) {
+      await refuseNameClash(this.leagues, league.orgId.value, input.name, input.id);
+    }
     if (input.name !== undefined) league.rename(input.name);
     if (input.format !== undefined) league.changeFormat(assertLeagueFormat(input.format));
     if (input.governingBodyId !== undefined) {

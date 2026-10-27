@@ -18,6 +18,11 @@ export interface LeagueRepository {
   insert(league: League): Promise<void>;
   save(league: League): Promise<void>;
   delete(id: LeagueId): Promise<void>;
+  /**
+   * Id of a live league (not archived, not deleted) in the org with the
+   * same name, ignoring case and outer spaces; null when the name is free.
+   */
+  findNameClash(orgId: string, name: string, excludeId?: string): Promise<string | null>;
 }
 
 export const LEAGUE_REPOSITORY = Symbol("LEAGUE_REPOSITORY");

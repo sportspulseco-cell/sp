@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, ilike, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -84,6 +84,23 @@ export class DrizzleLeagueRepository implements LeagueRepository {
       .update(schema.leagues)
       .set({ deletedAt: sql`NOW()` })
       .where(eq(schema.leagues.id, id.value));
+  }
+
+  async findNameClash(orgId: string, name: string, excludeId?: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ id: schema.leagues.id })
+      .from(schema.leagues)
+      .where(
+        and(
+          eq(schema.leagues.orgId, orgId),
+          sql`lower(btrim(${schema.leagues.name})) = lower(btrim(${name}))`,
+          ne(schema.leagues.status, "archived"),
+          isNull(schema.leagues.deletedAt),
+          excludeId ? ne(schema.leagues.id, excludeId) : undefined
+        )
+      )
+      .limit(1);
+    return row?.id ?? null;
   }
 
   private toDomain(r: typeof schema.leagues.$inferSelect): League {

@@ -72,13 +72,16 @@ export function LeagueStep({
   org,
   sports,
   governingBodies,
-  onChange
+  onChange,
+  nameTaken = false
 }: {
   draft: LeagueDraft;
   org: Org | null;
   sports: Sport[];
   governingBodies: GoverningBody[];
   onChange: (patch: Partial<LeagueDraft>) => void;
+  /** The name matches a live league in this org; the API refuses it. */
+  nameTaken?: boolean;
 }) {
   const filteredBodies = useMemo(
     () =>
@@ -107,6 +110,11 @@ export function LeagueStep({
               placeholder="e.g. New Hampshire AHL"
               required
             />
+            {nameTaken ? (
+              <p className="text-[13px] text-fg-danger" role="alert">
+                A league with this name already exists in this organization. Pick it under &quot;Add to an existing league&quot;, or choose another name.
+              </p>
+            ) : null}
           </Field>
 
           <Field

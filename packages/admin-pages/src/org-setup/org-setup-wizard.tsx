@@ -328,6 +328,12 @@ export function OrgSetupWizard({
     [orgList, state.orgId]
   );
 
+  // Same rule as the API: one live league per name in an org, ignoring case.
+  const leagueNameTaken =
+    !existingLeague &&
+    state.league.name.trim().length > 0 &&
+    orgLeagues.some((l) => l.name.trim().toLowerCase() === state.league.name.trim().toLowerCase());
+
   const stepValidation = useMemo(() => {
     // Local-date today (YYYY-MM-DD) so we can compare against <input type="date">
     // values without timezone weirdness.
@@ -339,6 +345,7 @@ export function OrgSetupWizard({
       2:
         !!existingLeague ||
         (state.league.name.trim().length > 0 &&
+          !leagueNameTaken &&
           state.league.slug.trim().length > 0 &&
           !!state.league.sportCode &&
           !!state.league.format &&
@@ -376,7 +383,7 @@ export function OrgSetupWizard({
             (d.regionId !== NEW_REGION || d.regionName.trim().length > 0)
         )
     } as Record<WizardStep, boolean>;
-  }, [state]);
+  }, [state, existingLeague, existingSeason, leagueNameTaken]);
 
   function goNext() {
     if (!stepValidation[state.step]) return;
@@ -645,6 +652,7 @@ export function OrgSetupWizard({
                 sports={sports}
                 governingBodies={governingBodies}
                 onChange={patchLeague}
+                nameTaken={leagueNameTaken}
               />
             )}
           </div>
