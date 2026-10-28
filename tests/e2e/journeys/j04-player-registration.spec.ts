@@ -236,7 +236,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     await byLabel(player, /^Confirm password/).fill(PASSWORD);
     await shot(player, "03-account");
     await player.getByRole("button", { name: /Next: Details/ }).filter({ visible: true }).first().click();
-    await expect(player.getByRole("button", { name: /Next: Compliance/ })).toBeVisible({ timeout: 30_000 });
+    await expect(player.getByRole("button", { name: /Next: Waivers/ })).toBeVisible({ timeout: 30_000 });
     const rows = await stagingSql<{ id: string; status: string; form_version_id: string }>(
       "select id, status, form_version_id from registrations where season_id = $1 and metadata->>'email' = $2",
       [j3.seasonId, email]
@@ -269,10 +269,10 @@ test.describe.serial("J4 · player registers and pays", () => {
     if (await avail.isVisible().catch(() => false)) await avail.click();
     const jersey = player.getByLabel(/Preferred jersey number/).first();
     if (await jersey.isVisible().catch(() => false)) await jersey.fill("17");
-    const next = player.getByRole("button", { name: /Next: Compliance/ });
+    const next = player.getByRole("button", { name: /Next: Waivers/ });
     if (!(await next.isEnabled())) {
       await shot(player, "04-details-blocked");
-      throw new Error("Next: Compliance stays disabled after filling the required details");
+      throw new Error("Next: Waivers stays disabled after filling the required details");
     }
     await next.click();
 
@@ -481,7 +481,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     await page.getByRole("button", { name: /Sign in & continue/i }).click();
     await page.waitForTimeout(5000);
     await shot(page, "10-signin-wrong-password");
-    const advanced = await page.getByRole("button", { name: /Next: Compliance/ }).isVisible().catch(() => false);
+    const advanced = await page.getByRole("button", { name: /Next: Waivers/ }).isVisible().catch(() => false);
     // No date field when sign-in is refused; do not wait for one.
     const leakedDob = await page.locator("input[type=date]").first().inputValue({ timeout: 2_000 }).catch(() => "");
     softExpect(advanced, "wrong password still advances to Details (account takeover)").toBe(false);
@@ -507,7 +507,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     await page.getByRole("button", { name: /Next: Details/ }).filter({ visible: true }).first().click();
     await page.waitForTimeout(6000);
     await shot(page, "11-create-existing-email");
-    const advanced = await page.getByRole("button", { name: /Next: Compliance/ }).isVisible().catch(() => false);
+    const advanced = await page.getByRole("button", { name: /Next: Waivers/ }).isVisible().catch(() => false);
     softExpect(advanced, "existing email + wrong password creates a registration as that user").toBe(false);
     const rows = await stagingSql("select id from registrations where season_id = $1 and metadata->>'email' = $2", [j3.seasonId, SMOKE_USERS.player]);
     softExpect(rows.length, "registration rows written for staging-player via wrong password").toBe(0);

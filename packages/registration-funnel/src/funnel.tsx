@@ -901,10 +901,10 @@ function fmtDate(s: string, timeZone?: string) {
 type Phase = 1 | 2 | 3 | 4 | 5 | 6;
 
 const PHASE_LABELS: Record<Phase, string> = {
-  1: "Path",
+  1: "Start",
   2: "Account",
   3: "Details",
-  4: "Compliance",
+  4: "Waivers",
   5: "Payment",
   6: "Confirmation"
 };
@@ -1007,15 +1007,18 @@ function PathStep({
   offeredPaths: readonly string[];
 }) {
   const visiblePaths = PATHS.filter((p) => offeredPaths.includes(p.value));
+  // One way to register: it is already chosen, so the player only
+  // presses Next (doc/design/guided-ui.md: defaults reflect context).
+  const onlyPath = visiblePaths.length === 1 ? visiblePaths[0]!.value : null;
+  useEffect(() => {
+    if (onlyPath && !value) onChange(onlyPath);
+  }, [onlyPath, value, onChange]);
   return (
     <div className="space-y-5">
       <section className="rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-[14px] font-semibold tracking-tight text-fg">
           How are you registering?
         </h2>
-        <p className="mt-0.5 text-[12px] text-fg-muted">
-          Choose the path that applies to you
-        </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {visiblePaths.map((p) => {
@@ -1265,12 +1268,8 @@ function AccountStep({
 
       {mode === "sign_in" ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <p className="text-[14px] font-semibold tracking-tight text-fg">
-            Sign in to continue
-          </p>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            Use the same email you used last time. Your profile and any
-            draft from this season load automatically.
+          <p className="text-[13px] text-fg-muted">
+            Use the email you used last time. Your details fill in for you.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Email *">
@@ -1330,14 +1329,7 @@ function AccountStep({
         </section>
       ) : (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <p className="text-[14px] font-semibold tracking-tight text-fg">
-            Create your account
-          </p>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            We'll use these details for league communications and roster
-            entries.
-          </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="First name *">
               <Input
                 value={firstName}
@@ -1410,10 +1402,6 @@ function AccountStep({
               />
             </Field>
           </div>
-          <p className="mt-4 text-[12px] text-fg-muted">
-            Your account is ready as soon as you continue. Sign in later with
-            this email and password to see your registration.
-          </p>
           <div className="mt-4 flex items-center justify-between">
             <button
               type="button"
@@ -2236,11 +2224,6 @@ function QuestionsStep({
         <p className="text-[14px] font-semibold tracking-tight text-fg">
           Player details
         </p>
-        <p className="mt-1 text-[12px] text-fg-muted">
-          Answers are saved against the question key, so labels can be reworded
-          in /forms without losing data. Configure these fields from the
-          Form builder section in /forms/[id].
-        </p>
         <div className="mt-4">
           <FormRenderer
             definition={definition}
@@ -2258,9 +2241,6 @@ function QuestionsStep({
             <p className="text-[14px] font-semibold tracking-tight text-fg">
               Player profile
             </p>
-            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
-              {submissionType === "free_agent" ? "Free-agent pool" : "Roster"}
-            </span>
           </div>
           <p className="mt-1 text-[12px] text-fg-muted">
             {submissionType === "free_agent"
@@ -2435,7 +2415,7 @@ function QuestionsStep({
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <Button onClick={onNext} disabled={!teamValid || !playerProfileValid}>
-          Next: Compliance <ArrowRight className="ml-2 h-4 w-4" />
+          Next: Waivers <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -3180,8 +3160,8 @@ function phaseHeadingFor(step: Step): {
   title: string;
   subtitle: string | null;
 } {
-  // Inner subtitle numbering MUST match the outer PhaseStepper:
-  // 1 Path · 2 Account · 3 Details · 4 Compliance · 5 Payment · 6 Confirmation.
+  // Titles follow the outer PhaseStepper:
+  // 1 Start · 2 Account · 3 Details · 4 Waivers · 5 Payment · 6 Confirmation.
   // The previous offset-by-one numbering (Account = "Phase 1", etc.)
   // is the same class of bug as the misordered stepOrder fix in this
   // file — the inner UI must agree with the outer stepper.
@@ -3189,38 +3169,19 @@ function phaseHeadingFor(step: Step): {
     case "path":
       return { title: "Player registration", subtitle: null };
     case "division":
-      return {
-        title: "Pick a division",
-        subtitle: "Step 1b: Which division you're registering for"
-      };
+      return { title: "Pick a division", subtitle: null };
     case "account":
-      return {
-        title: "Create your account",
-        subtitle: "Step 2: Account creation & authentication"
-      };
+      return { title: "Your account", subtitle: null };
     case "questions":
-      return {
-        title: "Your details",
-        subtitle: "Step 3: Player & team information"
-      };
+      return { title: "Your details", subtitle: null };
     case "consent":
     case "waivers":
-      return {
-        title: "Compliance & waivers",
-        subtitle:
-          "Step 4: Documents, eligibility checks, and digital signatures"
-      };
+      return { title: "Waivers", subtitle: null };
     case "tier":
     case "review":
     case "payment":
-      return {
-        title: "Payment",
-        subtitle: "Step 5: Invoice & payment selection"
-      };
+      return { title: "Payment", subtitle: null };
     case "done":
-      return {
-        title: "Registration submitted",
-        subtitle: "Step 6: Confirmation & activation"
-      };
+      return { title: "Registration submitted", subtitle: null };
   }
 }

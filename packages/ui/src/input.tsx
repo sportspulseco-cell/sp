@@ -10,6 +10,7 @@ import {
 } from "react";
 import { cn } from "./lib/cn";
 import { FieldHint } from "./field-hint";
+import { Select } from "./select";
 
 export const Input = forwardRef<
   HTMLInputElement,
@@ -53,7 +54,6 @@ export function Label({
  * Form field with an auto-bound `id` so the visible label is exposed
  * via accessible-name. Caller can still pass an explicit `htmlFor` to
  * override (multi-input fields), in which case nothing is auto-bound.
- * Single-child convention keeps the cloneElement safe.
  */
 export function Field({
   label,
@@ -69,20 +69,32 @@ export function Field({
   const autoId = useId();
   const id = htmlFor ?? autoId;
 
+  // Bind the label to the first input-like child (Input, Select, a bare
+  // input/select/textarea), or to a lone child of any kind. An error line
+  // after the input no longer leaves the field without a name.
   let body: ReactNode = children;
-  if (!htmlFor && isValidElement(children)) {
-    const only = Children.only(children) as ReactElement<{
-      id?: string;
-      "aria-label"?: string;
-    }>;
-    if (!only.props.id) {
-      body = cloneElement(only, { id });
-    }
+  let labelFor = id;
+  if (!htmlFor) {
+    let bound = false;
+    body = Children.map(children, (child) => {
+      if (bound || !isValidElement(child)) return child;
+      const el = child as ReactElement<{ id?: string }>;
+      const t = el.type;
+      const inputLike =
+        typeof t === "string" ? /^(input|select|textarea)$/.test(t) : t === Input || t === Select || Children.count(children) === 1;
+      if (!inputLike) return child;
+      bound = true;
+      if (el.props.id) {
+        labelFor = el.props.id;
+        return el;
+      }
+      return cloneElement(el, { id });
+    });
   }
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={labelFor}>{label}</Label>
       {body}
       <FieldHint>{hint}</FieldHint>
     </div>
