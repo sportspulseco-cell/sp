@@ -7,6 +7,7 @@ import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import { LeagueActions } from "@/components/edit/detail-actions";
 import type { League } from "@/lib/api/types";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const metadata = { title: "Leagues · Super Admin" };
 
@@ -41,7 +42,7 @@ export default async function LeaguesPage({
     if (sp.status && l.status !== sp.status) return false;
     if (sp.sport && l.sportCode !== sp.sport) return false;
     if (q) {
-      const hay = `${l.name} ${orgMap.get(l.orgId) ?? ""} ${l.sportCode} ${l.format}`.toLowerCase();
+      const hay = `${l.name} ${orgMap.get(l.orgId) ?? ""} ${l.sportCode} ${sportLabel(l.sportCode)} ${l.format}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -182,7 +183,7 @@ export default async function LeaguesPage({
                 <TD className="text-muted-foreground">
                   {orgMap.get(l.orgId) ?? "Unknown org"}
                 </TD>
-                <TD className="text-muted-foreground">{l.sportCode}</TD>
+                <TD className="text-muted-foreground">{sportLabel(l.sportCode)}</TD>
                 <TD className="text-muted-foreground">{l.format}</TD>
                 <TD>
                   <Badge status={l.status} />

@@ -1,4 +1,4 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatMoney, sportLabel } from "@sportspulse/kernel";
 import type { ReactNode } from "react";
 import { Badge, PageHeader, Reveal, statusTone, Eyebrow, IconTile } from "@sportspulse/ui";
 import { ArrowLeft, Network } from "lucide-react";
@@ -41,7 +41,7 @@ export function TeamDetail({
           <>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {team.shortName ? <Badge mono>{team.shortName}</Badge> : null}
-              <Badge mono>{team.sportCode}</Badge>
+              <Badge>{sportLabel(team.sportCode)}</Badge>
               <Badge status={team.status} />
             </div>
           </>
@@ -65,7 +65,7 @@ export function TeamDetail({
             {team.shortName ?? "—"}
           </Field>
           <Field label="Sport" tag="teams.sport_code" mono>
-            {team.sportCode}
+            {sportLabel(team.sportCode)}
           </Field>
           <Field label="Status" tag="teams.status" mono>
             {team.status}

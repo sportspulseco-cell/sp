@@ -16,6 +16,7 @@ import { BarChart3, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { leagueMgmt, stats } from "@/lib/api/server-api";
 import { RecomputeStandingsButton } from "@/components/stats/recompute-standings-button";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const metadata = { title: "Stats · Super Admin" };
 
@@ -197,7 +198,7 @@ async function LinesTab({
             <TD className="text-fg-muted">
               {teamMap.get(l.teamId) ?? l.teamName ?? "Unnamed team"}
             </TD>
-            <TD className="text-fg-muted">{l.sportCode}</TD>
+            <TD className="text-fg-muted">{sportLabel(l.sportCode)}</TD>
             <TD className="text-center font-mono tabular-nums text-fg">
               {l.gpIncrement}
             </TD>

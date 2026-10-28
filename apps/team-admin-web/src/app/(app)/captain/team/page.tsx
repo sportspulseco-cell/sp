@@ -2,6 +2,7 @@ import { Settings, Star } from "lucide-react";
 import { EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { TeamProfileForm } from "./team-profile-form";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -58,7 +59,7 @@ export default async function CaptainTeamPage() {
       <section className="rounded-xl border border-border bg-surface-1 p-6">
         <Eyebrow>{team.name}</Eyebrow>
         <p className="mt-1 font-mono text-[11px] uppercase tracking-wide text-fg-muted">
-          {team.sportCode} · {team.ownerOrgName ?? "Unknown org"}
+          {sportLabel(team.sportCode)} · {team.ownerOrgName ?? "Unknown org"}
         </p>
         <div className="mt-6">
           <TeamProfileForm

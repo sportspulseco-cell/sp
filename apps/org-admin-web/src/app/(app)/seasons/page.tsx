@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { formatCalendarDate } from "@sportspulse/kernel";
+import { formatCalendarDate, sportLabel } from "@sportspulse/kernel";
 /* Hallmark · page: list (seasons) · genre: editorial · theme: project
  * pre-emit critique: P5 H4 E5 S4 R5 V4
  */
@@ -75,7 +75,7 @@ export default async function SeasonsPage({
     if (sp.leagueId && s.leagueId !== sp.leagueId) return false;
     if (sp.status && (s.status as string) !== sp.status) return false;
     if (q) {
-      const hay = `${s.name} ${leagueMap.get(s.leagueId) ?? ""} ${s.sportCode}`.toLowerCase();
+      const hay = `${s.name} ${leagueMap.get(s.leagueId) ?? ""} ${s.sportCode} ${sportLabel(s.sportCode)}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -100,7 +100,7 @@ export default async function SeasonsPage({
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg transition-colors duration-fast ease-ease hover:bg-[var(--accent-hover)]"
           >
             <Wand2 className="h-3.5 w-3.5" strokeWidth={2} />
-            Open org setup
+            New season
           </Link>
         }
       />
@@ -108,7 +108,7 @@ export default async function SeasonsPage({
       <section className="space-y-6">
         <SectionRail
           index="01"
-          label="Schedule"
+          label="All seasons"
           subtitle="Every season your org is running. Open one to manage divisions, registrations, and game ops."
           meta={`${open} open · ${page.items.length} total`}
         />
@@ -167,7 +167,7 @@ export default async function SeasonsPage({
                       </Link>
                     </TD>
                     <TD className="text-fg-muted">{leagueMap.get(s.leagueId) ?? "Unknown league"}</TD>
-                    <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{s.sportCode}</TD>
+                    <TD className="text-fg-muted">{sportLabel(s.sportCode)}</TD>
                     <TD className="text-[12px] text-fg-muted">
                       {fmt(s.startDate)} to {fmt(s.endDate)}
                     </TD>

@@ -11,6 +11,7 @@ import {
   Alert
 } from "@sportspulse/ui";
 import { registration } from "@/lib/api/browser-api";
+import { sportLabel } from "@sportspulse/kernel";
 
 type Team = {
   id: string;
@@ -91,7 +92,7 @@ export function FindTeamClient({
                     {t.name}
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    {t.sportCode}
+                    {sportLabel(t.sportCode)}
                     {t.shortName ? ` · ${t.shortName}` : ""}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">

@@ -6,6 +6,7 @@ import { Loader2, Plus } from "lucide-react";
 import { leagueMgmt } from "@/lib/api/browser-api";
 import type { League } from "@/lib/api/types";
 import { Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
+import { sportLabel } from "@sportspulse/kernel";
 
 /**
  * Post-flip: a season belongs to a LEAGUE (not directly to an org).
@@ -90,7 +91,7 @@ function CreateSeasonDialog({
           >
             {leagues.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.name} ({l.sportCode})
+                {l.name} ({sportLabel(l.sportCode)})
               </option>
             ))}
           </Select>

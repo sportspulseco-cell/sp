@@ -21,6 +21,7 @@ import {
 import type { Team } from "@sportspulse/api-client";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Teams · Org Admin" };
@@ -147,7 +148,7 @@ export default async function TeamsPage({
                       </Link>
                     </TD>
                     <TD className="font-mono text-[11px] text-fg-muted">{t.shortName ?? "—"}</TD>
-                    <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{t.sportCode}</TD>
+                    <TD className="text-fg-muted">{sportLabel(t.sportCode)}</TD>
                     <TD className="text-fg-muted">{t.captainName ?? "—"}</TD>
                     <TD>
                       <Badge status={t.status} />

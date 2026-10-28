@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Badge, PageHeader, Reveal, Eyebrow, IconTile, LocalDate } from "@sportspulse/ui";
 import type { Division, League, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
-import { SEASON_CONFIG_DEFAULTS, formatCalendarDate } from "@sportspulse/kernel";
+import { SEASON_CONFIG_DEFAULTS, formatCalendarDate, sportLabel } from "@sportspulse/kernel";
 
 /** A season switch as set, or the default registration uses when it is not set. */
 function yesNo(v: boolean | undefined, fallback: boolean): string {
@@ -83,7 +83,7 @@ export function SeasonDetail({
         description={
           <>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Badge mono>{season.sportCode}</Badge>
+              <Badge>{sportLabel(season.sportCode)}</Badge>
               {parentLeague ? (
                 <Link
                   href={`${leagueHref}/${parentLeague.id}`}
@@ -130,7 +130,7 @@ export function SeasonDetail({
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Name" tag="seasons.name">{season.name}</Field>
           <Field label="Sport" tag="seasons.sport_code" mono>
-            {season.sportCode}
+            {sportLabel(season.sportCode)}
           </Field>
           <Field label="Time zone" tag="seasons.timezone" mono>
             {season.timezone}

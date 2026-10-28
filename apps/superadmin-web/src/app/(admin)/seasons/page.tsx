@@ -6,6 +6,7 @@ import { leagueMgmt } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Season } from "@/lib/api/types";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const metadata = { title: "Seasons · Super Admin" };
 
@@ -49,7 +50,7 @@ export default async function SeasonsPage({
     if (sp.status && s.status !== sp.status) return false;
     if (sp.sport && s.sportCode !== sp.sport) return false;
     if (q) {
-      const hay = `${s.name} ${leagueMap.get(s.leagueId) ?? ""} ${s.sportCode}`.toLowerCase();
+      const hay = `${s.name} ${leagueMap.get(s.leagueId) ?? ""} ${s.sportCode} ${sportLabel(s.sportCode)}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -185,7 +186,7 @@ export default async function SeasonsPage({
                 <TD className="text-muted-foreground">
                   {leagueMap.get(s.leagueId) ?? "Unknown league"}
                 </TD>
-                <TD className="text-muted-foreground">{s.sportCode}</TD>
+                <TD className="text-muted-foreground">{sportLabel(s.sportCode)}</TD>
                 <TD className="text-muted-foreground">
                   {s.startDate} → {s.endDate}
                 </TD>

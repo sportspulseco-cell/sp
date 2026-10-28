@@ -6,6 +6,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { stats } from "@/lib/api/browser-api";
 import type { Leaderboard } from "@/lib/api/types";
 import { Button, Eyebrow, Field, Input, Select } from "@sportspulse/ui";
+import { sportLabel } from "@sportspulse/kernel";
 
 interface LeagueLite {
   id: string;
@@ -131,7 +132,7 @@ export function BuildLeaderboardForm({
           >
             {leagues.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.name} · {l.sportCode}
+                {l.name} · {sportLabel(l.sportCode)}
               </option>
             ))}
           </Select>
@@ -240,7 +241,7 @@ function ResultPanel({
         <div>
           <Eyebrow>{result.metric}</Eyebrow>
           <p className="mt-1 text-[13px] text-fg-muted">
-            {result.scopeType} · {result.windowKind} · {result.sportCode} · top{" "}
+            {result.scopeType} · {result.windowKind} · {sportLabel(result.sportCode)} · top{" "}
             {result.entries.length}
           </p>
         </div>

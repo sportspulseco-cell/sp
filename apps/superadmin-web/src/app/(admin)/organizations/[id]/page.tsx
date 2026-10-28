@@ -10,7 +10,7 @@ import { IssueGrantButton } from "@/components/orgs/issue-grant-button";
 import { RevokeGrantButton } from "@/components/orgs/revoke-grant-button";
 import { RoleAssignmentPanel } from "@/components/roles/role-assignment-panel";
 import { viewerRoleGrants } from "@/lib/role-grants";
-import { SYSTEM_ROLE_CODES, DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
+import { SYSTEM_ROLE_CODES, DATE_FORMATS, formatCalendarDate, sportLabel } from "@sportspulse/kernel";
 import { RegionsSection } from "@/components/regions/regions-section";
 import { OrgActions } from "@/components/edit/detail-actions";
 
@@ -307,7 +307,7 @@ export default async function OrgDetailPage({
                     </Link>
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {l.sportCode} · {l.format ?? "—"}
+                    {sportLabel(l.sportCode)} · {l.format ?? "—"}
                   </p>
                 </div>
                 <Badge status={l.status} />
@@ -433,7 +433,7 @@ export default async function OrgDetailPage({
                     )}
                   </p>
                   <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {t.sportCode}
+                    {sportLabel(t.sportCode)}
                     {t.captainUserId && (
                       <>
                         {" · captain "}

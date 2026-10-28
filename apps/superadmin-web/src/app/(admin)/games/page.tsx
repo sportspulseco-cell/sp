@@ -1,5 +1,5 @@
 import { fetchAll } from "@sportspulse/api-client";
-import { formatInZone } from "@sportspulse/kernel";
+import { formatInZone, sportLabel } from "@sportspulse/kernel";
 import {
   Alert,
   EmptyState,
@@ -299,7 +299,7 @@ export default async function GamesPage({
                       ? `${division.name}${seasonMap.get(division.seasonId) ? ` · ${seasonMap.get(division.seasonId)!.name}` : ""}`
                       : "—"}
                   </TD>
-                  <TD className="text-fg-muted">{g.sportCode}</TD>
+                  <TD className="text-fg-muted">{sportLabel(g.sportCode)}</TD>
                   <TD className="text-right font-mono tabular-nums">
                     {showScore ? (
                       <span className="text-fg">

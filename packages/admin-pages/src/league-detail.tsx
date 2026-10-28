@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge, PageHeader, Reveal, statusTone, Eyebrow, IconTile } from "@sportspulse/ui";
 import type { League, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
+import { sportLabel } from "@sportspulse/kernel";
 
 const PRIVACY_LABEL: Record<string, string> = {
   public: "Public: visible in league directory",
@@ -73,7 +74,7 @@ export function LeagueDetail({
         description={
           <>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Badge mono>{league.sportCode}</Badge>
+              <Badge>{sportLabel(league.sportCode)}</Badge>
               <Badge mono>{league.format}</Badge>
               <Badge status={league.status} />
               {md.privacy ? <Badge mono>{md.privacy}</Badge> : null}
@@ -103,7 +104,7 @@ export function LeagueDetail({
           <Field label="League name" tag="leagues.name">{league.name}</Field>
           <Field label="Slug" tag="metadata.slug" mono>{md.slug ?? "—"}</Field>
           <Field label="Sport" tag="leagues.sport_code" mono>
-            {league.sportCode}
+            {sportLabel(league.sportCode)}
           </Field>
           <Field label="Format" tag="leagues.format" mono>
             {league.format}

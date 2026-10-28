@@ -22,6 +22,7 @@ import type { League } from "@sportspulse/api-client";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { LeagueActions } from "@/components/edit/detail-actions";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leagues · Org Admin" };
@@ -53,7 +54,7 @@ export default async function LeaguesPage({
     if (sp.status && (l.status as string) !== sp.status) return false;
     if (sp.sport && l.sportCode !== sp.sport) return false;
     if (q) {
-      const hay = `${l.name} ${l.sportCode} ${l.format ?? ""}`.toLowerCase();
+      const hay = `${l.name} ${l.sportCode} ${sportLabel(l.sportCode)} ${l.format ?? ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -76,7 +77,7 @@ export default async function LeaguesPage({
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg transition-colors duration-fast ease-ease hover:bg-[var(--accent-hover)]"
           >
             <Wand2 className="h-3.5 w-3.5" strokeWidth={2} />
-            Open org setup
+            New league
           </Link>
         }
       />
@@ -84,7 +85,7 @@ export default async function LeaguesPage({
       <section className="space-y-6">
         <SectionRail
           index="01"
-          label="Roster"
+          label="All leagues"
           subtitle="Each row is a league in your org. Tap a row to manage its seasons, divisions, and teams."
           meta={`${active} active · ${page.items.length} total`}
         />
@@ -154,7 +155,7 @@ export default async function LeaguesPage({
                         {l.name}
                       </Link>
                     </TD>
-                    <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">{l.sportCode}</TD>
+                    <TD className="text-fg-muted">{sportLabel(l.sportCode)}</TD>
                     <TD className="text-fg-muted">{l.format ?? "—"}</TD>
                     <TD>
                       <Badge status={l.status} />

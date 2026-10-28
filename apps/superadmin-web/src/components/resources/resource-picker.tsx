@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Loader2, Search, X } from "lucide-react";
 import type { ScopeType } from "@sportspulse/kernel";
 import { orgs, leagueMgmt } from "@/lib/api/browser-api";
+import { sportLabel } from "@sportspulse/kernel";
 
 type ResourceScope = Exclude<ScopeType, "platform" | "game">;
 
@@ -206,7 +207,7 @@ async function fetchOptions(scope: ResourceScope): Promise<Option[]> {
       return page.items.map((l) => ({
         id: l.id,
         label: l.name,
-        sub: `${l.sportCode}${l.format ? ` · ${l.format}` : ""}`
+        sub: `${sportLabel(l.sportCode)}${l.format ? ` · ${l.format}` : ""}`
       }));
     }
     case "season": {
@@ -214,7 +215,7 @@ async function fetchOptions(scope: ResourceScope): Promise<Option[]> {
       return page.items.map((s) => ({
         id: s.id,
         label: s.name,
-        sub: `${s.sportCode} · ${s.startDate} → ${s.endDate}`
+        sub: `${sportLabel(s.sportCode)} · ${s.startDate} → ${s.endDate}`
       }));
     }
     case "division": {

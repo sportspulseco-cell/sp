@@ -6,6 +6,7 @@ import { leagueMgmt } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Team } from "@/lib/api/types";
+import { sportLabel } from "@sportspulse/kernel";
 
 export const metadata = { title: "Teams · Super Admin" };
 
@@ -153,7 +154,7 @@ export default async function TeamsPage({
                   </Link>
                 </TD>
                 <TD className="text-muted-foreground">{t.shortName ?? "—"}</TD>
-                <TD className="text-muted-foreground">{t.sportCode}</TD>
+                <TD className="text-muted-foreground">{sportLabel(t.sportCode)}</TD>
                 <TD>
                   <Link
                     href={`/organizations/${t.orgId}`}
