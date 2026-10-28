@@ -52,7 +52,7 @@ async function walkToPayment(page: Page, j3: Record<string, string>, who: { firs
   await page.getByLabel(/^Password/).first().fill(PASSWORD);
   await page.getByLabel(/^Confirm password/).first().fill(PASSWORD);
   await page.getByRole("button", { name: /Next: Details/ }).filter({ visible: true }).first().click();
-  await expect(page.getByRole("button", { name: /Next: Compliance/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /Next: Waivers/ })).toBeVisible({ timeout: 30_000 });
   const usa = page.getByPlaceholder("e.g. 1234567890").first();
   if (await usa.isVisible().catch(() => false)) await usa.fill("ABC12345");
   const level = page.locator("select").filter({ has: page.locator("option", { hasText: /Pick a level/ }) }).first();
@@ -62,8 +62,8 @@ async function walkToPayment(page: Page, j3: Record<string, string>, who: { firs
   if (await avail.isVisible().catch(() => false)) await avail.click();
   const jersey = page.getByLabel(/Preferred jersey number/).first();
   if (await jersey.isVisible().catch(() => false)) await jersey.fill("23");
-  await page.getByRole("button", { name: /Next: Compliance/ }).click();
-  await expect(page.getByText(/Automated eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: /Next: Waivers/ }).click();
+  await expect(page.getByText(/Eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
   const docs = page.locator("div.max-h-48.overflow-y-auto");
   for (let i = 0; i < (await docs.count()); i++) {
     await docs.nth(i).evaluate((el) => {

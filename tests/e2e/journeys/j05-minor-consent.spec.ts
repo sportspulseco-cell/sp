@@ -116,7 +116,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     await minor.getByLabel(/^Password/).first().fill(PASSWORD);
     await minor.getByLabel(/^Confirm password/).first().fill(PASSWORD);
     await minor.getByRole("button", { name: /Next: Details/ }).filter({ visible: true }).first().click();
-    await expect(minor.getByRole("button", { name: /Next: Compliance/ })).toBeVisible({ timeout: 30_000 });
+    await expect(minor.getByRole("button", { name: /Next: Waivers/ })).toBeVisible({ timeout: 30_000 });
     const rows = await stagingSql<{ id: string; status: string; minor: string }>(
       "select id, status, metadata->>'isMinor' minor from registrations where season_id = $1 and metadata->>'email' = $2",
       [j3.seasonId, email]
@@ -161,7 +161,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     await level.selectOption("C");
     await minor.getByRole("button", { name: /^Center$/ }).click().catch(() => {});
     await minor.getByRole("button", { name: /^mon$/i }).click().catch(() => {});
-    await minor.getByRole("button", { name: /Next: Compliance/ }).click();
+    await minor.getByRole("button", { name: /Next: Waivers/ }).click();
     await expect(minor.getByText(/Parental consent required/i)).toBeVisible({ timeout: 30_000 });
     phases.push(`consent:${await activePhase(minor)}`);
     await minor.getByLabel(/Parent \/ guardian email/i).fill(parentEmail);
@@ -259,12 +259,12 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
       await minor.getByLabel(/^Email/).first().fill(email);
       await minor.getByLabel(/^Password/).first().fill(PASSWORD);
       await minor.getByRole("button", { name: /Sign in & continue/i }).click();
-      await expect(minor.getByRole("button", { name: /Next: Compliance/ })).toBeVisible({ timeout: 30_000 });
+      await expect(minor.getByRole("button", { name: /Next: Waivers/ })).toBeVisible({ timeout: 30_000 });
       const level = minor.locator("select").filter({ has: minor.locator("option", { hasText: /Pick a level/ }) }).first();
       if ((await level.inputValue()) === "") await level.selectOption("C");
       const usa = minor.getByPlaceholder("e.g. 1234567890").first();
       if (await usa.isVisible().catch(() => false) && !(await usa.inputValue())) await usa.fill("MIN12345");
-      await minor.getByRole("button", { name: /Next: Compliance/ }).click();
+      await minor.getByRole("button", { name: /Next: Waivers/ }).click();
     }
     await expect(minor.getByText(/Eligibility checks|Parental consent required/i).first()).toBeVisible({ timeout: 30_000 });
     if (await minor.getByRole("heading", { name: /Parental consent required/i }).isVisible().catch(() => false)) {
@@ -283,7 +283,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     expect(hasLiability, "required liability waiver presented in the minor's funnel (UC-27, REG-5)").toBe(true);
     // UC-27: for a minor the guardian signs the waiver, not the child.
     const pageText = await minor.locator("body").innerText();
-    softExpect(/guardian|parent/i.test(pageText.slice(pageText.indexOf("Automated eligibility"))), "waiver step asks the guardian (not the minor) to sign").toBe(true);
+    softExpect(/guardian|parent/i.test(pageText.slice(pageText.indexOf("Eligibility checks"))), "waiver step asks the guardian (not the minor) to sign").toBe(true);
     if (hasLiability) {
       const docs = minor.locator("div.max-h-48.overflow-y-auto");
       for (let i = 0; i < (await docs.count()); i++) {
@@ -302,7 +302,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     await minor.getByRole("button", { name: /^Continue/ }).click();
     await minor.getByRole("button", { name: /Continue to payment/ }).click();
     await minor.getByRole("button", { name: /^Pay \$/ }).click();
-    await expect.poll(() => activePhase(minor), { timeout: 60_000, message: "funnel reaches Confirmation after Pay" }).not.toMatch(/PAYMENT/);
+    await expect.poll(() => activePhase(minor), { timeout: 60_000, message: "funnel reaches Confirmation after Pay" }).not.toMatch(/PAYMENT/i);
     await shot(minor, "05-minor-done");
     const [r] = await stagingSql<{ status: string }>("select status from registrations where id = $1", [submissionId]);
     expect(r!.status).toBe("pending_review");

@@ -184,10 +184,12 @@ test.describe.serial("J4 · player registers and pays", () => {
     const [win] = await stagingSql<{ opens: Date }>("select registration_opens_at opens from seasons where id = $1", [j3.seasonId]);
     const openNow = new Date(win!.opens) <= new Date();
     test.info().annotations.push({ type: "season-window", description: `registration_opens_at=${new Date(win!.opens).toISOString()} openNow=${openNow}` });
-    // The home card previews three open seasons and links to all of them;
-    // staging has many test seasons, so this one may sit behind "See all".
-    const card = page.getByText(/accepting registrations/i);
-    softExpect(await card.count(), `player home shows the open registrations card (openNow=${openNow})`).toBeGreaterThan(0);
+    // The home's "Needs you" list offers a way to register: "Register for
+    // a season" for a new player, "<season> is open · Sign up" otherwise
+    // (doc/design/guided-ui.md). Staging has many open test seasons, so
+    // this one may not be among the two shown; /register lists them all.
+    const card = page.getByText(/Register for a season|is open|A new season is open/i);
+    softExpect(await card.count(), `player home offers a way to register (openNow=${openNow})`).toBeGreaterThan(0);
     await page.goto(`${E2E_URLS.player}/register`);
     await expect(page.getByRole("heading", { name: /find a team/i })).toBeVisible();
     await shot(page, "02-player-register");
@@ -347,7 +349,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     const payLabel = (await payBtn.innerText()).trim();
     softExpect(payLabel, "plan option charges the deposit today").toMatch(/\$50/);
     await payBtn.click();
-    await expect.poll(() => activePhase(player), { timeout: 60_000, message: "funnel reaches Confirmation after Pay" }).not.toMatch(/PAYMENT/);
+    await expect.poll(() => activePhase(player), { timeout: 60_000, message: "funnel reaches Confirmation after Pay" }).not.toMatch(/PAYMENT/i);
     await player.waitForTimeout(1000);
     phases.push(`done:${await activePhase(player)}`);
     await shot(player, "05-done");
