@@ -734,6 +734,9 @@ export function RegistrationFunnel({
                   email
                 });
                 setSubmissionStatus(res.status);
+                // The guardian signed the documents with the consent
+                // (UC-27): reload them, the list loaded earlier is stale.
+                await loadWaivers(submissionId!, email.trim());
                 next();
               } catch (e) {
                 setError((e as Error).message);
