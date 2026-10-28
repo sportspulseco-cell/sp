@@ -1590,7 +1590,9 @@ export class PublicRegistrationController {
             status: row.status,
             alreadyConfirmed: true,
             signatureId: (meta.parentConsentSignatureId as string | undefined) ?? null,
-            signedBy: (meta.parentConsentSignerName as string | undefined) ?? null
+            // Who signed what this request stored: the documents signer when
+            // they signed now, else the consent signer on file.
+            signedBy: docs && docs.signed > 0 ? guardianName : (meta.parentConsentSignerName as string | undefined) ?? null
           };
         }
         throw new ConflictException({

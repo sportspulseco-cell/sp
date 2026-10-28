@@ -184,6 +184,7 @@ shared file was touched.
   Evidence: findings "guardian portal collects a signature / acknowledgement: 0", "consent record stored in compliance: 0"; screenshot j05/04-parent-portal.png
   Root cause: apps/player-web/src/app/parental-consent/[token]/consent-client.tsx:143-172; redeemParentalConsent only flips status (public-registration.controller.ts:1243-1300).
   Proposed fix: typed legal name + checkbox, write a consent signature (document version, IP, UA, signer email) through the registration-compliance document repository; route minor waivers to the guardian.
+  Status (29 Oct 2026): fixed. Consent: typed name + checkbox, consent record (recordGuardianConsent). Documents: the consent page shows the league's documents and the same signature covers them (signGuardianDocuments, labelled "Signed by parent or guardian <name>"); the minor's own signature is refused (409 guardian_signs) and their Waivers screen shows who signed. A guardian who consented earlier signs the documents from a fresh documents-only link. Evidence: J05 on staging; older-minor API check 9/9; guardian page browser check 7/7.
 
 [REG-16] Funnel accepts registrations before the window opens · major
   Journey: J4

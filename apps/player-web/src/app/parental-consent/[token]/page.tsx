@@ -51,6 +51,9 @@ export default async function ParentalConsentPage({
   const { token } = await params;
   const ctx = await fetchContext(token);
 
+  // Consent given before guardians signed the documents too (UC-27).
+  const documentsOnly =
+    !!ctx && !ctx.expired && !!ctx.confirmedAt && ctx.status === "pending_payment" && (ctx.documents ?? []).some((d) => !d.signed);
   return (
     <div className="min-h-screen bg-bg text-fg">
       <div className="mx-auto max-w-xl px-6 py-16">
@@ -59,7 +62,7 @@ export default async function ParentalConsentPage({
             SportsPulse · Parental consent
           </p>
           <h1 className="text-[28px] font-semibold tracking-tighter text-fg">
-            Confirm your child&apos;s registration
+            {documentsOnly ? "Sign your child's documents" : "Confirm your child's registration"}
           </h1>
         </header>
 
@@ -77,7 +80,7 @@ export default async function ParentalConsentPage({
             title="This link has expired"
             body="Consent links expire 24 hours after they're sent. Ask the player to resend the consent email from their registration."
           />
-        ) : ctx.confirmedAt && ctx.status === "pending_payment" && (ctx.documents ?? []).some((d) => !d.signed) ? (
+        ) : documentsOnly ? (
           // Consent given before guardians signed the documents too (UC-27):
           // sign the documents only.
           <ParentalConsentClient
