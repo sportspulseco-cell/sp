@@ -4,7 +4,7 @@ import { centsToAmountInput } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
-import { Alert, Badge, Button, Select, Input } from "@sportspulse/ui";
+import { Alert, Badge, Button, Select, Input, FieldHint } from "@sportspulse/ui";
 import type { InvoiceRefundable, Refund } from "@sportspulse/api-client";
 import { finance } from "@/lib/api/browser-api";
 import { fmtMoney, fmtDate } from "../lib/format";
@@ -290,7 +290,7 @@ function Field({
         {required ? <span className="ml-1 text-rose-500">*</span> : null}
       </label>
       {children}
-      {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
+      <FieldHint>{hint}</FieldHint>
     </div>
   );
 }

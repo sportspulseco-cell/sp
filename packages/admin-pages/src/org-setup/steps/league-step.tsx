@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
-import { cn, Input, Select } from "@sportspulse/ui";
+import { cn, Input, Select, FieldHint } from "@sportspulse/ui";
 import {
   slugify,
   type LeagueDraft,
@@ -344,9 +344,7 @@ export function Field({
         {required ? <span className="ml-1 text-[var(--error)]">*</span> : null}
       </label>
       {children}
-      {hint ? (
-        <p className="text-[11px] leading-relaxed text-fg-muted">{hint}</p>
-      ) : null}
+      <FieldHint>{hint}</FieldHint>
     </div>
   );
 }

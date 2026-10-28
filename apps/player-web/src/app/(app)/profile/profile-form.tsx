@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
-import { Badge, Button, LocalDate, Alert, Input, Select } from "@sportspulse/ui";
+import { Badge, Button, LocalDate, Alert, Input, Select, FieldHint } from "@sportspulse/ui";
 import type { Profile } from "@sportspulse/api-client";
 import { iam } from "@/lib/api/browser-api";
 
@@ -250,7 +250,7 @@ function Field({
       </span>
       {children}
       {hint ? (
-        <span className="block text-[11px] text-fg-muted">{hint}</span>
+        <FieldHint>{hint}</FieldHint>
       ) : null}
     </label>
   );

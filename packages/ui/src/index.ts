@@ -28,6 +28,7 @@ export * from "./local-date";
 export * from "./copy-link";
 export * from "./info-disclosure";
 export * from "./todo-list";
+export * from "./field-hint";
 // section-rail + command-palette stay in each app (they import
 // next/link + next/navigation, which would couple this package to
 // Next.js). If we ever need a framework-neutral version, factor here.

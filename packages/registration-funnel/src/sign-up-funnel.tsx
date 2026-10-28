@@ -181,7 +181,7 @@ export function SignUpFunnel({
               step={2}
               total={STEP_ORDER.length}
               title="Create your account"
-              hint="We'll send a confirmation email if your project requires it. Otherwise you'll be signed in immediately."
+              hint="We may email you a link to confirm it."
             />
             <Field label="Work email" htmlFor="email">
               <Input
@@ -198,7 +198,7 @@ export function SignUpFunnel({
             <Field
               label="Password"
               htmlFor="password"
-              hint="At least 8 characters. We never email you the password."
+              hint="At least 8 characters."
             >
               <Input
                 id="password"
@@ -240,7 +240,7 @@ export function SignUpFunnel({
               step={3}
               total={STEP_ORDER.length}
               title="Tell us who you are"
-              hint="Legal name is what we use on official documents (rosters, waivers). Preferred name is what shows up around the app."
+              hint="Your legal name goes on rosters and waivers."
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Legal first name" htmlFor="firstName">
@@ -267,7 +267,7 @@ export function SignUpFunnel({
             <Field
               label="Preferred name"
               htmlFor="preferredName"
-              hint="What teammates and admins see. Defaults to your first name."
+              hint="What teammates see."
             >
               <Input
                 id="preferredName"
@@ -388,18 +388,12 @@ function WelcomeStep({
         step={1}
         total={STEP_ORDER.length}
         title={`Join SportsPulse: ${appName}`}
-        hint={`This sign-up is for ${roleLabel}. Different role? Pick the matching console from the SportsPulse landing page.`}
+        hint={`Signing up as ${roleLabel}.`}
       />
       <ul className="space-y-2 rounded-md border border-border bg-bg-subtle p-4 text-[13px] text-fg-muted">
-        <BulletItem>You'll create your account on the next step.</BulletItem>
-        <BulletItem>
-          We'll capture your legal name + country so admins can verify
-          eligibility.
-        </BulletItem>
-        <BulletItem>
-          After signing up you'll finish a short role profile so the app
-          knows what to show you.
-        </BulletItem>
+        <BulletItem>Create your account</BulletItem>
+        <BulletItem>Add your name</BulletItem>
+        <BulletItem>Set up your profile</BulletItem>
       </ul>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <a

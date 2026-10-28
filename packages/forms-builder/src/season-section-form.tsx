@@ -4,7 +4,7 @@ import { fetchAll } from "@sportspulse/api-client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { Alert, Button, Skeleton, Select } from "@sportspulse/ui";
+import { Alert, Button, Skeleton, Select, FieldHint } from "@sportspulse/ui";
 import type { RegistrationForm, Season } from "@sportspulse/api-client";
 import {
   SEASON_REGISTRATION_TYPES,
@@ -440,7 +440,7 @@ function Field({
         {required ? <span className="ml-1 text-rose-500">*</span> : null}
       </label>
       {children}
-      {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
+      <FieldHint>{hint}</FieldHint>
     </div>
   );
 }

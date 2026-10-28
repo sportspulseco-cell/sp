@@ -4,7 +4,7 @@ import { SEASON_CONFIG_DEFAULTS } from "@sportspulse/kernel";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Alert, Button, Input } from "@sportspulse/ui";
+import { Alert, Button, Input, FieldHint } from "@sportspulse/ui";
 import type {
   Division,
   PricingTier,
@@ -362,7 +362,7 @@ function ToggleRow({
     <div className="flex items-start justify-between gap-3 border-t border-border pt-3 first:border-t-0 first:pt-0">
       <div className="min-w-0">
         <p className="text-[13px] font-medium text-fg">{label}</p>
-        <p className="mt-0.5 text-[12px] text-fg-muted">{hint}</p>
+        <FieldHint className="mt-0.5">{hint}</FieldHint>
       </div>
       <button
         type="button"

@@ -9,6 +9,7 @@ import {
   type ReactNode
 } from "react";
 import { cn } from "./lib/cn";
+import { FieldHint } from "./field-hint";
 
 export const Input = forwardRef<
   HTMLInputElement,
@@ -83,7 +84,7 @@ export function Field({
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {body}
-      {hint ? <p className="text-xs text-fg-muted">{hint}</p> : null}
+      <FieldHint>{hint}</FieldHint>
     </div>
   );
 }

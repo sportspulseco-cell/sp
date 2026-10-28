@@ -29,3 +29,17 @@
 .uppercase[class*="text-[11px]"] {
   font-size: 12px;
 }
+
+/*
+ * Phones: long names and wide tables must never push the page sideways.
+ * Grid items default to min-width:auto (they grow to their content);
+ * let them shrink so an inner overflow-x-auto table scrolls instead.
+ * Filter <select>s take long league names; cap them at their column.
+ */
+main .grid > *,
+main .flex > .min-w-0 {
+  min-width: 0;
+}
+main select {
+  max-width: 100%;
+}

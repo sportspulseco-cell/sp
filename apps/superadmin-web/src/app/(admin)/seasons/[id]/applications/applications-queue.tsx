@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, LocalDate, Select } from "@sportspulse/ui";
+import { Alert, LocalDate, Select, FieldHint } from "@sportspulse/ui";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -476,7 +476,7 @@ function DialogField({
     <div className="space-y-1.5">
       <p className="text-[12px] font-medium text-fg">{label}</p>
       {children}
-      {hint && <p className="text-[11px] text-fg-muted">{hint}</p>}
+      <FieldHint>{hint}</FieldHint>
     </div>
   );
 }

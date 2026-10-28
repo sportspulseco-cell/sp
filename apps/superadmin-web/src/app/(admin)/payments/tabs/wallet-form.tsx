@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Alert, Button, Input } from "@sportspulse/ui";
+import { Alert, Button, Input, FieldHint } from "@sportspulse/ui";
 import { finance } from "@/lib/api/browser-api";
 
 /**
@@ -171,7 +171,7 @@ function Field({
         {required ? <span className="ml-1 text-rose-500">*</span> : null}
       </label>
       {children}
-      {hint ? <p className="text-[11px] text-fg-muted">{hint}</p> : null}
+      <FieldHint>{hint}</FieldHint>
     </div>
   );
 }

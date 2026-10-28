@@ -34,7 +34,7 @@ export function SignUpClient() {
   return (
     <SignUpFunnel
       appName="Super Admin"
-      roleLabel="platform admins"
+      roleLabel="Platform admin"
       signInHref="/sign-in"
       onboardingHref="/dashboard"
       api={api}

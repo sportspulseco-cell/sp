@@ -95,7 +95,7 @@ export function SeasonLeadersBlock({
                       <span className="text-fg-muted"> · {r.teamName ?? "Unnamed team"}</span>
                     </span>
                     <span className="font-mono tabular-nums text-fg">{r[b.key]}</span>
-                    <span className="w-10 text-right font-mono text-[11px] text-fg-muted">{r.gp} GP</span>
+                    <span className="shrink-0 text-right text-[12px] text-fg-muted">{r.gp} {r.gp === 1 ? "game" : "games"}</span>
                   </li>
                 ))}
               </ol>
