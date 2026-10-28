@@ -140,6 +140,14 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
 
   async function onPublish() {
     if (!result?.runId) return;
+    // Publishing does not check conflicts on the server; say so before
+    // a team's double booking goes out to every schedule.
+    try {
+      const open = (await scheduler.listConflicts({ seasonId })).conflicts.length;
+      if (open > 0 && !confirm(`${open} schedule ${open === 1 ? "conflict is" : "conflicts are"} still open: a team plays twice at the same time. Publish anyway? You can fix ${open === 1 ? "it" : "them"} on the Conflicts tab first.`)) return;
+    } catch (err) {
+      console.warn("[schedule] could not check conflicts before publishing", err);
+    }
     setPublishError(null); setPublishResult(null);
     setPublishing(true);
     try {

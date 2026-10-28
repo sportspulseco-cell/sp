@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import { coveredInstallments } from "@sportspulse/kernel";
+import { recomputeTeamDepositForInvoice } from "./team-deposit";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -12,7 +13,8 @@ const log = new Logger("Installments");
  * Marks a payment plan's open installments paid once the invoice's paid
  * amount covers them, earliest first (MON-27). Call after every write
  * that raises an invoice's paid_cents (the payer paying by hand, a
- * captain covering the team), in the same transaction. Without it the
+ * captain covering the team), in the same transaction. A team entry
+ * whose deposits are now met moves to confirmed (team-deposit.ts). Without it the
  * plan kept showing paid money as due, and the card job could charge an
  * installment the payer had already paid. Returns the rows marked.
  */
@@ -46,5 +48,7 @@ export async function settleInstallments(tx: Tx | Database, invoiceId: string): 
     )
     .returning({ id: schema.installmentSchedules.id });
   log.log(`settled invoice=${invoiceId} paid=${inv.paidCents} installments=${marked.length}`);
+  // A player's share of team dues: the team may now meet its deposit.
+  if (marked.length > 0) await recomputeTeamDepositForInvoice(tx, invoiceId);
   return marked.length;
 }

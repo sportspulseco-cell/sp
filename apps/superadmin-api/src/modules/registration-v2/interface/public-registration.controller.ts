@@ -2098,6 +2098,38 @@ export class PublicRegistrationController {
     }
   }
 
+  @Post("submissions/:id/admin-offline")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      "Admin: switch a pending_payment registration to offline payment (cash, cheque), exactly as the player's own 'Submit for offline payment' does: same checks, an invoice, status pending_offline. The admin then approves it and records the money on the invoice. For a player who will not finish checkout online."
+  })
+  async adminSwitchToOffline(@Param("id") submissionId: string, @CurrentUser() user: AuthPrincipal) {
+    const [row] = await this.db
+      .select({
+        id: schema.registrations.id,
+        orgId: schema.registrations.orgId,
+        status: schema.registrations.status,
+        metadata: schema.registrations.metadata,
+        leagueId: schema.seasons.leagueId
+      })
+      .from(schema.registrations)
+      .leftJoin(schema.seasons, eq(schema.seasons.id, schema.registrations.seasonId))
+      .where(eq(schema.registrations.id, submissionId))
+      .limit(1);
+    // Org or league admins of this registration only; anyone else gets 404.
+    const scope = await loadUserScope(this.db, user.userId, { adminRolesOnly: true });
+    const allowed =
+      !!row &&
+      (scope.orgIds === null ||
+        (scope.orgWideOrgIds ?? []).includes(row.orgId) ||
+        (!!row.leagueId && (scope.leagueIds ?? []).includes(row.leagueId)));
+    if (!row || !allowed) throw new NotFoundException("Submission not found");
+    const email = ((row.metadata as Record<string, unknown>)?.email as string | undefined) ?? "";
+    this.log.log(`admin-offline: registration=${row.id} by=${user.userId} from=${row.status}`);
+    return this.pay(submissionId, { email, mockOutcome: "offline" });
+  }
+
   private async payInner(
     submissionId: string,
     body: {

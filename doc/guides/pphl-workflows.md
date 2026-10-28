@@ -23,7 +23,8 @@ for new forms: nothing in the app uses them yet.
   shows that season as set; click **Change** only to move the form to
   another season.
 - **Applies to roles**: shown only for Role profile forms. Tick the roles
-  that should answer these questions.
+  that should answer these questions. A role profile form is used only for
+  people in your organization.
 - A form goes live only after you open it and click **Publish registration**.
 
 ---
@@ -132,7 +133,9 @@ How the registration's status moves along:
 4. Each invited player follows Way B above.
 
 On Team applications, a row marked **Approved · captain setting up dues**
-needs nothing from the admin. The captain acts next.
+needs nothing from the admin. The captain acts next. Once the players'
+deposits reach the team's deposit target, the team moves to **Confirmed**
+by itself.
 
 ---
 
@@ -152,8 +155,8 @@ needs nothing from the admin. The captain acts next.
    - **Fairness**: click **Compute**.
    - **Runs**: earlier attempts.
 6. Click **Publish**. It appears after a successful run. Teams are emailed
-   and rinks are notified. Publish does not check for open conflicts, so
-   clear them first.
+   and rinks are notified. If conflicts are still open, Publish says how
+   many and asks before going ahead.
 7. **Playoffs**: click **Generate bracket**. This needs enough Playoff ice
    slots. Then click **Publish playoff games**.
 
@@ -172,5 +175,13 @@ reached the Payment screen. There is nothing for an admin to approve yet.
 The Submissions list and the Registrations list no longer show Approve on
 such rows. They say **Waiting for player to pay** instead.
 
-There is no admin button today to record a payment or waive the fee for a
-Pending payment registration. That is a known gap; see the release note.
+**If the player is paying cash or cheque** (Admin):
+
+1. On that row, click **Switch to offline payment** and confirm. This does
+   exactly what the player's own "Submit for offline payment" button does:
+   their invoice is created and the registration moves to **Pending
+   offline**. The same checks apply (signed waivers, parent consent, open
+   registration window), and the app says if one is missing.
+2. When the money arrives, open the invoice in **Invoices** and click
+   **Mark as paid (offline)**.
+3. Click **Approve** on the registration.

@@ -26,6 +26,7 @@ import {
 } from "../../../shared/payments/payment-processor";
 import { NotificationService } from "../../communications/application/notification.service";
 import { settleInstallments } from "../application/services/installments";
+import { recomputeTeamDepositForInvoice } from "../application/services/team-deposit";
 import { statusForMoney } from "../domain/invoice-money";
 import { formatMoney, invoiceLineLabel, invoicePayRange, invoiceTitle } from "@sportspulse/kernel";
 
@@ -633,6 +634,8 @@ export class PlayerPaymentsController {
           updatedAt: new Date()
         })
         .where(eq(schema.invoices.id, inv.id));
+      // A player's share of team dues: the team may now meet its deposit.
+      await recomputeTeamDepositForInvoice(tx, inv.id);
 
       return {
         installmentId,

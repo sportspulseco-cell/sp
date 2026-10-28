@@ -286,13 +286,15 @@ export function createApi(f: Fetcher) {
        * Returns `source: 'admin'` with the admin-configured schema if
        * one exists, else `source: 'kernel-default'` and the caller
        * falls through to ROLE_PROFILE_SCHEMAS from @sportspulse/kernel.
+       * `orgId`: the organization the role is for; without it, the
+       * caller's own organizations.
        */
-      getRoleProfileForm: (code: string) =>
+      getRoleProfileForm: (code: string, orgId?: string) =>
         f<{
           source: "admin" | "kernel-default";
           schema: Record<string, unknown> | null;
           formVersionId: string | null;
-        }>(`/iam/role-profile-form${qs({ code })}`),
+        }>(`/iam/role-profile-form${qs({ code, orgId })}`),
       inviteUser: (body: {
         email: string;
         displayName?: string;
@@ -2060,6 +2062,15 @@ export function createApi(f: Fetcher) {
         f<Registration>(`/registration/registrations/${id}/review`, {
           method: "POST",
           body: JSON.stringify(body)
+        }),
+      /**
+       * Admin: a pending_payment registration whose player pays cash or
+       * cheque moves to offline payment (invoice + pending_offline), the
+       * same as the player's own button. Then Approve works.
+       */
+      switchToOfflinePayment: (id: string) =>
+        f<{ status: string; invoiceId: string }>(`/public/registration/submissions/${id}/admin-offline`, {
+          method: "POST"
         })
     },
 

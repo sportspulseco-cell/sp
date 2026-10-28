@@ -578,12 +578,25 @@ export class IamController {
     summary:
       "Resolve the role-profile FormDefinition for a given role code. Looks up registration_forms with purpose=role_profile + applies_to_roles containing the code. Returns { source: 'admin' | 'kernel-default', schema, formVersionId? }; the caller (RoleProfileDialog) falls through to ROLE_PROFILE_SCHEMAS in @sportspulse/kernel when source is 'kernel-default'."
   })
-  async getRoleProfileForm(@Query("code") code: string): Promise<{
+  async getRoleProfileForm(
+    @Query("code") code: string,
+    @Query("orgId") orgId: string | undefined,
+    @CurrentUser() user: AuthPrincipal
+  ): Promise<{
     source: "admin" | "kernel-default";
     schema: Record<string, unknown> | null;
     formVersionId: string | null;
   }> {
     if (!code) return { source: "kernel-default", schema: null, formVersionId: null };
+    // Only forms of the caller's organizations (or of `orgId`, when the
+    // caller may see it). It used to take the newest role_profile form of
+    // any organization, so one org's coach questions reached another's.
+    const scope = await loadUserScope(this.db, user.userId);
+    const orgIds =
+      orgId && (scope.orgIds === null || scope.orgIds.includes(orgId)) ? [orgId] : scope.orgIds;
+    if (orgIds && orgIds.length === 0) {
+      return { source: "kernel-default", schema: null, formVersionId: null };
+    }
     const [row] = await this.db
       .select({
         schema: schema.registrationFormVersions.schema,
@@ -601,6 +614,7 @@ export class IamController {
         and(
           eq(schema.registrationFormVersions.locked, true),
           eq(schema.registrationForms.purpose, "role_profile"),
+          orgIds ? inArray(schema.registrationForms.orgId, orgIds) : undefined,
           // applies_to_roles is a text[] column — uses && (overlap) so
           // a form tagged ['player','free_agent'] matches either code.
           sql`${schema.registrationForms.appliesToRoles} && ARRAY[${code}]::text[]`

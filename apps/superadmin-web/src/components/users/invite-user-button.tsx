@@ -167,7 +167,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
   useEffect(() => {
     let alive = true;
     iam
-      .getRoleProfileForm(roleCode)
+      .getRoleProfileForm(roleCode, scopeType === "org" && scopeId ? scopeId : undefined)
       .then((res) => {
         if (!alive) return;
         const fromAdmin = res.source === "admin" && res.schema;
@@ -188,7 +188,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
     return () => {
       alive = false;
     };
-  }, [roleCode]);
+  }, [roleCode, scopeType, scopeId]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

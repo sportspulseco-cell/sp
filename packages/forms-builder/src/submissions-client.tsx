@@ -46,6 +46,24 @@ export function SubmissionsClient({
 
   const filtered = useMemo(() => items.filter((r) => matches(filter, r.status)), [items, filter]);
 
+  // A player paying cash or cheque: the same step as their own "Submit
+  // for offline payment" (invoice + Pending offline), then Approve works.
+  async function switchToOffline(r: FormSubmissionRow) {
+    if (!confirm(`${r.personName} will pay by cash or cheque? This creates their invoice and moves the registration to Pending offline. Approve it once you have the money.`)) return;
+    setBusyId(r.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await regApi.switchToOfflinePayment(r.id);
+      setNotice(`${r.personName}: switched to offline payment. Approve once paid.`);
+      router.refresh();
+    } catch (e) {
+      setError(`Could not switch ${r.personName} to offline payment: ${(e as Error).message}`);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function review(r: FormSubmissionRow, action: "approve" | "reject") {
     setBusyId(r.id);
     setError(null);
@@ -155,7 +173,17 @@ export function SubmissionsClient({
                     const can = canAdminDecide(r.status);
                     const waiting = registrationWaitingOn(r.status);
                     if (!can.approve && !can.reject)
-                      return waiting ? <span className="text-[12px] text-fg-muted">{waiting}</span> : null;
+                      return waiting ? (
+                        <>
+                          <span className="text-[12px] text-fg-muted">{waiting}</span>
+                          {r.status === "pending_payment" ? (
+                            <Button type="button" variant="ghost" size="sm" onClick={() => switchToOffline(r)} disabled={busyId === r.id}>
+                              {busyId === r.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                              Switch to offline payment
+                            </Button>
+                          ) : null}
+                        </>
+                      ) : null;
                     return (
                       <>
                         {can.approve ? (

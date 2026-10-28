@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Paperclip, X } from "lucide-react";
 import { Alert, Badge, Button, TBody, TD, TH, THead, TR, Table, LocalDate, Input } from "@sportspulse/ui";
-import { orgAdminRegistrations, registrationV2Admin } from "@/lib/api/browser-api";
+import { orgAdminRegistrations, registration, registrationV2Admin } from "@/lib/api/browser-api";
 import { canAdminDecide, registrationWaitingOn } from "@sportspulse/kernel";
 
 interface Item {
@@ -48,6 +48,23 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
       window.open(link.url, "_blank", "noopener");
     } catch (e) {
       setError((e as Error).message);
+    }
+  }
+
+  // A player paying cash or cheque: the same step as their own "Submit
+  // for offline payment" (invoice + Pending offline), then Approve works.
+  async function switchToOffline(id: string, name: string) {
+    if (!confirm(`${name} will pay by cash or cheque? This creates their invoice and moves the registration to Pending offline. Approve it once you have the money.`)) return;
+    setError(null);
+    setBusy(id);
+    try {
+      const res = await registration.switchToOfflinePayment(id);
+      setDecided((d) => ({ ...d, [id]: res.status }));
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -146,7 +163,15 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
                     </div>
                   )
                 ) : (
-                  <span className="text-[12px] text-fg-muted">{registrationWaitingOn(r.status) ?? "—"}</span>
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-[12px] text-fg-muted">{registrationWaitingOn(r.status) ?? "—"}</span>
+                    {r.status === "pending_payment" ? (
+                      <Button size="sm" variant="outline" onClick={() => switchToOffline(r.id, r.name ?? "This player")} disabled={busy === r.id}>
+                        {busy === r.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" strokeWidth={2} /> : null}
+                        Switch to offline payment
+                      </Button>
+                    ) : null}
+                  </div>
                 )}
               </TD>
             </TR>

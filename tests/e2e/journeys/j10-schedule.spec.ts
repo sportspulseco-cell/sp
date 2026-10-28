@@ -458,6 +458,8 @@ test.describe("J10 schedule generate and publish", () => {
     console.log(`[J10] new team home/away: ${mine!.home}/${mine!.away}`);
 
     const pub = page.waitForResponse((x) => /\/api\/games\/publish-schedule$/.test(x.url()), { timeout: 60_000 });
+    // Open conflicts ask before publishing; the admin confirms.
+    page.once("dialog", (d) => void d.accept());
     await page.getByRole("button", { name: /^Publish$/ }).click();
     expect((await pub).status(), "publish accepted").toBeLessThan(300);
     await expect(page.getByText(/games? published/).first()).toBeVisible({ timeout: 20_000 });

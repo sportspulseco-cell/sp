@@ -42,6 +42,7 @@ import { loadSeasonTiers } from "../../registration-v2/application/season-tiers"
 import { pickJerseyNumber } from "../../registration-v2/application/jersey-numbers";
 import { notifyAudience } from "../../../shared/audience/notify-audience";
 import { buildTeamInvitePayload } from "../../communications/domain/templates/team-invite-payload";
+import { recomputeTeamDeposit } from "../../finance/application/services/team-deposit";
 
 /**
  * Captain console endpoints (Workflow 7A · Phase 2).
@@ -1096,14 +1097,7 @@ export class CaptainController {
     transitioned: boolean;
   }> {
     const [entry] = await this.db
-      .select({
-        id: schema.divisionTeamEntries.id,
-        teamId: schema.divisionTeamEntries.teamId,
-        invoiceId: schema.divisionTeamEntries.invoiceId,
-        entryStatus: schema.divisionTeamEntries.entryStatus,
-        thresholdCents:
-          schema.divisionTeamEntries.confirmationThresholdCents
-      })
+      .select({ id: schema.divisionTeamEntries.id, invoiceId: schema.divisionTeamEntries.invoiceId })
       .from(schema.divisionTeamEntries)
       .where(eq(schema.divisionTeamEntries.id, dteId))
       .limit(1);
@@ -1111,43 +1105,11 @@ export class CaptainController {
     if (!entry.invoiceId) {
       throw new BadRequestException("Entry has no master invoice");
     }
-
-    // Sum succeeded deposit installments (installmentNumber=0) across
-    // every sub-invoice of this entry's master.
-    const subInvoices = await this.db
-      .select({ id: schema.invoices.id })
-      .from(schema.invoices)
-      .where(eq(schema.invoices.parentInvoiceId, entry.invoiceId));
-    let collected = 0;
-    if (subInvoices.length > 0) {
-      const rows = await this.db
-        .select({
-          total: sql<number>`COALESCE(SUM(${schema.installmentSchedules.amountCents}), 0)::int`
-        })
-        .from(schema.installmentSchedules)
-        .where(
-          and(
-            inArray(
-              schema.installmentSchedules.invoiceId,
-              subInvoices.map((s) => s.id)
-            ),
-            eq(schema.installmentSchedules.installmentNumber, 0),
-            eq(schema.installmentSchedules.status, "succeeded")
-          )
-        );
-      collected = rows[0]?.total ?? 0;
-    }
-
-    const transitioned =
-      entry.entryStatus === "applied" && collected >= entry.thresholdCents;
-
-    await this.db
-      .update(schema.divisionTeamEntries)
-      .set({
-        collectedCents: collected,
-        entryStatus: transitioned ? "confirmed" : entry.entryStatus
-      })
-      .where(eq(schema.divisionTeamEntries.id, entry.id));
+    // Same rule the payment paths run after every deposit (team-deposit.ts).
+    const result = await recomputeTeamDeposit(this.db, entry.id);
+    if (!result) throw new BadRequestException("Entry has no master invoice");
+    const transitioned = result.transitioned;
+    const collected = result.collectedCents;
 
     if (transitioned) {
       const [team] = await this.db
@@ -1156,14 +1118,14 @@ export class CaptainController {
           name: schema.teams.name
         })
         .from(schema.teams)
-        .where(eq(schema.teams.id, entry.teamId))
+        .where(eq(schema.teams.id, result.teamId))
         .limit(1);
       if (team) {
         // The team's captains, with the team's name (COMP-19: no recipient
         // and an empty name before).
         await notifyAudience(this.db, this.notify, {
           orgId: team.orgId,
-          target: { teamIds: [entry.teamId] },
+          target: { teamIds: [result.teamId] },
           audiences: ["captains"],
           templateCode: "TEAM_CONFIRMED",
           key: `team-confirmed-${entry.id}`,
@@ -1173,9 +1135,9 @@ export class CaptainController {
     }
 
     return {
-      entryStatus: transitioned ? "confirmed" : entry.entryStatus,
+      entryStatus: result.entryStatus,
       collectedCents: collected,
-      thresholdCents: entry.thresholdCents,
+      thresholdCents: result.thresholdCents,
       transitioned
     };
   }
