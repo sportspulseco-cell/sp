@@ -55,6 +55,30 @@ export const PRICE_AUDIENCE_LABELS: Record<PriceAudience, string> = {
   free_agent: "Free agent registration"
 };
 
+/**
+ * A tier name no other tier in the season uses: "Tier 1", "Tier 2", or
+ * "Player registration", "Player registration 2". Two tiers with one
+ * name could not be told apart on the Divisions tab (PPHL, 28 Oct 2026).
+ */
+export function uniqueTierName(base: string, existing: ReadonlyArray<string>): string {
+  const taken = new Set(existing.map((n) => n.trim().toLowerCase()));
+  if (base !== "Tier" && !taken.has(base.toLowerCase())) return base;
+  for (let i = base === "Tier" ? 1 : 2; ; i++) {
+    const candidate = `${base} ${i}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+}
+
+/** A name the builder gave the tier, not one the admin typed. */
+export function isDefaultTierName(name: string): boolean {
+  const n = name.trim();
+  if (n === "New tier" || /^Tier \d+$/.test(n)) return true;
+  return PRICE_AUDIENCES.some((a) => {
+    const label = PRICE_AUDIENCE_LABELS[a];
+    return n === label || (n.startsWith(`${label} `) && /^\d+$/.test(n.slice(label.length + 1)));
+  });
+}
+
 export function isPriceAudience(v: unknown): v is PriceAudience {
   return typeof v === "string" && (PRICE_AUDIENCES as readonly string[]).includes(v);
 }

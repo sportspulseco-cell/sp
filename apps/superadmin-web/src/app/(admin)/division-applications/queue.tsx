@@ -23,16 +23,11 @@ type DteItem = {
 };
 
 const STATUS_OPTIONS = [
-  // Captain-rollover applies land in pending_approval; this is the
-  // primary admin action queue. The list endpoint accepts comma-
-  // separated states, so we bundle pending_approval + applied as the
-  // default "needs decision" filter (BUG-025).
-  {
-    value: "pending_approval,applied",
-    label: "Needs decision (pending_approval + applied)"
-  },
-  { value: "pending_approval", label: "Pending approval" },
-  { value: "applied", label: "Applied (awaiting threshold or admin)" },
+  // A captain's application lands in pending_approval: the only state
+  // that needs the admin. Approving moves it to applied, where the
+  // captain sets up dues and roster (no admin decision left).
+  { value: "pending_approval", label: "Needs your decision" },
+  { value: "applied", label: "Approved, captain setting up dues" },
   { value: "accepted", label: "Accepted" },
   { value: "confirmed", label: "Confirmed" },
   { value: "rejected", label: "Rejected" },
@@ -45,7 +40,7 @@ export function DivisionApplicationsQueue({
 }: {
   initial: { items: DteItem[] };
 }) {
-  const [status, setStatus] = useState("pending_approval,applied");
+  const [status, setStatus] = useState("pending_approval");
   const [items, setItems] = useState<DteItem[]>(initial.items);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -180,7 +175,7 @@ export function DivisionApplicationsQueue({
                     </div>
                   </TD>
                   <TD>
-                    <Badge status={t.entryStatus} />
+                    <Badge status={t.entryStatus} domain="team_entry" />
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
                     <LocalDate iso={t.createdAt} />
@@ -211,6 +206,8 @@ export function DivisionApplicationsQueue({
                         </Button>
                       </div>
                     ) : t.entryStatus === "applied" ? (
+                      // Already approved; the captain acts next. Reject
+                      // stays available to undo the approval.
                       <Button
                         variant="ghost"
                         size="sm"
@@ -220,9 +217,7 @@ export function DivisionApplicationsQueue({
                         <X className="mr-1 h-3.5 w-3.5" /> Reject
                       </Button>
                     ) : (
-                      <span className="font-mono text-[10px] uppercase text-fg-muted">
-                        no actions
-                      </span>
+                      <span className="text-[12px] text-fg-muted">—</span>
                     )}
                   </TD>
                 </TR>

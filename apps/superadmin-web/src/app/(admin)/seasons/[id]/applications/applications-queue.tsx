@@ -254,7 +254,7 @@ function ApplicationCard({
             </p>
           </div>
         </div>
-        <StatusBadge status={item.entryStatus} />
+        <Badge status={item.entryStatus} domain="team_entry" />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
@@ -362,22 +362,6 @@ function Avatar({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { tone: "warning" | "success" | "danger" | "neutral"; label: string }> = {
-    pending_approval: { tone: "warning", label: "pending approval" },
-    applied: { tone: "success", label: "applied" },
-    accepted: { tone: "success", label: "accepted" },
-    confirmed: { tone: "success", label: "confirmed" },
-    rejected: { tone: "danger", label: "denied" },
-    withdrawn: { tone: "neutral", label: "withdrawn" }
-  };
-  const entry = map[status] ?? { tone: "neutral" as const, label: status };
-  return (
-    <Badge tone={entry.tone} mono>
-      {entry.label}
-    </Badge>
-  );
-}
 
 function FilterSelect({
   label: _label,

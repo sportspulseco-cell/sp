@@ -21,6 +21,9 @@ import {
 import type { Division, Season } from "@sportspulse/api-client";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
+import { NewDivisionAction } from "@/components/edit/detail-actions";
+
+const OPEN_SEASONS = new Set(["draft", "registration_open", "in_progress", "playoffs"]);
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Divisions · Org Admin" };
@@ -93,16 +96,8 @@ export default async function DivisionsPage({
       <PageHeader
         eyebrow="Divisions"
         title="Divisions"
-        description="Divisions across every season in your org. New divisions are created through Org setup alongside their league and season."
-        action={
-          <Link
-            href="/org-setup"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-[12px] font-medium text-accent-fg transition-colors duration-fast ease-ease hover:bg-[var(--accent-hover)]"
-          >
-            <Wand2 className="h-3.5 w-3.5" strokeWidth={2} />
-            Open org setup
-          </Link>
-        }
+        description="Divisions across every season in your org."
+        action={<NewDivisionAction seasons={seasonsPage.items.filter((x) => OPEN_SEASONS.has(x.status))} />}
       />
 
       <section className="space-y-6">

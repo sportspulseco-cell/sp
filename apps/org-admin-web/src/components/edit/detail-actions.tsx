@@ -76,3 +76,15 @@ export function DivisionActions({
 export function TeamActions({ team }: { team: Team }) {
   return <EditTeamButton team={team} save={(body) => leagueMgmt.updateTeam(team.id, body)} />;
 }
+
+/** "New division" on the Divisions list: pick the season, then the division. */
+export function NewDivisionAction({ seasons }: { seasons: Season[] }) {
+  if (seasons.length === 0) return null;
+  return (
+    <NewDivisionButton
+      seasons={seasons}
+      loadRegions={async (orgId) => (await leagueMgmt.listRegions({ orgId })).items}
+      create={(body) => leagueMgmt.createDivision(body)}
+    />
+  );
+}

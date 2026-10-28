@@ -21,9 +21,10 @@ export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
  * agent who is "placed" is done. A notification that is "sent" arrived; an
  * invoice that is "sent" still waits on payment. Games use hockey words
  * ("Live", "Final"). An expired compliance document blocks play. An
- * "active" bracket or round is still being played.
+ * "active" bracket or round is still being played. A team entry that is
+ * "applied" was already approved and waits on the captain's dues setup.
  */
-export type StatusDomain = "store_order" | "notification" | "game" | "compliance" | "bracket";
+export type StatusDomain = "store_order" | "notification" | "game" | "compliance" | "bracket" | "team_entry";
 
 const TONES: Record<string, StatusTone> = {
   // Finished well
@@ -135,7 +136,8 @@ const DOMAIN_TONES: Record<StatusDomain, Record<string, StatusTone>> = {
   notification: { sent: "success" },
   game: {},
   compliance: { expired: "danger" },
-  bracket: { active: "info" }
+  bracket: { active: "info" },
+  team_entry: { applied: "info" }
 };
 
 const DOMAIN_LABELS: Record<StatusDomain, Record<string, string>> = {
@@ -143,7 +145,8 @@ const DOMAIN_LABELS: Record<StatusDomain, Record<string, string>> = {
   notification: {},
   game: { in_play: "Live", completed: "Final", forfeited: "Forfeit" },
   compliance: {},
-  bracket: { active: "In progress" }
+  bracket: { active: "In progress" },
+  team_entry: { pending_approval: "Needs your decision", applied: "Approved · captain setting up dues" }
 };
 
 const LABELS: Record<string, string> = {

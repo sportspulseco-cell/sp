@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DivisionApplicationsPage() {
   const initialResult = await load(
-    adminTransfers.listDivisionEntries({ status: "pending_approval,applied" })
+    adminTransfers.listDivisionEntries({ status: "pending_approval" })
   );
   if (!initialResult.ok) {
     console.error("[division-applications] listDivisionEntries failed", initialResult.status, initialResult.message);
@@ -20,7 +20,7 @@ export default async function DivisionApplicationsPage() {
       <PageHeader
         eyebrow="Teams"
         title="Team applications"
-        description="Teams that applied to a division and are waiting for approval or for their deposit. Approve, or reject with a reason."
+        description="Teams waiting for your decision. After you approve, the captain sets up dues and the roster."
       />
       {!initialResult.ok ? (
         <LoadError

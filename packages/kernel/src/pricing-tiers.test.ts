@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   coveredInstallments,
+  isDefaultTierName,
+  uniqueTierName,
   planInstallments,
   priceAudienceFor,
   teamTierForDivision,
@@ -150,4 +152,16 @@ test("a price is full only when it has a limit and every seat is taken", () => {
   assert.equal(tierIsFull({ usageLimit: 0, usageCount: 5 }), false);
   assert.equal(tierIsFull({ usageLimit: 50, usageCount: 49 }), false);
   assert.equal(tierIsFull({ usageLimit: 50, usageCount: 50 }), true);
+});
+
+test("uniqueTierName: new tiers never share a name", () => {
+  assert.equal(uniqueTierName("Tier", []), "Tier 1");
+  assert.equal(uniqueTierName("Tier", ["Tier 1", "New tier"]), "Tier 2");
+  assert.equal(uniqueTierName("Player registration", ["Tier 1"]), "Player registration");
+  assert.equal(uniqueTierName("Player registration", ["player registration"]), "Player registration 2");
+});
+
+test("isDefaultTierName: builder names only, never what the admin typed", () => {
+  for (const n of ["New tier", "Tier 3", "Team registration", "Player registration 2"]) assert.equal(isDefaultTierName(n), true, n);
+  for (const n of ["Early bird", "Tier one", "Team registration fee"]) assert.equal(isDefaultTierName(n), false, n);
 });

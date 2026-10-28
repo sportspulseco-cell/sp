@@ -1,14 +1,22 @@
 import { fetchAll, load } from "@sportspulse/api-client";
 import { LoadError, LocalDate, EmptyState, Badge, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
-import { UserCircle2, Link2, Cake, Globe2 } from "lucide-react";
+import { UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { iam } from "@/lib/api/server-api";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
+import { PersonsFilters } from "@/components/persons/persons-filters";
 import { CreatePersonButton } from "@/components/persons/create-person-button";
 
 export const metadata = { title: "Persons · Super Admin" };
 
-export default async function PersonsPage() {
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+const ageOf = (dob: string | null) => (dob ? Math.floor((Date.now() - new Date(dob).getTime()) / YEAR_MS) : null);
+
+export default async function PersonsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ q?: string; account?: string; age?: string; country?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
   const personsResult = await load(
     fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
   );
@@ -19,44 +27,31 @@ export default async function PersonsPage() {
     ? personsResult.data
     : { items: [], nextCursor: null };
 
-  const total = page.items.length;
-  const linked = page.items.filter((p) => p.userId).length;
-  const minors = page.items.filter((p) => {
-    if (!p.dobDate) return false;
-    const age =
-      (Date.now() - new Date(p.dobDate).getTime()) /
-      (365.25 * 24 * 3600 * 1000);
-    return age < 18;
-  }).length;
-  const countries = new Set(
-    page.items.map((p) => p.countryCode).filter(Boolean)
-  ).size;
+  const countryOptions = [...new Set(page.items.map((p) => p.countryCode).filter((c): c is string => !!c))].sort();
+  const q = sp.q?.trim().toLowerCase() ?? "";
+  const shown = page.items.filter((p) => {
+    if (q && !`${p.preferredName ?? ""} ${p.legalFirstName} ${p.legalLastName}`.toLowerCase().includes(q)) return false;
+    if (sp.account === "linked" && !p.userId) return false;
+    if (sp.account === "none" && p.userId) return false;
+    const age = ageOf(p.dobDate);
+    if (sp.age === "minor" && !(age !== null && age < 18)) return false;
+    if (sp.age === "adult" && !(age !== null && age >= 18)) return false;
+    if (sp.age === "unknown" && age !== null) return false;
+    if (sp.country && (p.countryCode ?? "none") !== sp.country) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="People"
         title="People"
         description="Everyone the league knows about: players, coaches, officials, and minors without their own login."
         action={<CreatePersonButton />}
       />
-      <KineticStrip
-        cards={[
-          { label: "Total persons", value: total, icon: <UserCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" },
-          {
-            label: "Linked to account",
-            value: linked,
-            icon: <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
-            tone: linked > 0 ? "ok" : "idle",
-            hint:
-              total > 0
-                ? `${Math.round((linked / total) * 100)}% have auth`
-                : undefined
-          },
-          { label: "Minors", value: minors, icon: <Cake className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "info" },
-          { label: "Countries", value: countries, icon: <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />, tone: "idle" }
-        ]}
-      />
+      <PersonsFilters countries={countryOptions} />
+      <p className="text-[13px] text-fg-muted">
+        {shown.length === page.items.length ? `${page.items.length} people` : `${shown.length} of ${page.items.length} people`}
+      </p>
 
       {!personsResult.ok ? (
         <LoadError
@@ -68,30 +63,27 @@ export default async function PersonsPage() {
         <EmptyState
           icon={UserCircle2}
           title="No persons yet"
-          description="Persons are subject identities used for registration, roster moves, and consent signatures."
+          description="Add a person, or they appear when someone registers."
           action={<CreatePersonButton />}
         />
+      ) : shown.length === 0 ? (
+        <EmptyState icon={UserCircle2} title="No one matches these filters" description="Clear the search or pick another filter." />
       ) : (
         <Table>
           <THead>
             <TR>
               <TH>Name</TH>
-              <TH>DOB</TH>
+              <TH>Date of birth</TH>
               <TH>Country</TH>
-              <TH>Has account?</TH>
+              <TH>Account</TH>
               <TH>Created</TH>
             </TR>
           </THead>
           <TBody>
-            {page.items.map((p) => {
+            {shown.map((p) => {
               const display =
                 p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`;
-              const age = p.dobDate
-                ? Math.floor(
-                    (Date.now() - new Date(p.dobDate).getTime()) /
-                      (365.25 * 24 * 3600 * 1000)
-                  )
-                : null;
+              const age = ageOf(p.dobDate);
               return (
                 <TR key={p.id}>
                   <TD className="font-medium">
@@ -115,9 +107,9 @@ export default async function PersonsPage() {
                   </TD>
                   <TD>
                     {p.userId ? (
-                      <Badge tone="success">linked</Badge>
+                      <Badge tone="success">Has account</Badge>
                     ) : (
-                      <Badge>none</Badge>
+                      <Badge>None</Badge>
                     )}
                   </TD>
                   <TD className="text-muted-foreground">

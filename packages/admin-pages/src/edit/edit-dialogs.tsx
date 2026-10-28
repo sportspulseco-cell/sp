@@ -1,7 +1,7 @@
 "use client";
 
 import { PointsRuleFields, pointsRuleForm, pointsRuleFromForm, type PointsRuleForm } from "../divisions/points-rule-fields";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus } from "lucide-react";
 import { Alert, Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
@@ -696,15 +696,41 @@ function mergedRules(existing: Record<string, unknown>, f: DivisionForm): Record
   };
 }
 
+/**
+ * New division. On a season page pass `season`. On the Divisions list
+ * pass `seasons` (and `loadRegions`): the dialog asks for the season
+ * first, so adding a division never means setting up a new season
+ * (PPHL, 28 Oct 2026).
+ */
 export function NewDivisionButton({
-  season,
-  regions,
+  season: fixedSeason,
+  seasons,
+  regions: fixedRegions = [],
+  loadRegions,
   create
 }: {
-  season: Season;
-  regions: Array<{ id: string; name: string }>;
+  season?: Season;
+  seasons?: Season[];
+  regions?: Array<{ id: string; name: string }>;
+  /** Regions of the picked season's organization. */
+  loadRegions?: (orgId: string) => Promise<Array<{ id: string; name: string }>>;
   create: (body: DivisionCreateBody) => Promise<unknown>;
 }) {
+  const [seasonId, setSeasonId] = useState(fixedSeason?.id ?? seasons?.[0]?.id ?? "");
+  const season = fixedSeason ?? seasons?.find((x) => x.id === seasonId) ?? null;
+  const [loadedRegions, setLoadedRegions] = useState<Array<{ id: string; name: string }> | null>(null);
+  const orgId = season?.orgId ?? null;
+  useEffect(() => {
+    if (!loadRegions || !orgId) return;
+    let alive = true;
+    loadRegions(orgId)
+      .then((r) => alive && setLoadedRegions(r))
+      .catch(() => alive && setLoadedRegions([]));
+    return () => {
+      alive = false;
+    };
+  }, [loadRegions, orgId]);
+  const regions = loadedRegions ?? fixedRegions;
   // Same defaults as a fresh division card in the Org setup wizard.
   const d = emptyDivision("new");
   const empty: DivisionForm = {
@@ -727,11 +753,12 @@ export function NewDivisionButton({
   return (
     <>
       <Trigger label="New division" icon="add" onClick={() => { setF(empty); setError(null); setOpen(true); }} />
-      <Dialog open={open} onClose={() => setOpen(false)} title={`New division in ${season.name}`} size="lg">
+      <Dialog open={open} onClose={() => setOpen(false)} title={fixedSeason ? `New division in ${fixedSeason.name}` : "New division"} size="lg">
         <form
           className="space-y-4"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
+            if (!season) return setError("Pick a season.");
             const p = divisionProblem(f);
             if (p) return setError(p);
             void run(
@@ -754,6 +781,17 @@ export function NewDivisionButton({
             );
           }}
         >
+          {fixedSeason ? null : (
+            <Field label="Season">
+              <Select required value={seasonId} onChange={(e) => { setSeasonId(e.target.value); setLoadedRegions(null); setF((p) => ({ ...p, regionId: "" })); }}>
+                {(seasons ?? []).map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} setPoints={(points) => setF((p) => ({ ...p, points }))} regions={regions} />
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Create division" onCancel={() => setOpen(false)} />

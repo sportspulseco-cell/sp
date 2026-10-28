@@ -6,10 +6,12 @@ import type { Division, PricingTier } from "@sportspulse/api-client";
 import {
   centsToAmountInput,
   formatMoney,
+  isDefaultTierName,
   isPriceAudience,
   PRICE_AUDIENCE_LABELS,
   PRICE_AUDIENCES,
-  type PriceAudience
+  type PriceAudience,
+  uniqueTierName
 } from "@sportspulse/kernel";
 import { LocalDate, Input, Button } from "@sportspulse/ui";
 import { useFormsBuilderApi } from "./context";
@@ -35,7 +37,7 @@ export function PricingTab({
     try {
       const created = await REG_API.createPricingTier({
         seasonId,
-        name: "New tier",
+        name: uniqueTierName("Tier", tiers.map((t) => t.name)),
         currency: "USD",
         fullPriceCents: 10000
         // isActive left to the server: on when the season is already open (REG-19).
@@ -49,6 +51,15 @@ export function PricingTab({
   }
 
   async function patchTier(id: string, patch: Partial<PricingTier>) {
+    // A tier still on its builder name takes the name of who it is for
+    // ("Player registration"), so two tiers never read the same.
+    const current = tiers.find((t) => t.id === id);
+    if (patch.audience && patch.audience !== "any" && current && isDefaultTierName(current.name) && !patch.name) {
+      patch = {
+        ...patch,
+        name: uniqueTierName(PRICE_AUDIENCE_LABELS[patch.audience as PriceAudience], tiers.filter((t) => t.id !== id).map((t) => t.name))
+      };
+    }
     const optimistic = tiers.map((t) => (t.id === id ? { ...t, ...patch } : t));
     onTiersChange(optimistic);
     try {
@@ -143,6 +154,8 @@ function TierCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <input
+            key={tier.name}
+            aria-label="Tier name"
             defaultValue={tier.name}
             onBlur={(e) =>
               e.target.value !== tier.name && onPatch({ name: e.target.value })

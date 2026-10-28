@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
 import { Alert, Badge, Button, useLocalDate, Select } from "@sportspulse/ui";
 import type { FormSubmissionRow, FormSubmissions } from "@sportspulse/api-client";
-import { SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
+import { canAdminDecide, registrationWaitingOn, SUBMISSION_STATUS_FILTERS, type SubmissionStatusFilter } from "@sportspulse/kernel";
 import { useFormsBuilderApi } from "./context";
 import { SectionHeader } from "./section-header";
 
@@ -150,25 +150,28 @@ export function SubmissionsClient({
                     </p>
                   </div>
                   <Badge status={r.status} />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => review(r, "approve")}
-                    disabled={busyId === r.id || r.status === "approved"}
-                  >
-                    {busyId === r.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                    <span className="font-mono text-[10px] uppercase tracking-widest">Approve</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => review(r, "reject")}
-                    disabled={busyId === r.id || r.status === "rejected"}
-                  >
-                    <span className="font-mono text-[10px] uppercase tracking-widest">Reject</span>
-                  </Button>
+                  {(() => {
+                    // Offer only what the state rules allow; otherwise say who acts next.
+                    const can = canAdminDecide(r.status);
+                    const waiting = registrationWaitingOn(r.status);
+                    if (!can.approve && !can.reject)
+                      return waiting ? <span className="text-[12px] text-fg-muted">{waiting}</span> : null;
+                    return (
+                      <>
+                        {can.approve ? (
+                          <Button type="button" variant="secondary" size="sm" onClick={() => review(r, "approve")} disabled={busyId === r.id}>
+                            {busyId === r.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                            Approve
+                          </Button>
+                        ) : null}
+                        {can.reject ? (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => review(r, "reject")} disabled={busyId === r.id}>
+                            Reject
+                          </Button>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
                 <details className="group mt-2">
                   <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] text-fg-muted hover:text-fg">

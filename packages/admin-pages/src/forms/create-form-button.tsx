@@ -23,7 +23,8 @@ import { useEffect, useMemo, useState, useTransition, type FormEvent } from "rea
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import {
-  FORM_PURPOSES,
+  CREATABLE_FORM_PURPOSES,
+  FORM_PURPOSE_HELP,
   FORM_PURPOSE_LABELS,
   SYSTEM_ROLES,
   type FormPurpose
@@ -249,7 +250,7 @@ function CreateFormDialog({
         name: form.name,
         description: form.description || null,
         purpose: form.purpose,
-        appliesToRoles: form.appliesToRoles,
+        appliesToRoles: form.purpose === "role_profile" ? form.appliesToRoles : [],
         seasonId: needsSeason ? form.seasonId || null : null
       });
       const href = formHref(created.id);
@@ -295,7 +296,7 @@ function CreateFormDialog({
         <Field
           label="Purpose"
           htmlFor="purpose"
-          hint="Where this form is used. Season-registration forms power the public funnel; role-profile forms back the per-role onboarding wizard; team-application is the free-agent flow."
+          hint={FORM_PURPOSE_HELP[form.purpose]}
         >
           <Select
             id="purpose"
@@ -304,7 +305,7 @@ function CreateFormDialog({
               setForm({ ...form, purpose: e.target.value as FormPurpose })
             }
           >
-            {FORM_PURPOSES.map((p: FormPurpose) => (
+            {CREATABLE_FORM_PURPOSES.map((p: FormPurpose) => (
               <option key={p} value={p}>
                 {FORM_PURPOSE_LABELS[p]}
               </option>
@@ -400,10 +401,8 @@ function CreateFormDialog({
             </Select>
           </Field>
         )}
-        <Field
-          label="Applies to roles"
-          hint="Empty = applies to every role in scope. Pick one or more codes when the form should only render for specific roles (e.g. role-profile forms targeting `coach`)."
-        >
+        {form.purpose === "role_profile" ? (
+        <Field label="Applies to roles" hint="Which roles answer these questions.">
           <div className="grid grid-cols-2 gap-1.5 rounded-md border border-border bg-bg-subtle p-2 sm:grid-cols-3">
             {roleOptions.map((r) => {
               const checked = form.appliesToRoles.includes(r.code);
@@ -424,6 +423,7 @@ function CreateFormDialog({
             })}
           </div>
         </Field>
+        ) : null}
         <Field label="Name" htmlFor="name">
           <Input
             id="name"

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Paperclip, X } from "lucide-react";
 import { Alert, Badge, Button, TBody, TD, TH, THead, TR, Table, LocalDate, Input } from "@sportspulse/ui";
 import { orgAdminRegistrations, registrationV2Admin } from "@/lib/api/browser-api";
+import { canAdminDecide, registrationWaitingOn } from "@sportspulse/kernel";
 
 interface Item {
   id: string;
@@ -22,8 +23,11 @@ function fmtDate(iso: string | null) {
   return <LocalDate iso={iso} format="date" />;
 }
 
+// Approve / Reject only where the state rules allow them; a "pending
+// payment" row is the player's move, not the admin's (the API refused it
+// with "Illegal registration transition").
 function isReviewable(s: string): boolean {
-  return s === "submitted" || s.startsWith("pending");
+  return s === "submitted" || canAdminDecide(s).approve;
 }
 
 export function RegistrationsTable({ items }: { items: Item[] }) {
@@ -142,9 +146,7 @@ export function RegistrationsTable({ items }: { items: Item[] }) {
                     </div>
                   )
                 ) : (
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                    —
-                  </span>
+                  <span className="text-[12px] text-fg-muted">{registrationWaitingOn(r.status) ?? "—"}</span>
                 )}
               </TD>
             </TR>

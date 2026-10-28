@@ -143,3 +143,31 @@ export function isRegistrationState(v: unknown): v is RegistrationState {
     (REGISTRATION_STATES as ReadonlyArray<string>).includes(v)
   );
 }
+
+/**
+ * Who a registration waits on when an admin cannot decide it yet, in a
+ * few words for the row where Approve would be. Null = the admin can act
+ * (approve or reject) or the row is finished. A "pending payment" row
+ * cannot be approved: the player has not reached the Payment step
+ * (PPHL, 28 Oct 2026: "Cannot approve from pending_payment").
+ */
+export function registrationWaitingOn(state: string): string | null {
+  switch (state) {
+    case "draft":
+      return "Player has not finished";
+    case "pending_verification":
+      return "Waiting for ID check";
+    case "pending_consent":
+      return "Waiting for parent consent";
+    case "pending_payment":
+      return "Waiting for player to pay";
+    default:
+      return null;
+  }
+}
+
+/** Approve and Reject are both offered only where the state rules allow them. */
+export function canAdminDecide(state: string): { approve: boolean; reject: boolean } {
+  if (!isRegistrationState(state)) return { approve: false, reject: false };
+  return { approve: canTransition(state, "approved"), reject: canTransition(state, "rejected") };
+}

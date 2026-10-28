@@ -6,6 +6,7 @@ import { leagueMgmt } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { AssignAdminCell } from "@/components/roles/assign-admin-cell";
 import type { Division, Season } from "@/lib/api/types";
+import { NewDivisionAction } from "@/components/edit/detail-actions";
 
 export const metadata = { title: "Divisions · Super Admin" };
 
@@ -16,6 +17,8 @@ export const metadata = { title: "Divisions · Super Admin" };
  * seasons. Everything is filtered here from the full list, so the
  * dropdowns always offer every season/region/tier that exists.
  */
+const OPEN_SEASONS = new Set(["draft", "registration_open", "in_progress", "playoffs"]);
+
 export default async function DivisionsPage({
   searchParams
 }: {
@@ -92,17 +95,9 @@ export default async function DivisionsPage({
     ? `Filtered by season ${seasonMap.get(sp.seasonId)?.name ?? "Unknown season"}`
     : sp.leagueId
     ? `Filtered by league ${leagueMap.get(sp.leagueId) ?? "Unknown league"}`
-    : "Age + tier + gender groupings within a season. Click a row to inspect; create new divisions via Org setup.";
+    : "Age, tier and gender groups within a season.";
 
-  const orgSetupCta = (
-    <Link
-      href="/org-setup"
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg hover:border-fg-muted"
-    >
-      <Wand2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-      New division → Org setup
-    </Link>
-  );
+  const newDivision = <NewDivisionAction seasons={seasonsPage.items.filter((x) => OPEN_SEASONS.has(x.status))} />;
 
   const total = all.items.length;
   const tiers = new Set(all.items.map((d) => d.tier).filter(Boolean)).size;
@@ -115,7 +110,7 @@ export default async function DivisionsPage({
         eyebrow="Competition"
         title="Divisions"
         description={filterLabel}
-        action={orgSetupCta}
+        action={newDivision}
       />
       <KineticStrip
         cards={[
@@ -168,7 +163,7 @@ export default async function DivisionsPage({
           icon={Layers}
           title="No divisions yet"
           description="New divisions are created via the 4-phase Org setup wizard's Divisions step."
-          action={orgSetupCta}
+          action={newDivision}
         />
       ) : shown.length === 0 ? (
         <EmptyState

@@ -52,7 +52,10 @@ export function SeasonSectionForm({
 }) {
   const { leagueMgmt, registration } = useFormsBuilderApi();
   const router = useRouter();
-  const [seasonId, setSeasonId] = useState<string>(form.seasonId ?? "");
+  // A form scoped to one season belongs to that season: no second pick
+  // (PPHL, 28 Oct 2026).
+  const scopeSeasonId = form.scope === "season" ? form.scopeId : null;
+  const [seasonId, setSeasonId] = useState<string>(form.seasonId ?? scopeSeasonId ?? "");
   // REG-14: the registration type lives on the season (seasons.config),
   // where the funnel and the API read it. It used to be written into the
   // form's description, which nothing read (and the save was a no-op).
@@ -65,6 +68,9 @@ export function SeasonSectionForm({
   const [rolloverId, setRolloverId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // A season picked when the form was created (or by its scope) shows as
+  // set, not as a second dropdown (PPHL, 28 Oct 2026). "Change" reopens it.
+  const [changing, setChanging] = useState(false);
 
   // Pull every season in the org so the dropdown can show all options.
   useEffect(() => {
@@ -86,6 +92,11 @@ export function SeasonSectionForm({
       alive = false;
     };
   }, [form.orgId]);
+
+  // Bind the scope's season once, so the rest of the wizard reads it.
+  useEffect(() => {
+    if (scopeSeasonId && form.seasonId !== scopeSeasonId) void bindSeason(scopeSeasonId);
+  }, [scopeSeasonId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Find the currently-selected season's full record so the read-only
   // panel shows fresh data even before router.refresh kicks in.
@@ -180,7 +191,7 @@ export function SeasonSectionForm({
     <div className="space-y-6">
       <SectionHeader
         title="Season setup"
-        subtitle="Pick the season this registration runs against (created in Org setup)"
+        subtitle="The season this form registers people for"
       />
 
       {/* Rollover card */}
@@ -238,9 +249,18 @@ export function SeasonSectionForm({
         <Field
           label="Season"
           required
-          hint="Seasons are created in Org setup. Pick one to bind this registration form to it; the rest of the wizard reads its config from the selected season."
+          hint={seasonId && !changing ? undefined : "The form takes its dates and divisions from this season."}
         >
-          {seasonsLoading ? (
+          {seasonId && !changing ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-[14px] font-medium text-fg">{selectedSeason?.name ?? "Loading…"}</p>
+              {scopeSeasonId ? null : (
+                <button type="button" onClick={() => setChanging(true)} className="text-[13px] text-[--accent] hover:underline">
+                  Change
+                </button>
+              )}
+            </div>
+          ) : seasonsLoading ? (
             <div role="status" aria-label="Loading seasons"><Skeleton className="h-9" /></div>
           ) : allSeasons.length === 0 ? (
             <p className="text-[12px] text-fg-muted">
@@ -253,7 +273,10 @@ export function SeasonSectionForm({
           ) : (
             <Select
               value={seasonId}
-              onChange={(e) => bindSeason(e.target.value)}
+              onChange={(e) => {
+                setChanging(false);
+                void bindSeason(e.target.value);
+              }}
               disabled={busy !== "none"}
               required
             >
@@ -301,10 +324,10 @@ export function SeasonSectionForm({
         ) : null}
 
         {selectedSeason ? (
-          <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          <p className="text-[13px] text-fg-muted">
             Need to change these dates?{" "}
-            <a href="/org-setup" className="underline">
-              Edit in Org setup →
+            <a href={`/seasons/${selectedSeason.id}`} className="font-medium text-[--accent] hover:underline">
+              Edit on the season page →
             </a>
           </p>
         ) : null}
