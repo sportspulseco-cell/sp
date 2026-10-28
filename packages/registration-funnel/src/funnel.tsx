@@ -858,10 +858,12 @@ export function RegistrationFunnel({
         )}
       </div>
 
-      <p className="mt-6 text-center text-[11px] text-fg-muted">
-        Your answers are saved with this season&apos;s registration. Sign in with
-        the same email to come back to it.
-      </p>
+      {step === "done" ? null : (
+        <p className="mt-6 text-center text-[11px] text-fg-muted">
+          Your answers are saved with this season&apos;s registration. Sign in with
+          the same email to come back to it.
+        </p>
+      )}
     </div>
   );
 }
@@ -3058,10 +3060,8 @@ function DoneStep({
             <Badge status="pending_approval" />
           </div>
           <p className="mt-1 text-[12px] text-fg-muted">
-            Once admin approves your team registration we'll generate a
-            shareable invite link for your roster. Check the My
-            registrations tab in your player dashboard, or watch your
-            email. The link will land there too.
+            When the league approves your team, you get a link to invite
+            your players, by email and on your home page.
           </p>
         </section>
       ) : null}
@@ -3074,7 +3074,7 @@ function DoneStep({
           <NextStep
             n={1}
             title="Admin eligibility review"
-            body="League admin reviews your documents. You will be notified within 2 business days."
+            body="The league checks your registration and emails you when it is approved."
           />
           <NextStep
             n={2}
@@ -3094,6 +3094,17 @@ function DoneStep({
           />
         </ol>
       </section>
+
+      {/* One clear way on: the player's home, where the registration
+          and, later, the team and schedule show. */}
+      <div className="flex justify-end">
+        <a
+          href="/"
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-[var(--accent-hover)]"
+        >
+          Go to my home page <ArrowRight className="h-4 w-4" />
+        </a>
+      </div>
     </div>
   );
 }
@@ -3174,8 +3185,10 @@ function guidanceFor(
   }
 }
 
+/** How the registration reads in a summary row ("Registering as: Player"). */
 function labelForPath(t: SubmissionType): string {
-  return PATHS.find((p) => p.value === t)?.title ?? t;
+  const short: Partial<Record<SubmissionType, string>> = { individual: "Player", team: "A team", free_agent: "Free agent" };
+  return short[t] ?? PATHS.find((p) => p.value === t)?.title ?? t;
 }
 
 /**

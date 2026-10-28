@@ -225,17 +225,24 @@ test.describe.serial("J3 · build and publish a registration form", () => {
 
   test("3 · Season setup — pick the new season from a dropdown and bind it", async () => {
     test.skip(FROM > 3, "resumed run");
+    await expect(oa.getByText(/Loading seasons/)).toHaveCount(0, { timeout: 20_000 });
+    // The New form dialog already bound the season (REG-20): the builder
+    // shows it as set with a Change link, not a second dropdown (PPHL,
+    // 28 Oct 2026). Without a bound season it is a dropdown of the org's
+    // seasons, never free text.
+    const change = oa.getByRole("button", { name: "Change", exact: true });
+    const boundAtCreate = await change.isVisible().catch(() => false);
+    state.seasonBoundAtCreate = String(boundAtCreate);
+    if (boundAtCreate) {
+      await expect(oa.locator("main").getByText(seasonName).first(), "the bound season is shown by name").toBeVisible();
+      await change.click();
+    }
     const seasonSelect = oa.locator("main select").first();
     await expect(seasonSelect).toBeVisible();
     expect(await seasonSelect.evaluate((e) => e.tagName)).toBe("SELECT");
-    await expect(oa.getByText(/Loading seasons/)).toHaveCount(0, { timeout: 20_000 });
     await expect(seasonSelect.locator("option", { hasText: seasonName })).toHaveCount(1, { timeout: 20_000 });
     const label = (await seasonSelect.locator("option").allInnerTexts()).find((o) => o.includes(seasonName));
     expect(label, "new season listed in the season dropdown").toBeTruthy();
-    // The New form dialog already bound the season (REG-20). Bind it here
-    // only when it is not shown as the form's season.
-    const boundAtCreate = (await seasonSelect.inputValue()) === state.seasonId;
-    state.seasonBoundAtCreate = String(boundAtCreate);
     if (!boundAtCreate) {
       await seasonSelect.selectOption({ label: label! });
       await expect(oa.getByText("Saved.")).toBeVisible({ timeout: 20_000 });
