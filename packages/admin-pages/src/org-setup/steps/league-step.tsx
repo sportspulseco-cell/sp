@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { cloneElement, isValidElement, useId, useMemo, type ReactElement } from "react";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import { cn, Input, Select, FieldHint } from "@sportspulse/ui";
 import {
@@ -337,13 +337,25 @@ export function Field({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  // Tie the label to its input so screen readers (and getByLabel) name
+  // it: only a bare input, select or textarea child.
+  const autoId = useId();
+  const el =
+    isValidElement(children) &&
+    (typeof children.type === "string"
+      ? /^(input|select|textarea)$/.test(children.type)
+      : children.type === Input || children.type === Select)
+      ? (children as ReactElement<{ id?: string }>)
+      : null;
+  const htmlFor = el ? el.props.id ?? autoId : undefined;
+  const body = el && !el.props.id ? cloneElement(el, { id: autoId }) : children;
   return (
     <div className="space-y-1.5">
-      <label className="block font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
+      <label htmlFor={htmlFor} className="block font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
         {label}
         {required ? <span className="ml-1 text-[var(--error)]">*</span> : null}
       </label>
-      {children}
+      {body}
       <FieldHint>{hint}</FieldHint>
     </div>
   );

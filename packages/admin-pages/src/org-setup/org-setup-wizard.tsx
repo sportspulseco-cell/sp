@@ -705,7 +705,7 @@ function Footer({
   nextLabel: string;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-bg/90 px-6 py-3 backdrop-blur">
+    <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-bg/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
       {step > 1 ? (
         <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={busy}>
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
