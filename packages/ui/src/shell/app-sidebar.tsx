@@ -134,7 +134,9 @@ function SidebarNav({ sections, homeHref }: { sections: ReadonlyArray<ShellNavSe
   return (
     <nav aria-label="Main" className="flex-1 space-y-1 overflow-y-auto px-2 py-3 scrollbar-thin">
       {sections.map((section, i) => {
-        if (!section.label) {
+        // A group with one link is just that link: a collapsed heading
+        // over a single item costs a click and hides it (Hick, Fitts).
+        if (!section.label || section.items.length === 1) {
           return <NavList key={`top-${i}`} items={section.items} active={active} />;
         }
         const holdsActive = section.items.some((item) => item.href === active);

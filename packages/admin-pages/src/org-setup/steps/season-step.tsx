@@ -1,15 +1,9 @@
 "use client";
 
-import { formatCalendarDate } from "@sportspulse/kernel";
 import type { SeasonDraft } from "../types";
 import { SectionHeader } from "./org-step";
 import { Field } from "./league-step";
 import { Input } from "@sportspulse/ui";
-
-/** A YYYY-MM-DD draft date as written: "Nov 22, 2026". */
-function fmt(d: string): string {
-  return formatCalendarDate(d) || "—";
-}
 
 function todayIso(): string {
   // Local-date ISO (YYYY-MM-DD) — matches the format <input type="date"> emits.
@@ -20,21 +14,7 @@ function todayIso(): string {
   return `${y}-${m}-${day}`;
 }
 
-function dayBefore(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() - 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/**
- * Phase 2 — Season identity. Season fields are required; the read-only
- * "season window" summary at the bottom mirrors the dates in plain
- * English so admins can sanity-check the chronology before advancing.
- */
+/** Org setup step 3: the season's name and dates, grouped as a season runs. */
 export function SeasonStep({
   draft,
   leagueName,
@@ -45,193 +25,70 @@ export function SeasonStep({
   onChange: (patch: Partial<SeasonDraft>) => void;
 }) {
   const today = todayIso();
+  const date = (
+    key: "startDate" | "endDate" | "registrationOpensAt" | "registrationClosesAt" | "rosterLockAt" | "playoffStartDate" | "playoffEndDate",
+    label: string,
+    hint: string,
+    opts: { required?: boolean; min?: string; max?: string } = {}
+  ) => (
+    <Field label={label} required={opts.required} hint={hint}>
+      <Input
+        type="date"
+        value={draft[key]}
+        onChange={(e) => onChange({ [key]: e.target.value } as Partial<SeasonDraft>)}
+        min={opts.min}
+        max={opts.max}
+        required={opts.required}
+      />
+    </Field>
+  );
+  const hasPlayoffs = !!(draft.playoffStartDate || draft.playoffEndDate);
+  // Grouped in the order a season happens (doc/design/guided-ui.md:
+  // common region, continuity): name, registration, games, playoffs.
   return (
-    <div className="space-y-8">
-      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
-        <SectionHeader title="Season identity" required />
-
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <Field
-            label="Season name"
+    <div className="space-y-5">
+      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
+        <SectionHeader title="Name" required />
+        <Field label="Season name" required hint={leagueName ? `Part of ${leagueName}.` : "For example NH Fall 2026."}>
+          <Input
+            type="text"
+            value={draft.name}
+            onChange={(e) => onChange({ name: e.target.value.slice(0, 120) })}
+            maxLength={120}
+            placeholder="e.g. NH Fall 2026"
             required
-            hint="Shown in all dashboards, emails, and registration links. Typically includes the region and year/period."
-          >
-            <Input
-              type="text"
-              value={draft.name}
-              onChange={(e) => onChange({ name: e.target.value.slice(0, 120) })}
-              maxLength={120}
-              placeholder="e.g. NH Fall 2025"
-              required
-            />
-          </Field>
+          />
+        </Field>
+      </section>
 
-          <Field
-            label="League"
-            hint="Auto-populated from step 2. This season belongs to this league and cannot be moved."
-          >
-            <Input
-              type="text"
-              value={leagueName || "—"}
-              readOnly
-              disabled
-              className="cursor-not-allowed text-fg-muted"
-            />
-          </Field>
-
-          <Field
-            label="Season start date"
-            required
-            hint="First day of the playing season. Games cannot be scheduled before this date."
-          >
-            <Input
-              type="date"
-              value={draft.startDate}
-              onChange={(e) => onChange({ startDate: e.target.value })}
-              min={today}
-              required
-            />
-          </Field>
-
-          <Field
-            label="Season end date"
-            required
-            hint="Last day of the playing season including playoffs. Must be after start date."
-          >
-            <Input
-              type="date"
-              value={draft.endDate}
-              onChange={(e) => onChange({ endDate: e.target.value })}
-              min={draft.startDate || today}
-              required
-            />
-          </Field>
-
-          <Field
-            label="Registration opens"
-            required
-            hint="When the public registration link becomes active. Today or later; today opens it now. Before this date the link shows a countdown."
-          >
-            <Input
-              type="date"
-              value={draft.registrationOpensAt}
-              onChange={(e) => onChange({ registrationOpensAt: e.target.value })}
-              min={today}
-              required
-            />
-          </Field>
-
-          <Field
-            label="Registration closes"
-            required
-            hint="After this date, registration is closed. The public link shows a closed message."
-          >
-            <Input
-              type="date"
-              value={draft.registrationClosesAt}
-              onChange={(e) =>
-                onChange({ registrationClosesAt: e.target.value })
-              }
-              min={draft.registrationOpensAt || today}
-              required
-            />
-          </Field>
-
-          <Field
-            label="Roster lock date"
-            hint="After this date no players can be added or removed from any team roster in this season. Leave blank for no lock."
-          >
-            <Input
-              type="date"
-              value={draft.rosterLockAt}
-              onChange={(e) => onChange({ rosterLockAt: e.target.value })}
-              min={today}
-            />
-          </Field>
-
-          <Field
-            label="Playoff start date"
-            hint="When playoffs begin. The day before is the implicit regular-season finale. Optional. Leave blank for seasons with no separate playoff."
-          >
-            <Input
-              type="date"
-              value={draft.playoffStartDate}
-              onChange={(e) =>
-                onChange({ playoffStartDate: e.target.value })
-              }
-              min={draft.startDate || today}
-              max={draft.endDate || undefined}
-            />
-          </Field>
-
-          <Field
-            label="Playoff end date"
-            hint="Last playoff game. Must be on or before the season end date."
-          >
-            <Input
-              type="date"
-              value={draft.playoffEndDate}
-              onChange={(e) =>
-                onChange({ playoffEndDate: e.target.value })
-              }
-              min={
-                draft.playoffStartDate || draft.startDate || today
-              }
-              max={draft.endDate || undefined}
-            />
-          </Field>
+      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
+        <SectionHeader title="Registration" required />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {date("registrationOpensAt", "Registration opens", "Today or later. Today opens it now.", { required: true, min: today })}
+          {date("registrationClosesAt", "Registration closes", "The sign-up link closes after this day.", { required: true, min: draft.registrationOpensAt || today })}
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-border bg-surface-1 p-6">
-        <SectionHeader
-          title="Season window"
-          hint="Defines the full registration window visible to players"
-          required
-        />
-        <dl className="space-y-2">
-          <SummaryRow
-            label="Registration window"
-            value={`${fmt(draft.registrationOpensAt)} → ${fmt(draft.registrationClosesAt)}`}
-          />
-          <SummaryRow
-            label="Playing window"
-            value={`${fmt(draft.startDate)} → ${fmt(draft.endDate)}`}
-          />
-          <SummaryRow
-            label="Regular season finale"
-            value={
-              draft.playoffStartDate
-                ? fmt(dayBefore(draft.playoffStartDate))
-                : draft.endDate
-                  ? fmt(draft.endDate)
-                  : "—"
-            }
-          />
-          <SummaryRow
-            label="Playoff window"
-            value={
-              draft.playoffStartDate || draft.playoffEndDate
-                ? `${fmt(draft.playoffStartDate)} → ${fmt(draft.playoffEndDate)}`
-                : "—"
-            }
-          />
-          <SummaryRow
-            label="Roster lock"
-            value={fmt(draft.rosterLockAt)}
-          />
-        </dl>
+      <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
+        <SectionHeader title="Season" required />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {date("startDate", "Season start date", "No games before this day.", { required: true, min: today })}
+          {date("endDate", "Season end date", "Including playoffs.", { required: true, min: draft.startDate || today })}
+          {date("rosterLockAt", "Roster lock date", "Optional. Rosters freeze after this day.", { min: today })}
+        </div>
       </section>
 
+      <details open={hasPlayoffs} className="group rounded-xl border border-border bg-surface-1 p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[14px] font-semibold text-fg [&::-webkit-details-marker]:hidden">
+          Playoffs
+          <span className="text-[13px] font-normal text-fg-muted group-open:hidden">Optional · add dates</span>
+        </summary>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {date("playoffStartDate", "Playoff start date", "The regular season ends the day before.", { min: draft.startDate || today, max: draft.endDate || undefined })}
+          {date("playoffEndDate", "Playoff end date", "On or before the season end date.", { min: draft.playoffStartDate || draft.startDate || today, max: draft.endDate || undefined })}
+        </div>
+      </details>
     </div>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 last:border-b-0 last:pb-0">
-      <dt className="text-[13px] text-fg">{label}</dt>
-      <dd className="font-mono text-[12px] text-fg-muted">{value}</dd>
-    </div>
-  );
-}

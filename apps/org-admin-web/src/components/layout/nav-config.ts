@@ -40,6 +40,8 @@ export const NAV: ShellNavSection[] = [
   { label: "Teams", items: [{ href: "/teams", label: "Teams", icon: Network }] },
   {
     label: "Registration",
+    // Reviewing registrations is the org admin's daily job: keep it in view.
+    defaultOpen: true,
     items: [
       { href: "/forms", label: "Registration forms", icon: FileSignature },
       { href: "/registrations", label: "Registrations", icon: ScrollText }

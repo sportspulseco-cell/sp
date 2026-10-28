@@ -89,3 +89,17 @@ checked in a browser as the role it serves.
 Done for a slice means: words above the fold down on every page it
 touches, no page lost a needed action, and the role walked the flow in a
 browser on staging, then production.
+
+## Status (28 Oct 2026)
+
+| Slice | What shipped |
+|---|---|
+| 1 Headers | `PageHeader` title only, explanation behind (?) (`InfoDisclosure`); `SectionRail` without numbering |
+| 2 Labels | `guided.css` turns mono caps labels into sentence case; badges, table heads, sidebar groups |
+| 3 Homes | `TodoList` "Needs you" plus the main object on all four homes; season card is one progress bar |
+| 4 Copy | Developer words removed from 40 strings; `FieldHint` folds help over 8 words; plain wizard questions |
+| 5 Forms | Setup wizard season step grouped as a season runs; playoffs optional and closed |
+| 6 Navigation | A sidebar group with one link is that link; the org admin's Registration group starts open |
+
+Production crawl, before and after slices 1 and 2: above-the-fold words
+3,215 to 2,546; long paragraphs 44 to 19; org home 556 to 94 words.
