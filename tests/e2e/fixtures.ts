@@ -69,8 +69,9 @@ export const ROUTES = {
     { path: "/rosters", anchor: /Rosters/i },
     { path: "/registrations", anchor: /Registrations/i },
     { path: "/forms", anchor: /Registration forms/i },
-    { path: "/finance", anchor: /Finance/i },
-    { path: "/finance/ar", anchor: /^Finance$/i }
+    { path: "/finance", anchor: /Invoices|Finance/i },
+    // Redirects to /finance.
+    { path: "/finance/ar", anchor: /Invoices|Finance/i }
   ] as RouteCheck[],
 
   orgAdmin: [
@@ -90,7 +91,7 @@ export const ROUTES = {
     { path: "/schedule", anchor: /Schedule/i },
     { path: "/lineups", anchor: /Lineups|Coming soon/i },
     { path: "/stats", anchor: /Stats/i },
-    { path: "/comms", anchor: /Communications|Coming soon/i }
+    { path: "/comms", anchor: /Message the team|Communications|Coming soon/i }
   ] as RouteCheck[],
 
   player: [
@@ -99,7 +100,7 @@ export const ROUTES = {
     { path: "/stats", anchor: /Stats/i },
     { path: "/video", anchor: /Video|Coming soon/i },
     { path: "/team", anchor: /Roster|Team/i },
-    { path: "/store", anchor: /Team store|Coming soon/i },
+    { path: "/store", anchor: /store|Coming soon/i },
     { path: "/payments", anchor: /Payments/i },
     { path: "/compliance", anchor: /Waivers & documents|Compliance/i },
     { path: "/notifications", anchor: /Notifications/i },

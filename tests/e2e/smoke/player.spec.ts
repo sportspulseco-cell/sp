@@ -47,7 +47,7 @@ test.describe("player smoke", () => {
 
   test("compliance: status banner present", async ({ page }) => {
     await page.goto(`${E2E_URLS.player}/compliance`);
-    await expect(page.getByText(/Compliance/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Waivers & documents/i })).toBeVisible();
     // Either a banner or the empty-state.
     const all = page.getByText(/All clear|need|requirements yet|attention/i);
     await expect(all.first()).toBeVisible();

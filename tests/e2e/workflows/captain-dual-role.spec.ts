@@ -31,10 +31,11 @@ test.describe("captain dual role across apps", () => {
     await expect(page.getByText(/Captain console/i).first()).toBeVisible();
   });
 
+  // The team app is the captain console; the amber Captain pill marks it.
   test("team-admin app: captain console mirrored", async ({ page }) => {
     await signIn(page, E2E_URLS.teamAdmin, SMOKE_USERS.teamAdmin);
     await page.goto(E2E_URLS.teamAdmin);
-    await expect(page.getByText(/Captain console/i).first()).toBeVisible();
+    await expect(page.getByText("Captain", { exact: true }).first()).toBeVisible();
   });
 
   test("league-admin (now via superadmin-web): promote-captain dialog opens from teams page", async ({

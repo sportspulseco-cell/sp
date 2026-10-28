@@ -19,10 +19,11 @@ test.describe("super-admin smoke", () => {
     });
   }
 
-  test("dashboard KPIs visible", async ({ page }) => {
+  // Guided home (doc/design/guided-ui.md): what is waiting, then the seasons.
+  test("home: needs-you list and seasons", async ({ page }) => {
     await page.goto(`${E2E_URLS.superadmin}/dashboard`);
-    await expect(page.getByRole("heading", { name: /The pulse of every league/i })).toBeVisible();
-    await expect(page.getByText(/Organizations/i).first()).toBeVisible();
-    await expect(page.locator("main").getByText(/Leagues active/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Needs you" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your seasons" })).toBeVisible();
   });
 });

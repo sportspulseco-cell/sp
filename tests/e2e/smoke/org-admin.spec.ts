@@ -19,11 +19,12 @@ test.describe("org-admin smoke", () => {
     });
   }
 
-  test("home shows the user's org name + KPI cards", async ({ page }) => {
+  // Guided home (doc/design/guided-ui.md): org name, what is waiting, the seasons.
+  test("home shows the org name, needs-you list and seasons", async ({ page }) => {
     await page.goto(E2E_URLS.orgAdmin);
-    await expect(page.getByRole("heading", { name: /PPHL/i })).toBeVisible();
-    await expect(page.getByText(/Active leagues/i).first()).toBeVisible();
-    await expect(page.getByText(/Outstanding AR/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /PPHL/i, level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Needs you" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your seasons" })).toBeVisible();
   });
 
 });
