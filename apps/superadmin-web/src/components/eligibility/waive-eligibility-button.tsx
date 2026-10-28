@@ -50,7 +50,7 @@ export function WaiveEligibilityButton({ id }: { id: string }) {
           <Field
             label="Reason"
             htmlFor="waive-reason"
-            hint="Required. Will appear on the audit trail."
+            hint="Required. Kept in the activity log."
           >
             <Input
               id="waive-reason"

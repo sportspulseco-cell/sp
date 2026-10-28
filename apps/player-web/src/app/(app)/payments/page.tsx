@@ -57,7 +57,7 @@ export default async function PaymentsPage() {
       <PageHeader
         eyebrow="Payments"
         title="Payments"
-        description="Pay outstanding invoices with your wallet, your card, or both. Update your card and retry failed installments inline."
+        description="Pay what you owe with your wallet, your card, or both."
       />
       <PaymentsClient initial={{ wallet: walletResp, invoices: invoicesResp }} />
     </div>

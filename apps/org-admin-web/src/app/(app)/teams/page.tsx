@@ -65,7 +65,7 @@ export default async function TeamsPage({
       <PageHeader
         eyebrow="Teams"
         title="Teams"
-        description="Every team registered under your org. You can add teams directly or let captains create them through the registration funnel."
+        description="Every team in your organization. Add one here, or captains create theirs when they sign up."
         action={
           <Link
             href="/teams/new"
@@ -116,7 +116,7 @@ export default async function TeamsPage({
               <EmptyState
                 icon={Network}
                 title="No teams yet"
-                description="Add a team here, or wait for captains to apply via the registration funnel."
+                description="Add a team here, or captains create theirs when they sign up."
               />
             </div>
           ) : shown.length === 0 ? (

@@ -85,7 +85,7 @@ export function ManageUserRolesCell({
         open={open}
         onClose={() => setOpen(false)}
         title={`Roles · ${display}`}
-        description="Grant or revoke scoped roles. Super-admin status is managed separately on the user detail page."
+        description="Give or remove roles. Super admin is set on the user's page."
         size="lg"
       >
         {loading && (

@@ -100,7 +100,7 @@ export default async function CommunicationsPage() {
         <SectionRail
           index="02"
           label="Outbox"
-          subtitle="Each row is one notification. Tap a template code to see the rendered body and the audit trail of which event triggered it."
+          subtitle="Each row is one message. Tap it to see what was sent and why."
           meta={`${page.items.length} loaded`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">

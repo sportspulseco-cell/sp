@@ -50,7 +50,7 @@ export default async function FinancePage() {
       <PageHeader
         eyebrow="Finance"
         title="Finance"
-        description="Outstanding receivables for your org. Issue new invoices, record offline payments inline, export reports."
+        description="Money owed to your organization. Send invoices and record payments."
         action={
           orgId ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -107,7 +107,7 @@ export default async function FinancePage() {
         <SectionRail
           index="02"
           label="Ledger"
-          subtitle="Every invoice issued for this org. Record an offline payment inline; the same path Stripe webhooks follow downstream."
+          subtitle="Every invoice your organization sent. Record a cash or cheque payment from its row."
           meta={`${invoicesPage.items.length} total`}
         />
         {invoicesResult && !invoicesResult.ok ? (

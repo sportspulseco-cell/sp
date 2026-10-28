@@ -38,7 +38,7 @@ function statusCopy(status: string): string {
     case "pending_offline":
       return "Offline payment pending. Your admin will mark it received.";
     case "incomplete":
-      return "Resume the funnel to fill missing details.";
+      return "Resume your registration to finish it.";
     case "cancelled":
       return "Cancelled.";
     default:

@@ -64,7 +64,7 @@ export default async function OrganizationsPage({
       <KineticStrip
         cards={[
           {
-            label: "Total tenants",
+            label: "Organizations",
             value: total,
             icon: <Building2 className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "idle"

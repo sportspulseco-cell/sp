@@ -337,7 +337,7 @@ export function RegisterWizard({
           {step === 3 ? (
             <StepCard
               title="Build the roster"
-              subtitle="Invite your players by email. Each will receive a personal link that pre-fills the registration funnel and skips re-entry of personal details."
+              subtitle="Invite your players by email. Each gets a personal sign-up link."
             >
               <div>
                 <p className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">

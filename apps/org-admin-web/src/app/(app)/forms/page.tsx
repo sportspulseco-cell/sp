@@ -32,7 +32,7 @@ export default async function FormsPage() {
       <PageHeader
         eyebrow="Registration"
         title="Registration forms"
-        description="Forms bound to your org's seasons. Each form drives a chunk of the public registration funnel: questions, waivers, pricing tiers, and email templates."
+        description="Each season's sign-up form: questions, waivers, prices and emails."
         action={
           activeOrg ? (
             <CreateFormButton

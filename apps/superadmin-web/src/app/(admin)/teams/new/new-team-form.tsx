@@ -307,7 +307,7 @@ export function NewTeamForm({
 
         <Section
           title="Captain assignment"
-          subtitle="Optional but recommended. Captain will receive a notification when the team is created and gain access to the rollover wizard each season."
+          subtitle="Optional. The captain is told when the team is created."
         >
           {captain ? (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-subtle px-4 py-3">
@@ -366,7 +366,7 @@ export function NewTeamForm({
         >
           <Field
             label="Confirmation threshold (USD)"
-            hint="Whole dollars. Stored as cents server-side. Must be ≤ the team registration fee."
+            hint="Whole dollars, no more than the team fee."
           >
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[12px] text-fg-muted">
@@ -431,7 +431,7 @@ export function NewTeamForm({
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-3 w-3 text-emerald-600" strokeWidth={2.5} />
-              <span>Captain runs each season's rollover wizard</span>
+              <span>Captain sets up dues and the roster each season</span>
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-3 w-3 text-emerald-600" strokeWidth={2.5} />

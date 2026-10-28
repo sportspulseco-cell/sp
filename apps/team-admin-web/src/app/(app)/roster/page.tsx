@@ -113,7 +113,7 @@ export default async function TeamAdminRosterPage({
       {!allResult.ok ? (
         <LoadError what="the roster" status={allResult.status} message={allResult.message} />
       ) : page.items.length === 0 ? (
-        <EmptyState icon={Users} title="Empty roster" description="Add players from the captain console or super-admin." />
+        <EmptyState icon={Users} title="Empty roster" description="Invite players to fill your roster." />
       ) : (
         <Table>
           <THead>

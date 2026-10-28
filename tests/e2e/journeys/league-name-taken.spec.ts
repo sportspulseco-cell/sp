@@ -28,10 +28,10 @@ test.describe("League names are unique per organization", () => {
 
     const { context, page } = await signedInAs(browser, "superAdmin");
     await page.goto(`${E2E_URLS.superadmin}/org-setup`);
-    await expect(page.getByRole("heading", { name: "Pick the organization." })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Which organization?" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: new RegExp(org!.name) }).click();
     await page.getByRole("button", { name: "Next: League" }).click();
-    await expect(page.getByRole("heading", { name: "Frame the league." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Which league?" })).toBeVisible();
 
     const name = wizardField(page, "League name");
     await name.fill(`  ${taken!.name.toUpperCase()} `);

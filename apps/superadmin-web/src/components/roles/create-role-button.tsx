@@ -102,7 +102,7 @@ export function CreateRoleButton() {
           <Field
             label="Organization"
             htmlFor="orgId"
-            hint="Required for custom roles. Leave empty for platform-scoped (system) roles, which can't be created via API."
+            hint="Required for an organization's own role."
           >
             <Select
               id="orgId"
@@ -121,7 +121,7 @@ export function CreateRoleButton() {
 
           <Field
             label="Role code"
-            hint="Pick from the curated list or write a custom lowercase_snake_case code. Used by @Roles() decorators on the API."
+            hint="Pick from the list, or type a short code in lower case with underscores."
           >
             <RoleCodePicker
               value={form.code}

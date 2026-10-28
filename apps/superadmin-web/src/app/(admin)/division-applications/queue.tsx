@@ -54,7 +54,7 @@ export function DivisionApplicationsQueue({
     try {
       await adminTransfers.approveApplication(t.id);
       setFlash(
-        `Approved ${t.teamName} → ${t.divisionName}. Captain can now run the rollover wizard.`
+        `Approved ${t.teamName} → ${t.divisionName}. The captain can now set up dues and the roster.`
       );
       await refresh();
     } catch (e) {
@@ -88,7 +88,7 @@ export function DivisionApplicationsQueue({
     try {
       await adminTransfers.rejectDivisionEntry(t.id, reason);
       setFlash(
-        `Rejected ${t.teamName} → ${t.divisionName}. Invoices voided; paid subs queued for refund assessment.`
+        `Rejected ${t.teamName} → ${t.divisionName}. Its invoices were cancelled; any payments will be reviewed for refund.`
       );
       setRejectTarget(null);
       await refresh();

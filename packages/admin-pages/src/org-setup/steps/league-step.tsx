@@ -120,7 +120,7 @@ export function LeagueStep({
           <Field
             label="Unique ID (slug)"
             required
-            hint="URL-safe identifier. Auto-generated from the league name. Used in API paths and registration URLs. Cannot be changed after first season is published."
+            hint="Part of the league's web address, made from its name. Fixed once a season is published."
           >
             <Input
               type="text"

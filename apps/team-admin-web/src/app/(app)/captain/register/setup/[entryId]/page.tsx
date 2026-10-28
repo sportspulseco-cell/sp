@@ -71,7 +71,7 @@ export default async function CaptainRegisterSetupPage({
         <PageHeader
           eyebrow="captain console"
           title="Awaiting admin approval"
-          description="The rollover wizard unlocks the moment your league admin approves the application."
+          description="Opens as soon as your league approves your team."
         />
       </div>
     );

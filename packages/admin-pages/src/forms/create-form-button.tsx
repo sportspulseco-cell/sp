@@ -271,7 +271,7 @@ function CreateFormDialog({
       open={open}
       onClose={createdHref ? () => undefined : onClose}
       title="New registration form"
-      description="Create a form shell. Add a schema version next, then publish to make it active."
+      description="Name the form. Add questions next, then publish it."
     >
       <form onSubmit={onSubmit} className="space-y-4">
         {!lockOrg && orgs.length > 1 ? (

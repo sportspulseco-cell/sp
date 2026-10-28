@@ -60,7 +60,7 @@ export function UpsertSettingButton() {
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="New / upsert setting"
+        title="Add or change a setting"
         description="Existing keys are overwritten in place. Use category to group related settings."
       >
         <form onSubmit={onSubmit} className="space-y-4">

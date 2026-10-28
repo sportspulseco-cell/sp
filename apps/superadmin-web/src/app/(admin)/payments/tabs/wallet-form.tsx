@@ -110,7 +110,7 @@ export function WalletForm({
       <Field
         label="Reason"
         required
-        hint="Internal note. Explain why this credit is being issued. Stored in audit trail."
+        hint="Why this credit is given. Kept in the activity log."
       >
         <textarea
           rows={3}

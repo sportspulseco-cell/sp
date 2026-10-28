@@ -59,7 +59,7 @@ test("item 1: super admin creates an organization and its org admin inside Org s
   const { page, context } = await signedInAs(browser, "superAdmin");
   logApi(page, "item1");
   await page.goto(`${E2E_URLS.superadmin}/org-setup`);
-  await expect(page.getByRole("heading", { name: "Pick the organization." })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Which organization?" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: /New organization/ }).first().click();
 
   await page.locator("#displayName").fill(`${TAG} Org`);
@@ -93,7 +93,7 @@ test("item 1: super admin creates an organization and its org admin inside Org s
   // Org admins never get the option.
   const oa = await signedInAs(browser, "orgAdmin");
   await oa.page.goto(`${E2E_URLS.orgAdmin}/org-setup`);
-  await expect(oa.page.getByRole("heading", { name: "Pick the organization." })).toBeVisible({ timeout: 30_000 });
+  await expect(oa.page.getByRole("heading", { name: "Which organization?" })).toBeVisible({ timeout: 30_000 });
   await expect(oa.page.getByRole("button", { name: /New organization/ })).toHaveCount(0);
   await oa.context.close();
 });
@@ -166,7 +166,7 @@ test("item 2: org setup adds a season to an existing league (no new league)", as
   const { page, context } = await signedInAs(browser, "superAdmin");
   logApi(page, "item2-wizard");
   await page.goto(`${E2E_URLS.superadmin}/org-setup`);
-  await expect(page.getByRole("heading", { name: "Pick the organization." })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Which organization?" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: /PPHL Staging/ }).first().click();
   await page.getByRole("button", { name: "Next: League" }).click();
   await page.getByRole("button", { name: "Add to an existing league" }).click();

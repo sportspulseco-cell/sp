@@ -32,17 +32,10 @@ const STEP_LABELS: Record<WizardStep, string> = {
 };
 
 const STEP_HEADLINES: Record<WizardStep, string> = {
-  1: "Pick the organization.",
-  2: "Frame the league.",
-  3: "Open the season.",
-  4: "Carve the divisions."
-};
-
-const STEP_SUBTITLES: Record<WizardStep, string> = {
-  1: "Every league nests under exactly one organization. Pick the tenant this whole setup belongs to.",
-  2: "Sport, format, governing body, branding, privacy. The league frame everything else hangs from.",
-  3: "Dates, registration window, roster lock. The clock that drives the rest of the year.",
-  4: "Skill tiers, age ranges, gender eligibility, rule overrides. Every team plays inside one of these."
+  1: "Which organization?",
+  2: "Which league?",
+  3: "Which season?",
+  4: "Add divisions"
 };
 
 const STEP_NEXT_LABEL: Record<WizardStep, string> = {
@@ -549,43 +542,24 @@ export function OrgSetupWizard({
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted"
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center gap-2 text-[13px] text-fg-muted"
         >
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
           </span>
-          <span className="text-fg/80">org · setup</span>
-          <span className="text-fg-subtle">·</span>
-          <span>chapter {String(state.step).padStart(2, "0")} / 04</span>
+          <span>Set up a season · step {state.step} of 4</span>
         </motion.div>
         <motion.h1
           key={state.step}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.55,
-            delay: 0.05,
-            ease: [0.22, 1, 0.36, 1]
-          }}
-          className="mt-2 max-w-[24ch] text-balance font-sans text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.02] tracking-tight text-fg"
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-2 max-w-[24ch] text-balance font-sans text-[clamp(24px,3vw,30px)] font-semibold leading-tight tracking-tight text-fg"
         >
           {STEP_HEADLINES[state.step]}
         </motion.h1>
-        <motion.p
-          key={`sub-${state.step}`}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.55,
-            delay: 0.1,
-            ease: [0.22, 1, 0.36, 1]
-          }}
-          className="mt-3 max-w-2xl text-[14px] leading-relaxed text-fg-muted"
-        >
-          {STEP_SUBTITLES[state.step]}
-        </motion.p>
         <div className="absolute inset-x-0 bottom-0 flex items-center">
           <span className="h-px w-6 bg-[--accent]" />
           <span className="h-px flex-1 bg-border" />

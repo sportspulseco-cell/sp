@@ -9,7 +9,7 @@ const FEATURES = [
   {
     icon: Globe2,
     title: "Global, multi-sport",
-    body: "Hockey, soccer, basketball, cricket. Multi-tenant from day one."
+    body: "Hockey, soccer, basketball, cricket. Every league in one place."
   },
   {
     icon: Activity,

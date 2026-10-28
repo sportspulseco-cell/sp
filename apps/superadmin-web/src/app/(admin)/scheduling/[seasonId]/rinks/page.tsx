@@ -40,7 +40,7 @@ export default async function RinksPage({
       <PageHeader
         eyebrow="schedule"
         title={`Notifications · ${season.name}`}
-        description="OUTBOUND webhook delivery + retry tracker. This tab tracks notifications SENT to rink partner systems (SportsEngine, etc.) when games are published or rescheduled. To configure venues, surfaces, and ice slots. the inputs the scheduler reads. use the Venues page."
+        description="Messages sent to rinks when games are published or moved. Set up rinks and ice time on the Venues page."
         action={
           <Link
             href={`/seasons/${season.id}`}

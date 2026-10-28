@@ -264,15 +264,6 @@ export function InvoiceDetailClient({ bundle }: { bundle: Bundle }) {
                 label="Fee schedule"
                 value={invoice.feeScheduleId ? "Configured" : "—"}
               />
-              <DetailRow
-                label="Idempotency key"
-                value={
-                  invoice.idempotencyKey
-                    ? invoice.idempotencyKey.slice(0, 8) + "…"
-                    : "—"
-                }
-                mono
-              />
             </dl>
           </section>
 

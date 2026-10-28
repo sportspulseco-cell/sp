@@ -57,7 +57,7 @@ export default async function DisputesPage({
         <SectionRail
           index="01"
           label="Queue"
-          subtitle="Filtered by status. Decisions made here propagate to the player's wallet / refund channel via the same path Stripe webhooks travel."
+          subtitle="Your decision here refunds or credits the player."
           meta={`${data.items.length} ${status}`}
         />
         {dataResult.ok ? (

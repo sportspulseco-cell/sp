@@ -50,7 +50,7 @@ export function TeamProfileForm({
       <Field
         label="Team name"
         htmlFor="name"
-        hint="Shown in standings, schedules, and the public funnel."
+        hint="Shown in standings, schedules and sign-up."
       >
         <Input
           id="name"

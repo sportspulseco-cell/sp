@@ -37,14 +37,14 @@ export default async function RegistrationsPage() {
       <PageHeader
         eyebrow="Registrations"
         title="Registrations"
-        description="Every registration submitted across your org's seasons. Approve or reject pending submissions inline; the super-admin queue still handles compliance-flag overrides."
+        description="Everyone who registered for your seasons. Approve or reject from the list."
       />
 
       <section className="space-y-6">
         <SectionRail
           index="01"
           label="Queue"
-          subtitle="Each row is one submission from the public funnel. Pending entries surface first; act on them to advance the cohort to active rosters."
+          subtitle="Waiting registrations are listed first. Approve them to put players on rosters."
           meta={`${pending} pending · ${page.items.length} total`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
@@ -57,7 +57,7 @@ export default async function RegistrationsPage() {
               <EmptyState
                 icon={ScrollText}
                 title="No registrations yet"
-                description="Submissions land here as soon as the public funnel takes them."
+                description="Registrations show here as soon as players sign up."
               />
             </div>
           ) : (

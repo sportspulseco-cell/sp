@@ -176,7 +176,7 @@ export function RefundForm({
           <Field
             label="Reason"
             required
-            hint="Required. Document the reason for this refund (min 10 characters). Stored in audit trail."
+            hint="Required, at least 10 characters. Kept in the activity log."
           >
             <textarea
               rows={3}

@@ -85,7 +85,7 @@ test("item 3: org setup in India time, registration opening today, saves league 
   try {
     await signIn(page, E2E_URLS.superadmin, (await import("../fixtures")).SMOKE_USERS.superAdmin);
     await page.goto(`${E2E_URLS.superadmin}/org-setup`);
-    await expect(page.getByRole("heading", { name: "Pick the organization." })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Which organization?" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: /PPHL Staging/ }).first().click();
     await page.getByRole("button", { name: "Next: League" }).click();
 

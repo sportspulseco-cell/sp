@@ -236,7 +236,7 @@ export default async function OrgDetailPage({
       <Section
         eyebrow="Cross-org"
         title="Cross-org grants"
-        description="Explicit cross-tenant access. A user with a grant from this org can act inside the target org with the listed permissions."
+        description="Lets people from this organization work inside another one, with the listed permissions."
         icon={KeyRound}
         tint="rose"
         action={<IssueGrantButton fromOrgId={org.id} allOrgs={allOrgsPage.items} />}

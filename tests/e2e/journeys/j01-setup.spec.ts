@@ -128,14 +128,14 @@ async function walkWizard(
   opts: { orgName: string | null; league: string; season: string; divisions: string[] }
 ) {
   // Step 1 — organization
-  await expect(page.getByRole("heading", { name: "Pick the organization." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Which organization?" })).toBeVisible();
   if (opts.orgName) {
     await page.getByRole("button", { name: new RegExp(opts.orgName) }).click();
   }
   await page.getByRole("button", { name: "Next: League" }).click();
 
   // Step 2 — league
-  await expect(page.getByRole("heading", { name: "Frame the league." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Which league?" })).toBeVisible();
   const sport = wizardField(page, "Sport");
   const defaultSport = await sport.locator("option:checked").textContent();
   // CLAUDE.md "defaults must reflect context": the org's own sport, or an
@@ -146,7 +146,7 @@ async function walkWizard(
   await page.getByRole("button", { name: "Next: Season" }).click();
 
   // Step 3 — season
-  await expect(page.getByRole("heading", { name: "Open the season." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Which season?" })).toBeVisible();
   await wizardField(page, "Season name").fill(opts.season);
   await wizardField(page, "Season start date").fill(ymd(14));
   await wizardField(page, "Season end date").fill(ymd(180));
@@ -156,7 +156,7 @@ async function walkWizard(
   await page.getByRole("button", { name: "Next: Divisions" }).click();
 
   // Step 4 — divisions
-  await expect(page.getByRole("heading", { name: "Carve the divisions." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add divisions" })).toBeVisible();
   for (let i = 0; i < opts.divisions.length; i++) {
     if (i > 0) {
       await page.getByRole("button", { name: /add (another )?division/i }).click();

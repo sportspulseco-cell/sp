@@ -33,7 +33,7 @@ export default async function AuditPage() {
         <SectionRail
           index="01"
           label="Trail"
-          subtitle="Captured by the global audit interceptor. Tap a row's timestamp to see the full before/after payload."
+          subtitle="Every change made in your organization. Tap a time to see what changed."
           meta={`${page.items.length} loaded`}
         />
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
