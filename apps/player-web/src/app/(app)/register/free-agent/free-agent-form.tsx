@@ -161,7 +161,7 @@ export function FreeAgentForm({
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-emerald-fg)]" />
           <div className="space-y-1">
             <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
-              // Placed
+              Placed
             </p>
             <p className="text-[14px] font-medium text-fg">
               You've been picked up by a team
@@ -446,7 +446,7 @@ function SeasonPicker({
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-      // {children}
+      {children}
     </p>
   );
 }

@@ -136,7 +136,7 @@ export default async function StatsPage({
       {seasonIds.length > 1 ? (
         <div className="flex items-center gap-3">
           <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // Season
+            Season
           </span>
           <div className="inline-flex flex-wrap gap-1.5">
             <a

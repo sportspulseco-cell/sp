@@ -361,7 +361,7 @@ function StepHeader({
   return (
     <div className="space-y-2">
       <Eyebrow>
-        // Step {step} of {total}
+        Step {step} of {total}
       </Eyebrow>
       <h1 className="text-[24px] font-semibold tracking-tight text-fg">
         {title}

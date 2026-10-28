@@ -97,7 +97,7 @@ export function RoleProfileDialog({
         <div className="space-y-4">
           {!state.loading ? (
             <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              // schema source ·{" "}
+              schema source ·{" "}
               {state.source === "admin"
                 ? "admin-configured form"
                 : "kernel default (admin can override via the registration setup wizard)"}

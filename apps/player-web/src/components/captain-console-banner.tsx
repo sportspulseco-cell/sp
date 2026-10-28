@@ -20,43 +20,18 @@ export function CaptainConsoleBanner() {
     process.env.NEXT_PUBLIC_TEAM_ADMIN_URL ?? "https://team.sportspulse.us";
 
   return (
-    <div className="rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] p-4">
-      <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--tint-emerald-bg)] text-[var(--tint-emerald-fg)]">
-          <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--tint-emerald-fg)]">
-            // captain console
-          </p>
-          <p className="mt-0.5 text-[14px] font-medium text-fg">
-            You&apos;re a captain. Manage your team in the team admin console.
-          </p>
-          <p className="mt-0.5 text-[12px] text-fg-muted">
-            Roster, invites, dues, compliance, and team registration all live there. Opens in a new tab.
-          </p>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 pl-14">
-        <a
-          href={`${teamAdminBase}/captain/register`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--success)] px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-white hover:bg-[var(--success)]"
-        >
-          Register your team
-          <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
-        </a>
-        <a
-          href={`${teamAdminBase}/`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--tint-emerald-fg)]/30 bg-bg/40 px-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--tint-emerald-fg)] hover:bg-[var(--tint-emerald-bg)] dark:text-[var(--tint-emerald-fg)]"
-        >
-          Open team console
-          <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
-        </a>
-      </div>
-    </div>
+    <a
+      href={`${teamAdminBase}/`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-3 rounded-xl border border-border bg-surface-1 px-4 py-3 transition-colors duration-150 ease-out hover:bg-surface-2"
+    >
+      <ShieldCheck className="h-5 w-5 shrink-0 text-[var(--tint-emerald-fg)]" strokeWidth={1.75} aria-hidden />
+      <span className="min-w-0 flex-1 text-[14px] font-medium text-fg">Captain console: roster, dues and team registration</span>
+      <span className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-[--accent]">
+        Open
+        <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+      </span>
+    </a>
   );
 }

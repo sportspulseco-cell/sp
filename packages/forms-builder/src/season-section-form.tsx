@@ -382,7 +382,7 @@ function EligibilityPanel({ form }: { form: RegistrationForm }) {
     <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Eligibility
+          Eligibility
         </p>
         <p className="mt-1 text-[13px] text-fg-muted">
           Who this form is shown to when admins or registrants land on the

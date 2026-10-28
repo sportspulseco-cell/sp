@@ -31,7 +31,7 @@ export function RegistrationOpenView({
     <div className="space-y-6">
       <section className="rounded-2xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--tint-emerald-bg)] px-8 py-7 dark:bg-[var(--tint-emerald-bg)]">
         <Eyebrow className="text-[var(--tint-emerald-fg)]">
-          // registration open
+          registration open
         </Eyebrow>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-fg md:text-3xl">
           Registration is open

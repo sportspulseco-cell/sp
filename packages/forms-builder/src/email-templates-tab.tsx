@@ -92,7 +92,7 @@ export function EmailTemplatesTab({
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-widest text-fg-muted">
-            // 05 · Email Templates
+            Email Templates
           </p>
           <h1 className="mt-2 text-[32px] font-semibold tracking-tighter text-fg">
             Email templates

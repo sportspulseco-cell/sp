@@ -7,9 +7,12 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./lib/cn": "./src/lib/cn.ts"
+    "./lib/cn": "./src/lib/cn.ts",
+    "./guided.css": "./src/guided.css"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

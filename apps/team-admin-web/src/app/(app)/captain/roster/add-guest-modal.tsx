@@ -173,7 +173,7 @@ export function AddGuestModal({
         )}
 
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // checks: max guests per game · per-player season limit · not on
+          checks: max guests per game · per-player season limit · not on
           your active roster
         </p>
 

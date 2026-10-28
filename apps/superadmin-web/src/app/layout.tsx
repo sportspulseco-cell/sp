@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "@sportspulse/ui/guided.css";
 import { Heartbeat, RouteProgress, ThemeProvider } from "@sportspulse/ui";
 
 const inter = Inter({

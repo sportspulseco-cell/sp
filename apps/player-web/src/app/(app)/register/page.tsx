@@ -47,7 +47,7 @@ export default async function FindATeamPage() {
         <header className="flex items-baseline justify-between">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-              // open registrations
+              open registrations
             </p>
             <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-fg">
               Leagues accepting registrations right now
@@ -114,7 +114,7 @@ export default async function FindATeamPage() {
       <section>
         <header className="mb-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-            // other paths
+            other paths
           </p>
         </header>
         <div className="grid gap-4 md:grid-cols-2">

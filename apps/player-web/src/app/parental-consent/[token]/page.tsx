@@ -54,7 +54,7 @@ export default async function ParentalConsentPage({
       <div className="mx-auto max-w-xl px-6 py-16">
         <header className="space-y-2 border-b border-border pb-6">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // SportsPulse · Parental consent
+            SportsPulse · Parental consent
           </p>
           <h1 className="text-[28px] font-semibold tracking-tighter text-fg">
             Confirm your child&apos;s registration

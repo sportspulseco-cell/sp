@@ -375,7 +375,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // who pays
+            who pays
           </p>
           <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-fg">
             Pick the billing target
@@ -666,7 +666,7 @@ export function InvoiceComposer(props: InvoiceComposerProps) {
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // terms
+            terms
           </p>
           <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-fg">
             When is it due?

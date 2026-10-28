@@ -56,7 +56,7 @@ export interface RouteCheck {
 
 export const ROUTES = {
   superadmin: [
-    { path: "/dashboard", anchor: /Where each season stands|Your leagues at a glance/i },
+    { path: "/dashboard", anchor: /Your seasons|Needs you/i },
     { path: "/organizations", anchor: /Organizations/i },
     { path: "/users", anchor: /Users/i },
     { path: "/persons", anchor: /People/i },
@@ -74,7 +74,7 @@ export const ROUTES = {
   ] as RouteCheck[],
 
   orgAdmin: [
-    { path: "/", anchor: /organization/i },
+    { path: "/", anchor: /Your seasons|Needs you/i },
     { path: "/leagues", anchor: /Leagues/i },
     { path: "/seasons", anchor: /Seasons/i },
     { path: "/divisions", anchor: /Divisions/i },
@@ -85,7 +85,7 @@ export const ROUTES = {
   ] as RouteCheck[],
 
   teamAdmin: [
-    { path: "/", anchor: /Roster|Team/i },
+    { path: "/", anchor: /Next game|Players|Roster/i },
     { path: "/roster", anchor: /Roster/i },
     { path: "/schedule", anchor: /Schedule/i },
     { path: "/lineups", anchor: /Lineups|Coming soon/i },

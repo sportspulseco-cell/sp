@@ -423,7 +423,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
                   <div className="rounded-md border border-border bg-bg-subtle p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                        // {roleName} profile
+                        {roleName} profile
                       </p>
                       <span
                         title={
@@ -470,7 +470,7 @@ export function InviteUserButton({ granter }: { granter?: InviteGranter } = {}) 
             <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
               <div className="flex items-center justify-between">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                  // Invite message · {renderedMessage.recipient}
+                  Invite message · {renderedMessage.recipient}
                 </p>
                 <Button
                   type="button"

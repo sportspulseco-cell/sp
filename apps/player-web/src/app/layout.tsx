@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Heartbeat, RouteProgress, ThemeProvider } from "@sportspulse/ui";
 import "./globals.css";
+import "@sportspulse/ui/guided.css";
 
 const inter = Inter({
   subsets: ["latin"],

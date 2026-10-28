@@ -217,7 +217,7 @@ export default async function RegistrationsPage() {
       <Reveal>
         <div>
           <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-            // queue
+            queue
           </p>
           <h2 className="mb-6 text-[22px] font-semibold tracking-tight text-fg">
             Pending review
@@ -235,7 +235,7 @@ export default async function RegistrationsPage() {
           <header className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-                // wizard
+                wizard
               </p>
               <h2 className="mt-2 text-[22px] font-semibold tracking-tight text-fg">
                 What your players see

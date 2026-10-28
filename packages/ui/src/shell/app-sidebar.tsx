@@ -67,9 +67,10 @@ export function AppSidebar({
         aria-modal="true"
         aria-label="Menu"
         aria-hidden={!open}
-        // Keeps the closed drawer's links out of the tab order. Spread so
+        // Keeps the closed drawer's links out of the tab order. React 19
+        // reads `inert` as a boolean ("" would mean false). Spread so the
         // React 18 types (no `inert` prop) accept it.
-        {...((!open ? { inert: "" } : {}) as Record<string, string>)}
+        {...((!open ? { inert: true } : {}) as Record<string, boolean>)}
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex h-screen w-[280px] max-w-[85vw] flex-col border-r border-border bg-bg-subtle transition-transform duration-200 ease-out lg:hidden",
           open ? "translate-x-0" : "-translate-x-full"
@@ -107,7 +108,7 @@ function Brand({ brand }: { brand: ShellBrand }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-semibold text-fg">{brand.name}</p>
-        <p className="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">{brand.console}</p>
+        <p className="truncate text-[12px] text-fg-muted">{brand.console}</p>
       </div>
     </div>
   );
@@ -144,7 +145,7 @@ function SidebarNav({ sections, homeHref }: { sections: ReadonlyArray<ShellNavSe
             open={holdsActive || section.defaultOpen}
             className="group/nav"
           >
-            <summary className="flex cursor-pointer list-none items-center justify-between rounded-md px-3 py-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-fg-subtle marker:hidden hover:bg-surface-2 hover:text-fg [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-md px-3 py-2 text-[12px] font-semibold text-fg-muted marker:hidden hover:bg-surface-2 hover:text-fg [&::-webkit-details-marker]:hidden">
               {section.label}
               <ChevronDown aria-hidden className="h-3.5 w-3.5 transition-transform group-open/nav:rotate-180" strokeWidth={1.75} />
             </summary>

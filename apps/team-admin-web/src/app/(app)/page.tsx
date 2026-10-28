@@ -3,10 +3,8 @@ import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { OffSeasonView } from "@/components/dashboard/off-season-view";
 import { RegistrationOpenView } from "@/components/dashboard/registration-open-view";
-import { RegistrationCallCard } from "@/components/dashboard/registration-call-card";
 import { InSeasonView } from "@/components/dashboard/in-season-view";
 import { PostSeasonView } from "@/components/dashboard/post-season-view";
-import { loadRegistrationCall } from "@/lib/captain-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -73,13 +71,6 @@ export default async function TeamAdminHome() {
     );
   }
 
-  // Registration call-to-action for any mode. The registration-open
-  // view already carries its own "Register" CTA for a plain open
-  // season, so skip the card only in that one case.
-  const call = await loadRegistrationCall(myTeamId, state);
-  const showCall =
-    !!call && !(state.mode === "registration_open" && call.kind === "open");
-
   let dashboard;
   switch (state.mode) {
     case "off_season":
@@ -101,8 +92,7 @@ export default async function TeamAdminHome() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Team workspace" title={team.name} />
-      {showCall && call ? <RegistrationCallCard call={call} /> : null}
+      <PageHeader title={team.name} />
       {dashboard}
     </div>
   );

@@ -1,13 +1,13 @@
 import { formatMoney, registrationClosesLabel, DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertCircle, ArrowRight, CalendarRange, Check, ClipboardList, Clock, Compass, ExternalLink, MapPin, Trophy, Wallet, type LucideIcon } from "lucide-react";
-import { Badge, EmptyState, Eyebrow, IconTile, PageHeader, LocalDate } from "@sportspulse/ui";
+import { AlertCircle, ArrowRight, Bell, CalendarRange, Check, ClipboardList, Clock, Compass, ExternalLink, MapPin, Trophy, UserPlus, Wallet, type LucideIcon } from "lucide-react";
+import { Badge, EmptyState, Eyebrow, IconTile, PageHeader, LocalDate, TodoList, type TodoItem } from "@sportspulse/ui";
 import type { Game, Notification, Registration } from "@sportspulse/api-client";
 import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster, subs } from "@/lib/api/server-api";
 import { TeamOffersCard } from "@/components/team-offers-card";
 import { SubRequestsCard } from "@/components/sub-requests-card";
-import { RegistrationStateBanner } from "./registration-state-banner";
+import { detectRegistrationState, stoppedAtLabel } from "./registration-state-banner";
 import { CaptainConsoleBanner } from "@/components/captain-console-banner";
 import { iconFor, noticeAt, tintFor, titleOf } from "./notifications/notice-format";
 
@@ -214,47 +214,56 @@ export default async function PlayerHome() {
   const displayName = profile.preferredName || fullName || profile.email || "Player";
   const firstName = (profile.legalFirstName ?? displayName).split(" ")[0] ?? "Player";
 
+  // "Needs you": every open task, one button each (doc/design/guided-ui.md).
+  const todo: TodoItem[] = [];
+  const regState = detectRegistrationState(regPage.items, !!team);
+  if (regState.kind === "in_progress")
+    todo.push({
+      icon: Clock,
+      tone: "warn",
+      label: `Resume your registration · ${stoppedAtLabel(regState.registration.status as string)}`,
+      action: "Resume",
+      href: `/register?resume=${regState.registration.id}`
+    });
+  else if (regState.kind === "new")
+    todo.push({ icon: UserPlus, label: "Register for a season to join a team", action: "Register", href: "/register" });
+  else if (regState.kind === "returning")
+    todo.push({ icon: CalendarRange, label: "A new season is open", action: "Register", href: "/register" });
+  if (balanceCents > 0)
+    todo.push({
+      icon: Wallet,
+      tone: overdue ? "warn" : "default",
+      label: `${formatMoney(balanceCents, currency)} to pay${overdue ? " · overdue" : nextInvoice?.dueAt ? ` · due ${fmtDate(nextInvoice.dueAt)}` : ""}`,
+      action: "Pay",
+      href: "/payments"
+    });
+  if (regState.kind !== "new" && regState.kind !== "returning")
+    for (const r of openRegs.slice(0, 2))
+      todo.push({
+        icon: CalendarRange,
+        label: `${r.seasonName} is open${registrationClosesLabel(r.registrationClosesAt) ? ` · ${registrationClosesLabel(r.registrationClosesAt)}` : ""}`,
+        action: "Sign up",
+        href: `/register/${r.seasonId}`
+      });
+  const unread = notifsPage.items.filter((n) => !n.readAt).length;
+  if (unread > 0)
+    todo.push({
+      icon: Bell,
+      label: `${unread} new ${unread === 1 ? "message" : "messages"}`,
+      action: "Read",
+      href: "/notifications"
+    });
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        className="mb-4"
-        eyebrow="Player"
-        title={`Hey ${firstName}.`}
-        description="Your team, your registrations, and what's next on the schedule."
-        action={
-          <Link
-            href="/schedule"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
-          >
-            <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.75} />
-            My schedule
-          </Link>
-        }
-      />
+    <div className="space-y-8">
+      <PageHeader title={`Hey ${firstName}.`} />
 
-      {/* Workflow 5 §3 — registration state banner above the hero so the
-          player knows whether they're new / returning / mid-funnel. */}
-      <RegistrationStateBanner registrations={regPage.items} onTeam={!!team} />
-
-      {/* A team offered this player a spot (free-agent pool) or invited
-          them: the one decision waiting on them, so it sits up top. */}
+      {/* Decisions waiting on the player: a team offer, a sub request. */}
       <TeamOffersCard items={myInvites.items} />
       <SubRequestsCard items={mySubRequests.items} />
 
-      {/* Dual-role users (player + captain) get a single discoverable
-          entry point into the captain console — which lives in
-          team-admin-web. The full /captain/* page tree was removed
-          from player-web (plan P1-2 / audit §1 §2 §6) to kill the
-          byte-identical duplication. */}
-      {scope.roleCodes.includes("captain") && <CaptainConsoleBanner />}
+      <TodoList items={todo} doneText="You're all set." />
 
-      {/* Open public registrations — leagues currently accepting
-          signups. Added to close the discovery gap: a /forms-published
-          registration link used to be invisible to a signed-in player. */}
-      <OpenRegistrationsPanel items={openRegs} />
-
-      {/* Next-game hero — full width, brand blue. Highest-priority element
-          on the dashboard per Workflow 5 §3.2. */}
       <NextGameHero
         nextGame={nextGame}
         teamId={myTeamId}
@@ -262,75 +271,10 @@ export default async function PlayerHome() {
         opponentNames={opponentNames}
       />
 
-      {/* 4 KPI cards */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon={Trophy}
-          label="Games played"
-          value={String(recent.length)}
-          hint={
-            recent.length === 0
-              ? "Season hasn't started"
-              : `Across ${teammates} teammates`
-          }
-          tint="violet"
-        />
-        <Kpi
-          icon={Trophy}
-          label="Team record"
-          value={`${record.w}-${record.l}-${record.t}`}
-          hint={team ? team.name : "—"}
-          tint={record.w > record.l ? "emerald" : "amber"}
-        />
-        <Kpi
-          icon={CalendarRange}
-          label="Upcoming games"
-          value={String(upcoming.length)}
-          hint={
-            nextGame
-              ? `Next: ${fmtDateTime(nextGame.scheduledStartTsUtc, nextGame.tz)}`
-              : "Nothing scheduled"
-          }
-          tint="blue"
-        />
-        <Kpi
-          icon={Wallet}
-          label="Balance due"
-          value={formatMoney(balanceCents, currency)}
-          hint={
-            balanceCents === 0
-              ? "Paid in full"
-              : nextInvoice?.dueAt
-                ? `Due ${fmtDate(nextInvoice.dueAt)}`
-                : "No due date set"
-          }
-          tint={overdue ? "rose" : balanceCents > 0 ? "amber" : "emerald"}
-        />
-      </section>
+      <RecentGamesCard recent={recent} myTeamId={myTeamId} opponentNames={opponentNames} />
 
-      {/* Row 1 — Recent games + Registrations card */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <RecentGamesCard
-          recent={recent}
-          myTeamId={myTeamId}
-          opponentNames={opponentNames}
-        />
-        <RegistrationsPreview regs={regPage.items} />
-      </section>
-
-      {/* Row 2 — Payments summary + Notifications preview */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <PaymentsSummary
-          openInvoices={openInvoices}
-          balanceCents={balanceCents}
-          currency={currency}
-          totalReceived={invoicesPage.items.reduce(
-            (a, i) => a + i.paidCents,
-            0
-          )}
-        />
-        <NotificationsPreview notifs={recentNotifs} now={now} />
-      </section>
+      {/* Captains run their team in the team app. */}
+      {scope.roleCodes.includes("captain") && <CaptainConsoleBanner />}
     </div>
   );
 }
@@ -351,7 +295,7 @@ function NextGameHero({
   if (!nextGame) {
     return (
       <section className="rounded-xl bg-accent p-6 text-accent-fg">
-        <Eyebrow className="!text-accent-fg/70">Next game</Eyebrow>
+        <Eyebrow className="!text-accent-fg opacity-80">Next game</Eyebrow>
         <p className="mt-3 text-[20px] font-semibold tracking-tight">
           Nothing scheduled
         </p>
@@ -370,7 +314,7 @@ function NextGameHero({
     <section className="rounded-xl bg-accent p-6 text-accent-fg">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2 min-w-0">
-          <Eyebrow className="!text-accent-fg/70">Next game</Eyebrow>
+          <Eyebrow className="!text-accent-fg opacity-80">Next game</Eyebrow>
           <p className="text-[22px] font-semibold tracking-tight">
             {teamName} <span className="text-accent-fg/80">vs.</span>{" "}
             <span>{opponentNames.get(opponent) ?? "Unnamed team"}</span>
@@ -512,264 +456,15 @@ type EnrichedRegistration = Registration & {
   teamName?: string | null;
 };
 
-function RegistrationsPreview({ regs }: { regs: EnrichedRegistration[] }) {
-  const active = regs.filter(
-    (r) => r.status !== "rejected" && r.status !== "withdrawn"
-  );
-  return (
-    <div className="rounded-xl border border-border bg-surface-1">
-      <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>My registrations</Eyebrow>
-        <Link
-          href="/register"
-          className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
-        >
-          Find a team →
-        </Link>
-      </header>
-      {active.length === 0 ? (
-        <div className="space-y-3 px-5 py-6">
-          <p className="text-[13px] text-fg-muted">
-            You are not registered for a season yet. Pick an open season below,
-            or use the link your captain sent you.
-          </p>
-          <Link
-            href="/register"
-            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-fg px-3 font-mono text-[10px] font-medium uppercase tracking-widest text-bg"
-          >
-            <Compass className="h-3.5 w-3.5" strokeWidth={2} />
-            Find a season to join
-          </Link>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {active.slice(0, 4).map((r) => {
-            const status = r.status as string;
-            const title =
-              r.seasonName ||
-              r.formName ||
-              r.leagueName ||
-              r.orgName ||
-              "Registration";
-            const sub = [r.divisionName, r.teamName, r.orgName]
-              .filter(Boolean)
-              .join(" · ");
-            return (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium text-fg">
-                    {title}
-                  </p>
-                  <p className="truncate text-[11px] text-fg-muted">
-                    {sub ||
-                      (r.submittedAt
-                        ? <>Submitted <LocalDate iso={r.submittedAt} format="monthDay" /></>
-                        : "Draft")}
-                  </p>
-                </div>
-                <Badge status={status} />
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 /* --------------------------- payments card ------------------------- */
 
-function PaymentsSummary({
-  openInvoices,
-  balanceCents,
-  currency,
-  totalReceived
-}: {
-  openInvoices: MyInvoice[];
-  balanceCents: number;
-  currency: string;
-  totalReceived: number;
-}) {
-  const next = openInvoices[0];
-  const isOverdue = next?.status === "overdue";
-  const dueSoon =
-    !isOverdue &&
-    next?.dueAt &&
-    new Date(next.dueAt).getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
-
-  return (
-    <div className="rounded-xl border border-border bg-surface-1">
-      <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>Payments</Eyebrow>
-        <Link
-          href="/payments"
-          className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
-        >
-          Manage →
-        </Link>
-      </header>
-      {balanceCents === 0 ? (
-        <div className="px-5 py-6">
-          <p className="text-[13px] text-fg">
-            <Check
-              className="mr-1.5 inline h-4 w-4 text-[var(--tint-emerald-fg)]"
-              strokeWidth={2.25}
-            />
-            Paid in full
-          </p>
-          <p className="mt-1 text-[12px] text-fg-muted">
-            {formatMoney(totalReceived, currency)} received this season.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4 px-5 py-4">
-          {(isOverdue || dueSoon) && next ? (
-            <div
-              className={
-                "rounded-md px-3 py-2 text-[12px] " +
-                (isOverdue
-                  ? "bg-[var(--tint-rose-bg)] text-[var(--tint-rose-fg)]"
-                  : "bg-[var(--tint-amber-bg)] text-[var(--tint-amber-fg)]")
-              }
-            >
-              <p className="flex items-center gap-1.5 font-medium">
-                <AlertCircle className="h-3.5 w-3.5" strokeWidth={2} />
-                {formatMoney(next.totalCents - next.paidCents, next.currency)}{" "}
-                {isOverdue ? "overdue" : "due soon"}
-                {next.dueAt ? ` · ${fmtDate(next.dueAt)}` : ""}
-              </p>
-            </div>
-          ) : null}
-          <ul className="space-y-2">
-            {openInvoices.slice(0, 3).map((inv: MyInvoice) => (
-              <li
-                key={inv.id}
-                className="flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={
-                      "h-2 w-2 shrink-0 rounded-full " +
-                      (inv.status === "overdue"
-                        ? "bg-[var(--error)]"
-                        : inv.status === "partial"
-                          ? "bg-[var(--warning)]"
-                          : "bg-[var(--tint-blue-fg)]")
-                    }
-                  />
-                  <span className="truncate text-[12px] text-fg">{inv.title}</span>
-                  <span className="shrink-0 font-mono text-[11px] text-fg-muted">
-                    {inv.invoiceNumber}
-                  </span>
-                  {inv.dueAt ? (
-                    <span className="text-[11px] text-fg-muted">
-                      · {fmtDate(inv.dueAt)}
-                    </span>
-                  ) : null}
-                </div>
-                <span className="font-mono text-[12px] tabular-nums text-fg">
-                  {formatMoney(inv.totalCents - inv.paidCents, inv.currency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="border-t border-border pt-3 text-[11px] text-fg-muted">
-            Paid so far:{" "}
-            <span className="text-[var(--tint-emerald-fg)]">
-              {formatMoney(totalReceived, currency)}
-            </span>
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ------------------------ notifications card ----------------------- */
 
-function NotificationsPreview({
-  notifs,
-  now
-}: {
-  notifs: Notification[];
-  now: Date;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface-1">
-      <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <Eyebrow>Notifications</Eyebrow>
-        <Link
-          href="/notifications"
-          className="font-mono text-[10px] uppercase tracking-widest text-accent hover:underline"
-        >
-          All →
-        </Link>
-      </header>
-      {notifs.length === 0 ? (
-        <div className="px-5 py-6 text-[13px] text-fg-muted">
-          You're all caught up. New schedule, payment, and admin notes will
-          show up here.
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {notifs.slice(0, 3).map((n: Notification) => (
-            <li key={n.id} className="flex items-start gap-3 px-5 py-3">
-              <IconTile
-                icon={iconFor(n.templateCode)}
-                tint={tintFor(n.templateCode)}
-                size="sm"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-[12px] font-medium text-fg">
-                  {titleOf(n)}
-                </p>
-                <p className="line-clamp-2 text-[11px] text-fg-muted">
-                  {n.body}
-                </p>
-              </div>
-              <p className="shrink-0 font-mono text-[10px] text-fg-muted">
-                {relativeTime(noticeAt(n), now)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 /* ------------------------------ KPI ------------------------------- */
 
-function Kpi({
-  icon,
-  label,
-  value,
-  hint,
-  tint
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint: string;
-  tint: "blue" | "violet" | "amber" | "rose" | "emerald" | "cyan" | "neutral";
-}) {
-  const Icon = icon;
-  return (
-    <div className="rounded-xl border border-border bg-surface-1 p-5">
-      <div className="flex items-center justify-between">
-        <Eyebrow>{label}</Eyebrow>
-        <IconTile icon={Icon} tint={tint} size="sm" />
-      </div>
-      <p className="mt-5 font-mono text-[24px] font-semibold tabular-nums tracking-tight text-fg">
-        {value}
-      </p>
-      <p className="mt-1 truncate text-[12px] text-fg-muted">{hint}</p>
-    </div>
-  );
-}
 
 /* ----------------- open public registrations panel ----------------- */
 
@@ -796,64 +491,3 @@ async function fetchOpenRegistrations(): Promise<OpenRegistration[]> {
   }
 }
 
-function OpenRegistrationsPanel({ items }: { items: OpenRegistration[] }) {
-  if (items.length === 0) return null;
-  const headline =
-    items.length === 1
-      ? "A league is accepting registrations"
-      : `${items.length} leagues are accepting registrations`;
-  return (
-    <section className="relative overflow-hidden rounded-xl border border-[var(--tint-emerald-fg)]/30 bg-[var(--success)]/[0.06] p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--tint-emerald-fg)]">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--tint-emerald-bg)]" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--success)]" />
-            </span>
-            <span>open · for signup</span>
-          </p>
-          <h2 className="mt-1.5 text-[18px] font-semibold tracking-tight text-fg">
-            {headline}
-          </h2>
-        </div>
-        <Link
-          href="/register"
-          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--success)] px-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white hover:bg-[var(--success)]"
-        >
-          See all
-          <ArrowRight className="h-3 w-3" strokeWidth={2} />
-        </Link>
-      </div>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.slice(0, 3).map((r) => (
-          <li key={r.seasonId}>
-            <Link
-              href={`/register/${r.seasonId}`}
-              className="group flex h-full flex-col gap-2 rounded-lg border border-border bg-bg p-4 hover:border-[var(--tint-emerald-fg)]/30"
-            >
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-                {r.orgName}
-                <span className="text-fg-subtle"> · </span>
-                {r.leagueName}
-              </p>
-              <p className="truncate text-[14px] font-semibold tracking-tight text-fg">
-                {r.seasonName}
-              </p>
-              <div className="mt-auto flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
-                  <CalendarRange className="h-3 w-3" strokeWidth={1.75} />
-                  {registrationClosesLabel(r.registrationClosesAt) ?? "open"}
-                </span>
-                <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tint-emerald-fg)]">
-                  Sign up{" "}
-                  <ArrowRight className="h-3 w-3" strokeWidth={2} />
-                </span>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}

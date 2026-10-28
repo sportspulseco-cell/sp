@@ -12,7 +12,7 @@ export function DemoBadge({ label = "demo" }: { label?: string } = {}) {
       title="Mocked for flow review. See doc/deferred-integrations.md"
       className="ml-2 inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-amber-700 dark:text-amber-300"
     >
-      // {label}
+      {label}
     </span>
   );
 }

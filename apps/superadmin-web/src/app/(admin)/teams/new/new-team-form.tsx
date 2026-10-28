@@ -412,7 +412,7 @@ export function NewTeamForm({
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="rounded-xl border border-border bg-bg-subtle p-5">
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-            // preview
+            preview
           </p>
           <TeamPreviewCard
             name={name || "Team name"}
@@ -461,7 +461,7 @@ function Section({
     <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-          // {title.toLowerCase()}
+          {title.toLowerCase()}
         </p>
         <h2 className="mt-1 text-[16px] font-semibold tracking-tight text-fg">
           {title}

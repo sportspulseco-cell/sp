@@ -7,7 +7,6 @@ import { AppShell, RolePill } from "@sportspulse/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { RegistrationCall } from "@/lib/registration-call";
 import { RegistrationBanner } from "./registration-banner";
-import { RegistrationCta } from "./registration-cta";
 import { CAPTAIN_NAV, COACH_NAV, HOME, ROUTES } from "./nav-config";
 
 const BRAND = { name: "SportsPulse", console: "Team admin", icon: UsersRound };
@@ -15,9 +14,10 @@ const BRAND = { name: "SportsPulse", console: "Team admin", icon: UsersRound };
 /**
  * Team console chrome, from the shared shell.
  *
- * Registration call-to-action: the banner under the top bar and the
- * sidebar CTA render from one value (`registrationCall`), never one
- * without the other (CAP-6).
+ * Registration call-to-action: one banner under the top bar, on every
+ * page, from one value (`registrationCall`) (CAP-6). The sidebar card
+ * and the home card that repeated it were removed (doc/design/guided-ui.md:
+ * one call, one place).
  */
 export function ConsoleShell({
   email,
@@ -50,7 +50,6 @@ export function ConsoleShell({
       home={HOME}
       user={{ email, displayName, roleLine }}
       badge={isCaptain ? <RolePill label="Captain" title="You hold the captain role for this team" /> : undefined}
-      sidebarTop={registrationCall ? <RegistrationCta call={registrationCall} /> : undefined}
       banner={registrationCall ? <RegistrationBanner call={registrationCall} /> : undefined}
       onSignOut={signOut}
     >

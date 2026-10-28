@@ -174,7 +174,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
 
       <aside className="h-fit space-y-4 rounded-xl border border-border bg-bg-subtle p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Account
+          Account
         </p>
         <Detail label="Email" value={profile.email ?? "—"} mono />
         <Detail
@@ -227,7 +227,7 @@ function SectionHeader({ title, hint }: { title: string; hint: string }) {
   return (
     <div>
       <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        // {title}
+        {title}
       </p>
       <p className="mt-1 text-[12px] text-fg-muted">{hint}</p>
     </div>

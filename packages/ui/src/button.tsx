@@ -38,7 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center font-medium tracking-tight transition-all duration-fast ease-ease focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center font-medium tracking-tight transition-[color,background-color,border-color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50",
         pill ? "rounded-full" : "rounded-md",
         VARIANTS[variant],
         SIZES[size],

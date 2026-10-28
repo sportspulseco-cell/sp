@@ -51,7 +51,7 @@ export default async function InvitePage({
     <div className="min-h-screen bg-bg text-fg">
       <div className="mx-auto max-w-xl space-y-6 px-6 py-16">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // SportsPulse · Team invite
+          SportsPulse · Team invite
         </p>
         {!invite ? (
           <Message title="Invite not found">

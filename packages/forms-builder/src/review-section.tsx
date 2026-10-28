@@ -112,7 +112,7 @@ export function ReviewSection({
 
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Summary
+          Summary
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Tile label="Season">

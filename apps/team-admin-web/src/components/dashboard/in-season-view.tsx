@@ -81,9 +81,7 @@ export async function InSeasonView({
                 ) : null}
               </p>
             ) : (
-              <p className="mt-1 text-[13px] text-fg-muted">
-                The next game will show up here once the league schedules it.
-              </p>
+              <p className="mt-1 text-[13px] text-fg-muted">Not scheduled yet.</p>
             )}
           </div>
           <Link
@@ -96,22 +94,22 @@ export async function InSeasonView({
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <MetricCard label="Active roster" value={activeCount} />
-        <MetricCard label="Record (W-L-OTL)" value={recordLabel} />
+        <MetricCard label="Players" value={activeCount} />
+        <MetricCard label="Record" value={recordLabel} />
         <MetricCard label="Standing" value={standLabel} />
-        <MetricCard label="GF" value={gfLabel} />
-        <MetricCard label="GA" value={gaLabel} />
+        <MetricCard label="Goals for" value={gfLabel} />
+        <MetricCard label="Goals against" value={gaLabel} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <MiniCard
           icon={CircleDollarSign}
           eyebrow="dues"
-          title="Collection progress"
+          title="Dues"
           body={
             state.thresholdCents > 0
               ? `${formatMoney(state.collectedCents)} of ${formatMoney(state.thresholdCents)} collected.`
-              : "No collection threshold for this season."
+              : "No dues target this season."
           }
           href="/captain/dues"
         />
@@ -119,7 +117,7 @@ export async function InSeasonView({
           icon={ShieldCheck}
           eyebrow="compliance"
           title="Roster compliance"
-          body="Open the compliance tab to see USA Hockey + playoff eligibility status per player."
+          body="USA Hockey and playoff eligibility."
           href="/captain/compliance"
         />
       </section>
@@ -147,8 +145,7 @@ async function RecentGames({ teamId }: { teamId: string }) {
   if (completed.items.length === 0) {
     return (
       <p className="px-5 py-5 text-[13px] text-fg-muted">
-        No completed games yet. Once games are final, they'll appear
-        here with score + outcome.
+        No finished games yet.
       </p>
     );
   }
@@ -208,10 +205,7 @@ function MiniCard({
       className="group flex h-full flex-col rounded-xl border border-border bg-surface-1 p-5 hover:border-accent"
     >
       <Icon className="h-5 w-5 text-fg-muted group-hover:text-accent" strokeWidth={1.5} />
-      <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        {eyebrow}
-      </p>
-      <p className="mt-1 text-[15px] font-medium text-fg">{title}</p>
+      <p className="mt-3 text-[15px] font-medium text-fg">{title}</p>
       <p className="mt-1 text-[12px] text-fg-muted">{body}</p>
       <span className="mt-auto inline-flex items-center gap-1 pt-3 font-mono text-[10px] uppercase tracking-widest text-accent">
         Open <ArrowRight className="h-3 w-3" />
@@ -221,11 +215,12 @@ function MiniCard({
 }
 
 function formatGameTitle(
-  g: { homeTeamId: string; awayTeamId: string },
+  g: { homeTeamId: string; awayTeamId: string; homeTeamName?: string | null; awayTeamName?: string | null },
   teamId: string
 ): string {
   const isHome = g.homeTeamId === teamId;
-  return isHome ? "vs opponent" : "@ opponent";
+  const opponent = (isHome ? g.awayTeamName : g.homeTeamName) ?? "opponent";
+  return isHome ? `vs ${opponent}` : `@ ${opponent}`;
 }
 
 // In the game's own zone.

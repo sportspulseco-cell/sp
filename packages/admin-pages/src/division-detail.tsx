@@ -178,7 +178,7 @@ export function DivisionDetail({
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Identity
+          Identity
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Organization" tag="orgs.display_name">
@@ -241,7 +241,7 @@ export function DivisionDetail({
 
       <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Game rules
+          Game rules
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Number of periods" mono>
@@ -277,7 +277,7 @@ export function DivisionDetail({
 
       <Reveal as="section" delay={0.12} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Standings points
+          Standings points
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {(Object.keys(POINTS_RULE_LABELS) as Array<keyof typeof POINTS_RULE_LABELS>).map((k) => (
@@ -297,7 +297,7 @@ export function DivisionDetail({
 
       <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Tiebreaker order
+          Tiebreaker order
         </p>
         {rules.tiebreakers && rules.tiebreakers.length > 0 ? (
           <ol className="mt-3 space-y-1.5">
@@ -319,7 +319,7 @@ export function DivisionDetail({
 
       <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Post-season
+          Post-season
         </p>
         {playoff.enabled ? (
           <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

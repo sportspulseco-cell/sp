@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { InfoDisclosure } from "../info-disclosure";
 
 /**
- * The header on every console page: mono eyebrow, display title, an
- * optional one-line description, and at most one primary action on the
- * right. On phones the action drops under the title.
+ * The header on every console page: a title and at most one primary
+ * action on the right. On phones the action drops under the title.
+ * Rules: doc/design/guided-ui.md (text budget).
  *
- * - `eyebrow` is the section or context ("Season · Fall 2026"), never a
- *   repeat of the title.
+ * - `description` never shows by default. It sits behind a (?) button
+ *   next to the title, for people who want the explanation.
+ * - `eyebrow` shows only when it adds context ("Season · Fall 2026",
+ *   or any node). A plain section name ("Finance") repeats the sidebar
+ *   and the breadcrumb, so it is dropped.
  * - `eyebrowDot` adds a live accent dot before the eyebrow.
  * - `action` is the one thing to do next. Secondary actions belong in
  *   the page body.
@@ -27,15 +31,16 @@ export function PageHeader({
   action?: ReactNode;
   className?: string;
 }) {
+  const showEyebrow = eyebrow != null && eyebrow !== "" && (typeof eyebrow !== "string" || eyebrow.includes("·"));
   return (
-    <header className={cn("relative mb-10 pb-8", className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-4">
-          {eyebrow ? (
-            <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-fg-muted">
+    <header className={cn("mb-6 border-b border-border pb-5", className)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-1">
+          {showEyebrow ? (
+            <div className="flex items-center gap-2 text-[13px] text-fg-muted">
               {eyebrowDot ? (
                 <span className="relative inline-flex h-2 w-2" aria-hidden>
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60 motion-reduce:hidden" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
                 </span>
               ) : null}
@@ -43,22 +48,14 @@ export function PageHeader({
             </div>
           ) : null}
 
-          <h1 className="max-w-[22ch] text-balance font-sans text-[clamp(30px,4.6vw,56px)] font-semibold leading-[0.98] tracking-tighter text-fg">
-            {title}
-          </h1>
-
-          {description ? (
-            <div className="max-w-2xl text-[14px] leading-relaxed text-fg-muted">{description}</div>
-          ) : null}
+          <InfoDisclosure info={description}>
+            <h1 className="min-w-0 text-balance font-sans text-[clamp(24px,3vw,30px)] font-semibold leading-tight tracking-tight text-fg [overflow-wrap:anywhere]">
+              {title}
+            </h1>
+          </InfoDisclosure>
         </div>
 
         {action ? <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div> : null}
-      </div>
-
-      {/* Chapter rule: hairline with a short accent stub on the left. */}
-      <div aria-hidden className="absolute inset-x-0 bottom-0 flex items-center">
-        <span className="h-px w-6 bg-[--accent]" />
-        <span className="h-px flex-1 bg-border" />
       </div>
     </header>
   );

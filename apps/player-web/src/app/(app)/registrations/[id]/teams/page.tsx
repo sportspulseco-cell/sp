@@ -110,7 +110,7 @@ export default async function FindTeamPage({
 
       <CrumbName id={id} name={r.seasonName ?? r.formName ?? r.orgName} />
       <PageHeader
-        eyebrow={`// ${r.orgName ?? "find a team"}`}
+        eyebrow={`${r.orgName ?? "find a team"}`}
         title="Find a team"
         description={
           r.divisionName

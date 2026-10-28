@@ -97,7 +97,7 @@ export function LeagueDetail({
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Identity
+          Identity
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label="League name" tag="leagues.name">{league.name}</Field>
@@ -125,7 +125,7 @@ export function LeagueDetail({
 
       <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Branding
+          Branding
         </p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label="Logo" tag="metadata.branding.logoUrl" mono>
@@ -164,7 +164,7 @@ export function LeagueDetail({
 
       <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Privacy
+          Privacy
         </p>
         <p className="mt-2 text-[13px] text-fg">
           {md.privacy
@@ -176,7 +176,7 @@ export function LeagueDetail({
       <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // Seasons in this league
+            Seasons in this league
           </p>
           <Link
             href={seasonsListTo}

@@ -28,7 +28,7 @@ export default async function SeasonApplicationsPage({
     <div className="space-y-6">
       <CrumbName id={seasonId} name={initial.season.name} />
       <PageHeader
-        eyebrow={`// admin · ${initial.season.name}`}
+        eyebrow={`${initial.season.name}`}
         title="Team applications"
         description={
           divisionListLabel

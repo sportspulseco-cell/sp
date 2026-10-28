@@ -202,7 +202,7 @@ function RoleSection({
   if (!state.loading && !state.loadError && !state.hasFields) return null;
   return (
     <div className="space-y-3 border-t border-border pt-4">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">// {role.name} profile</p>
+      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">{role.name} profile</p>
       <RoleProfileFields state={state} roleCode={role.code} showErrors={showErrors} />
     </div>
   );

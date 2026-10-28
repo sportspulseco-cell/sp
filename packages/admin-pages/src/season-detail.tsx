@@ -125,7 +125,7 @@ export function SeasonDetail({
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Season identity
+          Season identity
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Name" tag="seasons.name">{season.name}</Field>
@@ -149,7 +149,7 @@ export function SeasonDetail({
 
       <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Registration window
+          Registration window
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-3">
           <Field label="Opens" tag="seasons.registration_opens_at" mono>
@@ -166,7 +166,7 @@ export function SeasonDetail({
 
       <Reveal as="section" delay={0.15} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Eligibility &amp; roster rules
+          Eligibility &amp; roster rules
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label="Max roster size" tag="config.maxRosterSize" mono>
@@ -206,7 +206,7 @@ export function SeasonDetail({
       <Reveal as="section" delay={0.2} className="rounded-xl border border-border bg-surface-1 p-5">
         <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // Divisions in this season
+            Divisions in this season
           </p>
           <Link
             href={divisionsListTo}

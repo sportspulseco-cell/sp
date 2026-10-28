@@ -494,7 +494,7 @@ export function RoleAssignmentPanel({
           <div className="space-y-2 rounded-md border border-border bg-bg-subtle p-3">
             <div className="flex items-center justify-between">
               <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                // Invite message · {renderedMessage.recipient}
+                Invite message · {renderedMessage.recipient}
               </p>
               <Button
                 type="button"

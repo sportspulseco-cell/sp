@@ -1,0 +1,31 @@
+/*
+ * Guided UI overrides, shared by all four console apps (imported in each
+ * app's root layout). Rules: doc/design/guided-ui.md.
+ *
+ * Small letter-spaced monospace capitals were used for labels across the
+ * apps (about 650 places). They read as shouting and slow people down.
+ * These rules turn every such label into normal sentence-case text in
+ * the body font, without touching each file. Two-class selectors beat
+ * the single-class Tailwind utilities, whatever the load order.
+ * Monospace without `uppercase` (codes, invoice numbers, scores) stays.
+ */
+.font-mono.uppercase,
+.uppercase.tracking-wide,
+.uppercase.tracking-wider,
+.uppercase.tracking-widest,
+.uppercase[class*="tracking-[0."] {
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* Block-level labels written in lower case still start with a capital. */
+.font-mono.uppercase::first-letter,
+.uppercase[class*="tracking-"]::first-letter {
+  text-transform: uppercase;
+}
+/* The caps style was set at 9 to 11px; sentence case needs 12px to read. */
+.uppercase[class*="text-[9px]"],
+.uppercase[class*="text-[10px]"],
+.uppercase[class*="text-[11px]"] {
+  font-size: 12px;
+}

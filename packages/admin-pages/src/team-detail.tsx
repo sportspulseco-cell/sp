@@ -55,7 +55,7 @@ export function TeamDetail({
 
       <Reveal as="section" delay={0.05} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Identity
+          Identity
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Team name" tag="teams.name">
@@ -88,7 +88,7 @@ export function TeamDetail({
 
       <Reveal as="section" delay={0.1} className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // Branding
+          Branding
         </p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Logo" tag="teams.logo_url" mono>

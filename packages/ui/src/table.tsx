@@ -30,7 +30,7 @@ export function THead({
   return (
     <thead
       className={cn(
-        "border-b border-border bg-bg-subtle font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-fg-muted",
+        "border-b border-border bg-bg-subtle text-[12px] font-medium text-fg-muted",
         className
       )}
       {...rest}
@@ -90,10 +90,7 @@ export function EmptyRow({
         colSpan={colSpan}
         className="px-5 py-14 text-center text-[13px] text-fg-muted"
       >
-        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle">
-          // empty
-        </span>
-        <span className="mt-2 block">{message}</span>
+        {message}
       </td>
     </tr>
   );

@@ -58,7 +58,7 @@ export function RegistrationBanner({ call }: { call: RegistrationCall }) {
             <p
               className={`flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] ${tone.fg}`}
             >
-              <span className="opacity-70">//</span>
+              
               <span>{tone.eyebrow}</span>
             </p>
             <p className="mt-0.5 truncate text-[14px] font-medium text-fg">
@@ -121,7 +121,7 @@ const TONES: Record<
   }
 > = {
   open: {
-    eyebrow: "season · open",
+    eyebrow: "Registration open",
     detail: "",
     icon: Sparkles,
     border: "border-[var(--tint-emerald-fg)]/30",
@@ -133,7 +133,7 @@ const TONES: Record<
     button: "bg-[var(--success)] hover:bg-[var(--success)]"
   },
   setup: {
-    eyebrow: "application · approved",
+    eyebrow: "Application approved",
     detail: "set-up pending",
     icon: CheckCircle2,
     border: "border-[var(--tint-emerald-fg)]/30",
@@ -145,7 +145,7 @@ const TONES: Record<
     button: "bg-[var(--success)] hover:bg-[var(--success)]"
   },
   pending: {
-    eyebrow: "application · pending review",
+    eyebrow: "Application pending review",
     detail: "awaiting league admin",
     icon: Clock,
     border: "border-[var(--tint-amber-fg)]/30",
@@ -157,7 +157,7 @@ const TONES: Record<
     button: "bg-fg hover:bg-fg text-bg"
   },
   denied: {
-    eyebrow: "application · not approved",
+    eyebrow: "Application not approved",
     detail: "apply to a different division",
     icon: XCircle,
     border: "border-[var(--tint-rose-fg)]/30",

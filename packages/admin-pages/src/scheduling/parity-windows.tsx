@@ -153,7 +153,7 @@ export function SchedulingParityWindows({ seasonId }: Props) {
   const createForm = showCreate ? (
     <div className="rounded-lg border border-border bg-bg p-4 space-y-3">
       <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        // New parity window
+        New parity window
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Start date">

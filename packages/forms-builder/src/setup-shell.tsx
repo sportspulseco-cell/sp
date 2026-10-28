@@ -273,7 +273,7 @@ export function RegistrationSetupShell({
         <aside className="rounded-xl border border-border bg-bg-subtle p-3">
           <div className="px-2 pb-3">
             <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-fg-subtle">
-              <span className="text-fg-subtle/70">//</span>
+              
               <span>registration · setup</span>
             </p>
             <p className="mt-1 text-[12px] text-fg-muted">

@@ -37,20 +37,20 @@ export function RegistrationStateBanner({
    */
   onTeam?: boolean;
 }) {
-  const state = detectState(registrations, onTeam);
+  const state = detectRegistrationState(registrations, onTeam);
   if (state.kind === "active") return null;
   if (state.kind === "new") return <NewPlayerBanner />;
   if (state.kind === "returning") return <ReturningBanner />;
   return <ResumeBanner registration={state.registration} />;
 }
 
-type RegState =
+export type RegState =
   | { kind: "active" }
   | { kind: "new" }
   | { kind: "returning" }
   | { kind: "in_progress"; registration: Registration };
 
-function detectState(regs: Registration[], onTeam: boolean): RegState {
+export function detectRegistrationState(regs: Registration[], onTeam: boolean): RegState {
   if (regs.length === 0) return onTeam ? { kind: "active" } : { kind: "new" };
   const incomplete = regs.find((r) => {
     const s = r.status as string;
@@ -77,7 +77,7 @@ function NewPlayerBanner() {
           <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-blue-fg)]" strokeWidth={1.75} />
           <div className="space-y-1">
             <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-blue-fg)]">
-              // New here?
+              New here?
             </p>
             <p className="text-[14px] font-medium text-fg">
               Register for a season to unlock your dashboard
@@ -108,7 +108,7 @@ function ReturningBanner() {
           <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-emerald-fg)]" strokeWidth={1.75} />
           <div className="space-y-1">
             <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-emerald-fg)]">
-              // Welcome back
+              Welcome back
             </p>
             <p className="text-[14px] font-medium text-fg">
               A new season is open. Register again to keep playing.
@@ -132,9 +132,13 @@ function ReturningBanner() {
 }
 
 function ResumeBanner({ registration }: { registration: Registration }) {
-  const status = registration.status as string;
-  const stoppedAt =
-    status === "incomplete"
+  const stoppedAt = stoppedAtLabel(registration.status as string);
+  return <ResumeBannerView registration={registration} stoppedAt={stoppedAt} />;
+}
+
+/** Why a registration is unfinished, in a few words. */
+export function stoppedAtLabel(status: string): string {
+  return status === "incomplete"
       ? "Admin requested a resubmission"
       : status === "pending_consent"
         ? "Parental consent still needed"
@@ -143,6 +147,9 @@ function ResumeBanner({ registration }: { registration: Registration }) {
           : status === "pending_verification"
             ? "Identity verification pending"
             : "Some steps remain";
+}
+
+function ResumeBannerView({ registration, stoppedAt }: { registration: Registration; stoppedAt: string }) {
   return (
     <section className="rounded-xl border border-[var(--tint-amber-fg)]/30 bg-[var(--tint-amber-bg)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -150,7 +157,7 @@ function ResumeBanner({ registration }: { registration: Registration }) {
           <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tint-amber-fg)]" strokeWidth={1.75} />
           <div className="space-y-1">
             <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--tint-amber-fg)]">
-              // Registration in progress
+              Registration in progress
             </p>
             <p className="text-[14px] font-medium text-fg">
               Resume your registration

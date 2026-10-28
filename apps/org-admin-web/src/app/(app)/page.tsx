@@ -1,8 +1,7 @@
-import { formatMoney } from "@sportspulse/kernel";
+import { formatMoney, SUBMISSION_STATUS_FILTERS } from "@sportspulse/kernel";
 import { fetchAll } from "@sportspulse/api-client";
-import Link from "next/link";
-import { ArrowUpRight, Building2, CalendarRange, ClipboardList, Layers, ScrollText, Trophy, Wallet } from "lucide-react";
-import { Badge, EmptyState, LocalDate, PageHeader, SectionRail, StatTile, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
+import { Building2, ClipboardList, Wallet } from "lucide-react";
+import { EmptyState, PageHeader, TodoList, type TodoItem } from "@sportspulse/ui";
 import { adminTransfers, gameOps, leagueMgmt, loadMeScope, orgAdminFinance, orgs, registration, registrationV2Admin, roster } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { SeasonFlow } from "@sportspulse/admin-pages";
@@ -46,21 +45,9 @@ export default async function OrgAdminHome() {
         .catch(() => ({ items: [], nextCursor: null }))
     ]);
 
-  const activeLeagues = leaguesPage.items.filter(
-    (l) => (l.status as string) === "active"
-  );
-  const openSeasons = seasonsPage.items.filter((s) => {
-    const v = s.status as string;
-    return v === "registration_open" || v === "in_progress" || v === "active";
-  });
-  const pendingRegs = registrationsPage.items.filter((r) => {
-    const v = r.status as string;
-    return (
-      v === "submitted" ||
-      v === "under_review" ||
-      v.startsWith("pending_")
-    );
-  });
+  // The same "to review" as the review queue's filter (kernel).
+  const toReview = new Set<string>(SUBMISSION_STATUS_FILTERS.find((f) => f.value === "pending_review")?.statuses ?? []);
+  const pendingRegs = registrationsPage.items.filter((r) => toReview.has(r.status as string));
 
   const currency = invoicesPage.items[0]?.currency ?? "USD";
   const outstandingCents = invoicesPage.items
@@ -70,31 +57,28 @@ export default async function OrgAdminHome() {
     (i) => i.status === "overdue"
   ).length;
 
+  const todo: TodoItem[] = [];
+  if (pendingRegs.length > 0)
+    todo.push({
+      icon: ClipboardList,
+      label: `${pendingRegs.length} ${pendingRegs.length === 1 ? "registration" : "registrations"} to review`,
+      action: "Review",
+      href: "/registrations"
+    });
+  if (overdueCount > 0)
+    todo.push({
+      icon: Wallet,
+      tone: "warn",
+      label: `${overdueCount} overdue ${overdueCount === 1 ? "invoice" : "invoices"} · ${formatMoney(outstandingCents, currency)} owed`,
+      action: "Follow up",
+      href: "/finance"
+    });
+
   return (
-    <div className="space-y-14">
-      <PageHeader
-        eyebrow="Overview"
-        title={myOrg?.displayName ?? "Your organization"}
-        description="Welcome back. Here's what's happening across your organization."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/seasons"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors duration-fast ease-ease hover:border-fg-muted hover:text-fg"
-            >
-              Manage seasons
-              <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-            </Link>
-            <Link
-              href="/finance"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted transition-colors duration-fast ease-ease hover:border-fg-muted hover:text-fg"
-            >
-              Finance
-              <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-            </Link>
-          </div>
-        }
-      />
+    <div className="space-y-10">
+      <PageHeader title={myOrg?.displayName ?? "Your organization"} />
+
+      <TodoList items={todo} />
 
       {/* Season lifecycle with one next step each (shared with the admin console). */}
       <SeasonFlow
@@ -104,152 +88,6 @@ export default async function OrgAdminHome() {
         orgId={myOrgId}
         links={{ rosters: "/teams", results: "/scheduling" }}
       />
-
-      {/* 01 · Pulse — KPI grid */}
-      <section className="space-y-6">
-        <SectionRail
-          index="01"
-          label="Pulse"
-          subtitle="The four numbers that matter today: leagues, seasons, registrations waiting, and money outstanding."
-        />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatTile
-            icon={Trophy}
-            label="Active leagues"
-            value={String(activeLeagues.length)}
-            hint={`${leaguesPage.items.length} total`}
-            tone="blue"
-          />
-          <StatTile
-            icon={CalendarRange}
-            label="Open seasons"
-            value={String(openSeasons.length)}
-            hint={`${seasonsPage.items.length} total`}
-            tone="violet"
-          />
-          <StatTile
-            icon={ClipboardList}
-            label="Registrations to review"
-            value={String(pendingRegs.length)}
-            hint={`${registrationsPage.items.length} total submissions`}
-            tone="amber"
-          />
-          <StatTile
-            icon={Wallet}
-            label="Outstanding AR"
-            value={formatMoney(outstandingCents, currency)}
-            hint={
-              overdueCount > 0
-                ? `${overdueCount} overdue`
-                : "No overdue invoices"
-            }
-            tone={overdueCount > 0 ? "rose" : "emerald"}
-          />
-        </div>
-      </section>
-
-      {/* 02 · Leagues — table shell */}
-      <section className="space-y-6">
-        <SectionRail
-          index="02"
-          label="Leagues"
-          subtitle={`Every league owned by ${myOrg?.displayName ?? "your org"}. Drill in to manage seasons, divisions, and rosters.`}
-          meta={`// ${leaguesPage.items.length} total`}
-        />
-        <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {leaguesPage.items.length === 0 ? (
-            <div className="px-6 py-12">
-              <EmptyState
-                icon={Layers}
-                title="No leagues yet"
-                description="Kick off setup by creating your first league."
-              />
-            </div>
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>League</TH>
-                  <TH>Sport</TH>
-                  <TH>Format</TH>
-                  <TH>Status</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {leaguesPage.items.map((l) => (
-                  <TR key={l.id}>
-                    <TD className="font-medium text-fg">
-                      <Link
-                        href={`/leagues/${l.id}`}
-                        className="hover:text-accent"
-                      >
-                        {l.name}
-                      </Link>
-                    </TD>
-                    <TD className="font-mono text-[11px] uppercase tracking-wide text-fg-muted">
-                      {l.sportCode}
-                    </TD>
-                    <TD className="text-fg-muted">{l.format ?? "—"}</TD>
-                    <TD>
-                      <Badge status={l.status} />
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </div>
-      </section>
-
-      {/* 03 · Activity — recent registrations */}
-      <section className="space-y-6">
-        <SectionRail
-          index="03"
-          label="Activity"
-          subtitle="The newest registrations across every season in this org. Approve them from the registrations queue when they're ready."
-          meta={`// ${registrationsPage.items.length} loaded`}
-        />
-        <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-          {registrationsPage.items.length === 0 ? (
-            <div className="px-6 py-12">
-              <EmptyState
-                icon={ScrollText}
-                title="No registrations yet"
-                description="Registrations submitted via the public funnel will land here."
-              />
-            </div>
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Player</TH>
-                  <TH>Email</TH>
-                  <TH>Status</TH>
-                  <TH className="text-right">Created</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {registrationsPage.items.slice(0, 10).map((r) => (
-                  <TR key={r.id}>
-                    <TD className="text-[13px] font-medium text-fg">
-                      {(r.metadata as { fullName?: string })?.fullName ?? "Unnamed"}
-                    </TD>
-                    <TD className="text-[12px] text-fg-muted">
-                      {(r.metadata as { email?: string })?.email ?? "Not provided"}
-                    </TD>
-                    <TD>
-                      <Badge status={r.status} />
-                    </TD>
-                    <TD className="text-right text-[12px] text-fg-muted">
-                      <LocalDate iso={r.createdAt} format="date" />
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </div>
-      </section>
     </div>
   );
 }

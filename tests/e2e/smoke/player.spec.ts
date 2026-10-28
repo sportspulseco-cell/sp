@@ -19,29 +19,16 @@ test.describe("player smoke", () => {
     });
   }
 
-  test("home: hero + KPI tiles + 4 home sections render", async ({ page }) => {
+  // Guided home (doc/design/guided-ui.md): "Needs you" (tasks, or one
+  // "all set" line), the next game, recent games. Totals live on their
+  // own pages.
+  test("home: needs-you list, next game and recent games render", async ({ page }) => {
     await page.goto(E2E_URLS.player);
     await expect(page.getByText(/Hey /i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Needs you" })).toBeVisible();
     // Next-game hero (always present, even when empty).
     await expect(page.getByText(/Next game/i).first()).toBeVisible();
-    // 4 KPI labels.
-    for (const k of [
-      "Games played",
-      "Team record",
-      "Upcoming games",
-      "Balance due"
-    ]) {
-      await expect(page.getByText(k, { exact: false }).first()).toBeVisible();
-    }
-    // 4 home sections.
-    for (const s of [
-      "Recent games",
-      "My registrations",
-      "Payments",
-      "Notifications"
-    ]) {
-      await expect(page.getByText(s, { exact: false }).first()).toBeVisible();
-    }
+    await expect(page.getByText("Recent games", { exact: false }).first()).toBeVisible();
   });
 
   test("schedule: filter pills + iCal export button visible", async ({

@@ -16,7 +16,7 @@ export function RoleProfileSection({ userId, roleCode }: { userId: string; roleC
     <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-6">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          // {roleName} profile
+          {roleName} profile
         </p>
         <p className="mt-1 text-[12px] text-fg-muted">
           Used for eligibility, emergencies and your roster card. Fields marked * are required.

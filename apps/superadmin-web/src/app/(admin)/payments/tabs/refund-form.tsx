@@ -240,7 +240,7 @@ export function RefundForm({
       {existingRefunds.length > 0 ? (
         <section className="rounded-xl border border-border bg-surface-1 p-6">
           <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-            // Refund history
+            Refund history
           </p>
           <ul className="mt-3 divide-y divide-border">
             {existingRefunds.map((r) => (

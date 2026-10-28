@@ -88,7 +88,7 @@ function ReviewSummary({
   return (
     <section className="rounded-xl border border-border bg-bg-subtle p-6">
       <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        // Review summary
+        Review summary
       </p>
       <p className="mt-1 text-[14px] font-semibold tracking-tight text-fg">
         Confirm everything before publishing

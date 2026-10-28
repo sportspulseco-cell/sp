@@ -75,17 +75,11 @@ export function StatCardSkeleton() {
   );
 }
 
-// Skeleton for the editorial PageHeader (mono eyebrow + display headline + sub).
+// Skeleton for PageHeader (title, then the hairline).
 export function PageHeaderSkeleton() {
   return (
-    <div className="relative mb-10 pb-8">
-      <Skeleton className="h-3 w-40" />
-      <Skeleton className="mt-4 h-12 w-2/3" />
-      <Skeleton className="mt-3 h-4 w-1/2" />
-      <div className="absolute inset-x-0 bottom-0 flex items-center">
-        <span className="h-px w-6 bg-[--accent]" />
-        <span className="h-px flex-1 bg-border" />
-      </div>
+    <div className="mb-6 border-b border-border pb-5">
+      <Skeleton className="h-8 w-1/3" />
     </div>
   );
 }

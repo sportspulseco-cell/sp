@@ -137,7 +137,7 @@ export function NoShowReport({ seasons }: { seasons: Season[] }) {
         <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg-muted">
-              // {items.length} team{items.length === 1 ? "" : "s"} did not
+              {items.length} team{items.length === 1 ? "" : "s"} did not
               return
             </p>
           </header>

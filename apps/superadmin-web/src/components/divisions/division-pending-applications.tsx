@@ -88,7 +88,7 @@ export function DivisionPendingApplications({
       <header className="flex items-start justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300">
-            // pending applications
+            pending applications
           </p>
           <p className="mt-1 text-[14px] font-semibold tracking-tight text-fg">
             {items.length} captain{items.length === 1 ? "" : "s"} waiting on

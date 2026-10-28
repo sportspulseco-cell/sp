@@ -1,8 +1,8 @@
 import { cn } from "./lib/cn";
 import type { ReactNode } from "react";
 
-// Mono uppercase eyebrow label, often paired with a leading dot or icon.
-// Pattern from SuperAccountant: ● INDIA · CHARTERED PATH
+// Small muted label above a value or heading, optionally with a dot.
+// Sentence case, body font (doc/design/guided-ui.md).
 export function Eyebrow({
   children,
   dot,
@@ -17,7 +17,7 @@ export function Eyebrow({
   return (
     <p
       className={cn(
-        "font-mono text-[11px] font-medium uppercase tracking-wide text-fg-muted",
+        "text-[13px] font-medium text-fg-muted first-letter:uppercase",
         "flex items-center gap-2",
         className
       )}
@@ -46,7 +46,7 @@ export function Chip({
     <span
       className={cn(
         "inline-flex h-5 items-center rounded-md border border-border bg-surface-1 px-2",
-        "font-mono text-[10px] font-medium uppercase tracking-wide text-fg-muted",
+        "text-[12px] font-medium text-fg-muted",
         className
       )}
     >

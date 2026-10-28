@@ -63,9 +63,9 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center gap-1.5 rounded-md px-2",
+        "inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-md px-2",
         resolvedMono
-          ? "font-mono text-[10px] font-medium uppercase tracking-[0.18em]"
+          ? "text-[12px] font-medium"
           : "text-[11px] font-medium tracking-tight",
         TONES[resolvedTone],
         className
