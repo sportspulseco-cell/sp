@@ -64,7 +64,7 @@ export default async function OrgAdminOrgSetupPage() {
   const regionOrg = ordered[0]!;
   return (
     <div className="space-y-8">
-      <RegionsSection orgId={regionOrg.id} orgName={regionOrg.displayName} />
+      <RegionsSection orgId={regionOrg.id} orgName={regionOrg.displayName} folded />
       <OrgSetupShell
         orgs={ordered}
         sports={sports}
