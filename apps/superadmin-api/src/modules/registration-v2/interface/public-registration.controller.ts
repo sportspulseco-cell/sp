@@ -1253,7 +1253,8 @@ export class PublicRegistrationController {
         languageCode: "en",
         signMode: d.signMode,
         signed: d.signed,
-        signedAt: d.signedAt
+        signedAt: d.signedAt,
+        signedByGuardian: d.signedByGuardian
       }))
     };
   }
@@ -1324,7 +1325,14 @@ export class PublicRegistrationController {
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
     const rowMeta = (row.metadata as Record<string, unknown>) ?? {};
-    if (row.status !== "pending_consent") {
+    // UC-27: a minor whose guardian consented before guardians signed the
+    // documents too can still have them sign: same link, documents only.
+    const documentsOnly =
+      row.status === "pending_payment" &&
+      !!rowMeta.parentConsentConfirmedAt &&
+      isMinorOn((rowMeta.dobDate as string | null | undefined) ?? null) &&
+      (await this.requirements.listDocuments(row)).documents.some((d) => !d.signed);
+    if (row.status !== "pending_consent" && !documentsOnly) {
       // Was a plain Error (500). Already-consented is the common case.
       throw new ConflictException({
         error: "not_pending_consent",
@@ -1334,7 +1342,7 @@ export class PublicRegistrationController {
         currentStatus: row.status
       });
     }
-    const parentEmail = (body.parentEmail ?? "").trim().toLowerCase();
+    const parentEmail = (body.parentEmail || (documentsOnly ? (rowMeta.parentEmail as string | undefined) : "") || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
       throw new UnprocessableEntityException("Enter your parent or guardian's email address.");
     }
@@ -1360,11 +1368,15 @@ export class PublicRegistrationController {
 
     // One per-environment origin for every emailed link (shared/app-urls).
     const portalUrl = `${playerWebUrl(this.config)}/parental-consent/${token}`;
-    const subject = "Action required: please confirm your child's registration";
+    const subject = documentsOnly
+      ? "Action required: please sign your child's registration documents"
+      : "Action required: please confirm your child's registration";
     const messageBody = [
-      `A child registration on SportsPulse needs your consent before it can proceed.`,
+      documentsOnly
+        ? `Your child's registration on SportsPulse needs your signature on the league's documents before they can pay.`
+        : `A child registration on SportsPulse needs your consent before it can proceed.`,
       ``,
-      `Click here to review and confirm:`,
+      `Click here to review and sign:`,
       portalUrl,
       ``,
       `This link expires in 24 hours. If you weren't expecting this email, ignore it.`
@@ -1445,6 +1457,8 @@ export class PublicRegistrationController {
     consentText: string;
     guardianEmail: string | null;
     signedBy: string | null;
+    /** UC-27: the documents the guardian signs with the consent. */
+    documents: Array<{ key: string; title: string; content: string; signed: boolean; signedByGuardian: string | null }>;
   }> {
     const decoded = this.decodeConsentToken(token);
     if (!decoded) {
@@ -1468,7 +1482,15 @@ export class PublicRegistrationController {
       throw new NotFoundException("Submission not found");
     }
     const meta = (row.r.metadata as Record<string, unknown>) ?? {};
+    const { documents } = await this.requirements.listDocuments(row.r);
     return {
+      documents: documents.map((d) => ({
+        key: d.key,
+        title: d.title,
+        content: d.contentHtml,
+        signed: d.signed,
+        signedByGuardian: d.signedByGuardian
+      })),
       submissionId: row.r.id,
       status: row.r.status,
       childDisplayName: (meta.fullName as string) ?? "your child",
@@ -1507,6 +1529,8 @@ export class PublicRegistrationController {
     alreadyConfirmed?: boolean;
     signatureId?: string | null;
     signedBy?: string | null;
+    /** Documents signed by this request (UC-27). */
+    documentsSigned?: number;
   }> {
     const decoded = this.decodeConsentToken(token);
     if (!decoded) {
@@ -1548,7 +1572,20 @@ export class PublicRegistrationController {
 
       if (row.status !== "pending_consent") {
         if (body.action === "confirm" && meta.parentConsentConfirmedAt) {
+          // UC-27: consent given earlier; sign the documents still missing
+          // (idempotent), while the registration has not been paid yet.
+          const docs =
+            row.status === "pending_payment"
+              ? await this.requirements.signGuardianDocuments(tx, {
+                  registration: row,
+                  guardianName,
+                  guardianEmail: (meta.parentEmail as string | undefined) ?? null,
+                  ipAddr,
+                  userAgent
+                })
+              : null;
           return {
+            documentsSigned: docs?.signed ?? 0,
             submissionId: row.id,
             status: row.status,
             alreadyConfirmed: true,
@@ -1616,6 +1653,14 @@ export class PublicRegistrationController {
         ipAddr,
         userAgent
       });
+      // UC-27: the guardian signs the child's documents with the consent.
+      const docs = await this.requirements.signGuardianDocuments(tx, {
+        registration: row,
+        guardianName,
+        guardianEmail: (meta.parentEmail as string | undefined) ?? null,
+        ipAddr,
+        userAgent
+      });
       const [updated] = await tx
         .update(schema.registrations)
         .set({
@@ -1640,7 +1685,8 @@ export class PublicRegistrationController {
         submissionId: row.id,
         status: updated.status,
         signatureId: signature.signatureId,
-        signedBy: guardianName
+        signedBy: guardianName,
+        documentsSigned: docs.signed
       };
     });
     this.log.log(

@@ -762,6 +762,16 @@ export function RegistrationFunnel({
             onPhotoReleaseChange={setPhotoReleaseAccepted}
             error={error}
             onSign={signDocument}
+            isMinor={isMinor}
+            onAskGuardian={async () => {
+              if (!submissionId) return;
+              // Same consent email; for a minor past consent it asks the
+              // guardian to sign the documents only (UC-27).
+              await api.startParentalConsent(submissionId, { email: email.trim(), parentEmail });
+            }}
+            onRefresh={() => {
+              if (submissionId) void loadWaivers(submissionId, email.trim());
+            }}
             onBack={back}
             onNext={() => {
               setError(null);
@@ -1587,12 +1597,19 @@ function WaiversStep({
   photoReleaseAccepted,
   onPhotoReleaseChange,
   onSign,
+  isMinor = false,
+  onAskGuardian,
+  onRefresh,
   onBack,
   onNext,
   error
 }: {
   /** null until the API list has loaded. */
   documents: WaiverDoc[] | null;
+  /** UC-27: a minor's documents are signed by their parent or guardian. */
+  isMinor?: boolean;
+  onAskGuardian?: () => Promise<void>;
+  onRefresh?: () => void;
   loadError: string | null;
   onRetryLoad: () => void;
   signerName: string;
@@ -1744,7 +1761,11 @@ function WaiversStep({
         </section>
       ) : null}
 
-      {typedDocs.length > 0 ? (
+      {isMinor && docs.length > 0 ? (
+        <GuardianDocsCard documents={docs} onAskGuardian={onAskGuardian} onRefresh={onRefresh} />
+      ) : null}
+
+      {!isMinor && typedDocs.length > 0 ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
           <p className="text-[14px] font-semibold tracking-tight text-fg">
             {typedDocs.length === 1 ? "Sign to continue" : `Documents to sign (${typedDocs.length})`}
@@ -1765,7 +1786,7 @@ function WaiversStep({
         </section>
       ) : null}
 
-      {ackDocs.map((d) => (
+      {(isMinor ? [] : ackDocs).map((d) => (
         <AcknowledgeCard
           key={d.key ?? d.documentId}
           doc={d}
@@ -1836,6 +1857,81 @@ function WaiversStep({
  * the acknowledgment through the API; the switch shows the API's answer
  * and cannot be switched off once recorded.
  */
+/**
+ * UC-27: what a minor sees instead of signing. Their parent or guardian
+ * signs the documents from the consent email; this shows who signed each
+ * one, or that it is waiting, with a way to send the email again.
+ */
+function GuardianDocsCard({
+  documents,
+  onAskGuardian,
+  onRefresh
+}: {
+  documents: WaiverDoc[];
+  onAskGuardian?: () => Promise<void>;
+  onRefresh?: () => void;
+}) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const waiting = documents.some((d) => !d.signed);
+  return (
+    <section className="rounded-xl border border-border bg-surface-1 p-5">
+      <p className="text-[14px] font-semibold tracking-tight text-fg">Signed by your parent or guardian</p>
+      <ul className="mt-3 divide-y divide-border">
+        {documents.map((d) => (
+          <li key={d.key ?? d.documentId} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+            <span className="text-[13px] font-medium text-fg">{d.name}</span>
+            {d.signed ? (
+              <Badge status="accepted">
+                <Check className="h-3 w-3" strokeWidth={2.25} />
+                {d.signedByGuardian ? `Signed by ${d.signedByGuardian}` : "Signed"}
+              </Badge>
+            ) : (
+              <Badge status="pending">Waiting for them</Badge>
+            )}
+          </li>
+        ))}
+      </ul>
+      {waiting ? (
+        <div className="mt-3 space-y-3">
+          <p className="text-[13px] text-fg-muted">They sign these from the email we sent them.</p>
+          <div className="flex flex-wrap gap-2">
+            {onAskGuardian ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={sending}
+                onClick={async () => {
+                  setSending(true);
+                  setErr(null);
+                  try {
+                    await onAskGuardian();
+                    setSent(true);
+                  } catch (e) {
+                    setErr((e as Error).message);
+                  } finally {
+                    setSending(false);
+                  }
+                }}
+              >
+                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : sent ? "Sent again" : "Send the email again"}
+              </Button>
+            ) : null}
+            {onRefresh ? (
+              <Button type="button" variant="ghost" size="sm" onClick={onRefresh}>
+                Check again
+              </Button>
+            ) : null}
+          </div>
+          {err ? <Alert tone="error">{err}</Alert> : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function AcknowledgeCard({
   doc,
   onAccept

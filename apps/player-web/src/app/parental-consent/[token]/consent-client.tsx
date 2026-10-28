@@ -14,6 +14,10 @@ const API =
  * API stores that as a signed consent record with the text, and only
  * then moves the registration on. Anonymous: the token is the auth.
  * The confirmation card shows what the server stored, not the click.
+ * UC-27: the same signature covers the league's documents (liability
+ * waiver, code of conduct...), shown here in full; the child does not
+ * sign them. `documentsOnly`: consent was given earlier, sign the
+ * documents still missing.
  */
 export function ParentalConsentClient({
   token,
@@ -22,7 +26,9 @@ export function ParentalConsentClient({
   orgName,
   consentTitle,
   consentText,
-  guardianEmail
+  guardianEmail,
+  documents = [],
+  documentsOnly = false
 }: {
   token: string;
   childDisplayName: string;
@@ -31,6 +37,8 @@ export function ParentalConsentClient({
   consentTitle: string;
   consentText: string;
   guardianEmail: string | null;
+  documents?: Array<{ key: string; title: string; content: string }>;
+  documentsOnly?: boolean;
 }) {
   const [busy, setBusy] = useState<"confirm" | "decline" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,12 +108,12 @@ export function ParentalConsentClient({
           />
           <div>
             <p className="text-[18px] font-semibold tracking-tight text-fg">
-              Consent signed and recorded.
+              {documentsOnly ? "Documents signed and recorded." : "Consent signed and recorded."}
             </p>
             <p className="mt-1 text-[13px] text-fg-muted">
               {outcome.signedBy ? `Signed by ${outcome.signedBy}. ` : ""}
-              {childDisplayName}&apos;s registration can now continue to the
-              waivers and payment. You can close this page.
+              {childDisplayName} can now continue to payment. You can close
+              this page.
             </p>
           </div>
         </div>
@@ -138,7 +146,7 @@ export function ParentalConsentClient({
     <section className="mt-8 space-y-5 rounded-2xl border border-border bg-surface-1 p-6">
       <div>
         <p className="text-[18px] font-semibold tracking-tight text-fg">
-          Confirm registration for{" "}
+          {documentsOnly ? "Sign the league's documents for " : "Confirm registration for "}
           <span className="text-fg">{childDisplayName}</span>
         </p>
         <dl className="mt-4 divide-y divide-border rounded-xl border border-border bg-bg-subtle text-[13px]">
@@ -163,12 +171,23 @@ export function ParentalConsentClient({
         </dl>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-[13px] font-semibold text-fg">{consentTitle}</p>
-        <div className="max-h-56 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-bg-subtle p-3 text-[13px] leading-relaxed text-fg">
-          {consentText}
+      {documentsOnly ? null : (
+        <div className="space-y-2">
+          <p className="text-[13px] font-semibold text-fg">{consentTitle}</p>
+          <div className="max-h-56 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-bg-subtle p-3 text-[13px] leading-relaxed text-fg">
+            {consentText}
+          </div>
         </div>
-      </div>
+      )}
+
+      {documents.map((d) => (
+        <div key={d.key} className="space-y-2">
+          <p className="text-[13px] font-semibold text-fg">{d.title}</p>
+          <div className="max-h-56 overflow-y-auto whitespace-pre-line rounded-md border border-border bg-bg-subtle p-3 text-[13px] leading-relaxed text-fg">
+            {d.content}
+          </div>
+        </div>
+      ))}
 
       <Field
         label="Your full legal name"
@@ -192,7 +211,12 @@ export function ParentalConsentClient({
         />
         <span>
           I am {childDisplayName}&apos;s parent or legal guardian. I have read
-          the consent above and agree to it.
+          {documentsOnly
+            ? " the documents above and agree to them"
+            : documents.length > 0
+              ? " the consent and the documents above and agree to them"
+              : " the consent above and agree to it"}
+          {" "}on {childDisplayName}&apos;s behalf.
         </span>
       </label>
 
@@ -215,10 +239,11 @@ export function ParentalConsentClient({
           ) : (
             <>
               <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
-              Sign and confirm registration
+              {documentsOnly ? "Sign the documents" : "Sign and confirm registration"}
             </>
           )}
         </Button>
+        {documentsOnly ? null : (
         <Button
           type="button"
           variant="outline"
@@ -236,6 +261,7 @@ export function ParentalConsentClient({
             </>
           )}
         </Button>
+        )}
       </div>
       {!nameOk || !agreed ? (
         <p className="text-[11px] text-fg-muted">

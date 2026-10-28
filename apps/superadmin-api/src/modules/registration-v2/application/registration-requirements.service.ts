@@ -12,6 +12,7 @@ import { and, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
+  isMinorOn,
   PARENTAL_CONSENT_TITLE,
   registrationWindowMessage,
   registrationWindowState,
@@ -55,6 +56,18 @@ export interface RegistrationDocumentStatus {
   signed: boolean;
   signedAt: string | null;
   signatureId: string | null;
+  /** The parent or guardian's name when they signed it for a minor (UC-27). */
+  signedByGuardian: string | null;
+}
+
+/** Prefix of a guardian's signature label on a document (UC-27). */
+const GUARDIAN_SIGNATURE_PREFIX = "Signed by parent or guardian ";
+
+function guardianFromLabel(blobUrl: string | null): string | null {
+  if (!blobUrl?.startsWith("data:text/plain,")) return null;
+  const label = decodeURIComponent(blobUrl.slice("data:text/plain,".length));
+  if (!label.startsWith(GUARDIAN_SIGNATURE_PREFIX)) return null;
+  return label.slice(GUARDIAN_SIGNATURE_PREFIX.length).split(" <")[0]!.split(" for ")[0]!.trim() || null;
 }
 
 /**
@@ -299,7 +312,8 @@ export class RegistrationRequirementsService {
             .select({
               id: schema.consentSignatures.id,
               versionId: schema.consentSignatures.documentVersionId,
-              signedAt: schema.consentSignatures.signedAt
+              signedAt: schema.consentSignatures.signedAt,
+              blob: schema.consentSignatures.signatureBlobUrl
             })
             .from(schema.consentSignatures)
             .where(
@@ -321,7 +335,8 @@ export class RegistrationRequirementsService {
         documentVersionId: sig?.versionId ?? ids[0] ?? null,
         signed: !!sig,
         signedAt: sig?.signedAt.toISOString() ?? null,
-        signatureId: sig?.id ?? null
+        signatureId: sig?.id ?? null,
+        signedByGuardian: guardianFromLabel(sig?.blob ?? null)
       };
     });
     return { season, documents };
@@ -370,6 +385,20 @@ export class RegistrationRequirementsService {
       throw new UnprocessableEntityException(
         `This registration does not ask for the ${input.key === "code_of_conduct" ? "Code of conduct" : "Liability waiver"}.`
       );
+    }
+    // UC-27: a minor's documents are signed by their parent or guardian,
+    // from the consent email (signGuardianDocuments), never by the child.
+    const [dob] = await this.db
+      .select({ dob: sql<string | null>`${schema.registrations.metadata} ->> 'dobDate'` })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, reg.id))
+      .limit(1);
+    if (isMinorOn(dob?.dob ?? null)) {
+      this.log.log(`refused self-signature: registration=${reg.id} key=${input.key} (minor; guardian signs)`);
+      throw new ConflictException({
+        error: "guardian_signs",
+        message: `Because you are under 18, your parent or guardian signs the ${req.title}. They sign it from the consent email.`
+      });
     }
     if (!signatureNameMatches(input.signatureName, input.expectedSignerName)) {
       throw new UnprocessableEntityException(
@@ -523,6 +552,59 @@ export class RegistrationRequirementsService {
       signedAt: row.signedAt,
       created: inserted.length > 0
     };
+  }
+
+  /**
+   * UC-27: the parent or guardian signs every required document of a
+   * minor's registration (liability waiver, code of conduct...) with the
+   * name they typed on the consent page. Runs in the caller's
+   * transaction, next to the consent record. One signature per document
+   * on the child's person, labelled as the guardian's, with their email,
+   * IP and user agent; idempotent like the funnel signatures. Returns
+   * the documents with their new state.
+   */
+  async signGuardianDocuments(
+    tx: Tx,
+    input: {
+      registration: RegistrationRef;
+      guardianName: string;
+      guardianEmail: string | null;
+      ipAddr: string | null;
+      userAgent: string | null;
+    }
+  ): Promise<{ signed: number; documents: RegistrationDocumentStatus[] }> {
+    const reg = input.registration;
+    const { season, required } = await this.requiredFor(reg, tx);
+    const label = `${GUARDIAN_SIGNATURE_PREFIX}${input.guardianName.trim()}${
+      input.guardianEmail ? ` <${input.guardianEmail}>` : ""
+    } for registration ${reg.id}`;
+    let signed = 0;
+    for (const req of required) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`registration-doc:${season.orgId}:${req.documentKind}`}))`
+      );
+      const versionId = await this.materializeVersion(tx, season.orgId, req);
+      const inserted = await tx
+        .insert(schema.consentSignatures)
+        .values({
+          personId: reg.subjectPersonId,
+          documentVersionId: versionId,
+          signedByUserId: null,
+          ipAddr: input.ipAddr,
+          userAgent: input.userAgent,
+          signatureBlobUrl: `data:text/plain,${encodeURIComponent(label)}`
+        })
+        .onConflictDoNothing({
+          target: [schema.consentSignatures.personId, schema.consentSignatures.documentVersionId]
+        })
+        .returning({ id: schema.consentSignatures.id });
+      signed += inserted.length;
+    }
+    const { documents } = await this.listDocuments(reg, tx);
+    this.log.log(
+      `guardian signed documents registration=${reg.id} person=${reg.subjectPersonId} new=${signed} required=${required.length} unsigned=${documents.filter((d) => !d.signed).length}`
+    );
+    return { signed, documents };
   }
 
   private async materializeVersion(

@@ -75,6 +75,8 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
   test.setTimeout(240_000);
 
   let j3: Record<string, string> = {};
+  /** The guardian who signed in step 4 (UC-27). */
+  let guardianSigned = "";
   const email = `staging-e2e+${RUN_TAG.toLowerCase()}-minor@sportspulse.us`;
   const parentEmail = `staging-e2e+${RUN_TAG.toLowerCase()}-parent@sportspulse.us`;
   const first = "Milo";
@@ -206,6 +208,8 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     // UC-28 / REG-15: the guardian reads the consent, types their full legal
     // name and ticks the box; Confirm stays disabled until both are done.
     await expect(parent.getByText(/I am the parent or legal guardian/).first()).toBeVisible();
+    // UC-27: the league's documents are on the same page; the one signature covers them.
+    await expect(parent.getByText(/Liability waiver/i).first(), "the guardian sees the waiver they sign").toBeVisible();
     const confirmBtn = parent.getByRole("button", { name: /Sign and confirm registration/i });
     await expect(confirmBtn, "Confirm disabled before signing").toBeDisabled();
     const guardianName = `Pat ${last}Guardian`;
@@ -236,6 +240,19 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     expect(consentRows.length, "parental consent record stored after the guardian signs").toBe(1);
     expect(consentRows[0]!.sig, "registration points at the consent record").toBe(consentRows[0]!.id);
     expect(decodeURIComponent(consentRows[0]!.label), "signature carries the guardian's name").toContain(guardianName);
+    // UC-27: every required document is signed on the child, by the guardian.
+    const docRows = await stagingSql<{ kind: string; label: string }>(
+      `select d.kind, cs.signature_blob_url label
+         from consent_signatures cs
+         join registrations r on r.subject_person_id = cs.person_id
+         join document_versions dv on dv.id = cs.document_version_id
+         join documents d on d.id = dv.document_id
+        where r.id = $1 and d.kind <> 'parental' and cs.revoked_at is null`,
+      [submissionId]
+    );
+    expect(docRows.length, "the guardian's signature is stored on each required document").toBeGreaterThan(0);
+    for (const d of docRows) expect(decodeURIComponent(d.label), `${d.kind} signed by the guardian`).toContain(`Signed by parent or guardian ${guardianName}`);
+    guardianSigned = guardianName;
     softExpect(errs.filter((e) => /http 5/.test(e)), "5xx on parental-consent page").toEqual([]);
     await ctx.close();
   });
@@ -278,25 +295,10 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
     await expect(minor.getByText(/Eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
     phases.push(`waivers:${await activePhase(minor)}`);
     await shot(minor, "05-minor-compliance");
-    const hasLiability = await minor.getByText(/Type your full legal name to sign/i).first().isVisible().catch(() => false);
-    // REG-5: the required waiver is always presented (server-resolved list).
-    expect(hasLiability, "required liability waiver presented in the minor's funnel (UC-27, REG-5)").toBe(true);
-    // UC-27: for a minor the guardian signs the waiver, not the child.
-    const pageText = await minor.locator("body").innerText();
-    softExpect(/guardian|parent/i.test(pageText.slice(pageText.indexOf("Eligibility checks"))), "waiver step asks the guardian (not the minor) to sign").toBe(true);
-    if (hasLiability) {
-      const docs = minor.locator("div.max-h-48.overflow-y-auto");
-      for (let i = 0; i < (await docs.count()); i++) {
-        await docs.nth(i).evaluate((el) => {
-          el.scrollTop = el.scrollHeight;
-          el.dispatchEvent(new Event("scroll"));
-        });
-      }
-      await minor.getByLabel(/Type your full legal name to sign/i).first().fill(fullName);
-      await minor.getByRole("button", { name: /^Sign$/ }).first().click();
-      await expect(minor.getByText(/^Signed$/i).first()).toBeVisible({ timeout: 30_000 });
-    }
-    await minor.getByRole("switch", { name: /Code of conduct/i }).click();
+    // UC-27: the guardian already signed; the minor sees who, and no sign box.
+    await expect(minor.getByText("Signed by your parent or guardian").first(), "minor sees the documents signed by the guardian").toBeVisible({ timeout: 30_000 });
+    await expect(minor.getByText(`Signed by ${guardianSigned}`).first()).toBeVisible();
+    expect(await minor.getByText(/Type your full legal name to sign/i).count(), "the minor is not asked to sign").toBe(0);
     await minor.getByRole("button", { name: /Next: Payment/ }).click();
     await minor.getByText(new RegExp(`${j3.runTag} Adult`)).first().click();
     await minor.getByRole("button", { name: /^Continue/ }).click();

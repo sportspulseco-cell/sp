@@ -121,4 +121,6 @@ export interface WaiverDoc {
   /** Server state for this registrant; absent on the season preview. */
   signed?: boolean;
   signedAt?: string | null;
+  /** UC-27: the parent or guardian who signed it for a minor. */
+  signedByGuardian?: string | null;
 }

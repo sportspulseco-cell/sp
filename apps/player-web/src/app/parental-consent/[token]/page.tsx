@@ -18,6 +18,8 @@ type ConsentContext = {
   consentText?: string;
   guardianEmail?: string | null;
   signedBy?: string | null;
+  /** UC-27: the documents the guardian signs with the consent. */
+  documents?: Array<{ key: string; title: string; content: string; signed: boolean; signedByGuardian: string | null }>;
 };
 
 async function fetchContext(token: string): Promise<ConsentContext | null> {
@@ -75,6 +77,20 @@ export default async function ParentalConsentPage({
             title="This link has expired"
             body="Consent links expire 24 hours after they're sent. Ask the player to resend the consent email from their registration."
           />
+        ) : ctx.confirmedAt && ctx.status === "pending_payment" && (ctx.documents ?? []).some((d) => !d.signed) ? (
+          // Consent given before guardians signed the documents too (UC-27):
+          // sign the documents only.
+          <ParentalConsentClient
+            token={token}
+            childDisplayName={ctx.childDisplayName}
+            seasonName={ctx.seasonName}
+            orgName={ctx.orgName}
+            consentTitle={ctx.consentTitle ?? "Parental consent"}
+            consentText=""
+            guardianEmail={ctx.guardianEmail ?? null}
+            documents={(ctx.documents ?? []).filter((d) => !d.signed)}
+            documentsOnly
+          />
         ) : ctx.confirmedAt ? (
           <Card
             tone="emerald"
@@ -106,6 +122,7 @@ export default async function ParentalConsentPage({
               "I am the parent or legal guardian of the player named on this registration and consent to their registration."
             }
             guardianEmail={ctx.guardianEmail ?? null}
+            documents={ctx.documents ?? []}
           />
         )}
 
