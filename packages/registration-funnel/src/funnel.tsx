@@ -16,6 +16,7 @@ import {
   tierIsFull,
   planInstallments,
   formatMoney,
+  statusLabel,
   formatCalendarDate,
   formatInZone,
   DATE_FORMATS
@@ -1668,11 +1669,28 @@ function WaiversStep({
 
   return (
     <div className="space-y-5">
-      {/* Card 1 — eligibility checks */}
-      <section className="rounded-xl border border-border bg-surface-1 p-5">
-        <p className="text-[14px] font-semibold tracking-tight text-fg">
-          Automated eligibility checks
-        </p>
+      {/* Card 1 — eligibility checks. The player's task here is signing:
+          when nothing failed, the checks fold to one line; a failed check
+          keeps them open (doc/design/guided-ui.md). */}
+      <details
+        open={checks.some((c) => c.state === "fail")}
+        className="group rounded-xl border border-border bg-surface-1 p-5"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[14px] font-semibold tracking-tight text-fg [&::-webkit-details-marker]:hidden">
+          <span>
+            Eligibility checks
+            <span className="ml-2 text-[13px] font-normal text-fg-muted">
+              {[
+                `${checks.filter((c) => c.state === "pass").length} passed`,
+                checks.some((c) => c.state === "fail") ? `${checks.filter((c) => c.state === "fail").length} to look at` : null,
+                checks.some((c) => c.state === "pending") ? `${checks.filter((c) => c.state === "pending").length} checked by the league` : null
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </span>
+          <span className="text-[13px] font-normal text-[--accent] group-open:hidden">Show</span>
+        </summary>
         <ul className="mt-4 divide-y divide-border">
           {checks.map((c) => {
             const iconClass =
@@ -1703,7 +1721,7 @@ function WaiversStep({
             );
           })}
         </ul>
-      </section>
+      </details>
 
       {documents === null ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
@@ -1946,14 +1964,19 @@ function TierStep({
   onBack: () => void;
   onNext: () => void;
 }) {
+  // One price on offer: it is already picked, so the player only presses
+  // Continue (doc/design/guided-ui.md: defaults reflect context).
+  const onlyTier = tiers.length === 1 ? tiers[0]!.id : null;
+  useEffect(() => {
+    if (onlyTier && !value) onChange(onlyTier);
+  }, [onlyTier, value, onChange]);
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-fg">Pick a pricing tier</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Choose the tier that matches your situation. Payment plans available
-          on tiers that show one.
-        </p>
+        <h2 className="text-xl font-semibold text-fg">{tiers.length === 1 ? "Your price" : "Pick your price"}</h2>
+        {tiers.length > 1 ? (
+          <p className="mt-1 text-sm text-fg-muted">Pick the one that fits you.</p>
+        ) : null}
       </div>
 
       <div className="grid gap-3">
@@ -2448,20 +2471,17 @@ function ReviewStep({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-fg">Review &amp; submit</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Last look. We'll create a draft against this season and email you
-          the next step.
-        </p>
+        <h2 className="text-xl font-semibold text-fg">Check your details</h2>
+        <p className="mt-1 text-sm text-fg-muted">If it all looks right, continue to payment.</p>
       </div>
 
       <dl className="divide-y divide-border rounded-lg border border-border bg-surface-1 text-sm">
         <Row label="Season">{season.name}</Row>
-        <Row label="Path">{labelForPath(submissionType)}</Row>
+        <Row label="Registering as">{labelForPath(submissionType)}</Row>
         <Row label="Email">{email}</Row>
         {fullName && <Row label="Name">{fullName}</Row>}
         {tier && (
-          <Row label="Tier">
+          <Row label="Price">
             {tier.name}
             {!tier.isFree && (
               <span className="ml-2 font-mono text-[12px] text-fg-muted">
@@ -2675,6 +2695,12 @@ function PaymentStep({
                 </Button>
               </div>
             ) : (
+              // Most players have no code: a familiar "Have a code?" link
+              // that opens the box (open again after a refused code).
+              <details open={!!codeError} className="group">
+              <summary className="inline-flex cursor-pointer list-none text-[13px] font-medium text-[--accent] hover:underline group-open:hidden [&::-webkit-details-marker]:hidden">
+                Have a discount code?
+              </summary>
               <form
                 className="flex flex-wrap items-end gap-2"
                 onSubmit={(e) => {
@@ -2697,6 +2723,7 @@ function PaymentStep({
                   {codeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
                 </Button>
               </form>
+              </details>
             )}
             {codeError ? (
               <p role="alert" className="mt-2 text-[12px] text-rose-700 dark:text-rose-300">
@@ -2756,8 +2783,8 @@ function PaymentStep({
           <PaymentOption
             active={option === "offline"}
             onSelect={() => setOption("offline")}
-            title="Offline / manual payment"
-            body="Cash, cheque, or e-transfer. Admin marks you as paid when received."
+            title="Pay by cash or cheque"
+            body="Or e-transfer. The league marks you paid when it arrives."
           />
         </ul>
       </section>
@@ -2983,10 +3010,10 @@ function DoneStep({
         <dl className="mt-4 space-y-2">
           <DetailRow label="Season" value={context.season.name} />
           {submissionType ? (
-            <DetailRow label="Path" value={labelForPath(submissionType)} />
+            <DetailRow label="Registering as" value={labelForPath(submissionType)} />
           ) : null}
           {status ? (
-            <DetailRow label="Status" value={status.replace(/_/g, " ")} />
+            <DetailRow label="Status" value={statusLabel(status)} />
           ) : null}
         </dl>
       </section>

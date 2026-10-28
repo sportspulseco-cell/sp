@@ -277,7 +277,7 @@ test.describe.serial("J4 · player registers and pays", () => {
     await next.click();
 
     // Compliance: liability waiver (scroll + typed name), code of conduct.
-    await expect(player.getByText(/Automated eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(player.getByText(/Eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
     phases.push(`compliance:${await activePhase(player)}`);
     await shot(player, "04-compliance");
     const hasLiability = await player.getByText(/Type your full legal name to sign/i).first().isVisible().catch(() => false);

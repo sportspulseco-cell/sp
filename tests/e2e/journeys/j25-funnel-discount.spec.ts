@@ -141,6 +141,9 @@ test.describe.serial("J25 · discount code at registration", () => {
     await walkToPayment(page, j3, playerA);
     const lines = page.getByTestId("funnel-invoice-lines");
     const before = (await lines.innerText()).replace(/\s+/g, " ");
+    // The code box opens from "Have a discount code?" (closed by default).
+    const opener = page.getByText("Have a discount code?");
+    if (await opener.isVisible().catch(() => false)) await opener.click();
     await page.getByLabel("Discount code").fill(` ${CODE.toLowerCase()} `);
     await page.getByRole("button", { name: /^Apply$/ }).click();
     await expect(page.getByText(new RegExp(`Discount code ${CODE} applied`))).toBeVisible({ timeout: 30_000 });
@@ -196,6 +199,9 @@ test.describe.serial("J25 · discount code at registration", () => {
     await walkToPayment(page, j3, playerB);
     const lines = page.getByTestId("funnel-invoice-lines");
     const before = (await lines.innerText()).replace(/\s+/g, " ");
+    // The code box opens from "Have a discount code?" (closed by default).
+    const opener = page.getByText("Have a discount code?");
+    if (await opener.isVisible().catch(() => false)) await opener.click();
     await page.getByLabel("Discount code").fill(CODE);
     await page.getByRole("button", { name: /^Apply$/ }).click();
     await expect(page.getByRole("alert").filter({ hasText: /used the most times it allows/ })).toBeVisible({ timeout: 30_000 });

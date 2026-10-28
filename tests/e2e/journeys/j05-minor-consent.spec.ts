@@ -266,7 +266,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
       if (await usa.isVisible().catch(() => false) && !(await usa.inputValue())) await usa.fill("MIN12345");
       await minor.getByRole("button", { name: /Next: Compliance/ }).click();
     }
-    await expect(minor.getByText(/Automated eligibility checks|Parental consent required/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(minor.getByText(/Eligibility checks|Parental consent required/i).first()).toBeVisible({ timeout: 30_000 });
     if (await minor.getByRole("heading", { name: /Parental consent required/i }).isVisible().catch(() => false)) {
       await shot(minor, "05-minor-dead-end");
       const [r] = await stagingSql<{ status: string }>("select status from registrations where id = $1", [submissionId]);
@@ -275,7 +275,7 @@ test.describe.serial("J5 · minor registers with parental consent", () => {
           `and "Confirm consent" fails ("An unexpected error occurred"); the minor cannot reach waivers or payment.`
       );
     }
-    await expect(minor.getByText(/Automated eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(minor.getByText(/Eligibility checks/i).first()).toBeVisible({ timeout: 30_000 });
     phases.push(`waivers:${await activePhase(minor)}`);
     await shot(minor, "05-minor-compliance");
     const hasLiability = await minor.getByText(/Type your full legal name to sign/i).first().isVisible().catch(() => false);
