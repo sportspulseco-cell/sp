@@ -490,6 +490,56 @@ export class CaptainDuesController {
         return { shares: created.length, invoicesUpdated: 0, itemsUpdated: 0, installmentsUpdated: 0, created };
       }
 
+      // "Include captain" on shares made by the registration wizard: those
+      // cover the invited players only, so the captain had no share and
+      // the even split left them out although the box was ticked (PPHL,
+      // 29 Oct 2026). Add the captain's share here; the split below sets
+      // its amount with everyone else's.
+      if (body.method === "even" && (body.includeCaptain ?? true) && !shares.some((r) => r.isCaptain)) {
+        const captain = candidates.find((c) => c.isCaptain);
+        if (!captain) {
+          throw new ConflictException({
+            error: "captain_not_a_player",
+            message: "You are not on the roster as a player yet, so you can't take a share. Untick Include captain, or add yourself to the roster first."
+          });
+        }
+        const now = new Date();
+        const [sub] = await tx
+          .insert(schema.invoices)
+          .values({
+            orgId: master.orgId,
+            invoiceNumber: `${master.invoiceNumber}-CAPT`,
+            invoiceType: "sub_invoice",
+            parentInvoiceId: master.id,
+            billingScope: "individual",
+            teamId: master.teamId,
+            recipientPersonId: captain.personId,
+            recipientEmail: captain.email,
+            subtotalCents: 0,
+            totalCents: 0,
+            paidCents: 0,
+            currency: master.currency,
+            status: "sent",
+            issuedAt: now,
+            dueAt: master.dueAt,
+            idempotencyKey: `share-${master.id}-${captain.personId}`,
+            metadata: { splitMethod: body.method, addedForCaptain: true }
+          })
+          .onConflictDoNothing()
+          .returning();
+        if (!sub) throw new ConflictException({ error: "captain_share_exists", message: "Your share already exists. Reload the page and try again." });
+        await tx.insert(schema.invoiceItems).values({
+          invoiceId: sub.id,
+          kind: "registration_fee",
+          description: `${master.invoiceNumber}: your share`,
+          quantity: 1,
+          unitAmountCents: 0,
+          amountCents: 0
+        });
+        shares.push({ sub, personUserId: team.captainUserId, firstName: null, lastName: null, preferredName: null, isCaptain: true, label: captain.name });
+        this.logger.log(`captain share added team=${team.id} master=${master.id} sub=${sub.id}`);
+      }
+
       const target = master.totalCents;
       const currency = master.currency;
       const desired = new Map<string, number>();

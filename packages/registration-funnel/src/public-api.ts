@@ -197,6 +197,8 @@ export interface PublicRegistrationApi {
   ): Promise<{
     id: string;
     updated: boolean;
+    /** Flags recomputed from what is saved after this update. */
+    eligibilityFlags?: string[];
     /** Current status; `pending_consent` when the DOB shows a minor without guardian consent. */
     status?: string;
     isMinor?: boolean;

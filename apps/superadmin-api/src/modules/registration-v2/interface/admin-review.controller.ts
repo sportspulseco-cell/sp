@@ -40,7 +40,6 @@ import { schema } from "@sportspulse/db";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { SuperAdminGuard } from "../../../shared/auth/guards/super-admin.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadAdminScope } from "../../../shared/auth/scope";
 import { userHasOrgAdminOnOrg, userIsPeopleAdmin } from "../../../shared/auth/org-admin";
@@ -277,22 +276,25 @@ export class AdminReviewController {
   }
 
   @Post("submissions/:id/review")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
-      "Apply an individual review action. approve | reject | request_resubmission | override_flag — all guarded by the kernel state machine."
+      "Apply an individual review action. approve | reject | request_resubmission | override_flag — all guarded by the kernel state machine. Super admin, or an org / league / season / division admin whose scope covers the registration (404 otherwise; PPHL 29 Oct 2026: league admins could not approve). override_flag stays super admin only."
   })
   async review(
     @Param("id") id: string,
     @Body() body: ReviewActionBodyDto,
     @CurrentUser() user: AuthPrincipal
   ) {
+    const { isSuperAdmin, where } = await this.reviewScope(user);
+    if (body.action === "override_flag" && !isSuperAdmin) {
+      throw new ForbiddenException("Overriding an eligibility flag needs a super admin.");
+    }
     const [row] = await this.db
       .select()
       .from(schema.registrations)
-      .where(eq(schema.registrations.id, id))
+      .where(where ? and(eq(schema.registrations.id, id), where) : eq(schema.registrations.id, id))
       .limit(1);
-    if (!row) return { id, status: null, error: "not_found" };
+    if (!row) throw new NotFoundException("Registration not found");
     if (!isRegistrationState(row.status)) {
       return { id, status: row.status, error: "invalid_state" };
     }
@@ -401,7 +403,6 @@ export class AdminReviewController {
   }
 
   @Post("submissions/bulk-approve")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Approve many submissions at once. Accepts rows in pending_review or pending_offline; skips others."
@@ -411,6 +412,7 @@ export class AdminReviewController {
     @CurrentUser() user: AuthPrincipal
   ) {
     return this.bulkTransition(
+      user,
       body.ids,
       "approved",
       user.userId,
@@ -424,7 +426,6 @@ export class AdminReviewController {
   }
 
   @Post("submissions/bulk-reject")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
       "Reject many submissions with a single shared reason. Accepts rows in pending_review or pending_offline; skips others."
@@ -434,6 +435,7 @@ export class AdminReviewController {
     @CurrentUser() user: AuthPrincipal
   ) {
     return this.bulkTransition(
+      user,
       body.ids,
       "rejected",
       user.userId,
@@ -447,16 +449,16 @@ export class AdminReviewController {
   }
 
   @Post("submissions/bulk-email")
-  @UseGuards(SuperAdminGuard)
   @ApiOperation({
     summary:
-      "Send a custom email to many submissions at once. Does not change state — purely a comms action."
+      "Send a custom email to many submissions at once. Does not change state — purely a comms action. Only registrations in the caller's scope are emailed."
   })
-  async bulkEmail(@Body() body: BulkEmailBodyDto) {
+  async bulkEmail(@Body() body: BulkEmailBodyDto, @CurrentUser() user: AuthPrincipal) {
+    const { where } = await this.reviewScope(user);
     const rows = await this.db
       .select()
       .from(schema.registrations)
-      .where(inArray(schema.registrations.id, body.ids));
+      .where(where ? and(inArray(schema.registrations.id, body.ids), where) : inArray(schema.registrations.id, body.ids));
     let delivered = 0;
     let logOnly = 0;
     for (const r of rows) {
@@ -477,7 +479,22 @@ export class AdminReviewController {
 
   // ---------- internals ----------
 
+  /**
+   * Who may review: a super admin (every row), or an org / league / season
+   * / division admin, limited to registrations their scope covers. Same
+   * rule as the list and the file link. Out-of-scope ids read as missing.
+   */
+  private async reviewScope(user: AuthPrincipal): Promise<{ isSuperAdmin: boolean; where: ReturnType<typeof visibleRegistrationsWhere> | undefined }> {
+    const scope = await loadAdminScope(this.db, user.userId);
+    if (scope.isSuperAdmin) return { isSuperAdmin: true, where: undefined };
+    if (!(await userIsPeopleAdmin(this.db, user.userId))) {
+      throw new ForbiddenException("Requires an admin role (org, league, season or division admin).");
+    }
+    return { isSuperAdmin: false, where: visibleRegistrationsWhere(scope) ?? undefined };
+  }
+
   private async bulkTransition(
+    user: AuthPrincipal,
     ids: string[],
     target: "approved" | "rejected",
     reviewerUserId: string,
@@ -488,10 +505,11 @@ export class AdminReviewController {
       body: string;
     }
   ) {
+    const { where } = await this.reviewScope(user);
     const rows = await this.db
       .select()
       .from(schema.registrations)
-      .where(inArray(schema.registrations.id, ids));
+      .where(where ? and(inArray(schema.registrations.id, ids), where) : inArray(schema.registrations.id, ids));
     let applied = 0;
     let skipped = 0;
     let emailDelivered = 0;

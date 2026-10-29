@@ -34,7 +34,7 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
@@ -1764,15 +1764,36 @@ export class PublicRegistrationController {
     @Body() body: { email: string }
   ) {
     const row = await this.loadAndAuthorize(submissionId, body.email);
+    const flags = await this.recomputeEligibility(row);
+    return { passed: flags.length === 0, flags };
+  }
+
+  /**
+   * The eligibility flags of a registration, from what is saved, then
+   * stored on it for the admin queue. The date of birth and USA Hockey ID
+   * may live outside the registration: the person record (DOB) and the
+   * player's saved profile (USA Hockey ID, camelCase key), e.g. on a
+   * captain-invite registration that never shows those inputs. Reading
+   * only the registration raised dob_missing / usa_hockey_id_missing for
+   * players who had given both (PPHL, 29 Oct 2026). Runs from the check
+   * endpoint and after every Details save.
+   */
+  private async recomputeEligibility(row: typeof schema.registrations.$inferSelect): Promise<string[]> {
+    const submissionId = row.id;
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     const flags: string[] = [];
+    const [person] = await this.db
+      .select({ dob: schema.persons.dobDate })
+      .from(schema.persons)
+      .where(eq(schema.persons.id, row.subjectPersonId))
+      .limit(1);
 
     // Age vs season — coarse sanity check first (catches typos like
     // dob=2999-…). Then a division-level check that compares the
     // registrant's birth year against the division's bound age_group
     // (BUG-058). Two distinct flags: `age_out_of_range:<n>` for the
     // sanity bucket; `age_division_mismatch` for the structural fit.
-    const dob = meta.dobDate as string | null;
+    const dob = (meta.dobDate as string | null | undefined) || (person?.dob ? String(person.dob).slice(0, 10) : null);
     if (dob) {
       const age = ageFromDob(dob);
       if (age !== null && (age < 5 || age > 80)) {
@@ -1844,7 +1865,15 @@ export class PublicRegistrationController {
         )[0]
       : null;
     const isHockey = seasonRow?.sportCode === "HOCKEY_ICE";
-    const usaHockeyId = answers["usa_hockey_id"];
+    let usaHockeyId = answers["usa_hockey_id"] ?? answers["usaHockeyId"];
+    if (!(typeof usaHockeyId === "string" && usaHockeyId.trim()) && row.submittedByUserId) {
+      const [prof] = await this.db
+        .select({ id: sql<string | null>`${schema.profiles.metadata} -> 'roleProfile' -> 'player' ->> 'usaHockeyId'` })
+        .from(schema.profiles)
+        .where(eq(schema.profiles.id, row.submittedByUserId))
+        .limit(1);
+      usaHockeyId = prof?.id ?? usaHockeyId;
+    }
     const usaHockeyIdStr =
       typeof usaHockeyId === "string" ? usaHockeyId.trim() : "";
     if (isHockey) {
@@ -1862,12 +1891,13 @@ export class PublicRegistrationController {
         flags
       }
     });
-    await this.db
+    const written = await this.db
       .update(schema.registrations)
       .set({ metadata: merged, updatedAt: new Date() })
-      .where(eq(schema.registrations.id, submissionId));
-
-    return { passed: flags.length === 0, flags };
+      .where(eq(schema.registrations.id, submissionId))
+      .returning({ id: schema.registrations.id });
+    this.log.log(`eligibility registration=${submissionId} flags=${flags.join(",") || "none"} rows=${written.length}`);
+    return flags;
   }
 
   /**
@@ -2050,7 +2080,10 @@ export class PublicRegistrationController {
         `registration=${submissionId} pending_payment -> pending_consent (Details: DOB is a minor's, no guardian consent on file)`
       );
     }
-    return { id: submissionId, updated: true, status: updated.status, isMinor: isMinorOn(dob) };
+    // Flags follow what was just saved (DOB, USA Hockey ID answers).
+    const [fresh] = await this.db.select().from(schema.registrations).where(eq(schema.registrations.id, submissionId)).limit(1);
+    const eligibilityFlags = fresh ? await this.recomputeEligibility(fresh) : [];
+    return { id: submissionId, updated: true, status: updated.status, isMinor: isMinorOn(dob), eligibilityFlags };
   }
 
   @Get("submissions/:id/wallet")
@@ -2909,7 +2942,7 @@ export class PublicRegistrationController {
    * offer one must be picked; only a season with no price for the
    * division registers at no charge.
    */
-  private async resolvePrice(row: { id: string; seasonId: string | null; divisionId: string | null; metadata: unknown }) {
+  private async resolvePrice(row: { id: string; seasonId: string | null; divisionId: string | null; metadata: unknown; teamId?: string | null }) {
     const meta = (row.metadata as Record<string, unknown>) ?? {};
     let amountCents = 0;
     let currency = "USD";
@@ -2923,6 +2956,31 @@ export class PublicRegistrationController {
     // is refused, never registered for nothing.
     const offeredTiers = tiersForPath(seasonTiers, row.divisionId ?? null, submissionType);
     const tierId = (meta.pricingTierId as string | null | undefined) ?? null;
+    // A captain-invited player whose team has its dues set up for this
+    // season, and no player price on offer: their share of the team dues
+    // is their fee (workflow-1 §7.3, "individual player invoices show
+    // share"), so this registration costs nothing more. Before, the
+    // refusal below left them stuck in pending_payment although the
+    // captain had paid their share (PPHL, 29 Oct 2026).
+    if (offeredTiers.length === 0 && divisionTiers.length > 0 && submissionType === "captain_invite" && row.teamId && row.seasonId) {
+      const [dues] = await this.db
+        .select({ invoiceId: schema.divisionTeamEntries.invoiceId })
+        .from(schema.divisionTeamEntries)
+        .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
+        .where(
+          and(
+            eq(schema.divisionTeamEntries.teamId, row.teamId),
+            eq(schema.divisions.seasonId, row.seasonId),
+            isNotNull(schema.divisionTeamEntries.invoiceId),
+            inArray(schema.divisionTeamEntries.entryStatus, ["applied", "accepted", "confirmed"])
+          )
+        )
+        .limit(1);
+      if (dues?.invoiceId) {
+        this.log.log(`price: registration=${row.id} captain_invite covered by team dues invoice=${dues.invoiceId}`);
+        return { amountCents: 0, currency, tierName: "Your share of the team dues", pickedTier: null, tierId: null };
+      }
+    }
     if (offeredTiers.length === 0 && divisionTiers.length > 0) {
       this.log.log(`refused price: registration=${row.id} path=${submissionType}: ${divisionTiers.length} prices, none for this path`);
       throw new ConflictException({

@@ -310,7 +310,9 @@ export function RegistrationFunnel({
       const saved = await api.updateSubmission(submissionId, {
         email: email.trim(),
         answers,
-        dobDate: dobDate || null,
+        // Only a date the player entered: an empty field (a path that
+        // hides it) must not clear the date already on file.
+        ...(dobDate ? { dobDate } : {}),
         // Team-reg captain edits team name / division on this step, so
         // we have to roundtrip them too. Without this branch a captain
         // who changes their mind on Details never reaches the server.
@@ -326,10 +328,8 @@ export function RegistrationFunnel({
       // to wait for the guardian, and the step list follows the status.
       if (saved.status) setSubmissionStatus(saved.status);
       if (typeof saved.isMinor === "boolean") setIsMinor(saved.isMinor);
-      const elig = await api
-        .runEligibilityCheck(submissionId, email.trim())
-        .catch(() => null);
-      if (elig) setEligibilityFlags(elig.flags);
+      // The save recomputes the flags from what is on file now.
+      if (Array.isArray(saved.eligibilityFlags)) setEligibilityFlags(saved.eligibilityFlags);
       // `next()` reads this render's step list, which may not have the
       // consent step yet; go there directly when the API says so.
       if (saved.status === "pending_consent") setStep("consent");
@@ -1647,7 +1647,7 @@ function WaiversStep({
       state: ageFail ? "fail" : "pass",
       body: ageFail
         ? flags.includes("dob_missing")
-          ? "Date of birth is missing. Go back and add it in the Account step."
+          ? "Date of birth is missing. Go back and add it on Details."
           : "Age may not match the configured division range. Admin will review."
         : "You're within the allowed age range for this division."
     },
@@ -1996,6 +1996,17 @@ function AcknowledgeCard({
   );
 }
 
+/** One plain sentence per eligibility flag, for the player (not the code). */
+function flagSentence(flag: string): string {
+  if (flag === "dob_missing") return "We don't have your date of birth. Go back to Details to add it.";
+  if (flag === "usa_hockey_id_missing") return "We don't have your USA Hockey ID. Go back to Details to add it.";
+  if (flag === "usa_hockey_id_format_invalid") return "Your USA Hockey ID doesn't look right: it should be 6 to 12 letters or numbers.";
+  if (flag === "age_division_mismatch") return "Your age may not fit this division. The league will check.";
+  if (flag.startsWith("age_out_of_range")) return "Please check your date of birth.";
+  if (flag === "duplicate_subject") return "You may already be registered. The league will check.";
+  return "Something needs a second look. The league will check.";
+}
+
 /** Shown instead of the funnel when the season is not taking registrations. */
 function RegistrationClosed({
   seasonName,
@@ -2209,8 +2220,11 @@ function QuestionsStep({
   // their /roster profile shows up populated. Reserved answer keys
   // mirror the freeAgentPoolEntries columns 1:1 so the approve handler
   // can upsert without a translation layer.
+  // A captain-invited player is a player too: without the card they
+  // could not give a date of birth or USA Hockey ID, and every such
+  // registration was flagged as missing both (PPHL, 29 Oct 2026).
   const showPlayerProfile =
-    submissionType === "free_agent" || submissionType === "individual";
+    submissionType === "free_agent" || submissionType === "individual" || submissionType === "captain_invite";
   // USA Hockey ID is hockey-only. Other sports get neither the input
   // nor the corresponding eligibility check rows downstream.
   const isHockey = sportCode === "HOCKEY_ICE";
@@ -2595,18 +2609,13 @@ function ReviewStep({
 
       {eligibilityFlags && eligibilityFlags.length > 0 && (
         <Alert tone="warning" role="status">
-          <p className="font-medium">Eligibility flags raised:</p>
+          <p className="font-medium">Please check before you pay</p>
           <ul className="ml-4 list-disc">
             {eligibilityFlags.map((f) => (
-              <li key={f} className="font-mono">
-                {f}
-              </li>
+              <li key={f}>{flagSentence(f)}</li>
             ))}
           </ul>
-          <p className="mt-1">
-            Per spec §6.3 these don't block payment. An admin will review
-            asynchronously and may request resubmission.
-          </p>
+          <p className="mt-1">You can still pay. The league reviews these.</p>
         </Alert>
       )}
 
@@ -2729,6 +2738,9 @@ function PaymentStep({
   const totalCents = quote ? quote.totalCents : fullPriceCents;
   const free = totalCents === 0 && (quote !== null || !tier || tier.isFree || tier.fullPriceCents === 0);
   const lines = quote?.lines ?? [{ kind: "registration_fee", description: tier?.name ?? "Registration fee", amountCents: fullPriceCents }];
+  // A captain-invited player whose fee is their share of the team dues
+  // (the API prices this registration at 0 with that description).
+  const coveredByTeam = free && lines.some((l) => /team dues/i.test(l.description));
   const intervalDays = tier?.installmentIntervalDays ?? 30;
   const plan =
     tier && tierOffersPlan(tier)
@@ -2773,7 +2785,7 @@ function PaymentStep({
                 Total due
               </td>
               <td className="py-2 text-right font-mono text-[14px] font-semibold tabular-nums text-fg">
-                {free ? "Free" : fmt(totalCents)}
+                {coveredByTeam ? "Covered by your team's dues" : free ? "Free" : fmt(totalCents)}
               </td>
             </tr>
           </tbody>
@@ -2961,7 +2973,9 @@ function PaymentStep({
               <>
                 {option === "offline"
                   ? "Submit for offline payment"
-                  : ctaAmount > 0
+                  : free
+                    ? "Submit registration"
+                    : ctaAmount > 0
                     ? `Pay ${fmt(ctaAmount)}`
                     : creditUsed > 0
                       ? `Pay ${fmt(creditUsed)} with credit`
