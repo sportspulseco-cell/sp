@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import {
+  profilePagesByTopic,
   ROLE_PROFILE_SCHEMAS,
   SYSTEM_ROLE_BY_CODE,
   visibleQuestions,
@@ -110,26 +111,23 @@ export function OnboardingFunnel({
 
   // Chunk schema questions into pages. We honour `visibleQuestions`
   // for conditional logic so a hidden field doesn't burn a page slot.
-  const pages = useMemo<FormQuestion[][]>(() => {
+  // Pages by topic ("About you", "Emergency contact"...), not "Page N"
+  // (PPHL, 29 Oct 2026).
+  const topicPages = useMemo(() => {
     const visible = visibleQuestions(schema, answers);
-    const out: FormQuestion[][] = [];
-    for (let i = 0; i < visible.length; i += QUESTIONS_PER_PAGE) {
-      out.push(visible.slice(i, i + QUESTIONS_PER_PAGE));
-    }
-    if (out.length === 0) out.push([]); // single empty page if no questions
-    return out;
+    const out = profilePagesByTopic(visible, QUESTIONS_PER_PAGE);
+    return out.length > 0 ? out : [{ label: "Your profile", questions: [] as FormQuestion[] }];
   }, [schema, answers]);
+  const pages = useMemo<FormQuestion[][]>(() => topicPages.map((p) => p.questions), [topicPages]);
 
   // Step list: optional welcome + N form pages + done
   const steps: { key: string; label: string }[] = useMemo(() => {
     const out = [];
     if (showWelcome) out.push({ key: "welcome", label: "Welcome" });
-    for (let i = 0; i < pages.length; i++) {
-      out.push({ key: `page-${i}`, label: `Page ${i + 1}` });
-    }
+    topicPages.forEach((p, i) => out.push({ key: `page-${i}`, label: p.label }));
     out.push({ key: "done", label: "Done" });
     return out;
-  }, [pages.length, showWelcome]);
+  }, [topicPages, showWelcome]);
 
   const totalForms = pages.length;
   const currentStep = steps[stepIndex] ?? steps[0]!;
@@ -172,15 +170,9 @@ export function OnboardingFunnel({
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <header className="mb-8 space-y-2">
-        <Eyebrow>Onboarding · {userType}</Eyebrow>
-        <h1 className="text-[34px] font-semibold tracking-tighter text-fg">
-          Welcome to SportsPulse
+        <h1 className="text-[30px] font-semibold tracking-tight text-fg">
+          Set up your {(roleDef?.name ?? userType).toLowerCase()} profile
         </h1>
-        <p className="text-sm text-fg-muted">
-          Tell us a few things so we can set up your{" "}
-          {roleDef?.name ?? userType} profile.
-          {schemaSource === "admin" ? " Form configured by your league admin." : ""}
-        </p>
       </header>
 
       <Stepper steps={steps} current={stepIndex} />
@@ -189,14 +181,13 @@ export function OnboardingFunnel({
         {isWelcome && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-fg">
-              {totalForms > 0
-                ? `${totalForms} step${totalForms === 1 ? "" : "s"} to go`
-                : "All set"}
+              {totalForms > 0 ? "A few short pages" : "All set"}
             </h2>
-            <p className="text-sm text-fg-muted">
-              Most of these fields are optional. Anything required is marked
-              with an asterisk. You can come back and edit later.
-            </p>
+            {totalForms > 0 ? (
+              <p className="text-sm text-fg-muted">
+                {topicPages.map((p) => p.label).join(" · ")}. Required fields have a *. You can change this later.
+              </p>
+            ) : null}
             <div className="flex justify-end">
               <Button onClick={next} disabled={totalForms === 0}>
                 {totalForms === 0 ? "Skip" : "Get started"}
@@ -206,6 +197,9 @@ export function OnboardingFunnel({
           </div>
         )}
 
+        {!isWelcome && !isDone && (
+          <h2 className="mb-4 text-xl font-semibold text-fg">{currentStep.label}</h2>
+        )}
         {!isWelcome && !isDone && (
           <PageStep
             page={pages[formPageIndex]!}

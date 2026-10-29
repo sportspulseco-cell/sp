@@ -5,6 +5,7 @@ import {
   CalendarRange,
   ChartBar,
   Compass,
+  ClipboardList,
   CreditCard,
   LayoutDashboard,
   ShieldCheck,
@@ -46,6 +47,7 @@ export const NAV: ShellNavSection[] = [
     label: "My account",
     defaultOpen: true,
     items: [
+      { href: "/profile", label: "Profile", icon: User },
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/compliance", label: "Waivers & documents", icon: ShieldCheck },
       { href: "/notifications", label: "Notifications", icon: Bell }
@@ -56,7 +58,8 @@ export const NAV: ShellNavSection[] = [
     defaultOpen: true,
     items: [
       { href: "/register", label: "Find a season", icon: Compass },
-      { href: "/profile", label: "Profile", icon: User }
+      // PPHL, 29 Oct 2026: players typed /registrations by hand.
+      { href: "/registrations", label: "My registrations", icon: ClipboardList }
     ]
   }
 ];

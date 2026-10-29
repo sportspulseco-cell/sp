@@ -508,3 +508,41 @@ export function profileSchemaFor(roleCode: string): FormDefinition {
     }
   );
 }
+
+/**
+ * The topic a profile question belongs to, from its key, so a profile
+ * wizard can name its pages ("About you", "Emergency contact") instead of
+ * "Page 1, Page 2" (PPHL, 29 Oct 2026). Unknown keys read "More about you".
+ */
+export function profileQuestionTopic(key: string): string {
+  const k = key.toLowerCase();
+  if (/^(dob|gender|phone|photo|preferred|display|first|last|name)/.test(k)) return "About you";
+  if (k.startsWith("address")) return "Address";
+  if (k.startsWith("emergency")) return "Emergency contact";
+  if (/usahockey|governing|membership|certification|licen[cs]e/.test(k)) return "Hockey registration";
+  if (/medical|allerg|health|condition/.test(k)) return "Health";
+  if (/^(level|position|shot|height|weight|jersey|willing|looking|available|skill)/.test(k)) return "Playing";
+  return "More about you";
+}
+
+/**
+ * Splits questions into wizard pages by topic, in order: consecutive
+ * questions of one topic share a page, and a topic with more than
+ * `max` questions spans several pages ("Playing", "Playing (2)").
+ */
+export function profilePagesByTopic<T extends { key: string }>(questions: T[], max = 5): Array<{ label: string; questions: T[] }> {
+  const pages: Array<{ label: string; questions: T[] }> = [];
+  const seen = new Map<string, number>();
+  for (const q of questions) {
+    const topic = profileQuestionTopic(q.key);
+    const last = pages[pages.length - 1];
+    if (last && last.label.replace(/ \(\d+\)$/, "") === topic && last.questions.length < max) {
+      last.questions.push(q);
+      continue;
+    }
+    const n = (seen.get(topic) ?? 0) + 1;
+    seen.set(topic, n);
+    pages.push({ label: n === 1 ? topic : `${topic} (${n})`, questions: [q] });
+  }
+  return pages;
+}

@@ -1,9 +1,9 @@
 import { fetchAll, load } from "@sportspulse/api-client";
-import { Badge, LoadError, LocalDate, EmptyState, Eyebrow, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
+import { Badge, LoadError, LocalDate, EmptyState, Eyebrow, PageHeader, TBody, TD, TH, THead, TR, Table, statusLabel, statusTone } from "@sportspulse/ui";
 import { ListChecks, Network, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { iam, leagueMgmt, roster } from "@/lib/api/server-api";
-import { KineticStrip } from "@/components/layout/kinetic-strip";
+import { RosterFilters } from "@/components/rosters/roster-filters";
 import { AddMembershipButton } from "@/components/rosters/add-membership-button";
 import { DropMembershipButton } from "@/components/rosters/drop-membership-button";
 
@@ -16,6 +16,9 @@ export default async function RostersPage({
     teamId?: string;
     seasonId?: string;
     activeOnly?: string;
+    q?: string;
+    type?: string;
+    status?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -59,17 +62,23 @@ export default async function RostersPage({
     seasonsPage.items.map((s) => [s.id, s.name])
   );
 
-  const total = memberships.items.length;
-  const active = memberships.items.filter(
-    (m) => m.currentStatus === "active"
-  ).length;
-  const teamsCovered = new Set(memberships.items.map((m) => m.teamId)).size;
-  const peopleCovered = new Set(memberships.items.map((m) => m.personId)).size;
+  // Search and filters on the loaded list (team and season also narrow
+  // the API read above).
+  const q = sp?.q?.trim().toLowerCase() ?? "";
+  const shown = memberships.items.filter((m) => {
+    if (q && !(personMap.get(m.personId) ?? "").toLowerCase().includes(q)) return false;
+    if (sp?.type && m.membershipType !== sp.type) return false;
+    if (sp?.status && m.currentStatus !== sp.status) return false;
+    return true;
+  });
+  const typeOptions = [...new Set(memberships.items.map((m) => m.membershipType))].sort();
+  const statusOptions = [...new Set(memberships.items.map((m) => m.currentStatus))]
+    .sort()
+    .map((v) => ({ value: v, label: statusLabel(v) }));
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Teams"
         title="Rosters"
         description={
           activeOnly
@@ -85,33 +94,11 @@ export default async function RostersPage({
         }
       />
 
-      <KineticStrip
-        cards={[
-          {
-            label: "Memberships",
-            value: total,
-            icon: <ListChecks className="h-3.5 w-3.5" strokeWidth={1.75} />,
-            tone: "idle"
-          },
-          {
-            label: "Active",
-            value: active,
-            icon: <Activity className="h-3.5 w-3.5" strokeWidth={1.75} />,
-            tone: active > 0 ? "ok" : "idle"
-          },
-          {
-            label: "Teams covered",
-            value: teamsCovered,
-            icon: <Network className="h-3.5 w-3.5" strokeWidth={1.75} />,
-            tone: "info"
-          },
-          {
-            label: "Distinct players",
-            value: peopleCovered,
-            icon: <Users className="h-3.5 w-3.5" strokeWidth={1.75} />,
-            tone: "idle"
-          }
-        ]}
+      <RosterFilters
+        teams={teamsPage.items.map((t) => ({ id: t.id, name: t.shortName ?? t.name })).sort((x, y) => x.name.localeCompare(y.name))}
+        seasons={seasonsPage.items.map((x) => ({ id: x.id, name: x.name }))}
+        types={typeOptions}
+        statuses={statusOptions}
       />
 
       {/* Filter pills */}
@@ -144,6 +131,8 @@ export default async function RostersPage({
           status={membershipsResult.status}
           message={membershipsResult.message}
         />
+      ) : memberships.items.length > 0 && shown.length === 0 ? (
+        <EmptyState icon={ListChecks} title="No one matches these filters" description="Clear the search or pick another filter." />
       ) : memberships.items.length === 0 ? (
         <EmptyState
           icon={ListChecks}
@@ -172,7 +161,7 @@ export default async function RostersPage({
             </TR>
           </THead>
           <TBody>
-            {memberships.items.map((m) => (
+            {shown.map((m) => (
               <TR key={m.id}>
                 <TD className="font-medium">
                   <Link

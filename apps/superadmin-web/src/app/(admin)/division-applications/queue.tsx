@@ -45,6 +45,9 @@ export function DivisionApplicationsQueue({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [seasonF, setSeasonF] = useState("");
+  const [divisionF, setDivisionF] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<DteItem | null>(null);
 
@@ -99,11 +102,50 @@ export function DivisionApplicationsQueue({
     }
   }
 
+  // Search and filters over the loaded list (PPHL, 29 Oct 2026).
+  const seasonNames = [...new Set(items.map((t) => t.seasonName).filter(Boolean))].sort();
+  const divisionNames = [...new Set(items.filter((t) => !seasonF || t.seasonName === seasonF).map((t) => t.divisionName).filter(Boolean))].sort();
+  const needle = q.trim().toLowerCase();
+  const shown = items.filter(
+    (t) =>
+      (!needle || `${t.teamName} ${t.divisionName} ${t.seasonName}`.toLowerCase().includes(needle)) &&
+      (!seasonF || t.seasonName === seasonF) &&
+      (!divisionF || t.divisionName === divisionF)
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-2 rounded-md border border-border bg-bg-subtle p-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-bg-subtle p-3">
+        <div className="grid min-w-[12rem] flex-1 gap-1">
+          <label htmlFor="apps-search" className="text-[12px] font-medium text-fg-muted">
+            Search
+          </label>
+          <Input id="apps-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Team, division or season" />
+        </div>
+        <div className="grid w-full max-w-[12rem] gap-1">
+          <label htmlFor="apps-season" className="text-[12px] font-medium text-fg-muted">
+            Season
+          </label>
+          <Select id="apps-season" value={seasonF} onChange={(e) => { setSeasonF(e.target.value); setDivisionF(""); }}>
+            <option value="">All seasons</option>
+            {seasonNames.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="grid w-full max-w-[12rem] gap-1">
+          <label htmlFor="apps-division" className="text-[12px] font-medium text-fg-muted">
+            Division
+          </label>
+          <Select id="apps-division" value={divisionF} onChange={(e) => setDivisionF(e.target.value)}>
+            <option value="">All divisions</option>
+            {divisionNames.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </Select>
+        </div>
         <div className="grid w-full max-w-xs gap-1">
-          <label className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+          <label className="text-[12px] font-medium text-fg-muted">
             Status
           </label>
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -130,9 +172,9 @@ export function DivisionApplicationsQueue({
         </Alert>
       )}
 
-      {items.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="rounded-md border border-dashed border-border bg-bg-subtle px-3 py-8 text-center text-[13px] text-fg-muted">
-          No applications in this state.
+          {items.length === 0 ? "No applications in this state." : "No application matches these filters."}
         </p>
       ) : (
         <Table>
@@ -148,7 +190,7 @@ export function DivisionApplicationsQueue({
             </TR>
           </THead>
           <TBody>
-            {items.map((t) => {
+            {shown.map((t) => {
               const pct = t.thresholdCents
                 ? Math.min(
                     100,
