@@ -145,10 +145,10 @@ export function DivisionApplicationsQueue({
           </Select>
         </div>
         <div className="grid w-full max-w-xs gap-1">
-          <label className="text-[12px] font-medium text-fg-muted">
+          <label htmlFor="apps-status" className="text-[12px] font-medium text-fg-muted">
             Status
           </label>
-          <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <Select id="apps-status" value={status} onChange={(e) => setStatus(e.target.value)}>
             {STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}

@@ -528,21 +528,23 @@ export function profileQuestionTopic(key: string): string {
 /**
  * Splits questions into wizard pages by topic, in order: consecutive
  * questions of one topic share a page, and a topic with more than
- * `max` questions spans several pages ("Playing", "Playing (2)").
+ * `max` questions spans several pages ("Playing", "Playing, continued").
  */
 export function profilePagesByTopic<T extends { key: string }>(questions: T[], max = 5): Array<{ label: string; questions: T[] }> {
   const pages: Array<{ label: string; questions: T[] }> = [];
+  const topics: string[] = [];
   const seen = new Map<string, number>();
   for (const q of questions) {
     const topic = profileQuestionTopic(q.key);
     const last = pages[pages.length - 1];
-    if (last && last.label.replace(/ \(\d+\)$/, "") === topic && last.questions.length < max) {
+    if (last && topics[topics.length - 1] === topic && last.questions.length < max) {
       last.questions.push(q);
       continue;
     }
+    topics.push(topic);
     const n = (seen.get(topic) ?? 0) + 1;
     seen.set(topic, n);
-    pages.push({ label: n === 1 ? topic : `${topic} (${n})`, questions: [q] });
+    pages.push({ label: n === 1 ? topic : n === 2 ? `${topic}, continued` : `${topic}, continued (${n - 1})`, questions: [q] });
   }
   return pages;
 }

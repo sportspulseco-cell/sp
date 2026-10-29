@@ -19,3 +19,9 @@ test("the player profile pages have names, never Page N", () => {
   assert.equal(pages[0]!.label, "About you");
   assert.equal(pages.flatMap((p) => p.questions).length, ROLE_PROFILE_SCHEMAS.player!.questions.length);
 });
+
+test("a long topic continues on a page named after it", () => {
+  const qs = Array.from({ length: 12 }, (_, i) => ({ key: i % 2 ? "positions" : "shot" }));
+  const pages = profilePagesByTopic(qs, 5);
+  assert.deepEqual(pages.map((p) => [p.label, p.questions.length]), [["Playing", 5], ["Playing, continued", 5], ["Playing, continued (2)", 2]]);
+});
