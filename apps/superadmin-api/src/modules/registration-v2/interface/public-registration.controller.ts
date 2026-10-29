@@ -71,7 +71,8 @@ import {
   PRICE_AUDIENCE_LABELS,
   type RegistrationDocumentKey,
   type RegistrationState,
-  type RegistrationSubmissionType
+  type RegistrationSubmissionType,
+  SCHEDULABLE_ENTRY_STATUSES
 } from "@sportspulse/kernel";
 import { playerWebUrl } from "../../../shared/app-urls";
 import type { Database } from "@sportspulse/db";
@@ -2972,7 +2973,7 @@ export class PublicRegistrationController {
             eq(schema.divisionTeamEntries.teamId, row.teamId),
             eq(schema.divisions.seasonId, row.seasonId),
             isNotNull(schema.divisionTeamEntries.invoiceId),
-            inArray(schema.divisionTeamEntries.entryStatus, ["applied", "accepted", "confirmed"])
+            inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
           )
         )
         .limit(1);

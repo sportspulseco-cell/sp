@@ -19,7 +19,8 @@ import {
   rosterEntryReadiness,
   rosterOpeningRefusal,
   submissionTypeCarriesTeam,
-  type RosterEntryReadiness
+  type RosterEntryReadiness,
+  SCHEDULABLE_ENTRY_STATUSES
 } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { NotificationService } from "../../communications/application/notification.service";
@@ -31,7 +32,7 @@ type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Exec = Database | Tx;
 
 /** Division entry statuses in which a team plays the season. */
-const LIVE_ENTRY_STATUSES = ["applied", "accepted", "confirmed"];
+const LIVE_ENTRY_STATUSES: readonly string[] = SCHEDULABLE_ENTRY_STATUSES;
 const OPEN_INVITE_STATUSES = ["pending", "extended"];
 
 export interface SeasonRegistrationRef {
@@ -126,7 +127,10 @@ export class RosterEntryService {
       .where(
         and(
           eq(schema.divisionTeamEntries.teamId, teamId),
-          eq(schema.divisions.seasonId, seasonId)
+          eq(schema.divisions.seasonId, seasonId),
+          // A rejected or withdrawn entry in another division must not
+          // hide the live one (a team moved from Div A to Div B).
+          inArray(schema.divisionTeamEntries.entryStatus, [...LIVE_ENTRY_STATUSES])
         )
       )
       .limit(1);

@@ -17,7 +17,8 @@ import {
   playoffGamesPlayedVerdict,
   resolvePlayoffConfig,
   suspensionInForce,
-  sweepOutcome
+  sweepOutcome,
+  SCHEDULABLE_ENTRY_STATUSES
 } from "@sportspulse/kernel";
 import { loadStandingSuspensions } from "../../game-operations/application/suspensions/suspension-rules";
 import type { Database } from "@sportspulse/db";
@@ -630,7 +631,8 @@ export class ComplianceSweepsController {
       .where(
         and(
           eq(schema.divisionTeamEntries.teamId, teamId),
-          eq(schema.divisions.seasonId, seasonId)
+          eq(schema.divisions.seasonId, seasonId),
+          inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
         )
       )
       .limit(1);

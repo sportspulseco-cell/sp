@@ -4,10 +4,10 @@ import {
   Logger,
   NotFoundException
 } from "@nestjs/common";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { resolveDivisionRules } from "@sportspulse/kernel";
+import { resolveDivisionRules, SCHEDULABLE_ENTRY_STATUSES } from "@sportspulse/kernel";
 
 type ResolvedDivisionRules = ReturnType<typeof resolveDivisionRules>;
 import { suspensionBlocksForGame } from "../../game-operations/application/suspensions/suspension-rules";
@@ -60,7 +60,14 @@ export async function teamDivisionInSeason(
     })
     .from(schema.divisionTeamEntries)
     .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
-    .where(and(eq(schema.divisionTeamEntries.teamId, teamId), eq(schema.divisions.seasonId, seasonId)))
+    .where(
+      and(
+        eq(schema.divisionTeamEntries.teamId, teamId),
+        eq(schema.divisions.seasonId, seasonId),
+        // The live entry, never a rejected one in another division.
+        inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
+      )
+    )
     .limit(1);
   if (!row) return null;
   return {

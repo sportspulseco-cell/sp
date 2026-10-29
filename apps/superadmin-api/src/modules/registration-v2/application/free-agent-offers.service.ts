@@ -19,7 +19,8 @@ import {
   freeAgentPositionLabel,
   rankFreeAgentPitch,
   resolveDivisionRules,
-  type FreeAgentOfferStatus
+  type FreeAgentOfferStatus,
+  SCHEDULABLE_ENTRY_STATUSES
 } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { playerWebUrl } from "../../../shared/app-urls";
@@ -34,7 +35,7 @@ type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Exec = Database | Tx;
 
 /** Division entry statuses in which a team plays the season. */
-const LIVE_ENTRY_STATUSES = ["applied", "accepted", "confirmed"];
+const LIVE_ENTRY_STATUSES: readonly string[] = SCHEDULABLE_ENTRY_STATUSES;
 const OPEN_INVITE_STATUSES = ["pending", "extended"];
 
 export interface FreeAgentOfferView {
@@ -132,7 +133,7 @@ export class FreeAgentOffersService {
       .where(
         and(
           eq(schema.divisions.seasonId, seasonId),
-          inArray(schema.divisionTeamEntries.entryStatus, LIVE_ENTRY_STATUSES),
+          inArray(schema.divisionTeamEntries.entryStatus, [...LIVE_ENTRY_STATUSES]),
           isNull(schema.teams.deletedAt),
           opts.teamId ? eq(schema.teams.id, opts.teamId) : undefined
         )

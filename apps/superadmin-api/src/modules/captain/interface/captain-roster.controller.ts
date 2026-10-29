@@ -46,7 +46,8 @@ import {
   pickCurrentSeason,
   resolveDivisionRules,
   sortSeasonsByCurrency,
-  teamRegistrationPath
+  teamRegistrationPath,
+  SCHEDULABLE_ENTRY_STATUSES
 } from "@sportspulse/kernel";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
@@ -1041,7 +1042,8 @@ export class CaptainRosterController {
         .where(
           and(
             eq(schema.divisionTeamEntries.teamId, teamId),
-            eq(schema.divisions.seasonId, season.id)
+            eq(schema.divisions.seasonId, season.id),
+            inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
           )
         )
         .limit(1);
@@ -1407,7 +1409,8 @@ export class CaptainRosterController {
       .where(
         and(
           eq(schema.divisionTeamEntries.teamId, teamId),
-          eq(schema.divisions.seasonId, seasonId)
+          eq(schema.divisions.seasonId, seasonId),
+          inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES])
         )
       )
       .limit(1);
