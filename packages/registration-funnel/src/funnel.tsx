@@ -2753,7 +2753,9 @@ function PaymentStep({
 
   // What actually fires on the primary CTA — pick handler by option.
   function handlePay() {
-    if (option === "offline") onPayOffline();
+    // Nothing to pay: no option to choose, just submit.
+    if (free) onPay("full", false);
+    else if (option === "offline") onPayOffline();
     else onPay(option === "plan" && plan ? "plan" : "full", useWallet && walletCents > 0);
   }
 
@@ -2847,7 +2849,8 @@ function PaymentStep({
         ) : null}
       </section>
 
-      {/* Card 2 — Payment options */}
+      {/* Card 2 — Payment options (none when there is nothing to pay) */}
+      {free ? null : (
       <section className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="text-[14px] font-semibold tracking-tight text-fg">
           Choose a payment option
@@ -2901,6 +2904,7 @@ function PaymentStep({
           />
         </ul>
       </section>
+      )}
 
       {walletCents > 0 && option !== "offline" && !free ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
@@ -2971,10 +2975,10 @@ function PaymentStep({
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {option === "offline"
-                  ? "Submit for offline payment"
-                  : free
-                    ? "Submit registration"
+                {free
+                  ? "Submit registration"
+                  : option === "offline"
+                    ? "Submit for offline payment"
                     : ctaAmount > 0
                     ? `Pay ${fmt(ctaAmount)}`
                     : creditUsed > 0
@@ -3262,38 +3266,43 @@ function guidanceFor(
       return {
         headline: (r) => (r ? "Welcome back" : "Almost there"),
         body: isMinor
-          ? "We've flagged you as under 18. Next step: parental consent. We'll send a link to your parent / guardian. (Email delivery wires up next pass; for now look for the in-app prompt.)"
-          : "We need parental consent before payment can proceed."
+          ? "A parent or guardian needs to confirm your registration. We sent them a link."
+          : "A parent or guardian needs to confirm your registration before you pay."
       };
     case "pending_payment":
       return {
         headline: (r) => (r ? "Welcome back" : "Account created"),
-        body: "Next: pay the registration fee. Payment opens in the next slice (mock Stripe)."
+        body: "Next: pay the registration fee."
+      };
+    case "pending_offline":
+      return {
+        headline: () => "Waiting for your payment",
+        body: "Pay the league by cash, cheque or e-transfer. They approve your registration when it arrives."
       };
     case "pending_review":
       return {
-        headline: () => "Payment received",
-        body: "Your submission is now in admin review. You'll hear back via email."
+        headline: () => "Sent to the league",
+        body: "The league reviews your registration and emails you when it is approved."
       };
     case "approved":
       return {
         headline: () => "You're on the roster!",
-        body: "Welcome aboard. Your team / free-agent placement is live."
+        body: "Welcome aboard. Your registration is approved."
       };
     case "rejected":
       return {
-        headline: () => "Submission not approved",
-        body: "Admin couldn't approve this submission. A refund is in flight per league policy."
+        headline: () => "Registration not approved",
+        body: "The league could not approve this registration. Contact them for the reason."
       };
     case "cancelled":
       return {
         headline: () => "Cancelled",
-        body: "This submission was cancelled. You can start fresh any time."
+        body: "This registration was cancelled. You can start again any time."
       };
     default:
       return {
         headline: (r) => (r ? "Welcome back" : "You're in"),
-        body: "We've started a draft registration against this season."
+        body: "Your registration is saved. Come back any time to finish it."
       };
   }
 }
