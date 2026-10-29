@@ -504,7 +504,14 @@ export class CaptainDuesController {
           });
         }
         const now = new Date();
-        const [sub] = await tx
+        const idempotencyKey = `share-${master.id}-${captain.personId}`;
+        // A share of theirs voided earlier holds the key: bring it back.
+        const [revived] = await tx
+          .update(schema.invoices)
+          .set({ status: "sent", subtotalCents: 0, totalCents: 0, paidAt: null, updatedAt: now })
+          .where(and(eq(schema.invoices.idempotencyKey, idempotencyKey), eq(schema.invoices.status, "void")))
+          .returning();
+        const [sub] = revived ? [revived] : await tx
           .insert(schema.invoices)
           .values({
             orgId: master.orgId,
@@ -522,13 +529,13 @@ export class CaptainDuesController {
             status: "sent",
             issuedAt: now,
             dueAt: master.dueAt,
-            idempotencyKey: `share-${master.id}-${captain.personId}`,
+            idempotencyKey,
             metadata: { splitMethod: body.method, addedForCaptain: true }
           })
           .onConflictDoNothing()
           .returning();
         if (!sub) throw new ConflictException({ error: "captain_share_exists", message: "Your share already exists. Reload the page and try again." });
-        await tx.insert(schema.invoiceItems).values({
+        if (!revived) await tx.insert(schema.invoiceItems).values({
           invoiceId: sub.id,
           kind: "registration_fee",
           description: `${master.invoiceNumber}: your share`,
