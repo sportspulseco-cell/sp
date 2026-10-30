@@ -84,6 +84,20 @@ export function allowedSubmissionTypes(
   );
 }
 
+/** Short label for a registration path, as admins and players see it. */
+export const SUBMISSION_TYPE_LABELS: Record<RegistrationSubmissionType, string> = {
+  team: "Team",
+  individual: "Player",
+  free_agent: "Free agent",
+  captain_invite: "Captain invite"
+};
+
+/** The label for a stored path; an unknown value is shown capitalised, never as a code. */
+export function submissionTypeLabel(type: string | null | undefined): string {
+  if (!type) return "Player";
+  return (SUBMISSION_TYPE_LABELS as Record<string, string>)[type] ?? type.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
 const PATH_NAMES: Record<RegistrationSubmissionType, string> = {
   team: "team registration",
   individual: "individual player registration",

@@ -4,7 +4,7 @@ import { Alert, Badge, LocalDate, Skeleton, Button, Dialog, DialogActions, Field
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Loader2, Mail, RotateCcw, ShieldAlert, Wallet, X } from "lucide-react";
-import { REGISTRATION_STATE_LABELS, REGISTRATION_STATES, type RegistrationState, formatMoney } from "@sportspulse/kernel";
+import { REGISTRATION_STATE_LABELS, REGISTRATION_STATES, type RegistrationState, formatMoney, submissionTypeLabel } from "@sportspulse/kernel";
 import { registrationV2, registrationV2Admin } from "@/lib/api/browser-api";
 
 interface Submission {
@@ -342,7 +342,7 @@ function Row({
       </TD>
       <TD className="text-muted-foreground">
         <span className="font-mono text-[11px] uppercase">
-          {(meta.submissionType as string) ?? "individual"}
+          {submissionTypeLabel(meta.submissionType as string | undefined)}
         </span>
       </TD>
       <TD>
@@ -569,7 +569,7 @@ function ReviewDialog({
         )}
         <dl className="divide-y divide-border rounded-md border border-border bg-surface-1 text-sm">
           <Row2 label="Email">{meta.email as string}</Row2>
-          <Row2 label="Path">{(meta.submissionType as string) ?? "—"}</Row2>
+          <Row2 label="Path">{submissionTypeLabel(meta.submissionType as string | undefined)}</Row2>
           <Row2 label="DOB">{(meta.dobDate as string) ?? "—"}</Row2>
           <Row2 label="Tier">
             {tierId ? (tierName ?? <Skeleton className="inline-block h-3 w-24 align-middle" />) : "—"}
