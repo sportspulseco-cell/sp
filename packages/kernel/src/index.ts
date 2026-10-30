@@ -14,6 +14,7 @@ export * from "./forms";
 export * from "./role-profiles";
 export * from "./role-profile-validation";
 export * from "./registration-states";
+export * from "./registration-reference";
 export * from "./form-purposes";
 export * from "./season-config";
 export * from "./governing-body-ids";

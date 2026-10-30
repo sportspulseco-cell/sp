@@ -1938,6 +1938,8 @@ export function createApi(f: Fetcher) {
               orgName: string | null;
               formName: string | null;
               seasonName: string | null;
+              /** "OS1-2026-2D3FDB53": what the player quotes (kernel registrationReference). */
+              reference?: string;
               leagueName: string | null;
               divisionName: string | null;
               teamName: string | null;
@@ -1950,6 +1952,8 @@ export function createApi(f: Fetcher) {
             orgName: string | null;
             formName: string | null;
             seasonName: string | null;
+            /** "OS1-2026-2D3FDB53": what the player quotes (kernel registrationReference). */
+            reference?: string;
             leagueName: string | null;
             divisionName: string | null;
             teamName: string | null;

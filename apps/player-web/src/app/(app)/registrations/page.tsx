@@ -179,7 +179,7 @@ function RegistrationRow({ r }: { r: Row }) {
             )}
 
             <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-              Ref {r.id.slice(0, 8)} ·{" "}
+              Ref {r.reference ?? r.id.slice(0, 8).toUpperCase()} ·{" "}
               {r.submittedAt ? (
                 <>Submitted <LocalDate iso={r.submittedAt} format="date" /></>
               ) : (

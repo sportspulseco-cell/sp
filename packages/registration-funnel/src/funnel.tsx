@@ -19,7 +19,8 @@ import {
   statusLabel,
   formatCalendarDate,
   formatInZone,
-  DATE_FORMATS
+  DATE_FORMATS,
+  registrationReference
 } from "@sportspulse/kernel";
 import type { PublicRegistrationApi, RegistrationQuote } from "./public-api";
 import type { PublicSeasonContext, PricingTier, SubmissionType, WaiverDoc } from "./types";
@@ -3057,16 +3058,12 @@ function DoneStep({
   api: PublicRegistrationApi;
 }) {
   const guidance = guidanceFor(status, isMinor);
-  // Build a humane reference number — e.g. "PPHL-2025-NH-08841" from
-  // the season's initials + year + a slice of the submission id.
-  const seasonAbbrev = context.season.name
-    .split(/\s+/)
-    .map((w) => w[0]?.toUpperCase())
-    .filter(Boolean)
-    .join("")
-    .slice(0, 4);
-  const yearPart = (context.season.startDate ?? "").slice(0, 4);
-  const refNumber = `${seasonAbbrev || "REG"}-${yearPart}-${submissionId.slice(0, 8).toUpperCase()}`;
+  // Same reference My registrations shows (kernel rule).
+  const refNumber = registrationReference({
+    id: submissionId,
+    seasonName: context.season.name,
+    seasonStartDate: context.season.startDate
+  });
 
   // Real team_id (stamped by the approve handler) for the split-pay
   // share link. Fetch via getSubmission — the registration row may

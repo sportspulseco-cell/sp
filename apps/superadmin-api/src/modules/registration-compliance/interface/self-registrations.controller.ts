@@ -1,3 +1,4 @@
+import { registrationReference } from "@sportspulse/kernel";
 import {
   Body,
   ConflictException,
@@ -140,11 +141,12 @@ export class SelfRegistrationsController {
     );
     const seasonRows = seasonIds.length
       ? await this.db
-          .select({ id: schema.seasons.id, name: schema.seasons.name })
+          .select({ id: schema.seasons.id, name: schema.seasons.name, startDate: schema.seasons.startDate })
           .from(schema.seasons)
           .where(inArray(schema.seasons.id, seasonIds))
       : [];
     const seasonName = new Map(seasonRows.map((s) => [s.id, s.name]));
+    const seasonStart = new Map(seasonRows.map((s) => [s.id, String(s.startDate)]));
 
     return {
       items: rows.map(({ r, orgName, formName, formSeasonId, divisionSeasonId, leagueName, divisionName, teamName }) => {
@@ -174,6 +176,12 @@ export class SelfRegistrationsController {
           orgName: orgName ?? null,
           formName: formName ?? null,
           seasonName: seasonId ? seasonName.get(seasonId) ?? null : null,
+          // The reference the confirmation screen showed, not an id fragment.
+          reference: registrationReference({
+            id: r.id,
+            seasonName: seasonId ? seasonName.get(seasonId) : null,
+            seasonStartDate: seasonId ? seasonStart.get(seasonId) : null
+          }),
           leagueName: leagueName ?? null,
           divisionName: divisionName ?? null,
           teamName: teamName ?? null
@@ -251,13 +259,15 @@ export class SelfRegistrationsController {
     // see listMine for the rationale.
     const seasonId = row.divisionSeasonId ?? row.formSeasonId ?? null;
     let seasonName: string | null = null;
+    let seasonStartDate: string | null = null;
     if (seasonId) {
       const [s] = await this.db
-        .select({ name: schema.seasons.name })
+        .select({ name: schema.seasons.name, startDate: schema.seasons.startDate })
         .from(schema.seasons)
         .where(eq(schema.seasons.id, seasonId))
         .limit(1);
       seasonName = s?.name ?? null;
+      seasonStartDate = s ? String(s.startDate) : null;
     }
 
     // P2-2 legacy-row follow-up: when the registration has a season
@@ -300,6 +310,7 @@ export class SelfRegistrationsController {
       orgName: row.orgName ?? null,
       formName: row.formName ?? null,
       seasonName,
+      reference: registrationReference({ id: r.id, seasonName, seasonStartDate }),
       leagueName: row.leagueName ?? null,
       divisionName: row.divisionName ?? null,
       teamName: row.teamName ?? null,

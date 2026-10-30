@@ -173,7 +173,7 @@ export default async function RegistrationDetailPage({
           {r.decisionReason && (
             <DetailRow label="Reason" value={r.decisionReason} />
           )}
-          <DetailRow label="Ref" value={r.id.slice(0, 8)} mono />
+          <DetailRow label="Reference number" value={r.reference ?? r.id.slice(0, 8).toUpperCase()} mono />
         </dl>
 
         {/* What's next */}
