@@ -18,10 +18,13 @@ import { iam } from "@/lib/api/browser-api";
  */
 export function OnboardingClient({
   userId,
-  userType
+  userType,
+  next = "/"
 }: {
   userId: string;
   userType: string;
+  /** Where to go after the last step: home, or the team link the player signed up from. */
+  next?: string;
 }) {
   const router = useRouter();
 
@@ -64,7 +67,7 @@ export function OnboardingClient({
       userId={userId}
       userType={userType}
       api={api}
-      onComplete={() => router.replace("/")}
+      onComplete={() => router.replace(next)}
     />
   );
 }

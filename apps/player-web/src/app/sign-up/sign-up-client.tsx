@@ -10,7 +10,11 @@ import { createClient } from "@/lib/supabase/client";
  * identity → done. Account creation hands off to /onboarding which
  * captures role-profile fields via the existing OnboardingFunnel.
  */
-export function SignUpClient() {
+export function SignUpClient({ next = null }: { next?: string | null }) {
+  // Carried through onboarding so a player who signed up from a team
+  // link lands back on it ("Join <team>"), not on the home page, where
+  // the link was lost (PPHL, 30 Oct 2026).
+  const after = next ? `?next=${encodeURIComponent(next)}` : "";
   const router = useRouter();
 
   const api: SignUpFunnelApi = {
@@ -35,10 +39,10 @@ export function SignUpClient() {
     <SignUpFunnel
       appName="Player"
       roleLabel="Player / Free agent"
-      signInHref="/sign-in"
-      onboardingHref="/onboarding"
+      signInHref={`/sign-in${after}`}
+      onboardingHref={`/onboarding${after}`}
       api={api}
-      onComplete={() => router.push("/onboarding")}
+      onComplete={() => router.push(`/onboarding${after}`)}
     />
   );
 }

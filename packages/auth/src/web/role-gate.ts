@@ -151,8 +151,11 @@ export async function requireRole(opts: {
     !request.nextUrl.pathname.startsWith(onboardingPath)
   ) {
     const url = request.nextUrl.clone();
+    // Keep where the user was going, so onboarding can send them on
+    // (a player who opened a captain's team link lands back on it).
+    const going = request.nextUrl.pathname + request.nextUrl.search;
     url.pathname = onboardingPath;
-    url.search = "";
+    url.search = going && going !== "/" ? `?next=${encodeURIComponent(going)}` : "";
     return NextResponse.redirect(url);
   }
 

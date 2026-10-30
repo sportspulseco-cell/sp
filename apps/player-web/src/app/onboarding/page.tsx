@@ -1,5 +1,6 @@
 import { OnboardingClient } from "./onboarding-client";
 import { createClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@sportspulse/kernel";
 
 /**
  * Post-signin onboarding wizard. Every app (player / org-admin /
@@ -11,7 +12,8 @@ import { createClient } from "@/lib/supabase/server";
  */
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user }
@@ -19,5 +21,5 @@ export default async function OnboardingPage() {
   if (!user) return null;
   const codes = (user.app_metadata?.role_codes ?? []) as string[];
   const userType = codes[0] ?? "player";
-  return <OnboardingClient userId={user.id} userType={userType} />;
+  return <OnboardingClient userId={user.id} userType={userType} next={safeNextPath(next ?? null, "/")} />;
 }
