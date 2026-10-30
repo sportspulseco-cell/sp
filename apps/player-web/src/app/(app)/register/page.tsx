@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, CalendarRange, Layers, Sparkles, Trophy, UserPlus, Users } from "lucide-react";
 import { PageHeader, EmptyState } from "@sportspulse/ui";
-import { publicRegistration } from "@/lib/api/server-api";
+import { redirect } from "next/navigation";
+import { load } from "@sportspulse/api-client";
+import { publicRegistration, registration } from "@/lib/api/server-api";
 import { registrationClosesLabel } from "@sportspulse/kernel";
 
 export const metadata = { title: "Find a team · Player" };
@@ -30,9 +32,24 @@ async function listOpen(): Promise<OpenSeason[]> {
   }
 }
 
-export default async function FindATeamPage() {
+export default async function FindATeamPage({
+  searchParams
+}: {
+  searchParams: Promise<{ resume?: string }>;
+}) {
   // A league link (/register?org=) never reaches here: the middleware
   // sends it to that league's public page.
+  // ?resume=<id> (Resume on My registrations, the home task list and the
+  // banner) reopens that registration's own sign-up: its season, and its
+  // team for an invited player. It used to land on this list, so a player
+  // stuck at payment had no way back in (PPHL, 30 Oct 2026).
+  const { resume } = await searchParams;
+  if (resume) {
+    const mine = await load(registration.getMyRegistration(resume));
+    if (mine.ok && mine.data.seasonId) {
+      redirect(`/register/${mine.data.seasonId}${mine.data.teamId ? `?team=${encodeURIComponent(mine.data.teamId)}` : ""}`);
+    }
+  }
   const open = await listOpen();
 
   return (

@@ -904,7 +904,7 @@ export class CaptainController {
           const dn = captainProfile.displayName?.trim() ?? "";
           const sep = dn.indexOf(" ");
           const firstName = (sep > 0 ? dn.slice(0, sep) : dn) || "Captain";
-          const lastName = (sep > 0 ? dn.slice(sep + 1) : "") || "—";
+          const lastName = sep > 0 ? dn.slice(sep + 1) : "";
           const [created] = await this.db
             .insert(schema.persons)
             .values({

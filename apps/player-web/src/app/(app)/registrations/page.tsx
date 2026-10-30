@@ -84,7 +84,8 @@ export default async function MyRegistrationsPage() {
 
 function RegistrationRow({ r }: { r: Row }) {
   const isApproved = r.status === "approved";
-  const isDraftish = r.status === "draft" || r.status === "rejected";
+  // Statuses the player finishes themselves: Resume reopens the sign-up.
+  const isDraftish = ["draft", "rejected", "pending_payment", "incomplete", "pending_verification"].includes(r.status);
   const title =
     r.seasonName ||
     r.formName ||

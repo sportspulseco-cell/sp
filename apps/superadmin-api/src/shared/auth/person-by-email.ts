@@ -55,7 +55,7 @@ export async function personForAccountEmail(
     .values({
       userId: user.id,
       legalFirstName: first,
-      legalLastName: last || "—",
+      legalLastName: last,
       externalIds: { email, supabaseUserId: user.id, source }
     })
     // persons.user_id is unique: a concurrent create wins, we read it back.

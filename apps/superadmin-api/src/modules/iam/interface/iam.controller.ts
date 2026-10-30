@@ -186,7 +186,7 @@ export class IamController {
           "Player";
         const parts = display.split(/\s+/);
         const fn = parts[0] || display;
-        const ln = parts.slice(1).join(" ") || "—";
+        const ln = parts.slice(1).join(" ");
         const [created] = await this.db
           .insert(schema.persons)
           .values({

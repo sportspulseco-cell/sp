@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   ExternalLink,
@@ -14,6 +14,9 @@ import { iam } from "@/lib/api/browser-api";
 import type { Profile } from "@/lib/api/types";
 import { SetPasswordDialog } from "./set-password-dialog";
 import { RoleProfileDialog } from "./role-profile-dialog";
+
+/** Room the menu needs below the button before it opens upward instead. */
+const MENU_HEIGHT = 190;
 
 /**
  * Per-row kebab menu on /users.
@@ -38,13 +41,40 @@ export function UserActionsMenu({
   // player fallback. Resolved by the page from one assignments fetch; a
   // per-row fetch here exhausted the database pool (EMAXCONN).
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Fixed to the viewport so the table's scroll box cannot clip it, and
+  // opened upward when the row is near the bottom: on the last rows the
+  // items below "Edit role profile" were cut off (PPHL, 24 Oct item 8).
+  const [place, setPlace] = useState<CSSProperties>({});
+
+  function toggle() {
+    if (!open && buttonRef.current) {
+      const r = buttonRef.current.getBoundingClientRect();
+      const right = window.innerWidth - r.right;
+      setPlace(
+        window.innerHeight - r.bottom < MENU_HEIGHT && r.top > MENU_HEIGHT
+          ? { right, bottom: window.innerHeight - r.top + 4 }
+          : { right, top: r.bottom + 4 }
+      );
+    }
+    setOpen((v) => !v);
+  }
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    const close = () => setOpen(false);
+    if (open) {
+      document.addEventListener("mousedown", onDoc);
+      window.addEventListener("scroll", close, true);
+      window.addEventListener("resize", close);
+    }
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
   }, [open]);
 
   async function toggleSuspend() {
@@ -71,8 +101,9 @@ export function UserActionsMenu({
     <>
       <div ref={containerRef} className="relative inline-block">
         <button
+          ref={buttonRef}
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggle}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-1 text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
           aria-label="User actions"
           aria-haspopup="menu"
@@ -82,7 +113,7 @@ export function UserActionsMenu({
         </button>
 
         {open && (
-          <div className="absolute right-0 z-50 mt-1 min-w-[200px] overflow-hidden rounded-md border border-border bg-surface-1 shadow-lg">
+          <div role="menu" style={place} className="fixed z-50 min-w-[200px] overflow-hidden rounded-md border border-border bg-surface-1 shadow-lg">
             <MenuItem
               icon={<UserCog className="h-3.5 w-3.5" strokeWidth={1.75} />}
               onClick={() => {

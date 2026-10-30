@@ -175,6 +175,10 @@ export function OrgSetupWizard({
     divisions: [emptyDivision(crypto.randomUUID())]
   }));
   const [busy, setBusy] = useState(false);
+  // Set once the save or publish went through. The buttons stay off
+  // while the league page loads: a second click in that gap started a
+  // fresh run and created another league (PPHL, 24 Oct item 3).
+  const [done, setDone] = useState<"draft" | "published" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // What the current submit run has saved so far (see submit()).
   const progress = useRef<{
@@ -518,6 +522,7 @@ export function OrgSetupWizard({
       }
 
       progress.current = { divisionUids: new Set() };
+      setDone(publish ? "published" : "draft");
       onComplete({ leagueId: league.id });
     } catch (err) {
       const done = [
@@ -675,6 +680,8 @@ export function OrgSetupWizard({
         step={state.step}
         canAdvance={stepValidation[state.step]}
         busy={busy}
+        done={done}
+        leagueActive={existingLeague?.status === "active"}
         onBack={goBack}
         onNext={goNext}
         onSaveDraft={() => submit({ publish: false })}
@@ -689,6 +696,8 @@ function Footer({
   step,
   canAdvance,
   busy,
+  done,
+  leagueActive,
   onBack,
   onNext,
   onSaveDraft,
@@ -698,6 +707,9 @@ function Footer({
   step: WizardStep;
   canAdvance: boolean;
   busy: boolean;
+  done: "draft" | "published" | null;
+  /** The league picked in step 2 is already published: nothing to publish again. */
+  leagueActive: boolean;
   onBack: () => void;
   onNext: () => void;
   onSaveDraft: () => void;
@@ -729,7 +741,7 @@ function Footer({
             variant="ghost"
             size="sm"
             onClick={onSaveDraft}
-            disabled={!canAdvance || busy}
+            disabled={!canAdvance || busy || !!done}
           >
             {busy ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -739,14 +751,16 @@ function Footer({
           <Button
             type="button"
             onClick={onPublish}
-            disabled={!canAdvance || busy}
+            disabled={!canAdvance || busy || !!done}
           >
             {busy ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
               <Send className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
             )}
-            <span className="font-mono text-[10px] uppercase tracking-widest">Publish league</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest">
+              {done === "published" ? (leagueActive ? "Saved" : "Published") : leagueActive ? "Save and finish" : "Publish league"}
+            </span>
           </Button>
         </div>
       )}
