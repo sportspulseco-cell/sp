@@ -71,13 +71,24 @@ type Step = "welcome" | "account" | "identity" | "done";
 
 const STEP_ORDER: Step[] = ["welcome", "account", "identity", "done"];
 
+/**
+ * Sign-up errors in plain words. The auth service's own text ("email rate
+ * limit exceeded", "User already registered") was shown as is.
+ */
+function plainSignUpError(message: string): string {
+  if (/rate limit/i.test(message)) return "Too many sign-ups right now. Wait a few minutes, then try again.";
+  if (/already registered|already exists/i.test(message)) return "An account with this email already exists. Sign in instead.";
+  return message;
+}
+
 export function SignUpFunnel({
   appName,
   roleLabel,
   signInHref,
   onboardingHref,
   api,
-  onComplete
+  onComplete,
+  emailLabel = "Work email"
 }: {
   /** The app's display name — used in headlines (e.g. "Team Admin"). */
   appName: string;
@@ -94,6 +105,8 @@ export function SignUpFunnel({
   api: SignUpFunnelApi;
   /** Optional — fired when the user clicks the success CTA. */
   onComplete?: () => void;
+  /** Label of the email field: "Work email" for staff apps, "Email" for players. */
+  emailLabel?: string;
 }) {
   const [step, setStep] = useState<Step>("welcome");
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +146,7 @@ export function SignUpFunnel({
       });
       setStep("identity");
     } catch (err) {
-      setError((err as Error).message);
+      setError(plainSignUpError((err as Error).message));
     } finally {
       setSubmitting(false);
     }
@@ -156,7 +169,7 @@ export function SignUpFunnel({
       });
       setStep("done");
     } catch (err) {
-      setError((err as Error).message);
+      setError(plainSignUpError((err as Error).message));
     } finally {
       setSubmitting(false);
     }
@@ -183,7 +196,7 @@ export function SignUpFunnel({
               title="Create your account"
               hint="We may email you a link to confirm it."
             />
-            <Field label="Work email" htmlFor="email">
+            <Field label={emailLabel} htmlFor="email">
               <Input
                 id="email"
                 type="email"

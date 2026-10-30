@@ -38,6 +38,7 @@ export function SignUpClient({ next = null }: { next?: string | null }) {
   return (
     <SignUpFunnel
       appName="Player"
+      emailLabel="Email"
       roleLabel="Player / Free agent"
       signInHref={`/sign-in${after}`}
       onboardingHref={`/onboarding${after}`}

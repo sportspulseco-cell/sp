@@ -663,15 +663,31 @@ export class CaptainRosterController {
         `This invite was sent to ${invite.inviteeEmail}. Sign in with that email to accept it.`
       );
     }
-    if (!me?.personId) {
-      throw new ConflictException(
-        "Finish your player profile first, then open this invite again."
-      );
-    }
-
     const season = await this.loadSeason(invite.seasonId);
     if (!season) throw new NotFoundException("Season not found");
     this.assertRosterUnlocked(season);
+    // No person record yet (a new account that skipped the profile): they
+    // cannot have registered, so Join opens the season's sign-up with the
+    // team set, which records them. It used to stop at "Finish your player
+    // profile first, then open this invite again" with no way on (PPHL
+    // tester-style walk, 30 Oct 2026).
+    if (!me?.personId) {
+      const [team] = await this.db
+        .select({ name: schema.teams.name })
+        .from(schema.teams)
+        .where(eq(schema.teams.id, invite.teamId))
+        .limit(1);
+      this.log.log(`invite accept invite=${invite.id} team=${invite.teamId} user=${user.userId} no person -> registration_required`);
+      return {
+        status: "registration_required" as const,
+        teamId: invite.teamId,
+        seasonId: season.id,
+        teamName: team?.name ?? null,
+        seasonName: season.name,
+        registerPath: teamRegistrationPath(season.id, invite.teamId, invite.token),
+        message: `Register for ${season.name} to join ${team?.name ?? "the team"}. You join the roster when the league approves your registration.`
+      };
+    }
     // Same one-active-membership rule as the captain's Add player (CAP-24).
     await this.assertNotActiveInOtherSeason(invite.teamId, me.personId, season.id);
     const division = await this.loadCurrentDivision(invite.teamId, season.id);
