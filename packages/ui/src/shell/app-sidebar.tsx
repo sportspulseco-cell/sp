@@ -119,7 +119,7 @@ function SidebarFooter({ brand, siteMapHref }: { brand: ShellBrand; siteMapHref?
     <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3 text-[11px] text-fg-muted">
       <span className="truncate">{brand.console} workspace</span>
       {siteMapHref ? (
-        <Link href={siteMapHref} className="shrink-0 underline-offset-2 hover:text-fg hover:underline">
+        <Link href={siteMapHref} prefetch={false} className="shrink-0 underline-offset-2 hover:text-fg hover:underline">
           Site map
         </Link>
       ) : null}
@@ -170,6 +170,10 @@ function NavList({ items, active }: { items: ShellNavItem[]; active: string | nu
           <li key={item.href}>
             <Link
               href={item.href}
+              // No prefetch: every console page renders per request, so
+              // prefetching ~25 menu links ran ~25 server renders per page
+              // view, on a CPU allowance that ran out (30 Oct 2026).
+              prefetch={false}
               onClick={() => setOpen(false)}
               aria-current={isActive ? "page" : undefined}
               className={cn(

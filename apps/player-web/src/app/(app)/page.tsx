@@ -208,11 +208,9 @@ export default async function PlayerHome() {
   // -- Roster size for "season points" approximation in stat bars --
   const teammates = membershipsPage.items.length;
 
-  const fullName = [profile.legalFirstName, profile.legalLastName]
-    .filter(Boolean)
-    .join(" ");
-  const displayName = profile.preferredName || fullName || profile.email || "Player";
-  const firstName = (profile.legalFirstName ?? displayName).split(" ")[0] ?? "Player";
+  // Greet by name only: an account with no name on file used to be
+  // greeted by its email address ("Hey jane+test@gmail.com.").
+  const firstName = (profile.legalFirstName || profile.preferredName || "").trim().split(/\s+/)[0] ?? "";
 
   // "Needs you": every open task, one button each (doc/design/guided-ui.md).
   const todo: TodoItem[] = [];
@@ -256,7 +254,7 @@ export default async function PlayerHome() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title={`Hey ${firstName}.`} />
+      <PageHeader title={firstName ? `Hey ${firstName}.` : "Welcome."} />
 
       {/* Decisions waiting on the player: a team offer, a sub request. */}
       <TeamOffersCard items={myInvites.items} />

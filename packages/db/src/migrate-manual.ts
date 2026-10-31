@@ -34,7 +34,8 @@ const STAGING_DEFERRED = new Set([
   "0036_compliance_lock_sweep_cron.sql",
   "0043_season_auto_transition_cron.sql",
   "0093_game_reminders_cron.sql",
-  "0087_scheduled_broadcasts_cron.sql"
+  "0087_scheduled_broadcasts_cron.sql",
+  "0095_crons_only_when_due.sql"
 ]);
 
 const args = process.argv.slice(2);
