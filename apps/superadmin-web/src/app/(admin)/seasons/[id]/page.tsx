@@ -75,6 +75,7 @@ export default async function SeasonDetailPage({
         <SeasonActions
           season={season}
           regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
+          divisions={divisionsPage.items}
         />
       }
       extras={

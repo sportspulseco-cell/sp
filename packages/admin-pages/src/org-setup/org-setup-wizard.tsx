@@ -9,6 +9,7 @@ import type { GoverningBody, League, Org, Season, Sport } from "@sportspulse/api
 import {
   DEFAULT_TIEBREAKERS,
   NEW_REGION,
+  copyDivisionDraft,
   emptyDivision,
   slugify,
   type DivisionDraft,
@@ -238,6 +239,19 @@ export function OrgSetupWizard({
       ...s,
       divisions: [...s.divisions, emptyDivision(crypto.randomUUID())]
     }));
+  }
+  // Copy: a new card directly below the source with every setting the
+  // same and no name (PPHL letter item 5). Deep copy, see copyDivisionDraft.
+  function copyDivision(uid: string) {
+    setState((s) => {
+      const i = s.divisions.findIndex((d) => d.uid === uid);
+      if (i < 0) return s;
+      const copy = copyDivisionDraft(s.divisions[i]!, crypto.randomUUID(), `Division ${i + 1}`);
+      return {
+        ...s,
+        divisions: [...s.divisions.slice(0, i + 1), copy, ...s.divisions.slice(i + 1)]
+      };
+    });
   }
   function removeDivision(uid: string) {
     setState((s) => ({
@@ -671,6 +685,7 @@ export function OrgSetupWizard({
             }}
             onPatch={patchDivision}
             onAdd={addDivision}
+            onCopy={copyDivision}
             onRemove={removeDivision}
           />
         ) : null}

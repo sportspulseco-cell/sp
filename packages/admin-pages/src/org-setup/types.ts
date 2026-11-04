@@ -1,5 +1,19 @@
 import { pointsRuleForm, type PointsRuleForm } from "../divisions/points-rule";
-import type { StandingsTiebreaker } from "@sportspulse/kernel";
+import {
+  DEFAULT_DIVISION_TIEBREAKERS,
+  DEFAULT_POINTS_RULE,
+  copyDivisionRules,
+  defaultDivisionRules,
+  type DivisionBodyChecking,
+  type DivisionClockType,
+  type DivisionGameRules,
+  type DivisionOvertimeRule,
+  type DivisionPlayoffConfig,
+  type PlayoffBracketType,
+  type PlayoffHomeIceRule,
+  type PlayoffSeriesFormat,
+  type StandingsTiebreaker
+} from "@sportspulse/kernel";
 /**
  * Wizard state shape — mirrors mockup field-for-field. Submitted to:
  *   - leagues.metadata for { slug, branding, privacy }
@@ -17,25 +31,14 @@ export type LeagueFormat = "regular" | "tournament" | "pickup" | "friendly";
 export type Privacy = "public" | "unlisted" | "private";
 export type Gender = "open" | "male" | "female" | "mixed";
 export type Tier = "A" | "B" | "C" | "D" | "Premier" | null;
-export type ClockType = "stopped" | "running";
-export type BodyChecking =
-  | "permitted"
-  | "not_permitted_penalty"
-  | "not_permitted_no_penalty";
-export type SeriesFormat =
-  | "best_of_1"
-  | "best_of_3"
-  | "best_of_5"
-  | "best_of_7";
-export type BracketType = "single_elim" | "double_elim" | "round_robin";
-export type HomeIceRule = "higher_seed_first" | "alternating" | "neutral";
+// Canonical choices and defaults: @sportspulse/kernel division-rules.ts.
+export type ClockType = DivisionClockType;
+export type BodyChecking = DivisionBodyChecking;
+export type SeriesFormat = PlayoffSeriesFormat;
+export type BracketType = PlayoffBracketType;
+export type HomeIceRule = PlayoffHomeIceRule;
 /** Sudden death = first goal wins, no time limit. Shootout = skip OT, go to penalty shots. */
-export type OvertimeRule =
-  | "none"
-  | "sudden_death"
-  | "shootout"
-  | "5_min"
-  | "10_min";
+export type OvertimeRule = DivisionOvertimeRule;
 /** Canonical list: @sportspulse/kernel STANDINGS_TIEBREAKERS (used by standings). */
 export type TiebreakerCode = StandingsTiebreaker;
 
@@ -70,34 +73,19 @@ export interface SeasonDraft {
   rosterLockAt: string;
 }
 
-export interface GameRules {
-  numberOfPeriods: number;
-  periodLengthMin: number;
-  clockType: ClockType;
-  overtimeRule: OvertimeRule;
-  bodyChecking: BodyChecking;
-  minStartersToStart: number;
-  /** Subs/backups borrowed from another team for a single game. */
-  maxGuestPlayersPerGame: number;
-  /** Cap on permanent roster size for the season. */
-  maxRosterSize: number;
-}
-
-export interface PlayoffConfig {
-  enabled: boolean;
-  playoffSpots: number;
-  startDate: string;
-  endDate: string;
-  seriesFormat: SeriesFormat;
-  bracketType: BracketType;
-  homeIceRule: HomeIceRule;
-}
+export type GameRules = DivisionGameRules;
+export type PlayoffConfig = DivisionPlayoffConfig;
 
 /** Sentinel for "type a new region name" in the region picker. */
 export const NEW_REGION = "__new__";
 
 export interface DivisionDraft {
   uid: string; // local-only for the form list
+  /**
+   * Local-only: set on a card made with Copy, e.g. "Division 1". Shown as
+   * a hint until the copy has a name. Never sent to the API.
+   */
+  copiedFrom?: string;
   name: string;
   tier: Tier;
   /** Existing region id, NEW_REGION, or null for "no region". */
@@ -125,14 +113,7 @@ export interface WizardState {
   divisions: DivisionDraft[];
 }
 
-export const DEFAULT_TIEBREAKERS: TiebreakerCode[] = [
-  "wins",
-  "head_to_head",
-  "goal_diff",
-  "goals_for",
-  "goals_against",
-  "coin_flip"
-];
+export const DEFAULT_TIEBREAKERS: TiebreakerCode[] = [...DEFAULT_DIVISION_TIEBREAKERS];
 
 export const TIEBREAKER_LABELS: Record<TiebreakerCode, string> = {
   wins: "Wins (most wins is a tiebreaker)",
@@ -144,6 +125,7 @@ export const TIEBREAKER_LABELS: Record<TiebreakerCode, string> = {
 };
 
 export function emptyDivision(uid: string): DivisionDraft {
+  const r = defaultDivisionRules();
   return {
     uid,
     name: "",
@@ -152,31 +134,52 @@ export function emptyDivision(uid: string): DivisionDraft {
     regionName: "",
     genderEligibility: "open",
     ageGroupId: null,
-    ageRangeMin: null,
-    ageRangeMax: null,
-    ageGroupLabel: "Custom age group",
+    ageRangeMin: r.ageRange.min,
+    ageRangeMax: r.ageRange.max,
+    ageGroupLabel: r.ageRange.label,
     maxTeams: 10,
-    gameRules: {
-      numberOfPeriods: 3,
-      periodLengthMin: 20,
-      clockType: "stopped",
-      overtimeRule: "5_min",
-      bodyChecking: "not_permitted_penalty",
-      minStartersToStart: 6,
-      maxGuestPlayersPerGame: 4,
-      maxRosterSize: 20
+    gameRules: r.gameRules,
+    tiebreakers: r.tiebreakers,
+    points: pointsRuleForm(r.pointsRule),
+    playoffConfig: r.playoffConfig
+  };
+}
+
+/**
+ * A new card with every setting of `source` and no name (PPHL letter
+ * item 5: "Copy Previous Selections"). Deep copy: editing the copy never
+ * changes the source. `copiedFrom` is the hint label, e.g. "Division 1".
+ */
+export function copyDivisionDraft(source: DivisionDraft, uid: string, copiedFrom?: string): DivisionDraft {
+  // The draft keeps points as form strings, so they are copied below and
+  // the kernel copy only carries the structured parts.
+  const rules = copyDivisionRules(
+    {
+      gameRules: source.gameRules,
+      tiebreakers: source.tiebreakers,
+      pointsRule: DEFAULT_POINTS_RULE,
+      ageRange: { min: source.ageRangeMin, max: source.ageRangeMax, label: source.ageGroupLabel },
+      playoffConfig: source.playoffConfig
     },
-    tiebreakers: [...DEFAULT_TIEBREAKERS],
-    points: pointsRuleForm(null),
-    playoffConfig: {
-      enabled: true,
-      playoffSpots: 8,
-      startDate: "",
-      endDate: "",
-      seriesFormat: "best_of_1",
-      bracketType: "single_elim",
-      homeIceRule: "higher_seed_first"
-    }
+    { keepPlayoffDates: true }
+  );
+  return {
+    uid,
+    ...(copiedFrom ? { copiedFrom } : {}),
+    name: "",
+    tier: source.tier,
+    regionId: source.regionId,
+    regionName: source.regionName,
+    genderEligibility: source.genderEligibility,
+    ageGroupId: source.ageGroupId,
+    ageRangeMin: rules.ageRange.min,
+    ageRangeMax: rules.ageRange.max,
+    ageGroupLabel: rules.ageRange.label,
+    maxTeams: source.maxTeams,
+    gameRules: rules.gameRules,
+    tiebreakers: rules.tiebreakers,
+    points: { ...(source.points ?? pointsRuleForm(null)) },
+    playoffConfig: rules.playoffConfig
   };
 }
 

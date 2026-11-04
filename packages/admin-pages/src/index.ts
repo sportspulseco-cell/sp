@@ -35,9 +35,11 @@ export {
   EditSeasonButton,
   EditTeamButton,
   NewDivisionButton,
-  NewSeasonButton
+  NewSeasonButton,
+  loadDivisionCopySources
 } from "./edit/edit-dialogs";
 export type {
+  DivisionCopySources,
   DivisionCreateBody,
   DivisionUpdateBody,
   LeagueUpdateBody,

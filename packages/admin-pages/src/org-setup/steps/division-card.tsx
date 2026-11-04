@@ -2,7 +2,7 @@
 
 import { PointsRuleFields, pointsRuleForm } from "../../divisions/points-rule-fields";
 import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from "@sportspulse/kernel";
-import { ChevronDown, ChevronUp, GripVertical, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, GripVertical, Trash2 } from "lucide-react";
 import { Badge, Input, Select, Button } from "@sportspulse/ui";
 import { cn } from "@sportspulse/ui";
 import {
@@ -34,18 +34,18 @@ export const GENDERS: { value: Gender; label: string }[] = [
   { value: "mixed", label: "Mixed" }
 ];
 
-const CLOCK_TYPES: { value: ClockType; label: string }[] = [
+export const CLOCK_TYPES: { value: ClockType; label: string }[] = [
   { value: "stopped", label: "Stopped clock" },
   { value: "running", label: "Running clock" }
 ];
 
-const BODY_CHECKING: { value: BodyChecking; label: string }[] = [
+export const BODY_CHECKING: { value: BodyChecking; label: string }[] = [
   { value: "permitted", label: "Permitted" },
   { value: "not_permitted_penalty", label: "Not permitted, penalty" },
   { value: "not_permitted_no_penalty", label: "Not permitted, no penalty" }
 ];
 
-const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
+export const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
   { value: "none", label: "None: score is final" },
   { value: "sudden_death", label: "Sudden death (first goal wins)" },
   { value: "shootout", label: "Penalty shootout (skip OT)" },
@@ -53,7 +53,7 @@ const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
   { value: "10_min", label: "10 min overtime period" }
 ];
 
-const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
+export const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
   {
     value: "best_of_1",
     label: "Single game (best of 1)",
@@ -80,7 +80,7 @@ const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
   }
 ];
 
-const BRACKETS: { value: BracketType; label: string; description: string }[] = [
+export const BRACKETS: { value: BracketType; label: string; description: string }[] = [
   {
     value: "single_elim",
     label: "Single elimination",
@@ -99,7 +99,7 @@ const BRACKETS: { value: BracketType; label: string; description: string }[] = [
   }
 ];
 
-const HOME_ICE: { value: HomeIceRule; label: string; description: string }[] = [
+export const HOME_ICE: { value: HomeIceRule; label: string; description: string }[] = [
   {
     value: "higher_seed_first",
     label: "Higher seed hosts first game(s)",
@@ -126,6 +126,7 @@ export function DivisionCard({
   expanded,
   onToggle,
   onPatch,
+  onCopy,
   onRemove
 }: {
   index: number;
@@ -136,6 +137,8 @@ export function DivisionCard({
   expanded: boolean;
   onToggle: () => void;
   onPatch: (patch: Partial<DivisionDraft>) => void;
+  /** Same settings, no name, directly below this card. */
+  onCopy: () => void;
   onRemove: () => void;
 }) {
   return (
@@ -163,16 +166,27 @@ export function DivisionCard({
             {division.genderEligibility}
           </Badge>
         </div>
-        {total > 1 ? (
+        <div className="flex items-center gap-2">
           <Button
             type="button"
-            onClick={onRemove}
-            variant="destructive" size="sm" className="gap-1.5"
+            onClick={onCopy}
+            variant="outline" size="sm" className="gap-1.5"
+            aria-label={`Copy Division ${index + 1}`}
           >
-            <Trash2 className="h-3 w-3" strokeWidth={2} />
-            Remove
+            <Copy className="h-3 w-3" strokeWidth={2} />
+            Copy
           </Button>
-        ) : null}
+          {total > 1 ? (
+            <Button
+              type="button"
+              onClick={onRemove}
+              variant="destructive" size="sm" className="gap-1.5"
+            >
+              <Trash2 className="h-3 w-3" strokeWidth={2} />
+              Remove
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       {expanded ? (
@@ -206,9 +220,15 @@ function IdentityBlock({
     division.regionId === NEW_REGION
       ? division.regionName
       : regions.find((r) => r.id === division.regionId)?.name;
+  // Hint stays until the copy is named.
+  const copied = !!division.copiedFrom && division.name === "";
   return (
     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      <Field label="Division name" required>
+      <Field
+        label="Division name"
+        required
+        hint={copied ? `Copied from ${division.copiedFrom}; give it a name` : undefined}
+      >
         <Input
           type="text"
           value={division.name}
@@ -216,6 +236,8 @@ function IdentityBlock({
           maxLength={120}
           placeholder="e.g. AHL"
           required
+          // A fresh copy opens with the cursor in the one field it needs.
+          autoFocus={copied}
         />
       </Field>
 

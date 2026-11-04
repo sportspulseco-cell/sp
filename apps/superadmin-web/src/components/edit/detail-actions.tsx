@@ -8,7 +8,8 @@ import {
   EditSeasonButton,
   EditTeamButton,
   NewDivisionButton,
-  NewSeasonButton
+  NewSeasonButton,
+  loadDivisionCopySources
 } from "@sportspulse/admin-pages";
 import type { Division, GoverningBody, League, Org, Season, Team } from "@sportspulse/api-client";
 import { leagueMgmt, orgs } from "@/lib/api/browser-api";
@@ -44,15 +45,24 @@ export function LeagueActions({
 
 export function SeasonActions({
   season,
-  regions
+  regions,
+  divisions
 }: {
   season: Season;
   regions: Array<{ id: string; name: string }>;
+  /** This season's divisions, already loaded by the page: "Copy settings from" lists them first. */
+  divisions?: Division[];
 }) {
   return (
     <ActionRow>
       <EditSeasonButton season={season} save={(body) => leagueMgmt.updateSeason(season.id, body)} />
-      <NewDivisionButton season={season} regions={regions} create={(body) => leagueMgmt.createDivision(body)} />
+      <NewDivisionButton
+        season={season}
+        regions={regions}
+        divisions={divisions}
+        loadCopySources={(orgId) => loadDivisionCopySources(leagueMgmt, orgId)}
+        create={(body) => leagueMgmt.createDivision(body)}
+      />
     </ActionRow>
   );
 }
@@ -84,6 +94,7 @@ export function NewDivisionAction({ seasons }: { seasons: Season[] }) {
     <NewDivisionButton
       seasons={seasons}
       loadRegions={async (orgId) => (await leagueMgmt.listRegions({ orgId })).items}
+      loadCopySources={(orgId) => loadDivisionCopySources(leagueMgmt, orgId)}
       create={(body) => leagueMgmt.createDivision(body)}
     />
   );

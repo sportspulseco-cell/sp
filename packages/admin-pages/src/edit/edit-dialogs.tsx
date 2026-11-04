@@ -5,11 +5,18 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus } from "lucide-react";
 import { Alert, Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
-import type { Division, GoverningBody, League, Org, Season, Team } from "@sportspulse/api-client";
+import { fetchAll, mapLimit, type Division, type GoverningBody, type League, type Org, type Page, type Season, type Team } from "@sportspulse/api-client";
 import { FORMATS, PRIVACY_OPTIONS, TIMEZONES } from "../org-setup/steps/league-step";
-import { GENDERS, TIERS } from "../org-setup/steps/division-card";
+import { BODY_CHECKING, BRACKETS, CLOCK_TYPES, GENDERS, OVERTIME_RULES, SERIES, TIERS } from "../org-setup/steps/division-card";
 import { DEFAULT_TIEBREAKERS, emptyDivision } from "../org-setup/types";
-import { readDisciplineRules, validateDisciplineRules, type DisciplineRules } from "@sportspulse/kernel";
+import {
+  copyDivisionRules,
+  readDisciplineRules,
+  readDivisionRules,
+  validateDisciplineRules,
+  type DisciplineRules,
+  type DivisionRules
+} from "@sportspulse/kernel";
 
 /**
  * Edit / add-child dialogs for the admin detail pages (SP-Changes item 2):
@@ -696,24 +703,89 @@ function mergedRules(existing: Record<string, unknown>, f: DivisionForm): Record
   };
 }
 
+/** Divisions an admin may copy settings from, with the seasons that name them. */
+export interface DivisionCopySources {
+  seasons: Season[];
+  divisions: Division[];
+}
+
 /**
- * New division. On a season page pass `season`. On the Divisions list
- * pass `seasons` (and `loadRegions`): the dialog asks for the season
- * first, so adding a division never means setting up a new season
- * (PPHL, 28 Oct 2026).
+ * Every division of the organization, through the list calls the pages
+ * already use (no new endpoint). One request per season, four in flight
+ * at most (CONSOLE-22). The API's scope filter keeps other organizations
+ * out for org admins.
+ */
+export async function loadDivisionCopySources(
+  api: {
+    listSeasons: (q: { orgId?: string; limit?: number; cursor?: string }) => Promise<Page<Season>>;
+    listDivisions: (q: { seasonId?: string; limit?: number; cursor?: string }) => Promise<Page<Division>>;
+  },
+  orgId: string
+): Promise<DivisionCopySources> {
+  const seasons = (await fetchAll((cursor) => api.listSeasons({ orgId, limit: 100, cursor }))).items;
+  const pages = await mapLimit(seasons, 4, (s) =>
+    fetchAll((cursor) => api.listDivisions({ seasonId: s.id, limit: 100, cursor }))
+  );
+  return { seasons, divisions: pages.flatMap((p) => p.items) };
+}
+
+/** Newest season first: by start date, then by creation. */
+function newestSeasonFirst(a: Season, b: Season): number {
+  return (b.startDate ?? "").localeCompare(a.startDate ?? "") || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+}
+
+const optionLabel = <T extends string>(list: Array<{ value: T; label: string }>, v: T) =>
+  (list.find((x) => x.value === v)?.label ?? v).split(":")[0]!;
+
+/** What the copy carries that the dialog has no fields for, so nothing is written unseen. */
+function carriedSummary(rules: DivisionRules, sameSeason: boolean): string {
+  const g = rules.gameRules;
+  const p = rules.playoffConfig;
+  const parts = [
+    optionLabel(CLOCK_TYPES, g.clockType),
+    `Overtime: ${optionLabel(OVERTIME_RULES, g.overtimeRule)}`,
+    `Body checking: ${optionLabel(BODY_CHECKING, g.bodyChecking).toLowerCase()}`,
+    `${g.minStartersToStart} skaters to start`,
+    `${g.maxGuestPlayersPerGame} guest players per game`,
+    "Tiebreaker order",
+    p.enabled
+      ? `Playoffs: top ${p.playoffSpots}, ${optionLabel(SERIES, p.seriesFormat).toLowerCase()}, ${optionLabel(BRACKETS, p.bracketType).toLowerCase()}`
+      : "No playoffs"
+  ];
+  return `Also copied: ${parts.join(" · ")}.${sameSeason ? "" : " Playoff dates are not copied from another season."}`;
+}
+
+/**
+ * New division. On a season page pass `season` (and that season's
+ * `divisions`). On the Divisions list pass `seasons` (and `loadRegions`):
+ * the dialog asks for the season first, so adding a division never means
+ * setting up a new season (PPHL, 28 Oct 2026).
+ *
+ * "Copy settings from" (PPHL letter item 5) lists the organization's
+ * divisions, this season first, then other seasons newest first. Picking
+ * one fills every field from that division and carries the settings the
+ * dialog has no fields for (clock, overtime, body checking, min skaters,
+ * guest cap, tiebreakers, playoffs). The name is never copied; playoff
+ * dates are not copied from another season.
  */
 export function NewDivisionButton({
   season: fixedSeason,
   seasons,
+  divisions: knownDivisions,
   regions: fixedRegions = [],
   loadRegions,
+  loadCopySources,
   create
 }: {
   season?: Season;
   seasons?: Season[];
+  /** Divisions already loaded by the page (the season page has this season's). */
+  divisions?: Division[];
   regions?: Array<{ id: string; name: string }>;
   /** Regions of the picked season's organization. */
   loadRegions?: (orgId: string) => Promise<Array<{ id: string; name: string }>>;
+  /** The organization's seasons and divisions, for "Copy settings from". */
+  loadCopySources?: (orgId: string) => Promise<DivisionCopySources>;
   create: (body: DivisionCreateBody) => Promise<unknown>;
 }) {
   const [seasonId, setSeasonId] = useState(fixedSeason?.id ?? seasons?.[0]?.id ?? "");
@@ -750,9 +822,97 @@ export function NewDivisionButton({
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(empty);
   const { busy, error, setError, run } = useSave();
+
+  // Copy sources: loaded once per organization, only while the dialog is open.
+  const [sources, setSources] = useState<{ orgId: string; data: DivisionCopySources } | null>(null);
+  const [sourcesState, setSourcesState] = useState<"idle" | "loading" | "error">("idle");
+  useEffect(() => {
+    if (!open || !loadCopySources || !orgId || sources?.orgId === orgId) return;
+    let alive = true;
+    setSourcesState("loading");
+    loadCopySources(orgId)
+      .then((data) => {
+        if (!alive) return;
+        setSources({ orgId, data });
+        setSourcesState("idle");
+      })
+      .catch(() => alive && setSourcesState("error"));
+    return () => {
+      alive = false;
+    };
+  }, [open, loadCopySources, orgId, sources?.orgId]);
+  /** The division whose settings fill the form, or null for a blank start. */
+  const [source, setSource] = useState<Division | null>(null);
+
+  const byId = new Map<string, Division>();
+  for (const x of [...(knownDivisions ?? []), ...(sources?.orgId === orgId ? sources.data.divisions : [])]) byId.set(x.id, x);
+  const seasonById = new Map<string, Season>();
+  for (const x of [...(season ? [season] : []), ...(seasons ?? []), ...(sources?.orgId === orgId ? sources.data.seasons : [])]) {
+    if (x.orgId === orgId) seasonById.set(x.id, x);
+  }
+  const byName = (a: Division, b: Division) => a.name.localeCompare(b.name);
+  const thisSeason = season ? [...byId.values()].filter((x) => x.seasonId === season.id).sort(byName) : [];
+  const otherSeasons = [...seasonById.values()]
+    .filter((x) => x.id !== season?.id)
+    .sort(newestSeasonFirst)
+    .map((x) => ({ season: x, divisions: [...byId.values()].filter((y) => y.seasonId === x.id).sort(byName) }))
+    .filter((x) => x.divisions.length > 0);
+  const hasSources = thisSeason.length > 0 || otherSeasons.length > 0;
+  const copyHint =
+    sourcesState === "loading" && !hasSources
+      ? "Loading divisions"
+      : sourcesState === "error" && !hasSources
+        ? "Could not load divisions to copy. Try again later."
+        : !hasSources
+          ? "No divisions to copy yet."
+          : undefined;
+
+  const str = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
+  function pickSource(id: string) {
+    const src = (id && byId.get(id)) || null;
+    setSource(src);
+    if (!src) {
+      // Start blank: back to the defaults, keeping the name typed so far.
+      setF((p) => ({ ...empty, name: p.name }));
+      return;
+    }
+    const rules = readDivisionRules(src.ruleSetOverrides, src.playoffConfig);
+    setF((p) => ({
+      ...p,
+      tier: src.tier ?? "",
+      genderEligibility: src.genderEligibility,
+      maxTeams: src.maxTeams === null || src.maxTeams === undefined ? p.maxTeams : String(src.maxTeams),
+      regionId: src.regionId && regions.some((r) => r.id === src.regionId) ? src.regionId : "",
+      ageMin: str(rules.ageRange.min),
+      ageMax: str(rules.ageRange.max),
+      ageLabel: rules.ageRange.label,
+      numberOfPeriods: String(rules.gameRules.numberOfPeriods),
+      periodLengthMin: String(rules.gameRules.periodLengthMin),
+      maxRosterSize: String(rules.gameRules.maxRosterSize),
+      points: pointsRuleForm(rules.pointsRule)
+    }));
+  }
+  /** Settings the create body carries beyond the visible fields. Derived at submit, so a season change never leaves them stale. */
+  const carried =
+    source && season
+      ? copyDivisionRules(readDivisionRules(source.ruleSetOverrides, source.playoffConfig), {
+          keepPlayoffDates: source.seasonId === season.id
+        })
+      : null;
+  const sourceSeasonName = source ? seasonById.get(source.seasonId)?.name : null;
+
   return (
     <>
-      <Trigger label="New division" icon="add" onClick={() => { setF(empty); setError(null); setOpen(true); }} />
+      <Trigger
+        label="New division"
+        icon="add"
+        onClick={() => {
+          setF(empty);
+          setSource(null);
+          setError(null);
+          setOpen(true);
+        }}
+      />
       <Dialog open={open} onClose={() => setOpen(false)} title={fixedSeason ? `New division in ${fixedSeason.name}` : "New division"} size="lg">
         <form
           className="space-y-4"
@@ -772,10 +932,12 @@ export function NewDivisionButton({
                   genderEligibility: f.genderEligibility,
                   maxTeams: Number(f.maxTeams || d.maxTeams),
                   ruleSetOverrides: mergedRules(
-                    { gameRules: d.gameRules, tiebreakers: DEFAULT_TIEBREAKERS },
+                    carried
+                      ? { gameRules: carried.gameRules, tiebreakers: carried.tiebreakers }
+                      : { gameRules: d.gameRules, tiebreakers: DEFAULT_TIEBREAKERS },
                     f
                   ),
-                  playoffConfig: d.playoffConfig as unknown as Record<string, unknown>
+                  playoffConfig: (carried?.playoffConfig ?? d.playoffConfig) as unknown as Record<string, unknown>
                 }),
               () => setOpen(false)
             );
@@ -783,7 +945,16 @@ export function NewDivisionButton({
         >
           {fixedSeason ? null : (
             <Field label="Season">
-              <Select required value={seasonId} onChange={(e) => { setSeasonId(e.target.value); setLoadedRegions(null); setF((p) => ({ ...p, regionId: "" })); }}>
+              <Select
+                required
+                value={seasonId}
+                onChange={(e) => {
+                  setSeasonId(e.target.value);
+                  setLoadedRegions(null);
+                  setSource(null);
+                  setF((p) => ({ ...p, regionId: "" }));
+                }}
+              >
                 {(seasons ?? []).map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.name}
@@ -792,7 +963,40 @@ export function NewDivisionButton({
               </Select>
             </Field>
           )}
+          {loadCopySources || knownDivisions ? (
+            <Field label="Copy settings from" hint={copyHint}>
+              <Select value={source?.id ?? ""} onChange={(e) => pickSource(e.target.value)} disabled={!hasSources}>
+                <option value="">Start blank</option>
+                {thisSeason.length > 0 && season ? (
+                  <optgroup label="This season">
+                    {thisSeason.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {season.name} · {x.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {otherSeasons.length > 0 ? (
+                  <optgroup label="Other seasons">
+                    {otherSeasons.flatMap((g) =>
+                      g.divisions.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {g.season.name} · {x.name}
+                        </option>
+                      ))
+                    )}
+                  </optgroup>
+                ) : null}
+              </Select>
+            </Field>
+          ) : null}
           <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} setPoints={(points) => setF((p) => ({ ...p, points }))} regions={regions} />
+          {carried && source ? (
+            <p className="text-[12px] text-fg-muted">
+              {sourceSeasonName ? `From ${sourceSeasonName} · ${source.name}. ` : ""}
+              {carriedSummary(carried, source.seasonId === season?.id)}
+            </p>
+          ) : null}
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Create division" onCancel={() => setOpen(false)} />
         </form>

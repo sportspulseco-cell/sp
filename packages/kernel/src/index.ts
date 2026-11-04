@@ -30,6 +30,7 @@ export * from "./registration-consent";
 export * from "./free-agents";
 export * from "./skill-levels";
 export * from "./game-results";
+export * from "./division-rules";
 export * from "./hockey-scoring";
 export * from "./time-zones";
 export * from "./division-entries";

@@ -18,6 +18,7 @@ export function DivisionsStep({
   summary,
   onPatch,
   onAdd,
+  onCopy,
   onRemove
 }: {
   divisions: DivisionDraft[];
@@ -26,6 +27,8 @@ export function DivisionsStep({
   summary: { league: LeagueDraft; season: SeasonDraft; org: Org | null };
   onPatch: (uid: string, patch: Partial<DivisionDraft>) => void;
   onAdd: () => void;
+  /** Inserts a copy of the card directly below it, with no name. */
+  onCopy: (uid: string) => void;
   onRemove: (uid: string) => void;
 }) {
   // Cards are open unless the admin collapsed them, so a division added
@@ -55,6 +58,7 @@ export function DivisionsStep({
             expanded={!collapsed.has(d.uid)}
             onToggle={() => toggle(d.uid)}
             onPatch={(patch) => onPatch(d.uid, patch)}
+            onCopy={() => onCopy(d.uid)}
             onRemove={() => onRemove(d.uid)}
           />
         ))}

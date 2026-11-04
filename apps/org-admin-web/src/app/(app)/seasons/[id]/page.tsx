@@ -79,6 +79,7 @@ export default async function OrgAdminSeasonDetailPage({
         <SeasonActions
           season={season}
           regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
+          divisions={divisionsPage.items}
         />
       }
     />
