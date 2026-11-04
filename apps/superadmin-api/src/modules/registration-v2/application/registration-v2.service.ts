@@ -73,11 +73,15 @@ export class RegistrationV2Service {
         .limit(1);
       isActive = !!season && !["draft", "completed", "archived", "cancelled"].includes(season.status);
     }
+    // A new price is for players unless the admin says who it is for.
+    // The old default, "any", also applied to a team registering, so a
+    // season with only a player fee charged it to teams (PPHL, 3 Nov 2026).
+    const audience = input.audience ?? "player";
     const [row] = await this.db
       .insert(schema.pricingTiers)
-      .values({ ...input, isActive: isActive ?? false })
+      .values({ ...input, audience, isActive: isActive ?? false })
       .returning();
-    this.log.log(`pricing tier created id=${row?.id} season=${input.seasonId} active=${row?.isActive}`);
+    this.log.log(`pricing tier created id=${row?.id} season=${input.seasonId} audience=${audience} active=${row?.isActive}`);
     return row;
   }
 

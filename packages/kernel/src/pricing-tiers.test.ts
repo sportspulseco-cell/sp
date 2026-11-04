@@ -38,12 +38,16 @@ test("audience: a team price is refused on a player path and the other way round
   assert.equal(tierOffersPath("free_agent", "free_agent"), true);
 });
 
-test("audience: any, missing or unknown fits every path (older prices)", () => {
-  for (const p of ["team", "individual", "free_agent", "captain_invite"]) {
+test("audience: any, missing or unknown fits every player path (older prices), never a team", () => {
+  for (const p of ["individual", "captain_invite", "free_agent", null, "odd"]) {
     assert.equal(tierOffersPath("any", p), true);
     assert.equal(tierOffersPath(null, p), true);
-    assert.equal(tierOffersPath("bogus", p), true);
+    assert.equal(tierOffersPath("weird", p), true);
   }
+  // A team pays only a price marked for teams (PPHL, 3 Nov 2026).
+  assert.equal(tierOffersPath("any", "team"), false);
+  assert.equal(tierOffersPath(null, "team"), false);
+  assert.equal(tierOffersPath("team", "team"), true);
 });
 
 test("audience: the funnel list keeps only the path's prices in the division", () => {
@@ -54,7 +58,7 @@ test("audience: the funnel list keeps only the path's prices in the division", (
     { id: "playerB", isActive: true, divisionIds: [B], audience: "player" },
     { id: "off", isActive: false, divisionIds: [], audience: "team" }
   ];
-  assert.deepEqual(tiersForPath(tiers, A, "team").map((t) => t.id), ["team", "any"]);
+  assert.deepEqual(tiersForPath(tiers, A, "team").map((t) => t.id), ["team"]);
   assert.deepEqual(tiersForPath(tiers, A, "individual").map((t) => t.id), ["player", "any"]);
   assert.deepEqual(tiersForPath(tiers, B, "captain_invite").map((t) => t.id), ["player", "any", "playerB"]);
   assert.deepEqual(tiersForPath(tiers, A, "free_agent").map((t) => t.id), ["any"]);

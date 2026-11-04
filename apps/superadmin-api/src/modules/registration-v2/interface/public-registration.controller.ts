@@ -34,7 +34,7 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
@@ -130,13 +130,27 @@ function stateLabel(status: string): string {
 }
 
 /** 409 for a registration the league already has: points the player to My registrations. */
-function alreadySubmitted(row: { id: string; status: string }): ConflictException {
+function alreadySubmitted(row: { id: string; status: string; metadata?: unknown }): ConflictException {
+  const team = teamNameOf(row.metadata);
   return new ConflictException({
     error: "registration_already_submitted",
-    message: `You already submitted this registration (${stateLabel(row.status)}). Open My registrations at /registrations to see it; changes now go through the league.`,
+    message: team
+      ? `You already registered ${team} for this season (${stateLabel(row.status)}). Open My registrations at /registrations to see it. To register another team, use a different team name.`
+      : `You already submitted this registration (${stateLabel(row.status)}). Open My registrations at /registrations to see it; changes now go through the league.`,
     registrationId: row.id,
     status: row.status
   });
+}
+
+/** The team name a team registration carries, or "". */
+function teamNameOf(metadata: unknown): string {
+  const team = (metadata as { team?: { name?: string | null } } | null | undefined)?.team;
+  return (team?.name ?? "").trim();
+}
+
+/** One team's part of a captain's registration key: the name, lower-cased, single spaces. */
+function teamKeyPart(teamName: string): string {
+  return teamName.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 class RedeemParentalConsentBodyDto {
@@ -703,6 +717,15 @@ export class PublicRegistrationController {
 
     const email = body.email.trim().toLowerCase();
     const baseKey = `${email}|${seasonId}|${submissionType}`;
+    // A captain registers several teams in one season (PPHL runs many
+    // per captain): each team name is its own registration, so the key
+    // carries the name. The player paths keep one per season. Before,
+    // the second team found the first team's row and was refused
+    // ("complete the existing registration first"; PPHL, 3 Nov 2026).
+    const regKey =
+      submissionType === "team" && body.teamName?.trim()
+        ? `${baseKey}|${teamKeyPart(body.teamName)}`
+        : baseKey;
 
     // Phase 1.1 — find-or-create the Supabase auth user. Mock flow:
     // email_confirm=true so we don't depend on inbox roundtrip. Real
@@ -724,8 +747,6 @@ export class PublicRegistrationController {
         );
       }
     }
-    await this.assertTeamNameFree(season.orgId, submissionType, body.teamName, userId);
-
     // Phase 1.3 — minor evaluation (kernel rule). The Account step
     // collects the DOB; an unknown DOB is treated as adult here and the
     // Details edit re-checks it (spec §6.2: the flag adapts when the DOB
@@ -751,7 +772,15 @@ export class PublicRegistrationController {
     //     league reviews that record; the funnel must not rewrite it.
     //   - rejected / cancelled / withdrawn: final in the kernel, so this
     //     is a new registration (new row, chained idempotency key).
-    const existing = await this.findLatestRegistration(baseKey);
+    // A team registration from before team names were in the key is
+    // found by its name instead, so the captain can still finish it.
+    const existing =
+      (await this.findLatestRegistration(regKey)) ??
+      (submissionType === "team" && body.teamName?.trim()
+        ? ((await this.teamRegistrationsFor(baseKey)).find(
+            (r) => EDITABLE_STATES.has(r.status) && teamKeyPart(teamNameOf(r.metadata)) === teamKeyPart(body.teamName!)
+          ) ?? null)
+        : null);
     if (existing && !RESTARTABLE_STATES.has(existing.status)) {
       if (!EDITABLE_STATES.has(existing.status)) {
         this.log.log(
@@ -843,7 +872,10 @@ export class PublicRegistrationController {
     }
     // A new registration. After a rejected / cancelled one the key chains
     // to it, so a retry of this same request finds this row again.
-    const idempotencyKey = existing ? `${baseKey}#${existing.id}` : baseKey;
+    const idempotencyKey = existing ? `${regKey}#${existing.id}` : regKey;
+    // Another captain's team of this name, or this captain's own live
+    // registration of it in this season, is refused before anything is written.
+    await this.assertTeamNameFree(season.orgId, submissionType, body.teamName, userId, seasonId, null);
 
     // Initial state (kernel rule): pending_consent for a minor,
     // pending_payment for an adult. The funnel confirms the account email
@@ -989,7 +1021,17 @@ export class PublicRegistrationController {
     // Same rule as startSubmission: resume the latest registration unless
     // it ended (rejected / cancelled / withdrawn), in which case this is a
     // new one. A submitted registration is returned read-only.
-    const existing = await this.findLatestRegistration(baseKey);
+    let existing = await this.findLatestRegistration(baseKey);
+    // Team path: a submitted team never blocks the next team. The sign-in
+    // resumes an unfinished team registration if there is one, else starts
+    // a new one (its name comes on the Details step), chained after the
+    // newest so the key stays unique.
+    let chainFrom = existing;
+    if (submissionType === "team") {
+      const mine = await this.teamRegistrationsFor(baseKey);
+      chainFrom = mine[0] ?? null;
+      existing = mine.find((r) => EDITABLE_STATES.has(r.status)) ?? null;
+    }
     if (existing && !RESTARTABLE_STATES.has(existing.status)) {
       // Return the full prior state so the funnel can hydrate the
       // Details step on resume. Pull dob + answers from metadata and
@@ -1106,7 +1148,7 @@ export class PublicRegistrationController {
     // skipped the guardian. Same kernel rule as startSubmission.
     const initialState: RegistrationState = initialFunnelRegistrationState(profileDob);
     assertValidTransition("draft", initialState);
-    const idempotencyKey = existing ? `${baseKey}#${existing.id}` : baseKey;
+    const idempotencyKey = chainFrom ? `${baseKey}#${chainFrom.id}` : baseKey;
 
     let reg: typeof schema.registrations.$inferSelect | undefined;
     try {
@@ -1910,13 +1952,41 @@ export class PublicRegistrationController {
     orgId: string,
     submissionType: string,
     teamName: string | null | undefined,
-    userId: string
+    userId: string,
+    seasonId: string | null,
+    excludeRegistrationId: string | null
   ): Promise<void> {
     if (submissionType !== "team" || !teamName?.trim()) return;
     const verdict = await teamNameVerdict(this.db, orgId, teamName, userId);
     if (verdict.kind === "taken") {
       this.log.log(`refused team name "${teamName.trim()}" org=${orgId} user=${userId}`);
       throw new ConflictException(verdict.message);
+    }
+    // One registration per team: this captain's own live registration
+    // of the same name in this season is continued, never doubled.
+    if (!seasonId) return;
+    const [dup] = await this.db
+      .select({ id: schema.registrations.id, status: schema.registrations.status })
+      .from(schema.registrations)
+      .where(
+        and(
+          eq(schema.registrations.submittedByUserId, userId),
+          eq(schema.registrations.seasonId, seasonId),
+          sql`coalesce(${schema.registrations.metadata}->>'submissionType', 'individual') = 'team'`,
+          sql`lower(trim(${schema.registrations.metadata} #>> '{team,name}')) = lower(trim(${teamName}))`,
+          sql`${schema.registrations.status} NOT IN ('rejected','withdrawn','cancelled')`,
+          ...(excludeRegistrationId ? [ne(schema.registrations.id, excludeRegistrationId)] : [])
+        )
+      )
+      .limit(1);
+    if (dup) {
+      this.log.log(`refused team name "${teamName.trim()}" season=${seasonId} user=${userId}: own registration=${dup.id} ${dup.status}`);
+      throw new ConflictException({
+        error: "team_already_registered",
+        message: `You already registered ${teamName.trim()} for this season (${stateLabel(dup.status)}). Open My registrations at /registrations to continue it, or use a different team name.`,
+        registrationId: dup.id,
+        status: dup.status
+      });
     }
   }
 
@@ -1977,7 +2047,7 @@ export class PublicRegistrationController {
       patch.isMinor = isMinorOn(next);
     }
     if (has("teamName") && row.submittedByUserId) {
-      await this.assertTeamNameFree(row.orgId, String(meta.submissionType ?? ""), body.teamName, row.submittedByUserId);
+      await this.assertTeamNameFree(row.orgId, String(meta.submissionType ?? ""), body.teamName, row.submittedByUserId, row.seasonId, row.id);
     }
     if (has("teamName") || has("teamColor")) {
       const existingTeam =
@@ -2854,6 +2924,25 @@ export class PublicRegistrationController {
     return row ?? null;
   }
 
+  /**
+   * A captain's team registrations in a season, newest first: the plain
+   * key (rows from before team names were in the key), a restart (#) or
+   * a named team (|).
+   */
+  private async teamRegistrationsFor(baseKey: string) {
+    return this.db
+      .select()
+      .from(schema.registrations)
+      .where(
+        or(
+          eq(schema.registrations.idempotencyKey, baseKey),
+          sql`starts_with(${schema.registrations.idempotencyKey}, ${`${baseKey}#`})`,
+          sql`starts_with(${schema.registrations.idempotencyKey}, ${`${baseKey}|`})`
+        )
+      )
+      .orderBy(desc(schema.registrations.createdAt));
+  }
+
   /** An unpaid registration whose DOB is a minor's and has no guardian consent on file. */
   private needsGuardianConsentNow(
     row: { status: string; metadata: unknown },
@@ -2981,6 +3070,14 @@ export class PublicRegistrationController {
         this.log.log(`price: registration=${row.id} captain_invite covered by team dues invoice=${dues.invoiceId}`);
         return { amountCents: 0, currency, tierName: "Your share of the team dues", pickedTier: null, tierId: null };
       }
+    }
+    // A team pays only a price marked for teams. With none, the team
+    // registers at no charge: its players pay their own registration
+    // (PPHL, 3 Nov 2026: a player fee left at the old "any" default was
+    // charged to a registering team).
+    if (offeredTiers.length === 0 && submissionType === "team") {
+      this.log.log(`price: registration=${row.id} team path, no team price in the season -> no charge`);
+      return { amountCents: 0, currency, tierName: "Team registration (no team fee)", pickedTier: null, tierId: null };
     }
     if (offeredTiers.length === 0 && divisionTiers.length > 0) {
       this.log.log(`refused price: registration=${row.id} path=${submissionType}: ${divisionTiers.length} prices, none for this path`);

@@ -158,8 +158,10 @@ export const registrations = pgTable(
      *
      * Drives the partial unique index `registrations_active_uniq`
      * that idempotency-checks (subject_person_id, season_id) for
-     * non-cancelled statuses (P2-3 / audit §4.1 + §8.2). Nullable
-     * to support org-only registrations that aren't season-bound.
+     * non-cancelled statuses (P2-3 / audit §4.1 + §8.2); team
+     * registrations are excluded (0096), so a captain can register
+     * several teams in one season. Nullable to support org-only
+     * registrations that aren't season-bound.
      */
     seasonId: uuid("season_id").references(() => seasons.id, {
       onDelete: "set null"

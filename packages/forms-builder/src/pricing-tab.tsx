@@ -311,6 +311,9 @@ function AudienceField({
           </option>
         ))}
       </select>
+      <span className="mt-1 block text-[11px] text-fg-muted">
+        Teams pay only a price marked Team registration. With no team price, a team registers at no charge.
+      </span>
     </label>
   );
 }

@@ -42,14 +42,17 @@ export function teamTierForDivision<T extends TierForDivision>(tiers: readonly T
 /**
  * Who a price is for (F-2). A team fee and a player fee in the same
  * season must never be swapped: a captain registering a team sees only
- * team prices, a player only player prices. `any` is every path; prices
- * saved before audiences existed are `any`, so nothing changes for them.
+ * team prices, a player only player prices. `any` is every PLAYER path
+ * (individual, captain invite, free agent); a team pays only a price
+ * marked for teams. New prices were `any` by default, so a season with a
+ * player fee charged it to a registering team too (PPHL, 3 Nov 2026).
+ * With no team price, a team registers at no charge.
  */
 export const PRICE_AUDIENCES = ["any", "team", "player", "free_agent"] as const;
 export type PriceAudience = (typeof PRICE_AUDIENCES)[number];
 
 export const PRICE_AUDIENCE_LABELS: Record<PriceAudience, string> = {
-  any: "Anyone",
+  any: "Players and free agents",
   team: "Team registration",
   player: "Player registration",
   free_agent: "Free agent registration"
@@ -96,14 +99,16 @@ export function priceAudienceFor(submissionType: string | null | undefined): Exc
 /** Whether a price with this audience may be picked on this path. */
 export function tierOffersPath(audience: string | null | undefined, submissionType: string | null | undefined): boolean {
   const a = isPriceAudience(audience) ? audience : "any";
-  return a === "any" || a === priceAudienceFor(submissionType);
+  const path = priceAudienceFor(submissionType);
+  if (a === "any") return path !== "team";
+  return a === path;
 }
 
 /** The sentence for a price picked on the wrong path. */
 export function tierPathRefusal(audience: string | null | undefined, submissionType: string | null | undefined): string {
   const a = isPriceAudience(audience) ? audience : "any";
   const path = priceAudienceFor(submissionType);
-  const said = { team: "a team registration", player: "a player registration", free_agent: "a free agent registration", any: "any registration" };
+  const said = { team: "a team registration", player: "a player registration", free_agent: "a free agent registration", any: "a player or free agent registration" };
   return `That price is for ${said[a]}, and this is ${said[path]}. Pick one of the prices shown.`;
 }
 
