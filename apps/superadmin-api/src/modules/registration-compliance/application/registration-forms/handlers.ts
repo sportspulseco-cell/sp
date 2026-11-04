@@ -3,6 +3,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
   clampLimit,
+  ConflictError,
   NotFoundError,
   type CommandHandler,
   type FormPurpose,
@@ -202,6 +203,20 @@ export class PublishFormVersionHandler
     const version = await this.forms.findVersion(versionId);
     if (!version || version.formId !== input.formId) {
       throw new NotFoundError("FormVersion", input.versionId);
+    }
+    // Never put an older version live over the current one: a stale
+    // autosave draft picked by list order replaced the version the admin
+    // had just published (staging, 4 Nov 2026). Publishing the live
+    // version itself again is allowed and changes nothing.
+    if (form.activeVersionId && form.activeVersionId !== input.versionId) {
+      const live = await this.forms.findVersion(
+        RegistrationFormVersionId.of(form.activeVersionId)
+      );
+      if (live && live.versionNumber > version.versionNumber) {
+        throw new ConflictError(
+          `Version ${version.versionNumber} is older than the live version ${live.versionNumber}. Publish a newer draft instead.`
+        );
+      }
     }
     await this.forms.publishVersion(versionId);
     form.setActiveVersion(input.versionId);

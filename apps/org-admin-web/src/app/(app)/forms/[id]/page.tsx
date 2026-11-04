@@ -18,6 +18,7 @@ import {
   FormBuilderClient,
   SeasonSectionForm,
   DivisionsClient,
+  newestFormVersion,
   type SectionKey,
   type SectionState
 } from "@sportspulse/forms-builder";
@@ -149,7 +150,9 @@ export default async function OrgAdminFormSetupPage({
   const pricingDone = tiers.length > 0;
   const divisionsIssue = uncoveredDivisions.length;
   const formBuilderDone = (versions.length ?? 0) > 0 && !!form.activeVersionId;
-  const emailTemplatesDone = templates.length > 0;
+  // Active templates only, like the Review tile and its check.
+  // Optional: with no custom template the standard emails are sent.
+  const emailTemplatesDone = true;
 
   const sections: SectionState[] = [
     { key: "season", index: 1, label: "Season setup", status: seasonDone ? "done" : "idle" },
@@ -194,11 +197,10 @@ export default async function OrgAdminFormSetupPage({
       .slice(0, 5);
   }
 
-  const latestVersion =
-    versions.find((v) => !v.locked) ??
-    versions.find((v) => v.id === form.activeVersionId) ??
-    versions[0] ??
-    null;
+  // The newest version by number: an open draft to edit, or the live
+  // version, locked. Never "first unlocked in the list": the org-admin
+  // API listed versions in table order, which opened an older draft.
+  const latestVersion = newestFormVersion(versions);
 
   return (
     <FormsBuilderProviderClient>

@@ -1,5 +1,5 @@
 import type { FormVersion, RegistrationForm } from "@sportspulse/api-client";
-import { FormBuilderClient } from "@sportspulse/forms-builder";
+import { FormBuilderClient, newestFormVersion } from "@sportspulse/forms-builder";
 
 /**
  * Form builder section — questions + waivers/documents toggles.
@@ -16,12 +16,10 @@ export function FormBuilderSection({
   /** The bound season's config; null when the form has no season. */
   seasonConfig: Record<string, unknown> | null;
 }) {
-  // Pick the latest draft if any, else the active version, else empty.
-  const latestVersion =
-    versions.find((v) => !v.locked) ??
-    versions.find((v) => v.id === form.activeVersionId) ??
-    versions[0] ??
-    null;
+  // The newest version by number: an open draft to edit, or the live
+  // version, locked. Never "first unlocked in the list": that opened an
+  // older autosave draft and depended on the API's ordering.
+  const latestVersion = newestFormVersion(versions);
 
   return (
     <FormBuilderClient

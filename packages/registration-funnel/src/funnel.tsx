@@ -8,6 +8,7 @@ import {
   resolveRegistrationWaivers,
   type AnswerMap,
   normalizeSkillLevel,
+  isSkillLevel,
   SKILL_LEVEL_HINTS,
   SKILL_LEVEL_LABELS,
   SKILL_LEVELS,
@@ -147,7 +148,11 @@ export function RegistrationFunnel({
   // Sent to the backend via the answers map under reserved keys at
   // payment time — future iteration moves this to a dedicated table.
   const [teamName, setTeamName] = useState("");
-  const [teamDivision, setTeamDivision] = useState("");
+  // Starts from the season's only division; the Division step's pick
+  // lands here too, so the team card never asks for it a second time.
+  const [teamDivision, setTeamDivision] = useState(
+    context.divisions?.length === 1 ? context.divisions[0]!.id : ""
+  );
   const [teamColor, setTeamColor] = useState("#3B82F6");
   // Photo / media release is optional and display-only. The required
   // documents (liability waiver, code of conduct) are signed through the
@@ -592,7 +597,7 @@ export function RegistrationFunnel({
   }
 
   const activePhase = phaseFor(step);
-  const phaseHeading = phaseHeadingFor(step);
+  const phaseHeading = phaseHeadingFor(step, submissionType);
 
   // REG-16: outside the registration window (or with no published form)
   // the form is not shown at all; the API would refuse it anyway.
@@ -673,8 +678,14 @@ export function RegistrationFunnel({
         {step === "division" && (
           <DivisionStep
             divisions={divisions}
-            value={divisionId}
-            onChange={setDivisionId}
+            forTeam={submissionType === "team"}
+            value={submissionType === "team" ? teamDivision || divisionId : divisionId}
+            onChange={(id) => {
+              setDivisionId(id);
+              // A team plays in the division its captain picks here: the
+              // team card on Details starts from it instead of asking again.
+              if (submissionType === "team") setTeamDivision(id);
+            }}
             onBack={back}
             onNext={next}
           />
@@ -1096,12 +1107,15 @@ function PathStep({
  */
 function DivisionStep({
   divisions,
+  forTeam = false,
   value,
   onChange,
   onBack,
   onNext
 }: {
   divisions: Array<{ id: string; name: string; tier: string | null }>;
+  /** A captain registering a team: the pick is the team's division. */
+  forTeam?: boolean;
   value: string | null;
   onChange: (id: string) => void;
   onBack: () => void;
@@ -1111,15 +1125,20 @@ function DivisionStep({
     <div className="space-y-5">
       <section className="rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-[14px] font-semibold tracking-tight text-fg">
-          Which division are you registering for?
+          {forTeam
+            ? "Which division will your team play in?"
+            : "Which division are you registering for?"}
         </h2>
         <p className="mt-0.5 text-[12px] text-fg-muted">
-          Captains can only see your registration if you pick the same division as their team.
+          {forTeam
+            ? "Players who join your team register into this division."
+            : "Captains can only see your registration if you pick the same division as their team."}
         </p>
 
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {divisions.map((d) => {
             const on = value === d.id;
+            const tierLabel = divisionTierLabel(d.tier);
             return (
               <li key={d.id}>
                 <button
@@ -1131,23 +1150,27 @@ function DivisionStep({
                       : "flex w-full items-center gap-3 rounded-lg border border-border bg-bg-subtle p-4 text-left transition-colors hover:border-fg-muted"
                   }
                 >
-                  <span
-                    aria-hidden
-                    className={
-                      on
-                        ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 font-mono text-[11px] font-semibold text-accent"
-                        : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg font-mono text-[11px] font-semibold text-fg-muted"
-                    }
-                  >
-                    {d.tier ?? "—"}
-                  </span>
+                  {d.tier ? (
+                    <span
+                      aria-hidden
+                      className={
+                        on
+                          ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 font-mono text-[11px] font-semibold text-accent"
+                          : "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg font-mono text-[11px] font-semibold text-fg-muted"
+                      }
+                    >
+                      {d.tier.slice(0, 1).toUpperCase()}
+                    </span>
+                  ) : null}
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-semibold text-fg">
                       {d.name}
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-fg-muted">
-                      Tier {d.tier ?? "—"}
-                    </span>
+                    {tierLabel ? (
+                      <span className="mt-0.5 block text-[11px] text-fg-muted">
+                        {tierLabel}
+                      </span>
+                    ) : null}
                   </span>
                   {on ? (
                     <Check
@@ -2300,14 +2323,9 @@ function QuestionsStep({
     <div className="space-y-5">
       {showTeamCard ? (
         <section className="rounded-xl border border-border bg-surface-1 p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-[14px] font-semibold tracking-tight text-fg">
-              Team information
-            </p>
-            <span className="rounded-full bg-blue-500/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-blue-700 dark:text-blue-300">
-              Team reg
-            </span>
-          </div>
+          <p className="text-[14px] font-semibold tracking-tight text-fg">
+            Team information
+          </p>
           <div className="mt-4">
             <Field label="Team name *">
               <Input
@@ -2338,12 +2356,15 @@ function QuestionsStep({
                     ? "No divisions available"
                     : "Pick a division…"}
                 </option>
-                {divisions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                    {d.tier ? ` · ${d.tier}` : ""}
-                  </option>
-                ))}
+                {divisions.map((d) => {
+                  const tierLabel = divisionTierLabel(d.tier);
+                  return (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                      {tierLabel ? ` · ${tierLabel}` : ""}
+                    </option>
+                  );
+                })}
               </Select>
             </Field>
             <Field label="Team colour">
@@ -2361,7 +2382,7 @@ function QuestionsStep({
 
       <section className="rounded-xl border border-border bg-surface-1 p-5">
         <p className="text-[14px] font-semibold tracking-tight text-fg">
-          Player details
+          {showTeamCard ? "Registration questions" : "Player details"}
         </p>
         <div className="mt-4">
           <FormRenderer
@@ -3311,11 +3332,24 @@ function labelForPath(t: SubmissionType): string {
 }
 
 /**
+ * A division's tier in the words the league uses for levels (REG-21):
+ * "C — Recreational", "Premier"; null when the division has no tier. The
+ * same labels as the admin's division set-up and the skill-level picker.
+ */
+function divisionTierLabel(tier: string | null | undefined): string | null {
+  if (!tier) return null;
+  return isSkillLevel(tier) ? SKILL_LEVEL_LABELS[tier] : tier;
+}
+
+/**
  * Per-step header (mockup's two-line block under the stepper).
  * The subtitle is null when the funnel should fall back to the
  * default "<season> · Registration closes <date>" line.
  */
-function phaseHeadingFor(step: Step): {
+function phaseHeadingFor(
+  step: Step,
+  submissionType: SubmissionType | null
+): {
   title: string;
   subtitle: string | null;
 } {
@@ -3326,7 +3360,17 @@ function phaseHeadingFor(step: Step): {
   // file — the inner UI must agree with the outer stepper.
   switch (step) {
     case "path":
-      return { title: "Player registration", subtitle: null };
+      // A captain registers a team, not a player; before the pick the
+      // page is the season's registration, nothing more specific.
+      return {
+        title:
+          submissionType === "team"
+            ? "Team registration"
+            : submissionType
+              ? "Player registration"
+              : "Registration",
+        subtitle: null
+      };
     case "division":
       return { title: "Pick a division", subtitle: null };
     case "account":

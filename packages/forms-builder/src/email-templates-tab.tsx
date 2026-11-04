@@ -48,6 +48,8 @@ export function EmailTemplatesTab({
         registrationTypeFilter: "all",
         subject: `[Action] ${eventType.replace(/_/g, " ")}`,
         bodyHtml: "<p>Edit this template body…</p>",
+        // Off until the admin has written it: an active template replaces
+        // the standard email for its event, and a new one holds placeholders.
         isActive: false
       });
       onTemplatesChange([...templates, created]);
@@ -98,9 +100,10 @@ export function EmailTemplatesTab({
             Email templates
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-fg-muted">
-            One template per (event type, registration filter). Auto-saves on
-            blur. Set <span className="font-mono">Active</span> to wire into
-            the live notification map.
+            One template per event type and registration filter. Saves when
+            you leave a field. A new template starts off; switch it to Active
+            when the text is ready, and it replaces the standard email for its
+            event.
           </p>
         </div>
       </header>

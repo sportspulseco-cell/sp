@@ -129,11 +129,18 @@ export function FormBuilderClient({
   async function publish() {
     setBusyPublish(true);
     setError(null);
+    // Publish saves this schema itself. A pending autosave would land as
+    // one more draft after the live version (an identical, stale copy).
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     try {
       const v = await registration.createFormVersion(formId, {
         schema: schema as unknown as Record<string, unknown>
       });
       await registration.publishFormVersion(formId, v.id);
+      setAutosaveStatus("saved");
       setSuccess("Published. This is now the live version.");
       setEditing(false);
       router.refresh();

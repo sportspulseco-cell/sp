@@ -15,7 +15,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { isSeasonRegistrationType } from "@sportspulse/kernel";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -177,10 +177,13 @@ export class OrgAdminFormBuilderController {
   ) {
     const form = await this.loadForm(id);
     await this.assertScope(user, form.orgId);
+    // Newest first, as the superadmin API lists them. Unordered rows made
+    // the Review step publish the oldest draft (staging, 4 Nov 2026).
     const rows = await this.db
       .select()
       .from(schema.registrationFormVersions)
-      .where(eq(schema.registrationFormVersions.formId, id));
+      .where(eq(schema.registrationFormVersions.formId, id))
+      .orderBy(desc(schema.registrationFormVersions.versionNumber));
     return rows;
   }
 

@@ -20,6 +20,7 @@ export { EmailTemplatesClient } from "./email-templates-client";
 export { SubmissionsClient } from "./submissions-client";
 export { ReviewSection } from "./review-section";
 export { ReviewActions } from "./review-actions";
+export { newestFormVersion, publishableDraft, sameFormSchema } from "./form-versions";
 export { FormBuilder } from "./form-builder";
 export { FormBuilderClient } from "./form-builder-client";
 export { SeasonSectionForm } from "./season-section-form";

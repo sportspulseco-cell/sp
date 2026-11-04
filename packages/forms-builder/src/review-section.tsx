@@ -92,6 +92,9 @@ export function ReviewSection({
       ? `${playerWebUrl}/register/${form.seasonId}`
       : "Player app address unavailable. Reload the page.";
 
+  // Only active templates count, here and in the tile below: an inactive
+  // template sends nothing, so "0 configured" and "done" must agree.
+  const activeTemplates = templates.filter((t) => t.isActive);
   const issues: string[] = [];
   for (const d of uncoveredDivisions) {
     issues.push(`${d.name} division has no pricing tier assigned. Go to Divisions to fix.`);
@@ -99,9 +102,8 @@ export function ReviewSection({
   if (!form.activeVersionId) {
     issues.push("No published form version yet. Finish the Form builder section.");
   }
-  if (templates.length === 0) {
-    issues.push("No email templates configured. Add at least one in Email templates.");
-  }
+  // No template is not a problem: the standard emails are sent. Requiring
+  // one here was a step that existed only to clear a check (PPHL, 3 Nov 2026).
 
   return (
     <div className="space-y-6">
@@ -173,11 +175,10 @@ export function ReviewSection({
           </Tile>
           <Tile label="Email templates">
             <p className="text-[14px] font-medium text-fg">
-              {templates.filter((t) => t.isActive).length} configured
+              {activeTemplates.length === 0 ? "Standard emails" : `${activeTemplates.length} custom`}
             </p>
             <p className="font-mono text-[11px] text-fg-muted truncate">
-              {templates
-                .filter((t) => t.isActive)
+              {activeTemplates
                 .map((t) =>
                   t.eventType
                     .split("_")
@@ -185,7 +186,7 @@ export function ReviewSection({
                     .join(" ")
                 )
                 .slice(0, 4)
-                .join(" · ") || "None"}
+                .join(" · ") || "No custom template; the standard emails are sent"}
             </p>
           </Tile>
         </div>
@@ -240,6 +241,9 @@ export function ReviewSection({
           formId={form.id}
           publishable={issues.length === 0}
           hasActiveVersion={!!form.activeVersionId}
+          activeVersionId={form.activeVersionId}
+          seasonStatus={season?.status ?? null}
+          seasonHref={season ? `/seasons/${season.id}` : null}
         />
       </section>
     </div>

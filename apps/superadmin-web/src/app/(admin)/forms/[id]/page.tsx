@@ -136,7 +136,9 @@ export default async function FormSetupPage({
   const pricingDone = tiers.length > 0;
   const divisionsIssue = uncoveredDivisions.length;
   const formBuilderDone = (versions.length ?? 0) > 0 && !!form.activeVersionId;
-  const emailTemplatesDone = templates.length > 0;
+  // Active templates only, like the Review tile and its check.
+  // Optional: with no custom template the standard emails are sent.
+  const emailTemplatesDone = true;
 
   const sections: SectionState[] = [
     {
