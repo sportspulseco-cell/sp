@@ -1,5 +1,6 @@
 "use client";
 
+import { PlayoffSpotsFields } from "../divisions/playoff-spots-fields";
 import { PointsRuleFields, pointsRuleForm, pointsRuleFromForm, type PointsRuleForm } from "../divisions/points-rule-fields";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -581,6 +582,8 @@ export interface DivisionUpdateBody {
   genderEligibility?: "open" | "male" | "female" | "mixed";
   maxTeams?: number | null;
   ruleSetOverrides?: Record<string, unknown>;
+  /** The stored config with playoffSpots replaced; only sent when playoffs are on. */
+  playoffConfig?: Record<string, unknown>;
 }
 
 type DivisionForm = {
@@ -596,17 +599,20 @@ type DivisionForm = {
   periodLengthMin: string;
   maxRosterSize: string;
   points: PointsRuleForm;
+  /** null = every team in the division; a number = Top N. */
+  playoffSpots: number | null;
 };
 
 function DivisionFields({
   f,
   set,
-  setPoints,
+  playoffsOn,
   regions
 }: {
   f: DivisionForm;
-  set: (k: Exclude<keyof DivisionForm, "points">, v: string) => void;
-  setPoints: (next: PointsRuleForm) => void;
+  set: <K extends keyof DivisionForm>(k: K, v: DivisionForm[K]) => void;
+  /** Playoffs are on in the division's settings, so the spots choice shows. */
+  playoffsOn: boolean;
   regions: Array<{ id: string; name: string }>;
 }) {
   return (
@@ -638,7 +644,7 @@ function DivisionFields({
           </Select>
         </Field>
         <Field label="Gender eligibility">
-          <Select value={f.genderEligibility} onChange={(e) => set("genderEligibility", e.target.value)}>
+          <Select value={f.genderEligibility} onChange={(e) => set("genderEligibility", e.target.value as DivisionForm["genderEligibility"])}>
             {GENDERS.map((g) => (
               <option key={g.value} value={g.value}>
                 {g.label}
@@ -672,7 +678,12 @@ function DivisionFields({
           <Input type="number" min={1} value={f.maxRosterSize} onChange={(e) => set("maxRosterSize", e.target.value)} />
         </Field>
       </div>
-      <PointsRuleFields value={f.points} onChange={(next) => setPoints(next)} />
+      <PointsRuleFields value={f.points} onChange={(next) => set("points", next)} />
+      {playoffsOn ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <PlayoffSpotsFields value={f.playoffSpots} onChange={(next) => set("playoffSpots", next)} max={32} />
+        </div>
+      ) : null}
     </>
   );
 }
@@ -748,8 +759,9 @@ function carriedSummary(rules: DivisionRules, sameSeason: boolean): string {
     `${g.minStartersToStart} skaters to start`,
     `${g.maxGuestPlayersPerGame} guest players per game`,
     "Tiebreaker order",
+    // Playoff spots are a field of the dialog, so they are not listed here.
     p.enabled
-      ? `Playoffs: top ${p.playoffSpots}, ${optionLabel(SERIES, p.seriesFormat).toLowerCase()}, ${optionLabel(BRACKETS, p.bracketType).toLowerCase()}`
+      ? `Playoffs: ${optionLabel(SERIES, p.seriesFormat).toLowerCase()}, ${optionLabel(BRACKETS, p.bracketType).toLowerCase()}`
       : "No playoffs"
   ];
   return `Also copied: ${parts.join(" · ")}.${sameSeason ? "" : " Playoff dates are not copied from another season."}`;
@@ -817,7 +829,8 @@ export function NewDivisionButton({
     numberOfPeriods: String(d.gameRules.numberOfPeriods),
     periodLengthMin: String(d.gameRules.periodLengthMin),
     maxRosterSize: String(d.gameRules.maxRosterSize),
-    points: pointsRuleForm(null)
+    points: pointsRuleForm(null),
+    playoffSpots: d.playoffConfig.playoffSpots
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(empty);
@@ -889,7 +902,8 @@ export function NewDivisionButton({
       numberOfPeriods: String(rules.gameRules.numberOfPeriods),
       periodLengthMin: String(rules.gameRules.periodLengthMin),
       maxRosterSize: String(rules.gameRules.maxRosterSize),
-      points: pointsRuleForm(rules.pointsRule)
+      points: pointsRuleForm(rules.pointsRule),
+      playoffSpots: rules.playoffConfig.playoffSpots
     }));
   }
   /** Settings the create body carries beyond the visible fields. Derived at submit, so a season change never leaves them stale. */
@@ -900,6 +914,8 @@ export function NewDivisionButton({
         })
       : null;
   const sourceSeasonName = source ? seasonById.get(source.seasonId)?.name : null;
+  /** The playoff settings the new division starts from; the dialog sets only the spots. */
+  const basePlayoffs = carried?.playoffConfig ?? d.playoffConfig;
 
   return (
     <>
@@ -937,7 +953,7 @@ export function NewDivisionButton({
                       : { gameRules: d.gameRules, tiebreakers: DEFAULT_TIEBREAKERS },
                     f
                   ),
-                  playoffConfig: (carried?.playoffConfig ?? d.playoffConfig) as unknown as Record<string, unknown>
+                  playoffConfig: { ...basePlayoffs, playoffSpots: f.playoffSpots } as unknown as Record<string, unknown>
                 }),
               () => setOpen(false)
             );
@@ -990,7 +1006,7 @@ export function NewDivisionButton({
               </Select>
             </Field>
           ) : null}
-          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} setPoints={(points) => setF((p) => ({ ...p, points }))} regions={regions} />
+          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} playoffsOn={basePlayoffs.enabled} regions={regions} />
           {carried && source ? (
             <p className="text-[12px] text-fg-muted">
               {sourceSeasonName ? `From ${sourceSeasonName} · ${source.name}. ` : ""}
@@ -1019,6 +1035,7 @@ export function EditDivisionButton({
     ageRange?: { min?: number | null; max?: number | null; label?: string };
   };
   const s = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
+  const playoffs = readDivisionRules(division.ruleSetOverrides, division.playoffConfig).playoffConfig;
   const initial: DivisionForm = {
     name: division.name,
     tier: division.tier ?? "",
@@ -1031,7 +1048,8 @@ export function EditDivisionButton({
     numberOfPeriods: s(rules.gameRules?.numberOfPeriods),
     periodLengthMin: s(rules.gameRules?.periodLengthMin),
     maxRosterSize: s(rules.gameRules?.maxRosterSize),
-    points: pointsRuleForm((division.ruleSetOverrides as { pointsRule?: unknown } | null)?.pointsRule)
+    points: pointsRuleForm((division.ruleSetOverrides as { pointsRule?: unknown } | null)?.pointsRule),
+    playoffSpots: playoffs.playoffSpots
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(initial);
@@ -1054,14 +1072,20 @@ export function EditDivisionButton({
                   regionId: f.regionId || null,
                   genderEligibility: f.genderEligibility,
                   maxTeams: num(f.maxTeams),
-                  ruleSetOverrides: mergedRules((division.ruleSetOverrides ?? {}) as Record<string, unknown>, f)
+                  ruleSetOverrides: mergedRules((division.ruleSetOverrides ?? {}) as Record<string, unknown>, f),
+                  // Only the spots change; every other stored playoff key is kept.
+                  ...(playoffs.enabled
+                    ? { playoffConfig: { ...((division.playoffConfig ?? {}) as Record<string, unknown>), playoffSpots: f.playoffSpots } }
+                    : {})
                 }),
               () => setOpen(false)
             );
           }}
         >
-          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} setPoints={(points) => setF((p) => ({ ...p, points }))} regions={regions} />
-          <p className="text-[12px] text-fg-muted">Tiebreaker order and playoff settings are kept as they are (set in org setup). Standings use the points the next time a game is finalized.</p>
+          <DivisionFields f={f} set={(k, v) => setF((p) => ({ ...p, [k]: v }))} playoffsOn={playoffs.enabled} regions={regions} />
+          <p className="text-[12px] text-fg-muted">
+            Tiebreaker order and {playoffs.enabled ? "the other playoff settings" : "playoff settings"} are kept as they are (set in org setup). Standings use the points the next time a game is finalized.
+          </p>
           {error ? <Alert tone="error">{error}</Alert> : null}
           <Actions busy={busy} label="Save division" onCancel={() => setOpen(false)} />
         </form>

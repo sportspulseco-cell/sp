@@ -6,6 +6,8 @@ import {
   DEFAULT_DIVISION_TIEBREAKERS,
   copyDivisionRules,
   defaultDivisionRules,
+  parsePlayoffSpots,
+  playoffSpotsLabel,
   readDivisionRules
 } from "./division-rules";
 import { DEFAULT_POINTS_RULE, STANDINGS_TIEBREAKERS } from "./game-results";
@@ -53,6 +55,7 @@ test("a stored row keeps every value it has and fills the rest", () => {
   assert.equal(r.gameRules.minStartersToStart, 10);
   assert.equal(r.playoffConfig.bracketType, "double_elim");
   assert.equal(r.playoffConfig.seriesFormat, "best_of_1");
+  assert.equal(r.playoffConfig.playoffSpots, 8, "a row written before the every-team choice keeps its Top 8");
   assert.equal(r.ageRange.min, 18);
   // Filled in, not left undefined.
   assert.equal(r.ageRange.max, null);
@@ -95,7 +98,7 @@ test("unknown choices and bad numbers fall back to the default for that key only
   assert.equal(r.pointsRule.win, 3);
   assert.equal(r.pointsRule.loss, DEFAULT_POINTS_RULE.loss, "11 points is out of range");
   assert.equal(r.playoffConfig.enabled, true);
-  assert.equal(r.playoffConfig.playoffSpots, 8);
+  assert.equal(r.playoffConfig.playoffSpots, null, "1 spot is not a bracket: every team");
   assert.equal(r.playoffConfig.startDate, "");
   assert.equal(r.playoffConfig.endDate, "2027-03-01");
   assert.equal(r.playoffConfig.seriesFormat, "best_of_1");
@@ -120,10 +123,35 @@ test("every read returns fresh objects: editing one never changes the defaults o
   const b = readDivisionRules({}, {});
   assert.equal(b.gameRules.clockType, "stopped");
   assert.deepEqual(b.tiebreakers, [...STANDINGS_TIEBREAKERS]);
-  assert.equal(b.playoffConfig.playoffSpots, 8);
+  assert.equal(b.playoffConfig.playoffSpots, null);
   assert.equal(b.pointsRule.win, DEFAULT_POINTS_RULE.win);
   assert.equal(DEFAULT_DIVISION_GAME_RULES.clockType, "stopped");
-  assert.equal(DEFAULT_DIVISION_PLAYOFF_CONFIG.playoffSpots, 8);
+  assert.equal(DEFAULT_DIVISION_PLAYOFF_CONFIG.playoffSpots, null);
+});
+
+test("playoff spots: a new division takes every team; a number is Top N; junk is every team", () => {
+  assert.equal(DEFAULT_DIVISION_PLAYOFF_CONFIG.playoffSpots, null, "PPHL letter item 4: every team by default");
+  assert.equal(readDivisionRules({}, {}).playoffConfig.playoffSpots, null, "missing");
+  assert.equal(readDivisionRules({}, { playoffSpots: null }).playoffConfig.playoffSpots, null, "stored null");
+  assert.equal(readDivisionRules({}, { playoffSpots: 4 }).playoffConfig.playoffSpots, 4);
+  assert.equal(parsePlayoffSpots(undefined), null);
+  assert.equal(parsePlayoffSpots(null), null);
+  assert.equal(parsePlayoffSpots(2), 2, "two teams is the smallest bracket");
+  assert.equal(parsePlayoffSpots(16), 16);
+  assert.equal(parsePlayoffSpots(0), null);
+  assert.equal(parsePlayoffSpots(1), null);
+  assert.equal(parsePlayoffSpots(-4), null);
+  assert.equal(parsePlayoffSpots(4.5), null);
+  assert.equal(parsePlayoffSpots("8"), null, "a string is not a stored count");
+  assert.equal(parsePlayoffSpots(Number.NaN), null);
+});
+
+test("playoff spots label: All teams or Top N", () => {
+  assert.equal(playoffSpotsLabel(null), "All teams");
+  assert.equal(playoffSpotsLabel(4), "Top 4");
+  assert.equal(playoffSpotsLabel(8), "Top 8");
+  assert.equal(playoffSpotsLabel(parsePlayoffSpots(undefined)), "All teams");
+  assert.equal(playoffSpotsLabel(readDivisionRules({}, NORTH_PLAYOFFS).playoffConfig.playoffSpots), "Top 8");
 });
 
 test("a copy is identical but independent", () => {

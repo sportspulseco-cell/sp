@@ -1,10 +1,10 @@
-import { fetchAll, load } from "@sportspulse/api-client";
+import { fetchAll, load, mapLimit, type Division } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError, PageHeader } from "@sportspulse/ui";
 import Link from "next/link";
 import { ScheduleTimeZoneProvider } from "@sportspulse/admin-pages";
 import { PlayoffBrackets } from "@/components/scheduling/playoff-brackets";
-import { leagueMgmt } from "@/lib/api/server-api";
+import { adminTransfers, leagueMgmt } from "@/lib/api/server-api";
 
 export const metadata = { title: "Playoffs · Super Admin" };
 export const dynamic = "force-dynamic";
@@ -38,7 +38,12 @@ export default async function PlayoffsPage({
 
   const divisionsPage = await fetchAll((cursor) => leagueMgmt
     .listDivisions({ seasonId: season.id, limit: 100, cursor }))
-    .catch(() => ({ items: [] as { id: string; name: string }[] }));
+    .catch(() => ({ items: [] as Division[] }));
+  // Teams a bracket would seed (same statuses as the generator), so the
+  // form can say "Every team in the division (7 teams)". null = not known.
+  const teamCounts = await mapLimit(divisionsPage.items, 4, (d) =>
+    adminTransfers.listDivisionTeams(d.id).then((r) => r.items.length).catch(() => null)
+  );
 
   return (
     <div className="space-y-8">
@@ -58,7 +63,12 @@ export default async function PlayoffsPage({
       <ScheduleTimeZoneProvider timeZone={season.timezone}>
         <PlayoffBrackets
           seasonId={season.id}
-          divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
+          divisions={divisionsPage.items.map((d, i) => ({
+            id: d.id,
+            name: d.name,
+            playoffConfig: d.playoffConfig,
+            teamCount: teamCounts[i] ?? null
+          }))}
         />
       </ScheduleTimeZoneProvider>
     </div>

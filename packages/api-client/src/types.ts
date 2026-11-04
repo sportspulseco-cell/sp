@@ -233,6 +233,8 @@ export interface Division {
    * JSONB — playoff config written by /org-setup Phase 3:
    *   { enabled, playoffSpots, startDate, endDate, seriesFormat,
    *     bracketType, homeIceRule }
+   * playoffSpots is a number (Top N) or null / missing (every team in
+   * the division). Read it with readDivisionRules from the kernel.
    */
   playoffConfig?: Record<string, unknown>;
   status: "active" | "archived";

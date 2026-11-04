@@ -12,17 +12,36 @@ import {
   Button,
   EmptyState,
   Field,
-  Input,
   Select,
   Skeleton
 } from "@sportspulse/ui";
+import { readDivisionRules } from "@sportspulse/kernel";
+import { PlayoffSpotsFields } from "../divisions/playoff-spots-fields";
 import {
   scheduler,
   type BracketView,
   type BracketSlotView
 } from "./scheduler-client";
 
-interface Division { id: string; name: string }
+interface Division {
+  id: string;
+  name: string;
+  /** divisions.playoff_config as stored (read with readDivisionRules). Missing = the page did not load it. */
+  playoffConfig?: unknown;
+  /** Teams a bracket would seed, when the page loaded them. null or missing = not known; never guessed. */
+  teamCount?: number | null;
+}
+
+/**
+ * The division's own answer to "who makes the playoffs": null = every
+ * team, a number = Top N, undefined when playoffs are off for the
+ * division or the page did not load its settings.
+ */
+function divisionSpots(d: Division | undefined): number | null | undefined {
+  if (!d || d.playoffConfig === undefined) return undefined;
+  const p = readDivisionRules(undefined, d.playoffConfig).playoffConfig;
+  return p.enabled ? p.playoffSpots : undefined;
+}
 interface Props {
   seasonId: string;
   divisions: Division[];
@@ -60,7 +79,13 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffG
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genDivision, setGenDivision] = useState<string>(divisions[0]?.id ?? "");
-  const [genTeams, setGenTeams] = useState("");
+  // Pre-set from the division's settings; the admin may change it for this bracket.
+  const [genSpots, setGenSpots] = useState<number | null>(() => divisionSpots(divisions[0]) ?? null);
+
+  function pickDivision(id: string) {
+    setGenDivision(id);
+    setGenSpots(divisionSpots(divisions.find((d) => d.id === id)) ?? null);
+  }
 
   async function load() {
     setLoading(true); setError(null);
@@ -78,10 +103,11 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffG
     if (!genDivision) return;
     setGenerating(true); setError(null);
     try {
+      // Every team: no count is sent and the generator seeds the whole division.
       await scheduler.generateBracket({
         seasonId,
         divisionId: genDivision,
-        teamCount: genTeams ? Number(genTeams) : undefined
+        ...(genSpots === null ? {} : { teamCount: genSpots })
       });
       await load();
     } catch (err) {
@@ -92,6 +118,25 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffG
   const divisionsWithoutBracket = divisions.filter(
     (d) => !brackets.some((b) => b.divisionId === d.id && b.state !== "archived")
   );
+
+  // The form only lists divisions without a bracket. If the chosen one got
+  // a bracket (or the first division already had one), the choice follows
+  // the list, so the division shown is the division sent.
+  useEffect(() => {
+    if (loading) return;
+    if (divisionsWithoutBracket.some((d) => d.id === genDivision)) return;
+    pickDivision(divisionsWithoutBracket[0]?.id ?? "");
+  }, [loading, brackets, divisions, genDivision]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selected = divisions.find((d) => d.id === genDivision);
+  const setting = divisionSpots(selected);
+  const count = selected?.teamCount;
+  const allLabel =
+    typeof count === "number"
+      ? `Every team in the division (${count} ${count === 1 ? "team" : "teams"})`
+      : "Every team in the division";
+  const spotsHint =
+    setting === undefined ? undefined : setting === genSpots ? "From the division's settings" : "For this bracket only";
 
   return (
     <div className="space-y-6">
@@ -132,7 +177,7 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffG
             <Field label="Division">
               <Select
                 value={genDivision}
-                onChange={(e) => setGenDivision(e.target.value)}
+                onChange={(e) => pickDivision(e.target.value)}
                 disabled={generating}
               >
                 {divisionsWithoutBracket.map((d) => (
@@ -140,16 +185,14 @@ export function SchedulingPlayoffBrackets({ seasonId, divisions, publishPlayoffG
                 ))}
               </Select>
             </Field>
-            <Field label="Teams in the bracket" hint="Leave blank for every team in the division">
-              <Input
-                type="number"
-                min={2}
-                value={genTeams}
-                placeholder="All teams"
-                onChange={(e) => setGenTeams(e.target.value)}
-                disabled={generating}
-              />
-            </Field>
+            <PlayoffSpotsFields
+              label="Teams in the bracket"
+              value={genSpots}
+              onChange={setGenSpots}
+              allLabel={allLabel}
+              hint={spotsHint}
+              disabled={generating}
+            />
             <div className="flex items-end">
               <Button
                 onClick={onGenerate}

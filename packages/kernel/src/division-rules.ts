@@ -47,7 +47,13 @@ export interface DivisionGameRules {
 
 export interface DivisionPlayoffConfig {
   enabled: boolean;
-  playoffSpots: number;
+  /**
+   * Who makes the playoffs: null means every team in the division (the
+   * default, PPHL letter item 4), a number means the top N in the
+   * standings. Stored as-is in divisions.playoff_config; the bracket
+   * generator takes every team when no count is sent.
+   */
+  playoffSpots: number | null;
   /** YYYY-MM-DD, or "" when not set. */
   startDate: string;
   endDate: string;
@@ -84,7 +90,7 @@ export const DEFAULT_DIVISION_GAME_RULES: Readonly<DivisionGameRules> = {
 
 export const DEFAULT_DIVISION_PLAYOFF_CONFIG: Readonly<DivisionPlayoffConfig> = {
   enabled: true,
-  playoffSpots: 8,
+  playoffSpots: null,
   startDate: "",
   endDate: "",
   seriesFormat: "best_of_1",
@@ -126,6 +132,23 @@ const intOrNull = (v: unknown): number | null =>
 
 const calendarDate = (v: unknown): string => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
 
+/** The smallest bracket: two teams. */
+export const MIN_PLAYOFF_SPOTS = 2;
+
+/**
+ * A stored playoffSpots value. A whole number of 2 or more is Top N;
+ * anything else (missing, null, 0, 1, a string) means every team in the
+ * division. Rows written before the choice existed keep their number.
+ */
+export function parsePlayoffSpots(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v >= MIN_PLAYOFF_SPOTS ? v : null;
+}
+
+/** "All teams" or "Top 4": the same words on every summary. */
+export function playoffSpotsLabel(spots: number | null): string {
+  return spots === null ? "All teams" : `Top ${spots}`;
+}
+
 /**
  * The full rule set of a stored division. Every key is present; anything
  * missing or malformed reads as the default, never as undefined.
@@ -158,7 +181,7 @@ export function readDivisionRules(ruleSetOverrides: unknown, playoffConfig: unkn
     },
     playoffConfig: {
       enabled: typeof p.enabled === "boolean" ? p.enabled : dp.enabled,
-      playoffSpots: intAtLeast(p.playoffSpots, 2, dp.playoffSpots),
+      playoffSpots: parsePlayoffSpots(p.playoffSpots),
       startDate: calendarDate(p.startDate),
       endDate: calendarDate(p.endDate),
       seriesFormat: oneOf(p.seriesFormat, PLAYOFF_SERIES_FORMATS, dp.seriesFormat),

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { POINTS_RULE_LABELS, resolvePointsRule, formatCalendarDate } from "@sportspulse/kernel";
+import { POINTS_RULE_LABELS, parsePlayoffSpots, playoffSpotsLabel, resolvePointsRule, formatCalendarDate } from "@sportspulse/kernel";
 import Link from "next/link";
 import { Badge, Eyebrow, PageHeader, Reveal, statusTone, IconTile, LocalDate } from "@sportspulse/ui";
 import { ArrowLeft, Layers } from "lucide-react";
@@ -124,7 +124,8 @@ export function DivisionDetail({
   const pointsRule = resolvePointsRule(null, division.ruleSetOverrides);
   const playoff = (division.playoffConfig ?? {}) as {
     enabled?: boolean;
-    playoffSpots?: number;
+    /** null or missing = every team in the division. */
+    playoffSpots?: number | null;
     startDate?: string;
     endDate?: string;
     seriesFormat?: string;
@@ -326,8 +327,8 @@ export function DivisionDetail({
             <Field label="Playoffs enabled" mono>
               Yes
             </Field>
-            <Field label="Spots" tag="playoffSpots" mono>
-              Top {playoff.playoffSpots ?? "—"}
+            <Field label="Playoff spots" tag="playoffSpots" mono>
+              {playoffSpotsLabel(parsePlayoffSpots(playoff.playoffSpots))}
             </Field>
             <Field label="Start date" tag="startDate" mono>
               {fmtDate(playoff.startDate)}

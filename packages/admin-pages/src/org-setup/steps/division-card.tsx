@@ -1,5 +1,6 @@
 "use client";
 
+import { PlayoffSpotsFields } from "../../divisions/playoff-spots-fields";
 import { PointsRuleFields, pointsRuleForm } from "../../divisions/points-rule-fields";
 import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from "@sportspulse/kernel";
 import { ChevronDown, ChevronUp, Copy, GripVertical, Trash2 } from "lucide-react";
@@ -696,26 +697,11 @@ function PostSeasonBlock({
       {p.enabled ? (
         <>
           <div className="grid gap-5 sm:grid-cols-3">
-            <Field
-              label="Playoff spots"
-              required
-              hint="How many teams qualify from the regular-season standings. Top 4 = only top 4 teams make playoffs. Top 8 = top 8 teams advance."
-            >
-              <Input
-                type="number"
-                min={2}
-                max={32}
-                value={p.playoffSpots}
-                onChange={(e) =>
-                  onPatch({
-                    playoffConfig: {
-                      ...p,
-                      playoffSpots: Math.max(2, parseInt(e.target.value) || 8)
-                    }
-                  })
-                }
-              />
-            </Field>
+            <PlayoffSpotsFields
+              value={p.playoffSpots}
+              onChange={(playoffSpots) => onPatch({ playoffConfig: { ...p, playoffSpots } })}
+              max={32}
+            />
 
             <Field
               label="Playoff start date"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { Org } from "@sportspulse/api-client";
+import { playoffSpotsLabel } from "@sportspulse/kernel";
 import type { DivisionDraft, LeagueDraft, SeasonDraft } from "../types";
 import { DivisionCard } from "./division-card";
 
@@ -148,8 +149,8 @@ function ReviewSummary({
             {d.playoffConfig.enabled ? (
               <>
                 <Row
-                  label="Spots"
-                  value={`Top ${d.playoffConfig.playoffSpots}`}
+                  label="Playoff spots"
+                  value={playoffSpotsLabel(d.playoffConfig.playoffSpots)}
                   mono
                 />
                 <Row
