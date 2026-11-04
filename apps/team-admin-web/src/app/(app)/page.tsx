@@ -5,6 +5,7 @@ import { OffSeasonView } from "@/components/dashboard/off-season-view";
 import { RegistrationOpenView } from "@/components/dashboard/registration-open-view";
 import { InSeasonView } from "@/components/dashboard/in-season-view";
 import { PostSeasonView } from "@/components/dashboard/post-season-view";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function TeamAdminHome() {
   const scope = await loadMeScope();
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
 
   if (!scope || !myTeamId) {

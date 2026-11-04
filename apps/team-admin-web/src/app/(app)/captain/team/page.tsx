@@ -3,6 +3,7 @@ import { EmptyState, Eyebrow, PageHeader } from "@sportspulse/ui";
 import { leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { TeamProfileForm } from "./team-profile-form";
 import { sportLabel } from "@sportspulse/kernel";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,7 +29,7 @@ export default async function CaptainTeamPage() {
     );
   }
 
-  const myTeamId = scope!.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   const team = myTeamId
     ? await leagueMgmt.getTeam(myTeamId).catch(() => null)
     : null;

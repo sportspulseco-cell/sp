@@ -4,6 +4,7 @@ import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
 import { Badge, EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
 import { load } from "@sportspulse/api-client";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,7 +30,7 @@ function fmt(iso: string, tz: string): string {
  */
 export default async function LineupsIndexPage() {
   const scope = await loadMeScope();
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   if (!myTeamId) {
     return (
       <div className="space-y-6">

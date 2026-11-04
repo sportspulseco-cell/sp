@@ -3,6 +3,7 @@ import { Star } from "lucide-react";
 import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { iam, loadMeScope, leagueMgmt } from "@/lib/api/server-api";
 import { TeamMessageForm } from "./message-form";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Message the team · Team Admin" };
@@ -46,7 +47,7 @@ export default async function CommsPage({
       </div>
     );
   }
-  const primary = scope?.teamIds[0] ?? null;
+  const primary = await getActiveTeamId(scope);
   const teamId =
     sp.teamId && staffed.includes(sp.teamId)
       ? sp.teamId

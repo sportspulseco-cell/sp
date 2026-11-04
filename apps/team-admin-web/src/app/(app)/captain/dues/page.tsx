@@ -3,6 +3,7 @@ import { Star } from "lucide-react";
 import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { finance, loadMeScope } from "@/lib/api/server-api";
 import { DuesScreen } from "./dues-screen";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,7 +27,7 @@ export default async function CaptainDuesPage({
   const { invoiceId } = await searchParams;
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   if (!isCaptain || !myTeamId) {
     return (
       <div className="space-y-6">

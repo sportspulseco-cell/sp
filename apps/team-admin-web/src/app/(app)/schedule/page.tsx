@@ -12,6 +12,7 @@ import type { Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, loadMeScope } from "@/lib/api/server-api";
 import { load } from "@sportspulse/api-client";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Schedule · Team Admin" };
@@ -30,7 +31,7 @@ export default async function TeamAdminSchedulePage({
 }) {
   const filter = parseScheduleFilter((await searchParams)?.filter);
   const scope = await loadMeScope();
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
 
   const pageResult = teamId
     ? await load(gameOps.listGames({ teamId, limit: 100, publishedOnly: true }))

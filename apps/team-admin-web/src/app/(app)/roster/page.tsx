@@ -4,6 +4,7 @@ import { Badge, EmptyState, PageHeader, SeasonSwitch, TBody, TD, TH, THead, TR, 
 import type { TeamMembership } from "@sportspulse/api-client";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
 import { iam, leagueMgmt, loadMeScope, roster } from "@/lib/api/server-api";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Roster · Team Admin" };
@@ -26,7 +27,7 @@ export default async function TeamAdminRosterPage({
 }) {
   const sp = (await searchParams) ?? {};
   const scope = await loadMeScope();
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
 
   if (!teamId) {
     return (

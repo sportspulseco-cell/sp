@@ -1,7 +1,8 @@
 ﻿import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ConsoleShell } from "@/components/layout/console-shell";
-import { captain, iam } from "@/lib/api/server-api";
+import { captain, iam, leagueMgmt } from "@/lib/api/server-api";
+import { getActiveTeamId } from "@/lib/active-team";
 import { loadRegistrationCall } from "@/lib/captain-registration";
 
 /**
@@ -31,7 +32,13 @@ export default async function AppLayout({
   ]);
 
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const primaryTeamId = scope?.teamIds[0] ?? null;
+  // The team the console works on (a captain can hold several).
+  const primaryTeamId = await getActiveTeamId(scope);
+  const teams = scope?.teamIds.length
+    ? (await Promise.all(scope.teamIds.map((id) => leagueMgmt.getTeam(id).catch(() => null))))
+        .filter((t): t is NonNullable<typeof t> => !!t)
+        .map((t) => ({ id: t.id, name: t.name }))
+    : [];
   const primaryRole = isCaptain ? "captain" : "coach";
   const roleLine = profile && scope
     ? `${primaryRole} · ${scope.teamIds.length} team${scope.teamIds.length === 1 ? "" : "s"}`
@@ -55,6 +62,8 @@ export default async function AppLayout({
       roleLine={roleLine}
       isCaptain={isCaptain}
       registrationCall={registrationCall}
+      teams={teams}
+      activeTeamId={primaryTeamId ?? ""}
     >
       {children}
     </ConsoleShell>

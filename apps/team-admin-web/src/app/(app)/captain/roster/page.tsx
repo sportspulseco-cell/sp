@@ -2,6 +2,7 @@ import { Star, Users } from "lucide-react";
 import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { captain, loadMeScope } from "@/lib/api/server-api";
 import { RosterScreen } from "./roster-screen";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -24,7 +25,7 @@ export default async function CaptainRosterPage() {
     );
   }
 
-  const myTeamId = scope!.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   if (!myTeamId) {
     return (
       <div className="space-y-6">

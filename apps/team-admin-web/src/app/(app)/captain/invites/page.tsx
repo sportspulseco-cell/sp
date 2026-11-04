@@ -6,6 +6,7 @@ import { captain, leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/serv
 import { CreateInviteForm } from "./create-invite-form";
 import { RevokeInviteButton } from "./revoke-invite-button";
 import { PastRosterInvite } from "./past-roster-invite";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,7 +54,7 @@ export default async function CaptainInvitesPage() {
     );
   }
 
-  const myTeamId = scope!.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   if (!myTeamId) {
     return (
       <div className="space-y-6">

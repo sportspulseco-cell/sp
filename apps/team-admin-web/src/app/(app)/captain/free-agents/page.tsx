@@ -5,6 +5,7 @@ import type { FreeAgentOffer, FreeAgentPoolEntry } from "@sportspulse/api-client
 import { FREE_AGENT_OFFER_STATUS_LABELS, formatFreeAgentAvailability, freeAgentLevelLabel, freeAgentPositionLabel } from "@sportspulse/kernel";
 import { leagueMgmt, loadMeScope, registrationV2 } from "@/lib/api/server-api";
 import { ClaimFreeAgentButton } from "./claim-button";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,7 +43,7 @@ export default async function CaptainFreeAgentsPage() {
     );
   }
 
-  const myTeamId = scope!.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   if (!myTeamId) {
     return (
       <div className="space-y-6">

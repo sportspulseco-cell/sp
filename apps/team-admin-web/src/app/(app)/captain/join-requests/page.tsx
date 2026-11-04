@@ -3,6 +3,7 @@ import { EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { loadMeScope, registration } from "@/lib/api/server-api";
 import { JoinRequestsClient } from "./join-requests-client";
 import { load } from "@sportspulse/api-client";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,7 +12,7 @@ export const metadata = { title: "Join requests · Team Admin" };
 export default async function CaptainJoinRequestsPage() {
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
   if (!isCaptain || !teamId) {
     return (
       <div className="space-y-6">

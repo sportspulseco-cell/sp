@@ -4,6 +4,7 @@ import { loadMeScope, teamStore } from "@/lib/api/server-api";
 import { StoreManager } from "./store-manager";
 import { StoreOrders } from "./store-orders";
 import { load } from "@sportspulse/api-client";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,7 +18,7 @@ export const metadata = { title: "Team store · Team Admin" };
 export default async function CaptainStorePage() {
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
 
   if (!isCaptain || !myTeamId) {
     return (

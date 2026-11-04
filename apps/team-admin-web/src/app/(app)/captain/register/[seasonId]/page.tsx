@@ -4,6 +4,7 @@ import { EmptyState, PageHeader, LocalDate } from "@sportspulse/ui";
 import { DATE_FORMATS, formatCalendarDate } from "@sportspulse/kernel";
 import { captain, loadMeScope } from "@/lib/api/server-api";
 import { DivisionPicker } from "./division-picker";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,7 +17,7 @@ export default async function CaptainSeasonDetailPage({
   const { seasonId } = await params;
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
   if (!isCaptain || !teamId) {
     return (
       <EmptyState

@@ -3,6 +3,7 @@ import { ArrowLeft, Lock } from "lucide-react";
 import { EmptyState, PageHeader } from "@sportspulse/ui";
 import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { RegisterWizard } from "./register-wizard";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,7 +29,7 @@ export default async function CaptainRegisterSetupPage({
   const { entryId } = await params;
 
   const scope = await loadMeScope();
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
   if (!teamId) {
     return (
       <EmptyState

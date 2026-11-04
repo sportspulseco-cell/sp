@@ -3,6 +3,7 @@ import { load } from "@sportspulse/api-client";
 import { Badge, EmptyState, Eyebrow, PageHeader, LoadError } from "@sportspulse/ui";
 import { formatCalendarDate, statusLabel } from "@sportspulse/kernel";
 import { compliance, loadMeScope } from "@/lib/api/server-api";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +20,7 @@ export const metadata = { title: "Compliance · Team Admin" };
 export default async function CaptainCompliancePage() {
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   if (!isCaptain || !myTeamId) {
     return (
       <EmptyState

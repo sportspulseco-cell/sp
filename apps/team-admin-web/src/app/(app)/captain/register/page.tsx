@@ -6,6 +6,7 @@ import { captain, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { latestApplicationPerSeason, rejectionOf } from "@/lib/registration-call";
 import { WithdrawButton } from "./withdraw-button";
 import { load } from "@sportspulse/api-client";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,7 +35,7 @@ export default async function CaptainRegisterPage({
 
   const scope = await loadMeScope();
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
 
   if (!isCaptain || !teamId) {
     return (

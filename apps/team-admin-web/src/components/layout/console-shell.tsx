@@ -7,6 +7,7 @@ import { AppShell, RolePill } from "@sportspulse/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { RegistrationCall } from "@/lib/registration-call";
 import { RegistrationBanner } from "./registration-banner";
+import { TeamSwitcher } from "./team-switcher";
 import { CAPTAIN_NAV, COACH_NAV, HOME, ROUTES } from "./nav-config";
 
 const BRAND = { name: "SportsPulse", console: "Team admin", icon: UsersRound };
@@ -25,6 +26,8 @@ export function ConsoleShell({
   roleLine,
   isCaptain,
   registrationCall,
+  teams,
+  activeTeamId,
   children
 }: {
   email: string;
@@ -32,6 +35,9 @@ export function ConsoleShell({
   roleLine: string;
   isCaptain: boolean;
   registrationCall: RegistrationCall | null;
+  /** The user's teams; with two or more, a switcher sits in the top bar. */
+  teams: Array<{ id: string; name: string }>;
+  activeTeamId: string;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -50,6 +56,7 @@ export function ConsoleShell({
       home={HOME}
       user={{ email, displayName, roleLine }}
       badge={isCaptain ? <RolePill label="Captain" title="You hold the captain role for this team" /> : undefined}
+      actions={<TeamSwitcher teams={teams} activeTeamId={activeTeamId} />}
       banner={registrationCall ? <RegistrationBanner call={registrationCall} /> : undefined}
       onSignOut={signOut}
     >

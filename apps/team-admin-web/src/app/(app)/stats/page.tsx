@@ -13,6 +13,7 @@ import {
 } from "@sportspulse/ui";
 import type { Standing, StatLine } from "@sportspulse/api-client";
 import { captain, leagueMgmt, loadMeScope, stats } from "@/lib/api/server-api";
+import { getActiveTeamId } from "@/lib/active-team";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Stats · Team Admin" };
@@ -40,7 +41,7 @@ function n(line: StatLine, key: string): number {
  */
 export default async function TeamAdminStatsPage() {
   const scope = await loadMeScope();
-  const teamId = scope?.teamIds[0] ?? null;
+  const teamId = await getActiveTeamId(scope);
 
   if (!teamId) {
     return (
