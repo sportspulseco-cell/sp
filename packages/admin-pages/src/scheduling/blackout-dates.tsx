@@ -118,13 +118,13 @@ export function BlackoutDates({ api, disabled, onReadyChange, onRinksLoaded }: {
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border" aria-label="Blackout dates">
           {(rows ?? []).map((b) => (
-            <li key={b.id} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
-              <span className="font-medium text-fg">
+            <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-[13px]">
+              <span className="w-full font-medium text-fg sm:w-auto">
                 {fmtDay(b.startDate)}
                 {b.endDate !== b.startDate ? ` to ${fmtDay(b.endDate)}` : ""}
               </span>
               <span className="text-fg-muted">{b.surfaceId ? b.rinkLabel ?? "One rink" : "All rinks"}</span>
-              {b.reason ? <span className="truncate text-fg-muted">· {b.reason}</span> : null}
+              {b.reason ? <span className="min-w-0 break-words text-fg-muted">· {b.reason}</span> : null}
               <Button
                 type="button"
                 onClick={() => onRemove(b.id)}

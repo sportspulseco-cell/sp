@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect as baseExpect } from "@playwright/test";
 import { CFG, OUT, TARGET, SUPABASE_IP, env, call, login, sql } from "./lib.mjs";
 import { resendRequest } from "./delivery-lib.mjs";
+const expect = baseExpect.configure({ timeout: 30_000 });
 
 if (TARGET !== "staging") throw new Error("Connected notification acceptance is staging-only");
 const { ids } = JSON.parse(readFileSync(`${OUT}/latest.json`, "utf8"));
@@ -80,7 +81,9 @@ try {
   for (const time of ["09:00", "10:30"]) await api("POST", `/scheduling/surfaces/${qa.surfaceId}/ice-slots/bulk`, {
     seasonId: qa.seasonId, startDate: "2026-11-21", endDate: "2026-12-26", weekdays: [6], startLocalTime: time, durationMin: 75,
   });
-  await api("POST", `/league/seasons/${qa.seasonId}/status`, { status: "in_progress" });
+  for (const status of ["registration_open", "in_progress"]) {
+    await api("POST", `/league/seasons/${qa.seasonId}/status`, { status });
+  }
   const oa = await as("org", CFG.orgAdmin.email, CFG.orgAdmin.password);
   const sa = await as("superadmin", CFG.superAdmin.email, CFG.superAdmin.password);
   const cap = await as("team", captain.email, pw), pl = await as("player", player.email, pw);
@@ -93,6 +96,7 @@ try {
   await oa.page.route(`**/api/scheduling/seasons/${qa.seasonId}/blackouts`, route => route.request().method() === "GET" && failBlackouts ?
     route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "QA blackout list unavailable" }) }) : route.continue());
   await oa.page.goto(`${oa.base}/scheduling/${qa.seasonId}/generate`);
+  const initialDivision = await oa.page.getByLabel("Division", { exact: true }).inputValue();
   await expect(oa.page.getByRole("alert").filter({ hasText: "QA team list unavailable" })).toBeVisible();
   await expect(oa.page.getByRole("alert").filter({ hasText: "QA blackout list unavailable" })).toBeVisible();
   await expect(oa.page.getByText("No blackout dates yet", { exact: true })).toHaveCount(0);
@@ -101,8 +105,10 @@ try {
   await oa.page.getByRole("button", { name: "Retry teams" }).click();
   await oa.page.getByRole("button", { name: "Retry blackout dates" }).click();
   await expect(oa.page.getByRole("button", { name: "Generate", exact: true })).toBeEnabled();
-  assert.ok(teamRequests.every(id => id === division.id), "Unselected divisions must not preload their rosters");
+  assert.ok(teamRequests.length > 0 && teamRequests.every(id => id === initialDivision), "Unselected divisions must not preload their rosters");
   passed("Failed team/blackout loads are visible, cannot look empty, block generation, and recover through retry.");
+  await oa.page.getByLabel("Division", { exact: true }).selectOption(division.id);
+  await expect(oa.page.getByRole("button", { name: "Generate", exact: true })).toBeEnabled();
   await oa.page.getByLabel("Division", { exact: true }).selectOption(other.id);
   await expect(oa.page.getByRole("button", { name: "Generate", exact: true })).toBeEnabled();
   await oa.page.getByText("Team preferences and unavailable dates", { exact: true }).click();
@@ -168,6 +174,10 @@ try {
   passed("Staff sees confirmed delivery, players cannot read global delivery totals, and mock payments remain unchanged with no fixture invoices.");
   writeFileSync(`${OUT}/notification-scheduling-browser.json`, JSON.stringify({ tag, checks, passed: checks.length, mail, outcome: "passed" }, null, 2));
 } catch (error) {
+  let index = 0;
+  for (const context of browser.contexts()) for (const page of context.pages()) {
+    await page.screenshot({ path: `${OUT}/delivery-failure-${index++}.png`, fullPage: true }).catch(() => {});
+  }
   writeFileSync(`${OUT}/notification-scheduling-browser.json`, JSON.stringify({ tag, qa, checks, mail, outcome: "failed", error: String(error) }, null, 2));
   throw error;
 } finally {

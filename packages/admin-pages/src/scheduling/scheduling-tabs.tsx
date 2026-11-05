@@ -42,7 +42,7 @@ export function SchedulingTabs({
     { href: `${base}/generate`, label: "Generate" }
   ];
   return (
-    <nav className="flex items-center gap-1 border-b border-border">
+    <nav aria-label="Season scheduling" className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto border-b border-border">
       {tabs.map((t) => {
         const active = pathname.startsWith(t.href);
         return (
@@ -50,7 +50,7 @@ export function SchedulingTabs({
             key={t.href}
             href={t.href}
             className={cn(
-              "relative inline-flex h-9 items-center px-3 font-mono text-[10px] uppercase tracking-widest transition-colors",
+              "relative inline-flex h-9 shrink-0 items-center whitespace-nowrap px-3 font-mono text-[10px] uppercase tracking-widest transition-colors",
               active ? "text-fg" : "text-fg-muted hover:text-fg"
             )}
           >
