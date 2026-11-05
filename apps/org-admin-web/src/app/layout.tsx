@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { Heartbeat, RouteProgress, ThemeProvider } from "@sportspulse/ui";
+import { RouteProgress, ThemeProvider } from "@sportspulse/ui";
 import "./globals.css";
 import "@sportspulse/ui/guided.css";
 
@@ -39,7 +39,6 @@ export default function RootLayout({
             <RouteProgress />
           </Suspense>
           {children}
-          <Heartbeat />
         </ThemeProvider>
       </body>
     </html>

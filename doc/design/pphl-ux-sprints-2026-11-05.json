@@ -1,0 +1,55 @@
+{
+  "objective": "A calm, guided SportsPulse workspace that PPHL operators can use without reconstructing the module structure.",
+  "designSystem": "Keep existing SportsPulse themes, type, tokens and shared components. The guided UI contract takes precedence over older decorative layout examples.",
+  "deliveryRule": "One complete user job per pilot. Validate behavior and visual hierarchy before expanding across roles.",
+  "firstPilot": {
+    "name": "Find the right season and game",
+    "status": "Implemented and verified locally; not deployed and not yet accepted by a PPHL operator",
+    "branch": "codex/ux-sprint-01",
+    "surfaces": ["Organization home", "Organization read-only game detail"],
+    "changes": [
+      "Explicit league-and-season search instead of three competing workspaces.",
+      "One selected season and main action; other season tasks open on demand.",
+      "Choice preserved in the URL through refresh, pagination and Back.",
+      "Games open within the selected season and lead to the existing read-only game view.",
+      "Regular-season games return to the chosen season instead of Playoffs.",
+      "Game date and venue stay visible without opening help.",
+      "Failed reads appear unavailable instead of pretending the organization has no seasons.",
+      "Decorative ambient wave removed from the organization console; navigation progress retained."
+    ],
+    "verification": {
+      "browserChecks": 7,
+      "role": "org_admin",
+      "evidence": ["DOM assertions", "Screenshots"],
+      "environment": "Local frontend with staging authentication and a read-only staging API proxy",
+      "checks": ["Named season selection and refresh", "Game view and return path", "Actual game pagination", "Existing scheduling route remains reachable", "Foreign organization excluded", "Failed-load recovery", "Keyboard selection and Back"],
+      "responsiveWidths": [320, 375, 414, 768, 1440],
+      "themes": ["Light", "Dark"],
+      "organizationBuild": "passed",
+      "organizationTypecheck": "passed",
+      "sharedAdminPagesTypecheck": "passed",
+      "pphlUsabilityAcceptance": "Not performed; no training-free usability claim yet"
+    }
+  },
+  "nextSprints": [
+    {"job":"Create a season", "scope":"Short groups for basics, dates, divisions, registration and review. Advanced rules open only when needed; draft recovery and required fields remain intact."},
+    {"job":"Copy an existing season", "scope":"Choose source, inspect what will copy, adjust dates, review differences and save a draft. Rehearse 70-league operations separately."},
+    {"job":"Register and approve a team or player", "scope":"Clear fee/waiver state, returning-account recovery, staff review and visible destination on the player/captain side."},
+    {"job":"Publish a schedule", "scope":"Ice availability, draft generation, conflict review and explicit publication, with receiving captain/player verification."},
+    {"job":"Run one game", "scope":"Discover the assigned game, enter events, finalize and inspect the resulting score, statistics and standings. Make the handoff between staff roles explicit."},
+    {"job":"Manage one team roster", "scope":"Captain invitation or roster change, approval when needed, and a clear receiving-player destination."},
+    {"job":"Complete a player obligation", "scope":"One task at a time: attendance, membership proof or waiver. Show exactly what is required, who reviews it and what happens next."},
+    {"job":"Send one announcement", "scope":"Choose the intended audience, preview the message, send and inspect delivery and the recipient inbox."}
+  ],
+  "acceptanceForEverySprint": [
+    "The operator can identify the current organization, league/season and purpose.",
+    "One visually dominant next action; necessary alternative actions remain discoverable.",
+    "Required business information is retained; advanced configuration is disclosed on demand.",
+    "Save, submit and publish describe their real effect and lead to the correct destination.",
+    "Loading, empty, error and success states are truthful and recoverable.",
+    "Actual role and receiving-surface tests pass, including negative access checks.",
+    "Light/dark, keyboard and phone layouts are verified.",
+    "A PPHL operator attempts the job without live instructions; record hesitation, wrong turns, completion and assistance. Do not infer usability acceptance from CI."
+  ],
+  "constraints": ["Payments mock", "Substitute fees disabled", "No production or PPHL client-data changes in this pilot", "Parent/public spectator scope needs agreement before those role experiences are redesigned"]
+}

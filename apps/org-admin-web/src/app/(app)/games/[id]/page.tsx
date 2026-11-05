@@ -58,7 +58,9 @@ export default async function OrgAdminGamePage({ params }: { params: Promise<{ i
   const status = STATUS[game.status] ?? { label: game.status, tone: "neutral" as const };
   const lastMove = game.reschedules?.length ? game.reschedules[game.reschedules.length - 1] : null;
   const back = game.seasonId
-    ? { href: `/scheduling/${game.seasonId}/playoffs`, label: "← Playoffs" }
+    ? game.gameType === "playoff"
+      ? { href: `/scheduling/${game.seasonId}/playoffs`, label: "← Playoffs" }
+      : { href: `/?season=${game.seasonId}&view=games#season-games`, label: "← Back to season games" }
     : { href: "/scheduling", label: "← Scheduling" };
 
   return (
@@ -81,9 +83,11 @@ export default async function OrgAdminGamePage({ params }: { params: Promise<{ i
 
       <section className="rounded-xl border border-border bg-surface-1">
         <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
-          <p className="text-[13px] text-fg-muted">
-            {lastMove ? `Moved from ${fmtStart(lastMove.from.startTsUtc, game.tz)}${lastMove.reason ? `. Reason: ${lastMove.reason}` : ""}` : "Times are the rink's local time."}
-          </p>
+          <div className="min-w-0 space-y-1 text-[13px] text-fg-muted">
+            <p className="font-medium text-fg">{fmtStart(game.scheduledStartTsUtc, game.tz)}</p>
+            <p>{[game.venueName,game.surfaceLabel].filter(Boolean).join(" · ") || "Venue to be confirmed"}</p>
+            {lastMove ? <p>{`Moved from ${fmtStart(lastMove.from.startTsUtc, game.tz)}${lastMove.reason ? `. Reason: ${lastMove.reason}` : ""}`}</p> : null}
+          </div>
           <div className="flex items-center gap-2">
             {!game.publishedAt && game.status !== "cancelled" ? <Badge tone="warning">Draft</Badge> : null}
             <Badge tone={status.tone}>{status.label}</Badge>

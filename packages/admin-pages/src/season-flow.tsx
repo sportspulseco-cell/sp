@@ -11,7 +11,12 @@ import type {
   Season,
   TeamMembership
 } from "@sportspulse/api-client";
-import { Badge, EmptyState } from "@sportspulse/ui";
+import { Badge, EmptyState, LoadError } from "@sportspulse/ui";
+import { SeasonWorkspacePicker } from "./season-workspace-picker";
+
+/* Hallmark · macrostructure: Workbench · theme: existing SportsPulse · tone: calm
+ * design-system: doc/design/guided-ui.md · pre-emit critique: P4 H4 E4 S5 R5 V4
+ */
 
 /**
  * "Where each season stands": the operator's home in both admin apps.
@@ -219,7 +224,11 @@ export async function SeasonFlow({
   leagues,
   registrations,
   links: linkOverrides,
-  orgId
+  orgId,
+  focusOne = false,
+  selectedSeasonId,
+  gamesCursor,
+  gamesOpen = false
 }: {
   api: SeasonFlowApi;
   seasons: Season[];
@@ -229,26 +238,36 @@ export async function SeasonFlow({
   links?: Partial<SeasonFlowLinks>;
   /** Org console: limit the registration read to this org. */
   orgId?: string;
+  /** Guided operator home: an explicit season choice, with no competing workspaces. */
+  focusOne?: boolean;
+  selectedSeasonId?: string;
+  gamesCursor?: string;
+  gamesOpen?: boolean;
 }) {
   const links = { ...ADMIN_LINKS, ...linkOverrides };
   const leagueName = new Map(leagues.map((l) => [l.id, l.name]));
   const live = seasons
     .filter((s) => ACTIVE_STATUSES.has(s.status))
     .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9) || a.startDate.localeCompare(b.startDate));
-  const shown = live.slice(0, 3);
+  const selected = live.find(s => s.id === selectedSeasonId) ?? (!selectedSeasonId && live.length === 1 ? live[0] : undefined);
+  const shown = focusOne ? (selected ? [selected] : []) : live.slice(0, 3);
   const reads = await Promise.all(
     shown.map((s) => readSeason(api, links, s, leagueName.get(s.leagueId) ?? "League"))
   );
+  const showGames = focusOne && gamesOpen && !!selected && reads[0]?.steps.some(s => s.key === "schedule" && s.done);
+  const gamePage = showGames
+    ? await api.gameOps.listGames({ seasonId: selected!.id, limit: 5, cursor: gamesCursor }).catch(() => null)
+    : undefined;
 
   return (
     <section aria-labelledby="season-flow-title" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="season-flow-title" className="text-[17px] font-semibold tracking-tight text-fg">
-          Your seasons
+          {focusOne ? "Work on a season" : "Your seasons"}
         </h2>
         <div className="flex items-center gap-3 text-[13px]">
           <Link href={links.seasons} className="text-fg-muted hover:text-fg">
-            All seasons{live.length > shown.length ? ` (${live.length - shown.length} more)` : ""}
+            All seasons{!focusOne && live.length > shown.length ? ` (${live.length - shown.length} more)` : ""}
           </Link>
           <Link
             href={links.orgSetup}
@@ -259,7 +278,20 @@ export async function SeasonFlow({
         </div>
       </div>
 
-      {reads.length === 0 ? (
+      {focusOne && live.length > 0 ? (
+        <SeasonWorkspacePicker
+          value={selected?.id ?? ""}
+          options={live.map(s => ({ value: s.id, label: `${leagueName.get(s.leagueId) ?? "League"} · ${s.name}` }))}
+        />
+      ) : null}
+
+      {focusOne && live.length > 0 && !selected ? (
+        <div className="rounded-xl border border-border bg-surface-1 p-6 sm:p-8">
+          {selectedSeasonId ? <p role="alert" className="mb-2 text-sm text-[var(--tint-amber-fg)]">That season isn't available in this workspace.</p> : null}
+          <p className="text-[16px] font-medium text-fg">Which season are you working on?</p>
+          <p className="mt-2 text-[14px] text-fg-muted">Choose above to see its next action.</p>
+        </div>
+      ) : reads.length === 0 ? (
         <EmptyState
           icon={CalendarRange}
           eyebrow="seasons"
@@ -277,15 +309,41 @@ export async function SeasonFlow({
       ) : (
         <div className="grid gap-4">
           {reads.map((r) => (
-            <SeasonCard key={r.season.id} read={r} links={links} />
+            <SeasonCard key={r.season.id} read={r} links={links} focused={focusOne} />
           ))}
         </div>
       )}
+
+      {showGames ? (
+        <section id="season-games" aria-labelledby="season-games-title" className="scroll-mt-6 space-y-3">
+          <h3 id="season-games-title" className="text-[17px] font-semibold text-fg">Games</h3>
+          {gamePage === null ? <LoadError what="this season's games" status={null} /> : (
+            <ul className="divide-y divide-border rounded-xl border border-border bg-surface-1">
+              {gamePage?.items.map(game => (
+                <li key={game.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div className="min-w-0 space-y-1">
+                    <p className="break-words text-[14px] font-medium text-fg">{game.awayTeamName ?? "Away team"} vs {game.homeTeamName ?? "Home team"}</p>
+                    <p className="text-[13px] text-fg-muted">{formatInZone(game.scheduledStartTsUtc, game.tz)}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <Badge status={game.status} />
+                    <Link href={`/games/${game.id}`} className="whitespace-nowrap rounded-md border border-border px-3 py-2 text-[13px] font-medium text-fg hover:bg-surface-2 focus-visible:outline-none focus-visible:shadow-focus">View game</Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <nav aria-label="Season game pages" className="flex gap-4 text-[13px]">
+            {gamesCursor ? <Link href={`?season=${selected!.id}&view=games#season-games`} className="text-fg-muted underline">First games</Link> : null}
+            {gamePage?.nextCursor ? <Link href={`?season=${selected!.id}&view=games&gamesAfter=${encodeURIComponent(gamePage.nextCursor)}#season-games`} className="text-fg underline">Next games</Link> : null}
+          </nav>
+        </section>
+      ) : null}
     </section>
   );
 }
 
-function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks }) {
+function SeasonCard({ read, links, focused = false }: { read: SeasonRead; links: SeasonFlowLinks; focused?: boolean }) {
   const { season, steps } = read;
   if (!steps.length) return <article role="status" className="rounded-xl border border-border bg-surface-1 p-5">
     <Link href={links.season(season.id)} className="font-semibold hover:underline">{season.name}</Link>
@@ -293,7 +351,7 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
   </article>;
   const current = steps.find((s) => !s.done) ?? null;
   const currentIndex = current ? steps.indexOf(current) : steps.length;
-  const next = current?.action;
+  const next = focused && current?.key === "results" ? { label: "View games", href: `?season=${season.id}&view=games#season-games` } : current?.action;
   return (
     <article className="rounded-xl border border-border bg-surface-1 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -319,7 +377,7 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
       </div>
 
       {/* Goal gradient: how far along, in one bar and one line. */}
-      <div className="mt-4 flex gap-1" aria-hidden>
+      <div className={focused ? "hidden" : "mt-4 flex gap-1"} aria-hidden>
         {steps.map((s, i) => (
           <span
             key={s.key}
@@ -334,7 +392,7 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
         {current ? (
           <>
             <span className="font-medium text-fg">
-              Step {currentIndex + 1} of {steps.length}: {current.label}
+              {focused ? current.label : `Step ${currentIndex + 1} of ${steps.length}: ${current.label}`}
             </span>
             {" · "}
             {current.note}
@@ -346,10 +404,10 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
 
       <details className="group mt-3">
         <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[13px] text-fg-muted hover:text-fg [&::-webkit-details-marker]:hidden">
-          <span className="group-open:hidden">See all steps</span>
-          <span className="hidden group-open:inline">Hide steps</span>
+          <span className="group-open:hidden">{focused ? "Other season tasks" : "See all steps"}</span>
+          <span className="hidden group-open:inline">{focused ? "Hide tasks" : "Hide steps"}</span>
         </summary>
-        <ol className="mt-3 grid gap-2 sm:grid-cols-4 lg:grid-cols-7" aria-label="Season steps">
+        <ol className={focused ? "mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3" : "mt-3 grid gap-2 sm:grid-cols-4 lg:grid-cols-7"} aria-label="Season steps">
           {steps.map((s, i) => {
             const state = s.done ? "done" : s === current ? "current" : "todo";
             return (
@@ -358,19 +416,19 @@ function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks 
                 aria-current={state === "current" ? "step" : undefined}
                 className={
                   "rounded-lg border px-3 py-2 " +
-                  (state === "done"
+                  (focused ? "border-border bg-surface-1" : state === "done"
                     ? "border-border bg-bg-subtle"
                     : state === "current"
                       ? "border-accent bg-surface-1"
                       : "border-dashed border-border bg-surface-1 opacity-70")
                 }
               >
-                <p className="flex items-center gap-1.5 text-[12px] text-fg-muted">
+                {!focused ? <p className="flex items-center gap-1.5 text-[12px] text-fg-muted">
                   <span aria-hidden>{state === "done" ? "✓" : state === "current" ? "●" : "○"}</span>
                   <span>Step {i + 1}</span>
-                </p>
+                </p> : null}
                 {s.action ? (
-                  <Link href={s.action.href} className="mt-0.5 block text-[13px] font-medium text-fg hover:underline">
+                  <Link href={focused && s.key === "results" ? `?season=${season.id}&view=games#season-games` : s.action.href} className="mt-0.5 block text-[13px] font-medium text-fg hover:underline">
                     {s.label}
                   </Link>
                 ) : (

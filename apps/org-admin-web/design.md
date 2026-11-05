@@ -1,5 +1,24 @@
 # SportsPulse · Org Admin — Design System (locked)
 
+## Current guided UI contract — 5 November 2026
+
+The newer owner direction in `../../doc/design/guided-ui.md` takes precedence
+over the older layout examples below. Keep the existing brand tokens and fonts.
+The older large headings, numbered section rails, compulsory descriptions,
+entrance animation and failed-load-as-empty examples are superseded.
+
+- Organization home is a focused workspace: choose a league and season by name,
+  then see one season and its next action. Never choose among several seasons
+  on the operator's behalf. An explicit choice survives refresh and Back.
+- Other season tasks remain available on demand. Season operations can overlap;
+  do not present the home page as a forced seven-step wizard.
+- Organization-wide review work is labelled separately from the selected season.
+- A failed read is unavailable, never an empty list or an all-clear status.
+- Use sentence case, existing type and spacing tokens, visible keyboard focus,
+  and restrained motion. No new decorative layer is required.
+- Sprint boundaries are one complete user job. Keep routes, permissions and
+  required fields; verify the signed-in flow before extending to another job.
+
 > Hallmark deference file. Read this BEFORE making any visual decision
 > on `apps/org-admin-web`. Subsequent picks (genre, theme, type,
 > motion) defer to it. Updates to this file are deliberate edits — not

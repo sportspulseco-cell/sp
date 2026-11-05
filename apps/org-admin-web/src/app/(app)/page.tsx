@@ -1,7 +1,7 @@
 import { formatMoney, SUBMISSION_STATUS_FILTERS } from "@sportspulse/kernel";
 import { fetchAll } from "@sportspulse/api-client";
 import { Building2, ClipboardList, Wallet } from "lucide-react";
-import { EmptyState, PageHeader, TodoList, type TodoItem } from "@sportspulse/ui";
+import { EmptyState, LoadError, PageHeader, TodoList, type TodoItem } from "@sportspulse/ui";
 import { adminTransfers, gameOps, leagueMgmt, loadMeScope, orgAdminFinance, orgs, registration, registrationV2Admin, roster } from "@/lib/api/server-api";
 import { getActiveOrgId } from "@/lib/active-org";
 import { SeasonFlow } from "@sportspulse/admin-pages";
@@ -11,7 +11,12 @@ import { SeasonFlow } from "@sportspulse/admin-pages";
 
 export const dynamic = "force-dynamic";
 
-export default async function OrgAdminHome() {
+export default async function OrgAdminHome({ searchParams }: {
+  searchParams: Promise<{ season?: string | string[]; gamesAfter?: string | string[]; view?: string | string[] }>;
+}) {
+  const query = await searchParams;
+  const selectedSeasonId = typeof query.season === "string" ? query.season : undefined;
+  const gamesCursor = typeof query.gamesAfter === "string" && query.gamesAfter.length <= 512 ? query.gamesAfter : undefined;
   const scope = await loadMeScope();
   const myOrgId = await getActiveOrgId(scope);
   const myOrg = myOrgId ? await orgs.get(myOrgId).catch(() => null) : null;
@@ -32,28 +37,28 @@ export default async function OrgAdminHome() {
     await Promise.all([
       fetchAll((cursor) => leagueMgmt
         .listLeagues({ orgId: myOrgId, limit: 100, cursor }))
-        .catch(() => ({ items: [], nextCursor: null })),
+        .catch(() => null),
       fetchAll((cursor) => leagueMgmt
         .listSeasons({ orgId: myOrgId, limit: 100, cursor }))
-        .catch(() => ({ items: [], nextCursor: null })),
+        .catch(() => null),
       // Org-scoped review queue; listRegistrations is super_admin only.
       registrationV2Admin
         .listSubmissions({ orgId: myOrgId, limit: 200 })
-        .catch(() => ({ items: [] })),
+        .catch(() => null),
       orgAdminFinance
         .listInvoices({ orgId: myOrgId })
-        .catch(() => ({ items: [], nextCursor: null }))
+        .catch(() => null)
     ]);
 
   // The same "to review" as the review queue's filter (kernel).
   const toReview = new Set<string>(SUBMISSION_STATUS_FILTERS.find((f) => f.value === "pending_review")?.statuses ?? []);
-  const pendingRegs = registrationsPage.items.filter((r) => toReview.has(r.status as string));
+  const pendingRegs = (registrationsPage?.items ?? []).filter((r) => toReview.has(r.status as string));
 
-  const currency = invoicesPage.items[0]?.currency ?? "USD";
-  const outstandingCents = invoicesPage.items
+  const currency = invoicesPage?.items[0]?.currency ?? "USD";
+  const outstandingCents = (invoicesPage?.items ?? [])
     .filter((i) => i.status !== "void")
     .reduce((sum, i) => sum + Math.max(0, i.totalCents - i.paidCents), 0);
-  const overdueCount = invoicesPage.items.filter(
+  const overdueCount = (invoicesPage?.items ?? []).filter(
     (i) => i.status === "overdue"
   ).length;
 
@@ -78,16 +83,28 @@ export default async function OrgAdminHome() {
     <div className="space-y-10">
       <PageHeader title={myOrg?.displayName ?? "Your organization"} />
 
-      <TodoList items={todo} />
-
-      {/* Season lifecycle with one next step each (shared with the admin console). */}
+      {/* One explicit working context, not three competing next actions. */}
+      {!leaguesPage || !seasonsPage ? (
+        <LoadError what="your seasons" status={null} />
+      ) : (
       <SeasonFlow
         api={{ leagueMgmt, adminTransfers, gameOps, registration, roster }}
         seasons={seasonsPage.items}
         leagues={leaguesPage.items}
         orgId={myOrgId}
+        focusOne
+        selectedSeasonId={selectedSeasonId}
+        gamesCursor={gamesCursor}
+        gamesOpen={query.view === "games"}
         links={{ rosters: "/teams", results: "/scheduling" }}
       />
+      )}
+
+      {!registrationsPage || !invoicesPage ? (
+        <LoadError what="your organization inbox" status={null} />
+      ) : todo.length > 0 ? (
+        <TodoList items={todo} title="Across your organization" />
+      ) : null}
     </div>
   );
 }

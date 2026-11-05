@@ -103,3 +103,20 @@ browser on staging, then production.
 
 Production crawl, before and after slices 1 and 2: above-the-fold words
 3,215 to 2,546; long paragraphs 44 to 19; org home 556 to 94 words.
+
+## Next phase — workflow pilots, 5 November 2026
+
+The owner still finds the interfaces difficult to understand. Text reduction
+alone does not establish usability. Each further sprint follows one complete
+PPHL job, with a named starting point, a clear outcome and a receiving surface.
+
+The first local pilot is the organization home: choose a working season,
+open that season's games, inspect one game and return to the same context.
+Other tasks remain available on demand. Regular-season games must not send
+the operator back to Playoffs. Ambient decorative motion is omitted from
+the organization console; route-loading feedback stays.
+
+The job order, current evidence and acceptance gates are recorded in
+`pphl-ux-sprints-2026-11-05.json`. The pilot is not deployed. PPHL usability
+acceptance still requires an operator to attempt the job unaided; browser
+checks and a successful build do not establish that outcome.
