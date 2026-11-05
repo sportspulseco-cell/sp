@@ -130,6 +130,7 @@ export const teamMemberships = pgTable(
       t.personId,
       t.seasonId
     ),
+    seasonPersonIdx: index("team_membership_season_person_idx").on(t.seasonId, t.personId),
     // Jersey number uniqueness within an active roster
     uniqJerseyActive: uniqueIndex("team_membership_jersey_uniq")
       .on(t.teamId, t.seasonId, t.jerseyNumber)

@@ -24,6 +24,9 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { SeasonDto, SeasonPageDto } from "../application/dtos/season.dto";
+import { SeasonOverviewService } from "../application/seasons/season-overview.service";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { ParseUUIDPipe } from "@nestjs/common";
 import {
   CreateSeasonHandler,
   GetSeasonHandler,
@@ -51,6 +54,7 @@ export class SeasonsController {
     private readonly updateH: UpdateSeasonHandler,
     private readonly statusH: ChangeSeasonStatusHandler,
     private readonly archiveH: ArchiveSeasonHandler,
+    private readonly overview: SeasonOverviewService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
@@ -76,6 +80,12 @@ export class SeasonsController {
       leagueIdsFilter: scope.leagueIds ?? undefined,
       orgIdsFilter: scope.orgWideOrgIds ?? undefined
     });
+  }
+
+  @Get(":id/overview") @UseGuards(ScopedAdminGuard)
+  @ApiOperation({ summary: "Bounded staff-only season lifecycle counts, without participant records." })
+  getOverview(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthPrincipal) {
+    return this.overview.execute(id, user.userId);
   }
 
   @Post()

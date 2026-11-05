@@ -4,6 +4,8 @@ import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { schema, type Database } from "@sportspulse/db";
 import { ConflictError, NotFoundError, ValidationError, utcToZonedWallTime, zonedWallTimeToUtc } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { accessCan, accessForAnyScope } from "../../../shared/auth/game-access";
+import { ADMIN_SCOPE_ROLE_CODES } from "../../../shared/auth/scope";
 
 export interface DuplicateSeasonInput {
   sourceSeasonId:string; name:string; startDate:string; requestId:string;
@@ -41,6 +43,11 @@ export class DuplicateSeasonService {
       for(const key of [`season-copy-request:${input.requestId}`,`season-copy-input:${fingerprint}`].sort())await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
       const [source]=await tx.select().from(schema.seasons).where(and(eq(schema.seasons.id,input.sourceSeasonId),isNull(schema.seasons.deletedAt))).limit(1);
       if(!source)throw new NotFoundError("Season",input.sourceSeasonId);
+      const destination = { id:"", orgId:source.orgId, leagueId:input.newLeagueName?.trim() ? "" : source.leagueId,
+        seasonId:null, divisionId:null, homeTeamId:"", awayTeamId:"" };
+      const access = await accessForAnyScope(tx as unknown as Database,userId,[destination],ADMIN_SCOPE_ROLE_CODES);
+      if(!accessCan(access,input.newLeagueName?.trim() ? "league.create" : "season.create"))
+        throw new NotFoundError("Season",input.sourceSeasonId);
       const [existing]=await tx.select().from(schema.seasons).where(and(eq(schema.seasons.orgId,source.orgId),isNull(schema.seasons.deletedAt),or(sql`${schema.seasons.metadata}->>'copyRequestId' = ${input.requestId}`,sql`${schema.seasons.metadata}->>'copyFingerprint' = ${fingerprint}`))).limit(1);
       if(existing){
         const metadata=existing.metadata as Record<string,unknown>;
@@ -97,8 +104,7 @@ export class DuplicateSeasonService {
         await tx.insert(schema.registrationForms).values({...f,id:formId,seasonId,name:f.name,scopeId:f.scopeId?(references.get(f.scopeId) ?? f.scopeId):null,activeVersionId:null,deletedAt:null,createdAt:now,updatedAt:now});
         const versions=await tx.select().from(schema.registrationFormVersions).where(eq(schema.registrationFormVersions.formId,f.id));
         const version=versions.find(v=>v.id===f.activeVersionId) ?? versions.sort((a,b)=>b.versionNumber-a.versionNumber)[0];
-        if(version){const versionId=randomUUID();references.set(version.id,versionId);await tx.insert(schema.registrationFormVersions).values({...version,id:versionId,formId,versionNumber:1,schema:remap(version.schema) as Record<string,unknown>,publishedAt:null,locked:false,createdAt:now});
-          await tx.update(schema.registrationForms).set({activeVersionId:versionId}).where(eq(schema.registrationForms.id,formId));}
+        if(version){const versionId=randomUUID();references.set(version.id,versionId);await tx.insert(schema.registrationFormVersions).values({...version,id:versionId,formId,versionNumber:1,schema:remap(version.schema) as Record<string,unknown>,publishedAt:null,locked:false,createdAt:now});}
       }
       await tx.update(schema.seasons).set({config:remap(source.config) as Record<string,unknown>}).where(eq(schema.seasons.id,seasonId));
       let entriesCopied=0,gamesCopied=0;

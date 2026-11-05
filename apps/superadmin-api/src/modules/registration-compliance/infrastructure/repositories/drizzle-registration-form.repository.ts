@@ -88,7 +88,12 @@ export class DrizzleRegistrationFormRepository
 
   async save(f: RegistrationForm): Promise<void> {
     const x = f.toSnapshot();
-    await this.db
+    await this.db.transaction(async tx => {
+    // The full form editor is also an explicit publication path for a
+    // guided draft. Keep its active form and draft hold in one commit.
+    if (x.seasonId) await tx.select({ id: schema.seasons.id }).from(schema.seasons)
+      .where(eq(schema.seasons.id, x.seasonId)).for("update");
+    await tx
       .update(schema.registrationForms)
       .set({
         name: x.name,
@@ -100,6 +105,15 @@ export class DrizzleRegistrationFormRepository
         updatedAt: sql`NOW()`
       })
       .where(eq(schema.registrationForms.id, x.id));
+    if (x.seasonId && x.activeVersionId) await tx.update(schema.seasons).set({
+      metadata: sql`jsonb_set(${schema.seasons.metadata}, '{guidedRegistrationSetup,published}', 'true'::jsonb, false)`,
+      updatedAt: sql`NOW()`,
+    }).where(and(eq(schema.seasons.id, x.seasonId),
+      sql`${schema.seasons.metadata}->'guidedRegistrationSetup'->>'formId' = ${x.id}`,
+      sql`${schema.seasons.metadata}->'guidedRegistrationSetup'->>'published' = 'false'`,
+      sql`EXISTS (SELECT 1 FROM registration_form_versions v WHERE v.id = ${x.activeVersionId}
+        AND v.form_id = ${x.id} AND v.locked = true AND v.published_at IS NOT NULL)`));
+    });
   }
 
   // -------- versions --------

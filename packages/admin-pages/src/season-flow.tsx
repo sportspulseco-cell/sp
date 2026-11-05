@@ -1,4 +1,4 @@
-import { DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
+import { DATE_FORMATS, formatCalendarDate, formatInZone, type SeasonOverview } from "@sportspulse/kernel";
 import Link from "next/link";
 import { CalendarRange } from "lucide-react";
 import type {
@@ -11,7 +11,6 @@ import type {
   Season,
   TeamMembership
 } from "@sportspulse/api-client";
-import { fetchAll } from "@sportspulse/api-client";
 import { Badge, EmptyState } from "@sportspulse/ui";
 
 /**
@@ -31,6 +30,7 @@ import { Badge, EmptyState } from "@sportspulse/ui";
 
 export interface SeasonFlowApi {
   leagueMgmt: {
+    getSeasonOverview: (id: string) => Promise<SeasonOverview>;
     listDivisions: (q: { seasonId?: string; limit?: number; cursor?: string }) => Promise<Page<Division>>;
   };
   adminTransfers: {
@@ -103,12 +103,11 @@ interface SeasonRead {
 
 const ACTIVE_STATUSES = new Set(["draft", "registration_open", "in_progress", "playoffs"]);
 const STATUS_ORDER: Record<string, number> = { registration_open: 0, in_progress: 1, playoffs: 2, draft: 3 };
-const EMPTY = { items: [], nextCursor: null };
 
 /**
  * "Nov 22" for season, playoff and deadline dates in these one-line notes.
- * The season carries no rink zone here, so deadlines read as their UTC
- * day, the same on the server and in every browser.
+ * Calendar-only dates stay calendar dates. Timestamp deadlines below
+ * use the season's own zone, consistent with its registration form.
  */
 function fmtDate(value: string | null | undefined): string {
   return formatCalendarDate(value, DATE_FORMATS.monthDay) || "—";
@@ -122,47 +121,13 @@ async function readSeason(
   api: SeasonFlowApi,
   links: SeasonFlowLinks,
   season: Season,
-  leagueName: string,
-  registrations: Array<{ seasonId: string | null; status: string }>
+  leagueName: string
 ): Promise<SeasonRead> {
   const failed: string[] = [];
-  const safe = async <T,>(what: string, p: Promise<T>, fallback: T): Promise<T> => {
-    try {
-      return await p;
-    } catch {
-      failed.push(what);
-      return fallback;
-    }
-  };
-
-  const [divisions, entries, memberships, games, forms] = await Promise.all([
-    safe("divisions", fetchAll((cursor) => api.leagueMgmt.listDivisions({ seasonId: season.id, limit: 100, cursor })), EMPTY as Page<Division>),
-    safe("team applications", api.adminTransfers.listDivisionEntries({ status: "applied,pending_approval,accepted,confirmed" }), { items: [] }),
-    safe("rosters", fetchAll((cursor) => api.roster.listMemberships({ seasonId: season.id, activeOnly: true, limit: 100, cursor })), EMPTY as Page<TeamMembership>),
-    safe("games", fetchAll((cursor) => api.gameOps.listGames({ seasonId: season.id, limit: 100, cursor })), EMPTY as Page<Game>),
-    // The season's organization only. The org console rewrites this read
-    // to /org-admin/forms, which requires orgId.
-    safe("forms", fetchAll((cursor) => api.registration.listForms({ orgId: season.orgId, limit: 100, cursor })), EMPTY as Page<RegistrationForm>)
-  ]);
-
-  const divisionIds = new Set(divisions.items.map((d) => d.id));
-  const seasonEntries = entries.items.filter((e) => e.seasonId === season.id);
-  const pendingEntries = seasonEntries.filter((e) => e.entryStatus === "applied" || e.entryStatus === "pending_approval");
-  const placedTeams = new Set(
-    seasonEntries.filter((e) => e.entryStatus === "accepted" || e.entryStatus === "confirmed").map((e) => e.teamId)
-  );
-  const seasonGames = games.items.filter((g) => g.divisionId !== null && divisionIds.has(g.divisionId));
-  const playedGames = seasonGames.filter((g) => g.status === "completed" || g.status === "forfeited");
-  const nextGame = seasonGames
-    .filter((g) => g.status === "scheduled")
-    .sort((a, b) => a.scheduledStartTsUtc.localeCompare(b.scheduledStartTsUtc))[0];
-  const seasonRegs = registrations.filter((r) => r.seasonId === season.id);
-  const waitingRegs = seasonRegs.filter((r) => r.status === "pending_review" || r.status === "pending_offline");
-  const seasonForms = forms.items.filter(
-    (f) => (f as { seasonId?: string | null }).seasonId === season.id || (f.scope === "season" && f.scopeId === season.id)
-  );
-  const publishedForm = seasonForms.some((f) => (f as { activeVersionId?: string | null }).activeVersionId);
-  const players = new Set(memberships.items.map((m) => m.personId)).size;
+  let summary: SeasonOverview;
+  try { summary = await api.leagueMgmt.getSeasonOverview(season.id); }
+  catch { return { season, leagueName, steps: [], numbers: [], failed: ["season overview"] }; }
+  const { publishedForm, players, nextGame } = summary;
 
   const regOpen = season.status === "registration_open";
   const past = (iso: string | null) => !!iso && new Date(iso).getTime() < Date.now();
@@ -172,8 +137,8 @@ async function readSeason(
     {
       key: "setup",
       label: "Season set up",
-      done: divisions.items.length > 0,
-      note: `${plural(divisions.items.length, "division")} · ${fmtDate(season.startDate)} – ${fmtDate(season.endDate)}`,
+      done: summary.divisions > 0,
+      note: `${plural(summary.divisions, "division")} · ${fmtDate(season.startDate)} – ${fmtDate(season.endDate)}`,
       action: { label: "Add divisions", href: links.season(season.id) }
     },
     {
@@ -183,12 +148,12 @@ async function readSeason(
       note: !publishedForm
         ? "No form published"
         : regOpen
-          ? `Open until ${fmtDate(season.registrationClosesAt)} · ${seasonRegs.length} received, ${waitingRegs.length} waiting`
-          : `${seasonRegs.length} received · ${waitingRegs.length} waiting for review`,
+          ? `Open until ${season.registrationClosesAt ? formatInZone(season.registrationClosesAt, season.timezone, DATE_FORMATS.monthDay) : "—"} · ${summary.registrations} received, ${summary.waitingRegistrations} waiting`
+          : `${summary.registrations} received · ${summary.waitingRegistrations} waiting for review`,
       action: !publishedForm
         ? { label: "Create the registration form", href: links.forms }
-        : waitingRegs.length > 0
-          ? { label: `Review ${plural(waitingRegs.length, "registration")}`, href: links.registrations }
+        : summary.waitingRegistrations > 0
+          ? { label: `Review ${plural(summary.waitingRegistrations, "registration")}`, href: links.registrations }
           : season.status === "draft"
             ? { label: "Open registration", href: links.season(season.id) }
             : { label: "Registration queue", href: links.registrations }
@@ -196,33 +161,33 @@ async function readSeason(
     {
       key: "teams",
       label: "Teams",
-      done: placedTeams.size > 0 && pendingEntries.length === 0,
-      note: `${placedTeams.size} placed in divisions · ${plural(pendingEntries.length, "application")} waiting`,
-      action: pendingEntries.length > 0
-        ? { label: `Review ${plural(pendingEntries.length, "team application")}`, href: links.applications(season.id) }
+      done: summary.placedTeams > 0 && summary.pendingTeamApplications === 0,
+      note: `${summary.placedTeams} placed in divisions · ${plural(summary.pendingTeamApplications, "application")} waiting`,
+      action: summary.pendingTeamApplications > 0
+        ? { label: `Review ${plural(summary.pendingTeamApplications, "team application")}`, href: links.applications(season.id) }
         : { label: "Add teams", href: links.teamsNew }
     },
     {
       key: "rosters",
       label: "Rosters",
       done: players > 0,
-      note: `${plural(players, "player")} rostered${season.rosterLockAt ? ` · lock ${fmtDate(season.rosterLockAt)}` : ""}`,
+      note: `${plural(players, "player")} rostered${season.rosterLockAt ? ` · lock ${formatInZone(season.rosterLockAt, season.timezone, DATE_FORMATS.monthDay)}` : ""}`,
       action: { label: "Build rosters", href: links.rosters }
     },
     {
       key: "schedule",
       label: "Schedule",
-      done: seasonGames.length > 0,
-      note: seasonGames.length
-        ? `${plural(seasonGames.length, "game")}${nextGame ? ` · next ${formatInZone(nextGame.scheduledStartTsUtc, nextGame.tz, DATE_FORMATS.monthDay)}` : ""}`
+      done: summary.games > 0,
+      note: summary.games
+        ? `${plural(summary.games, "game")}${nextGame ? ` · next ${formatInZone(nextGame.startsAt, nextGame.timezone, DATE_FORMATS.monthDay)}` : ""}`
         : "No games yet",
       action: { label: "Generate the schedule", href: links.generate(season.id) }
     },
     {
       key: "results",
       label: "Results & standings",
-      done: seasonGames.length > 0 && playedGames.length === seasonGames.length,
-      note: `${playedGames.length} of ${seasonGames.length} games final`,
+      done: summary.games > 0 && summary.finalGames === summary.games,
+      note: `${summary.finalGames} of ${summary.games} games final`,
       action: { label: "Enter results", href: links.results }
     },
     {
@@ -239,10 +204,10 @@ async function readSeason(
     leagueName,
     steps,
     numbers: [
-      { label: "Registrations", value: String(seasonRegs.length) },
-      { label: "Teams", value: failed.includes("team applications") ? "—" : String(placedTeams.size) },
-      { label: "Players", value: failed.includes("rosters") ? "—" : String(players) },
-      { label: "Games", value: failed.includes("games") ? "—" : String(seasonGames.length) }
+      { label: "Registrations", value: String(summary.registrations) },
+      { label: "Teams", value: String(summary.placedTeams) },
+      { label: "Players", value: String(players) },
+      { label: "Games", value: String(summary.games) }
     ],
     failed
   };
@@ -271,20 +236,9 @@ export async function SeasonFlow({
     .filter((s) => ACTIVE_STATUSES.has(s.status))
     .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9) || a.startDate.localeCompare(b.startDate));
   const shown = live.slice(0, 3);
-  let regs = registrations;
-  let regsFailed = false;
-  if (!regs && shown.length) {
-    try {
-      regs = (await fetchAll(cursor=>api.registration.listRegistrations({orgId,limit:100,cursor}))).items;
-    } catch {
-      regs = [];
-      regsFailed = true;
-    }
-  }
   const reads = await Promise.all(
-    shown.map((s) => readSeason(api, links, s, leagueName.get(s.leagueId) ?? "League", regs ?? []))
+    shown.map((s) => readSeason(api, links, s, leagueName.get(s.leagueId) ?? "League"))
   );
-  if (regsFailed) for (const r of reads) r.failed.push("registrations");
 
   return (
     <section aria-labelledby="season-flow-title" className="space-y-4">
@@ -333,6 +287,10 @@ export async function SeasonFlow({
 
 function SeasonCard({ read, links }: { read: SeasonRead; links: SeasonFlowLinks }) {
   const { season, steps } = read;
+  if (!steps.length) return <article role="status" className="rounded-xl border border-border bg-surface-1 p-5">
+    <Link href={links.season(season.id)} className="font-semibold hover:underline">{season.name}</Link>
+    <p className="mt-2 text-sm text-fg-muted">Could not load this season's progress. Reload to try again.</p>
+  </article>;
   const current = steps.find((s) => !s.done) ?? null;
   const currentIndex = current ? steps.indexOf(current) : steps.length;
   const next = current?.action;

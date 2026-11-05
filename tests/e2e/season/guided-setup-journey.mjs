@@ -6,12 +6,23 @@ import { CFG, OUT, TARGET, SUPABASE_IP, call, login, sql, msgOf } from "./lib.mj
 if (TARGET !== "staging") throw new Error("Guided setup rehearsal is staging-only");
 const checks = [], tag = randomUUID().slice(0, 8);
 const leagueName = `QA Guided Hockey ${tag}`, seasonName = `QA Guided Season ${tag}`;
+// A valid PNG with a large uncompressed text chunk exercises the real
+// near-2MB upload body without storing a video or a generated asset.
+function largePng() {
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6XcAAAAASUVORK5CYII=", "base64");
+  const data = Buffer.concat([Buffer.from("Comment\0QA upload fixture "), Buffer.alloc(1900000, 65)]);
+  const type = Buffer.from("tEXt"), length = Buffer.alloc(4), crc = Buffer.alloc(4); length.writeUInt32BE(data.length);
+  let c = 0xffffffff;
+  for (const b of Buffer.concat([type, data])) { c ^= b; for (let i = 0; i < 8; i++) c = (c >>> 1) ^ (c & 1 ? 0xedb88320 : 0); }
+  crc.writeUInt32BE((c ^ 0xffffffff) >>> 0);
+  return Buffer.concat([png.subarray(0, -12), length, type, data, crc, png.subarray(-12)]);
+}
 const browser = await chromium.launch({ args: [`--host-resolver-rules=MAP *.supabase.co ${SUPABASE_IP}`] });
-let leagueId, seasonId, admin;
+let leagueId, seasonId, admin, page;
 try {
   admin = await login(CFG.orgAdmin.email, CFG.orgAdmin.password);
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  const page = await context.newPage(); page.setDefaultTimeout(90000);
+  page = await context.newPage(); page.setDefaultTimeout(90000);
   const url = new URL("/sign-in", CFG.apps.org);
   url.searchParams.set("x-vercel-protection-bypass", CFG.bypass("org")); url.searchParams.set("x-vercel-set-bypass-cookie", "true");
   await page.goto(url.toString());
@@ -23,6 +34,14 @@ try {
   await page.getByRole("button", { name: "Next: League" }).click();
   await page.getByLabel("League name", { exact: false }).fill(leagueName);
   await page.getByLabel("Sport", { exact: false }).selectOption("HOCKEY_ICE");
+  const logoInput = page.getByLabel("Upload league logo");
+  await logoInput.setInputFiles({ name: "too-large.png", mimeType: "image/png", buffer: Buffer.alloc(2 * 1024 * 1024 + 1) });
+  await expect(page.getByRole("alert").filter({ hasText: "Choose a PNG" })).toBeVisible();
+  const imageResponse = page.waitForResponse(r => /\/users\/[^/]+\/avatar$/.test(new URL(r.url()).pathname) && r.request().method() === "POST");
+  await logoInput.setInputFiles({ name: "qa-league-logo.png", mimeType: "image/png", buffer: largePng() });
+  const imageHttp = await imageResponse; assert.equal(imageHttp.status(), 201, await imageHttp.text());
+  await expect.poll(() => page.getByAltText("League logo preview").evaluate(img => img.naturalWidth)).toBe(1);
+  checks.push("A near-2MB logo uploads and renders; an image over the limit is refused with a clear message.");
   await page.getByRole("button", { name: "Next: Season" }).click();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   await page.getByLabel("Season name", { exact: false }).fill(seasonName);
@@ -36,12 +55,27 @@ try {
   await page.getByLabel("Player registration price").fill("185.50");
   await expect(page.getByRole("checkbox", { name: "Charge a separate team registration fee" })).not.toBeChecked();
   await page.getByRole("checkbox", { name: "Require USA Hockey membership" }).check();
+  await page.getByRole("button", { name: "Custom questions (0)" }).click();
+  await page.getByRole("button", { name: "Add question", exact: true }).click();
+  await page.getByRole("button", { name: "Short text short_text" }).click();
+  await page.getByLabel("Label", { exact: true }).fill("Preferred playing position");
+  await page.getByLabel("Label", { exact: true }).press("Tab");
+  const questionKey = page.getByRole("textbox", { name: "Key", exact: true });
+  await expect(questionKey).toHaveValue("preferred_playing_position");
+  await questionKey.fill("preferred_position"); await questionKey.press("Tab");
+  await expect(questionKey).toHaveValue("preferred_position");
+  await page.getByRole("button", { name: "Close question editor" }).click();
   checks.push("Staff configures the league, dates, division and player price; a separate team fee is off by default.");
   await page.reload();
   await expect(page.getByLabel("Player registration price")).toHaveValue("185.50");
   await expect(page.getByRole("checkbox", { name: "Require USA Hockey membership" })).toBeChecked();
   checks.push("An unfinished registration setup survives refresh without losing its prices or membership choice.");
   await page.getByRole("button", { name: "Next: Review" }).click();
+  for (const width of [390, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1100 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `Review must fit a ${width}px viewport`);
+  }
+  await page.screenshot({ path: `${OUT}/shots/guided-setup-review.png`, fullPage: true });
   await expect(page.getByRole("button", { name: "Publish registration" })).toBeDisabled();
   const draftResponse = page.waitForResponse(r => r.url().includes("/registration-setup") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Save draft" }).click();
@@ -67,6 +101,7 @@ try {
   const open = await call("GET", `/public/registration/seasons/${seasonId}`);
   assert.equal(open.status, 200, msgOf(open)); assert.equal(open.json.registrationWindow.state, "open");
   assert.ok(open.json.formVersionId); assert.equal(open.json.season.config.requireUsaHockeyId, true);
+  assert.equal(open.json.formDefinition.questions.find(q => q.key === "preferred_position")?.label, "Preferred playing position");
   const playerTier = open.json.pricingTiers.find(t => t.audience === "player");
   const teamTier = open.json.pricingTiers.find(t => t.audience === "team");
   assert.equal(playerTier.fullPriceCents, 18550); assert.equal(teamTier.fullPriceCents, 0); assert.equal(teamTier.isFree, true);
@@ -78,6 +113,10 @@ try {
   console.log(checks.map(c => `PASS ${c}`).join("\n"));
   writeFileSync(`${OUT}/guided-setup-browser.json`, JSON.stringify({ tag, seasonId, leagueId, passed: true, checks }, null, 2));
 } catch (error) {
+  if (page) {
+    await page.screenshot({ path: `${OUT}/shots/guided-setup-failure.png`, fullPage: true }).catch(() => {});
+    writeFileSync(`${OUT}/guided-setup-failure.txt`, await page.getByRole("main").innerText().catch(() => "Main content unavailable"));
+  }
   writeFileSync(`${OUT}/guided-setup-browser.json`, JSON.stringify({ tag, seasonId, leagueId, passed: false, checks, error: String(error) }, null, 2));
   throw error;
 } finally {

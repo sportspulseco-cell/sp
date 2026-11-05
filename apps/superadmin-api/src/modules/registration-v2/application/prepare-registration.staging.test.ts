@@ -9,6 +9,8 @@ import { PrepareRegistrationService, type PrepareRegistrationInput } from "./pre
 import { RegistrationRequirementsService } from "./registration-requirements.service";
 import { SeasonCronController } from "../../league-management/interface/season-cron.controller";
 import { eq } from "drizzle-orm";
+import { DrizzleRegistrationFormRepository } from "../../registration-compliance/infrastructure/repositories/drizzle-registration-form.repository";
+import { PublishFormVersionHandler } from "../../registration-compliance/application/registration-forms/handlers";
 
 test("guided setup commits form/pricing/publication together, keeps team registration free by default and is replay-safe", {
   skip: process.env.PPHL_STAGING_DB_TEST !== "1",
@@ -62,6 +64,14 @@ test("guided setup commits form/pricing/publication together, keeps team registr
     const [publishedSeason] = await tx.select().from(schema.seasons).where(eq(schema.seasons.id, seasonId));
     assert.equal(requirements.windowOf(publishedSeason!).state, "open");
     assert.ok(await requirements.resolveActiveFormVersion(publishedSeason!));
+    // A draft must remain publishable from the existing form editor even
+    // when its author returns in another browser without a local draft.
+    await tx.execute(sql`update seasons set metadata=jsonb_set(metadata,'{guidedRegistrationSetup,published}','false'::jsonb) where id=${seasonId}::uuid`);
+    await tx.update(schema.registrationForms).set({ activeVersionId: null }).where(eq(schema.registrationForms.id, draft.formId));
+    await new PublishFormVersionHandler(new DrizzleRegistrationFormRepository(tx as unknown as Database))
+      .execute({ formId: draft.formId, versionId: form!.active_version_id as string });
+    const [editorPublished] = await tx.select().from(schema.seasons).where(eq(schema.seasons.id, seasonId));
+    assert.equal(requirements.windowOf(editorPublished!).state, "open");
     await assert.rejects(service.execute({ ...input, playerPriceCents: 10000 }, process.env.STAGING_SUPERADMIN_ID!), /different details/);
     assert.equal((await tx.execute(sql`select id from registrations where season_id=${seasonId}::uuid`)).length, 0);
     throw rollback;

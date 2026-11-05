@@ -1,4 +1,4 @@
-import type { GuidedRegistrationSetupInput } from "@sportspulse/kernel";
+import type { GuidedRegistrationSetupInput, SeasonOverview } from "@sportspulse/kernel";
 import type {
   BroadcastAttachment,
   LicenceIdCheck,
@@ -1617,6 +1617,7 @@ export function createApi(f: Fetcher) {
         } = {}
       ) => f<Page<Season>>(`/league/seasons${qs(q)}`),
       getSeason: (id: string) => f<Season>(`/league/seasons/${id}`),
+      getSeasonOverview: (id: string) => f<SeasonOverview>(`/league/seasons/${id}/overview`),
       /** Seasons the team is live in, most current first (CAP-19). */
       teamSeasons: (teamId: string) =>
         f<
