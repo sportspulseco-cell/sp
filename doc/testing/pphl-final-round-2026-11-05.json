@@ -1,0 +1,506 @@
+{
+  "title": "PPHL final testing preparation and engineering rehearsal",
+  "date": "2026-11-05",
+  "commit": "7c109d8a8a43e9a49151ed1c4bd894dcd56bebf3",
+  "environment": "Staging / Supabase Free / Vercel Hobby",
+  "productionChanged": false,
+  "policy": {
+    "payments": "mock",
+    "substituteFees": "disabled",
+    "outboundEmail": "Approved owner inbox only; fictional role accounts use in-app notifications"
+  },
+  "readiness": "Ready for the structured PPHL functional testing round; commercial sign-off remains separate",
+  "verdicts": {
+    "role": "passed",
+    "registration": "passed",
+    "scheduling": "passed",
+    "regional": "passed",
+    "playoff": "passed",
+    "isolation": "passed",
+    "bulk70": "passed",
+    "membership": "passed",
+    "handoff": "passed"
+  },
+  "guidedSetup": {
+    "outcome": "passed",
+    "checks": [
+      "A near-2MB logo uploads and renders; an image over the limit is refused with a clear message.",
+      "Copy Division preserves period length and the independent playoff overtime rule; the copied division gets its own name.",
+      "Staff configures the league, dates, division and player price; a separate team fee is off by default.",
+      "An unfinished registration setup survives refresh without losing its prices or membership choice.",
+      "Saving a draft creates one form and price set while the public registration flow remains closed.",
+      "Both saved divisions retain the copied rules and All teams playoff qualification without individual team selection.",
+      "Explicit publication reuses the saved draft, opens the configured public funnel, and preserves a free team tier and staff-reviewed membership requirement."
+    ],
+    "logoCorrection": "This round used the supplied 256px Harbor Hawks PNG. The raw helper inherited a near-2MB success description; do not read it as the uploaded file size."
+  },
+  "reports": {
+    "role": {
+      "checks": [
+        {
+          "role": "super_admin",
+          "app": "superadmin",
+          "route": "/users",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "org_admin",
+          "app": "org",
+          "route": "/seasons",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "league_admin",
+          "app": "league",
+          "route": "/seasons",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "season_admin",
+          "app": "superadmin",
+          "route": "/seasons",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "division_admin",
+          "app": "superadmin",
+          "route": "/divisions/3fe36449-3e52-451f-be0f-9573b149aaa1",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "registrar",
+          "app": "superadmin",
+          "route": "/registrations",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "scorekeeper",
+          "app": "superadmin",
+          "route": "/games",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "referee",
+          "app": "superadmin",
+          "route": "/games",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "captain",
+          "app": "team",
+          "route": "/captain/roster",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "coach",
+          "app": "team",
+          "route": "/roster",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "player",
+          "app": "player",
+          "route": "/team",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "pass"
+        },
+        {
+          "role": "parent",
+          "app": "player",
+          "route": "/",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "expected_restriction",
+          "note": "Guardian acts through a consent link; a dedicated parent dashboard is not included in this round."
+        },
+        {
+          "role": "spectator",
+          "app": "player",
+          "route": "/",
+          "evidence": [
+            "dom-snapshot",
+            "screenshot",
+            "http-response"
+          ],
+          "outcome": "expected_restriction",
+          "note": "Public viewing scope is unresolved; no private player/admin access is granted."
+        }
+      ],
+      "passed": 11,
+      "blocked": 0
+    },
+    "registration": {
+      "outcome": "passed",
+      "checks": [
+        "Public league registration opens without an account and identifies the correct testing organization.",
+        "One returning account submits offline player registration and two distinct free team registrations without blocking, card input or a non-zero team charge.",
+        "The season-scoped registrar reviews all three submissions in the actual console; approved rows leave the pending queue.",
+        "Fresh player and captain sessions show the approved registration and the same newly rostered person. Roster compliance links open actual checks instead of fabricated verified/all-clear badges."
+      ],
+      "registrations": [
+        {
+          "id": "0a8f97b1-8271-4448-925c-5e074ba0d755",
+          "name": "Luca Martinez offline player",
+          "kind": "individual",
+          "status": "pending_offline",
+          "approved": true
+        },
+        {
+          "id": "917cd657-1451-4564-bd4e-eac962f8d959",
+          "name": "Harbor United",
+          "kind": "team",
+          "status": "pending_review",
+          "approved": true
+        },
+        {
+          "id": "e894bcd4-4f8a-478e-81ee-d85dc58e9b98",
+          "name": "Riverside Legends",
+          "kind": "team",
+          "status": "pending_review",
+          "approved": true
+        }
+      ]
+    },
+    "scheduling": {
+      "outcome": "passed",
+      "checks": [
+        "Organization administrator creates a full round-robin draft, respects the holiday blackout and publishes through the scheduling UI.",
+        "Fresh captain and player sessions receive the same published schedule and their own in-app publication notifications.",
+        "Season-scoped scorekeeper finalizes a logged goal; the receiving player sees rebuilt statistics and cannot read global delivery totals."
+      ],
+      "gameId": "e8acb694-7461-4b5c-920a-d329f6efe3aa"
+    },
+    "regional": {
+      "outcome": "passed",
+      "checks": [
+        "An opted-in player belongs to another league in the same region. The captain request creates no invitation before staff approval and cannot self-approve.",
+        "Maya accepts from a separate league, appears exactly once as a guest and sees the confirmed game. The captain receives no private contacts or membership identifiers; the player cannot read the approval queue."
+      ],
+      "gameId": "ae62545d-2907-4bb0-aefe-acb356bfa41f",
+      "membership": "Explicit fictional verified-proof fixture; no USA Hockey API used",
+      "fees": "disabled"
+    },
+    "playoff": {
+      "outcome": "passed",
+      "checks": [
+        "The independent sudden-death playoff rule blocks a tied final in the dialog and API.",
+        "Scorekeeper logs a goal and assist through the actual event dialog and finalizes overtime. Each persisted stat counts once."
+      ],
+      "gameId": "fb5e19ac-f16f-4a90-9b88-6cf50abe4347"
+    },
+    "isolation": {
+      "outcome": "passed",
+      "checks": [
+        "org_admin: foreign organization denied without list leakage",
+        "league_admin: foreign organization denied without list leakage; other league season denied",
+        "season_admin: foreign organization denied without list leakage; other league season denied",
+        "registrar: foreign organization denied without list leakage; other league season denied",
+        "division_admin: foreign organization denied without list leakage; other league season denied",
+        "captain: foreign organization denied without list leakage",
+        "player: foreign organization denied without list leakage"
+      ]
+    },
+    "bulk70": {
+      "outcome": "passed",
+      "checks": [
+        "70 realistic leagues selected in the actual roll-forward dialog; pause, reload and resume preserve the saved plan.",
+        "Exactly 70 next-season drafts retain two divisions each, with unpublished forms and no copied registrations, live rosters or games."
+      ],
+      "copies": 70,
+      "elapsedSeconds": 47,
+      "paused": "1 of 70 copied for Winter 2028-29."
+    },
+    "membership": {
+      "outcome": "passed",
+      "checks": [
+        "Optional season accepts blank ID, refuses a malformed entered value and allows progression without membership data.",
+        "Required season blocks blank membership ID, accepts a valid format and explains that staff must review proof."
+      ],
+      "fixture": "Two unsubmitted registration drafts; no real membership verified"
+    },
+    "handoff": {
+      "outcome": "passed",
+      "checks": [
+        "14 editable acceptance cases render, save across refresh and export the recorded result.",
+        "Blank handoff starts Not run; engineering checks do not prefill PPHL acceptance.",
+        "Client access excludes internal platform password and infrastructure credentials."
+      ]
+    }
+  },
+  "clientAcceptance": "NOT RUN — PPHL must perform and sign the acceptance checklist",
+  "limits": [
+    "Dedicated parent dashboard absent; guardian flow uses a direct consent link. Public spectator viewing scope is unresolved. PPHL must agree the launch scope.",
+    "No real card charging, settlement or substitute pricing is certified. Both were intentionally excluded by the owner.",
+    "Regional membership was an explicitly fictional verified-proof fixture. No USA Hockey registry access or real membership verification occurred.",
+    "No representative 10,000-user capacity or AWS production cutover test was performed on this Free/Hobby staging environment.",
+    "Functional coverage covers the named connected workflows and role checks, not every possible route, sport or operating condition."
+  ],
+  "provenance": {
+    "guidedSetup": "Actual organization-admin browser creation, draft recovery, database persistence checks and public publication check",
+    "registration": "Actual public funnel, returning-account sign-in, waivers, offline/free submission and registrar review; fresh receiving player/captain sessions",
+    "scheduling": "Actual organization-admin draft generation and publication; fresh receiving captain/player sessions; regular game goal via API followed by UI finalization",
+    "playoff": "Explicit owned playoff fixture; goal and assist entered through scorekeeper UI; tied final denied by UI and API; persisted statistics checked",
+    "regional": "Actual player opt-in, captain request, organization-admin approval, player acceptance and captain/player destinations; fictional membership fixture",
+    "isolation": "Live denied API requests plus list-leakage assertions; owned and sibling-record staging database regression checks",
+    "bulk70": "Actual 70-source roll-forward dialog, pause, page reload, resume and persisted draft validation; not a concurrency load test",
+    "role": "Fresh signed-in browser sessions, screenshots and HTTP assertions for 13 system roles; 11 operational passes, two explicit restrictions"
+  },
+  "clientWorkspace": {
+    "outcome": "passed",
+    "organization": "PPHL Client Testing",
+    "accounts": 32,
+    "counts": {
+      "leagues": 3,
+      "seasons": 3,
+      "divisions": 4,
+      "teams": 16,
+      "roster_memberships": 80,
+      "registrations": 0,
+      "games": 0,
+      "invoices": 0
+    },
+    "checks": [
+      "Separate client organization starts with no submissions, invoices or generated games.",
+      "Returning client account authenticates and has the expected real-looking legal name.",
+      "Original 16 teams retain five roster members each; role fixtures are separate from engineering rehearsal."
+    ]
+  },
+  "clientRoleChecks": {
+    "checks": [
+      {
+        "role": "super_admin",
+        "app": "superadmin",
+        "route": "/users",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "org_admin",
+        "app": "org",
+        "route": "/seasons",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "league_admin",
+        "app": "league",
+        "route": "/seasons",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "season_admin",
+        "app": "superadmin",
+        "route": "/seasons",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "division_admin",
+        "app": "superadmin",
+        "route": "/divisions/61f10053-3f4c-4278-9c62-b4a74974b8c9",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "registrar",
+        "app": "superadmin",
+        "route": "/registrations",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "scorekeeper",
+        "app": "superadmin",
+        "route": "/games",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "referee",
+        "app": "superadmin",
+        "route": "/games",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "captain",
+        "app": "team",
+        "route": "/captain/roster",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "coach",
+        "app": "team",
+        "route": "/roster",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "player",
+        "app": "player",
+        "route": "/team",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "pass"
+      },
+      {
+        "role": "parent",
+        "app": "player",
+        "route": "/",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "expected_restriction",
+        "note": "Guardian acts through a consent link; a dedicated parent dashboard is not included in this round."
+      },
+      {
+        "role": "spectator",
+        "app": "player",
+        "route": "/",
+        "evidence": [
+          "dom-snapshot",
+          "screenshot",
+          "http-response"
+        ],
+        "outcome": "expected_restriction",
+        "note": "Public viewing scope is unresolved; no private player/admin access is granted."
+      }
+    ],
+    "passed": 11,
+    "blocked": 0
+  },
+  "runtimeValidation": {
+    "commit": "7c109d8a8a43e9a49151ed1c4bd894dcd56bebf3",
+    "github": {
+      "runId": 42032552525,
+      "url": "https://github.com/sportspulseco-cell/sp/actions/runs/42032552525",
+      "conclusion": "success",
+      "browserAndRoleTests": 74,
+      "businessRules": 339,
+      "solverRegressions": 11
+    },
+    "deployments": {
+      "target": "staging",
+      "projects": 6,
+      "state": "READY"
+    },
+    "local": {
+      "workspaceTypecheck": "passed",
+      "businessRules": 339,
+      "apiBuild": "passed",
+      "teamBuild": "passed",
+      "playerBuild": "passed",
+      "scopeDatabaseRegression": "passed"
+    },
+    "productionMainUnchanged": true,
+    "plans": {
+      "supabase": "Free",
+      "vercel": "Hobby"
+    },
+    "checkedAt": "2026-11-05T13:17:45.991Z"
+  }
+}
