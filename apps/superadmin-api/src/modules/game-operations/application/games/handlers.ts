@@ -55,6 +55,7 @@ import { notifyAutomaticSuspensions } from "../suspensions/auto-notices";
 const log = new Logger("GameCommands");
 
 export interface ListGamesInput {
+  scheduleFilter?: "upcoming" | "completed" | "all";
   limit?: number;
   cursor?: string;
   leagueId?: string;

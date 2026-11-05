@@ -118,6 +118,8 @@ export class ForfeitGameBodyDto {
 }
 
 export class ListGamesQueryDto {
+  @IsOptional() @IsIn(["upcoming", "completed", "all"])
+  scheduleFilter?: "upcoming" | "completed" | "all";
   @ApiPropertyOptional({ minimum: 1, maximum: 100 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   limit?: number;

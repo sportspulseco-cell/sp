@@ -2142,6 +2142,7 @@ export function createApi(f: Fetcher) {
       saveOfficialAvailability:(periods:Array<{startTsUtc:string;endTsUtc:string}>)=>f<{periods:Array<{startTsUtc:string;endTsUtc:string}>}>("/game-officials/availability/me",{method:"POST",body:JSON.stringify({periods})}),
       listGames: (
         q: {
+          scheduleFilter?: "upcoming" | "completed" | "all";
           limit?: number;
           cursor?: string;
           leagueId?: string;

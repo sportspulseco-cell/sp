@@ -15,6 +15,7 @@ import {
 import {
   GAME_ENDINGS,
   GAME_ENDING_LABELS,
+  gameEndingRuleProblem,
   isValidTimeZone,
   utcToZonedWallTime,
   type GameEnding
@@ -394,11 +395,12 @@ function FinalizeDialog({
   onDone: (message: string) => void;
 }) {
   const tied = game.homeScore === game.awayScore;
-  const options = GAME_ENDINGS;
+  const rule = game.gameRules?.overtimeRule;
+  const options = GAME_ENDINGS.filter(ending => !rule || !gameEndingRuleProblem(rule, ending));
   // Default from the period the scorekeeper last recorded: past
   // regulation means overtime. Ties may leave it blank.
   const [endedIn, setEndedIn] = useState<GameEnding | "">(
-    tied ? "" : game.period > regulationPeriods ? "overtime" : "regulation"
+    tied ? "" : game.period > regulationPeriods && options.includes("overtime") ? "overtime" : "regulation"
   );
   // A tied score that went to a shootout: who won it. Finalize adds the
   // winner's one shootout goal on the server (PPHL test F-7).
@@ -439,6 +441,7 @@ function FinalizeDialog({
   return (
     <Dialog open onClose={onClose} title="Finalize game" description="Check the final score before you lock it.">
       <div className="space-y-4">
+        {rule ? <p className="text-sm text-fg-muted">{game.gameType === "playoff" ? "Playoff" : "Regular-season"} rule: {({ none: "No overtime", sudden_death: "Sudden death", shootout: "Shootout", "5_min": "5-minute overtime", "10_min": "10-minute overtime" })[rule]}. Only permitted endings are available.</p> : null}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg border border-border bg-surface-2 px-4 py-3">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-wide text-fg-muted">Away</p>

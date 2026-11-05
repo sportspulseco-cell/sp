@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import {
   STANDINGS_TIEBREAKERS,
+  DIVISION_OVERTIME_RULES,
   ValidationError,
   divisionNumberProblem,
   parseTiebreakers,
@@ -164,6 +165,7 @@ export class CreateDivisionHandler
   async execute(input: CreateDivisionInput): Promise<DivisionDto> {
     assertMaxTeams(input.maxTeams);
     assertRuleSet(input.ruleSetOverrides);
+    assertPlayoffOvertime(input.playoffConfig);
     if (input.regionId) await assertRegionInSeasonOrg(this.db, input.seasonId, input.regionId);
     const division = Division.create({
       id: DivisionId.of(randomUUID()),
@@ -208,6 +210,7 @@ export class UpdateDivisionHandler
     // Refuse the whole command before touching the row.
     assertMaxTeams(input.maxTeams);
     if (input.ruleSetOverrides !== undefined) assertRuleSet(input.ruleSetOverrides);
+    if (input.playoffConfig !== undefined) assertPlayoffOvertime(input.playoffConfig);
     if (input.regionId !== undefined) {
       if (input.regionId) await assertRegionInSeasonOrg(this.db, d.seasonId.value, input.regionId);
       d.setRegion(input.regionId ? RegionId.of(input.regionId) : null);
@@ -220,7 +223,9 @@ export class UpdateDivisionHandler
     if (input.genderEligibility !== undefined) d.setGenderEligibility(input.genderEligibility);
     if (input.maxTeams !== undefined) d.setMaxTeams(input.maxTeams);
     if (input.ruleSetOverrides !== undefined) d.setRuleSetOverrides(input.ruleSetOverrides);
-    if (input.playoffConfig !== undefined) d.setPlayoffConfig(input.playoffConfig);
+    if (input.playoffConfig !== undefined) {
+      d.setPlayoffConfig(input.playoffConfig);
+    }
     await this.divisions.save(d);
     return DivisionDto.fromDomain(d);
   }
@@ -256,6 +261,12 @@ function assertMaxTeams(maxTeams: number | null | undefined): void {
  * points and tie-break order are read by every game and recompute
  * (FR-3.13.1), so a bad value is refused here in words, never stored.
  */
+function assertPlayoffOvertime(config: Record<string, unknown> | undefined): void {
+  const value = config?.overtimeRule;
+  if (value != null && !(DIVISION_OVERTIME_RULES as readonly unknown[]).includes(value))
+    throw new ValidationError("Choose a supported playoff overtime rule or inherit the regular-season rule.");
+}
+
 function assertRuleSet(rules: Record<string, unknown> | undefined): void {
   if (!rules) return;
   const gameProblem = validateDivisionGameRules(rules.gameRules);

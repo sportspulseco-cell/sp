@@ -35,7 +35,7 @@ export default async function TeamAdminSchedulePage({
   const teamId = await getActiveTeamId(scope);
 
   const pageResult = teamId
-    ? await load(gameOps.listGames({ teamId, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
+    ? await load(gameOps.listGames({ teamId, scheduleFilter: filter, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
     : null;
   const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
 

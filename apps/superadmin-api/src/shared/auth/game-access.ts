@@ -258,17 +258,19 @@ export async function accessForScope(
 export async function accessForAnyScope(
   db: Database,
   userId: string,
-  shapes: ReadonlyArray<GameScopeShape>
+  shapes: ReadonlyArray<GameScopeShape>,
+  roleCodes?: readonly string[]
 ): Promise<{ superAdmin: boolean; granted: string[]; covered: boolean }> {
   if (await isSuperAdmin(db, userId)) return { superAdmin: true, granted: ["*"], covered: true };
   const granted: string[] = [];
   let covered = false;
   for (const a of await loadActiveAssignments(db, userId)) {
+    if (roleCodes && !roleCodes.includes(a.roleCode)) continue;
     if (!shapes.some((g) => covers(a, g))) continue;
     covered = true;
     granted.push(...rolePermissions(a));
   }
-  const gameIds = shapes.map((g) => g.id).filter(Boolean);
+  const gameIds = roleCodes ? [] : shapes.map((g) => g.id).filter(Boolean);
   for (const o of await loadOfficialAssignments(db, userId, gameIds)) {
     const perms = gameOfficialPermissions(o.role, o.status);
     if (perms.length === 0) continue;

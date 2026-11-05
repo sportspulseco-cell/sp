@@ -50,6 +50,12 @@ try {
     check("player-web /schedule: Team Alpha's games against its division", ["Bravo", "Charlie", "Delta"].some((w) => sch.includes(`Team ${w}`)), sch.slice(0, 200));
     const st = await look(p, "/stats", "player-stats");
     check("player-web /stats: the page shows Team Alpha's season", st.includes("Team Alpha"), st.slice(0, 200));
+    const [registration] = await q(`select r.id from registrations r join persons pe on pe.id=r.subject_person_id join auth.users u on u.id=pe.user_id where u.email=$1 and r.season_id=$2 order by r.created_at desc limit 1`, [pl.email, ids.seasonId]);
+    check("the connected player has a real registration detail fixture", !!registration);
+    if (registration) {
+      const detail = await look(p, `/registrations/${registration.id}`, "player-registration");
+      check("player-web registration detail shows the connected season and approval", detail.includes("Season 2026") && /Approved/i.test(detail), detail.slice(0, 180));
+    }
     await ctx.close();
   }
   // Captain: Capt Alpha, on the team app.

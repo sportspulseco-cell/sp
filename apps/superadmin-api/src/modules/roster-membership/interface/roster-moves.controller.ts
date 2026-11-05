@@ -3,6 +3,8 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -11,11 +13,15 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { AuthPrincipal } from "@sportspulse/auth";
 import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
-import { AuthorizedAccessGuard } from "../../../shared/auth/guards/authorized-access.guard";
+import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
+import { DRIZZLE } from "../../../shared/database/database.tokens";
+import { schema, type Database } from "@sportspulse/db";
+import { and, eq, isNull } from "drizzle-orm";
+import { accessForAnyScope, accessCan } from "../../../shared/auth/game-access";
 import { AllowScopedWrite } from "../../../shared/auth/decorators/allow-scoped-write.decorator";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
-import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
+import { ADMIN_SCOPE_ROLE_CODES, type UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { RosterMoveDto, RosterMovePageDto } from "../application/dtos/roster.dto";
 import {
   AddPlayerHandler,
@@ -31,7 +37,9 @@ import { ListMovesQueryDto, MoveBodyDto, TradeBodyDto } from "./dto/roster.dto";
 @ApiTags("roster/moves")
 @ApiBearerAuth()
 @Controller("roster/moves")
-@UseGuards(JwtAuthGuard, AuthorizedAccessGuard)
+// Captains use /captain/roster, which enforces locks, limits and consent.
+// A projected player team scope must never authorize these admin commands.
+@UseGuards(JwtAuthGuard, ScopedAdminGuard)
 export class RosterMovesController {
   constructor(
     private readonly listH: ListRosterMovesHandler,
@@ -40,7 +48,8 @@ export class RosterMovesController {
     private readonly dropH: DropPlayerHandler,
     private readonly tradeH: TradePlayerHandler,
     private readonly callupH: CallUpPlayerHandler,
-    private readonly senddownH: SendDownPlayerHandler
+    private readonly senddownH: SendDownPlayerHandler,
+    @Inject(DRIZZLE) private readonly db: Database
   ) {}
 
   @Get() @ApiOperation({ summary: "List roster moves (event log)" })
@@ -71,24 +80,24 @@ export class RosterMovesController {
   @Post("add")
   @AllowScopedWrite()
   @ApiOperation({ summary: "Add player to team roster" })
-  add(
+  async add(
     @Body() body: MoveBodyDto,
     @CurrentUser() user: AuthPrincipal,
     @UserScope() scope: UserScopeType
   ): Promise<RosterMoveDto> {
-    assertCanWriteTeam(scope, body.teamId);
+    await this.requireRosterWrite(user.userId, body);
     return this.addH.execute({ ...body, createdByUserId: user.userId });
   }
 
   @Post("drop")
   @AllowScopedWrite()
   @ApiOperation({ summary: "Drop player from team roster" })
-  drop(
+  async drop(
     @Body() body: MoveBodyDto,
     @CurrentUser() user: AuthPrincipal,
     @UserScope() scope: UserScopeType
   ): Promise<RosterMoveDto> {
-    assertCanWriteTeam(scope, body.teamId);
+    await this.requireRosterWrite(user.userId, body);
     return this.dropH.execute({ ...body, createdByUserId: user.userId });
   }
 
@@ -115,16 +124,19 @@ export class RosterMovesController {
   ): Promise<RosterMoveDto> {
     return this.senddownH.execute({ ...body, createdByUserId: user.userId });
   }
-}
-
-function assertCanWriteTeam(scope: UserScopeType, teamId: string): void {
-  // League/org/super admins always pass. Captains + team_admins pass
-  // only when the move targets a team in their direct teamIds.
-  const allowed =
-    scope.isSuperAdmin ||
-    scope.leagueIds === null ||
-    (scope.teamIds?.includes(teamId) ?? false);
-  if (!allowed) {
-    throw new ForbiddenException("Cannot write roster moves for this team");
+  private async requireRosterWrite(userId: string, body: MoveBodyDto) {
+    const [season] = await this.db.select({ orgId: schema.seasons.orgId, leagueId: schema.seasons.leagueId })
+      .from(schema.seasons).where(and(eq(schema.seasons.id, body.seasonId), isNull(schema.seasons.deletedAt))).limit(1);
+    const [team] = await this.db.select({ orgId: schema.teams.orgId }).from(schema.teams)
+      .where(and(eq(schema.teams.id, body.teamId), isNull(schema.teams.deletedAt))).limit(1);
+    if (!season || !team || team.orgId !== season.orgId) throw new NotFoundException("Team or season not found.");
+    const entries = await this.db.select({ id: schema.divisions.id }).from(schema.divisions)
+      .innerJoin(schema.divisionTeamEntries, eq(schema.divisionTeamEntries.divisionId, schema.divisions.id))
+      .where(and(eq(schema.divisions.seasonId, body.seasonId), eq(schema.divisionTeamEntries.teamId, body.teamId), isNull(schema.divisions.deletedAt)));
+    const shapes = (entries.length ? entries : [{ id: null }]).map(d => ({ id: "", orgId: team.orgId,
+      leagueId: season.leagueId, seasonId: body.seasonId, divisionId: d.id,
+      homeTeamId: body.teamId, awayTeamId: body.teamId }));
+    const access = await accessForAnyScope(this.db, userId, shapes, ADMIN_SCOPE_ROLE_CODES);
+    if (!accessCan(access, "roster.write")) throw new ForbiddenException("You do not have permission to manage this roster.");
   }
 }

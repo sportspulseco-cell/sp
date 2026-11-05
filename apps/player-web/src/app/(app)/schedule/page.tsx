@@ -77,7 +77,7 @@ export default async function SchedulePage({
   // A failed games load is shown as an error, never as "no games".
   const [gamesResult, team] = await Promise.all([
     myTeamId
-      ? load(gameOps.listGames({ teamId: myTeamId, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
+      ? load(gameOps.listGames({ teamId: myTeamId, scheduleFilter: filter, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
       : Promise.resolve(null),
     myTeamId
       ? leagueMgmt.getTeam(myTeamId).catch(() => null)

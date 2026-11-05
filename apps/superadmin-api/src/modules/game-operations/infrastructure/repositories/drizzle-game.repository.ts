@@ -11,6 +11,7 @@ import type {
   ListGamesQuery
 } from "../../domain/repositories/game.repository";
 import { afterCursor, encodeCursor, keysetOrder } from "../../../../shared/pagination/keyset";
+import { schedulePagination } from "./schedule-pagination";
 
 type GameRow = typeof schema.games.$inferSelect;
 
@@ -145,6 +146,8 @@ export class DrizzleGameRepository implements GameRepository {
 
   async list(q: ListGamesQuery): Promise<Page<Game>> {
     const cs = [];
+    const schedule = q.scheduleFilter ? schedulePagination(q.scheduleFilter, q.cursor) : null;
+    if (schedule) cs.push(...schedule.where);
     if (q.leagueId) cs.push(eq(schema.games.leagueId, q.leagueId));
     if (q.seasonId) cs.push(or(eq(schema.games.seasonId,q.seasonId),and(sql`${schema.games.seasonId} is null`,inArray(schema.games.divisionId,this.db.select({id:schema.divisions.id}).from(schema.divisions).where(eq(schema.divisions.seasonId,q.seasonId)))))!);
     if (q.divisionId) cs.push(eq(schema.games.divisionId, q.divisionId));
@@ -159,7 +162,7 @@ export class DrizzleGameRepository implements GameRepository {
     }
     if (q.fromTs) cs.push(gte(schema.games.scheduledStartTsUtc, q.fromTs));
     if (q.toTs) cs.push(lte(schema.games.scheduledStartTsUtc, q.toTs));
-    if (q.cursor)
+    if (q.cursor && !schedule)
       cs.push(afterCursor(schema.games.scheduledStartTsUtc, schema.games.id, q.cursor, "asc"));
     if (q.leagueIdsFilter)
       cs.push(inArray(schema.games.leagueId, q.leagueIdsFilter));
@@ -204,13 +207,13 @@ export class DrizzleGameRepository implements GameRepository {
       .select()
       .from(schema.games)
       .where(cs.length ? and(...cs) : undefined)
-      .orderBy(...keysetOrder(schema.games.scheduledStartTsUtc, schema.games.id, "asc"))
+      .orderBy(...(schedule?.order ?? keysetOrder(schema.games.scheduledStartTsUtc, schema.games.id, "asc")))
       .limit(q.limit + 1);
 
     const hasMore = rows.length > q.limit;
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map(rowToGame);
     const last = rows[q.limit - 1];
-    const nextCursor = hasMore && last ? encodeCursor(last.scheduledStartTsUtc, last.id) : null;
+    const nextCursor = hasMore && last ? schedule?.cursorFor(last) ?? encodeCursor(last.scheduledStartTsUtc, last.id) : null;
     return { items, nextCursor };
   }
 

@@ -51,6 +51,18 @@ const refused = (message: string) => (e: unknown) => {
   return true;
 };
 
+test("playoff overtime is separate, supports inheritance and refuses unknown rules", async () => {
+  const { r, rows } = repo();
+  const dto = await create(r, { ruleSetOverrides: { gameRules: GOOD }, playoffConfig: { overtimeRule: "sudden_death" } });
+  assert.equal(dto.playoffConfig.overtimeRule, "sudden_death");
+  assert.equal((dto.ruleSetOverrides.gameRules as typeof GOOD).overtimeRule, "none");
+  await create(r, { playoffConfig: { overtimeRule: null } });
+  await assert.rejects(create(r, { playoffConfig: { overtimeRule: "unknown" } }), /supported playoff overtime/);
+  assert.equal(rows.length, 2);
+  await assert.rejects(new UpdateDivisionHandler(r, db).execute({ id: dto.id, playoffConfig: { overtimeRule: "unknown" } }), /supported playoff overtime/);
+  assert.equal(rows[0]?.playoffConfig.overtimeRule, "sudden_death");
+});
+
 test("create stores a rule set inside the ranges, a legacy empty one, and none at all", async () => {
   const { r, rows } = repo();
   const dto = await create(r, { maxTeams: 28, ruleSetOverrides: { gameRules: GOOD } });
