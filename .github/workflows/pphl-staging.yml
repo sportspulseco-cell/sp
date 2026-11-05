@@ -1,0 +1,61 @@
+name: PPHL staging validation
+on:
+  push:
+    branches: [codex/staging]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pphl-staging-validation
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      E2E_TARGET: staging
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter './packages/**' -r --workspace-concurrency=1 build
+      - run: pnpm -r --workspace-concurrency=1 typecheck
+      - run: node scripts/test-business-rules.mjs
+      - name: Solver regressions
+        run: |
+          python -m pip install -r apps/scheduler-solver/requirements.txt
+          cd apps/scheduler-solver
+          python -m unittest -v test_solver
+      - name: Wait for staging deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_TARGET: staging
+        run: node scripts/wait-for-vercel.mjs
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Cross-app browser and role gates
+        env:
+          E2E_STAGING_SUPERADMIN_PASSWORD: ${{ secrets.E2E_STAGING_SUPERADMIN_PASSWORD }}
+          E2E_STAGING_LEAGUE_PASSWORD: ${{ secrets.E2E_STAGING_LEAGUE_PASSWORD }}
+          E2E_STAGING_ORG_PASSWORD: ${{ secrets.E2E_STAGING_ORG_PASSWORD }}
+          E2E_STAGING_TEAM_PASSWORD: ${{ secrets.E2E_STAGING_TEAM_PASSWORD }}
+          E2E_STAGING_PLAYER_PASSWORD: ${{ secrets.E2E_STAGING_PLAYER_PASSWORD }}
+          STAGING_VERCEL_BYPASS_SUPERADMIN: ${{ secrets.STAGING_VERCEL_BYPASS_SUPERADMIN }}
+          STAGING_VERCEL_BYPASS_LEAGUE: ${{ secrets.STAGING_VERCEL_BYPASS_LEAGUE }}
+          STAGING_VERCEL_BYPASS_ORG: ${{ secrets.STAGING_VERCEL_BYPASS_ORG }}
+          STAGING_VERCEL_BYPASS_TEAM: ${{ secrets.STAGING_VERCEL_BYPASS_TEAM }}
+          STAGING_VERCEL_BYPASS_PLAYER: ${{ secrets.STAGING_VERCEL_BYPASS_PLAYER }}
+          STAGING_VERCEL_BYPASS_LANDING: ${{ secrets.STAGING_VERCEL_BYPASS_LANDING }}
+        run: pnpm exec playwright test --workers=1 tests/e2e/smoke tests/e2e/auth tests/e2e/workflows/cross-app-journey.spec.ts tests/e2e/workflows/deep-routes.spec.ts tests/e2e/workflows/responsive-shell.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pphl-staging-browser-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

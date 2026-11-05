@@ -25,7 +25,8 @@ test("officials can reply only to their own live invitation and manage only thei
       'locked_at',null,'published_at',null,'finalized_at',null,'status','scheduled','scheduled_start_ts_utc','2096-01-01T20:00:00Z'
     ))).* from games g join leagues l on l.id=g.league_id where l.org_id=${process.env.STAGING_ORG_ENTITY_ID}::uuid limit 1`);
     await tx.execute(sql`insert into game_officials(id,game_id,person_id,role,status) values(${assignmentId}::uuid,${gameId}::uuid,${person.id}::uuid,'referee','tentative')`);
-    const controller = new GameOfficialsController(...[null, null, null, null, null, { queue: async () => null }, tx as unknown as Database] as ConstructorParameters<typeof GameOfficialsController>);
+    const controller = new GameOfficialsController(null as never, null as never, null as never, null as never,
+      null as never, { queue: async () => null } as never, tx as unknown as Database);
     const scope: UserScope = { isSuperAdmin: false, orgIds: [], leagueIds: [], teamIds: [], orgWideOrgIds: [] };
     await assert.rejects(controller.status(assignmentId, { status: "confirmed" }, { userId: randomUUID() } as never, scope), /access|permission|not found|allowed/i);
     assert.equal((await controller.status(assignmentId, { status: "confirmed" }, actor, scope)).status, "confirmed");
