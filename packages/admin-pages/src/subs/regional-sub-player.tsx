@@ -8,7 +8,7 @@ export interface RegionalPlayerApi {
   subscribeRegional: (regionId: string, body: { enabled: boolean; positions: string[] }) => Promise<unknown>;
   answerRegional: (id: string, action: "accept" | "decline") => Promise<{ response: string; broadcast: RegionalSubBroadcast }>;
 }
-export function RegionalSubPlayerPanel({ api, initial }: { api: RegionalPlayerApi; initial: RegionalSubInbox | null }) {
+export function RegionalSubPlayerPanel({ api, initial, confirmedOnly = false }: { api: RegionalPlayerApi; initial: RegionalSubInbox | null; confirmedOnly?: boolean }) {
   const [view, setView] = useState(initial), [error, setError] = useState(""), [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null), [regionId, setRegionId] = useState("");
   const [enabled, setEnabled] = useState(false), [positions, setPositions] = useState<string[]>([]);
@@ -32,13 +32,13 @@ export function RegionalSubPlayerPanel({ api, initial }: { api: RegionalPlayerAp
   }
   if (view && !view.regions.length && !view.invitations.length) return null;
   return <section aria-labelledby="regional-player-title" className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
-    <div><h2 id="regional-player-title" className="text-base font-semibold">Play as a substitute</h2>
-      <p className="mt-1 text-sm text-fg-muted">Choose where you want invitations. Your contact details stay private.</p></div>
+    <div><h2 id="regional-player-title" className="text-base font-semibold">{confirmedOnly ? "Confirmed substitute games" : "Play as a substitute"}</h2>
+      <p className="mt-1 text-sm text-fg-muted">{confirmedOnly ? "Upcoming games you agreed to play for another team." : "Choose where you want invitations. Your contact details stay private."}</p></div>
     {error ? <Alert tone="error">{error} {!view ? <button className="ml-2 underline" onClick={() => void load().then(() => setError("")).catch(error => setError(String(error)))}>Try again</button> : null}</Alert> : null}
     {message ? <Alert tone="success">{message}</Alert> : null}
     {!view && !error ? <div role="status" aria-label="Loading substitute invitations"><Skeleton className="h-24" /></div> : null}
     {view?.invitations.map(({ broadcast, response }) => <article key={broadcast.id} className="space-y-3 rounded-lg border border-border p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{broadcast.teamName} needs a {broadcast.position === "goalie" ? "goalie" : "substitute"}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{response === "accepted" ? `Playing for ${broadcast.teamName}` : `${broadcast.teamName} needs a ${broadcast.position === "goalie" ? "goalie" : "substitute"}`}</h3>
         <Badge>{response === "accepted" ? "You're confirmed" : response === "declined" ? "Declined" : response === "closed" ? "Invitation closed" : "Staff approved"}</Badge></div>
       <p className="text-sm text-fg-muted">{formatInZone(broadcast.startsAt, broadcast.timezone)}{broadcast.venueName ? ` · ${broadcast.venueName}` : ""} · {broadcast.regionName}</p>
       {broadcast.note ? <p className="text-sm">{broadcast.note}</p> : null}
@@ -50,7 +50,7 @@ export function RegionalSubPlayerPanel({ api, initial }: { api: RegionalPlayerAp
     </article>)}
     {view?.nextCursor ? <Button variant="outline" disabled={busy !== null} onClick={() => {
       setBusy("more"); void load(view.nextCursor!).catch(error => setError(String(error))).finally(() => setBusy(null));
-    }}>More invitations</Button> : null}
+    }}>{confirmedOnly ? "More substitute games" : "More invitations"}</Button> : null}
     {view?.regions.length ? <details className="rounded-lg border border-border p-4">
       <summary className="cursor-pointer text-sm font-medium">Regional invitation preferences</summary>
       <form className="mt-4 space-y-4" onSubmit={event => {

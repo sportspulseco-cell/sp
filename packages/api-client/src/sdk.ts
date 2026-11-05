@@ -4161,6 +4161,7 @@ export function createApi(f: Fetcher) {
       requestRegional: (teamId: string, gameId: string, body: RegionalSubRequestInput) => f<RegionalSubBroadcast>(`/captain/regional-subs/${teamId}/games/${gameId}/requests`, { method: "POST", body: JSON.stringify(body) }),
       cancelRegional: (teamId: string, id: string) => f<RegionalSubBroadcast>(`/captain/regional-subs/${teamId}/requests/${id}/cancel`, { method: "POST" }),
       regionalMine: (cursor?: string) => f<RegionalSubInbox>(`/regional-subs/mine${qs({ cursor })}`),
+      regionalConfirmed: (cursor?: string) => f<RegionalSubInbox>(`/regional-subs/confirmed${qs({ cursor })}`),
       subscribeRegional: (regionId: string, body: { enabled: boolean; positions: string[] }) => f<{ regionId: string; enabled: boolean; positions: string[] }>(`/regional-subs/subscriptions/${regionId}`, { method: "PUT", body: JSON.stringify(body) }),
       answerRegional: (id: string, action: "accept" | "decline") => f<{ response: string; broadcast: RegionalSubBroadcast }>(`/regional-subs/requests/${id}/${action}`, { method: "POST" }),
       regionalPending: (cursor?: string, orgId?: string) => f<{ items: RegionalSubBroadcast[]; nextCursor: string | null }>(`/admin/regional-subs/pending${qs({ cursor, orgId })}`),

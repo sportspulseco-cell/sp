@@ -107,6 +107,11 @@ try {
   await offer.getByRole("button", { name: "I can play" }).click();
   await expect(offer.getByText("You're confirmed", { exact: true })).toBeVisible();
   assert.equal((await sql`select id from game_attendance where game_id=${gameId} and person_id=${player.personId} and is_guest=true`).length, 1);
+  await p.page.goto(`${p.base}/schedule`);
+  await expect(p.page.getByRole("heading", { name: "Confirmed substitute games", exact: true })).toBeVisible();
+  await expect(p.page.locator('section[aria-labelledby="regional-player-title"]')).toContainText(`QA goalie request ${tag}`);
+  await fits(p.page, "Player schedule with a confirmed substitute game");
+  assert.equal((await call("GET", "/regional-subs/confirmed", undefined, capToken)).json.invitations.length, 0);
   const raw = await call("GET", `/captain/regional-subs/${source.home_team_id}/games/${gameId}`, undefined, capToken);
   assert.equal(raw.status, 200);
   for (const field of ["email", "dob", "availability", "externalId"]) assert.equal(JSON.stringify(raw.json).includes(`"${field}"`), false);

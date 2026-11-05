@@ -35,12 +35,13 @@ try {
   await expect(dialog.getByText(/A playoff game needs a winner/)).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Confirm final score'})).toBeDisabled();
   await expect(dialog.getByRole('radio',{name:'Shootout',exact:true})).toHaveCount(0);
-  assert.equal((await call('POST',`/games/${gameId}/finalize`,{endedIn:'regulation'},token)).status,409);
+  const tied = await call('POST',`/games/${gameId}/finalize`,{endedIn:'regulation'},token);
+  assert.equal(tied.status,422); assert.match(JSON.stringify(tied.json),/needs a winner/);
   checks.push('The playoff sudden-death override is displayed despite regular no-OT rules; a tied final is disabled in the dialog and refused by the API.');
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
   const goal=await call('POST','/game-events',{gameId,eventType:'goal',period:4,teamId:source.home_team_id,primaryPersonId:scorer.person_id,secondaryPersonIds:[],idempotencyKey:`qa-playoff-${tag}`},token);
   assert.ok(goal.status<300,JSON.stringify(goal.json));
-  const bad=await call('POST',`/games/${gameId}/finalize`,{endedIn:'shootout'},token);assert.equal(bad.status,409);
+  const bad=await call('POST',`/games/${gameId}/finalize`,{endedIn:'shootout'},token);assert.equal(bad.status,422);assert.match(JSON.stringify(bad.json),/do not allow a shootout/);
   await page.reload();await page.getByRole('button',{name:'Finalize',exact:true}).click();dialog=page.getByRole('dialog',{name:'Finalize game'});
   await dialog.getByRole('radio',{name:'Overtime',exact:true}).check();
   await expect(dialog.getByRole('button',{name:'Confirm final score'})).toBeEnabled();

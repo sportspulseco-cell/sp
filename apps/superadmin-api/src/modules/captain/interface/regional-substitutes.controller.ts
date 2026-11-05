@@ -42,6 +42,7 @@ export class RegionalSubstitutesController {
     return this.regional.cancel(user.userId, teamId, id);
   }
   @Get("regional-subs/mine") mine(@CurrentUser() user: AuthPrincipal, @Query() query: PendingQuery) { return this.regional.mine(user.userId, query.cursor); }
+  @Get("regional-subs/confirmed") confirmed(@CurrentUser() user: AuthPrincipal, @Query() query: PendingQuery) { return this.regional.mine(user.userId, query.cursor, true); }
   @Put("regional-subs/subscriptions/:regionId")
   subscribe(@CurrentUser() user: AuthPrincipal, @Param("regionId", ParseUUIDPipe) id: string, @Body() body: SubscriptionBody) {
     return this.regional.subscribe(user.userId, id, body.enabled, body.positions);

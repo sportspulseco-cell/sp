@@ -83,6 +83,7 @@ test("regional substitutes require approval, match across leagues privately, and
     const raw = JSON.stringify(await regional.captainView(captain, team.id, gameId));
     for (const field of ["email", "dob", "availability", "metadata", "externalId"]) assert.equal(raw.includes(`\"${field}\"`), false);
     assert.equal((await regional.mine(participants[0]!.userId)).invitations.length, 1);
+    assert.equal((await regional.mine(participants[0]!.userId, undefined, true)).invitations.length, 0, "Invitations are not confirmed schedule entries");
     const poison = new Proxy({}, { get() { throw new Error("External notification transport must never be reached for a stale invitation"); } });
     const guardedNotify = new NotificationService(new DrizzleNotificationRepository(connection), poison as never, poison as never, poison as never, connection);
     const invitationFor = async (broadcastId: string, personId: string) => {
@@ -97,6 +98,9 @@ test("regional substitutes require approval, match across leagues privately, and
     await assert.rejects(regional.answer(captain, request.id, "accept"), /Invitation not found/);
     const accepted = await regional.answer(participants[0]!.userId, request.id, "accept");
     assert.equal(accepted.response, "accepted"); assert.equal(accepted.broadcast.filled, 1); assert.equal(accepted.broadcast.status, "filled");
+    const confirmed = await regional.mine(participants[0]!.userId, undefined, true);
+    assert.equal(confirmed.invitations.length, 1); assert.equal(confirmed.regions.length, 0);
+    assert.equal((await regional.mine(participants[1]!.userId, undefined, true)).invitations.length, 0, "Another invitee cannot see someone else's confirmed game");
     assert.equal((await regional.answer(participants[0]!.userId, request.id, "accept")).response, "accepted");
     await assert.rejects(regional.answer(participants[1]!.userId, request.id, "accept"), /no longer open/);
     const [guests] = await tx.execute(sql`select count(*)::int n from game_attendance where game_id=${gameId}::uuid and is_guest=true`);

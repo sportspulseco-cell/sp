@@ -13,6 +13,8 @@ import { load, type Game } from "@sportspulse/api-client";
 import { LiveScoreRefresh, ScheduleRealtimeBridge } from "@sportspulse/admin-pages";
 import { gameOps, leagueMgmt, loadMeScope } from "@/lib/api/server-api";
 import { ICalExportButton } from "./ical-button";
+import { RegionalSubsCard } from "@/components/regional-subs-card";
+import { subs } from "@/lib/api/server-api";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -75,13 +77,14 @@ export default async function SchedulePage({
   const myTeamId = await getActiveTeamId(scope);
 
   // A failed games load is shown as an error, never as "no games".
-  const [gamesResult, team] = await Promise.all([
+  const [gamesResult, team, substitutes] = await Promise.all([
     myTeamId
       ? load(gameOps.listGames({ teamId: myTeamId, scheduleFilter: filter, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
       : Promise.resolve(null),
     myTeamId
       ? leagueMgmt.getTeam(myTeamId).catch(() => null)
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    filter === "completed" ? Promise.resolve(null) : load(subs.regionalConfirmed())
   ]);
 
   const gamesFailed = gamesResult && !gamesResult.ok ? gamesResult : null;
@@ -106,8 +109,13 @@ export default async function SchedulePage({
       <PageHeader
         eyebrow="Schedule"
         title="Schedule"
-        description="Every scheduled and completed game for your team this season."
+        description="Your regular team schedule and upcoming substitute games."
       />
+
+      {substitutes ? substitutes.ok ? <RegionalSubsCard initial={substitutes.data} confirmedOnly /> :
+        <LoadError what="your confirmed substitute games" status={substitutes.status} message={substitutes.message} /> : null}
+
+      {substitutes?.ok && substitutes.data.invitations.length ? <h2 className="text-base font-semibold">Your regular team</h2> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <LinkTabs

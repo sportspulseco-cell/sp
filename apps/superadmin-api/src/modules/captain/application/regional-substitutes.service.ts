@@ -249,19 +249,19 @@ export class RegionalSubstitutesService {
     return rows.map(row => ({ id: row.id as string, name: row.name as string, orgName: row.org_name as string,
       enabled: row.enabled === true, positions: (row.positions as string[] | null) ?? [] }));
   }
-  async mine(userId: string, cursor?: string): Promise<RegionalSubInbox> {
+  async mine(userId: string, cursor?: string, confirmedOnly = false): Promise<RegionalSubInbox> {
     let personId: string;
     try { personId = await this.person(userId); }
     catch (error) { if (error instanceof NotFoundException) return { regions: [], invitations: [], nextCursor: null }; throw error; }
     const after = parseCursor(cursor);
-    const [regions, rows] = await Promise.all([this.regionOptions(personId, this.db), this.db
+    const [regions, rows] = await Promise.all([confirmedOnly ? Promise.resolve([]) : this.regionOptions(personId, this.db), this.db
       .select({ id: schema.substituteBroadcasts.id, response: schema.substituteBroadcastRecipients.status, startsAt: schema.games.scheduledStartTsUtc })
       .from(schema.substituteBroadcastRecipients).innerJoin(schema.substituteBroadcasts,
         eq(schema.substituteBroadcasts.id, schema.substituteBroadcastRecipients.broadcastId))
       .innerJoin(schema.games, eq(schema.games.id, schema.substituteBroadcasts.gameId))
       .where(and(eq(schema.substituteBroadcastRecipients.personId, personId),
         or(and(eq(schema.substituteBroadcastRecipients.status, "accepted"), isNotNull(schema.substituteBroadcastRecipients.attendanceId)),
-          and(eq(schema.substituteBroadcastRecipients.status, "invited"), eq(schema.substituteBroadcasts.status, "approved"))),
+          !confirmedOnly ? and(eq(schema.substituteBroadcastRecipients.status, "invited"), eq(schema.substituteBroadcasts.status, "approved")) : undefined),
         eq(schema.games.status, "scheduled"),
         sql`${schema.games.scheduledStartTsUtc}>now()`,
         after ? sql`(${schema.games.scheduledStartTsUtc},${schema.substituteBroadcasts.id})>(${after.startsAt}::timestamptz,${after.id}::uuid)` : undefined))
