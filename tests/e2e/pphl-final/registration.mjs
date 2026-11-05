@@ -81,7 +81,10 @@ try {
  }
  await snapshot(registrar.page,'registrar-reviewed-submissions');await registrar.context.close();checks.push('The season-scoped registrar reviews all three submissions in the actual console; approved rows leave the pending queue.');
  const player=await open('returning_player','player','/registrations');await expect(player.page.getByRole('main')).toContainText(/Approved/i);await snapshot(player.page,'player-approved-registration');await player.context.close();
- const captain=await open('captain','team','/captain/roster');await expect(captain.page.getByRole('main')).toContainText(actor.name);await fits(captain.page,'captain-roster-after-registration');await captain.context.close();checks.push('Fresh player and captain sessions show the approved registration and the same newly rostered person.');
+ const captain=await open('captain','team','/captain/roster');await expect(captain.page.getByRole('main')).toContainText(actor.name);await fits(captain.page,'captain-roster-after-registration');
+ await expect(captain.page.getByText('all clear',{exact:true})).toHaveCount(0);await expect(captain.page.getByRole('cell',{name:'verified',exact:true})).toHaveCount(0);
+ await captain.page.getByRole('link',{name:'View checks',exact:true}).first().click();await expect(captain.page.getByRole('heading',{name:'Waivers & documents',exact:true})).toBeVisible();await expect(captain.page.getByRole('main')).not.toContainText(/Could not load/i);await snapshot(captain.page,'captain-actual-compliance');
+ await captain.context.close();checks.push('Fresh player and captain sessions show the approved registration and the same newly rostered person. Roster compliance links open actual checks instead of fabricated verified/all-clear badges.');
  const [charges]=await sql`select count(*)::int n from invoices where registration_id in ${sql(m.rehearsal.registrations.filter(r=>r.kind==='team').map(r=>r.id))} and total_cents>0`;expect(charges.n).toBe(0);
  m.rehearsal.registrationPassed=true;save();
  writeFileSync(`${OUT}/registration-results.json`,JSON.stringify({outcome:'passed',checks,registrations:m.rehearsal.registrations},null,2));console.log(checks.map(c=>'PASS '+c).join('\n'));

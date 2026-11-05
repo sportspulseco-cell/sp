@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, ArrowRightLeft, Check, Clock, Lock, Mail, RotateCcw, ShieldCheck, UserMinus, UserPlus, Users } from "lucide-react";
 import { Badge, Button, EmptyState, Eyebrow, PageHeader, Select, TBody, TD, TH, THead, TR, Table, Alert, LocalDate, useLocalDate } from "@sportspulse/ui";
 import { captain } from "@/lib/api/browser-api";
@@ -282,11 +283,11 @@ export function RosterScreen({
         />
       )}
       {tab === "compliance" && (
-        <EmptyState
-          icon={ShieldCheck}
-          title="Compliance tracking coming in Sprint 7"
-          description="USA Hockey ID expiry, age verification, and waiver freshness will surface here as red/amber/green badges."
-        />
+        <div className="rounded-xl border border-border bg-surface-1 p-5">
+          <p className="font-medium">Review team compliance</p>
+          <p className="mt-2 text-sm text-fg-muted">Membership proof, eligibility and suspensions are reviewed on Waivers &amp; documents. A roster spot alone does not verify a player.</p>
+          <Link href="/captain/compliance" className="mt-4 inline-block text-sm font-medium text-accent underline">Open team compliance</Link>
+        </div>
       )}
       {tab === "guests" && (
         <EmptyState
@@ -299,21 +300,8 @@ export function RosterScreen({
       {/* Compliance summary bar */}
       {memberships.length > 0 && (
         <div className="flex flex-wrap items-center gap-4 rounded-md border border-border bg-surface-1 px-4 py-2.5 text-[12px]">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--success)]" />
-            <span className="font-medium text-fg">{memberships.length}</span>
-            <span className="text-fg-muted">all clear</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--warning)]" />
-            <span className="font-medium text-fg">0</span>
-            <span className="text-fg-muted">expiring</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--error)]" />
-            <span className="font-medium text-fg">0</span>
-            <span className="text-fg-muted">action required</span>
-          </span>
+          <span>{memberships.length} players on this roster</span>
+          <Link href="/captain/compliance" className="font-medium text-accent underline">Review membership and eligibility checks</Link>
         </div>
       )}
 
@@ -402,8 +390,7 @@ function ActiveRosterTable({
             <TH>Player</TH>
             <TH className="text-right">#</TH>
             <TH>Position</TH>
-            <TH>USA Hockey</TH>
-            <TH>Eligibility</TH>
+            <TH>Compliance</TH>
             <TH>Effective from</TH>
             <TH className="text-right">Actions</TH>
           </TR>
@@ -436,14 +423,7 @@ function ActiveRosterTable({
                 </TD>
                 <TD className="text-fg-muted">{m.positionCode ?? "—"}</TD>
                 <TD>
-                  <Badge mono tone="success">
-                    verified
-                  </Badge>
-                </TD>
-                <TD>
-                  <Badge mono tone="success">
-                    eligible
-                  </Badge>
+                  <Link href="/captain/compliance" className="text-accent underline">View checks</Link>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
                   <LocalDate iso={m.effectiveFrom} format="date" />
