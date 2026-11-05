@@ -765,6 +765,7 @@ export function RegistrationFunnel({
         {step === "waivers" && (
           <WaiversStep
             documents={waivers}
+            requireUsaHockeyId={context.season.config?.requireUsaHockeyId === true}
             loadError={waiversError}
             onRetryLoad={() => {
               if (submissionId) void loadWaivers(submissionId, email.trim());
@@ -808,6 +809,7 @@ export function RegistrationFunnel({
         {step === "questions" && (
           <QuestionsStep
             definition={context.formDefinition}
+            requireUsaHockeyId={context.season.config?.requireUsaHockeyId === true}
             initialAnswers={answers}
             onChange={setAnswers}
             submissionType={submissionType}
@@ -1615,6 +1617,7 @@ function ConsentStep({
  */
 function WaiversStep({
   documents,
+  requireUsaHockeyId,
   loadError,
   onRetryLoad,
   signerName,
@@ -1633,6 +1636,7 @@ function WaiversStep({
 }: {
   /** null until the API list has loaded. */
   documents: WaiverDoc[] | null;
+  requireUsaHockeyId: boolean;
   /** UC-27: a minor's documents are signed by their parent or guardian. */
   isMinor?: boolean;
   onAskGuardian?: () => Promise<void>;
@@ -1683,7 +1687,7 @@ function WaiversStep({
         : "No existing profile with matching name + DOB found."
     }
   ];
-  if (isHockey) {
+  if (isHockey && requireUsaHockeyId) {
     const idMissing = flags.includes("usa_hockey_id_missing");
     const idInvalid = flags.includes("usa_hockey_id_format_invalid");
     checks.push({
@@ -1701,8 +1705,10 @@ function WaiversStep({
     checks.push({
       label: "Governing body verification",
       state: "pending",
-      body: "Will be verified against the USA Hockey roster during admin review."
+      body: "League staff review your membership proof. Entering an ID alone does not verify membership."
     });
+  }
+  if (isHockey) {
     checks.push({
       label: "Level / division match",
       state: "pending",
@@ -2198,6 +2204,7 @@ function TierStep({
  */
 function QuestionsStep({
   definition,
+  requireUsaHockeyId,
   initialAnswers,
   onChange,
   submissionType,
@@ -2216,6 +2223,7 @@ function QuestionsStep({
   uploadFile
 }: {
   definition: PublicSeasonContext["formDefinition"];
+  requireUsaHockeyId: boolean;
   /** FR-3.4.5: stores a file answer privately on the registration; resolves with the answer value. */
   uploadFile?: (file: File, questionKey: string) => Promise<string>;
   initialAnswers: AnswerMap;
@@ -2279,7 +2287,7 @@ function QuestionsStep({
       : "";
   const usaHockeyId = usaHockeyIdRaw.trim();
   const usaHockeyIdValid =
-    !isHockey || /^[A-Z0-9]{6,12}$/i.test(usaHockeyId);
+    !isHockey || (!requireUsaHockeyId && !usaHockeyId) || /^[A-Z0-9]{6,12}$/i.test(usaHockeyId);
 
   // Computed age display — DOB was collected on the Account step and
   // travels with the submission's metadata, so here we surface it
@@ -2404,7 +2412,7 @@ function QuestionsStep({
           </div>
           <p className="mt-1 text-[12px] text-fg-muted">
             {submissionType === "free_agent"
-              ? "Captains in your division use this to evaluate fit before claiming you. All four are required."
+              ? "Captains in your division use your level, positions and availability to evaluate fit before claiming you."
               : "Your skill level, position, and availability. Your team's captain uses them to set lineups."}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -2431,8 +2439,8 @@ function QuestionsStep({
             </Field>
             {isHockey ? (
               <Field
-                label="USA Hockey ID *"
-                hint="6–12 alphanumeric. We re-verify against the USA Hockey roster after submission."
+                label={requireUsaHockeyId ? "USA Hockey ID *" : "USA Hockey ID (optional)"}
+                hint="6–12 letters or digits. League staff review membership proof; entering an ID alone does not verify it."
               >
                 <Input
                   value={usaHockeyIdRaw}
@@ -2440,7 +2448,7 @@ function QuestionsStep({
                     patchAnswers({ usa_hockey_id: e.target.value.toUpperCase() })
                   }
                   placeholder="e.g. 1234567890"
-                  required
+                  required={requireUsaHockeyId}
                   aria-invalid={
                     usaHockeyId.length > 0 && !usaHockeyIdValid ? true : undefined
                   }
@@ -2491,6 +2499,7 @@ function QuestionsStep({
                       key={pos.code}
                       type="button"
                       onClick={() => togglePosition(pos.code)}
+                      aria-pressed={on}
                       className={
                         on
                           ? "h-9 rounded-md border border-accent bg-accent/10 px-3 text-[12px] font-medium text-accent"
@@ -2519,6 +2528,7 @@ function QuestionsStep({
                       key={d}
                       type="button"
                       onClick={() => toggleDay(d)}
+                      aria-pressed={on}
                       className={
                         on
                           ? "h-9 rounded-md border border-accent bg-accent/10 px-3 font-mono text-[11px] uppercase tracking-widest text-accent"
