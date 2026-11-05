@@ -24,6 +24,7 @@ import { CurrentUser } from "../../../shared/auth/decorators/current-user.decora
 import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator";
 import type { UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { SeasonDto, SeasonPageDto } from "../application/dtos/season.dto";
+import { seasonReadFilters } from "../application/seasons/access-filters";
 import { SeasonOverviewService } from "../application/seasons/season-overview.service";
 import { ScopedAdminGuard } from "../../../shared/auth/guards/scoped-admin.guard";
 import { ParseUUIDPipe } from "@nestjs/common";
@@ -65,9 +66,7 @@ export class SeasonsController {
   ): Promise<SeasonPageDto> {
     return this.listH.execute({
       ...q,
-      leagueIdsFilter: scope.leagueIds ?? undefined,
-      orgIdsFilter: scope.orgWideOrgIds ?? undefined,
-      seasonIdsFilter: [...(scope.seasonIds ?? []), ...(scope.parentSeasonIds ?? [])]
+      ...seasonReadFilters(scope)
     });
   }
 
@@ -78,9 +77,7 @@ export class SeasonsController {
   ): Promise<SeasonDto> {
     return this.getH.execute({
       id,
-      leagueIdsFilter: scope.leagueIds ?? undefined,
-      orgIdsFilter: scope.orgWideOrgIds ?? undefined,
-      seasonIdsFilter: [...(scope.seasonIds ?? []), ...(scope.parentSeasonIds ?? [])]
+      ...seasonReadFilters(scope)
     });
   }
 

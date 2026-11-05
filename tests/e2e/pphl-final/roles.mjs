@@ -13,6 +13,7 @@ try {
   try {
    const token=await login(account.email,account.password),me=await call('GET','/iam/me/scope',undefined,token);
    if(me.status!==200)throw Error(`Scope HTTP ${me.status}`);
+   if(key==='super_admin'){const season=await call('GET','/league/seasons/'+m.leagues[0].seasonId,undefined,token);if(season.status!==200)throw Error('Profile-only super admin cannot open a season: '+season.status);}
    await page.goto(entryUrl(app));await page.locator('input[type=email]').fill(account.email);await page.locator('input[type=password]').fill(account.password);await page.locator('button[type=submit]').click();
    await page.waitForURL(u=>!u.pathname.startsWith('/sign-in')||u.searchParams.has('error'),{timeout:45000});
    if(['parent','spectator'].includes(key)){

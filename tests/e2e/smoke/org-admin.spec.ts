@@ -19,12 +19,21 @@ test.describe("org-admin smoke", () => {
     });
   }
 
-  // Guided home (doc/design/guided-ui.md): org name, what is waiting, the seasons.
-  test("home shows the org name, needs-you list and seasons", async ({ page }) => {
+  // Guided home: explicit season choice, followed by one working season.
+  test("home shows the organization and lets staff choose one season", async ({ page }) => {
     await page.goto(E2E_URLS.orgAdmin);
     await expect(page.getByRole("heading", { name: /PPHL/i, level: 1 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Needs you" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Your seasons" })).toBeVisible();
+    await expect(page.getByRole("main").getByText("Which season are you working on?", { exact: true })).toBeVisible();
+    const picker = page.getByRole("combobox", { name: "League and season" });
+    await expect(picker).toBeVisible();
+    await expect(page.locator("article")).toHaveCount(0);
+    await picker.click();
+    await page.getByRole("option").first().click();
+    await expect(page).toHaveURL(/season=/);
+    await expect(page.locator("article")).toHaveCount(1);
+    await expect(page.getByRole("main").getByText("Other season tasks", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.locator("article")).toHaveCount(1);
   });
 
 });

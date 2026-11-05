@@ -112,7 +112,7 @@
   ],
   "secondPilot": {
     "name": "Create a season",
-    "status": "Implemented; local browser journey, production frontend build and shared/console typechecks passed. Staging validation pending.",
+    "status": "Deployed to all six staging projects at 04f1c6ef. Setup, both-console layout/keyboard, role and isolation checks passed. Receiving journey found a super-admin season filter regression; fix and five regression tests pass locally, staging recheck pending.",
     "branch": "codex/ux-sprint-02",
     "changes": [
       "Single-organization operators start with league basics; super admin retains explicit organization selection.",
@@ -126,6 +126,7 @@
       "Substitute fees disabled",
       "Engineering staging fixtures only; clean client testing data unchanged"
     ],
-    "evidence": "output/pphl-final-testing-2026-11-05/ux-sprint-02"
+    "evidence": "output/pphl-final-testing-2026-11-05/ux-sprint-02",
+    "discoveredRegression": "Unrestricted super-admin detail reads received an empty season whitelist and returned 404. Centralized scope conversion preserves unrestricted reads and scoped denials."
   }
 }

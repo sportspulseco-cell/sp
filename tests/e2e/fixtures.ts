@@ -75,7 +75,7 @@ export const ROUTES = {
   ] as RouteCheck[],
 
   orgAdmin: [
-    { path: "/", anchor: /Your seasons|Needs you/i },
+    { path: "/", anchor: /Which season are you working on\?/i },
     { path: "/leagues", anchor: /Leagues/i },
     { path: "/seasons", anchor: /Seasons/i },
     { path: "/divisions", anchor: /Divisions/i },
