@@ -87,13 +87,22 @@ try {
   await page.getByLabel('Playoff end date',{exact:false}).fill('2027-04-30');
   await page.getByRole('button',{name:'Next: Divisions'}).click();
   await expect(page.getByLabel('Division name',{exact:false})).toBeVisible();
-  fields.division=await visibleFields();assert.ok(fields.division<=10);
+  fields.division=await visibleFields();assert.equal(fields.division,5);
   writeFileSync(OUT+'/field-counts.json',JSON.stringify(fields,null,2));
   checks.push('Date questions are guided, survive refresh, and reject incomplete or out-of-season playoff dates.');
   await page.screenshot({path:OUT+'/shots/division-basics.png',fullPage:true});
   await page.getByLabel("Division name", { exact: false }).fill("Adult Open");
   if (true) {
+    await page.locator('summary').filter({hasText:/^Age requirements/}).click();
+    await page.getByLabel('Min age',{exact:true}).fill('18');
+    await page.getByLabel('Max age',{exact:true}).fill('17');
+    await expect(page.getByRole('button',{name:'Next: Registration',exact:true})).toBeDisabled();
+    await page.getByLabel('Max age',{exact:true}).fill('44');
+    await page.getByLabel('Age group label',{exact:true}).fill('Adult 18–44');
+    await page.locator('summary').filter({hasText:/^Age requirements/}).click();
     await page.locator("summary").filter({hasText:/^Game rules/}).click();
+    await page.getByLabel('Min skaters to start',{exact:true}).fill('5');
+    await page.getByLabel('Min skaters to start',{exact:true}).press('Tab');
     await page.getByLabel("Period length", { exact: false }).fill("17");
     await page.getByLabel("Period length", { exact: false }).press("Tab");
     await page.getByRole("combobox", { name: /^Overtime/ }).selectOption("none");
@@ -101,9 +110,15 @@ try {
     await page.getByLabel("Playoff overtime", { exact: true }).selectOption("sudden_death");
     await page.getByRole("button", { name: "Copy Division 1", exact: true }).click();
     await page.getByLabel("Division name", { exact: false }).fill("Adult 40+");
+    await expect(page.getByLabel('Min age',{exact:true})).toHaveValue('18');
+    await expect(page.getByLabel('Max age',{exact:true})).toHaveValue('44');
+    await page.getByLabel('Min age',{exact:true}).fill('40');
+    await page.getByLabel('Max age',{exact:true}).fill('');
+    await page.getByLabel('Age group label',{exact:true}).fill('Adult 40+');
     await page.locator("summary:visible").filter({hasText:/^Game rules/}).click();
     await page.locator("summary:visible").filter({hasText:/^Playoff rules/}).click();
     await expect(page.getByLabel("Period length", { exact: false })).toHaveValue("17");
+    await expect(page.getByLabel('Min skaters to start',{exact:true})).toHaveValue('5');
     await expect(page.getByLabel("Playoff overtime", { exact: true })).toHaveValue("sudden_death");
     checks.push("Copy Division preserves period length and the independent playoff overtime rule; the copied division gets its own name.");
   }
@@ -111,6 +126,7 @@ try {
   await page.getByLabel("Player registration price").fill("185.50");
   await expect(page.getByRole("checkbox", { name: "Charge a separate team registration fee" })).not.toBeChecked();
   await page.getByRole("checkbox", { name: "Require USA Hockey membership" }).check();
+  await page.locator('summary').filter({hasText:/^Documents and questions/}).click();
   await page.getByRole("button", { name: "Custom questions (0)" }).click();
   await page.getByRole("button", { name: "Add question", exact: true }).click();
   await page.getByRole("button", { name: "Short text short_text" }).click();
@@ -167,9 +183,10 @@ try {
     (select count(*)::int from pricing_tiers where season_id=${seasonId}) tiers`;
   assert.deepEqual(counts, { forms: 1, tiers: 2 });
   if (true) {
-    const divisions = await sql`select rule_set_overrides,playoff_config from divisions where season_id=${seasonId}`;
+    const divisions = await sql`select name,rule_set_overrides,playoff_config from divisions where season_id=${seasonId}`;
     assert.equal(divisions.length, 2);
     for (const d of divisions) { assert.equal(d.rule_set_overrides.gameRules.periodLengthMin, 17); assert.equal(d.playoff_config.overtimeRule, "sudden_death"); assert.equal(d.playoff_config.playoffSpots ?? null, null); }
+    for(const d of divisions){assert.equal(d.rule_set_overrides.gameRules.minStartersToStart,5);assert.equal(d.rule_set_overrides.ageRange.min,d.name==='Adult Open'?18:40);assert.equal(d.rule_set_overrides.ageRange.max,d.name==='Adult Open'?44:null);}
     checks.push("Both saved divisions retain the copied rules and All teams playoff qualification without individual team selection.");
   }
   checks.push("Explicit publication reuses the saved draft, opens the configured public funnel, and preserves a free team tier and staff-reviewed membership requirement.");

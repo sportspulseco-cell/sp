@@ -29,7 +29,7 @@ export function ThemeToggle() {
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className="
-        inline-flex h-8 w-8 items-center justify-center rounded-md
+        inline-flex h-11 w-11 items-center justify-center rounded-md sm:h-8 sm:w-8
         border border-border bg-surface-1 text-fg-muted
         transition-[background-color,border-color,color] duration-fast ease-ease
         hover:border-border-strong hover:text-fg

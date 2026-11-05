@@ -47,7 +47,7 @@ export function AppTopBar({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface-1 text-fg-muted transition-colors duration-fast ease-ease hover:bg-surface-2 hover:text-fg lg:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-surface-1 text-fg-muted transition-colors duration-fast ease-ease hover:bg-surface-2 hover:text-fg sm:h-9 sm:w-9 lg:hidden"
             aria-label="Open menu"
           >
             <Menu className="h-4 w-4" strokeWidth={1.75} />
@@ -114,7 +114,7 @@ function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account"
-        className="flex items-center gap-2.5 rounded-md py-1 pl-1 pr-1 transition-colors hover:bg-surface-2 sm:pl-2"
+        className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-md py-1 pl-1 pr-1 transition-colors hover:bg-surface-2 sm:min-h-0 sm:min-w-0 sm:pl-2"
       >
         <span className="hidden min-w-0 text-right sm:block">
           <span className="block max-w-[18ch] truncate text-[13px] font-medium leading-none text-fg">{name}</span>
@@ -144,7 +144,7 @@ function AccountMenu({
             onClick={signOut}
             disabled={signingOut}
             className={cn(
-              "flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] text-fg transition-colors hover:bg-surface-2",
+              "flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left text-[13px] text-fg transition-colors hover:bg-surface-2 sm:min-h-0",
               signingOut && "opacity-60"
             )}
           >

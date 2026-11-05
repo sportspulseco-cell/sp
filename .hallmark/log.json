@@ -7,12 +7,21 @@
     "genre": "playful",
     "enrichment": "Live draft-driven season pass and rink",
     "motion": [
-      "Immediate form handoff with 220ms entrance",
+      "Immediate form handoff with 180ms entrance",
       "Continuous progress marker",
       "Draft-driven rink position"
     ],
-    "status": "Local refinement; both-theme and responsive browser review",
+    "status": "Local full-flow visual review; staging unchanged",
     "overrides": "Owner keeps current theme; existing Inter, neutral surfaces and one substantial violet pass intentionally retained.",
-    "revision": "Refinement 2: progress first, compact season pass, stronger form emphasis, 180ms entry and 360ms preview movement."
+    "revision": "Refinement 3: unified division, registration and final-review screens; five initial division fields, disclosed age/game rules, readable fees/documents, inline review actions and mobile action rows."
+  },
+  {
+    "date": "2026-11-06",
+    "scope": "mobile-season-setup-pilot",
+    "theme": "Existing SportsPulse",
+    "revision": "Dedicated phone step menu, native date-question picker, one active division with add/copy/remove menu, keyboard-aware action bar and disclosed documents/questions. Phone search moved to header after a real blocked-tap failure; shared header touch targets enlarged.",
+    "status": "Local phone journeys passed for organization and super admin; staging unchanged",
+    "evidence": "output/pphl-final-testing-2026-11-05/mobile-first-setup/results.json",
+    "limitation": "Chromium touch emulation; physical iOS/Android and assistive technology checks remain."
   }
 ]

@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-06",
+  "scope": "Season setup phone workflow in organization and super-admin consoles; shared header touch targets",
+  "branch": "codex/season-setup-visual-focus",
+  "deployment": "Local only; staging unchanged",
+  "constraints": {
+    "payments": "mock",
+    "substituteFees": "disabled",
+    "theme": "Existing SportsPulse",
+    "purchases": false
+  },
+  "changes": [
+    "Compact phone step menu and native date-question picker",
+    "One active division editor with sticky selection and contextual add/copy/remove actions",
+    "Keyboard-aware action bar, visible-field Enter navigation and focus after adding a division",
+    "Optional registration documents and questions disclosed together",
+    "Phone page search in the super-admin header; desktop shortcut retained through a portal",
+    "44px shared header touch targets and shorter phone test-payment banner",
+    "Unified division rules, registration sections and confirmation-first final review"
+  ],
+  "verification": {
+    "workspaceTypecheck": "passed: 15 workspace projects",
+    "headerTypecheck": "passed after final header changes: UI and super-admin",
+    "productionBuilds": {
+      "organization": "passed",
+      "superAdmin": "passed"
+    },
+    "phoneJourneys": {
+      "roles": [
+        "organization admin",
+        "super admin"
+      ],
+      "frontend": "Local production builds against real staging services",
+      "runs": 2,
+      "widths": [
+        320,
+        375,
+        390,
+        414
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "passed": true,
+      "checks": [
+        "Touch through league, dates, divisions, registration and review",
+        "Division add, copy, switch and remove; independent values",
+        "Enter skips closed optional fields; new division name receives focus",
+        "Emulated keyboard-height changes withdraw and restore the action bar",
+        "Back and refresh preserve prices, membership requirements and dates",
+        "Super-admin phone search opens, filters and closes; setup Next remains reachable",
+        "No browser exceptions; publication remains gated by review confirmation"
+      ]
+    },
+    "desktopRegression": "passed in both setup consoles: live preview, reduced motion, light/dark, 320/375/414/768/1440 widths",
+    "persistence": "passed: upload validation; save draft keeps registration closed; explicit publish reuses form/season; copied age and game rules, questions and prices verified through API/DB"
+  },
+  "evidence": {
+    "phone": "output/pphl-final-testing-2026-11-05/mobile-first-setup/results.json",
+    "desktop": "output/pphl-final-testing-2026-11-05/mobile-first-desktop-regression/preview-results.json",
+    "persistence": "output/pphl-final-testing-2026-11-05/mobile-first-persistence/guided-setup-browser.json",
+    "builds": [
+      "output/mobile-org-build.log",
+      "output/mobile-sa-build.log"
+    ]
+  },
+  "observations": [
+    {
+      "issue": "A transient local Supabase middleware fetch failure appeared in the super-admin production log.",
+      "result": "Both complete role journeys passed. A second complete production run passed with no additional fetch failure. Cause unconfirmed; retain for auth/network follow-up."
+    }
+  ],
+  "remaining": [
+    "Physical iOS/Android keyboard, safe-area and screen-reader acceptance checks",
+    "Phone task passes for player, captain/team and game-day interfaces",
+    "PPHL unaided usability review and staging rollout of this pilot"
+  ]
+}

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Copy, Trash2, Ellipsis } from "lucide-react";
+import { Button } from "@sportspulse/ui";
 import type { Org } from "@sportspulse/api-client";
 import { playoffSpotsLabel, sportLabel } from "@sportspulse/kernel";
 import type { DivisionDraft, LeagueDraft, SeasonDraft } from "../types";
 import { BRACKETS, SERIES, OVERTIME_RULES, genderLabel, optionLabel, tierLabel } from "../../divisions/option-labels";
 import { DivisionCard } from "./division-card";
+import styles from "../setup-workspace.module.css";
 import { FORMATS, PRIVACY_OPTIONS } from "./league-step";
 
 /**
@@ -40,6 +42,7 @@ export function DivisionsStep({
   // immediately so their required name cannot be hidden.
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(divisions.slice(1).map(d=>d.uid)));
   const knownDivisions = useRef(new Set(divisions.map(d=>d.uid)));
+  const cards = useRef<HTMLDivElement>(null);
   useEffect(()=>{
     const added=divisions.find(d=>!knownDivisions.current.has(d.uid));
     if(added)setCollapsed(new Set(divisions.filter(d=>d.uid!==added.uid).map(d=>d.uid)));
@@ -50,11 +53,39 @@ export function DivisionsStep({
     setCollapsed(prev=>new Set(divisions.filter(d=>d.uid!==uid || !prev.has(uid)).map(d=>d.uid)));
   }
 
+  const active=divisions.find(d=>!collapsed.has(d.uid))??divisions[0];
+  const activeIndex=divisions.findIndex(d=>d.uid===active?.uid);
+  useEffect(()=>{
+    if(!active || active.name)return;
+    // New cards first mount behind the previous selection. Focus after the
+    // selected card becomes visible, rather than relying on mount autofocus.
+    const frame=requestAnimationFrame(()=>{
+      const card=Array.from(cards.current?.querySelectorAll<HTMLElement>('[data-division-uid]')??[]).find(node=>node.dataset.divisionUid===active.uid);
+      card?.querySelector<HTMLInputElement>('input[type=text]')?.focus();
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[active?.uid]);
+  function removeActive(){if(!active)return;const next=divisions.find(d=>d.uid!==active.uid);setCollapsed(new Set(divisions.filter(d=>d.uid!==next?.uid).map(d=>d.uid)));onRemove(active.uid);}
   return (
-    <div className="space-y-8">
-      <div className="space-y-4">
+    <div className={styles.divisionSetup}>
+      <div className={styles.mobileDivisionToolbar}>
+      <label className={styles.mobileDivisionPicker}>Division to edit
+        <select aria-label="Division to edit" value={active?.uid??""} onChange={e=>setCollapsed(new Set(divisions.filter(d=>d.uid!==e.target.value).map(d=>d.uid)))}>
+          {divisions.map((d,i)=><option key={d.uid} value={d.uid}>{d.name||`New division ${i+1}`}</option>)}
+        </select>
+      </label>
+      <details className={styles.mobileDivisionActions} data-phone-menu>
+        <summary aria-label="Division actions"><Ellipsis size={20}/></summary>
+        <div>
+          <Button type="button" variant="ghost" onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');onAdd();}}><Plus size={16}/>Add another division</Button>
+          <Button type="button" variant="ghost" disabled={!!active&&savedDivisionUids?.has(active.uid)} aria-label={`Copy Division ${activeIndex+1}`} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');if(active)onCopy(active.uid);}}><Copy size={16}/>Copy division</Button>
+          {divisions.length>1?<Button type="button" variant="ghost" disabled={!!active&&savedDivisionUids?.has(active.uid)} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');removeActive();}}><Trash2 size={16}/>Remove division</Button>:null}
+        </div>
+      </details>
+      </div>
+      <div ref={cards} className={styles.divisionList+" space-y-4"}>
         {divisions.map((d, i) => (
-          <fieldset key={d.uid} disabled={savedDivisionUids?.has(d.uid)}>
+          <fieldset key={d.uid} data-division-uid={d.uid} data-active={active?.uid===d.uid} disabled={savedDivisionUids?.has(d.uid)}>
           {savedDivisionUids?.has(d.uid) ? <p className="mb-2 text-sm text-fg-muted">Saved. Edit this division from the season page after setup finishes.</p> : null}
           <DivisionCard
             index={i}
@@ -65,7 +96,7 @@ export function DivisionsStep({
             onToggle={() => toggle(d.uid)}
             onPatch={(patch) => onPatch(d.uid, patch)}
             onCopy={() => onCopy(d.uid)}
-            onRemove={() => onRemove(d.uid)}
+            onRemove={() => {const next=divisions.find(x=>x.uid!==d.uid&&!collapsed.has(x.uid))??divisions.find(x=>x.uid!==d.uid);setCollapsed(new Set(divisions.filter(x=>x.uid!==next?.uid).map(x=>x.uid)));onRemove(d.uid);}}
           /></fieldset>
         ))}
       </div>
@@ -73,13 +104,13 @@ export function DivisionsStep({
       <button
         type="button"
         onClick={onAdd}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-bg-subtle px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-fg-muted hover:border-accent hover:text-accent"
+        className={styles.addDivision}
       >
         <Plus className="h-4 w-4" strokeWidth={1.75} />
         Add another division
       </button>
 
-      <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Review league and division settings</summary><div className="mt-4"><ReviewSummary divisions={divisions} {...summary}/></div></details>
+      <details className={styles.configDisclosure}><summary className="cursor-pointer text-sm font-medium">Review league and division settings</summary><div className="mt-4"><ReviewSummary divisions={divisions} {...summary}/></div></details>
     </div>
   );
 }
@@ -96,15 +127,8 @@ export function ReviewSummary({
   org: Org | null;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-bg-subtle p-6">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        Review summary
-      </p>
-      <p className="mt-1 text-[14px] font-semibold tracking-tight text-fg">
-        Confirm everything before publishing
-      </p>
-
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <section aria-label="Detailed setup settings">
+      <div className={styles.rulesGrid}>
         {org ? <SummaryCard title="Organization">
           <Row label="Name" value={org?.displayName ?? org?.legalName ?? "—"} />
           <Row label="Type" value={org?.orgType?.replace(/_/g, " ") ?? "—"} />
@@ -144,8 +168,11 @@ export function ReviewSummary({
             <Row label="Skill / tier" value={tierLabel(d.tier)} />
             <Row label="Gender eligibility" value={genderLabel(d.genderEligibility)} />
             <Row label="Age" value={d.ageGroupLabel || "—"} />
+            <Row label="Min age" value={d.ageRangeMin===null?"No minimum":String(d.ageRangeMin)} />
+            <Row label="Max age" value={d.ageRangeMax===null?"No maximum":String(d.ageRangeMax)} />
             <Row label="Max teams" value={String(d.maxTeams)} mono />
             <Row label="Periods" value={`${d.gameRules.numberOfPeriods} × ${d.gameRules.periodLengthMin} min`} />
+            <Row label="Min skaters to start" value={String(d.gameRules.minStartersToStart)} />
             <Row label="Regular-season overtime" value={optionLabel(OVERTIME_RULES,d.gameRules.overtimeRule)} />
             <Row label="Playoff overtime" value={d.playoffConfig.overtimeRule ? optionLabel(OVERTIME_RULES,d.playoffConfig.overtimeRule) : "Inherit regular-season rule"} />
             <Row
@@ -184,8 +211,8 @@ function SummaryCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-border bg-surface-1 p-4">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+    <div className={styles.ruleSection}>
+      <p className={styles.ruleTitle}>
         {title}
       </p>
       <dl className="mt-2 space-y-1.5">{children}</dl>
@@ -203,11 +230,11 @@ function Row({
   mono?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <dt className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+    <div className={styles.reviewRow}>
+      <dt className="text-[13px] text-fg-muted">
         {label}
       </dt>
-      <dd className={mono ? "font-mono text-[11px] text-fg" : "text-[12px] text-fg"}>
+      <dd className={mono ? "text-[13px] tabular-nums text-fg" : "text-[13px] text-fg"}>
         {value}
       </dd>
     </div>

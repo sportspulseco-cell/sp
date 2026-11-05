@@ -135,3 +135,36 @@ The second visual pass makes the progress steps lead the rail, reduces the
 season pass to a compact supporting object, steadies the form footer and
 shortens entry motion to 180 ms. Advanced league settings keep their fields
 without repeating default format/privacy values in the closed summary.
+
+The next pass extends that structure through divisions, registration and final
+review. Division basics show five fields; age limits and the complete game
+rules remain available. Copy keeps those values independent. Registration
+uses separated sections rather than nested cards. Review emphasizes dates,
+fees and included documents; its actions follow the explicit confirmation so
+the action bar cannot obscure it.
+
+## Phone workflow pilot — 6 November 2026
+
+Season setup in the organization and super-admin consoles has a dedicated
+phone interaction. A compact step menu preserves orientation. Season date
+questions use a native picker. Divisions show one active editor, with a sticky
+division picker and an action menu for add, copy and remove. New divisions
+focus their name after becoming visible; saved divisions keep their edit lock.
+Required documents and custom questions open together on demand.
+
+The primary action stays within thumb reach and accounts for safe-area insets.
+It withdraws while the visual viewport reports an open keyboard. Enter moves
+between visible inputs without advancing setup or publishing. Inputs use a
+16px font, and primary actions provide a 48px touch target. Final review
+keeps save and publish after the required confirmation. The existing theme,
+draft contract, validation and publishing behavior remain in use.
+
+This is a local pilot for the two setup consoles. The other role interfaces
+still need their own phone task passes. Chromium touch emulation checks the
+journey and viewport changes; physical iOS/Android keyboards and assistive
+technology remain separate acceptance checks.
+
+The phone test also found the super-admin command-palette pill covering the
+setup action bar. Phone page search now lives in the header, while its dialog
+renders outside the sticky header. Shared menu, theme and account buttons
+have 44px phone targets. The desktop page-search shortcut stays available.

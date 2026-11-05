@@ -91,3 +91,130 @@
  .workspace *,.workspace *::before,.workspace *::after {animation:none!important;transition:none!important;scroll-behavior:auto!important;}
  .footer button:active:not(:disabled),.step:active:not(:disabled) {transform:none;}
 }
+
+/* Divisions, registration and final review share the same section rhythm. */
+.division {border-block:1px solid var(--border);background:var(--surface-1);color:var(--fg);}
+.divisionHeader {display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:8px;padding:16px 0;}
+.divisionToggle {display:flex;align-items:center;gap:12px;min-width:0;min-height:44px;text-align:left;flex:1;}
+.divisionToggle > svg {flex-shrink:0;color:var(--fg-muted);}
+.divisionToggle > span {min-width:0;flex:1;}
+.divisionToggle:focus-visible {outline:2px solid var(--accent);outline-offset:3px;border-radius:8px;}
+.divisionName {display:block;font-size:16px;font-weight:600;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.divisionMeta {display:block;font-size:12px;color:var(--fg-muted);margin-top:4px;}
+.divisionActions {display:flex;align-items:center;justify-content:flex-end;gap:4px;}
+.divisionActions button {gap:6px;min-height:44px;padding-inline:8px;white-space:nowrap;}
+.divisionBody {padding:8px 0 20px;display:grid;gap:8px;}
+.configDisclosure {border:0;border-top:1px solid var(--border);padding:8px 0;}
+.configDisclosure > summary {cursor:pointer;font-size:13px;font-weight:500;min-height:44px;color:var(--fg);}
+.configDisclosure > summary:focus-visible {outline:2px solid var(--accent);outline-offset:4px;border-radius:4px;}
+.disclosureValue {float:right;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:12px;color:var(--fg-muted);font-size:12px;font-weight:400;}
+.addDivision {display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;padding:12px 16px;border:1px dashed var(--border-strong);border-radius:10px;color:var(--fg);font-size:13px;}
+.addDivision:focus-visible {outline:2px solid var(--accent);outline-offset:3px;}
+.addDivision:active {transform:translateY(1px);}
+.rulesGrid {display:grid;gap:24px;}
+.ruleSection {border-top:1px solid var(--border);padding-top:16px;}
+.ruleTitle {font-size:14px;font-weight:600;color:var(--fg);margin-bottom:12px;}
+.reviewRow {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;line-height:1.5;}
+.reviewRow dd {text-align:right;overflow-wrap:anywhere;}
+.registration {display:grid;}
+.setupSection {display:grid;gap:16px;}
+.setupSection + .setupSection {border-top:1px solid var(--border);padding-top:24px;margin-top:24px;}
+.setupSection h2,.setupSection h3 {font-size:16px;font-weight:600;letter-spacing:-.02em;}
+.sectionHint,.paymentNote {font-size:13px;color:var(--fg-muted);line-height:1.6;}
+.choiceRow {display:grid;gap:6px;}
+.choiceRow > label {display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;}
+.choiceRow > p {padding-left:24px;font-size:13px;line-height:1.5;color:var(--fg-muted);}
+.choiceRow > div {margin-top:8px;}
+.choiceRow input,.reviewConfirm input {accent-color:var(--accent-hover);flex-shrink:0;width:16px;height:16px;}
+.review {display:grid;gap:24px;}
+.panel:has(.review) > .footer {position:static;}
+.reviewOverview h2 {font-size:22px;font-weight:600;letter-spacing:-.03em;line-height:1.3;overflow-wrap:anywhere;}
+.reviewFacts {display:grid;gap:20px;margin-top:24px;}
+.reviewFacts dt,.reviewFees dt {font-size:12px;line-height:1.5;color:var(--fg-muted);margin-bottom:4px;}
+.reviewFacts dd {font-size:14px;line-height:1.6;color:var(--fg);overflow-wrap:anywhere;}
+.reviewFees {border-block:1px solid var(--border);padding-block:20px;}
+.reviewFees dl {display:grid;gap:20px;grid-template-columns:repeat(2,minmax(0,1fr));}
+.reviewFees dd {font-size:24px;font-weight:600;line-height:1.3;letter-spacing:-.03em;color:var(--fg);overflow-wrap:anywhere;}
+.reviewFees .paymentNote {margin-top:12px;}
+.documentList {display:grid;gap:12px;}
+.documentList li {display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;line-height:1.5;}
+.documentList li > span:last-child {color:var(--fg-muted);white-space:nowrap;}
+.reviewConfirm {display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--border-strong);border-radius:10px;cursor:pointer;line-height:1.6;}
+.reviewConfirm input {margin-top:3px;}
+.reviewConfirm:focus-within {outline:2px solid var(--accent);outline-offset:2px;}
+@media(hover:hover) {.addDivision:hover {background:var(--accent-soft);border-color:var(--accent);} .divisionToggle:hover {color:var(--accent);}}
+@media(min-width:640px) {.rulesGrid,.reviewFacts {grid-template-columns:repeat(2,minmax(0,1fr));}.divisionHeader {display:flex;justify-content:space-between;gap:12px;}}
+@media(prefers-reduced-motion:reduce) {.addDivision:active {transform:none;}}
+
+/* Phone workflow: one active task, a step menu and a thumb-reachable action bar. */
+.mobileSteps,.mobileDivisionPicker,.mobileDivisionActions,.mobileDateQuestions {display:none;}
+@media(max-width:639px) {
+ .workspace {gap:16px;padding-bottom:104px;}
+ .identity {margin-bottom:8px;font-size:11px;line-height:1.4;}
+ .identity span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+ .progress {margin:0;}
+ .progress > .desktopSteps,.desktopDateQuestions {display:none;}
+ .mobileSteps {display:block;position:relative;}
+ .mobileSteps > summary {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding-block:8px;border-bottom:1px solid var(--border);list-style:none;font-size:13px;cursor:pointer;}
+ .mobileSteps > summary::-webkit-details-marker {display:none;}
+ .mobileSteps > summary > span {display:flex;align-items:center;gap:8px;}
+ .mobileStepCount {font-size:12px;color:var(--fg-muted);}
+ .mobileSteps > ol {position:absolute;top:100%;inset-inline:0;z-index:25;display:grid;gap:0;padding:8px;background:var(--surface-1);color:var(--fg);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-md);}
+ .mobileSteps li > button {display:flex;align-items:center;gap:12px;min-height:48px;padding:12px;width:100%;text-align:left;border-radius:8px;font-size:14px;}
+ .mobileSteps li > button:disabled {color:var(--fg-muted);cursor:default;}
+ .mobileSteps li > button[aria-current=step] {color:var(--accent);background:var(--accent-soft);}
+ .mobileSteps li > button > svg {margin-left:auto;}
+ .mobileSteps summary:focus-visible,.mobileSteps button:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+ .chapter {display:none;}
+ .panelHeader {padding:0 0 20px;}
+ .panelHeader h1 {font-size:26px;line-height:1.2;letter-spacing:-.035em;}
+ .intro {font-size:13px;margin-top:8px;line-height:1.5;}
+ .body {padding:0;}
+ .body input:not([type=checkbox]):not([type=radio]):not([type=file]),.body select {font-size:16px;min-height:48px;}
+ .body label {font-size:13px;}
+ .notices:empty {display:none;}
+ .mobileDateQuestions {display:block;}
+ .mobileDivisionPicker {display:grid;gap:8px;font-size:13px;font-weight:500;}
+ .mobileDivisionPicker select {padding-inline:12px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-1);color:var(--fg);}
+ .divisionList > fieldset[data-active=false] {display:none;}
+ .divisionHeader {display:flex;justify-content:space-between;padding:8px 0;min-height:44px;}
+ .division[data-expanded=true] .divisionToggle {display:none;}
+ .desktopDivisionActions {display:none;}
+ .mobileDivisionActions {display:block;position:relative;width:100%;}
+ .mobileDivisionActions > summary {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;list-style:none;font-size:13px;cursor:pointer;color:var(--fg-muted);}
+ .mobileDivisionActions > summary::-webkit-details-marker {display:none;}
+ .mobileDivisionActions > div {position:absolute;inset-inline:0;top:100%;z-index:20;padding:8px;background:var(--surface-1);border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-md);}
+ .mobileDivisionActions button {justify-content:flex-start;gap:12px;width:100%;min-height:48px;}
+ .divisionBody {padding-top:8px;}
+ .footer {position:fixed;bottom:0;inset-inline:0;z-index:20;padding:12px 16px max(12px,env(safe-area-inset-bottom));box-shadow:var(--shadow-sm);}
+ .footer > button:last-child {flex:1;min-width:0;}
+ .footer button {min-height:48px;}
+ .workspace[data-keyboard-open=true] .footer {visibility:hidden;pointer-events:none;}
+ .workspace:has(.review) {padding-bottom:0;}
+ .panel:has(.review) > .footer {position:static;padding-inline:0;box-shadow:none;margin-top:24px;}
+ .panel:has(.review) > .footer > div {display:flex;gap:8px;}
+ .reviewFacts {grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+ .reviewFacts dd {font-size:13px;}
+ .review {gap:20px;}
+ .configDisclosure {padding-block:8px;}
+ .setupSection + .setupSection {margin-top:20px;padding-top:20px;}
+}
+
+.registrationDocuments {margin-top:24px;padding-block:16px;border-top:1px solid var(--border);}
+.registrationDocuments > summary {min-height:44px;cursor:pointer;font-size:14px;font-weight:600;}
+@media(max-width:639px) {.registrationDocuments > summary {font-size:13px;} .registrationDocuments .disclosureValue {float:none;display:block;max-width:none;margin-left:16px;font-size:11px;}}
+
+.divisionSetup {display:grid;gap:24px;}
+.mobileDivisionToolbar {display:none;}
+@media(max-width:639px) {
+ .divisionSetup {gap:12px;}
+ .mobileDivisionToolbar {display:flex;align-items:flex-end;gap:8px;position:sticky;top:56px;z-index:15;background:var(--bg);padding-block:8px;}
+ .mobileDivisionPicker {flex:1;min-width:0;}
+ .mobileDivisionToolbar .mobileDivisionActions {width:44px;flex-shrink:0;}
+ .mobileDivisionToolbar .mobileDivisionActions > summary {justify-content:center;width:44px;min-height:48px;border:1px solid var(--border-strong);border-radius:10px;}
+ .mobileDivisionToolbar .mobileDivisionActions > div {inset-inline:auto 0;width:240px;max-width:calc(100vw - 32px);}
+ .division[data-expanded=true] .divisionHeader {display:none;}
+ .divisionSetup > .addDivision {display:none;}
+ .divisionList > fieldset {margin:0!important;}
+ .body input,.body select,.body textarea {scroll-margin-top:150px;scroll-margin-bottom:100px;}
+}

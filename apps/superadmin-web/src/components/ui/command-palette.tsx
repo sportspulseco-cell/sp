@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Sparkles, X } from "lucide-react";
-import Link from "next/link";
+import { Search, X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +56,8 @@ const ITEMS: CommandItem[] = [
 export function CommandPaletteTrigger() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [mounted,setMounted] = useState(false);
+  useEffect(()=>setMounted(true),[]);
 
   // ⌘K / ctrl+K
   useEffect(() => {
@@ -73,7 +75,9 @@ export function CommandPaletteTrigger() {
 
   return (
     <>
-      {/* Floating bottom-left trigger pill */}
+      <button type="button" aria-label="Open command palette" onClick={()=>setOpen(true)} className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border bg-surface-1 text-fg-muted focus-visible:outline-none focus-visible:shadow-focus sm:hidden"><Search size={16}/></button>
+      {/* Keep overlays outside the sticky header's backdrop-filter context. */}
+      {mounted ? createPortal(<>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -81,18 +85,18 @@ export function CommandPaletteTrigger() {
         className={cn(
           // Bottom-left: bottom-right sat on top of right-aligned submit
           // buttons ("Create and send") and swallowed the click.
-          "fixed bottom-5 left-5 z-40 inline-flex items-center gap-2.5 rounded-full",
+          "fixed bottom-5 left-5 z-40 hidden items-center gap-2.5 rounded-full sm:inline-flex",
           "border border-border bg-surface-1 px-3.5 py-2.5 shadow-md",
           "transition-all duration-fast ease-ease hover:border-border-strong hover:shadow-md",
           "focus-visible:outline-none focus-visible:shadow-focus"
         )}
       >
-        <Sparkles
+        <Search
           className="h-3.5 w-3.5 text-[var(--tint-violet-fg)]"
           strokeWidth={1.75}
         />
         <span className="text-[13px] font-medium text-fg">
-          Ask the assistant
+          Search pages
         </span>
         <span className="ml-1 inline-flex h-5 items-center rounded-md border border-border bg-surface-2 px-1.5 font-mono text-[10px] text-fg-muted">
           ⌘K
@@ -100,6 +104,7 @@ export function CommandPaletteTrigger() {
       </button>
 
       {open ? <Palette q={q} setQ={setQ} onClose={() => setOpen(false)} /> : null}
+      </>,document.body) : null}
     </>
   );
 }
@@ -147,13 +152,13 @@ function Palette({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search pages, orgs, leagues, persons…"
-            className="h-12 w-full bg-transparent text-sm text-fg placeholder:text-fg-muted focus:outline-none"
+            placeholder="Find a page…"
+            className="h-12 w-full bg-transparent text-base text-fg placeholder:text-fg-muted focus:outline-none sm:text-sm"
           />
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg sm:h-7 sm:w-7"
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
@@ -175,7 +180,7 @@ function Palette({
                       onClose();
                       router.push(i.href);
                     }}
-                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-fg transition-colors duration-fast ease-ease hover:bg-surface-2"
+                    className="flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-fg transition-colors duration-fast ease-ease hover:bg-surface-2 sm:min-h-0"
                   >
                     <span>{i.label}</span>
                     <span className="font-mono text-[10px] text-fg-muted">

@@ -204,6 +204,26 @@ export function OrgSetupWizard({
   const [error, setError] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const workspace = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const viewport=window.visualViewport;
+    let restingHeight=viewport?.height??window.innerHeight;
+    const update=()=>{
+      const target=document.activeElement;
+      const editing=target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && !['checkbox','radio','file','button','submit'].includes(target.type));
+      const height=viewport?.height??window.innerHeight;
+      if(!editing)restingHeight=height;
+      const open=window.innerWidth<640 && editing && (window.innerHeight-height>100 || restingHeight-height>100);
+      workspace.current?.setAttribute('data-keyboard-open',String(open));
+    };
+    const dismissMenus=(event:PointerEvent)=>{workspace.current?.querySelectorAll<HTMLDetailsElement>('details[data-phone-menu][open]').forEach(menu=>{if(event.target instanceof Node&&!menu.contains(event.target))menu.removeAttribute('open');});};
+    document.addEventListener('pointerdown',dismissMenus);
+    window.addEventListener('resize',update);viewport?.addEventListener('resize',update);
+    document.addEventListener('focusin',update);document.addEventListener('focusout',update);
+    return ()=>{document.removeEventListener('pointerdown',dismissMenus);window.removeEventListener('resize',update);viewport?.removeEventListener('resize',update);document.removeEventListener('focusin',update);document.removeEventListener('focusout',update);};
+  },[]);
+  function phoneFields() { return Array.from(workspace.current?.querySelectorAll<HTMLInputElement>('input:not([type=file]):not([type=checkbox]):not([type=radio])')??[]).filter(input=>!input.matches(':disabled')&&!input.closest('details:not([open])')&&input.getClientRects().length>0); }
+
   useEffect(() => {
     if (!draftReady) return;
     heading.current?.focus({ preventScroll: true });
@@ -634,7 +654,9 @@ export function OrgSetupWizard({
   const introduction = ({1:"Choose the organization this season belongs to.",2:"The name, sport and home time zone of your league.",3:"Choose the dates your teams will use.",4:"Group your teams, then adjust their rules if needed.",5:"Decide how players join and what they need.",6:"One last look. Registration opens only when you publish."})[state.step];
   return (
     <MotionConfig reducedMotion="user">
-    <div className={styles.workspace}>
+    <div className={styles.workspace} ref={workspace}
+      onFocusCapture={event=>{if(window.innerWidth>=640||!(event.target instanceof HTMLInputElement)||!['text','number'].includes(event.target.type))return;const inputs=phoneFields();event.target.enterKeyHint=inputs.indexOf(event.target)<inputs.length-1?'next':'done';}}
+      onKeyDownCapture={event=>{if(event.key==='Escape'&&event.target instanceof HTMLElement){const menu=event.target.closest<HTMLDetailsElement>('details[data-phone-menu][open]');if(menu){event.preventDefault();menu.removeAttribute('open');menu.querySelector('summary')?.focus({preventScroll:true});return;}}if(window.innerWidth>=640||event.key!=='Enter'||event.nativeEvent.isComposing||!(event.target instanceof HTMLInputElement)||!['text','number'].includes(event.target.type))return;event.preventDefault();const inputs=phoneFields(),next=inputs[inputs.indexOf(event.target)+1];if(next)next.focus();else event.target.blur();}}>
       <aside className={styles.rail}>
         <SetupPreview state={state} orgName={currentOrg?.displayName ?? currentOrg?.legalName ?? ""} firstStep={firstStep} lastStep={lastStep} panel={seasonPanel}>
         <ProgressBar step={state.step} labels={STEP_LABELS} validation={stepValidation} lastStep={lastStep} firstStep={firstStep}

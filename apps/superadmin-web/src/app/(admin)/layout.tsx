@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ConsoleShell } from "@/components/layout/console-shell";
-import { CommandPaletteTrigger } from "@/components/ui/command-palette";
 import { getConsoleViewer, officialMayOpen } from "@/lib/console-mode";
 
 // Server component layout: enforces auth + the console gate, fetches profile once.
@@ -33,7 +32,6 @@ export default async function AdminLayout({
       officialMode={viewer.mode === "official"}
     >
       {children}
-      {viewer.mode === "admin" ? <CommandPaletteTrigger /> : null}
     </ConsoleShell>
   );
 }

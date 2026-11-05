@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { PlayoffSpotsFields } from "../../divisions/playoff-spots-fields";
 import { PointsRuleFields, pointsRuleForm } from "../../divisions/points-rule-fields";
 import {
@@ -10,7 +10,7 @@ import {
   type DivisionNumberKey
 } from "@sportspulse/kernel";
 import { ChevronDown, ChevronUp, Copy, GripVertical, Trash2 } from "lucide-react";
-import { Badge, Input, Select, Button } from "@sportspulse/ui";
+import { Input, Select, Button } from "@sportspulse/ui";
 import { cn } from "@sportspulse/ui";
 import {
   DEFAULT_MAX_TEAMS,
@@ -39,6 +39,7 @@ import {
   tierLabel
 } from "../../divisions/option-labels";
 import { Field } from "./league-step";
+import styles from "../setup-workspace.module.css";
 
 // The option labels live in ../../divisions/option-labels (a plain module
 // the server-rendered detail pages can read too); kept here for callers.
@@ -69,68 +70,36 @@ export function DivisionCard({
 }) {
   // Publish waits while a card has a problem; a collapsed card says so here.
   const problem = divisionDraftProblem(division);
+  const bodyId = useId();
   return (
-    <section className="rounded-xl border border-border bg-surface-1">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-bg-subtle"
-            aria-label={expanded ? "Collapse" : "Expand"}
-          >
-            {expanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-          <p className="text-[14px] font-semibold tracking-tight text-fg">
-            Division {index + 1}
-            {division.name ? `: ${division.name}` : ""}
-          </p>
-          <Badge mono>{tierLabel(division.tier)}</Badge>
-          <Badge mono tone="info">
-            {genderLabel(division.genderEligibility)}
-          </Badge>
-          {problem ? <Badge tone={division.name ? "danger" : "neutral"}>{division.name ? "Needs a fix" : "Name this division"}</Badge> : null}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={onCopy}
-            variant="outline" size="sm" className="gap-1.5"
-            aria-label={`Copy Division ${index + 1}`}
-          >
-            <Copy className="h-3 w-3" strokeWidth={2} />
-            Copy
-          </Button>
-          {total > 1 ? (
-            <Button
-              type="button"
-              onClick={onRemove}
-              variant="destructive" size="sm" className="gap-1.5"
-            >
-              <Trash2 className="h-3 w-3" strokeWidth={2} />
-              Remove
-            </Button>
-          ) : null}
+    <section className={styles.division} data-expanded={expanded}>
+      <header className={styles.divisionHeader}>
+        <button type="button" onClick={onToggle} className={styles.divisionToggle}
+          aria-expanded={expanded} aria-controls={bodyId} aria-label={(expanded?"Collapse ":"Expand ")+"Division "+(index+1)}>
+          {expanded?<ChevronUp size={16}/>:<ChevronDown size={16}/>}
+          <span><span className={styles.divisionName} title={division.name || `Division ${index+1}`}>{division.name || `Division ${index+1}`}</span>
+            <span className={styles.divisionMeta}>{tierLabel(division.tier)} · {genderLabel(division.genderEligibility)}</span>
+          </span>
+        </button>
+        <div className={styles.divisionActions+" "+styles.desktopDivisionActions}>
+          <Button type="button" onClick={onCopy} variant="ghost" size="sm" aria-label={`Copy Division ${index+1}`}><Copy size={14}/>Copy</Button>
+          {total>1?<Button type="button" onClick={onRemove} variant="ghost" size="sm" className="text-fg-muted hover:text-error"><Trash2 size={14}/>Remove</Button>:null}
         </div>
       </header>
-      {division.name && problem ? <p role="alert" className="px-5 pt-3 text-sm text-fg-danger">{problem}</p> : null}
+      {division.name && problem ? <p role="alert" className="pt-3 text-sm text-fg-danger">{problem}</p> : null}
 
       {expanded ? (
-        <div className="space-y-6 px-5 py-5">
+        <div id={bodyId} className={styles.divisionBody}>
           <IdentityBlock division={division} regions={regions} onPatch={onPatch} />
-          <details className="rounded-md border border-border p-4">
+          <details className={styles.configDisclosure}>
             <summary className="cursor-pointer text-sm font-medium">Game rules <span className="font-normal text-fg-muted">· {division.gameRules.numberOfPeriods} × {division.gameRules.periodLengthMin} min</span></summary>
             <div className="mt-4"><GameRulesBlock division={division} onPatch={onPatch}/></div>
           </details>
-          <details className="rounded-md border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Standings points & tie-breakers</summary><div className="mt-4 space-y-5">
+          <details className={styles.configDisclosure}><summary className="cursor-pointer text-sm font-medium">Points & tie-breakers</summary><div className="mt-4 space-y-5">
             <PointsRuleFields value={division.points ?? pointsRuleForm(null)} onChange={points=>onPatch({points})}/>
             <TiebreakersBlock division={division} onPatch={onPatch}/>
           </div></details>
-          <details className="rounded-md border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Playoff rules <span className="font-normal text-fg-muted">· {division.playoffConfig.enabled?'Enabled':'Off'}</span></summary><div className="mt-4"><PostSeasonBlock division={division} onPatch={onPatch}/></div></details>
+          <details className={styles.configDisclosure}><summary className="cursor-pointer text-sm font-medium">Playoff rules <span className="font-normal text-fg-muted">· {division.playoffConfig.enabled?'Enabled':'Off'}</span></summary><div className="mt-4"><PostSeasonBlock division={division} onPatch={onPatch}/></div></details>
         </div>
       ) : null}
     </section>
@@ -155,7 +124,8 @@ function IdentityBlock({
   // Hint stays until the copy is named.
   const copied = !!division.copiedFrom && division.name === "";
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-5">
+    <div className="grid gap-5 sm:grid-cols-2">
       <Field
         label="Division name"
         required
@@ -169,7 +139,7 @@ function IdentityBlock({
           placeholder="e.g. AHL"
           required
           // A fresh copy opens with the cursor in the one field it needs.
-          autoFocus={copied}
+          autoFocus={!division.name}
         />
       </Field>
 
@@ -250,7 +220,21 @@ function IdentityBlock({
         </Select>
       </Field>
 
-      <Field
+      <WholeNumberField
+        name="maxTeams"
+        label="Max teams"
+        required
+        hint="Maximum teams accepted into this division."
+        value={division.maxTeams}
+        defaultValue={DEFAULT_MAX_TEAMS}
+        onCommit={(maxTeams) => onPatch({ maxTeams })}
+      />
+
+
+    </div>
+    <details className={styles.configDisclosure} open={division.ageRangeMin!==null || division.ageRangeMax!==null}>
+      <summary>Age requirements <span className={styles.disclosureValue}>{division.ageRangeMin===null&&division.ageRangeMax===null?'Any age':division.ageGroupLabel}</span></summary>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">      <Field
         label="Min age"
         hint="Leave blank for no minimum."
       >
@@ -309,26 +293,8 @@ function IdentityBlock({
         />
       </Field>
 
-      <WholeNumberField
-        name="maxTeams"
-        label="Max teams"
-        required
-        hint="Maximum teams accepted into this division."
-        value={division.maxTeams}
-        defaultValue={DEFAULT_MAX_TEAMS}
-        onCommit={(maxTeams) => onPatch({ maxTeams })}
-      />
-
-      <WholeNumberField
-        name="minStartersToStart"
-        label="Min skaters to start"
-        hint="Required to start a game."
-        value={division.gameRules.minStartersToStart}
-        defaultValue={DEFAULT_DIVISION_GAME_RULES.minStartersToStart}
-        onCommit={(minStartersToStart) =>
-          onPatch({ gameRules: { ...division.gameRules, minStartersToStart } })
-        }
-      />
+</div>
+    </details>
     </div>
   );
 }
@@ -404,7 +370,17 @@ function GameRulesBlock({
       <p className="text-[13px] font-semibold tracking-tight text-fg">
         Game rules
       </p>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2">
+      <WholeNumberField
+        name="minStartersToStart"
+        label="Min skaters to start"
+        hint="Required to start a game."
+        value={division.gameRules.minStartersToStart}
+        defaultValue={DEFAULT_DIVISION_GAME_RULES.minStartersToStart}
+        onCommit={(minStartersToStart) =>
+          onPatch({ gameRules: { ...division.gameRules, minStartersToStart } })
+        }
+      />
         <WholeNumberField
           name="numberOfPeriods"
           label="Number of periods"

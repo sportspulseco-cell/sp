@@ -69,11 +69,12 @@ export function AppShell({
           />
           {banner}
           <div role="status" className="border-b border-border bg-surface-1 px-4 py-2 text-xs text-fg-muted sm:px-6 lg:px-10">
-            Payment testing mode. Card payments and refunds are simulated; no money is charged or returned.
+            <span className="sm:hidden">Test mode · no real charges or refunds</span>
+            <span className="hidden sm:inline">Payment testing mode. Card payments and refunds are simulated; no money is charged or returned.</span>
           </div>
           {/* pb-24 keeps the last row (form submit bars) clear of fixed
               floating buttons such as the admin command palette. */}
-          <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 sm:pt-8 lg:px-10 lg:pt-10">
+          <main className="flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pt-8 lg:px-10 lg:pt-10">
             <div className="mx-auto max-w-container">{children}</div>
           </main>
         </div>

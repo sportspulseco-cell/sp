@@ -8,6 +8,7 @@ import { AppShell, type ShellNavSection } from "@sportspulse/ui";
 import { createClient } from "@/lib/supabase/client";
 import { leagueMgmt, orgs, registration } from "@/lib/api/browser-api";
 import { HOME, ROUTES, navFor } from "./nav-config";
+import { CommandPaletteTrigger } from "@/components/ui/command-palette";
 
 const BRAND = { name: "SportsPulse", console: "Platform admin", icon: Gauge };
 const OFFICIAL_HOME = { href: "/games", label: "My games" };
@@ -63,6 +64,7 @@ export function ConsoleShell({
       home={officialMode ? OFFICIAL_HOME : HOME}
       siteMapHref="/site-map"
       hideSidebar={officialMode}
+      actions={officialMode ? undefined : <CommandPaletteTrigger />}
       user={{
         email,
         displayName,

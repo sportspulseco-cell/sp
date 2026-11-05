@@ -2,7 +2,7 @@
 import styles from "../setup-workspace.module.css";
 import type { SeasonDraft,SeasonPanel } from "../types";
 import { Field } from "./league-step";
-import { Input,cn } from "@sportspulse/ui";
+import { Input,Select,cn } from "@sportspulse/ui";
 import { calendarDateInZone } from "@sportspulse/kernel";
 const PANELS:SeasonPanel[]=['season','registration','options'];
 const LABELS:Record<SeasonPanel,string>={season:'Season dates',registration:'Registration dates',options:'Playoffs & rosters'};
@@ -16,7 +16,8 @@ export function SeasonStep({draft,leagueName,onChange,timezone,panel,onPanelChan
   <Input type="date" value={draft[key]} onChange={e=>onChange({[key]:e.target.value})} min={opts.min} max={opts.max} required={opts.required}/>
  </Field>;
  return <div className="space-y-5">
-  <nav aria-label="Date questions" className="flex flex-wrap gap-2">
+  <Select className={styles.mobileDateQuestions} aria-label="Date questions" value={panel} onChange={e=>onPanelChange(e.target.value as SeasonPanel)}>{PANELS.map((p,i)=><option key={p} value={p} disabled={i>PANELS.indexOf(panel)}>{LABELS[p]} · {i+1} of 3</option>)}</Select>
+  <nav aria-label="Date questions" className={styles.desktopDateQuestions+" flex flex-wrap gap-2"}>
    {PANELS.map((p,i)=><button key={p} type="button" aria-current={panel===p?'step':undefined}
     disabled={i>PANELS.indexOf(panel)} onClick={()=>onPanelChange(p)}
     className={cn('rounded-md border px-3 py-2 text-[13px] focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default',panel===p?'border-accent bg-accent/5 font-medium text-fg':'border-border text-fg-muted enabled:hover:bg-surface-2')}>{LABELS[p]}</button>)}
