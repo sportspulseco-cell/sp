@@ -39,28 +39,16 @@ export default async function GenerateSchedulePage({
   }
   const season = seasonResult.data;
 
-  const divisionsPage = await fetchAll((cursor) => leagueMgmt
-    .listDivisions({ seasonId: season.id, limit: 100, cursor }))
-    .catch(() => ({ items: [] as { id: string; name: string }[] }));
-
-  // Team names per division, so results show names instead of ids.
-  const teamPages = await Promise.all(
-    divisionsPage.items.map((d) =>
-      fetchAll((cursor) => leagueMgmt
-        .listTeams({ divisionId: d.id, limit: 100, cursor }))
-        .catch(() => ({ items: [] as { id: string; name: string }[] }))
-    )
-  );
-  const teamNames = Object.fromEntries(
-    teamPages.flatMap((p) => p.items.map((t) => [t.id, t.name] as const))
-  );
+  const divisionsResult = await load(fetchAll(cursor => leagueMgmt.listDivisions({ seasonId: season.id, limit: 100, cursor })));
+  if (!divisionsResult.ok) return <LoadError what="this season's divisions" status={divisionsResult.status} message={divisionsResult.message} />;
+  const divisionsPage = divisionsResult.data;
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="schedule"
         title={`Generate · ${season.name}`}
-        description={`Pick a division and run the CP-SAT solver. Only draft games are replaced; published, playoff and locked games stay. Blackout dates are left out.`}
+        description={`Create a draft for this division. Published games stay in place. Review the result before publishing.`}
         action={
           <Link
             href={`/seasons/${season.id}`}
@@ -71,13 +59,12 @@ export default async function GenerateSchedulePage({
         }
       />
       <GenerateForm
+        key={season.id}
         seasonId={season.id}
         orgId={season.orgId}
         seasonName={season.name}
         divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
-        teamNames={teamNames}
         timezone={season.timezone ?? "UTC"}
-        divisionTeamIds={Object.fromEntries(divisionsPage.items.map((d,i)=>[d.id,teamPages[i]!.items.map(t=>t.id)]))}
       />
     </div>
   );

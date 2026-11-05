@@ -11,6 +11,8 @@ export interface EmailMessage {
   from?: string;
   /** Caller-supplied tag for telemetry — appears in the structured log line. */
   channel?: string;
+  /** Stable outbox identity; also links signed delivery callbacks. */
+  notificationId?: string;
 }
 
 export interface DispatchResult {
@@ -20,6 +22,7 @@ export interface DispatchResult {
   providerMessageId: string | null;
   /** Why we didn't deliver (env-not-set, dev-domain-rejected, etc). */
   reason?: string;
+  failure?: "permanent" | "transient" | "suppressed";
 }
 
 /**
@@ -63,6 +66,10 @@ export class EmailDispatcherService {
     return !!this.config.get<string>("RESEND_API_KEY");
   }
 
+  environment(): string {
+    return this.config.get<string>("NOTIFICATION_ENVIRONMENT") ?? (this.config.get<string>("NODE_ENV") === "production" ? "production" : "development");
+  }
+
   private getFrom(override?: string): string {
     return (
       override ??
@@ -76,11 +83,16 @@ export class EmailDispatcherService {
     const from = this.getFrom(msg.from);
     const channel = msg.channel ?? "default";
 
+    if (this.environment() === "staging") {
+      const allowed = (this.config.get<string>("NOTIFICATION_EMAIL_ALLOWLIST") ?? "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
+      if (!allowed.includes(msg.to.trim().toLowerCase())) return { delivered: false, providerMessageId: null,
+        reason: "Staging email recipient is not on the test allowlist", failure: "suppressed" };
+    }
+
     if (!client) {
       this.log.warn(
         `[email:${channel}] log-only (RESEND_API_KEY unset). to=${msg.to} subject="${msg.subject}"`
       );
-      this.log.debug(`[email:${channel}] body:\n${msg.body}`);
       return {
         delivered: false,
         providerMessageId: null,
@@ -92,10 +104,12 @@ export class EmailDispatcherService {
       const { data, error } = await client.emails.send({
         from,
         to: msg.to,
-        subject: msg.subject,
+        subject: this.environment() === "staging" ? `[SportsPulse staging test] ${msg.subject}` : msg.subject,
         text: msg.body,
-        html: bodyToHtml(msg.body)
-      });
+        html: bodyToHtml(msg.body),
+        ...(msg.notificationId ? { tags: [{ name: "sportspulse_notification_id", value: msg.notificationId },
+          { name: "sportspulse_environment", value: this.environment() }] } : {})
+      }, msg.notificationId ? { idempotencyKey: `sportspulse/${msg.notificationId}` } : undefined);
       if (error) {
         this.log.warn(
           `[email:${channel}] resend rejected to=${msg.to}: ${error.message}`
@@ -103,13 +117,13 @@ export class EmailDispatcherService {
         return {
           delivered: false,
           providerMessageId: null,
-          reason: error.message
+          reason: error.message,
+          failure: error.statusCode === 429 || (error.statusCode ?? 500) >= 500 ? "transient" : "permanent"
         };
       }
-      this.log.log(
-        `[email:${channel}] delivered to=${msg.to} id=${data?.id ?? "?"}`
-      );
-      return { delivered: true, providerMessageId: data?.id ?? null };
+      if (!data?.id) return { delivered: false, providerMessageId: null, reason: "Provider returned no message ID", failure: "transient" };
+      this.log.log(`[email:${channel}] accepted id=${data.id}`);
+      return { delivered: true, providerMessageId: data.id };
     } catch (e) {
       this.log.error(
         `[email:${channel}] dispatch threw to=${msg.to}: ${(e as Error).message}`
@@ -117,7 +131,8 @@ export class EmailDispatcherService {
       return {
         delivered: false,
         providerMessageId: null,
-        reason: (e as Error).message
+        reason: (e as Error).message,
+        failure: "transient"
       };
     }
   }

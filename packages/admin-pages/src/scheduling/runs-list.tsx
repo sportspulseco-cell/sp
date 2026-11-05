@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle, CheckCircle2, Clock, History, Loader2, Pause, XCircle
 } from "lucide-react";
@@ -56,18 +56,20 @@ export function SchedulingRunsList({ seasonId }: Props) {
   const [runs, setRuns] = useState<ScheduleRunListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const requestVersion = useRef(0);
 
   async function load() {
+    const version = ++requestVersion.current;
     setLoading(true); setError(null);
     try {
       const res = await scheduler.listRuns({ seasonId, limit: 100 });
-      setRuns(res.runs);
+      if (version === requestVersion.current) setRuns(res.runs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally { setLoading(false); }
+      if (version === requestVersion.current) setError(err instanceof Error ? err.message : String(err));
+    } finally { if (version === requestVersion.current) setLoading(false); }
   }
 
-  useEffect(() => { void load(); }, [seasonId]);
+  useEffect(() => { setRuns([]); setExpanded(null); void load(); return () => { ++requestVersion.current; }; }, [seasonId]);
 
   if (loading && runs.length === 0) {
     return (
@@ -106,7 +108,7 @@ export function SchedulingRunsList({ seasonId }: Props) {
         <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
           {runs.length} run{runs.length === 1 ? "" : "s"}
         </span>
-        <Button variant="secondary" onClick={load}>
+        <Button variant="secondary" onClick={load} disabled={loading}>
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
           ) : (

@@ -10,9 +10,11 @@ export function FlushQueuedButton({ count }: { count: number }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState("");
   return (
-    <span className="inline-flex items-center gap-3">
-      {result && <span className="text-[12px] text-fg-muted">{result}</span>}
+    <span className="inline-flex flex-wrap items-center gap-3">
+      {result && <span role="status" className="text-[12px] text-fg-muted">{result}</span>}
+      {error && <span role="alert" className="max-w-xs text-xs text-fg-muted">{error}</span>}
       <Button
         size="sm"
         variant="outline"
@@ -20,17 +22,18 @@ export function FlushQueuedButton({ count }: { count: number }) {
         title="Sends queued notices from the last 24 hours. Older ones are never sent late."
         onClick={() => {
           start(async () => {
+            setError(""); setResult(null);
             try {
               const r = await communications.flushQueued();
               setResult(
-                `Sent ${r.sent}, failed ${r.failed}.` +
+                `Processed ${r.sent}, failed ${r.failed}, not sent ${r.suppressed}.` +
                   (r.skippedStale
                     ? ` ${r.skippedStale} older than 24 hours were not sent.`
                     : "")
               );
               router.refresh();
             } catch (err) {
-              alert((err as Error).message);
+              setError((err as Error).message);
             }
           });
         }}
@@ -40,7 +43,7 @@ export function FlushQueuedButton({ count }: { count: number }) {
         ) : (
           <Send className="mr-2 h-3.5 w-3.5" />
         )}
-        Flush {count > 0 ? `(${count})` : ""} queued
+        {count > 20 ? "Send next 20" : `Send queued${count > 0 ? ` (${count})` : ""}`}
       </Button>
     </span>
   );
@@ -49,17 +52,19 @@ export function FlushQueuedButton({ count }: { count: number }) {
 export function RetryNotificationButton({ id }: { id: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [error, setError] = useState("");
   return (
-    <Button
+    <span className="inline-flex flex-wrap justify-end gap-2"><Button
       type="button"
       disabled={pending}
       onClick={() => {
         start(async () => {
+          setError("");
           try {
             await communications.retry(id);
             router.refresh();
           } catch (err) {
-            alert((err as Error).message);
+            setError((err as Error).message);
           }
         });
       }}
@@ -67,7 +72,7 @@ export function RetryNotificationButton({ id }: { id: string }) {
       size="sm"
       className="gap-1.5"
     >
-      {pending ? "..." : "Retry"}
-    </Button>
+      {pending ? "Retrying…" : "Retry"}
+    </Button>{error ? <span role="alert" className="max-w-xs text-xs text-fg-muted">{error}</span> : null}</span>
   );
 }

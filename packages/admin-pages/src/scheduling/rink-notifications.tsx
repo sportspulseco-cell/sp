@@ -133,7 +133,7 @@ export function SchedulingRinkNotifications({ seasonId }: Props) {
           <EmptyState
             icon={ZapOff}
             title="No rink integrations configured"
-            description="No active rink_integrations rows for any venue used by this season. Insert one to start delivering notifications when a schedule publishes."
+            description="Ask your organization administrator to connect a rink integration before sending schedule updates to a venue."
           />
         ) : (
           <Table>

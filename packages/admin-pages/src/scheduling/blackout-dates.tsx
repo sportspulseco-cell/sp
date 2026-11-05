@@ -32,29 +32,42 @@ function fmtDay(d: string) {
  * Blackout dates (FR-3.8.4): days the generator leaves out, for every
  * rink or one rink. Saved on the server; every later Generate honours them.
  */
-export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: boolean }) {
+export function BlackoutDates({ api, disabled, onReadyChange, onRinksLoaded }: { api: BlackoutApi; disabled?: boolean; onReadyChange?: (ready: boolean) => void;
+  onRinksLoaded?: (rows: Awaited<ReturnType<BlackoutApi["rinks"]>>) => void }) {
   const [rows, setRows] = useState<BlackoutRow[] | null>(null);
   const [rinks, setRinks] = useState<Array<{ id: string; label: string }>>([]);
   const [form, setForm] = useState({ startDate: "", endDate: "", surfaceId: "", reason: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null), [rinksError, setRinksError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true), [rinksLoading, setRinksLoading] = useState(true);
+  const blocked = !!(busy || disabled || loading || rinksLoading || loadError || rinksError);
+  useEffect(() => { onReadyChange?.(!busy && !loading && !rinksLoading && !loadError && !rinksError); },
+    [busy, loading, rinksLoading, loadError, rinksError, onReadyChange]);
 
   async function reload() {
+    setLoading(true); setLoadError(null);
     try {
       setRows(await api.list());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setRows([]);
-    }
+      setLoadError(e instanceof Error ? e.message : String(e));
+    } finally { setLoading(false); }
+  }
+  async function reloadRinks() {
+    setRinksLoading(true); setRinksError(null);
+    try { const rows = await api.rinks(); setRinks(rows); onRinksLoaded?.(rows); }
+    catch (error) { setRinksError(error instanceof Error ? error.message : "Could not load rink choices."); }
+    finally { setRinksLoading(false); }
   }
   useEffect(() => {
     void reload();
-    api.rinks().then(setRinks).catch(() => setRinks([]));
+    void reloadRinks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onAdd(e: FormEvent) {
     e.preventDefault();
+    if (blocked) return;
     setError(null);
     setBusy(true);
     try {
@@ -98,13 +111,13 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
         </div>
       </div>
 
-      {rows === null ? (
+      {loadError ? <div role="alert" className="text-sm text-fg-muted">Could not load blackout dates: {loadError} <Button type="button" variant="outline" size="sm" onClick={() => void reload()}>Retry blackout dates</Button></div> : loading ? (
         <div role="status" aria-label="Loading blackout dates" className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
-      ) : rows.length === 0 ? (
+      ) : rows?.length === 0 ? (
         <EmptyState icon={CalendarOff} eyebrow="blackouts" title="No blackout dates yet" description="Add a date above and the scheduler keeps games off it." />
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border" aria-label="Blackout dates">
-          {rows.map((b) => (
+          {(rows ?? []).map((b) => (
             <li key={b.id} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
               <span className="font-medium text-fg">
                 {fmtDay(b.startDate)}
@@ -115,7 +128,7 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
               <Button
                 type="button"
                 onClick={() => onRemove(b.id)}
-                disabled={busy || disabled}
+                disabled={blocked}
                 variant="ghost" size="sm" className="ml-auto gap-1 text-fg-muted"
                 aria-label={`Remove blackout ${b.startDate}`}
               >
@@ -126,17 +139,19 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
         </ul>
       )}
 
+      {rinksError ? <div role="alert" className="text-sm text-fg-muted">Could not load rink choices: {rinksError} <Button type="button" variant="outline" size="sm" onClick={() => void reloadRinks()}>Retry rinks</Button></div> : rinksLoading ? <p role="status" className="text-sm text-fg-muted">Loading rink choices…</p> : null}
+
       <form onSubmit={onAdd} className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_1fr_1.4fr_auto] sm:items-end">
         <Field label="First day">
-          <Input type="date" required value={form.startDate} disabled={busy || disabled}
+          <Input type="date" required value={form.startDate} disabled={blocked}
             onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
         </Field>
         <Field label="Last day" hint="Optional">
-          <Input type="date" min={form.startDate || undefined} value={form.endDate} disabled={busy || disabled}
+          <Input type="date" min={form.startDate || undefined} value={form.endDate} disabled={blocked}
             onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
         </Field>
         <Field label="Rink">
-          <Select value={form.surfaceId} disabled={busy || disabled}
+          <Select value={form.surfaceId} disabled={blocked}
             onChange={(e) => setForm({ ...form, surfaceId: e.target.value })}>
             <option value="">All rinks</option>
             {rinks.map((r) => (
@@ -145,10 +160,10 @@ export function BlackoutDates({ api, disabled }: { api: BlackoutApi; disabled?: 
           </Select>
         </Field>
         <Field label="Reason" hint="Optional">
-          <Input value={form.reason} maxLength={200} disabled={busy || disabled} placeholder="Holiday, rink event"
+          <Input value={form.reason} maxLength={200} disabled={blocked} placeholder="Holiday, rink event"
             onChange={(e) => setForm({ ...form, reason: e.target.value })} />
         </Field>
-        <Button type="submit" disabled={busy || disabled || !form.startDate}>
+        <Button type="submit" disabled={blocked || !form.startDate}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <Plus className="h-4 w-4" strokeWidth={1.75} />}
           Add blackout
         </Button>

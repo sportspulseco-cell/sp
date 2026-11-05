@@ -1,9 +1,9 @@
 import { MessageSquare, Send, AlertCircle, Inbox } from "lucide-react";
 import Link from "next/link";
-import { fetchAll, load } from "@sportspulse/api-client";
+import { load } from "@sportspulse/api-client";
 import { ChannelStatusNotice } from "@sportspulse/admin-pages";
 import { LoadError, LocalDate, Eyebrow, EmptyState, IconTile, type Tint, StatNumber, PageHeader, TBody, TD, TH, THead, TR, Table } from "@sportspulse/ui";
-import { communications, iam } from "@/lib/api/server-api";
+import { communications } from "@/lib/api/server-api";
 import { KineticStrip } from "@/components/layout/kinetic-strip";
 import { NotificationStatusBadge } from "@/components/communications/notification-status-badge";
 import { FlushQueuedButton, RetryNotificationButton } from "@/components/communications/flush-queued-button";
@@ -42,23 +42,15 @@ function tintForStatus(s: NotificationStatus): Tint {
 export default async function CommunicationsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ status?: NotificationStatus }>;
+  searchParams?: Promise<{ status?: NotificationStatus; cursor?: string }>;
 }) {
   const sp = await searchParams;
   const status = sp?.status;
 
-  // We pull a wide page so the KPI counts are accurate across statuses on the
-  // overview row. With our outbox volumes that's fine; later we'd add a
-  // dedicated /counts endpoint.
-  const [filteredResult, allPage, personsPage] = await Promise.all([
-    load(communications.listNotifications({ status, limit: 100 })),
-    status
-      ? communications
-          .listNotifications({ limit: 200 })
-          .catch(() => ({ items: [], nextCursor: null }))
-      : Promise.resolve(null),
-    fetchAll((cursor) => iam.listPersons({ limit: 100, cursor }))
-      .catch(() => ({ items: [], nextCursor: null }))
+  const [filteredResult, summaryResult, channelStatus] = await Promise.all([
+    load(communications.listNotifications({ status, cursor: sp?.cursor, limit: 50 })),
+    load(communications.notificationSummary()),
+    communications.channelStatus().catch(() => null)
   ]);
   if (!filteredResult.ok) {
     console.error("[communications] listNotifications failed", filteredResult.status, filteredResult.message);
@@ -66,21 +58,7 @@ export default async function CommunicationsPage({
   const filteredPage = filteredResult.ok
     ? filteredResult.data
     : { items: [], nextCursor: null };
-  const personMap = new Map(
-    personsPage.items.map((p) => [
-      p.id,
-      p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`
-    ])
-  );
-
-  const channelStatus = await communications.channelStatus().catch(() => null);
-  const allItems = (allPage ?? filteredPage).items;
-  const counts = {
-    queued: allItems.filter((n) => n.status === "queued").length,
-    sending: allItems.filter((n) => n.status === "sending").length,
-    sent: allItems.filter((n) => n.status === "sent").length,
-    failed: allItems.filter((n) => n.status === "failed").length
-  };
+  const counts = summaryResult.ok ? summaryResult.data : { queued: 0, sending: 0, sent: 0, failed: 0, suppressed: 0 };
 
   return (
     <div className="space-y-8">
@@ -110,7 +88,7 @@ export default async function CommunicationsPage({
 
       <ChannelStatusNotice status={channelStatus} />
 
-      <KineticStrip
+      {summaryResult.ok ? <KineticStrip
         cards={[
           {
             label: "Queued",
@@ -125,7 +103,7 @@ export default async function CommunicationsPage({
             tone: counts.sending > 0 ? "live" : "idle"
           },
           {
-            label: "Sent",
+            label: "Processed",
             value: counts.sent,
             icon: <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.75} />,
             tone: "ok"
@@ -137,7 +115,7 @@ export default async function CommunicationsPage({
             tone: counts.failed > 0 ? "live" : "idle"
           }
         ]}
-      />
+      /> : <LoadError what="notification totals" status={summaryResult.status} message={summaryResult.message} />}
 
       {/* Status filter strip */}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -201,16 +179,14 @@ export default async function CommunicationsPage({
                   </span>
                 </TD>
                 <TD className="text-[12px] text-fg-muted">
-                  {n.recipientPersonId
-                    ? (personMap.get(n.recipientPersonId) ?? "Unknown person")
-                    : (n.recipientEmail ?? "—")}
+                  {n.recipientName ?? n.recipientEmail ?? "Recipient unavailable"}
                 </TD>
                 <TD className="max-w-md truncate text-fg">
                   {n.subject ?? <span className="text-fg-muted">—</span>}
                 </TD>
                 <TD className="text-fg-muted">{n.channel}</TD>
                 <TD>
-                  <NotificationStatusBadge status={n.status} />
+                  <NotificationStatusBadge status={n.status} channel={n.channel} deliveryStatus={n.deliveryStatus} />
                   {n.lastError ? (
                     <p className="mt-1 max-w-[280px] truncate font-mono text-[10px] text-rose-600 dark:text-rose-400">
                       {n.lastError}
@@ -219,15 +195,15 @@ export default async function CommunicationsPage({
                 </TD>
                 <TD className="text-right">
                   <span className="block font-mono text-[11px] tabular-nums text-fg">
-                    {n.sentAt ? fmt(n.sentAt) : fmt(n.createdAt)}
+                    {fmt(n.deliveryUpdatedAt ?? n.sentAt ?? n.createdAt)}
                   </span>
                   <span className="block font-mono text-[10px] uppercase tracking-wide text-fg-muted">
-                    {n.sentAt ? "sent" : "queued"}
+                    {n.deliveryUpdatedAt ? "delivery update" : n.sentAt ? "processed" : n.status}
                     {n.attemptCount > 0 ? ` · ${n.attemptCount}x` : ""}
                   </span>
                 </TD>
                 <TD className="text-right">
-                  {n.status === "queued" || n.status === "failed" ? (
+                  {(n.status === "queued" || n.status === "failed") && n.attemptCount < 3 && Date.parse(n.createdAt) > Date.now() - 86400000 ? (
                     <RetryNotificationButton id={n.id} />
                   ) : null}
                 </TD>
@@ -236,6 +212,7 @@ export default async function CommunicationsPage({
           </TBody>
         </Table>
       )}
+      {filteredPage.nextCursor ? <Link className="inline-flex rounded-md border border-border px-4 py-2 text-sm" href={`/communications?${new URLSearchParams({ ...(status ? { status } : {}), cursor: filteredPage.nextCursor })}`}>Older notifications</Link> : null}
     </div>
   );
 }

@@ -74,6 +74,12 @@ import { gameTimeLabel } from "../../game-operations/application/games/game-noti
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+class RinkOptionsQuery {
+  @IsUUID() orgId!: string;
+  @IsOptional() @IsUUID() cursor?: string;
+  @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(100) limit = 100;
+}
+
 /** Blackout dates for the schedule generator (FR-3.8.4). */
 class CreateBlackoutDto {
   @Matches(DAY) startDate!: string;
@@ -218,6 +224,20 @@ function isUniqueViolation(e: unknown): boolean {
 @UseGuards(JwtAuthGuard)
 export class SchedulingInventoryController {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  @Get("rink-options")
+  async rinkOptions(@CurrentUser() user: AuthPrincipal, @Query() query: RinkOptionsQuery) {
+    if (!(await this.canReadOrg(user, query.orgId))) throw new NotFoundException("Org not found");
+    const rows = await this.db.select({ id: schema.surfaces.id, venueId: schema.venues.id,
+      venueName: schema.venues.name, surfaceName: schema.surfaces.label }).from(schema.surfaces)
+      .innerJoin(schema.venues, eq(schema.venues.id, schema.surfaces.venueId))
+      .where(and(eq(schema.venues.orgId, query.orgId), isNull(schema.venues.deletedAt), isNull(schema.surfaces.deletedAt),
+        query.cursor ? sql`${schema.surfaces.id}>${query.cursor}::uuid` : undefined))
+      .orderBy(asc(schema.surfaces.id)).limit(query.limit + 1);
+    const items = rows.slice(0, query.limit);
+    return { items: items.map(row => ({ id: row.id, venueId: row.venueId, venueName: row.venueName,
+      label: `${row.venueName} · ${row.surfaceName}` })), nextCursor: rows.length > query.limit ? items[items.length - 1]!.id : null };
+  }
 
   // ---------------------------------------------------------------
   //  Venues

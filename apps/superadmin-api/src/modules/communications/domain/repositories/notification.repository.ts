@@ -29,6 +29,13 @@ export interface NotificationRow {
   sourceEvent: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Worker fencing fields are never exposed through the public DTO. */
+  deliveryClaimId?: string | null;
+  deliveryClaimExpiresAt?: Date | null;
+  providerMessageId?: string | null;
+  deliveryStatus?: string | null;
+  deliveryUpdatedAt?: Date | null;
+  recipientName?: string | null;
 }
 
 export interface QueueNotificationInput {
@@ -57,6 +64,9 @@ export interface ListNotificationsQuery extends PageQuery {
 }
 
 export interface NotificationRepository {
+  claimForDelivery(id: string): Promise<NotificationRow | null>;
+  finishDelivery(id: string, claimId: string, status: NotificationStatus,
+    fields?: { lastError?: string | null; sentAt?: Date | null; providerMessageId?: string | null; permanent?: boolean }): Promise<NotificationRow | null>;
   /** Idempotent — returns existing row if idempotencyKey already used. */
   enqueue(input: QueueNotificationInput): Promise<NotificationRow>;
   list(q: ListNotificationsQuery): Promise<Page<NotificationRow>>;

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -37,8 +37,10 @@ function recentQueued(db: Database, limit: number, minAgeMinutes: number) {
     .from(schema.notifications)
     .where(
       and(
-        eq(schema.notifications.status, "queued"),
+        or(eq(schema.notifications.status, "queued"),
+          and(eq(schema.notifications.status, "sending"), sql`${schema.notifications.deliveryClaimExpiresAt}<=now()`, lt(schema.notifications.attemptCount, 3))),
         inArray(schema.notifications.channel, ["email", "in_app", "sms", "push"]),
+        lt(schema.notifications.attemptCount, 3),
         sql`${schema.notifications.createdAt} > now() - interval '24 hours'`,
         sql`${schema.notifications.createdAt} < now() - make_interval(mins => ${minAgeMinutes}::int)`
       )
@@ -95,21 +97,23 @@ export class FlushQueuedHandler {
    * Send what is queued from the last 24 hours. Older rows are counted
    * as `skippedStale` and left queued: months-old notices never go out.
    */
-  async execute(): Promise<{ sent: number; failed: number; skippedStale: number }> {
-    const rows = await recentQueued(this.db, 100, 0);
+  async execute(): Promise<{ sent: number; failed: number; suppressed: number; skippedStale: number }> {
+    const rows = await recentQueued(this.db, 20, 0);
     const skippedStale = await staleQueuedCount(this.db);
     let sent = 0;
     let failed = 0;
+    let suppressed = 0;
     for (const row of rows) {
       await this.service.dispatch(row);
       const after = await this.repo.findById(row.id);
       if (after?.status === "sent") sent++;
+      else if (after?.status === "suppressed") suppressed++;
       else failed++;
     }
     this.log.log(
       `flush queued: picked=${rows.length} sent=${sent} failed=${failed} skippedStale=${skippedStale}`
     );
-    return { sent, failed, skippedStale };
+    return { sent, failed, suppressed, skippedStale };
   }
 }
 
@@ -145,6 +149,14 @@ export class RetryFailedHandler {
     queuedPicked: number;
     queuedSent: number;
   }> {
+    // Do not cross the provider's idempotency window or abandon an expired
+    // third claim forever. Bound maintenance to avoid a large-table update.
+    await this.db.execute(sql`UPDATE notifications SET status=CASE WHEN created_at<=now()-interval '24 hours' THEN 'suppressed' ELSE 'failed' END,
+      last_error=CASE WHEN created_at<=now()-interval '24 hours' THEN 'Notification expired before delivery' ELSE 'Delivery worker stopped after its final attempt' END,
+      delivery_claim_id=NULL,delivery_claim_expires_at=NULL,updated_at=now()
+      WHERE id IN (SELECT id FROM notifications WHERE
+        (status IN ('queued','sending','failed') AND created_at<=now()-interval '24 hours') OR
+        (status='sending' AND delivery_claim_expires_at<=now() AND attempt_count>=3) ORDER BY created_at LIMIT 100)`);
     // Fetch failed candidates respecting the per-attempt backoff
     // window. updated_at is bumped by markStatus, so it tracks the
     // most recent attempt. Backoff schedule comes from BACKOFF_SECONDS.
@@ -155,6 +167,7 @@ export class RetryFailedHandler {
         and(
           eq(schema.notifications.status, "failed"),
           lt(schema.notifications.attemptCount, 3),
+          sql`${schema.notifications.createdAt}>now()-interval '24 hours'`,
           sql`CASE ${schema.notifications.attemptCount}
                 WHEN 1 THEN ${schema.notifications.updatedAt} < now() - interval '5 minutes'
                 WHEN 2 THEN ${schema.notifications.updatedAt} < now() - interval '30 minutes'
@@ -162,7 +175,8 @@ export class RetryFailedHandler {
               END`
         )
       )
-      .limit(50)) as unknown as NotificationRow[];
+      .orderBy(asc(schema.notifications.updatedAt))
+      .limit(10)) as unknown as NotificationRow[];
 
     let sent = 0;
     let stillFailed = 0;
@@ -182,7 +196,7 @@ export class RetryFailedHandler {
     // Then the queued rows nobody sent (see recentQueued). The 2-minute
     // floor leaves a fresh row to the API's inline send. A row that fails
     // here becomes `failed` and joins the retry schedule above.
-    const queued = await recentQueued(this.db, 50, 2);
+    const queued = await recentQueued(this.db, 20 - rows.length, 2);
     let queuedSent = 0;
     for (const row of queued) {
       try {

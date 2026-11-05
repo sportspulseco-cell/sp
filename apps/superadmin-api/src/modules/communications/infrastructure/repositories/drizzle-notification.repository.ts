@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { and, desc, eq, gt, inArray, isNull, not, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -19,6 +20,25 @@ export class DrizzleNotificationRepository
   implements NotificationRepository
 {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  async claimForDelivery(id: string): Promise<NotificationRow | null> {
+    const [row] = await this.db.update(schema.notifications).set({ status: "sending", deliveryClaimId: randomUUID(),
+      deliveryClaimExpiresAt: sql`now()+interval '5 minutes'`, attemptCount: sql`attempt_count+1`, updatedAt: sql`now()` })
+      .where(sql`id=${id}::uuid AND created_at>now()-interval '24 hours' AND attempt_count<3 AND
+        (status IN ('queued','failed') OR (status='sending' AND delivery_claim_expires_at<=now()))`).returning();
+    return row ? this.toRow(row) : null;
+  }
+
+  async finishDelivery(id: string, claimId: string, status: NotificationStatus,
+    fields: { lastError?: string | null; sentAt?: Date | null; providerMessageId?: string | null; permanent?: boolean } = {}): Promise<NotificationRow | null> {
+    const [row] = await this.db.update(schema.notifications).set({ status, lastError: fields.lastError ?? null,
+      sentAt: fields.sentAt ?? null, deliveryClaimId: null, deliveryClaimExpiresAt: null,
+      ...(fields.providerMessageId ? { providerMessageId: fields.providerMessageId,
+        deliveryStatus: sql`coalesce(delivery_status,'accepted')`, deliveryUpdatedAt: sql`coalesce(delivery_updated_at,now())` } : {}),
+      ...(fields.permanent ? { attemptCount: sql`greatest(attempt_count,3)` } : {}), updatedAt: sql`now()` })
+      .where(and(eq(schema.notifications.id, id), eq(schema.notifications.status, "sending"), eq(schema.notifications.deliveryClaimId, claimId))).returning();
+    return row ? this.toRow(row) : null;
+  }
 
   async enqueue(input: QueueNotificationInput): Promise<NotificationRow> {
     // Idempotent insert — onConflictDoNothing on idempotency_key, then read back.
@@ -70,6 +90,14 @@ export class DrizzleNotificationRepository
     const items = (hasMore ? rows.slice(0, q.limit) : rows).map((r) =>
       this.toRow(r)
     );
+    const personIds = [...new Set(items.flatMap(row => row.recipientPersonId ? [row.recipientPersonId] : []))];
+    if (personIds.length) {
+      const people = await this.db.select({ id: schema.persons.id, first: schema.persons.legalFirstName,
+        last: schema.persons.legalLastName, preferred: schema.persons.preferredName }).from(schema.persons)
+        .where(inArray(schema.persons.id, personIds));
+      const names = new Map(people.map(person => [person.id, person.preferred?.trim() || `${person.first} ${person.last}`.trim()]));
+      for (const item of items) item.recipientName = item.recipientPersonId ? names.get(item.recipientPersonId) ?? null : null;
+    }
     const last = rows[q.limit - 1];
     const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
     return { items, nextCursor };
@@ -195,7 +223,9 @@ export class DrizzleNotificationRepository
       readAt: r.readAt,
       sourceEvent: r.sourceEvent,
       createdAt: r.createdAt,
-      updatedAt: r.updatedAt
+      updatedAt: r.updatedAt,
+      deliveryClaimId: r.deliveryClaimId, deliveryClaimExpiresAt: r.deliveryClaimExpiresAt,
+      providerMessageId: r.providerMessageId, deliveryStatus: r.deliveryStatus, deliveryUpdatedAt: r.deliveryUpdatedAt
     };
   }
 }

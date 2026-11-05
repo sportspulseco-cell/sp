@@ -20,6 +20,10 @@ export class NotificationDto {
   @ApiPropertyOptional({ nullable: true }) sourceEvent!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+  @ApiPropertyOptional({ nullable: true }) providerMessageId!: string | null;
+  @ApiPropertyOptional({ nullable: true }) recipientName!: string | null;
+  @ApiPropertyOptional({ nullable: true }) deliveryStatus!: string | null;
+  @ApiPropertyOptional({ nullable: true }) deliveryUpdatedAt!: string | null;
 
   static fromRow(r: NotificationRow): NotificationDto {
     return {
@@ -40,7 +44,11 @@ export class NotificationDto {
       readAt: r.readAt?.toISOString() ?? null,
       sourceEvent: r.sourceEvent,
       createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString()
+      updatedAt: r.updatedAt.toISOString(),
+      providerMessageId: r.providerMessageId ?? null,
+      recipientName: r.recipientName ?? null,
+      deliveryStatus: r.deliveryStatus ?? null,
+      deliveryUpdatedAt: r.deliveryUpdatedAt?.toISOString() ?? null
     };
   }
 }

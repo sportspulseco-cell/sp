@@ -358,7 +358,8 @@ export class RegionalSubstitutesService {
       await this.notify.queueAudienceBatch({ orgId: game.orgId, templateCode: "org.broadcast", eventKey: `sub-broadcast-accepted:${id}:${personId}`,
         sourceEvent: "substitute.broadcast.accepted", recipients: captains, payload: {
           subject: "Your substitute is confirmed", body: `${[person?.first, person?.last].filter(Boolean).join(" ")} accepted and is on your guest lineup for ${formatInZone(game.start, game.tz)}.`,
-          gameId: game.id, broadcastId: id, teamId: row.teamId, seasonId: game.seasonId } }, tx);
+          gameId: game.id, broadcastId: id, teamId: row.teamId, seasonId: game.seasonId,
+          acceptedPersonId: personId, scheduledStartTsUtc: game.start.toISOString() } }, tx);
       return { response: "accepted", broadcast: await this.view(updated!, game, tx, false) };
     });
   }

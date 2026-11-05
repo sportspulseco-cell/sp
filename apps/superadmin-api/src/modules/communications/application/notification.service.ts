@@ -1,5 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { and, eq, sql } from "drizzle-orm";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { waitUntil } from "@vercel/functions";
+import { trackNotification } from "./notification-work";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -77,6 +80,7 @@ export interface QueueArgs {
 @Injectable()
 export class NotificationService {
   private readonly log = new Logger(NotificationService.name);
+  private readonly delivery = new AsyncLocalStorage<{ id: string; claimId: string }>();
 
   constructor(
     @Inject(NOTIFICATION_REPOSITORY)
@@ -167,17 +171,19 @@ export class NotificationService {
             set: { idempotencyKey: input.idempotencyKey }
           }).returning())[0]! as NotificationRow
         : await this.repo.enqueue(input);
+      if (tx) trackNotification(row.id);
 
       // Inline dispatch — fire-and-forget so the caller's domain mutation
       // is never blocked or rolled back by a transport failure. Anything
       // that fails here stays queued and can be retried via the flush
       // endpoint.
       if (!tx && row.status === "queued") {
-        void this.dispatch(row).catch((err) => {
+        const work = this.dispatch(row).catch((err) => {
           this.log.error(
             `inline dispatch failed for ${row.id}: ${(err as Error).message}`
           );
         });
+        waitUntil(work);
       }
       return row;
     } catch (err) {
@@ -201,7 +207,7 @@ export class NotificationService {
     const recipients = [...new Map(args.recipients.map(r => [r.personId, r])).values()];
     if (!recipients.length) return 0;
     const rendered = new Map<string, { subject: string | null; body: string }>();
-    for (const channel of ["email", "in_app"] as const) {
+    for (const channel of ["in_app", "email"] as const) {
       const template = findDefaultTemplate(args.templateCode, channel);
       if (!template) throw new Error(`Missing notification template ${args.templateCode}`);
       const override = channel === "email" ? await this.findEmailOverride(args.templateCode, args.payload, tx) : null;
@@ -217,9 +223,25 @@ export class NotificationService {
           templateCode: args.templateCode, channel, ...rendered.get(channel)!, recipientPersonId: recipient.personId,
           recipientEmail: recipient.email, payload: args.payload, sourceEvent: args.sourceEvent };
       });
-      queued += (await tx.insert(schema.notifications).values(rows).onConflictDoNothing().returning({ id: schema.notifications.id })).length;
+      const inserted = await tx.insert(schema.notifications).values(rows).onConflictDoNothing().returning({ id: schema.notifications.id });
+      for (const row of inserted) trackNotification(row.id);
+      queued += inserted.length;
     }
     return queued;
+  }
+
+  async deliverCommitted(ids: string[]): Promise<void> {
+    try {
+      // The cron retains the rest of a large fanout. Keep one response's
+      // background work within serverless limits and the provider rate.
+      const rows = await this.db.select().from(schema.notifications)
+        .where(inArray(schema.notifications.id, ids.slice(0, 20)))
+        .orderBy(sql`CASE WHEN channel='in_app' THEN 0 ELSE 1 END`);
+      for (const row of rows) {
+        await this.dispatch(row as NotificationRow);
+        if (row.channel === "email") await new Promise(resolve => setTimeout(resolve, 550));
+      }
+    } catch { this.log.error("Post-commit delivery deferred to durable retry worker"); }
   }
 
   /** The person's sign-in email, or null when they have no account. */
@@ -246,7 +268,36 @@ export class NotificationService {
    *               up to 3 attempts, a permanent refusal uses all 3 at once
    */
   async dispatch(row: NotificationRow): Promise<void> {
-    if (row.status === "sent" || row.status === "suppressed") return;
+    const claimed = await this.repo.claimForDelivery(row.id);
+    if (!claimed?.deliveryClaimId) return;
+    await this.delivery.run({ id: claimed.id, claimId: claimed.deliveryClaimId }, async () => {
+      try { await this.dispatchClaimed(claimed); }
+      catch (error) {
+        await this.markFailed(claimed.id, error instanceof Error ? error.message : "Delivery worker failed");
+        this.log.error(`notification delivery failed id=${claimed.id}`);
+      }
+    });
+  }
+
+  private async dispatchClaimed(row: NotificationRow): Promise<void> {
+    if ((row.channel === "push" || row.channel === "sms") && this.dispatcher.environment?.() === "staging") {
+      await this.markSuppressed(row.id, "Only email and in-app delivery are enabled for this staging acceptance"); return;
+    }
+    if (row.sourceEvent === "substitute.broadcast.review" || row.sourceEvent === "substitute.broadcast.accepted") {
+      const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+      const id = row.payload.broadcastId, accepted = row.sourceEvent === "substitute.broadcast.accepted";
+      const personId = row.payload.acceptedPersonId, start = row.payload.scheduledStartTsUtc;
+      const valid = typeof id === "string" && uuid.test(id) && (!accepted ||
+        (typeof personId === "string" && uuid.test(personId) && typeof start === "string" && Number.isFinite(Date.parse(start))));
+      const [current] = valid ? await this.db.select({ id: schema.substituteBroadcasts.id }).from(schema.substituteBroadcasts)
+        .innerJoin(schema.games, eq(schema.games.id, schema.substituteBroadcasts.gameId))
+        .where(and(eq(schema.substituteBroadcasts.id, id), eq(schema.games.status, "scheduled"), sql`${schema.games.scheduledStartTsUtc}>now()`,
+          accepted ? and(eq(schema.games.scheduledStartTsUtc, new Date(start as string)),
+            sql`EXISTS (SELECT 1 FROM substitute_broadcast_recipients r JOIN game_attendance a ON a.id=r.attendance_id
+              WHERE r.broadcast_id=${id}::uuid AND r.person_id=${personId}::uuid AND r.status='accepted')`) : eq(schema.substituteBroadcasts.status, "pending_review")))
+        .limit(1) : [];
+      if (!current) { await this.markSuppressed(row.id, "Substitute request or game changed before delivery"); return; }
+    }
     if (row.sourceEvent === "substitute.broadcast.invitation") {
       const id = row.payload.broadcastId;
       const validId = typeof id === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id);
@@ -301,12 +352,17 @@ export class NotificationService {
         to: row.recipientEmail,
         subject: row.subject ?? row.templateCode,
         body: row.body,
-        channel: row.templateCode
+        channel: row.templateCode,
+        notificationId: row.id
       });
+      await this.logDelivery(row.id, "resend", { status: result.delivered ? "accepted" : "failed",
+        providerMessageId: result.providerMessageId, statusCode: null,
+        response: { failure: result.failure ?? null, reason: result.reason ?? null } });
       if (result.delivered) {
-        await this.markSent(row.id);
+        await this.markSent(row.id, result.providerMessageId);
       } else {
-        await this.markFailed(row.id, result.reason ?? "unknown");
+        if (result.failure === "suppressed") await this.markSuppressed(row.id, result.reason ?? "Delivery suppressed");
+        else await this.markFailed(row.id, result.reason ?? "unknown", { final: result.failure === "permanent" });
       }
       return;
     }
@@ -432,6 +488,7 @@ export class NotificationService {
    * Each copy is written once; a retry of the email does not resend it.
    */
   private async fanOutMobile(row: NotificationRow): Promise<void> {
+    if (this.dispatcher.environment?.() === "staging") return;
     if (!MOBILE_CHANNEL_CODES.has(row.templateCode) || !row.recipientPersonId) return;
     const base = row.idempotencyKey.replace(/-(email|in_app)$/, "");
     const [person] = await this.db
@@ -506,7 +563,7 @@ export class NotificationService {
       this.log.warn(
         `prefs lookup failed for person=${recipientPersonId} tpl=${templateCode}: ${(err as Error).message}`
       );
-      return !defaultOn;
+      throw new Error("Could not verify notification preferences; delivery will be retried");
     }
   }
 
@@ -573,9 +630,8 @@ export class NotificationService {
   }
 
   /** Mark queued → sent. */
-  async markSent(id: string) {
-    await this.repo.incrementAttempt(id);
-    return this.repo.markStatus(id, "sent", { sentAt: new Date() });
+  async markSent(id: string, providerMessageId?: string | null) {
+    return this.finish(id, "sent", { sentAt: new Date(), providerMessageId });
   }
 
   /**
@@ -583,15 +639,20 @@ export class NotificationService {
    * refused this message for good, so the cron must not try again.
    */
   async markFailed(id: string, error: string, opts: { final?: boolean } = {}) {
-    await this.repo.incrementAttempt(id);
-    if (opts.final) await this.repo.exhaustAttempts(id);
-    return this.repo.markStatus(id, "failed", { lastError: error });
+    return this.finish(id, "failed", { lastError: error, permanent: opts.final });
   }
 
   /** Deliberately not sent; final, never retried. `reason` says why. */
   async markSuppressed(id: string, reason: string) {
-    await this.repo.incrementAttempt(id);
-    return this.repo.markStatus(id, "suppressed", { lastError: reason });
+    return this.finish(id, "suppressed", { lastError: reason });
+  }
+
+  private finish(id: string, status: NotificationRow["status"], fields: {
+    lastError?: string | null; sentAt?: Date | null; providerMessageId?: string | null; permanent?: boolean;
+  }) {
+    const claim = this.delivery.getStore();
+    if (!claim || claim.id !== id) throw new Error("Delivery completion requires its worker claim");
+    return this.repo.finishDelivery(id, claim.claimId, status, fields);
   }
 }
 

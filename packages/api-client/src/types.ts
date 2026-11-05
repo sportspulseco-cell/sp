@@ -508,7 +508,7 @@ export interface LicenceIdCheck {
 
 /** Which delivery channels are set up (FR-3.10.2). No secrets. */
 export interface NotificationChannelStatus {
-  email: { available: boolean };
+  email: { available: boolean; testMode?: boolean };
   in_app: { available: true };
   sms: { available: boolean; message: string | null };
   push: { available: boolean; publicKey: string | null; message: string | null };
@@ -1535,6 +1535,10 @@ export interface Notification {
   sourceEvent: string | null;
   createdAt: string;
   updatedAt: string;
+  recipientName?: string | null;
+  providerMessageId?: string | null;
+  deliveryStatus?: "accepted" | "delayed" | "delivered" | "bounced" | "complained" | "failed" | "suppressed" | null;
+  deliveryUpdatedAt?: string | null;
 }
 
 // ----- Free Agent Pool -----

@@ -6,10 +6,22 @@
     "payments": "mock only, user instruction",
     "supabase": "Free",
     "vercel": "Hobby",
-    "production_capacity": "not certified"
+    "production_capacity": "not certified",
+    "substitute_fees": {
+      "status": "deferred_pending_pphl_confirmation",
+      "decision_date": "2026-11-05",
+      "temporary_behavior": "No substitute fee charges or credit entries are created. Payments remain mock.",
+      "pending_rules": [
+        "Who pays",
+        "Amount and whether each team sets its own fee",
+        "When payment becomes due",
+        "Cancellation, refund and credit rules"
+      ],
+      "follow_up": "User will ask PPHL; approximately one week, not a committed deadline."
+    }
   },
   "verification": {
-    "typescript_business_tests": 336,
+    "typescript_business_tests": 339,
     "local_solver_regressions": 11,
     "deployed_solver_regressions": 11,
     "staging_database_publication_regression": "passed, fixtures rolled back",
@@ -53,8 +65,11 @@
     "regional_substitutes_browser": "Passed four connected checks again on af7914e4 across player, captain and both staff consoles. All new panels fit 320/375/414/768/1440px, including focused captain request and staff approval queues. Player opt-in, no preapproval invitations/self-approval, cross-league acceptance, guest lineup and privacy/role gates passed. Player Schedule confirmation integration is now implemented locally and awaits deployment/browser check.",
     "bulk_season_copy_browser": "Passed all three operations: two leagues, pause after in-flight copy, reload and resume without duplication, draft/unpublished forms and no live registrations/rosters/games. Cleanup initially used the wrong endpoint; subsequent SDK-verified status endpoints archived both QA leagues and four seasons successfully.",
     "game_detail_bounds": "Passed deployed af7914e4: unrelated directory-person canary absent from initial HTML, correct teams render, explicit name search uses limit 50, injected HTTP 503 is visible and retry returns the person; no assignment made. Fits 320/375/414/768/1440px. One observed game load 1371ms; not a capacity benchmark. Canary removed.",
-    "playoff_rules_browser": "Passed deployed 64eae202: separate sudden-death playoff override displayed despite regular no-OT rules; tied finalize disabled and HTTP 422 with winner-required reason; unsupported shootout refused; a logged overtime goal updates the score and staff finalizes 1\u20130 through the dialog. Isolated QA league/season/game fixtures removed.",
-    "confirmed_substitute_schedule_staging": "Passed: only accepted invitations with a surviving guest attendance appear; unanswered invitations excluded, other invitees cannot see the confirmed game, and regional preferences omitted from the schedule projection. Fixtures rolled back. API/player build and typechecks passed."
+    "playoff_rules_browser": "Passed deployed 64eae202: separate sudden-death playoff override displayed despite regular no-OT rules; tied finalize disabled and HTTP 422 with winner-required reason; unsupported shootout refused; a logged overtime goal updates the score and staff finalizes 1–0 through the dialog. Isolated QA league/season/game fixtures removed.",
+    "confirmed_substitute_schedule_staging": "Passed: only accepted invitations with a surviving guest attendance appear; unanswered invitations excluded, other invitees cannot see the confirmed game, and regional preferences omitted from the schedule projection. Fixtures rolled back. API/player build and typechecks passed.",
+    "notification_delivery_staging": "Passed actual concurrent workers, expired-lease fencing, provider retry/permanent refusal, signed and replayed/out-of-order callbacks, early callback before send acknowledgment, and receipt RLS. Synthetic rows removed. Real delivery/browser acceptance pending deployment.",
+    "notification_post_commit": "Passed: only successful request IDs wake delivery; failed commands send nothing. Durable worker remains the fallback.",
+    "scheduling_ui": "Implemented selected-division loading, paginated rink options, explicit failed-load/retry states, generation blocked while data is unavailable, stale response guards, focused advanced controls and scheduling route skeletons. Latest deployed browser acceptance pending."
   },
   "deployed": {
     "solver_commit": "a456244bf98b6e3ee0cd566734a45d9ea6154d49",
@@ -70,7 +85,8 @@
       "0097_atomic_schedule_draft_replacement.sql",
       "0098_season_overview_membership_index.sql",
       "0099_approved_substitute_broadcasts.sql",
-      "0100_regional_substitute_lifecycle_audit.sql"
+      "0100_regional_substitute_lifecycle_audit.sql",
+      "0101_notification_delivery_claims_and_receipts.sql"
     ]
   },
   "findings": {
@@ -83,9 +99,9 @@
     "F07": "Closed in staging: near-2MB logo upload and actual preview passed; oversized file refused with clear message. QA artifacts reference only synthetic archived leagues.",
     "F08": "Closed in staging: playoff override/inheritance and unsupported endings verified in database tests; browser verified winner guidance, tie refusal, goal-driven overtime score and finalization. Regular OT/shootout connected flow also passed.",
     "F09": "Multi-team browser acceptance passed across roster, schedule, stats, reload and foreign-cookie denial. Switching/error feedback deployed.",
-    "F10": "Schedule/single-game publication/creation atomic notices deployed. Reschedule/postpone/cancel/finalize and automatic discipline notices now share the game transaction; injected failure/retry/replay and audience rollback tests passed locally. Actual notification service lookup test confirms no extra pool connection or precommit send. Deployed 4a01fdf4; new regional closure/guest audience integration and external delivery acceptance remain pending.",
+    "F10": "Delivery claims, provider idempotency, signed receipt tracking, bounded outbox reads and post-commit sending implemented and database-tested. Verified sender domain; staging-only webhook prepared and disabled until deployed endpoint verification. Recipient allowlist restricted to user-confirmed inbox and provider simulators. Real delivery acceptance pending.",
     "F11": "Restricted assigner and official connected browser journey passed all four gates. Invitations tentative by default; personal availability is private and blocks conflicting assignment; own response and assigner notice verified. Deployed 2ae09f3a.",
-    "F12": "Regional staff-reviewed invitation and cross-league volunteer acceptance deployed c4b5e541 and passed connected four-app browser journey. Opt-in, private contacts, eligibility recheck, last-slot replay and cancellation/delivery suppression gates passed. Optional substitute fee/credit handling remains outstanding. Confirmed volunteer games now have an own-person-only player Schedule projection, database verified; latest browser check pending.",
+    "F12": "Regional staff-reviewed invitation and cross-league volunteer acceptance deployed c4b5e541 and passed connected four-app browser journey. Opt-in, private contacts, eligibility recheck, last-slot replay and cancellation/delivery suppression gates passed. Substitute fee/credit handling explicitly deferred by the user on 2026-11-05 pending PPHL confirmation; temporary behavior creates no charges or credits. Confirmed volunteer games now have an own-person-only player Schedule projection, database verified; latest browser check pending.",
     "F13": "Schedule SQL pagination, bounded season overview and game-detail lookup scope deployed and verified. No global team/league/person directory scan on game detail; wider person picker searches in pages of 50 with tested failure/retry and responsive fit. Production-sized load certification remains separate (F15).",
     "F14": "CI green at c4b5e541 (336 business rules, solver regressions and cross-app browser/role gates). Additional bounded game-detail browser checks passed af7914e4. Remaining acceptance checks tracked separately.",
     "F15": "production-sized capacity remains unverified; user retained Free/Hobby",

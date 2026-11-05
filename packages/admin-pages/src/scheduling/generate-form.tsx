@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
-  CheckCircle2, AlertTriangle, XCircle, Loader2, Clock, Rocket, Radio
+  CheckCircle2, AlertTriangle, XCircle, Loader2, Clock, Rocket
 } from "lucide-react";
 import {
   Badge, Button, EmptyState, Field, Input, LocalDate, Select
@@ -32,6 +32,7 @@ interface Props {
   /** Team id to name, so violations show names instead of ids. */
   teamNames?: Record<string, string>;
   divisionTeamIds?: Record<string,string[]>;
+  loadTeams?: (divisionId: string) => Promise<Array<{ id: string; name: string }>>;
   timezone?: string;
   /**
    * Publish through the API (SCH-8): the games go on every team's schedule
@@ -52,6 +53,8 @@ interface Props {
 }
 
 type RunStatus = GenerateResponse["status"];
+const RUN_LABELS: Record<RunStatus, string> = { OPTIMAL: "Draft schedule ready", FEASIBLE: "Draft schedule ready",
+  TIMEOUT: "Generation timed out", INFEASIBLE: "No schedule fits these settings", FAILED: "Generation failed" };
 
 function statusBadgeTone(status: RunStatus): "success" | "info" | "warning" | "danger" {
   switch (status) {
@@ -71,7 +74,7 @@ function StatusIcon({ status }: { status: RunStatus }) {
   return <XCircle className={cls} strokeWidth={1.75} />;
 }
 
-export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, divisionTeamIds, timezone = "UTC", publishSchedule, blackoutApi }: Props) {
+export function SchedulingGenerateForm({ seasonId, divisions, teamNames: initialTeamNames = {}, divisionTeamIds, loadTeams, timezone = "UTC", publishSchedule, blackoutApi }: Props) {
   const [divisionId, setDivisionId] = useState(divisions[0]?.id ?? "");
   const [gamesPerPair, setGamesPerPair] = useState("1");
   const [timeLimit, setTimeLimit] = useState("60");
@@ -80,10 +83,22 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
   const [lateCap, setLateCap] = useState("");
   const [teamConstraints,setTeamConstraints] = useState<Record<string,TeamScheduleConstraints>>({});
   const [venues,setVenues] = useState<Array<{id:string;name:string}>>([]);
-  const [venueError,setVenueError] = useState("");
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsError, setSettingsError] = useState("");
   const [settingsRetry, setSettingsRetry] = useState(0);
+  const [teamNames, setTeamNames] = useState(initialTeamNames), [teamsLoading, setTeamsLoading] = useState(!!loadTeams);
+  const [teamsError, setTeamsError] = useState("");
+  const [blackoutsReady, setBlackoutsReady] = useState(!blackoutApi);
+  useEffect(() => {
+    if (!loadTeams || !divisionId) return;
+    let live = true; setTeamsLoading(true); setTeamsError(""); setTeamNames({});
+    loadTeams(divisionId).then(rows => { if (live) setTeamNames(Object.fromEntries(rows.map(row => [row.id, row.name]))); })
+      .catch(error => { if (live) setTeamsError(error instanceof Error ? error.message : "Could not load this division's teams."); })
+      .finally(() => { if (live) setTeamsLoading(false); });
+    return () => { live = false; };
+    // The app's binding is stable for the current season.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seasonId, divisionId, settingsRetry]);
   useEffect(() => {
     let live = true;
     setSettingsLoading(true); setSettingsError(""); setResult(null); setPublishResult(null);
@@ -100,12 +115,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
       .finally(() => { if (live) setSettingsLoading(false); });
     return () => { live = false; };
   }, [seasonId, divisionId, settingsRetry]);
-  useEffect(()=>{
-    if (!blackoutApi) return;
-    blackoutApi.rinks().then(rows=>setVenues([...new Map(rows.filter(r=>r.venueId).map(r=>[r.venueId!,{id:r.venueId!,name:r.venueName ?? r.label}])).values()])).catch(()=>setVenueError("Venue preferences could not load. Refresh before setting a venue preference."));
-  // The app binds a new object per render; reload only when the season changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[seasonId]);
+
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
@@ -154,7 +164,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (settingsLoading || settingsError) return;
+    if (settingsLoading || settingsError || teamsLoading || teamsError || !blackoutsReady) return;
     setError(null); setResult(null);
     setPublishResult(null); setPublishError(null);
     setSubmitting(true);
@@ -208,12 +218,12 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
   return (
     <div className="space-y-6">
       <LiveChannelBar status={channelStatus} lastBroadcast={lastBroadcast} />
-      {blackoutApi ? <BlackoutDates api={blackoutApi} disabled={submitting || settingsLoading} /> : null}
+      {blackoutApi ? <BlackoutDates key={seasonId} api={blackoutApi} disabled={submitting || settingsLoading} onReadyChange={setBlackoutsReady} onRinksLoaded={rows => setVenues([...new Map(rows.filter(row => row.venueId).map(row => [row.venueId!, { id: row.venueId!, name: row.venueName ?? row.label }])).values()])} /> : null}
       <form onSubmit={onSubmit} className="rounded-lg border border-border bg-bg p-6 space-y-5">
         <Field label="Division">
           <Select
             value={divisionId}
-            onChange={(e) => setDivisionId(e.target.value)}
+            onChange={(e) => { setSettingsLoading(true); setTeamsLoading(!!loadTeams); setResult(null); setPublishResult(null); setDivisionId(e.target.value); }}
             disabled={submitting || settingsLoading}
           >
             {divisions.map((d) => (
@@ -221,31 +231,32 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
             ))}
           </Select>
         </Field>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Games per pair" hint="1 = single round-robin, 2 = double">
             <Input type="number" min="1" max="4" value={gamesPerPair}
               onChange={(e) => setGamesPerPair(e.target.value)} disabled={submitting || settingsLoading} />
-          </Field>
-          <Field label="Time limit (seconds)" hint="Solver budget, max 300">
-            <Input type="number" min="5" max="300" value={timeLimit}
-              onChange={(e) => setTimeLimit(e.target.value)} disabled={submitting || settingsLoading} />
           </Field>
           <Field label="Max games per team per week" hint="Optional hard limit, including fixed games.">
             <Input type="number" min="1" max="7" value={weeklyMax} placeholder="No limit"
               onChange={(e) => setWeeklyMax(e.target.value)} disabled={submitting || settingsLoading} />
           </Field>
-          <Field label="Seed" hint="Leave blank for a random seed (stored for replay)">
+        </div>
+        <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Advanced generation settings</summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Time limit (seconds)" hint="Maximum time to look for a suitable schedule.">
+            <Input type="number" min="5" max="300" value={timeLimit} onChange={e => setTimeLimit(e.target.value)} disabled={submitting || settingsLoading} />
+          </Field><Field label="Seed" hint="Optional. Reuse a value when comparing generation results.">
             <Input value={seed} onChange={(e) => setSeed(e.target.value)}
               disabled={submitting || settingsLoading} placeholder="auto-generated" />
-          </Field>
-        </div>
+          </Field></div>
+        </details>
         <Field label="Maximum late games (%)" hint="Optional hard limit per team. 0 means no late games."><Input type="number" min="0" max="100" value={lateCap} onChange={e=>setLateCap(e.target.value)} disabled={submitting || settingsLoading} placeholder="No limit"/></Field>
-        {venueError ? <p role="alert" className="text-sm text-fg-muted">{venueError}</p>:null}
-        <TeamPreferences teams={Object.fromEntries(Object.entries(teamNames).filter(([id])=>!divisionTeamIds || divisionTeamIds[divisionId]?.includes(id)))} venues={venues} timezone={timezone} value={teamConstraints} onChange={setTeamConstraints} disabled={submitting || settingsLoading}/>
+        {teamsLoading ? <p role="status" className="text-sm text-fg-muted">Loading this division's teams…</p> : null}
+        {teamsError ? <div role="alert" className="text-sm text-fg-muted">{teamsError} <Button type="button" variant="outline" size="sm" onClick={() => setSettingsRetry(value => value + 1)}>Retry teams</Button></div> : null}
+        <TeamPreferences key={divisionId} teams={Object.fromEntries(Object.entries(teamNames).filter(([id])=>loadTeams || !divisionTeamIds || divisionTeamIds[divisionId]?.includes(id)))} venues={venues} timezone={timezone} value={teamConstraints} onChange={setTeamConstraints} disabled={submitting || settingsLoading || teamsLoading || !!teamsError || !blackoutsReady}/>
         <div className="flex items-center gap-3">
           {settingsLoading ? <p className="text-sm text-fg-muted" role="status">Loading this division's saved schedule settings…</p> : null}
           {settingsError ? <div role="alert" className="text-sm text-danger">{settingsError} <Button type="button" variant="outline" size="sm" onClick={() => setSettingsRetry(n => n + 1)}>Retry</Button></div> : null}
-          <Button type="submit" disabled={submitting || !divisionId || settingsLoading || !!settingsError}>
+          <Button type="submit" disabled={submitting || !divisionId || settingsLoading || !!settingsError || teamsLoading || !!teamsError || !blackoutsReady}>
             {submitting ? (
               <><Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />Generating…</>
             ) : (
@@ -273,7 +284,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Badge tone={statusBadgeTone(result.status)}>
-                <StatusIcon status={result.status} />{result.status}
+                <StatusIcon status={result.status} />{RUN_LABELS[result.status]}
               </Badge>
               <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
                 run {result.runId.slice(0, 8)}…
@@ -358,24 +369,13 @@ function LiveChannelBar({
   status: "connecting" | "subscribed" | "closed" | "errored";
   lastBroadcast: PublishBroadcast | null;
 }) {
-  const tone = status === "subscribed" ? "success"
-    : status === "errored" || status === "closed" ? "warning" : "neutral";
+  if (status === "subscribed" && !lastBroadcast) return null;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-bg-subtle px-4 py-2.5">
-      <div className="flex items-center gap-2.5">
-        <Badge tone={tone} dot mono>
-          <Radio className="h-3 w-3" strokeWidth={1.75} />
-          {status === "subscribed" ? "LIVE"
-            : status === "connecting" ? "CONNECTING"
-            : status === "closed" ? "CLOSED" : "ERROR"}
-        </Badge>
-        <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-          Realtime · schedule_published events on this season
-        </span>
-      </div>
+    <div role="status" className="flex flex-wrap items-center justify-between gap-3 text-sm text-fg-muted">
+      {status === "connecting" ? <span>Connecting live updates…</span> : status !== "subscribed" ? <span>Live updates are unavailable. Refresh the page to get the latest changes.</span> : null}
       {lastBroadcast && (
-        <span className="font-mono text-[10px] uppercase tracking-widest text-fg">
-          last: {lastBroadcast.gamesPublished} games @ <LocalDate iso={lastBroadcast.publishedAt} format="time" />
+        <span>
+          Schedule updated: {lastBroadcast.gamesPublished} games at <LocalDate iso={lastBroadcast.publishedAt} format="time" />
         </span>
       )}
     </div>

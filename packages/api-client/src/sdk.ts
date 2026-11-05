@@ -1487,6 +1487,7 @@ export function createApi(f: Fetcher) {
           channel?: NotificationChannel;
         } = {}
       ) => f<Page<Notification>>(`/notifications${qs(q)}`),
+      notificationSummary: () => f<{ queued: number; sending: number; sent: number; failed: number; suppressed: number }>("/notifications/summary"),
       /** The signed-in user's own inbox (player / captain apps). */
       myNotifications: (q: { limit?: number; cursor?: string } = {}) =>
         f<Page<Notification>>(`/notifications/me${qs(q)}`),
@@ -1497,7 +1498,7 @@ export function createApi(f: Fetcher) {
       retry: (id: string) =>
         f<Notification>(`/notifications/${id}/retry`, { method: "POST" }),
       flushQueued: () =>
-        f<{ sent: number; failed: number; skippedStale: number }>(`/notifications/flush`, {
+        f<{ sent: number; failed: number; suppressed: number; skippedStale: number }>(`/notifications/flush`, {
           method: "POST"
         }),
 
@@ -3765,6 +3766,8 @@ export function createApi(f: Fetcher) {
             createdAt: string;
           }>;
         }>(`/scheduling/venues${qs(q ?? {})}`),
+      listRinkOptions: (q: { orgId: string; cursor?: string; limit?: number }) =>
+        f<Page<{ id: string; venueId: string; venueName: string; label: string }>>(`/scheduling/rink-options${qs(q)}`),
       getVenue: (id: string) =>
         f<{
           venue: {

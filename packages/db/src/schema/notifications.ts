@@ -78,6 +78,11 @@ export const notifications = pgTable(
     /** queued | sending | sent | failed | suppressed */
     status: text("status").notNull().default("queued"),
     attemptCount: integer("attempt_count").notNull().default(0),
+    deliveryClaimId: uuid("delivery_claim_id"),
+    deliveryClaimExpiresAt: timestamp("delivery_claim_expires_at", { withTimezone: true }),
+    providerMessageId: text("provider_message_id"),
+    deliveryStatus: text("delivery_status"),
+    deliveryUpdatedAt: timestamp("delivery_updated_at", { withTimezone: true }),
     lastError: text("last_error"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     /**
@@ -102,7 +107,10 @@ export const notifications = pgTable(
       t.createdAt
     ),
     recipientIdx: index("notif_recipient_idx").on(t.recipientPersonId),
-    orgStatusIdx: index("notif_org_status_idx").on(t.orgId, t.status)
+    orgStatusIdx: index("notif_org_status_idx").on(t.orgId, t.status),
+    providerMessageUniq: uniqueIndex("notification_provider_message_uniq").on(t.providerMessageId).where(sql`${t.providerMessageId} IS NOT NULL`),
+    expiredClaimIdx: index("notification_expired_claim_idx").on(t.deliveryClaimExpiresAt).where(sql`${t.status}='sending'`),
+    deliveryStatusCheck: check("notification_delivery_status_check", sql`${t.deliveryStatus} IS NULL OR ${t.deliveryStatus} IN ('accepted','delayed','delivered','bounced','complained','failed','suppressed')`)
   })
 );
 

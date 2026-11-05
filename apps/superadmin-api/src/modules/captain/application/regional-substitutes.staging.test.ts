@@ -122,6 +122,12 @@ test("regional substitutes require approval, match across leagues privately, and
     assert.equal((await tx.select().from(schema.notifications).where(eq(schema.notifications.id, stale.id)))[0]!.status, "suppressed");
     await assert.rejects(regional.answer(participants[1]!.userId, replacement.id, "accept"), /no longer open/);
     assert.equal((await regional.mine(participants[0]!.userId)).invitations[0]!.response, "accepted", "Confirmed guests remain visible when remaining invitations are closed");
+    const [confirmation] = await tx.select().from(schema.notifications).where(sql`source_event='substitute.broadcast.accepted' AND payload->>'broadcastId'=${request.id}`).limit(1);
+    assert.ok(confirmation);
+    await tx.update(schema.games).set({ scheduledStartTsUtc: new Date(game.start.getTime() + 86400000) }).where(eq(schema.games.id, gameId));
+    await guardedNotify.dispatch(confirmation as NotificationRow);
+    assert.equal((await tx.select().from(schema.notifications).where(eq(schema.notifications.id, confirmation.id)))[0]!.status, "suppressed", "A confirmed substitute email must not deliver an obsolete game time after a move");
+    await tx.update(schema.games).set({ scheduledStartTsUtc: game.start }).where(eq(schema.games.id, gameId));
     await regional.subscribe(participants[1]!.userId, region.id, false, []);
     assert.equal((await tx.select().from(schema.substituteSubscriptions).where(sql`person_id=${participants[1]!.personId}::uuid AND region_id=${region.id}::uuid`)).length, 0);
     const [privacy] = await tx.execute(sql`select bool_and(relrowsecurity) rls from pg_class where oid in ('substitute_subscriptions'::regclass,'substitute_broadcasts'::regclass,'substitute_broadcast_recipients'::regclass)`);

@@ -69,7 +69,7 @@ class SetSmsNumberBodyDto {
 
 /** Which channels can actually deliver right now (FR-3.10.2). */
 export interface ChannelStatusDto {
-  email: { available: boolean };
+  email: { available: boolean; testMode: boolean };
   in_app: { available: true };
   sms: { available: boolean; message: string | null };
   push: { available: boolean; publicKey: string | null; message: string | null };
@@ -105,14 +105,15 @@ export class NotificationsController {
   private channelStatus(): ChannelStatusDto {
     const smsOn = this.sms.isConfigured();
     const pushKey = this.push.publicKey();
+    const testMode = this.email.environment() === "staging";
     return {
-      email: { available: this.email.isConfigured() },
+      email: { available: this.email.isConfigured(), testMode: this.email.environment() === "staging" },
       in_app: { available: true },
-      sms: { available: smsOn, message: smsOn ? null : "Text messages are not set up." },
+      sms: { available: smsOn && !testMode, message: testMode ? "Text delivery is disabled for this staging acceptance." : smsOn ? null : "Text messages are not set up." },
       push: {
-        available: !!pushKey,
-        publicKey: pushKey,
-        message: pushKey ? null : "Push notifications are not set up."
+        available: !!pushKey && !testMode,
+        publicKey: testMode ? null : pushKey,
+        message: testMode ? "Push delivery is disabled for this staging acceptance." : pushKey ? null : "Push notifications are not set up."
       }
     };
   }
@@ -124,6 +125,13 @@ export class NotificationsController {
   })
   channels(): ChannelStatusDto {
     return this.channelStatus();
+  }
+
+  @Get("summary") @UseGuards(SuperAdminGuard)
+  async summary() {
+    const rows = await this.db.select({ status: schema.notifications.status, count: sql<number>`count(*)::int` })
+      .from(schema.notifications).groupBy(schema.notifications.status);
+    return { queued: 0, sending: 0, sent: 0, failed: 0, suppressed: 0, ...Object.fromEntries(rows.map(row => [row.status, row.count])) };
   }
 
   // -------- super-admin outbox surfaces --------

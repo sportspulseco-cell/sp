@@ -1,4 +1,8 @@
 import { Module } from "@nestjs/common";
+import { APP_INTERCEPTOR } from "@nestjs/core";
+import { NotificationDeliveryInterceptor } from "./interface/notification-delivery.interceptor";
+import { DeliveryWebhookController } from "./interface/delivery-webhook.controller";
+import { DeliveryReceiptsService } from "./application/delivery-receipts";
 import { NotificationsController } from "./interface/notifications.controller";
 import { NotificationsCronController } from "./interface/notifications-cron.controller";
 import { NotificationTemplatesController } from "./interface/templates.controller";
@@ -28,12 +32,15 @@ import { DrizzleNotificationTemplateRepository } from "./infrastructure/reposito
 
 @Module({
   controllers: [
+    DeliveryWebhookController,
     NotificationsController,
     NotificationsCronController,
     NotificationTemplatesController,
     PushSubscriptionsController
   ],
   providers: [
+    { provide: APP_INTERCEPTOR, useClass: NotificationDeliveryInterceptor },
+    DeliveryReceiptsService,
     CronSecretGuard,
     ListNotificationsHandler,
     GetNotificationHandler,

@@ -9,9 +9,10 @@ import type { NotificationChannelStatus } from "@sportspulse/api-client";
 export function ChannelStatusNotice({ status }: { status: NotificationChannelStatus | null }) {
   if (!status) return null;
   const lines: string[] = [];
+  if (status.email.testMode) lines.push("Staging email delivery is limited to approved test inboxes.");
   if (!status.email.available) lines.push("Email is not set up: emails are recorded but not sent.");
-  if (!status.sms.available) lines.push("Text messages are not set up: texts are recorded as not sent.");
-  if (!status.push.available) lines.push("Push notifications are not set up: pushes are recorded as not sent.");
+  if (!status.sms.available) lines.push(status.sms.message ?? "Text messages are not set up: texts are recorded as not sent.");
+  if (!status.push.available) lines.push(status.push.message ?? "Push notifications are not set up: pushes are recorded as not sent.");
   if (lines.length === 0) return null;
   return (
     <div

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSlotTime } from "./time-zone";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle, CheckCircle2, Loader2, Lock, RefreshCw, XCircle
 } from "lucide-react";
@@ -21,21 +21,23 @@ export function SchedulingConflictsClient({ seasonId }: { seasonId: string }) {
   const [conflicts, setConflicts] = useState<ConflictPair[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<ConflictPair | null>(null);
+  const requestVersion = useRef(0);
 
   const load = useCallback(async (mode: "initial" | "refresh") => {
+    const version = ++requestVersion.current;
     if (mode === "initial") setLoading(true); else setRefreshing(true);
     setError(null);
     try {
       const res = await scheduler.listConflicts({ seasonId });
-      setConflicts(res.conflicts);
+      if (version === requestVersion.current) setConflicts(res.conflicts);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (version === requestVersion.current) setError(err instanceof Error ? err.message : String(err));
     } finally {
-      if (mode === "initial") setLoading(false); else setRefreshing(false);
+      if (version === requestVersion.current) { setLoading(false); setRefreshing(false); }
     }
   }, [seasonId]);
 
-  useEffect(() => { load("initial"); }, [load]);
+  useEffect(() => { setConflicts([]); setActive(null); void load("initial"); return () => { ++requestVersion.current; }; }, [load]);
 
   useEffect(() => {
     const sb = createSchedulerSupabaseClient();
@@ -56,7 +58,7 @@ export function SchedulingConflictsClient({ seasonId }: { seasonId: string }) {
             <span className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
               <Loader2 className="inline h-3 w-3 animate-spin" strokeWidth={1.75} /> Detecting…
             </span>
-          ) : (
+          ) : error ? <Badge tone="warning">Check unavailable</Badge> : (
             <Badge tone={conflicts.length === 0 ? "success" : "warning"}>
               {conflicts.length === 0
                 ? <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -87,7 +89,7 @@ export function SchedulingConflictsClient({ seasonId }: { seasonId: string }) {
           description="Every team's games are non-overlapping in this season." />
       )}
 
-      {conflicts.length > 0 && (
+      {!error && conflicts.length > 0 && (
         <Table>
           <THead><TR>
             <TH>Team(s) affected</TH><TH>Division</TH>

@@ -15,6 +15,9 @@ import { requestTiming,RequestTimingInterceptor } from "./shared/request-timing"
  * the Vercel serverless handler (which calls `app.init()`).
  */
 export async function configureApp(app: INestApplication): Promise<void> {
+  app.use("/api/notifications/webhooks/resend", json({ limit: "100kb", verify(req, _res, bytes) {
+    (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(bytes);
+  } }));
   app.use((req:Request,_res:Response,next:NextFunction)=>withRequestReads(req.method,next));
   app.use(requestTiming);
   app.useGlobalInterceptors(new RequestTimingInterceptor());
