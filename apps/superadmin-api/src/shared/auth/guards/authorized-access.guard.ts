@@ -64,7 +64,7 @@ export class AuthorizedAccessGuard implements CanActivate {
     const noLeagueAccess = scope.leagueIds !== null && scope.leagueIds.length === 0;
     const noOrgAccess = scope.orgIds !== null && scope.orgIds.length === 0;
     const noTeamAccess = scope.teamIds !== null && scope.teamIds.length === 0;
-    if (noLeagueAccess && noOrgAccess && noTeamAccess) {
+    if (noLeagueAccess && noOrgAccess && noTeamAccess && !scope.seasonIds?.length) {
       // Season- and game-scoped assignments (a scorekeeper for one season
       // or one game, SCH-12) do not project into the three lists above but
       // are still an active assignment. Handlers keep filtering rows: an

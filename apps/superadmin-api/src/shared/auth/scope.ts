@@ -35,6 +35,8 @@ export interface UserScope {
    * with leagueIds for league-owned records.
    */
   orgWideOrgIds: string[] | null;
+  /** Explicit season grants stay narrow; they never widen to a whole league or org. */
+  seasonIds?: string[] | null;
 }
 
 /** Role codes that administer records (mirrors PEOPLE_ADMIN_ROLES in org-admin.ts, minus super_admin, which is a profile flag here). */
@@ -116,6 +118,7 @@ async function loadUserScopeFresh(
   const directTeamIds = rows
     .filter((r) => r.scopeType === "team" && r.scopeId)
     .map((r) => r.scopeId as string);
+  const directSeasonIds = rows.filter(r => r.scopeType === "season" && r.scopeId && ADMIN_SCOPE_ROLE_CODES.includes(r.roleCode)).map(r => r.scopeId as string);
   // Added 2026-05-25 — the registration funnel grants `player` role at
   // division scope. Without projecting division → season → league →
   // org, the player's scope reads as empty (orgIds=[], leagueIds=[])
@@ -235,12 +238,19 @@ async function loadUserScopeFresh(
   const teamIds = Array.from(
     new Set([...directTeamIds, ...membershipProjection.teamIds])
   );
+  if (directSeasonIds.length) {
+    const entries = await db.selectDistinct({ teamId: schema.divisionTeamEntries.teamId }).from(schema.divisionTeamEntries)
+      .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
+      .where(inArray(schema.divisions.seasonId, directSeasonIds));
+    for (const entry of entries) if (!teamIds.includes(entry.teamId)) teamIds.push(entry.teamId);
+  }
 
   return {
     isSuperAdmin: false,
     leagueIds,
     orgIds,
     teamIds,
-    orgWideOrgIds
+    orgWideOrgIds,
+    ...(directSeasonIds.length ? { seasonIds: [...new Set(directSeasonIds)] } : {})
   };
 }

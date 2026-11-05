@@ -42,6 +42,9 @@ import { JwtAuthGuard } from "../../../shared/auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../shared/auth/decorators/current-user.decorator";
 import { loadUserScope } from "../../../shared/auth/scope";
 import { canInOrg } from "../../../shared/auth/org-permission";
+import { seasonVisible } from "../../../shared/auth/visibility";
+import { accessCan, accessForAnyScope } from "../../../shared/auth/game-access";
+import { ADMIN_SCOPE_ROLE_CODES } from "../../../shared/auth/scope";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import { gameTimeLabel } from "../../game-operations/application/games/game-notifications";
 
@@ -1135,14 +1138,19 @@ export class SchedulingInventoryController {
   /** Live season in the caller's scope: 404 outside read scope, 403 when read-only. */
   private async requireSeason(user: AuthPrincipal, seasonId: string, mode: "read" | "write") {
     const [season] = await this.db
-      .select({ id: schema.seasons.id, orgId: schema.seasons.orgId, timezone: schema.seasons.timezone })
+      .select({ id: schema.seasons.id, orgId: schema.seasons.orgId, leagueId: schema.seasons.leagueId, timezone: schema.seasons.timezone })
       .from(schema.seasons)
       .where(and(eq(schema.seasons.id, seasonId), isNull(schema.seasons.deletedAt)))
       .limit(1);
-    if (!season || !(await this.canReadOrg(user, season.orgId))) {
+    const scope = await loadUserScope(this.db, user.userId);
+    if (!season || !(await seasonVisible(this.db, scope, season.id))) {
       throw new NotFoundException("Season not found");
     }
-    if (mode === "write") await this.requireOrgWrite(user, season.orgId);
+    if (mode === "write") {
+      const access = await accessForAnyScope(this.db, user.userId, [{ id: "", orgId: season.orgId, leagueId: season.leagueId,
+        seasonId: season.id, divisionId: null, homeTeamId: "", awayTeamId: "" }], ADMIN_SCOPE_ROLE_CODES);
+      if (!accessCan(access, INVENTORY_WRITE)) throw new ForbiddenException("Your role cannot change this season's schedule settings.");
+    }
     return season;
   }
 
@@ -1151,7 +1159,11 @@ export class SchedulingInventoryController {
   // ---------------------------------------------------------------
   private async canReadOrg(user: AuthPrincipal, orgId: string): Promise<boolean> {
     const scope = await loadUserScope(this.db, user.userId);
-    return scope.isSuperAdmin || scope.orgIds === null || scope.orgIds.includes(orgId);
+    if (scope.isSuperAdmin || scope.orgIds === null || scope.orgIds.includes(orgId)) return true;
+    if (!scope.seasonIds?.length) return false;
+    const [season] = await this.db.select({ id: schema.seasons.id }).from(schema.seasons)
+      .where(and(eq(schema.seasons.orgId, orgId), inArray(schema.seasons.id, scope.seasonIds))).limit(1);
+    return !!season;
   }
 
   private async requireOrgWrite(user: AuthPrincipal, orgId: string): Promise<void> {

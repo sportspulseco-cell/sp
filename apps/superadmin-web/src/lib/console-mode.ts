@@ -24,7 +24,8 @@ const ADMIN_CODES = new Set([
   "org_admin",
   "league_admin",
   "season_admin",
-  "division_admin"
+  "division_admin",
+  "registrar"
 ]);
 
 export interface ConsoleViewer {

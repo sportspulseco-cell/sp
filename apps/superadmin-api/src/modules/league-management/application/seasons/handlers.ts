@@ -40,6 +40,7 @@ export interface ListSeasonsInput {
    */
   leagueIdsFilter?: string[];
   orgIdsFilter?: string[];
+  seasonIdsFilter?: string[];
 }
 
 @Injectable()
@@ -54,7 +55,7 @@ export class ListSeasonsHandler
       input.leagueIdsFilter !== undefined && input.leagueIdsFilter.length === 0;
     const orgEmpty =
       input.orgIdsFilter !== undefined && input.orgIdsFilter.length === 0;
-    if (leagueEmpty && orgEmpty) {
+    if (leagueEmpty && orgEmpty && !input.seasonIdsFilter?.length) {
       return { items: [], nextCursor: null };
     }
     const page = await this.seasons.list({
@@ -66,7 +67,8 @@ export class ListSeasonsHandler
       status: input.status,
       search: input.search,
       leagueIdsFilter: input.leagueIdsFilter,
-      orgIdsFilter: input.orgIdsFilter
+      orgIdsFilter: input.orgIdsFilter,
+      seasonIdsFilter: input.seasonIdsFilter
     });
     return {
       items: page.items.map(SeasonDto.fromDomain),
@@ -79,7 +81,7 @@ export class ListSeasonsHandler
 export class GetSeasonHandler
   implements
     QueryHandler<
-      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[] },
+      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[]; seasonIdsFilter?: string[] },
       SeasonDto
     >
 {
@@ -89,6 +91,7 @@ export class GetSeasonHandler
     id: string;
     leagueIdsFilter?: string[];
     orgIdsFilter?: string[];
+    seasonIdsFilter?: string[];
   }): Promise<SeasonDto> {
     const season = await this.seasons.findById(SeasonId.of(input.id));
     if (!season) throw new NotFoundError("Season", input.id);
@@ -97,13 +100,13 @@ export class GetSeasonHandler
     // miss so we never leak existence across orgs.
     const hasLeagueFilter = input.leagueIdsFilter !== undefined;
     const hasOrgFilter = input.orgIdsFilter !== undefined;
-    if (hasLeagueFilter || hasOrgFilter) {
+    if (hasLeagueFilter || hasOrgFilter || input.seasonIdsFilter !== undefined) {
       const snap = season.toSnapshot();
       const inLeagueScope =
         hasLeagueFilter && input.leagueIdsFilter!.includes(snap.leagueId);
       const inOrgScope =
         hasOrgFilter && input.orgIdsFilter!.includes(snap.orgId);
-      if (!inLeagueScope && !inOrgScope) {
+      if (!inLeagueScope && !inOrgScope && !input.seasonIdsFilter?.includes(input.id)) {
         throw new NotFoundError("Season", input.id);
       }
     }

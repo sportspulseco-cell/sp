@@ -44,7 +44,8 @@ export class DrizzleSeasonRepository implements SeasonRepository {
       q.leagueIdsFilter !== undefined && q.leagueIdsFilter.length > 0;
     const hasOrgFilter =
       q.orgIdsFilter !== undefined && q.orgIdsFilter.length > 0;
-    if (hasLeagueFilter || hasOrgFilter) {
+    const hasSeasonFilter = !!q.seasonIdsFilter?.length;
+    if (hasLeagueFilter || hasOrgFilter || hasSeasonFilter) {
       const branches = [];
       if (hasLeagueFilter) {
         branches.push(inArray(schema.seasons.leagueId, q.leagueIdsFilter!));
@@ -52,6 +53,7 @@ export class DrizzleSeasonRepository implements SeasonRepository {
       if (hasOrgFilter) {
         branches.push(inArray(schema.seasons.orgId, q.orgIdsFilter!));
       }
+      if (hasSeasonFilter) branches.push(inArray(schema.seasons.id, q.seasonIdsFilter!));
       cs.push(branches.length === 1 ? branches[0]! : or(...branches)!);
     }
 

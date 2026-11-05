@@ -66,7 +66,7 @@ export class DivisionsController {
     @Query() q: ListDivisionsQueryDto,
     @UserScope() scope: UserScopeType
   ): Promise<DivisionPageDto> {
-    const page = await this.listH.execute({ ...q, leagueIdsFilter: scope.leagueIds ?? undefined });
+    const page = await this.listH.execute({ ...q, leagueIdsFilter: scope.leagueIds ?? undefined, seasonIdsFilter: scope.seasonIds ?? undefined });
     return { ...page, items: await this.withRegionNames(page.items) };
   }
   @Get(":id") async getOne(
@@ -76,7 +76,8 @@ export class DivisionsController {
     const d = await this.getH.execute({
       id,
       leagueIdsFilter: scope.leagueIds ?? undefined,
-      orgIdsFilter: scope.orgWideOrgIds ?? undefined
+      orgIdsFilter: scope.orgWideOrgIds ?? undefined,
+      seasonIdsFilter: scope.seasonIds ?? undefined
     });
     return (await this.withRegionNames([d]))[0]!;
   }

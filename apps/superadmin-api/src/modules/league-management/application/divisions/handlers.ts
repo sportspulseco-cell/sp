@@ -40,6 +40,7 @@ export interface ListDivisionsInput {
   status?: string;
   search?: string;
   leagueIdsFilter?: string[];
+  seasonIdsFilter?: string[];
 }
 
 @Injectable()
@@ -48,7 +49,7 @@ export class ListDivisionsHandler
 {
   constructor(@Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository) {}
   async execute(input: ListDivisionsInput): Promise<DivisionPageDto> {
-    if (input.leagueIdsFilter && input.leagueIdsFilter.length === 0) {
+    if (input.leagueIdsFilter && input.leagueIdsFilter.length === 0 && !input.seasonIdsFilter?.length) {
       return { items: [], nextCursor: null };
     }
     const page = await this.divisions.list({
@@ -58,7 +59,8 @@ export class ListDivisionsHandler
       regionId: input.regionId,
       status: input.status,
       search: input.search,
-      leagueIdsFilter: input.leagueIdsFilter
+      leagueIdsFilter: input.leagueIdsFilter,
+      seasonIdsFilter: input.seasonIdsFilter
     });
     return {
       items: page.items.map(DivisionDto.fromDomain),
@@ -71,7 +73,7 @@ export class ListDivisionsHandler
 export class GetDivisionHandler
   implements
     QueryHandler<
-      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[] },
+      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[]; seasonIdsFilter?: string[] },
       DivisionDto
     >
 {
@@ -80,9 +82,11 @@ export class GetDivisionHandler
     id: string;
     leagueIdsFilter?: string[];
     orgIdsFilter?: string[];
+    seasonIdsFilter?: string[];
   }): Promise<DivisionDto> {
     const d = await this.divisions.findById(DivisionId.of(input.id));
     if (!d) throw new NotFoundError("Division", input.id);
+    if (input.seasonIdsFilter?.includes(d.seasonId.value)) return DivisionDto.fromDomain(d);
 
     // Scope check: division → parent season has leagueId + orgId.
     // Accept when either filter accepts; 404 (not 403) on miss so we

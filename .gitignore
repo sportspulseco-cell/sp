@@ -66,3 +66,5 @@ test-results*/
 packages/db/.sq.mjs
 packages/db/.schema-drift.tmp.mts
 tests/e2e/tmp/
+# Private credentials and preview-entry links for PPHL test rounds.
+output/pphl-final-testing-*/

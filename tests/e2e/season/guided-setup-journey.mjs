@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import { chromium, expect } from "@playwright/test";
-import { CFG, OUT, TARGET, SUPABASE_IP, call, login, sql, msgOf } from "./lib.mjs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { chromium, expect as baseExpect } from "@playwright/test";
+import { CFG, OUT, TARGET, SUPABASE_IP, call, login, sql, msgOf, env } from "./lib.mjs";
+const expect = baseExpect.configure({ timeout: 30_000 });
 if (TARGET !== "staging") throw new Error("Guided setup rehearsal is staging-only");
 const checks = [], tag = randomUUID().slice(0, 8);
-const leagueName = `QA Guided Hockey ${tag}`, seasonName = `QA Guided Season ${tag}`;
+const leagueName = env.GUIDED_LEAGUE_NAME ?? `QA Guided Hockey ${tag}`, seasonName = env.GUIDED_SEASON_NAME ?? `QA Guided Season ${tag}`;
 // A valid PNG with a large uncompressed text chunk exercises the real
 // near-2MB upload body without storing a video or a generated asset.
 function largePng() {
@@ -18,7 +19,7 @@ function largePng() {
   return Buffer.concat([png.subarray(0, -12), length, type, data, crc, png.subarray(-12)]);
 }
 const browser = await chromium.launch({ args: [`--host-resolver-rules=MAP *.supabase.co ${SUPABASE_IP}`] });
-let leagueId, seasonId, admin, page;
+let leagueId, seasonId, admin, page, completed = false;
 try {
   admin = await login(CFG.orgAdmin.email, CFG.orgAdmin.password);
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
@@ -30,7 +31,7 @@ try {
   await page.locator("input[type=password]").fill(CFG.orgAdmin.password);
   await page.locator("button[type=submit]").click(); await page.waitForURL(u => !u.pathname.startsWith("/sign-in"));
   await page.goto(`${CFG.apps.org}/org-setup`);
-  await page.getByRole("button", { name: /PPHL Staging/ }).click();
+  await page.getByRole("button", { name: env.GUIDED_ORG_NAME ?? "PPHL Staging", exact: false }).click();
   await page.getByRole("button", { name: "Next: League" }).click();
   await page.getByLabel("League name", { exact: false }).fill(leagueName);
   await page.getByLabel("Sport", { exact: false }).selectOption("HOCKEY_ICE");
@@ -38,10 +39,10 @@ try {
   await logoInput.setInputFiles({ name: "too-large.png", mimeType: "image/png", buffer: Buffer.alloc(2 * 1024 * 1024 + 1) });
   await expect(page.getByRole("alert").filter({ hasText: "Choose a PNG" })).toBeVisible();
   const imageResponse = page.waitForResponse(r => /\/users\/[^/]+\/avatar$/.test(new URL(r.url()).pathname) && r.request().method() === "POST");
-  await logoInput.setInputFiles({ name: "qa-league-logo.png", mimeType: "image/png", buffer: largePng() });
+  await logoInput.setInputFiles({ name: "qa-league-logo.png", mimeType: "image/png", buffer: env.GUIDED_LOGO_PATH ? readFileSync(env.GUIDED_LOGO_PATH) : largePng() });
   const imageHttp = await imageResponse; assert.equal(imageHttp.status(), 201, await imageHttp.text());
-  await expect.poll(() => page.getByAltText("League logo preview").evaluate(img => img.naturalWidth)).toBe(1);
-  checks.push("A near-2MB logo uploads and renders; an image over the limit is refused with a clear message.");
+  await expect.poll(() => page.getByAltText("League logo preview").evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+  checks.push(env.GUIDED_LOGO_PATH ? "A local league logo uploads and renders; an image over the limit is refused with a clear message." : "A near-2MB logo uploads and renders; an image over the limit is refused with a clear message.");
   await page.getByRole("button", { name: "Next: Season" }).click();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   await page.getByLabel("Season name", { exact: false }).fill(seasonName);
@@ -51,6 +52,17 @@ try {
   await page.getByLabel("Season end date", { exact: false }).fill("2027-04-30");
   await page.getByRole("button", { name: "Next: Divisions" }).click();
   await page.getByLabel("Division name", { exact: false }).fill("Adult Open");
+  if (env.GUIDED_PPHL_FINAL === "1") {
+    await page.getByLabel("Period length", { exact: false }).fill("17");
+    await page.getByLabel("Period length", { exact: false }).press("Tab");
+    await page.getByRole("combobox", { name: /^Overtime/ }).selectOption("none");
+    await page.getByLabel("Playoff overtime", { exact: true }).selectOption("sudden_death");
+    await page.getByRole("button", { name: "Copy Division 1", exact: true }).click();
+    await page.getByLabel("Division name", { exact: false }).nth(1).fill("Adult 40+");
+    await expect(page.getByLabel("Period length", { exact: false }).nth(1)).toHaveValue("17");
+    await expect(page.getByLabel("Playoff overtime", { exact: true }).nth(1)).toHaveValue("sudden_death");
+    checks.push("Copy Division preserves period length and the independent playoff overtime rule; the copied division gets its own name.");
+  }
   await page.getByRole("button", { name: "Next: Registration" }).click();
   await page.getByLabel("Player registration price").fill("185.50");
   await expect(page.getByRole("checkbox", { name: "Charge a separate team registration fee" })).not.toBeChecked();
@@ -108,10 +120,17 @@ try {
   const [counts] = await sql`select (select count(*)::int from registration_forms where season_id=${seasonId}) forms,
     (select count(*)::int from pricing_tiers where season_id=${seasonId}) tiers`;
   assert.deepEqual(counts, { forms: 1, tiers: 2 });
+  if (env.GUIDED_PPHL_FINAL === "1") {
+    const divisions = await sql`select rule_set_overrides,playoff_config from divisions where season_id=${seasonId}`;
+    assert.equal(divisions.length, 2);
+    for (const d of divisions) { assert.equal(d.rule_set_overrides.gameRules.periodLengthMin, 17); assert.equal(d.playoff_config.overtimeRule, "sudden_death"); assert.equal(d.playoff_config.playoffSpots ?? null, null); }
+    checks.push("Both saved divisions retain the copied rules and All teams playoff qualification without individual team selection.");
+  }
   checks.push("Explicit publication reuses the saved draft, opens the configured public funnel, and preserves a free team tier and staff-reviewed membership requirement.");
   await page.screenshot({ path: `${OUT}/shots/guided-setup-season.png`, fullPage: true });
   console.log(checks.map(c => `PASS ${c}`).join("\n"));
   writeFileSync(`${OUT}/guided-setup-browser.json`, JSON.stringify({ tag, seasonId, leagueId, passed: true, checks }, null, 2));
+  completed = true;
 } catch (error) {
   if (page) {
     await page.screenshot({ path: `${OUT}/shots/guided-setup-failure.png`, fullPage: true }).catch(() => {});
@@ -126,7 +145,7 @@ try {
     const [fixture] = await sql`select id from leagues where name=${leagueName} and deleted_at is null`;
     leagueId = fixture?.id;
   }
-  if (leagueId && admin) {
+  if (leagueId && admin && !(completed && env.GUIDED_KEEP_FIXTURE === "1")) {
     const result = await call("POST", `/league/leagues/${leagueId}/status`, { status: "archived" }, admin);
     assert.ok(result.status < 300, `Archive QA guided fixture: ${result.status} ${msgOf(result)}`);
   }

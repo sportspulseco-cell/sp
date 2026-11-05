@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, ilike, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, or, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { Page } from "@sportspulse/kernel";
@@ -57,7 +57,10 @@ export class DrizzleDivisionRepository implements DivisionRepository {
         .select({ id: schema.seasons.id })
         .from(schema.seasons)
         .where(inArray(schema.seasons.leagueId, q.leagueIdsFilter));
-      cs.push(inArray(schema.divisions.seasonId, allowedSeasonIds));
+      const byLeague = inArray(schema.divisions.seasonId, allowedSeasonIds);
+      cs.push(q.seasonIdsFilter?.length ? or(byLeague, inArray(schema.divisions.seasonId, q.seasonIdsFilter))! : byLeague);
+    } else if (q.seasonIdsFilter?.length) {
+      cs.push(inArray(schema.divisions.seasonId, q.seasonIdsFilter));
     }
 
     const rows = await this.db

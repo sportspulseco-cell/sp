@@ -13,6 +13,7 @@ export interface ListDivisionsQuery extends PageQuery {
    * is in this list. The repo joins divisions → seasons → leagues.
    */
   leagueIdsFilter?: string[];
+  seasonIdsFilter?: string[];
 }
 
 export interface DivisionRepository {

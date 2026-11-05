@@ -45,7 +45,7 @@ function uuidList(ids: readonly string[] | null | undefined): SQL {
 /** Subquery of season ids the scope may see (league-owned rule). */
 export function visibleSeasonIds(scope: UserScope): SQL | null {
   if (unrestricted(scope)) return null;
-  return sql`(select s.id from seasons s where s.org_id in (${uuidList(scope.orgWideOrgIds)}) or s.league_id in (${uuidList(scope.leagueIds)}))`;
+  return sql`(select s.id from seasons s where s.org_id in (${uuidList(scope.orgWideOrgIds)}) or s.league_id in (${uuidList(scope.leagueIds)}) or s.id in (${uuidList(scope.seasonIds)}))`;
 }
 
 /**
@@ -69,7 +69,7 @@ export function visibleUserIds(v: Visibility): SQL | null {
     union select p.user_id from persons p
       join team_memberships tm on tm.person_id = p.id and tm.current_status = 'active'
       join teams t on t.id = tm.team_id
-      where p.user_id is not null and t.org_id in (${uuidList(scope.orgIds)})
+      where p.user_id is not null and (t.org_id in (${uuidList(scope.orgIds)}) or tm.season_id in ${seasons})
     union select r.submitted_by_user_id from registrations r
       where r.submitted_by_user_id is not null
         and (r.org_id in (${uuidList(scope.orgWideOrgIds)}) or r.league_id in (${uuidList(scope.leagueIds)}) or r.season_id in ${seasons})
@@ -118,7 +118,7 @@ export async function seasonVisible(
   if (unrestricted(scope)) return true;
   if (!seasonId) return false;
   const rows = await db.execute(
-    sql`select 1 from seasons s where s.id = ${seasonId}::uuid and (s.org_id in (${uuidList(scope.orgWideOrgIds)}) or s.league_id in (${uuidList(scope.leagueIds)})) limit 1`
+    sql`select 1 where ${seasonId}::uuid in ${visibleSeasonIds(scope)!}`
   );
   return hasRows(rows);
 }
@@ -164,7 +164,7 @@ export function visiblePersonIds(v: Visibility): SQL | null {
     select p.id from persons p where p.user_id in ${users}
     union select tm.person_id from team_memberships tm
       join teams t on t.id = tm.team_id
-      where t.org_id in (${uuidList(scope.orgIds)})
+      where t.org_id in (${uuidList(scope.orgIds)}) or tm.season_id in ${visibleSeasonIds(scope)!}
     union select registrations.subject_person_id from registrations where ${regs}
   )`;
 }
