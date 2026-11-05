@@ -1,79 +1,20 @@
-import Link from "next/link";
-import { Bell, CheckCheck, Settings as SettingsIcon } from "lucide-react";
-import { EmptyState, Eyebrow, PageHeader, LoadError } from "@sportspulse/ui";
-import { load, type Notification } from "@sportspulse/api-client";
-import { communications, loadMeScope } from "@/lib/api/server-api";
-import { NotificationRow } from "./notification-row";
-import { MarkAllReadButton } from "./mark-all-read";
-
-export const dynamic = "force-dynamic";
+import Link from 'next/link';
+import { Settings } from 'lucide-react';
+import { load } from '@sportspulse/api-client';
+import { LoadError, PageHeader } from '@sportspulse/ui';
+import { communications, loadMeScope } from '@/lib/api/server-api';
+import { Inbox } from './inbox';
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const metadata = { title: "Notifications · Player" };
-
+export const metadata = { title: 'Notifications · Player' };
 export default async function NotificationsPage() {
   const scope = await loadMeScope();
-  const personId = scope?.personId ?? null;
-
-  // GET /notifications/me — the admin list endpoint 403s for players.
-  const result = personId ? await load(communications.myNotifications({ limit: 100 })) : null;
-  const failed = result && !result.ok ? result : null;
-  const notifs: Notification[] = result?.ok ? result.data.items : [];
-  const unread = notifs.filter((n) => !n.readAt).length;
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Notifications"
-        title="Notifications"
-        description="Schedule changes, payment reminders, compliance updates, and admin notes. Click a notification to mark it read."
-        action={
-          <div className="flex items-center gap-2">
-            <Link
-              href="/notifications/settings"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg-subtle px-3 font-mono text-[10px] uppercase tracking-widest text-fg-muted hover:border-fg-muted hover:text-fg"
-            >
-              <SettingsIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Settings
-            </Link>
-            {unread > 0 ? <MarkAllReadButton unreadCount={unread} /> : null}
-          </div>
-        }
-      />
-
-      {failed ? (
-        <LoadError what="your notifications" status={failed.status} message={failed.message} />
-      ) : notifs.length === 0 ? (
-        <EmptyState
-          icon={Bell}
-          title="You're all caught up"
-          description="No notifications yet. New schedule, payment, and admin notes will show up here."
-        />
-      ) : (
-        <div className="rounded-xl border border-border bg-surface-1">
-          {unread > 0 ? (
-            <div className="flex items-center gap-2 border-b border-border bg-[var(--tint-blue-bg)] px-5 py-2.5 text-[12px] text-[var(--tint-blue-fg)]">
-              <Bell className="h-3.5 w-3.5" strokeWidth={2} />
-              <span>
-                {unread} unread notification{unread === 1 ? "" : "s"}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 border-b border-border bg-[var(--tint-emerald-bg)] px-5 py-2.5 text-[12px] text-[var(--tint-emerald-fg)]">
-              <CheckCheck className="h-3.5 w-3.5" strokeWidth={2} />
-              <span>All read.</span>
-            </div>
-          )}
-          <ul className="divide-y divide-border">
-            {notifs.map((n) => (
-              <NotificationRow key={n.id} notif={n} />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="hidden">
-        <Eyebrow>nb.</Eyebrow>
-      </div>
-    </div>
-  );
+  const result = scope?.personId ? await load(communications.myNotifications({ limit: 50 })) : null;
+  return <div className="min-w-0 space-y-6">
+    <PageHeader eyebrow="Notifications" title="Notifications" description="Your schedule changes, results and team updates." action={
+      <Link href="/notifications/settings" className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm text-fg-muted"><Settings className="h-4 w-4" />Settings</Link>
+    } />
+    {!result ? <p className="text-sm text-fg-muted">A linked player profile is needed to receive notifications. Ask your league administrator for help.</p> :
+      result.ok ? <Inbox initial={result.data} /> : <LoadError what="your notifications" status={result.status} message={result.message} />}
+  </div>;
 }

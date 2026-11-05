@@ -2,6 +2,7 @@
 // and the shared shell (@sportspulse/ui AppShell) all read it.
 import {
   BarChart3,
+  Bell,
   CalendarRange,
   CircleDollarSign,
   Inbox,
@@ -28,9 +29,8 @@ export const COACH_NAV: ShellNavSection[] = [
       { href: "/roster", label: "Roster", icon: Users },
       { href: "/schedule", label: "Schedule", icon: CalendarRange },
       { href: "/lineups", label: "Game lineups", icon: ListChecks },
-      { href: "/stats", label: "Stats & standings", icon: BarChart3 }
-      // Release 1 (PPHL, Oct 2026): Communications (/comms) is a
-      // placeholder page and stays out of the navigation until built.
+      { href: "/stats", label: "Stats & standings", icon: BarChart3 },
+      { href: "/notifications", label: "Notifications", icon: Bell }
     ]
   }
 ];
@@ -45,7 +45,8 @@ export const CAPTAIN_NAV: ShellNavSection[] = [
       { href: "/", label: "Home", icon: LayoutDashboard },
       { href: "/schedule", label: "Schedule", icon: CalendarRange },
       { href: "/lineups", label: "Game lineups", icon: ListChecks },
-      { href: "/stats", label: "Stats & standings", icon: BarChart3 }
+      { href: "/stats", label: "Stats & standings", icon: BarChart3 },
+      { href: "/notifications", label: "Notifications", icon: Bell }
     ]
   },
   {
@@ -80,5 +81,5 @@ export const CAPTAIN_NAV: ShellNavSection[] = [
 export const ROUTES = [
   "/", "/captain/compliance", "/captain/dues", "/captain/free-agents", "/captain/invites", "/captain/join-requests",
   "/captain/register", "/captain/register/[seasonId]", "/captain/register/setup/[entryId]", "/captain/roster",
-  "/captain/store", "/captain/team", "/comms", "/lineups", "/lineups/[gameId]", "/roster", "/schedule", "/stats"
+  "/captain/store", "/captain/team", "/comms", "/lineups", "/lineups/[gameId]", "/roster", "/schedule", "/stats", "/notifications"
 ] as const;

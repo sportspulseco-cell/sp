@@ -104,3 +104,4 @@ export { CaptainSubsPanel, GameSubsAdminPanel } from "./subs/subs-panels";
 export type { AdminSubsApi, CaptainSubsApi } from "./subs/subs-panels";
 export { RegionalSubCaptainPanel, RegionalSubStaffQueue } from "./subs/regional-sub-panels";
 export { RegionalSubPlayerPanel } from "./subs/regional-sub-player";
+export { RecipientInbox } from "./communications/recipient-inbox";

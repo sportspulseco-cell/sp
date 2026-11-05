@@ -34,6 +34,7 @@ async function fits(page, label) {
   for (const width of [320, 375, 414, 768, 1440]) {
     await page.setViewportSize({ width, height: 1100 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${label} fits ${width}px`);
+    if (width === 320) await page.screenshot({ path: `${OUT}/${label.toLowerCase().replaceAll(" ", "-")}-320.png`, fullPage: true });
   }
   await page.evaluate(() => window.scrollTo(0, 0));
 }
@@ -143,6 +144,15 @@ try {
   for (const actor of [cap, pl]) {
     await actor.page.goto(`${actor.base}/schedule`); await expect(actor.page.getByRole("main")).toContainText(venueName);
     await actor.page.goto(`${actor.base}/notifications`); await expect(actor.page.getByRole("main")).toContainText(name);
+    const notice = actor.page.getByRole("listitem").filter({ hasText: name }).first();
+    let failRead = true;
+    await actor.page.route("**/api/notifications/*/read", route => failRead ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "QA read update unavailable" }) }) : route.continue());
+    await notice.getByRole("button", { name: "Mark read", exact: true }).click();
+    await expect(actor.page.getByRole("alert")).toContainText("QA read update unavailable");
+    await expect(notice.getByRole("button", { name: "Mark read", exact: true })).toBeEnabled();
+    failRead = false; await notice.getByRole("button", { name: "Mark read", exact: true }).click();
+    await expect(notice.getByText("Read", { exact: true })).toBeVisible();
+    await fits(actor.page, actor === cap ? "Captain notification inbox" : "Player notification inbox");
   }
   passed("The same published season appears on captain/player schedules and in their own notification inboxes.");
   let conflictFailure = true;
@@ -163,6 +173,8 @@ try {
   await finalDialog.getByRole("radio", { name: "Regulation", exact: true }).check();
   await finalDialog.getByRole("button", { name: "Confirm final score" }).click(); await expect(finalDialog).toHaveCount(0);
   await deliveredFor(event => /game.*finalized/.test(event));
+  const [line] = await sql`select core from stat_lines where game_id=${game.id} and person_id=${scorer.person_id}`;
+  assert.equal(Number(line?.core?.goals), 1, "Finalization rebuilds the scorer's persisted stats");
   await pl.page.goto(`${pl.base}/stats`); await expect(pl.page.getByRole("main")).toContainText(/Stats|Goals/);
   passed("A logged goal, staff finalization, rebuilt player stats and a delivered result notice complete the same season flow.");
   await sa.page.goto(`${sa.base}/communications`);
