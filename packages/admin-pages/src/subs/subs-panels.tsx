@@ -162,6 +162,10 @@ export function CaptainSubsPanel({
       {error ? <Alert tone="error">{error}</Alert> : null}
       {done ? <Alert tone="success">{done}</Alert> : null}
 
+      <details className="space-y-5 rounded-xl border border-border bg-surface-1 p-5">
+        <summary className="cursor-pointer text-sm font-medium text-fg">
+          Ask a specific player{view.requests.some(request => request.status === "requested") ? " · Requests pending" : ""}
+        </summary>
       <section className="space-y-3">
         <Eyebrow>Requests</Eyebrow>
         <RequestRows
@@ -258,6 +262,7 @@ export function CaptainSubsPanel({
           </div>
         ) : null}
       </section>
+      </details>
     </div>
   );
 }

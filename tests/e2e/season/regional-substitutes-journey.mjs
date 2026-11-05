@@ -28,12 +28,19 @@ async function as(app, email, pw) {
   await page.waitForURL(url => !url.pathname.startsWith("/sign-in"));
   return { context, page, base };
 }
+async function fits(page, label) {
+  for (const width of [320, 375, 414, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1100 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${label} fits ${width}px`);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
 try {
   // Use the existing connected QA organization, never a customer record.
   const [org] = await sql`select display_name from orgs where id=${ids.orgId}`;
   assert.match(org?.display_name ?? "", /PPHL Staging/);
-  const [source] = await sql`select g.* from games g join teams t on t.id=g.home_team_id join teams away on away.id=g.away_team_id
-    where g.season_id=${ids.seasonId} and t.name='Team Alpha' and away.name='Team Bravo' limit 1`;
+  const [source] = await sql`select g.* from games g where g.season_id=${ids.seasonId}
+    and g.home_team_id=${ids.teams["Team Alpha"].id} and g.away_team_id=${ids.teams["Team Bravo"].id} limit 1`;
   assert.ok(source?.division_id);
   [originalDivision] = await sql`select id,region_id,tier from divisions where id=${source.division_id}`;
   [membership] = await sql`select * from team_memberships where person_id=${player.personId} and season_id=${ids.seasonId} and current_status='active' limit 1`;
@@ -73,6 +80,7 @@ try {
   await requestPanel.getByLabel("Note for the invitation").fill(`QA goalie request ${tag}`);
   await requestPanel.getByRole("button", { name: "Submit for staff review" }).click();
   await expect(requestPanel.getByText("Waiting for staff review")).toBeVisible();
+  await fits(c.page, "Captain request");
   const [request] = await sql`select id from substitute_broadcasts where game_id=${gameId}`; assert.ok(request);
   assert.equal((await sql`select id from substitute_broadcast_recipients where broadcast_id=${request.id}`).length, 0);
   const rejectedReview = await call("POST", `/admin/regional-subs/requests/${request.id}/review`, { action: "approve" }, capToken);
@@ -81,19 +89,20 @@ try {
   const sa = await as("superadmin", CFG.superAdmin.email, CFG.superAdmin.password);
   await sa.page.goto(`${sa.base}/substitutes`);
   await expect(sa.page.getByText(`QA goalie request ${tag}`)).toBeVisible();
+  await fits(sa.page, "Super admin approval queue");
   const admin = await as("org", CFG.orgAdmin.email, CFG.orgAdmin.password);
   await admin.page.goto(`${admin.base}/substitutes`);
   const card = admin.page.locator("section").filter({ hasText: `QA goalie request ${tag}` });
+  await expect(card.getByRole("button", { name: "Approve and send invitations" })).toBeVisible();
+  await fits(admin.page, "Organization approval queue");
+  await admin.page.screenshot({ path: `${OUT}/regional-staff-review.png`, fullPage: true });
   await card.getByRole("button", { name: "Approve and send invitations" }).click();
   await expect(admin.page.getByText(`QA goalie request ${tag}`)).toHaveCount(0);
   checks.push("The same request appears in both staff consoles; the organization administrator approves it.");
   await p.page.reload();
   const offer = p.page.locator('section[aria-labelledby="regional-player-title"] article').filter({ hasText: `QA goalie request ${tag}` });
   await expect(offer.getByRole("button", { name: "I can play" })).toBeVisible();
-  for (const width of [320, 375, 414, 768, 1440]) {
-    await p.page.setViewportSize({ width, height: 1100 });
-    assert.ok(await p.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Player invitation fits ${width}px`);
-  }
+  await fits(p.page, "Player invitation");
   await p.page.screenshot({ path: `${OUT}/regional-player-invitation.png`, fullPage: true });
   await offer.getByRole("button", { name: "I can play" }).click();
   await expect(offer.getByText("You're confirmed", { exact: true })).toBeVisible();

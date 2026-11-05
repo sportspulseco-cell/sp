@@ -1,4 +1,4 @@
-import { fetchAll, load } from "@sportspulse/api-client";
+import { load } from "@sportspulse/api-client";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -60,20 +60,13 @@ export default async function GameDetailPage({
   const game = gameResult.data;
   const myPersonId = official ? (await iam.meScope()).personId : null;
 
-  const none = { items: [], nextCursor: null };
-  const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division, suspensionsResult, gamePlayers] = await Promise.all([
+  const [events, statLines, homeTeam, awayTeam, league, officials, division, suspensionsResult, gamePlayers] = await Promise.all([
     gameOps.eventsForGame(id).catch(() => []),
     stats.linesForGame(id).catch(() => []),
-    official
-      ? Promise.resolve(none)
-      : fetchAll((cursor) => leagueMgmt.listTeams({ limit: 100, cursor })).catch(() => none),
-    official
-      ? Promise.resolve(none)
-      : fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => none),
+    official ? Promise.resolve(null) : leagueMgmt.getTeam(game.homeTeamId).catch(() => null),
+    official ? Promise.resolve(null) : leagueMgmt.getTeam(game.awayTeamId).catch(() => null),
+    official ? Promise.resolve(null) : leagueMgmt.getLeague(game.leagueId).catch(() => null),
     gameOps.listOfficials(id).catch(() => []),
-    official
-      ? Promise.resolve(none)
-      : fetchAll((cursor) => iam.listPersons({ limit: 100, cursor })).catch(() => none),
     game.divisionId ? leagueMgmt.getDivision(game.divisionId).catch(() => null) : Promise.resolve(null),
     // Suspensions issued from this game's penalties (COMP-10). Admin
     // console only: a scorekeeper gets a 403 here and sees no Suspend.
@@ -90,7 +83,8 @@ export default async function GameDetailPage({
   const canSuspend =
     suspensionsResult.ok && (suspensionsResult.data.viewerPermissions ?? []).includes("suspension.issue");
   const can = (p: string) => (game.viewerPermissions ?? []).includes(p);
-  const leagueOrgId = leaguesPage.items.find((l) => l.id === game.leagueId)?.orgId ?? null;
+  const leagueOrgId = league?.orgId ?? null;
+  const teams = [homeTeam, awayTeam].filter((team): team is NonNullable<typeof team> => team !== null);
   // Regulation length from the division's game rules (org setup), else 3.
   const gameRules = (division?.ruleSetOverrides as { gameRules?: { numberOfPeriods?: unknown } } | undefined)
     ?.gameRules;
@@ -108,18 +102,19 @@ export default async function GameDetailPage({
   ];
   const teamMap = new Map<string, string>([
     ...gameTeams,
-    ...teamsPage.items.map((t) => [t.id, t.shortName ?? t.name] as [string, string])
+    ...teams.map((t) => [t.id, t.shortName ?? t.name] as [string, string])
   ]);
   const teamFullMap = new Map<string, string>([
     ...gameTeams,
-    ...teamsPage.items.map((t) => [t.id, t.name] as [string, string])
+    ...teams.map((t) => [t.id, t.name] as [string, string])
   ]);
-  const leagueMap = new Map(leaguesPage.items.map((l) => [l.id, l.name]));
+  const leagueMap = new Map(league ? [[league.id, league.name]] : []);
   const personMap = new Map<string, string>([
     ...gamePlayers.flatMap((t) => t.players.map((p) => [p.personId, p.name] as [string, string])),
-    ...personsPage.items.map(
-      (p) => [p.id, p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`] as [string, string]
-    )
+    // Historical players remain named after leaving a roster; the
+    // per-game stat lines carry their names without a global directory.
+    ...statLines.flatMap(line => line.personName ? [[line.personId, line.personName] as [string, string]] : []),
+    ...officials.flatMap(person => person.personName ? [[person.personId, person.personName] as [string, string]] : [])
   ]);
 
   const homeName = teamFullMap.get(game.homeTeamId) ?? game.homeTeamName ?? "Home";
@@ -218,7 +213,6 @@ export default async function GameDetailPage({
       <GameOfficialsPanel
         gameId={game.id}
         officials={officials}
-        persons={personsPage.items}
         personMap={Array.from(personMap.entries())}
         canEdit={can("game.assign_officials")}
         myPersonId={myPersonId}

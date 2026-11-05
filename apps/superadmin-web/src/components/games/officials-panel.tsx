@@ -1,10 +1,11 @@
 "use client";
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V3 */
 
 import { Alert, Badge, Button, Eyebrow, Field, IconTile, Input, Select, type Tint } from "@sportspulse/ui";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Flag } from "lucide-react";
-import { gameOps } from "@/lib/api/browser-api";
+import { gameOps, iam } from "@/lib/api/browser-api";
 import type { GameOfficial, GameOfficialRole, GameOfficialStatus, Person } from "@/lib/api/types";
 
 const ROLES: GameOfficialRole[] = [
@@ -39,14 +40,12 @@ function tintForRole(role: GameOfficialRole): Tint {
 export function GameOfficialsPanel({
   gameId,
   officials,
-  persons,
   personMap,
   canEdit = true,
   myPersonId
 }: {
   gameId: string;
   officials: GameOfficial[];
-  persons: Person[];
   personMap: [string, string][];
   /** False hides Assign and Revoke (viewer lacks game.assign_officials). */
   canEdit?: boolean;
@@ -84,7 +83,6 @@ export function GameOfficialsPanel({
       {open && canEdit ? (
         <AssignForm
           gameId={gameId}
-          persons={persons}
           onDone={() => {
             setOpen(false);
             router.refresh();
@@ -149,17 +147,32 @@ function OfficialReply({id,status}:{id:string;status:GameOfficialStatus}) {
 
 function AssignForm({
   gameId,
-  persons,
   onDone
 }: {
   gameId: string;
-  persons: Person[];
   onDone: () => void;
 }) {
   // Never preselect someone (FR-3.9): the list starts with the people
   // who hold a referee or scorekeeper role for this game's league.
   const [candidates, setCandidates] = useState<Array<{ personId: string; name: string; roles: string[]; busyWith: string | null }> | null>(null);
   const [everyone, setEveryone] = useState(false);
+  const [people, setPeople] = useState<Person[]>([]), [searchText, setSearchText] = useState("");
+  const [peopleCursor, setPeopleCursor] = useState<string | null>(null), [peopleBusy, setPeopleBusy] = useState(false);
+  const [peopleError, setPeopleError] = useState(""), [searched, setSearched] = useState(false);
+  const searchVersion = useRef(0);
+  async function searchPeople(cursor?: string) {
+    if (searchText.trim().length < 2) return;
+    const version = ++searchVersion.current;
+    setPeopleBusy(true); setPeopleError("");
+    if (!cursor) { setPeople([]); setPeopleCursor(null); setForm(current => ({ ...current, personId: "" })); }
+    try {
+      const result = await iam.listPersons({ search: searchText.trim(), limit: 50, cursor });
+      if (version !== searchVersion.current) return;
+      setPeople(current => cursor ? [...current, ...result.items] : result.items);
+      setPeopleCursor(result.nextCursor); setSearched(true);
+    } catch (error) { if (version === searchVersion.current) setPeopleError(error instanceof Error ? error.message : "Could not search people."); }
+    finally { if (version === searchVersion.current) setPeopleBusy(false); }
+  }
   // An official with no tie to the league yet: their account email, typed
   // in full. The API matches it exactly and never lists accounts.
   const [byEmail, setByEmail] = useState(false);
@@ -237,12 +250,21 @@ function AssignForm({
         htmlFor="ao-person"
         hint={
           everyone
-            ? "Everyone you can see"
+            ? "Search people you have permission to view"
             : candidates && candidates.length === 0
               ? "No referee or scorekeeper role in this league yet"
               : "Referees and scorekeepers of this league"
         }
       >
+        {everyone ? <div className="mb-3 space-y-2">
+          <label htmlFor="ao-search" className="block text-xs font-medium">Search by name</label>
+          <div className="flex gap-2"><Input id="ao-search" value={searchText} maxLength={100} placeholder="At least 2 characters"
+            onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void searchPeople(); } }}
+            onChange={event => { ++searchVersion.current; setSearchText(event.target.value); setPeople([]); setPeopleCursor(null); setSearched(false); setPeopleError(""); setPeopleBusy(false); setForm(current => ({ ...current, personId: "" })); }} />
+            <Button type="button" size="sm" variant="outline" disabled={peopleBusy || searchText.trim().length < 2} onClick={() => void searchPeople()}>{peopleBusy ? "Searching…" : "Search"}</Button></div>
+          {peopleError ? <p role="alert" className="text-xs text-fg-muted">{peopleError} Try the search again, or add by email.</p> : null}
+          {searched && !people.length && !peopleError ? <p className="text-xs text-fg-muted">No matching people. Try another name or add by email.</p> : null}
+        </div> : null}
         <Select
           id="ao-person"
           required
@@ -259,7 +281,7 @@ function AssignForm({
             {candidates === null && !everyone ? "Loading officials…" : "Pick an official"}
           </option>
           {everyone
-            ? persons.map((p) => (
+            ? people.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.preferredName ?? `${p.legalFirstName} ${p.legalLastName}`}
                 </option>
@@ -271,7 +293,8 @@ function AssignForm({
                 </option>
               ))}
         </Select>
-        {persons.length > 0 ? <label className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-muted">
+        {everyone && peopleCursor ? <Button type="button" size="sm" variant="ghost" disabled={peopleBusy} onClick={() => void searchPeople(peopleCursor)}>{peopleBusy ? "Loading…" : "More matches"}</Button> : null}
+        <label className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-muted">
           <input
             type="checkbox"
             checked={everyone}
@@ -280,8 +303,8 @@ function AssignForm({
               setForm({ ...form, personId: "" });
             }}
           />
-          Show everyone
-        </label> : null}
+          Find someone else
+        </label>
         <label className="mt-1 flex items-center gap-1.5 text-[12px] text-fg-muted">
           <input
             type="checkbox"
@@ -337,7 +360,7 @@ function AssignForm({
       </Field>
       <div className="flex items-end gap-2">
         {candidateError && !byEmail && !everyone ? <div role="alert" className="text-sm">Could not load officials: {candidateError} <Button type="button" variant="outline" size="sm" onClick={() => setRetryCandidates(n => n + 1)}>Retry</Button></div> : null}
-        <Button type="submit" disabled={loading || (!byEmail && !everyone && (!candidates || !!candidateError))} size="sm">
+        <Button type="submit" disabled={loading || (!byEmail && everyone && (peopleBusy || !form.personId)) || (!byEmail && !everyone && (!candidates || !!candidateError))} size="sm">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Assigning…
