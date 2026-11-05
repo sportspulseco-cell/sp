@@ -33,6 +33,7 @@ export interface RegistrationWindowFields {
   registrationClosesAt: string | Date | null | undefined;
   /** IANA zone used for player-facing dates. Defaults to UTC. */
   timezone?: string | null;
+  metadata?: unknown;
 }
 
 function epochMs(value: string | Date | null | undefined): number | null {
@@ -46,6 +47,8 @@ export function registrationWindowState(
   season: RegistrationWindowFields,
   now: Date = new Date()
 ): RegistrationWindowState {
+  const setup = (season.metadata as { guidedRegistrationSetup?: { published?: boolean } } | null)?.guidedRegistrationSetup;
+  if (setup?.published === false) return "season_closed";
   if (
     !(REGISTRATION_ACCEPTING_SEASON_STATUSES as readonly string[]).includes(
       season.status
@@ -106,6 +109,8 @@ export function registrationWindowMessage(
 ): string | null {
   const state = registrationWindowState(season, now);
   const what = season.name ? `Registration for ${season.name}` : "Registration";
+  if ((season.metadata as { guidedRegistrationSetup?: { published?: boolean } } | null)?.guidedRegistrationSetup?.published === false)
+    return `${what} has not been published yet.`;
   switch (state) {
     case "open":
       return null;

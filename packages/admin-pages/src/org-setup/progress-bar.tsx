@@ -6,7 +6,7 @@ import { cn } from "@sportspulse/ui";
 import type { WizardStep } from "./types";
 
 /**
- * Editorial 4-step progress indicator — chapter-numbered nodes (01..04)
+ * Numbered progress indicator for the current setup path.
  * connected by an animated rail that fills as steps are completed.
  * Active node gets the layoutId-animated accent halo so it slides
  * between positions when you navigate. Completed steps get a check
@@ -16,14 +16,16 @@ export function ProgressBar({
   step,
   labels,
   validation,
-  onNavigate
+  onNavigate,
+  lastStep = 6
 }: {
   step: WizardStep;
   labels: Record<WizardStep, string>;
   validation: Record<WizardStep, boolean>;
   onNavigate: (s: WizardStep) => void;
+  lastStep?: WizardStep;
 }) {
-  const steps: WizardStep[] = [1, 2, 3, 4];
+  const steps = ([1, 2, 3, 4, 5, 6] as WizardStep[]).filter(s => s <= lastStep);
   return (
     <div className="flex items-center gap-2 sm:gap-4">
       {steps.map((s, i) => {
@@ -35,10 +37,11 @@ export function ProgressBar({
           <div key={s} className="flex flex-1 items-center gap-2 sm:gap-3">
             <button
               type="button"
+              aria-label={`Step ${s}: ${labels[s]}`}
               disabled={!canClick}
               onClick={() => onNavigate(s)}
               className={cn(
-                "group relative flex items-center gap-2 sm:gap-3",
+                "group relative flex flex-col items-center gap-1",
                 canClick ? "cursor-pointer" : "cursor-default"
               )}
             >
@@ -73,7 +76,7 @@ export function ProgressBar({
               </span>
               <span
                 className={cn(
-                  "hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.22em] transition-colors sm:inline",
+                  "hidden whitespace-nowrap text-[11px] transition-colors lg:inline",
                   isActive && "text-fg",
                   isDone && "text-[var(--success)]",
                   isFuture && "text-fg-muted group-hover:text-fg"

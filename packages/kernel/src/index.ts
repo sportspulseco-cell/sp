@@ -32,6 +32,7 @@ export * from "./skill-levels";
 export * from "./game-results";
 export * from "./division-rules";
 export * from "./official-availability";
+export * from "./guided-registration";
 export * from "./hockey-scoring";
 export * from "./time-zones";
 export * from "./division-entries";

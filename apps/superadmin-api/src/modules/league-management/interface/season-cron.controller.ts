@@ -59,6 +59,13 @@ export class SeasonCronController {
       .where(
         and(
           eq(schema.seasons.status, "draft"),
+          sql`${schema.seasons.deletedAt} IS NULL`,
+          sql`(${schema.seasons.metadata}->'guidedRegistrationSetup'->>'published') IS DISTINCT FROM 'false'`,
+          // Dates alone must never publish an unfinished setup. Require a
+          // published season form, or its league's published shared form.
+          sql`EXISTS (SELECT 1 FROM registration_forms f WHERE f.org_id = ${schema.seasons.orgId}
+            AND f.purpose = 'season_registration' AND f.deleted_at IS NULL AND f.active_version_id IS NOT NULL
+            AND (f.season_id = ${schema.seasons.id} OR (f.season_id IS NULL AND f.scope = 'league' AND f.scope_id = ${schema.seasons.leagueId})))`,
           isNotNull(schema.seasons.registrationOpensAt),
           lte(schema.seasons.registrationOpensAt, sql`now()`)
         )

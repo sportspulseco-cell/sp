@@ -27,7 +27,7 @@ import {
  *   - divisions.playoffConfig for post-season config
  */
 
-export type WizardStep = 1 | 2 | 3 | 4;
+export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type LeagueFormat = "regular" | "tournament" | "pickup" | "friendly";
 export type Privacy = "public" | "unlisted" | "private";

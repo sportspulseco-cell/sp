@@ -4,6 +4,7 @@ import type { SeasonDraft } from "../types";
 import { SectionHeader } from "./org-step";
 import { Field } from "./league-step";
 import { Input } from "@sportspulse/ui";
+import { calendarDateInZone } from "@sportspulse/kernel";
 
 function todayIso(): string {
   // Local-date ISO (YYYY-MM-DD) — matches the format <input type="date"> emits.
@@ -18,13 +19,15 @@ function todayIso(): string {
 export function SeasonStep({
   draft,
   leagueName,
-  onChange
+  onChange,
+  timezone
 }: {
   draft: SeasonDraft;
   leagueName: string;
   onChange: (patch: Partial<SeasonDraft>) => void;
+  timezone?: string;
 }) {
-  const today = todayIso();
+  const today = timezone ? calendarDateInZone(new Date(), timezone) : todayIso();
   const date = (
     key: "startDate" | "endDate" | "registrationOpensAt" | "registrationClosesAt" | "rosterLockAt" | "playoffStartDate" | "playoffEndDate",
     label: string,
@@ -64,7 +67,7 @@ export function SeasonStep({
       <section className="space-y-4 rounded-xl border border-border bg-surface-1 p-5">
         <SectionHeader title="Registration" required />
         <div className="grid gap-4 sm:grid-cols-2">
-          {date("registrationOpensAt", "Registration opens", "Today or later. Today opens it now.", { required: true, min: today })}
+          {date("registrationOpensAt", "Registration opens", "Today or later. Registration opens only after publishing.", { required: true, min: today })}
           {date("registrationClosesAt", "Registration closes", "The sign-up link closes after this day.", { required: true, min: draft.registrationOpensAt || today })}
         </div>
       </section>

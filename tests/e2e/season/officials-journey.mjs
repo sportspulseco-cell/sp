@@ -53,7 +53,10 @@ try {
   const at = await login(assigner.email, password), ot = await login(official.email, password); tokens.push(at, ot);
   const mine = await call("GET", "/games?assignedToMe=true&limit=100", undefined, at);
   assert.equal(mine.status, 200); assert.deepEqual(mine.json.items.map(g => g.id), [game.id]);
-  for (const route of ["/iam/persons", "/finance/invoices", `/games/${ids.games[0].id}`]) {
+  const directory = await call("GET", "/iam/persons", undefined, at);
+  assert.equal(directory.status, 200);
+  assert.ok(directory.json.items.every(p => p.id === assigner.personId && !p.userId && !p.dobDate));
+  for (const route of ["/iam/users", "/finance/invoices", "/roster/moves", `/games/${ids.games[0].id}`]) {
     const response = await call("GET", route, undefined, at); assert.ok([403, 404].includes(response.status), `Restricted route ${route} returned ${response.status}`);
   }
   assert.equal((await call("POST", `/games/${game.id}/start`, {}, at)).status, 403);

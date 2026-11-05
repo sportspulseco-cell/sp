@@ -9,11 +9,11 @@
     "production_capacity": "not certified"
   },
   "verification": {
-    "typescript_business_tests": 331,
+    "typescript_business_tests": 333,
     "local_solver_regressions": 11,
     "deployed_solver_regressions": 11,
     "staging_database_publication_regression": "passed, fixtures rolled back",
-    "workspace_build": "passed for every app; latest API changes rebuilt separately and passed",
+    "workspace_build": "All apps passed; admin consoles rebuilt after guided-setup changes. Latest progress-label layout awaits staging build.",
     "workspace_typecheck": "all workspace projects passed",
     "browser_suite": "74 passed against bfa13c2b / 2b95db57 deployments; player registration detail fixture missing, so that route is not certified",
     "manual_membership_staging": "passed: scope, ownership, changed IDs, expiry, append-only decision, idempotency and revocation; fixtures rolled back",
@@ -33,7 +33,14 @@
     "raw_privacy_and_role_gates": "Passed: captain recruiting redaction, player denial, and player/captain denial at generic admin roster writes",
     "schedule_pagination_staging": "Passed with 134 games, 130 historic results, upcoming/live visibility, newest completed first, all-view order and no duplicate/omitted rows",
     "multi_team_browser": "Passed: staff second-team add; player roster/schedule/stats switch and persistence; forged foreign-team cookie ignored; temporary membership closed",
-    "roster_atomicity_staging": "Passed locally after 69e3c7fc: injected projection failure leaves no orphan history, idempotency scoped to subject, and failed trade preserves original roster; deployment pending"
+    "roster_atomicity_staging": "Passed: injected projection failure leaves no orphan history, idempotency scoped to subject, and failed trade preserves original roster; deployed at 37646196.",
+    "official_assigner_browser": "Passed all four: game-scoped custom role and raw HTTP privacy gates, busy-window assignment refusal, tentative invitation, own confirmation and assigner notice; fixture accounts removed.",
+    "guided_registration_staging": "Passed rollback test: form/prices publish atomically, team fee off by default, request replay, saved drafts remain closed through cron; new UI browser acceptance pending.",
+    "github_ci": {
+      "commit": "2ae09f3a",
+      "result": "success",
+      "url": "https://github.com/sportspulseco-cell/sp/actions/runs/41981921452"
+    }
   },
   "deployed": {
     "solver_commit": "a456244bf98b6e3ee0cd566734a45d9ea6154d49",
@@ -55,21 +62,21 @@
     "F03": "real provider explicitly deferred by user; mock status banner implemented; commercial blocker remains",
     "F04": "Closed in staging: strict allowlist and raw captain-response canary test verify no email, DOB, arbitrary metadata, availability free text or private note; ordinary player denied.",
     "F05": "Transactional season/league copy and initial dialog committed to staging. Bulk 70-league pause/resume UI, batching, logical-request replay and league-name checks implemented after initial commit; awaiting final tests/deployment.",
-    "F06": "guided setup not complete; currently four-phase wizard still split from registration",
+    "F06": "Six-step guided registration setup implemented with explicit review, prices, documents, resumable browser draft and replay-safe atomic form/pricing publication. Database rollback regression passed; UI staging deployment and browser acceptance pending.",
     "F07": "logo file upload in shared wizard implemented using existing self-owned public image upload; browser test pending",
     "F08": "Regular OT and shootout finalization passed connected run. Playoff override and unsupported-value refusal unit verified; scoresheet shows effective rule. Dedicated playoff browser acceptance pending.",
-    "F09": "Multi-team browser acceptance passed across roster, schedule, stats, reload and foreign-cookie denial. Visible switching/error feedback added afterward; pending deployment.",
+    "F09": "Multi-team browser acceptance passed across roster, schedule, stats, reload and foreign-cookie denial. Switching/error feedback deployed.",
     "F10": "Schedule and single-game publication/creation write durable notices in the same transaction. Single-game failure/replay staging regression passed. Reschedule/cancel/finalize paths and external delivery acceptance remain pending.",
-    "F11": "Scoped assigner access, own confirm/decline, private availability windows and assigner notifications implemented. Reply/start race guarded by transaction locks; negative staging controller/DB tests pass. Restricted-assigner browser and raw HTTP gate tests pending.",
+    "F11": "Restricted assigner and official connected browser journey passed all four gates. Invitations tentative by default; personal availability is private and blocks conflicting assignment; own response and assigner notice verified. Deployed 2ae09f3a.",
     "F12": "not started",
     "F13": "Filter and order now applied in SQL before pagination, including upcoming/live and completed/all; 134-game staging test passed. Dashboard aggregate read model still outstanding.",
-    "F14": "Connected season finished 160/161 with one corrected fixture assumption rechecked via deployed API; 12/12 connected browser checks passed. CI on 69e3c7fc is running browser gates after type/unit/solver success.",
+    "F14": "Connected season 160/161 with obsolete archived-name assertion rechecked and corrected; 12/12 connected browser checks passed. CI at 2ae09f3a green including 74 browser gates. Guided-setup browser acceptance pending.",
     "F15": "production-sized capacity remains unverified; user retained Free/Hobby",
     "F16": "public viewing scope pending client decision",
     "F17": "Staff-reviewed membership flow implemented and browser verified end to end. Self-entered or changed IDs stay pending; reviewer, document hash and expiry recorded; eligibility refreshed preserving other rules.",
     "F18": "calm task-led UI work ongoing",
-    "F19": "New P0 discovered and closed in staging: generic admin roster API previously trusted player-projected team scope. Now requires an admin role and actual scoped roster.write permission from admin roles. Captain safe workflow preserved. Raw HTTP negatives pass. Atomic admin moves/trades implemented locally afterward; pending deployment."
+    "F19": "Closed in staging: generic roster mutations require actual scoped admin permission. Negative raw HTTP gates passed. Atomic admin moves/trades and failure rollback deployed at 37646196."
   },
-  "staging_git_commit": "69e3c7fc",
+  "staging_git_commit": "2ae09f3a",
   "production_git_commit": "9f33a271"
 }

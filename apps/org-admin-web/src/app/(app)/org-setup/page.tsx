@@ -66,6 +66,7 @@ export default async function OrgAdminOrgSetupPage() {
     <div className="space-y-8">
       <RegionsSection orgId={regionOrg.id} orgName={regionOrg.displayName} folded />
       <OrgSetupShell
+        actorId={scope.userId}
         orgs={ordered}
         sports={sports}
         governingBodies={governingBodies}

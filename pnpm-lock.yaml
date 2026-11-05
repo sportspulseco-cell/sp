@@ -491,6 +491,9 @@ importers:
       '@sportspulse/auth':
         specifier: workspace:*
         version: link:../auth
+      '@sportspulse/forms-builder':
+        specifier: workspace:^
+        version: link:../forms-builder
       '@sportspulse/kernel':
         specifier: workspace:*
         version: link:../kernel

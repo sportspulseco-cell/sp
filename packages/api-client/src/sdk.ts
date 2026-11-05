@@ -1,3 +1,4 @@
+import type { GuidedRegistrationSetupInput } from "@sportspulse/kernel";
 import type {
   BroadcastAttachment,
   LicenceIdCheck,
@@ -2684,6 +2685,9 @@ export function createApi(f: Fetcher) {
     // Registration v2 — pricing tiers, email templates, team invites,
     // free agent pool. Backed by apps/superadmin-api/src/modules/registration-v2.
     registrationV2: {
+      prepareRegistration: (seasonId: string, body: GuidedRegistrationSetupInput) =>
+        f<{ seasonId: string; leagueId: string; formId: string; published: boolean; seasonStatus: string; replayed: boolean }>(
+          `/registration-v2/seasons/${seasonId}/registration-setup`, { method: "POST", body: JSON.stringify(body) }),
       duplicateSeason: (sourceSeasonId:string, body:{name:string;startDate:string;requestId:string;newLeagueName?:string;copySchedule?:boolean;copyTeamEntries?:boolean})=>
         f<{seasonId:string;leagueId:string;replayed:boolean;copied?:Record<string,number>}>(`/registration-v2/seasons/${sourceSeasonId}/duplicate`,{method:"POST",body:JSON.stringify(body)}),
       duplicateSeasons: (items:Array<{sourceSeasonId:string;name:string;startDate:string;requestId:string;newLeagueName?:string;copySchedule?:boolean;copyTeamEntries?:boolean}>)=>

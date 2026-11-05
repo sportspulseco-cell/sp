@@ -92,7 +92,9 @@ export function seasonRegistrationFormMatch(season: {
   orgId: unknown;
 }): SQL {
   const f = schema.registrationForms;
-  return sql`(${formBelongsToSeason(season)} AND ${f.deletedAt} IS NULL AND ${f.activeVersionId} IS NOT NULL)`;
+  return sql`(${formBelongsToSeason(season)} AND ${f.deletedAt} IS NULL AND ${f.activeVersionId} IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM seasons setup_season WHERE setup_season.id = ${season.id}
+      AND setup_season.metadata->'guidedRegistrationSetup'->>'published' = 'false'))`;
 }
 
 /** First valid IP from x-forwarded-for, else the socket address; null if neither parses. */

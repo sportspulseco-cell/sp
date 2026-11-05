@@ -66,10 +66,11 @@ export class DuplicateSeasonService {
       const seasonId=randomUUID();
       const [duplicateName]=await tx.select({id:schema.seasons.id}).from(schema.seasons).where(and(eq(schema.seasons.leagueId,leagueId),eq(schema.seasons.name,name),isNull(schema.seasons.deletedAt))).limit(1);
       if(duplicateName)throw new ConflictError("That league already has a season with this name.");
+      const { guidedRegistrationSetup: _sourceSetup, ...copyMetadata } = source.metadata as Record<string, unknown>;
       await tx.insert(schema.seasons).values({...source,id:seasonId,leagueId,name,status:"draft",startDate:input.startDate,endDate:day(source.endDate)!,
         playoffStartDate:day(source.playoffStartDate),playoffEndDate:day(source.playoffEndDate),registrationOpensAt:instant(source.registrationOpensAt),
         registrationClosesAt:instant(source.registrationClosesAt),rosterLockAt:instant(source.rosterLockAt),lastLockSweepAt:null,deletedAt:null,createdAt:now,updatedAt:now,createdByUserId:userId,
-        metadata:{...(source.metadata as Record<string,unknown>),slug:name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),copiedFrom:source.id,copyRequestId:input.requestId,copyFingerprint:fingerprint}});
+        metadata:{...copyMetadata,slug:name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),copiedFrom:source.id,copyRequestId:input.requestId,copyFingerprint:fingerprint}});
       const divisions=await tx.select().from(schema.divisions).where(and(eq(schema.divisions.seasonId,source.id),isNull(schema.divisions.deletedAt)));
       const divisionIds=new Map(divisions.map(d=>[d.id,randomUUID()]));
       const divisionRows=divisions.map(d=>{

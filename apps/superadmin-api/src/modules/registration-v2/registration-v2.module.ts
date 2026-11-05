@@ -16,6 +16,8 @@ import { FreeAgentPoolAdminController } from "./interface/free-agent-pool-admin.
 import { SeasonRolloverController } from "./interface/season-rollover.controller";
 import { DuplicateSeasonController } from "./interface/duplicate-season.controller";
 import { DuplicateSeasonService } from "./application/duplicate-season.service";
+import { PrepareRegistrationService } from "./application/prepare-registration.service";
+import { PrepareRegistrationController } from "./interface/prepare-registration.controller";
 import { AdminReviewController } from "./interface/admin-review.controller";
 import { DiscountsAdminController } from "./interface/discounts-admin.controller";
 
@@ -35,6 +37,7 @@ import { DiscountsAdminController } from "./interface/discounts-admin.controller
     FreeAgentPoolAdminController,
     SeasonRolloverController,
     DuplicateSeasonController,
+    PrepareRegistrationController,
     AdminReviewController,
     DiscountsAdminController
   ],
@@ -44,7 +47,7 @@ import { DiscountsAdminController } from "./interface/discounts-admin.controller
   // captain module, whose invite accept / decline settles them.
   // RosterEntryService: the one roster add (registration gate, lock, cap,
   // move log) for captains, invites, offers, join requests and approval.
-  providers: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService, RosterEntryService, DuplicateSeasonService],
+  providers: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService, RosterEntryService, DuplicateSeasonService, PrepareRegistrationService],
   exports: [RegistrationV2Service, RegistrationRequirementsService, FreeAgentOffersService, RosterEntryService]
 })
 export class RegistrationV2Module {}

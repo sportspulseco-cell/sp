@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { OrgSetupWizard } from "@sportspulse/admin-pages";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import { fetchAll } from "@sportspulse/api-client";
-import { leagueMgmt, iam } from "@/lib/api/browser-api";
+import { leagueMgmt, iam, registrationV2 } from "@/lib/api/browser-api";
 import { navigateInPlace } from "@sportspulse/ui";
 
 /**
@@ -15,11 +15,13 @@ import { navigateInPlace } from "@sportspulse/ui";
  * `/leagues/[id]`. The sp-superadmin URL never appears.
  */
 export function OrgSetupShell({
+  actorId,
   orgs,
   sports,
   governingBodies,
   orgSports
 }: {
+  actorId: string;
   orgs: Org[];
   sports: Sport[];
   governingBodies: GoverningBody[];
@@ -28,7 +30,9 @@ export function OrgSetupShell({
   const router = useRouter();
   return (
     <OrgSetupWizard
+      actorId={actorId}
       orgs={orgs}
+      prepareRegistration={(seasonId, body) => registrationV2.prepareRegistration(seasonId, body)}
       uploadLogo={async body=>{const me=await iam.me();return (await iam.uploadAvatar(me.id,body)).url;}}
       sports={sports}
       governingBodies={governingBodies}
@@ -48,11 +52,8 @@ export function OrgSetupShell({
       listSeasons={(leagueId) =>
         fetchAll((cursor) => leagueMgmt.listSeasons({ leagueId, limit: 100, cursor })).then((p) => p.items)
       }
-      changeLeagueStatus={(id, status) =>
-        leagueMgmt.changeLeagueStatus(id, status)
-      }
-      onComplete={({ leagueId }) => {
-        navigateInPlace((h) => router.push(h), `/leagues/${leagueId}`, 8000);
+      onComplete={({ seasonId, formId, published }) => {
+        navigateInPlace((h) => router.push(h), formId && !published ? `/forms/${formId}?section=review` : `/seasons/${seasonId}`, 8000);
         // No router.refresh() here: it can cancel the push and leave the
         // user on this form (J11). The new page loads fresh server data.
       }}

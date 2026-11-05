@@ -22,7 +22,8 @@ export function DivisionsStep({
   onPatch,
   onAdd,
   onCopy,
-  onRemove
+  onRemove,
+  savedDivisionUids
 }: {
   divisions: DivisionDraft[];
   /** Active regions of the selected org (Season -> Region -> Division). */
@@ -33,6 +34,7 @@ export function DivisionsStep({
   /** Inserts a copy of the card directly below it, with no name. */
   onCopy: (uid: string) => void;
   onRemove: (uid: string) => void;
+  savedDivisionUids?: ReadonlySet<string>;
 }) {
   // Cards are open unless the admin collapsed them, so a division added
   // with "Add another division" opens ready to fill in (SETUP-5: it used
@@ -52,8 +54,9 @@ export function DivisionsStep({
     <div className="space-y-8">
       <div className="space-y-4">
         {divisions.map((d, i) => (
+          <fieldset key={d.uid} disabled={savedDivisionUids?.has(d.uid)}>
+          {savedDivisionUids?.has(d.uid) ? <p className="mb-2 text-sm text-fg-muted">Saved. Edit this division from the season page after setup finishes.</p> : null}
           <DivisionCard
-            key={d.uid}
             index={i}
             total={divisions.length}
             division={d}
@@ -63,7 +66,7 @@ export function DivisionsStep({
             onPatch={(patch) => onPatch(d.uid, patch)}
             onCopy={() => onCopy(d.uid)}
             onRemove={() => onRemove(d.uid)}
-          />
+          /></fieldset>
         ))}
       </div>
 

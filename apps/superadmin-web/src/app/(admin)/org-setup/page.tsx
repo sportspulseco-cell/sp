@@ -1,6 +1,6 @@
 import { fetchAll } from "@sportspulse/api-client";
 import { sportByOrg } from "@sportspulse/admin-pages";
-import { admin, leagueMgmt, orgs } from "@/lib/api/server-api";
+import { admin, leagueMgmt, orgs, iam } from "@/lib/api/server-api";
 import { PageHeader } from "@sportspulse/ui";
 import { OrgSetupShell } from "./org-setup-shell";
 
@@ -12,17 +12,19 @@ export default async function OrgSetupPage() {
   // Bootstrap dropdown data once, on the server. Subsequent dependent
   // dropdowns (governing-bodies-by-sport, age-groups-by-body) load
   // from the client as the admin makes selections.
-  const [orgsPage, sports, governingBodies, leaguesPage] = await Promise.all([
+  const [orgsPage, sports, governingBodies, leaguesPage, scope] = await Promise.all([
     orgs.list({ limit: 100 }).catch(() => ({ items: [], nextCursor: null })),
     admin.listSports().catch(() => []),
     leagueMgmt.listGoverningBodies({}).catch(() => []),
     fetchAll((cursor) => leagueMgmt.listLeagues({ limit: 100, cursor })).catch(() => ({ items: [], nextCursor: null })),
+    iam.meScope(),
   ]);
 
   // No early empty state: super admins can create the first organization
   // from step 1 of the wizard.
   return (
     <OrgSetupShell
+      actorId={scope.userId}
       orgs={orgsPage.items}
       sports={sports}
       governingBodies={governingBodies}
