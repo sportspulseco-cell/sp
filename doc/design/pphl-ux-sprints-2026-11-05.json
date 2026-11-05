@@ -112,7 +112,7 @@
   ],
   "secondPilot": {
     "name": "Create a season",
-    "status": "Deployed to all six staging projects at 04f1c6ef. Setup, both-console layout/keyboard, role and isolation checks passed. Receiving journey found a super-admin season filter regression; fix and five regression tests pass locally, staging recheck pending.",
+    "status": "Implemented and deployed to staging. Engineering setup, receiving flow, both-console layout/keyboard, role and isolation checks passed. PPHL operator usability acceptance is outstanding.",
     "branch": "codex/ux-sprint-02",
     "changes": [
       "Single-organization operators start with league basics; super admin retains explicit organization selection.",
@@ -127,6 +127,40 @@
       "Engineering staging fixtures only; clean client testing data unchanged"
     ],
     "evidence": "output/pphl-final-testing-2026-11-05/ux-sprint-02",
-    "discoveredRegression": "Unrestricted super-admin detail reads received an empty season whitelist and returned 404. Centralized scope conversion preserves unrestricted reads and scoped denials."
+    "discoveredRegression": "Fixed in bfb25163: unrestricted super-admin detail reads received an empty season whitelist and returned 404. Centralized scope conversion preserves unrestricted reads and scoped denials; five regression tests and fresh staging super-admin/league/admin sessions verify the result.",
+    "verification": {
+      "setupBrowserChecks": 8,
+      "receivingFlowChecks": 5,
+      "consoles": [
+        "Organization admin",
+        "Super admin"
+      ],
+      "rolesPassed": 11,
+      "expectedRestrictions": [
+        "Parent consent-link scope; no dedicated dashboard",
+        "Spectator public scope remains unresolved"
+      ],
+      "isolationRoles": 7,
+      "responsiveWidths": [
+        320,
+        390,
+        768,
+        1440
+      ],
+      "themes": [
+        "Light",
+        "Dark"
+      ],
+      "businessRuleTests": 347,
+      "organizationProductionBuild": "passed",
+      "typechecks": [
+        "Shared admin pages",
+        "Organization console production build",
+        "Super-admin console",
+        "API"
+      ],
+      "ci": "PPHL staging validation runs on the release commit; final results are included in output/pphl-final-testing-2026-11-05/ux-sprint-02/release-results.json",
+      "pphlUsabilityAcceptance": "Not performed; engineering checks are not PPHL acceptance"
+    }
   }
 }

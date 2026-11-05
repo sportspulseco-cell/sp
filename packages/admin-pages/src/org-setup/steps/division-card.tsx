@@ -117,6 +117,7 @@ export function DivisionCard({
           ) : null}
         </div>
       </header>
+      {division.name && problem ? <p role="alert" className="px-5 pt-3 text-sm text-fg-danger">{problem}</p> : null}
 
       {expanded ? (
         <div className="space-y-6 px-5 py-5">

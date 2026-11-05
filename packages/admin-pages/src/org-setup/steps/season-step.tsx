@@ -26,10 +26,12 @@ export function SeasonStep({draft,leagueName,onChange,timezone,panel,onPanelChan
     <Field label="Season name" required><Input value={draft.name} onChange={e=>onChange({name:e.target.value.slice(0,120)})} maxLength={120} placeholder="e.g. Winter 2026–27" required/></Field>
     <div className="grid gap-4 sm:grid-cols-2">{date('startDate','Season start date',{required:true,min:today})}{date('endDate','Season end date',{required:true,min:draft.startDate||today})}</div>
     <p className="text-[13px] text-fg-muted">Include the full season, through the last playoff.</p>
+    {draft.startDate && draft.endDate && !checks.season ? <p role="alert" className="text-sm text-fg-danger">Enter a season name and dates from today onward. The end date must be on or after the start.</p> : null}
    </>:null}
    {panel==='registration'?<>
     <div className="grid gap-4 sm:grid-cols-2">{date('registrationOpensAt','Registration opens',{required:true,min:today})}{date('registrationClosesAt','Registration closes',{required:true,min:draft.registrationOpensAt||today})}</div>
     <p className="text-[13px] text-fg-muted">Registration opens only after you review and publish.</p>
+    {draft.registrationOpensAt && draft.registrationClosesAt && !checks.registration ? <p role="alert" className="text-sm text-fg-danger">Registration dates must be today or later, with closing on or after opening.</p> : null}
    </>:null}
    {panel==='options'?<>
     <p className="text-sm text-fg-muted">Optional. Continue if these dates aren't needed yet.</p>
