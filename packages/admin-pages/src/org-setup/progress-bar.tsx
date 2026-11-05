@@ -1,36 +1,28 @@
 "use client";
+import {useId} from "react";
+import {motion,useReducedMotion} from "framer-motion";
+import {Check} from "lucide-react";
+import type {WizardStep} from "./types";
+import styles from "./setup-workspace.module.css";
 
-import { Check } from "lucide-react";
-import { cn } from "@sportspulse/ui";
-import type { WizardStep } from "./types";
-
-/** Numbered progress for this setup path; completed steps remain reachable. */
-export function ProgressBar({
-  step,
-  labels,
-  validation,
-  onNavigate,
-  lastStep = 6,
-  firstStep = 1
-}: {
-  step: WizardStep;
-  labels: Record<WizardStep, string>;
-  validation: Record<WizardStep, boolean>;
-  onNavigate: (s: WizardStep) => void;
-  lastStep?: WizardStep;
-  firstStep?: WizardStep;
-}) {
-  const steps = ([1, 2, 3, 4, 5, 6] as WizardStep[]).filter(s => s >= firstStep && s <= lastStep);
-  return <nav aria-label="Season setup progress"><ol className="flex gap-2 sm:gap-4">
-    {steps.map((s,i)=>{const active=s===step,done=s<step&&validation[s];return <li key={s} className="min-w-0 flex-1">
-      <button type="button" aria-label={'Step '+(i+1)+': '+labels[s]} aria-current={active?'step':undefined}
-        disabled={s>=step} onClick={()=>onNavigate(s)}
-        className={cn('flex w-full flex-col items-start gap-2 rounded-md py-2 text-left focus-visible:outline-none focus-visible:shadow-focus',s<step?'hover:bg-surface-2 active:bg-surface-2':'cursor-default')}>
-        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full border text-[12px] font-medium',active?'border-accent bg-accent text-accent-fg':done?'border-border bg-surface-2 text-fg':'border-border text-fg-muted')}>
-          {done?<Check aria-hidden className="h-3.5 w-3.5"/>:i+1}
-        </span>
-        <span className={cn('hidden whitespace-nowrap text-[12px] sm:block',active?'font-medium text-fg':'text-fg-muted')}>{labels[s]}</span>
-      </button>
-    </li>})}
-  </ol></nav>;
+/** The route through setup; the moving marker preserves spatial context. */
+export function ProgressBar({step,labels,validation,onNavigate,lastStep=6,firstStep=1}:{
+ step:WizardStep;labels:Record<WizardStep,string>;validation:Record<WizardStep,boolean>;
+ onNavigate:(s:WizardStep)=>void;lastStep?:WizardStep;firstStep?:WizardStep;
+}){
+ const id=useId(),reduced=useReducedMotion();
+ const steps=([1,2,3,4,5,6] as WizardStep[]).filter(s=>s>=firstStep&&s<=lastStep);
+ const hints={1:'Choose your organization',2:'Make it yours',3:'Set the timeline',4:'Build your divisions',5:'Welcome your players',6:'Ready when you are'};
+ return <nav className={styles.progress} aria-label="Season setup progress"><ol>
+ {steps.map((s,i)=>{const active=s===step,done=s<step&&validation[s];return <li key={s}>
+  <button type="button" className={styles.step+(done?' '+styles.completed:'')} aria-label={'Step '+(i+1)+': '+labels[s]}
+   aria-current={active?'step':undefined} disabled={s>=step} onClick={()=>onNavigate(s)}>
+   <span className={styles.node}>
+    {active?<motion.span className={styles.nodeFill} layoutId={reduced?undefined:id+'-step'} transition={{type:'tween',duration:reduced?0:.32,ease:[.16,1,.3,1]}}/>:null}
+    {done?<Check size={14} strokeWidth={1.75}/>:<span style={{position:"relative",zIndex:1}}>{i+1}</span>}
+   </span>
+   <span className={styles.stepText}>{labels[s]}{active?<span className={styles.stepHint}>{hints[s]}</span>:null}</span>
+  </button>
+ </li>;})}
+ </ol></nav>;
 }

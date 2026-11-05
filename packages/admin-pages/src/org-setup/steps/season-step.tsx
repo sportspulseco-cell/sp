@@ -1,4 +1,5 @@
 "use client";
+import styles from "../setup-workspace.module.css";
 import type { SeasonDraft,SeasonPanel } from "../types";
 import { Field } from "./league-step";
 import { Input,cn } from "@sportspulse/ui";
@@ -20,8 +21,8 @@ export function SeasonStep({draft,leagueName,onChange,timezone,panel,onPanelChan
     disabled={i>PANELS.indexOf(panel)} onClick={()=>onPanelChange(p)}
     className={cn('rounded-md border px-3 py-2 text-[13px] focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default',panel===p?'border-accent bg-accent/5 font-medium text-fg':'border-border text-fg-muted enabled:hover:bg-surface-2')}>{LABELS[p]}</button>)}
   </nav>
-  <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-5 sm:p-6">
-   <p className="text-[13px] text-fg-muted">{leagueName} · {timezone}</p>
+  <section className={styles.section+" space-y-5"}>
+   <p className={styles.dateContext}>{leagueName} · {timezone}</p>
    {panel==='season'?<>
     <Field label="Season name" required><Input value={draft.name} onChange={e=>onChange({name:e.target.value.slice(0,120)})} maxLength={120} placeholder="e.g. Winter 2026–27" required/></Field>
     <div className="grid gap-4 sm:grid-cols-2">{date('startDate','Season start date',{required:true,min:today})}{date('endDate','Season end date',{required:true,min:draft.startDate||today})}</div>

@@ -3,7 +3,9 @@
 import { pointsRuleForm, pointsRuleFromForm } from "../divisions/points-rule-fields";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, MotionConfig, useReducedMotion } from "framer-motion";
+import { SetupPreview } from "./setup-preview";
+import styles from "./setup-workspace.module.css";
 import { Alert, Button } from "@sportspulse/ui";
 import { calendarDateInZone, endOfDayInZone, startOfDayInZone, statusLabel, guidedRegistrationProblem, type GuidedRegistrationSetupInput } from "@sportspulse/kernel";
 import type { GoverningBody, League, Org, Season, Sport } from "@sportspulse/api-client";
@@ -168,6 +170,7 @@ export function OrgSetupWizard({
   /** Seasons of a league, so step 3 can add divisions to an existing season. */
   listSeasons?: (leagueId: string) => Promise<Season[]>;
 }) {
+  const reducedMotion = useReducedMotion();
   const firstStep: WizardStep = orgs.length === 1 && !renderCreateOrg ? 2 : 1;
   const [seasonPanel, setSeasonPanel] = useState<SeasonPanel>("season");
   // Orgs created in step 1 join the list without a page reload.
@@ -204,7 +207,7 @@ export function OrgSetupWizard({
   useEffect(() => {
     if (!draftReady) return;
     heading.current?.focus({ preventScroll: true });
-    heading.current?.scrollIntoView({ block: "start" });
+    heading.current?.scrollIntoView({ block: "nearest" });
   }, [state.step, seasonPanel, draftReady]);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [storageNote, setStorageNote] = useState("");
@@ -628,46 +631,25 @@ export function OrgSetupWizard({
     }
   }
 
+  const introduction = ({1:"Choose the organization this season belongs to.",2:"The name, sport and home time zone of your league.",3:"Choose the dates your teams will use.",4:"Group your teams, then adjust their rules if needed.",5:"Decide how players join and what they need.",6:"One last look. Registration opens only when you publish."})[state.step];
   return (
-    <div className="space-y-8">
-      <header className="relative pb-5">
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center gap-2 text-[13px] text-fg-muted"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
-          </span>
-          <span>Set up a season · step {state.step - firstStep + 1} of {lastStep - firstStep + 1}</span>
-        </motion.div>
-        <motion.h1
-          ref={heading}
-          tabIndex={-1}
-          key={state.step}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-2 max-w-[24ch] outline-none text-balance font-sans text-[clamp(24px,3vw,30px)] font-semibold leading-tight tracking-tight text-fg"
-        >
+    <MotionConfig reducedMotion="user">
+    <div className={styles.workspace}>
+      <aside className={styles.rail}>
+        <SetupPreview state={state} orgName={currentOrg?.displayName ?? currentOrg?.legalName ?? ""} firstStep={firstStep} lastStep={lastStep} panel={seasonPanel}/>
+        <ProgressBar step={state.step} labels={STEP_LABELS} validation={stepValidation} lastStep={lastStep} firstStep={firstStep}
+          onNavigate={(s) => { if (!busy) { setReviewConfirmed(false); setState((p) => ({ ...p, step: s })); } }}/>
+      </aside>
+      <section className={styles.panel} aria-label="Guided season setup">
+      <header className={styles.panelHeader}>
+        <div className={styles.chapter}><span>Set up a season · step {state.step-firstStep+1} of {lastStep-firstStep+1}</span></div>
+        <h1 ref={heading} tabIndex={-1}>
           {guidingDates ? ({ season: "When does the season run?", registration: "When can people register?", options: "Any playoff or roster dates?" }[seasonPanel]) : STEP_HEADLINES[state.step]}
-        </motion.h1>
-        <div className="absolute inset-x-0 bottom-0 flex items-center">
-          <span className="h-px w-6 bg-[--accent]" />
-          <span className="h-px flex-1 bg-border" />
-        </div>
+        </h1>
+        <p className={styles.intro}>{introduction}</p>
       </header>
-
-      <ProgressBar
-        step={state.step}
-        labels={STEP_LABELS}
-        validation={stepValidation}
-        lastStep={lastStep}
-        firstStep={firstStep}
-        onNavigate={(s) => { if (!busy) { setReviewConfirmed(false); setState((p) => ({ ...p, step: s })); } }}
-      />
-
+      <div className={styles.body}>
+      <div className={styles.notices}>
       {error ? <Alert tone="error">{error}</Alert> : null}
       {restoredDraft ? <Alert tone="info">{progress.current.registrationSaved ? "Draft saved. Registration is closed until you review and publish it. Saved details can be edited from the season page after setup finishes." : "Your unfinished setup has been restored. Continue from this step; completed saves will not be repeated."}</Alert> : null}
       {progress.current.leagueId && state.step <= 3 ? <Alert tone="info">The league and any completed setup steps are already saved. Continue to finish registration; edit saved details from the season page afterward.</Alert> : null}
@@ -678,12 +660,13 @@ export function OrgSetupWizard({
       {restoredDraft && progress.current.leagueId ? <p className="text-sm text-fg-muted">Starting a new setup keeps the existing draft records in your league list.</p> : null}
       {storageNote ? <Alert tone="warning">{storageNote}</Alert> : null}
 
+      </div>
       <fieldset disabled={busy || uploadingLogo || !draftReady || (state.step <= 3 && !!progress.current.leagueId) || ((state.step === 4 || state.step === 5) && !!progress.current.registrationSaved)}>
       <motion.div
-        key={`step-${state.step}`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15 }}
+        key={`step-${state.step}-${state.step===3?seasonPanel:""}`}
+        initial={{ opacity: 0, y: reducedMotion ? 0 : 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "tween", duration: reducedMotion ? 0 : 0.22, ease: [0.16,1,0.3,1] }}
       >
         {state.step === 1 ? (
           <OrgStep
@@ -786,6 +769,7 @@ export function OrgSetupWizard({
         {state.step === 6 ? <RegistrationReview state={state} draft={registration} confirmed={reviewConfirmed} onConfirm={setReviewConfirmed} /> : null}
       </motion.div>
       </fieldset>
+      </div>
 
       <Footer
         step={state.step}
@@ -801,7 +785,9 @@ export function OrgSetupWizard({
         onPublish={() => submit({ publish: true })}
         nextLabel={nextLabel}
       />
+      </section>
     </div>
+    </MotionConfig>
   );
 }
 
@@ -833,7 +819,7 @@ function Footer({
   nextLabel: string;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-bg/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+    <div className={styles.footer}>
       {showBack ? (
         <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={busy}>
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
@@ -842,11 +828,11 @@ function Footer({
       ) : (
         <span />
       )}
-      <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
+      <p className={styles.footerCount}>
         Step {step - firstStep + 1} of {lastStep - firstStep + 1}
       </p>
       {step < lastStep ? (
-        <Button type="button" onClick={onNext} disabled={!canAdvance || busy}>
+        <Button type="button" className={styles.primary} onClick={onNext} disabled={!canAdvance || busy}>
           <span className="font-mono text-[10px] uppercase tracking-widest">{nextLabel}</span>
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
         </Button>

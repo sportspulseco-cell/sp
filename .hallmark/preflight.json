@@ -1,0 +1,19 @@
+{
+  "scannedAt": "2026-11-05T15:02:43.320Z",
+  "scope": "Shared season setup pilot",
+  "framework": "Next.js 15 + React",
+  "fonts": "Existing Inter / JetBrains Mono",
+  "palette": "Existing violet / white / dark tokens",
+  "motion": "Existing Framer Motion 11",
+  "sources": [
+    "apps/org-admin-web/src/app/globals.css",
+    "apps/org-admin-web/tailwind.config.ts",
+    "packages/admin-pages/package.json"
+  ],
+  "preserve": [
+    "Theme tokens",
+    "Fonts",
+    "Role views",
+    "Field and publication contracts"
+  ]
+}

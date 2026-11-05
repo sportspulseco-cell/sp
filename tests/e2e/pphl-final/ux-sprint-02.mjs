@@ -6,7 +6,9 @@ import { CFG, TARGET, SUPABASE_IP, call, login, sql, msgOf, env } from "../seaso
 import {OUT as BASE_OUT,loadManifest} from "./lib.mjs";
 import {mkdirSync} from "node:fs";
 const manifest=loadManifest();
-const OUT=BASE_OUT+"/ux-sprint-02";mkdirSync(OUT+"/shots",{recursive:true});
+const evidenceDir=process.env.UX_EVIDENCE_DIR??"ux-sprint-02";
+if(!/^[a-z0-9-]+$/.test(evidenceDir))throw Error("Invalid evidence directory");
+const OUT=BASE_OUT+"/"+evidenceDir;mkdirSync(OUT+"/shots",{recursive:true});
 CFG.orgAdmin=manifest.accounts.org_admin;
 CFG.apps.org=process.env.UX_TARGET==="local"?"http://localhost:3107":CFG.apps.org;
 const expect = baseExpect.configure({ timeout: 30_000 });
@@ -60,11 +62,13 @@ try {
   const imageHttp = await imageResponse; assert.equal(imageHttp.status(), 201, await imageHttp.text());
   await expect.poll(() => page.getByAltText("League logo preview").evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
   checks.push(env.GUIDED_LOGO_PATH ? "A local league logo uploads and renders; an image over the limit is refused with a clear message." : "A near-2MB logo uploads and renders; an image over the limit is refused with a clear message.");
+  if(process.env.UX_EVIDENCE_DIR)await page.screenshot({path:OUT+"/shots/league-desktop.png",fullPage:true});
   await page.getByRole("button", { name: "Next: Season" }).click();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   await page.getByLabel("Season name", { exact: false }).fill(seasonName);
   await page.getByLabel("Season start date", { exact: false }).fill("2027-01-02");
   await page.getByLabel("Season end date", { exact: false }).fill("2027-04-30");
+  if(process.env.UX_EVIDENCE_DIR)await page.screenshot({path:OUT+"/shots/season-desktop.png",fullPage:true});
   fields.dates=await visibleFields();assert.equal(fields.dates,3);
   await page.getByRole('button',{name:'Next: Registration dates'}).click();
   await expect(page.getByLabel('Season name',{exact:false})).not.toBeVisible();
@@ -74,6 +78,7 @@ try {
   fields.registrationDates=await visibleFields();assert.equal(fields.registrationDates,2);
   await page.reload();await expect(page.getByLabel('Registration opens',{exact:false})).toHaveValue(today);
   await page.getByRole('button',{name:'Next: Playoffs'}).click();
+  await expect(page.getByLabel('Registration opens',{exact:false})).not.toBeVisible();
   fields.optionalDates=await visibleFields();assert.equal(fields.optionalDates,0);
   await page.locator('summary').filter({hasText:/^Playoff dates$/}).click();
   await page.getByLabel('Playoff start date',{exact:false}).fill('2027-05-01');
@@ -81,6 +86,7 @@ try {
   await page.getByLabel('Playoff start date',{exact:false}).fill('2027-04-20');
   await page.getByLabel('Playoff end date',{exact:false}).fill('2027-04-30');
   await page.getByRole('button',{name:'Next: Divisions'}).click();
+  await expect(page.getByLabel('Division name',{exact:false})).toBeVisible();
   fields.division=await visibleFields();assert.ok(fields.division<=10);
   writeFileSync(OUT+'/field-counts.json',JSON.stringify(fields,null,2));
   checks.push('Date questions are guided, survive refresh, and reject incomplete or out-of-season playoff dates.');

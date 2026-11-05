@@ -59,12 +59,10 @@ export default async function OrgAdminOrgSetupPage() {
     );
   }
 
-  // Regions live above the wizard: set them up once, then every
-  // division of every season can pick one.
+  // Keep organization-wide region management below the focused setup.
   const regionOrg = ordered[0]!;
   return (
     <div className="space-y-8">
-      <RegionsSection orgId={regionOrg.id} orgName={regionOrg.displayName} folded />
       <OrgSetupShell
         actorId={scope.userId}
         orgs={ordered}
@@ -72,6 +70,7 @@ export default async function OrgAdminOrgSetupPage() {
         governingBodies={governingBodies}
         orgSports={sportByOrg(leaguesPage.items)}
       />
+      <div className="mx-auto max-w-[1200px]"><RegionsSection orgId={regionOrg.id} orgName={regionOrg.displayName} folded /></div>
     </div>
   );
 }

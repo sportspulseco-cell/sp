@@ -120,3 +120,13 @@ The job order, current evidence and acceptance gates are recorded in
 `pphl-ux-sprints-2026-11-05.json`. The pilot is not deployed. PPHL usability
 acceptance still requires an operator to attempt the job unaided; browser
 checks and a successful build do not establish that outcome.
+
+## Visual feedback — 5 November 2026
+
+The owner rejected a flat, generic appearance and asked for a livelier, more
+recognizable SportsPulse experience. The season-setup visual pilot keeps the
+existing Inter, violet and light/dark tokens. A single live season pass shows
+actual entered values. Step handoffs, the progress marker and rink movement
+explain changes; reduced motion skips spatial transitions. Generic welcome
+slogans and decorative stock-icon tiles are excluded. This pilot remains local
+until its visual review; engineering checks do not establish aesthetic acceptance.

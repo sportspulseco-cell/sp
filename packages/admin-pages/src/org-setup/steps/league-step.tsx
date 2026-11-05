@@ -9,6 +9,7 @@ import {
   type LeagueFormat,
   type Privacy
 } from "../types";
+import styles from "../setup-workspace.module.css";
 import { SectionHeader } from "./org-step";
 import { LogoUpload, type UploadLogo } from "./logo-upload";
 
@@ -96,7 +97,7 @@ export function LeagueStep({
     [governingBodies, draft.sportCode]
   );
 
-  return (<div className="space-y-5">
+  return (<div className={styles.league+" space-y-6"}>
 <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-5 sm:p-6">
 <p className="text-[13px] text-fg-muted">{org?.displayName ?? org?.legalName}</p>
 <Field

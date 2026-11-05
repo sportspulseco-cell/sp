@@ -1,0 +1,92 @@
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4
+ * macrostructure: Focused workbench · theme: existing SportsPulse · genre: playful
+ * Owner keeps Inter, white/dark surfaces and violet; a single live season pass
+ * supplies identity. No new palette, asset library, background loop or fake data.
+ * Motion: step handoff, progress marker, draft-driven rink. Reduced motion: instant.
+ */
+.workspace {
+ --setup-ticket:var(--accent-hover);
+ --setup-ticket-line:color-mix(in srgb,var(--accent-fg) 40%,transparent);
+ --setup-ticket-halo:color-mix(in srgb,var(--accent-fg) 20%,transparent);
+ display:grid;gap:24px;max-width:1200px;margin-inline:auto;align-items:start;
+}
+.rail {min-width:0;}
+.identity {display:flex;align-items:center;gap:10px;color:var(--fg-muted);font-size:13px;margin-bottom:20px;}
+.preview,.previewYear {display:none;}
+.panel {min-width:0;background:var(--surface-1);color:var(--fg);}
+.panelHeader {padding:8px 24px 20px;position:relative;}
+.chapter {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;color:var(--fg-muted);font-size:12px;}
+.panelHeader h1 {font-size:clamp(26px,2.6vw,36px);font-weight:600;letter-spacing:-.04em;line-height:1.12;scroll-margin-top:140px;max-width:24ch;overflow-wrap:anywhere;min-width:0;margin:0;outline:none;}
+.intro {color:var(--fg-muted);font-size:14px;line-height:1.6;margin-top:12px;max-width:48ch;}
+.body {padding:8px 24px 24px;min-width:0;}
+.body > fieldset {min-width:0;}
+.body label {font-family:inherit;font-size:13px;font-weight:500;color:var(--fg);letter-spacing:normal;text-transform:none;}
+.body input:not([type=checkbox]):not([type=radio]):not([type=file]),.body select {min-height:46px;background:var(--bg);border-color:var(--border-strong);border-radius:10px;font-size:14px;}
+.body input:focus-visible,.body select:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+.body summary {min-height:32px;align-content:center;}
+.body details[open] > summary {margin-bottom:4px;}
+.section {border:0!important;padding:0!important;background:transparent!important;}
+.league > section {border:0;padding:0;background:transparent;}
+.league > section > p:first-child {display:none;}
+.league > details {border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;padding:20px 0;}
+.dateContext {display:none;}
+.notices {display:grid;gap:12px;margin-bottom:16px;}
+.footer {position:sticky;bottom:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-top:1px solid var(--border);background:var(--surface-1);color:var(--fg);}
+.footer button {min-height:46px;border-radius:10px;white-space:nowrap;}
+.footer button:active:not(:disabled) {transform:scale(.98);}
+.footer button span {font-family:inherit;font-size:13px;font-weight:500;text-transform:none;letter-spacing:normal;}
+.footerCount {display:none;}
+.primary {background:var(--accent-hover);color:var(--accent-fg);box-shadow:var(--shadow-sm);}
+.primary:focus-visible {outline:2px solid var(--fg);outline-offset:3px;}
+.progress {margin-block:16px;}
+.progress ol {display:flex;gap:8px;}
+.progress li {flex:1;min-width:0;}
+.step {position:relative;display:flex;width:100%;align-items:center;justify-content:center;min-height:44px;gap:12px;text-align:left;}
+.step:focus-visible {outline:2px solid var(--accent);outline-offset:3px;}
+.step:active:not(:disabled) {transform:translateY(1px);}
+.step:disabled {cursor:default;}
+.stepText {display:none;}
+.node {position:relative;display:grid;place-items:center;width:30px;height:30px;flex-shrink:0;border:1px solid var(--border-strong);border-radius:8px;color:var(--fg-muted);font-size:12px;}
+.step[aria-current=step] .node {border-color:var(--accent-hover);color:var(--accent-fg);}
+.node svg {position:relative;z-index:1;}
+.nodeFill {position:absolute;inset:0;border-radius:inherit;background:var(--accent-hover);}
+.completed .node {background:var(--accent-soft);color:var(--accent);border-color:transparent;}
+.upload {position:relative;min-width:0;display:flex;align-items:center;gap:12px;padding:16px;border:1px dashed var(--border-strong);border-radius:10px;cursor:pointer;background:var(--bg-subtle);}
+.uploadInput {position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0;cursor:pointer;}
+.upload:focus-within {outline:2px solid var(--accent);outline-offset:2px;}
+.upload svg {flex-shrink:0;color:var(--fg-muted);}
+.uploadTitle {display:block;font-size:13px;font-weight:500;}
+.uploadHint {display:block;font-size:12px;font-weight:400;color:var(--fg-muted);margin-top:4px;}
+.uploadBusy {opacity:.55;cursor:wait;}
+@media(hover:hover) {
+ .upload:hover {background:var(--accent-soft);border-color:var(--accent);}
+ .step:enabled:hover {background:var(--surface-2);}
+}
+@media(min-width:640px) {
+ .panelHeader {padding:8px 36px 24px;}
+ .body {padding:8px 36px 32px;}
+ .footer {padding:20px 36px;}
+}
+@media(min-width:1280px) {
+ .workspace {grid-template-columns:260px minmax(0,1fr);gap:40px;}
+ .rail {position:sticky;top:96px;padding-top:8px;}
+ .preview {display:block;margin-block:24px 20px;background:var(--setup-ticket);color:var(--accent-fg);border-radius:14px;overflow:clip;}
+ .previewArt {position:relative;padding:20px 20px 16px;}
+ .previewArt > svg {display:block;width:100%;height:auto;overflow:visible;}
+ .previewStatus {display:flex;align-items:center;justify-content:space-between;gap:6px;color:var(--accent-fg);font-size:12px;margin-bottom:14px;}
+ .previewYear {display:block;font-size:60px;font-weight:600;letter-spacing:-.07em;line-height:1;margin:16px 0 24px;}
+ .preview figcaption {padding:0 20px 24px;}
+ .previewTitle {font-size:19px;font-weight:600;line-height:1.35;margin-top:8px;letter-spacing:-.025em;overflow-wrap:anywhere;}
+ .previewMeta {font-size:12px;color:var(--accent-fg);opacity:.85;line-height:1.5;margin-top:4px;overflow-wrap:anywhere;}
+ .progress {margin-block:24px;}
+ .progress ol {display:grid;gap:4px;}
+ .step {padding:10px 0;justify-content:flex-start;min-height:56px;}
+ .stepText {display:block;font-size:13px;color:var(--fg-muted);}
+ .step[aria-current=step] .stepText {font-weight:600;color:var(--fg);}
+ .stepHint {display:block;font-size:11px;font-weight:400;margin-top:3px;color:var(--fg-muted);}
+ .panel {min-height:580px;}
+}
+@media(prefers-reduced-motion:reduce) {
+ .workspace *,.workspace *::before,.workspace *::after {animation:none!important;transition:none!important;scroll-behavior:auto!important;}
+ .footer button:active:not(:disabled),.step:active:not(:disabled) {transform:none;}
+}
