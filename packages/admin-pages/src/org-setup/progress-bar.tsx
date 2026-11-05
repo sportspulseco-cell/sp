@@ -1,103 +1,36 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { motion } from "framer-motion";
 import { cn } from "@sportspulse/ui";
 import type { WizardStep } from "./types";
 
-/**
- * Numbered progress indicator for the current setup path.
- * connected by an animated rail that fills as steps are completed.
- * Active node gets the layoutId-animated accent halo so it slides
- * between positions when you navigate. Completed steps get a check
- * mark on emerald; future steps are outlined and disabled.
- */
+/** Numbered progress for this setup path; completed steps remain reachable. */
 export function ProgressBar({
   step,
   labels,
   validation,
   onNavigate,
-  lastStep = 6
+  lastStep = 6,
+  firstStep = 1
 }: {
   step: WizardStep;
   labels: Record<WizardStep, string>;
   validation: Record<WizardStep, boolean>;
   onNavigate: (s: WizardStep) => void;
   lastStep?: WizardStep;
+  firstStep?: WizardStep;
 }) {
-  const steps = ([1, 2, 3, 4, 5, 6] as WizardStep[]).filter(s => s <= lastStep);
-  return (
-    <div className="flex items-center gap-2 sm:gap-4">
-      {steps.map((s, i) => {
-        const isActive = s === step;
-        const isDone = s < step && validation[s];
-        const isFuture = s > step;
-        const canClick = !isFuture && !isActive;
-        return (
-          <div key={s} className="flex flex-1 items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              aria-label={`Step ${s}: ${labels[s]}`}
-              disabled={!canClick}
-              onClick={() => onNavigate(s)}
-              className={cn(
-                "group relative flex flex-col items-center gap-1",
-                canClick ? "cursor-pointer" : "cursor-default"
-              )}
-            >
-              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center">
-                {isActive ? (
-                  <motion.span
-                    layoutId="org-setup-active-halo"
-                    aria-hidden
-                    className="absolute inset-0 rounded-full bg-[--accent]/15 ring-1 ring-[--accent]/30"
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 32
-                    }}
-                  />
-                ) : null}
-                <span
-                  className={cn(
-                    "relative flex h-8 w-8 items-center justify-center rounded-full border-2 font-mono text-[11px] font-medium tabular-nums transition-colors",
-                    isActive && "border-[--accent] bg-[--accent] text-bg",
-                    isDone && "border-[var(--success)] bg-[var(--success)] text-bg",
-                    isFuture &&
-                      "border-border bg-bg-subtle text-fg-muted group-hover:border-fg-muted"
-                  )}
-                >
-                  {isDone ? (
-                    <Check className="h-4 w-4" strokeWidth={2.5} />
-                  ) : (
-                    String(s).padStart(2, "0")
-                  )}
-                </span>
-              </span>
-              <span
-                className={cn(
-                  "hidden whitespace-nowrap text-[11px] transition-colors lg:inline",
-                  isActive && "text-fg",
-                  isDone && "text-[var(--success)]",
-                  isFuture && "text-fg-muted group-hover:text-fg"
-                )}
-              >
-                {labels[s]}
-              </span>
-            </button>
-            {i < steps.length - 1 ? (
-              <div className="relative h-px flex-1 overflow-hidden bg-border">
-                <motion.div
-                  initial={false}
-                  animate={{ width: s < step ? "100%" : "0%" }}
-                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute inset-y-0 left-0 bg-[var(--success)]"
-                />
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const steps = ([1, 2, 3, 4, 5, 6] as WizardStep[]).filter(s => s >= firstStep && s <= lastStep);
+  return <nav aria-label="Season setup progress"><ol className="flex gap-2 sm:gap-4">
+    {steps.map((s,i)=>{const active=s===step,done=s<step&&validation[s];return <li key={s} className="min-w-0 flex-1">
+      <button type="button" aria-label={'Step '+(i+1)+': '+labels[s]} aria-current={active?'step':undefined}
+        disabled={s>=step} onClick={()=>onNavigate(s)}
+        className={cn('flex w-full flex-col items-start gap-2 rounded-md py-2 text-left focus-visible:outline-none focus-visible:shadow-focus',s<step?'hover:bg-surface-2 active:bg-surface-2':'cursor-default')}>
+        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full border text-[12px] font-medium',active?'border-accent bg-accent text-accent-fg':done?'border-border bg-surface-2 text-fg':'border-border text-fg-muted')}>
+          {done?<Check aria-hidden className="h-3.5 w-3.5"/>:i+1}
+        </span>
+        <span className={cn('hidden whitespace-nowrap text-[12px] sm:block',active?'font-medium text-fg':'text-fg-muted')}>{labels[s]}</span>
+      </button>
+    </li>})}
+  </ol></nav>;
 }

@@ -93,7 +93,7 @@ export function DivisionCard({
           <Badge mono tone="info">
             {genderLabel(division.genderEligibility)}
           </Badge>
-          {problem ? <Badge tone="danger">Needs a fix</Badge> : null}
+          {problem ? <Badge tone={division.name ? "danger" : "neutral"}>{division.name ? "Needs a fix" : "Name this division"}</Badge> : null}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -121,13 +121,15 @@ export function DivisionCard({
       {expanded ? (
         <div className="space-y-6 px-5 py-5">
           <IdentityBlock division={division} regions={regions} onPatch={onPatch} />
-          <GameRulesBlock division={division} onPatch={onPatch} />
-          <PointsRuleFields
-            value={division.points ?? pointsRuleForm(null)}
-            onChange={(points) => onPatch({ points })}
-          />
-          <TiebreakersBlock division={division} onPatch={onPatch} />
-          <PostSeasonBlock division={division} onPatch={onPatch} />
+          <details className="rounded-md border border-border p-4">
+            <summary className="cursor-pointer text-sm font-medium">Game rules <span className="font-normal text-fg-muted">· {division.gameRules.numberOfPeriods} × {division.gameRules.periodLengthMin} min</span></summary>
+            <div className="mt-4"><GameRulesBlock division={division} onPatch={onPatch}/></div>
+          </details>
+          <details className="rounded-md border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Standings points & tie-breakers</summary><div className="mt-4 space-y-5">
+            <PointsRuleFields value={division.points ?? pointsRuleForm(null)} onChange={points=>onPatch({points})}/>
+            <TiebreakersBlock division={division} onPatch={onPatch}/>
+          </div></details>
+          <details className="rounded-md border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Playoff rules <span className="font-normal text-fg-muted">· {division.playoffConfig.enabled?'Enabled':'Off'}</span></summary><div className="mt-4"><PostSeasonBlock division={division} onPatch={onPatch}/></div></details>
         </div>
       ) : null}
     </section>
@@ -173,7 +175,7 @@ function IdentityBlock({
       <Field
         label="Skill / tier"
         required
-        hint="Self-reported skill bucket. Used to set skater player registrations and filter free agent picks searched into the same division."
+        hint="Used to match players with divisions."
       >
         <Select
           value={division.tier ?? ""}
@@ -191,10 +193,10 @@ function IdentityBlock({
         label="Region"
         hint={
           regions.length === 0 && division.regionId !== NEW_REGION
-            ? "Optional tier between the season and its divisions (e.g. Massachusetts, New Hampshire). This organization has none yet; add one here."
+            ? "Choose an area, or add one for this organization."
             : regionLabel
               ? `Teams in this division play in ${regionLabel}.`
-              : "Optional tier between the season and its divisions."
+              : "Optional. The area where these teams play."
         }
       >
         <Select
@@ -231,7 +233,7 @@ function IdentityBlock({
       <Field
         label="Gender eligibility"
         required
-        hint="Who is eligible to register. Validated at registration and roster add."
+        hint="Who can register in this division."
       >
         <Select
           value={division.genderEligibility}
@@ -249,7 +251,7 @@ function IdentityBlock({
 
       <Field
         label="Min age"
-        hint="Youngest player allowed (years). Leave blank for no minimum."
+        hint="Leave blank for no minimum."
       >
         <Input
           type="number"
@@ -268,7 +270,7 @@ function IdentityBlock({
 
       <Field
         label="Max age"
-        hint="Oldest player allowed (years). Leave blank for no maximum."
+        hint="Leave blank for no maximum."
         error={
           division.ageRangeMin !== null &&
           division.ageRangeMax !== null &&
@@ -310,7 +312,7 @@ function IdentityBlock({
         name="maxTeams"
         label="Max teams"
         required
-        hint="Hard cap on teams accepted into this division. Once reached, new team registrations are halted. Should be at least 4 to seed a tier."
+        hint="Maximum teams accepted into this division."
         value={division.maxTeams}
         defaultValue={DEFAULT_MAX_TEAMS}
         onCommit={(maxTeams) => onPatch({ maxTeams })}
@@ -319,7 +321,7 @@ function IdentityBlock({
       <WholeNumberField
         name="minStartersToStart"
         label="Min skaters to start"
-        hint="If a team can't ice this many skaters at puck drop, the game is forfeited."
+        hint="Required to start a game."
         value={division.gameRules.minStartersToStart}
         defaultValue={DEFAULT_DIVISION_GAME_RULES.minStartersToStart}
         onCommit={(minStartersToStart) =>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type { Org } from "@sportspulse/api-client";
 import { playoffSpotsLabel, sportLabel } from "@sportspulse/kernel";
 import type { DivisionDraft, LeagueDraft, SeasonDraft } from "../types";
-import { BRACKETS, SERIES, genderLabel, optionLabel, tierLabel } from "../../divisions/option-labels";
+import { BRACKETS, SERIES, OVERTIME_RULES, genderLabel, optionLabel, tierLabel } from "../../divisions/option-labels";
 import { DivisionCard } from "./division-card";
 import { FORMATS, PRIVACY_OPTIONS } from "./league-step";
 
@@ -36,18 +36,18 @@ export function DivisionsStep({
   onRemove: (uid: string) => void;
   savedDivisionUids?: ReadonlySet<string>;
 }) {
-  // Cards are open unless the admin collapsed them, so a division added
-  // with "Add another division" opens ready to fill in (SETUP-5: it used
-  // to arrive collapsed and Publish stayed disabled with no hint why).
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  // Focus on one division at a time. Newly added or copied divisions open
+  // immediately so their required name cannot be hidden.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(divisions.slice(1).map(d=>d.uid)));
+  const knownDivisions = useRef(new Set(divisions.map(d=>d.uid)));
+  useEffect(()=>{
+    const added=divisions.find(d=>!knownDivisions.current.has(d.uid));
+    if(added)setCollapsed(new Set(divisions.filter(d=>d.uid!==added.uid).map(d=>d.uid)));
+    knownDivisions.current=new Set(divisions.map(d=>d.uid));
+  },[divisions]);
 
   function toggle(uid: string) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(uid)) next.delete(uid);
-      else next.add(uid);
-      return next;
-    });
+    setCollapsed(prev=>new Set(divisions.filter(d=>d.uid!==uid || !prev.has(uid)).map(d=>d.uid)));
   }
 
   return (
@@ -79,12 +79,12 @@ export function DivisionsStep({
         Add another division
       </button>
 
-      <ReviewSummary divisions={divisions} {...summary} />
+      <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Review league and division settings</summary><div className="mt-4"><ReviewSummary divisions={divisions} {...summary}/></div></details>
     </div>
   );
 }
 
-function ReviewSummary({
+export function ReviewSummary({
   divisions,
   league,
   season,
@@ -105,12 +105,12 @@ function ReviewSummary({
       </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCard title="Organization">
+        {org ? <SummaryCard title="Organization">
           <Row label="Name" value={org?.displayName ?? org?.legalName ?? "—"} />
           <Row label="Type" value={org?.orgType?.replace(/_/g, " ") ?? "—"} />
           <Row label="Region" value={org?.countryCode ?? "—"} />
           <Row label="Currency" value={org?.defaultCurrency ?? "—"} />
-        </SummaryCard>
+        </SummaryCard> : null}
 
         {/* The words the forms used, never the stored codes (PPHL reads values literally). */}
         <SummaryCard title="League">
@@ -134,6 +134,7 @@ function ReviewSummary({
             value={`${season.registrationOpensAt || "—"} → ${season.registrationClosesAt || "—"}`}
             mono
           />
+          <Row label="Playoff window" value={season.playoffStartDate ? `${season.playoffStartDate} → ${season.playoffEndDate}` : "Not set"} />
           <Row label="Roster lock" value={season.rosterLockAt || "—"} mono />
         </SummaryCard>
 
@@ -144,6 +145,9 @@ function ReviewSummary({
             <Row label="Gender eligibility" value={genderLabel(d.genderEligibility)} />
             <Row label="Age" value={d.ageGroupLabel || "—"} />
             <Row label="Max teams" value={String(d.maxTeams)} mono />
+            <Row label="Periods" value={`${d.gameRules.numberOfPeriods} × ${d.gameRules.periodLengthMin} min`} />
+            <Row label="Regular-season overtime" value={optionLabel(OVERTIME_RULES,d.gameRules.overtimeRule)} />
+            <Row label="Playoff overtime" value={d.playoffConfig.overtimeRule ? optionLabel(OVERTIME_RULES,d.playoffConfig.overtimeRule) : "Inherit regular-season rule"} />
             <Row
               label="Playoffs"
               value={d.playoffConfig.enabled ? "Enabled" : "Disabled"}

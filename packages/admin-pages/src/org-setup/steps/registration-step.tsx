@@ -5,6 +5,7 @@ import { Alert, Button, Field, Input, Select, Skeleton } from "@sportspulse/ui";
 import { emptyFormDefinition, formatCalendarDate, formatMoney, guidedRegistrationProblem, SEASON_REGISTRATION_TYPES,
   SEASON_REGISTRATION_TYPE_LABELS, type FormDefinition, type GuidedRegistrationSetupInput,
   type SeasonRegistrationType } from "@sportspulse/kernel";
+import { ReviewSummary } from "./divisions-step";
 import type { WizardState } from "../types";
 
 const FormBuilder = dynamic(() => import("@sportspulse/forms-builder").then(m => m.FormBuilder), {
@@ -95,6 +96,7 @@ export function RegistrationReview({ state, draft, confirmed, onConfirm }: {
       </dl>
       <p className="text-sm text-fg-muted">Documents: {(Object.keys(DOC_LABELS) as Array<keyof typeof DOC_LABELS>).filter(key => draft.definition.waivers?.[key].enabled).map(key => DOC_LABELS[key]).join(", ") || "None enabled"}.</p>
     </section>
+    <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-sm font-medium">League and division settings</summary><div className="mt-4"><ReviewSummary divisions={state.divisions} league={state.league} season={state.season} org={null}/></div></details>
     <label className="flex items-start gap-2 rounded-lg border border-border p-4 text-sm"><input type="checkbox" checked={confirmed} onChange={e => onConfirm(e.target.checked)} /> I reviewed the season, division rules, prices and document text. This registration is ready to publish.</label>
     <p className="text-sm text-fg-muted">Publish opens registration on its opening date. Save draft keeps it closed. Payments remain simulated.</p>
   </div>;

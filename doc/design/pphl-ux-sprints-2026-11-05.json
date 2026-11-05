@@ -4,9 +4,12 @@
   "deliveryRule": "One complete user job per pilot. Validate behavior and visual hierarchy before expanding across roles.",
   "firstPilot": {
     "name": "Find the right season and game",
-    "status": "Implemented and verified locally; not deployed and not yet accepted by a PPHL operator",
+    "status": "Deployed to all six staging projects at 0d459692; deployed browser checks passed; PPHL usability acceptance pending",
     "branch": "codex/ux-sprint-01",
-    "surfaces": ["Organization home", "Organization read-only game detail"],
+    "surfaces": [
+      "Organization home",
+      "Organization read-only game detail"
+    ],
     "changes": [
       "Explicit league-and-season search instead of three competing workspaces.",
       "One selected season and main action; other season tasks open on demand.",
@@ -20,26 +23,76 @@
     "verification": {
       "browserChecks": 7,
       "role": "org_admin",
-      "evidence": ["DOM assertions", "Screenshots"],
+      "evidence": [
+        "DOM assertions",
+        "Screenshots"
+      ],
       "environment": "Local frontend with staging authentication and a read-only staging API proxy",
-      "checks": ["Named season selection and refresh", "Game view and return path", "Actual game pagination", "Existing scheduling route remains reachable", "Foreign organization excluded", "Failed-load recovery", "Keyboard selection and Back"],
-      "responsiveWidths": [320, 375, 414, 768, 1440],
-      "themes": ["Light", "Dark"],
+      "checks": [
+        "Named season selection and refresh",
+        "Game view and return path",
+        "Actual game pagination",
+        "Existing scheduling route remains reachable",
+        "Foreign organization excluded",
+        "Failed-load recovery",
+        "Keyboard selection and Back"
+      ],
+      "responsiveWidths": [
+        320,
+        375,
+        414,
+        768,
+        1440
+      ],
+      "themes": [
+        "Light",
+        "Dark"
+      ],
       "organizationBuild": "passed",
       "organizationTypecheck": "passed",
       "sharedAdminPagesTypecheck": "passed",
-      "pphlUsabilityAcceptance": "Not performed; no training-free usability claim yet"
+      "pphlUsabilityAcceptance": "Not performed; no training-free usability claim yet",
+      "staging": {
+        "commit": "0d459692a07489341a95f9c88ef5f5e39d639100",
+        "projectsReady": 6,
+        "browserChecks": 6,
+        "evidence": "output/pphl-final-testing-2026-11-05/ux-sprint-01/staging-results.json"
+      }
     }
   },
   "nextSprints": [
-    {"job":"Create a season", "scope":"Short groups for basics, dates, divisions, registration and review. Advanced rules open only when needed; draft recovery and required fields remain intact."},
-    {"job":"Copy an existing season", "scope":"Choose source, inspect what will copy, adjust dates, review differences and save a draft. Rehearse 70-league operations separately."},
-    {"job":"Register and approve a team or player", "scope":"Clear fee/waiver state, returning-account recovery, staff review and visible destination on the player/captain side."},
-    {"job":"Publish a schedule", "scope":"Ice availability, draft generation, conflict review and explicit publication, with receiving captain/player verification."},
-    {"job":"Run one game", "scope":"Discover the assigned game, enter events, finalize and inspect the resulting score, statistics and standings. Make the handoff between staff roles explicit."},
-    {"job":"Manage one team roster", "scope":"Captain invitation or roster change, approval when needed, and a clear receiving-player destination."},
-    {"job":"Complete a player obligation", "scope":"One task at a time: attendance, membership proof or waiver. Show exactly what is required, who reviews it and what happens next."},
-    {"job":"Send one announcement", "scope":"Choose the intended audience, preview the message, send and inspect delivery and the recipient inbox."}
+    {
+      "job": "Create a season",
+      "scope": "Short groups for basics, dates, divisions, registration and review. Advanced rules open only when needed; draft recovery and required fields remain intact."
+    },
+    {
+      "job": "Copy an existing season",
+      "scope": "Choose source, inspect what will copy, adjust dates, review differences and save a draft. Rehearse 70-league operations separately."
+    },
+    {
+      "job": "Register and approve a team or player",
+      "scope": "Clear fee/waiver state, returning-account recovery, staff review and visible destination on the player/captain side."
+    },
+    {
+      "job": "Publish a schedule",
+      "scope": "Ice availability, draft generation, conflict review and explicit publication, with receiving captain/player verification."
+    },
+    {
+      "job": "Run one game",
+      "scope": "Discover the assigned game, enter events, finalize and inspect the resulting score, statistics and standings. Make the handoff between staff roles explicit."
+    },
+    {
+      "job": "Manage one team roster",
+      "scope": "Captain invitation or roster change, approval when needed, and a clear receiving-player destination."
+    },
+    {
+      "job": "Complete a player obligation",
+      "scope": "One task at a time: attendance, membership proof or waiver. Show exactly what is required, who reviews it and what happens next."
+    },
+    {
+      "job": "Send one announcement",
+      "scope": "Choose the intended audience, preview the message, send and inspect delivery and the recipient inbox."
+    }
   ],
   "acceptanceForEverySprint": [
     "The operator can identify the current organization, league/season and purpose.",
@@ -51,5 +104,28 @@
     "Light/dark, keyboard and phone layouts are verified.",
     "A PPHL operator attempts the job without live instructions; record hesitation, wrong turns, completion and assistance. Do not infer usability acceptance from CI."
   ],
-  "constraints": ["Payments mock", "Substitute fees disabled", "No production or PPHL client-data changes in this pilot", "Parent/public spectator scope needs agreement before those role experiences are redesigned"]
+  "constraints": [
+    "Payments mock",
+    "Substitute fees disabled",
+    "No production or PPHL client-data changes in this pilot",
+    "Parent/public spectator scope needs agreement before those role experiences are redesigned"
+  ],
+  "secondPilot": {
+    "name": "Create a season",
+    "status": "Implemented; local browser journey, production frontend build and shared/console typechecks passed. Staging validation pending.",
+    "branch": "codex/ux-sprint-02",
+    "changes": [
+      "Single-organization operators start with league basics; super admin retains explicit organization selection.",
+      "Three small date panels with persisted progress and full validation at save.",
+      "One expanded division at a time; detailed game, standings and playoff rules open on demand.",
+      "Full rule summary available during final review; draft and explicit publication preserved.",
+      "Keyboard focus follows each question; current theme and business values retained."
+    ],
+    "constraints": [
+      "Payments mock",
+      "Substitute fees disabled",
+      "Engineering staging fixtures only; clean client testing data unchanged"
+    ],
+    "evidence": "output/pphl-final-testing-2026-11-05/ux-sprint-02"
+  }
 }

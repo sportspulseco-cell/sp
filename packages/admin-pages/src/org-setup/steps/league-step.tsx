@@ -96,16 +96,13 @@ export function LeagueStep({
     [governingBodies, draft.sportCode]
   );
 
-  return (
-    <div className="space-y-8">
-      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
-        <SectionHeader title="Identity" required />
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field
+  return (<div className="space-y-5">
+<section className="space-y-5 rounded-xl border border-border bg-surface-1 p-5 sm:p-6">
+<p className="text-[13px] text-fg-muted">{org?.displayName ?? org?.legalName}</p>
+<Field
             label="League name"
             required
-            hint="Public-facing name shown on all registration pages, emails, and dashboards. Max 80 chars."
+            hint="Shown to your players and staff."
             error={
               nameTaken
                 ? 'A league with this name already exists in this organization. Pick it under "Add to an existing league", or choose another name.'
@@ -121,26 +118,10 @@ export function LeagueStep({
               required
             />
           </Field>
-
-          <Field
-            label="Unique ID (slug)"
-            required
-            hint="Part of the league's web address, made from its name. Type here to set your own."
-          >
-            <Input
-              type="text"
-              value={draft.slug}
-              onChange={(e) => onChange({ slug: slugify(e.target.value) })}
-              placeholder="auto-generated"
-              className="font-mono"
-              required
-            />
-          </Field>
-
-          <Field
+<div className="grid gap-4 sm:grid-cols-2"><Field
             label="Sport"
             required
-            hint="Determines which stat types, period models, and governing bodies are available downstream."
+            hint="Sets the game's rules and statistics."
           >
             <Select
               value={draft.sportCode}
@@ -158,9 +139,49 @@ export function LeagueStep({
                 </option>
               ))}
             </Select>
+          </Field><Field
+            label="Time zone"
+            required
+            hint="Use the time zone of your rinks."
+          >
+            <Select
+              value={draft.timezone}
+              onChange={(e) => onChange({ timezone: e.target.value })}
+            >
+              {TIMEZONES.includes(draft.timezone) ? null : (
+                <option value={draft.timezone}>{draft.timezone}</option>
+              )}
+              {TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz}
+                </option>
+              ))}
+            </Select>
+          </Field></div>
+<Field
+            label="League logo"
+            hint="Upload a 512×512 PNG or JPG (max 2 MB)."
+          >
+            <LogoUpload value={draft.branding.logoUrl} upload={uploadLogo} onBusy={onUploadBusy}
+              onChange={url=>onChange({branding:{...draft.branding,logoUrl:url}})}/>
           </Field>
-
-          <Field
+</section>
+<details open={!!draft.name.trim()&&!draft.slug} className="rounded-xl border border-border bg-surface-1 p-5">
+<summary className="cursor-pointer text-sm font-medium">League settings <span className="font-normal text-fg-muted">· {FORMATS.find(f=>f.value===draft.format)?.label} · {draft.privacy}</span></summary>
+<div className="mt-5 grid gap-4 sm:grid-cols-2"><Field
+            label="League web address"
+            required
+            hint="Part of the league's web address, made from its name. Type here to set your own."
+          >
+            <Input
+              type="text"
+              value={draft.slug}
+              onChange={(e) => onChange({ slug: slugify(e.target.value) })}
+              placeholder="auto-generated"
+              className="font-mono"
+              required
+            />
+          </Field><Field
             label="Format"
             required
             hint="Regular season = scheduled games + standings. Tournament = bracket event. This drives how the scheduler and standings engine behave."
@@ -175,9 +196,7 @@ export function LeagueStep({
                 </option>
               ))}
             </Select>
-          </Field>
-
-          <Field
+          </Field><Field
             label="Governing body"
             hint="Drives ID verification rules and SafeSport requirements for all seasons in this league. Leave blank if your league isn't sanctioned by one."
           >
@@ -194,55 +213,7 @@ export function LeagueStep({
                 </option>
               ))}
             </Select>
-          </Field>
-
-          <Field
-            label="Time zone"
-            required
-            hint="All game times, registration windows, and notification sends are expressed in this time zone. Set it to where the games physically take place."
-          >
-            <Select
-              value={draft.timezone}
-              onChange={(e) => onChange({ timezone: e.target.value })}
-            >
-              {TIMEZONES.includes(draft.timezone) ? null : (
-                <option value={draft.timezone}>{draft.timezone}</option>
-              )}
-              {TIMEZONES.map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-
-        <Field
-          label="Organization"
-          hint="Locked to the organization selected in step 1. Cannot be changed after creation."
-        >
-          <Input
-            type="text"
-            value={org?.displayName ?? org?.legalName ?? ""}
-            readOnly
-            disabled
-            className="cursor-not-allowed text-fg-muted"
-          />
-        </Field>
-      </section>
-
-      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
-        <SectionHeader title="Branding" optional />
-        <div className="grid gap-6 md:grid-cols-2">
-          <Field
-            label="League logo"
-            hint="Upload a 512×512 PNG or JPG (max 2 MB)."
-          >
-            <LogoUpload value={draft.branding.logoUrl} upload={uploadLogo} onBusy={onUploadBusy}
-              onChange={url=>onChange({branding:{...draft.branding,logoUrl:url}})}/>
-          </Field>
-
-          <Field
+          </Field><Field
             label="Primary colour"
             hint="Used as accent on registration pages and email templates."
           >
@@ -270,11 +241,8 @@ export function LeagueStep({
                 );
               })}
             </div>
-          </Field>
-        </div>
-      </section>
-
-      <section className="space-y-5 rounded-xl border border-border bg-surface-1 p-6">
+          </Field></div>
+      <section className="mt-5 space-y-4 border-t border-border pt-5">
         <SectionHeader title="Privacy settings" required />
         <ul className="space-y-2">
           {PRIVACY_OPTIONS.map((p) => {
@@ -315,9 +283,8 @@ export function LeagueStep({
           })}
         </ul>
       </section>
-
-    </div>
-  );
+</details>
+</div>);
 }
 
 export function Field({

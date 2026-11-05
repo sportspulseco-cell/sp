@@ -12,6 +12,8 @@ import {
   NEW_REGION,
   copyDivisionDraft,
   divisionDraftProblem,
+  seasonDraftChecks,
+  type SeasonPanel,
   emptyDivision,
   slugify,
   type DivisionDraft,
@@ -77,8 +79,8 @@ function defaultSeasonDraft(): SeasonDraft {
 }
 
 /**
- * Shared guided season setup. Transport is injected so both consoles
- * transport is injected via callback props so the same component
+ * Shared guided season setup. Transport is injected via callback props
+ * so the same component
  * mounts in sa-web (with its full-scope browser-api bindings) and
  * org-admin-web (with org-scoped proxy bindings), no parallel
  * implementations.
@@ -166,6 +168,8 @@ export function OrgSetupWizard({
   /** Seasons of a league, so step 3 can add divisions to an existing season. */
   listSeasons?: (leagueId: string) => Promise<Season[]>;
 }) {
+  const firstStep: WizardStep = orgs.length === 1 && !renderCreateOrg ? 2 : 1;
+  const [seasonPanel, setSeasonPanel] = useState<SeasonPanel>("season");
   // Orgs created in step 1 join the list without a page reload.
   const [orgList, setOrgList] = useState<Org[]>(orgs);
   // Step 2 / 3 "use existing" choices (SP-Changes item 2). Null = create new.
@@ -174,7 +178,7 @@ export function OrgSetupWizard({
   const [orgLeagues, setOrgLeagues] = useState<League[]>([]);
   const [leagueSeasons, setLeagueSeasons] = useState<Season[]>([]);
   const [state, setState] = useState<WizardState>(() => ({
-    step: 1,
+    step: firstStep,
     // Auto-select when there's only one option (org-admin case).
     orgId: orgs.length === 1 ? orgs[0]!.id : null,
     league: defaultLeagueDraft(
@@ -196,6 +200,12 @@ export function OrgSetupWizard({
   const [done, setDone] = useState<"draft" | "published" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!draftReady) return;
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: "start" });
+  }, [state.step, seasonPanel, draftReady]);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const [storageNote, setStorageNote] = useState("");
   const storageKey = `sportspulse:season-setup:${actorId}`;
@@ -233,7 +243,8 @@ export function OrgSetupWizard({
         progress.current = { ...saved.progress, divisionUids: new Set(saved.progress?.divisionUids ?? []) };
         if (typeof saved.requestId === "string") setupRequestId.current = saved.requestId;
         setExistingLeague(league ?? null); setExistingSeason(season ?? null);
-        setState({ ...saved.state, step: Math.max(1, Math.min(saved.state.step ?? 1, season ? 4 : 6)) as WizardStep });
+        setState({ ...saved.state, step: Math.max(firstStep, Math.min(saved.state.step ?? firstStep, season ? 4 : 6)) as WizardStep });
+        if (["season", "registration", "options"].includes(saved.seasonPanel)) setSeasonPanel(saved.seasonPanel);
         setRegistration(saved.registration); setRestoredDraft(true);
       } catch { if (live) setStorageNote("The saved draft could not be restored. Start a new setup or return to an existing season."); }
       finally { if (live) setDraftReady(true); }
@@ -245,7 +256,7 @@ export function OrgSetupWizard({
   }, [storageKey]);
   function persistProgress() {
     if (!draftReady || done) return;
-    try { localStorage.setItem(storageKey, JSON.stringify({ version: 1, state, registration,
+    try { localStorage.setItem(storageKey, JSON.stringify({ version: 1, state, registration, seasonPanel,
       requestId: setupRequestId.current, existingLeagueId: existingLeague?.id ?? null, existingSeasonId: existingSeason?.id ?? null,
       progress: { ...progress.current, divisionUids: [...progress.current.divisionUids] } })); }
     catch { setStorageNote("This browser could not save your draft. Keep this page open until setup finishes."); }
@@ -254,7 +265,7 @@ export function OrgSetupWizard({
     persistProgress();
     // Persist the current state and completed API phases, without replaying network writes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, registration, existingLeague?.id, existingSeason?.id, draftReady, busy, done]);
+  }, [state, registration, seasonPanel, existingLeague?.id, existingSeason?.id, draftReady, busy, done]);
   // Regions belong to the org picked in step 1; reload when it changes.
   const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
   useEffect(() => {
@@ -416,7 +427,6 @@ export function OrgSetupWizard({
     // values without timezone weirdness.
     const now = new Date();
     const today = calendarDateInZone(now, state.league.timezone || "UTC");
-    const isFutureOrToday = (d: string) => !!d && d >= today;
     return {
       1: !!state.orgId,
       2:
@@ -427,31 +437,7 @@ export function OrgSetupWizard({
           !!state.league.sportCode &&
           !!state.league.format &&
           !!state.league.timezone),
-      3: (() => {
-        if (existingSeason || progress.current.seasonId) return true;
-        const s = state.season;
-        if (s.name.trim().length === 0) return false;
-        if (!isFutureOrToday(s.startDate)) return false;
-        if (!isFutureOrToday(s.endDate)) return false;
-        if (s.endDate < s.startDate) return false;
-        if (!isFutureOrToday(s.registrationOpensAt)) return false;
-        if (!isFutureOrToday(s.registrationClosesAt)) return false;
-        if (s.registrationClosesAt < s.registrationOpensAt) return false;
-        if (s.rosterLockAt && s.rosterLockAt < today) return false;
-        // Playoff dates are optional, but if one is set, both must be
-        // set and they must sit inside the season window with start <=
-        // end. The day before playoffStartDate is the implicit
-        // "regular season finale", so we don't ask the admin for a
-        // separate finale date.
-        const hasAnyPlayoff = !!s.playoffStartDate || !!s.playoffEndDate;
-        if (hasAnyPlayoff) {
-          if (!s.playoffStartDate || !s.playoffEndDate) return false;
-          if (s.playoffStartDate < s.startDate) return false;
-          if (s.playoffEndDate > s.endDate) return false;
-          if (s.playoffEndDate < s.playoffStartDate) return false;
-        }
-        return true;
-      })(),
+      3: !!existingSeason || !!progress.current.seasonId || Object.values(seasonDraftChecks(state.season, today)).every(Boolean),
       // Name, region name and every number inside the kernel ranges: the
       // card shows what is wrong under the field, the API refuses the same.
       4: state.divisions.length > 0 && state.divisions.every((d) => divisionDraftProblem(d) === null),
@@ -460,14 +446,21 @@ export function OrgSetupWizard({
     } as Record<WizardStep, boolean>;
   }, [state, existingLeague, existingSeason, leagueNameTaken, registration, reviewConfirmed]);
 
+  const dateChecks = seasonDraftChecks(state.season, calendarDateInZone(new Date(), state.league.timezone || "UTC"));
+  const guidingDates = state.step === 3 && !existingSeason && !progress.current.seasonId;
+  const canAdvance = guidingDates ? dateChecks[seasonPanel] && (seasonPanel !== "options" || (dateChecks.season && dateChecks.registration)) : stepValidation[state.step];
+  const nextLabel = guidingDates && seasonPanel !== "options" ? (seasonPanel === "season" ? "Next: Registration dates" : "Next: Playoffs") : STEP_NEXT_LABEL[state.step];
+
   function goNext() {
-    if (!stepValidation[state.step]) return;
+    if (!canAdvance) return;
+    if (guidingDates && seasonPanel !== "options") { setSeasonPanel(seasonPanel === "season" ? "registration" : "options"); return; }
     if (state.step < lastStep) {
       setState((s) => ({ ...s, step: (s.step + 1) as WizardStep }));
     }
   }
   function goBack() {
-    if (state.step > 1) {
+    if (guidingDates && seasonPanel !== "season") { setSeasonPanel(seasonPanel === "options" ? "registration" : "season"); return; }
+    if (state.step > firstStep) {
       setState((s) => ({ ...s, step: (s.step - 1) as WizardStep }));
     }
   }
@@ -645,19 +638,20 @@ export function OrgSetupWizard({
           className="flex items-center gap-2 text-[13px] text-fg-muted"
         >
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[--accent]/60" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[--accent]" />
           </span>
-          <span>Set up a season · step {state.step} of {lastStep}</span>
+          <span>Set up a season · step {state.step - firstStep + 1} of {lastStep - firstStep + 1}</span>
         </motion.div>
         <motion.h1
+          ref={heading}
+          tabIndex={-1}
           key={state.step}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-2 max-w-[24ch] text-balance font-sans text-[clamp(24px,3vw,30px)] font-semibold leading-tight tracking-tight text-fg"
+          className="mt-2 max-w-[24ch] outline-none text-balance font-sans text-[clamp(24px,3vw,30px)] font-semibold leading-tight tracking-tight text-fg"
         >
-          {STEP_HEADLINES[state.step]}
+          {guidingDates ? ({ season: "When does the season run?", registration: "When can people register?", options: "Any playoff or roster dates?" }[seasonPanel]) : STEP_HEADLINES[state.step]}
         </motion.h1>
         <div className="absolute inset-x-0 bottom-0 flex items-center">
           <span className="h-px w-6 bg-[--accent]" />
@@ -670,6 +664,7 @@ export function OrgSetupWizard({
         labels={STEP_LABELS}
         validation={stepValidation}
         lastStep={lastStep}
+        firstStep={firstStep}
         onNavigate={(s) => { if (!busy) { setReviewConfirmed(false); setState((p) => ({ ...p, step: s })); } }}
       />
 
@@ -686,9 +681,9 @@ export function OrgSetupWizard({
       <fieldset disabled={busy || uploadingLogo || !draftReady || (state.step <= 3 && !!progress.current.leagueId) || ((state.step === 4 || state.step === 5) && !!progress.current.registrationSaved)}>
       <motion.div
         key={`step-${state.step}`}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15 }}
       >
         {state.step === 1 ? (
           <OrgStep
@@ -761,6 +756,9 @@ export function OrgSetupWizard({
             {existingSeason ? null : (
               <SeasonStep
                 timezone={state.league.timezone}
+                panel={seasonPanel}
+                onPanelChange={setSeasonPanel}
+                checks={dateChecks}
                 draft={state.season}
                 leagueName={state.league.name}
                 onChange={patchSeason}
@@ -792,14 +790,16 @@ export function OrgSetupWizard({
       <Footer
         step={state.step}
         lastStep={lastStep}
-        canAdvance={stepValidation[state.step]}
+        firstStep={firstStep}
+        showBack={state.step > firstStep || (guidingDates && seasonPanel !== "season")}
+        canAdvance={canAdvance}
         busy={busy || uploadingLogo || !draftReady}
         done={done}
         onBack={goBack}
         onNext={goNext}
         onSaveDraft={() => submit({ publish: false })}
         onPublish={() => submit({ publish: true })}
-        nextLabel={STEP_NEXT_LABEL[state.step]}
+        nextLabel={nextLabel}
       />
     </div>
   );
@@ -808,6 +808,8 @@ export function OrgSetupWizard({
 function Footer({
   step,
   lastStep,
+  firstStep,
+  showBack,
   canAdvance,
   busy,
   done,
@@ -819,6 +821,8 @@ function Footer({
 }: {
   step: WizardStep;
   lastStep: WizardStep;
+  firstStep: WizardStep;
+  showBack: boolean;
   canAdvance: boolean;
   busy: boolean;
   done: "draft" | "published" | null;
@@ -830,7 +834,7 @@ function Footer({
 }) {
   return (
     <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-bg/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-      {step > 1 ? (
+      {showBack ? (
         <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={busy}>
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
           <span className="font-mono text-[10px] uppercase tracking-widest">Back</span>
@@ -839,7 +843,7 @@ function Footer({
         <span />
       )}
       <p className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-        Step {step} of {lastStep}
+        Step {step - firstStep + 1} of {lastStep - firstStep + 1}
       </p>
       {step < lastStep ? (
         <Button type="button" onClick={onNext} disabled={!canAdvance || busy}>
@@ -848,7 +852,7 @@ function Footer({
         </Button>
       ) : (
         <div className="flex items-center gap-2">
-          <Button
+          {lastStep === 6 ? <Button
             type="button"
             variant="ghost"
             size="sm"
@@ -859,7 +863,7 @@ function Footer({
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : null}
             <span className="font-mono text-[10px] uppercase tracking-widest">Save draft</span>
-          </Button>
+          </Button> : null}
           <Button
             type="button"
             onClick={onPublish}

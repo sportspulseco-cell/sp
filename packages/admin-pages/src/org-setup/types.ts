@@ -75,6 +75,19 @@ export interface SeasonDraft {
   rosterLockAt: string;
 }
 
+export type SeasonPanel = "season" | "registration" | "options";
+
+/** Existing wizard date checks, grouped for progressive entry; submission still checks all groups. */
+export function seasonDraftChecks(s: SeasonDraft, today: string): Record<SeasonPanel, boolean> {
+  const future = (d: string) => !!d && d >= today;
+  const hasPlayoffs = !!s.playoffStartDate || !!s.playoffEndDate;
+  return {
+    season: !!s.name.trim() && future(s.startDate) && future(s.endDate) && s.endDate >= s.startDate,
+    registration: future(s.registrationOpensAt) && future(s.registrationClosesAt) && s.registrationClosesAt >= s.registrationOpensAt,
+    options: (!s.rosterLockAt || s.rosterLockAt >= today) && (!hasPlayoffs || (!!s.playoffStartDate && !!s.playoffEndDate && s.playoffStartDate >= s.startDate && s.playoffEndDate <= s.endDate && s.playoffEndDate >= s.playoffStartDate))
+  };
+}
+
 export type GameRules = DivisionGameRules;
 export type PlayoffConfig = DivisionPlayoffConfig;
 
