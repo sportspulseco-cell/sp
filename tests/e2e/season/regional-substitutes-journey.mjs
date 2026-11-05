@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect as baseExpect } from "@playwright/test";
 import { CFG, OUT, TARGET, SUPABASE_IP, call, login, sql } from "./lib.mjs";
+const expect = baseExpect.configure({ timeout: 30_000 });
 
 if (TARGET !== "staging") throw new Error("Regional substitute rehearsal is staging-only");
 const { ids } = JSON.parse(readFileSync(`${OUT}/latest.json`, "utf8"));
@@ -124,6 +125,10 @@ try {
   writeFileSync(`${OUT}/regional-substitutes-browser.json`, JSON.stringify({ tag, checks, passed: checks.length, outcome: "passed" }, null, 2));
   console.log(JSON.stringify({ passed: checks.length, checks }));
 } catch (error) {
+  let index = 0;
+  for (const context of browser.contexts()) for (const page of context.pages()) {
+    await page.screenshot({ path: `${OUT}/regional-failure-${index++}.png`, fullPage: true }).catch(() => {});
+  }
   writeFileSync(`${OUT}/regional-substitutes-browser.json`, JSON.stringify({ tag, checks, outcome: "failed", error: String(error) }, null, 2));
   throw error;
 } finally {

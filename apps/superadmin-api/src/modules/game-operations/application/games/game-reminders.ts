@@ -106,6 +106,7 @@ export async function sweepGameReminders(
         eventKey: reminderEventKey(game.id, game.start),
         orgId: ctx.orgId,
         payload: {
+          scheduledStartTsUtc: game.start.toISOString(),
           homeTeam: ctx.homeTeam,
           awayTeam: ctx.awayTeam,
           whenLabel: gameTimeLabel(game.start, game.tz),

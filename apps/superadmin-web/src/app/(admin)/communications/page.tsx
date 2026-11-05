@@ -61,13 +61,13 @@ export default async function CommunicationsPage({
   const counts = summaryResult.ok ? summaryResult.data : { queued: 0, sending: 0, sent: 0, failed: 0, suppressed: 0 };
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <PageHeader
         eyebrow="Messages"
         title="Messages"
         description="Everything the platform has sent or queued: registration decisions, game results, announcements. Send a message from here."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             <Link
               href="/communications/compose"
               className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-accent-fg hover:opacity-90"
@@ -158,7 +158,7 @@ export default async function CommunicationsPage({
           }
         />
       ) : (
-        <Table>
+        <Table className="min-w-[900px]">
           <THead>
             <TR>
               <TH>Template</TH>

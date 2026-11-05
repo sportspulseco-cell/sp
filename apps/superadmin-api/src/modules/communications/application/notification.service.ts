@@ -283,6 +283,16 @@ export class NotificationService {
     if ((row.channel === "push" || row.channel === "sms") && this.dispatcher.environment?.() === "staging") {
       await this.markSuppressed(row.id, "Only email and in-app delivery are enabled for this staging acceptance"); return;
     }
+    if (row.sourceEvent === "game.reminder") {
+      const gameId = row.payload.gameId, start = row.payload.scheduledStartTsUtc;
+      const valid = typeof gameId === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(gameId)
+        && typeof start === "string" && Number.isFinite(Date.parse(start));
+      const [current] = valid ? await this.db.select({ id: schema.games.id }).from(schema.games)
+        .where(and(eq(schema.games.id, gameId), eq(schema.games.status, "scheduled"),
+          eq(schema.games.scheduledStartTsUtc, new Date(start)), sql`${schema.games.publishedAt} IS NOT NULL`,
+          sql`${schema.games.scheduledStartTsUtc}>now()`)).limit(1) : [];
+      if (!current) { await this.markSuppressed(row.id, "The game reminder no longer matches a published upcoming game"); return; }
+    }
     if (row.sourceEvent === "substitute.broadcast.review" || row.sourceEvent === "substitute.broadcast.accepted") {
       const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
       const id = row.payload.broadcastId, accepted = row.sourceEvent === "substitute.broadcast.accepted";

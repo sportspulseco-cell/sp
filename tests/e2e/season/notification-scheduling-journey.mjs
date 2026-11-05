@@ -148,7 +148,7 @@ try {
     let failRead = true;
     await actor.page.route("**/api/notifications/*/read", route => failRead ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "QA read update unavailable" }) }) : route.continue());
     await notice.getByRole("button", { name: "Mark read", exact: true }).click();
-    await expect(actor.page.getByRole("alert")).toContainText("QA read update unavailable");
+    await expect(actor.page.getByRole("alert").filter({ hasText: "QA read update unavailable" })).toBeVisible();
     await expect(notice.getByRole("button", { name: "Mark read", exact: true })).toBeEnabled();
     failRead = false; await notice.getByRole("button", { name: "Mark read", exact: true }).click();
     await expect(notice.getByText("Read", { exact: true })).toBeVisible();

@@ -70,6 +70,20 @@ test("delivery workers claim once, recover leases, fence old workers and authent
       delivered: false, providerMessageId: null, failure: "permanent", reason: "QA invalid address" }; } } as unknown as EmailDispatcherService, forbidden as never, forbidden as never, db);
     await rejectService.dispatch(permanent); await rejectService.dispatch(permanent);
     assert.equal(refusals, 1); assert.equal((await repo.findById(permanent.id))!.attemptCount, 3);
+    const [future] = await db.execute(sql`select id,scheduled_start_ts_utc from games where published_at is not null
+      and status='scheduled' and scheduled_start_ts_utc>now() order by scheduled_start_ts_utc limit 1`);
+    assert.ok(future, "The staging rehearsal has a published upcoming game");
+    let reminders = 0;
+    const reminderService = new NotificationService(repo, { send: async () => { reminders++; return {
+      delivered: true, providerMessageId: randomUUID() }; } } as unknown as EmailDispatcherService, forbidden as never, forbidden as never, db);
+    for (const [gameId, start, expected] of [[future.id, new Date(future.scheduled_start_ts_utc as string).toISOString(), "sent"],
+      [future.id, new Date(Date.now()+12345).toISOString(), "suppressed"], [randomUUID(), new Date().toISOString(), "suppressed"]] as const) {
+      const reminder = await repo.enqueue({ idempotencyKey: `qa-reminder-${randomUUID()}`, sourceEvent: "game.reminder",
+        templateCode: "game.reminder", channel: "email", subject: "QA reminder", body: "Synthetic fixture", recipientEmail: "nobody@example.invalid",
+        payload: { gameId, scheduledStartTsUtc: start } }); ids.push(reminder.id);
+      await reminderService.dispatch(reminder); assert.equal((await repo.findById(reminder.id))!.status, expected);
+    }
+    assert.equal(reminders, 1, "Moved or removed games never reach the transport as old reminders");
     const [privacy] = await db.execute(sql`select relrowsecurity rls,has_table_privilege('authenticated','notification_delivery_receipts','select') access
       from pg_class where oid='notification_delivery_receipts'::regclass`);
     assert.equal(privacy!.rls, true); assert.equal(privacy!.access, false);
