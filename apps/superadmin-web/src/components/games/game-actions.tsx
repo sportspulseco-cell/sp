@@ -458,7 +458,7 @@ function FinalizeDialog({
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-fg">
-            How did the game end?{tied ? " (optional for a tie)" : ""}
+            How did the game end?{tied && game.gameType !== "playoff" ? " (optional for a tie)" : ""}
           </legend>
           <div className="flex flex-wrap gap-2">
             {options.map((e) => (
@@ -533,6 +533,7 @@ function FinalizeDialog({
           </details>
         </fieldset>
 
+        {tied && game.gameType === "playoff" && !needsWinner ? <p className="text-sm text-fg-muted" role="status">A playoff game needs a winner. Record the deciding goal before finalizing.</p> : null}
         {error ? (
           <Alert tone="error">
             {error}
@@ -546,7 +547,7 @@ function FinalizeDialog({
           <Button
             type="button"
             onClick={confirm}
-            disabled={loading || (!tied && !endedIn) || (needsWinner && !shootoutWinner)}
+            disabled={loading || (!tied && !endedIn) || (needsWinner && !shootoutWinner) || (tied && game.gameType === "playoff" && !needsWinner)}
           >
             {loading ? (
               <>

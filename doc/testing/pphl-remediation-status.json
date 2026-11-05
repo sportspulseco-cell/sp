@@ -37,9 +37,9 @@
     "official_assigner_browser": "Passed all four: game-scoped custom role and raw HTTP privacy gates, busy-window assignment refusal, tentative invitation, own confirmation and assigner notice; fixture accounts removed.",
     "guided_registration_staging": "Passed: atomic rollback, replay, drafts stay closed through cron, and existing form editor releases the draft hold only on explicit publication; editor compatibility deployed 2d0eb1fa.",
     "github_ci": {
-      "commit": "4a01fdf4",
+      "commit": "c4b5e541",
       "result": "success",
-      "url": "https://github.com/sportspulseco-cell/sp/actions/runs/41988717888"
+      "url": "https://github.com/sportspulseco-cell/sp/actions/runs/41996715655"
     },
     "guided_registration_browser": "Passed: league/season/division setup, near-2MB logo upload and oversized refusal, custom question/key persisted, 390/1024/1440px review fit, refresh recovery, draft stays publicly closed, explicit publication reuses form/prices, team fee off and staff-reviewed membership choice retained.",
     "season_overview_staging": "Passed locally: 2,107-registration count without pagination truncation, connected 12-team/36-game/6-final/60-person counts, player denial, bounded response; fixtures rolled back. Deployed and raw HTTP gates passed at 2d0eb1fa.",
@@ -52,7 +52,7 @@
     "regional_substitutes_staging": "Passed actual services and transactional outbox: approval required, cross-league same-region matching, other-region exclusion, privacy allowlist, last-slot replay, failed approval/cancellation rollback, changed-position delivery suppression, cancellation closes invitations and opt-out removes consent. All fixtures rolled back. Browser acceptance pending.",
     "regional_substitutes_browser": "Passed four connected checks on c4b5e541: player opt-in, captain submission/no self-approval, both staff consoles see the request, org approval, cross-league volunteer accepts once and captain sees the guest. Raw recruiting privacy and player approval-queue denial passed. Player invitation fits 320/375/414/768/1440px. Synthetic fixture data restored/deleted.",
     "bulk_season_copy_browser": "Passed all three operations: two leagues, pause after in-flight copy, reload and resume without duplication, draft/unpublished forms and no live registrations/rosters/games. Cleanup initially used the wrong endpoint; subsequent SDK-verified status endpoints archived both QA leagues and four seasons successfully.",
-    "game_detail_bounds": "Removed initial global team/league/person directory scans. Loads the two game teams and single league; names come from per-game roster/attendance/stats/officials. Wider person picker uses explicit name search with pages of 50, visible failure/retry and stale-response protection. Superadmin build/typecheck passed; deployment/browser acceptance pending."
+    "game_detail_bounds": "Passed deployed af7914e4: unrelated directory-person canary absent from initial HTML, correct teams render, explicit name search uses limit 50, injected HTTP 503 is visible and retry returns the person; no assignment made. Fits 320/375/414/768/1440px. One observed game load 1371ms; not a capacity benchmark. Canary removed."
   },
   "deployed": {
     "solver_commit": "a456244bf98b6e3ee0cd566734a45d9ea6154d49",
@@ -84,14 +84,14 @@
     "F10": "Schedule/single-game publication/creation atomic notices deployed. Reschedule/postpone/cancel/finalize and automatic discipline notices now share the game transaction; injected failure/retry/replay and audience rollback tests passed locally. Actual notification service lookup test confirms no extra pool connection or precommit send. Deployed 4a01fdf4; new regional closure/guest audience integration and external delivery acceptance remain pending.",
     "F11": "Restricted assigner and official connected browser journey passed all four gates. Invitations tentative by default; personal availability is private and blocks conflicting assignment; own response and assigner notice verified. Deployed 2ae09f3a.",
     "F12": "Regional staff-reviewed invitation and cross-league volunteer acceptance deployed c4b5e541 and passed connected four-app browser journey. Opt-in, private contacts, eligibility recheck, last-slot replay and cancellation/delivery suppression gates passed. Optional substitute fee/credit handling remains outstanding.",
-    "F13": "SQL-before-pagination schedule fix and bounded season overview deployed/verified. Game-detail global directory scans now removed locally; explicit paginated person search replaces eager directory loading. Build/typecheck passed; staging/browser acceptance pending.",
-    "F14": "CI green at 4a01fdf4; 336 business rules pass locally with current changes. Connected browser 12/12 rechecked; 70-copy backend rehearsal passed. Remaining acceptance checks tracked separately.",
+    "F13": "Schedule SQL pagination, bounded season overview and game-detail lookup scope deployed and verified. No global team/league/person directory scan on game detail; wider person picker searches in pages of 50 with tested failure/retry and responsive fit. Production-sized load certification remains separate (F15).",
+    "F14": "CI green at c4b5e541 (336 business rules, solver regressions and cross-app browser/role gates). Additional bounded game-detail browser checks passed af7914e4. Remaining acceptance checks tracked separately.",
     "F15": "production-sized capacity remains unverified; user retained Free/Hobby",
     "F16": "public viewing scope pending client decision",
     "F17": "Staff-reviewed proof browser verified. New shared game guest and substitute checks reject missing/pending/expired/unreviewed proof through game end and prevent a name-only walk-in bypass; required proof checks deployed 4a01fdf4; new playoff history guard awaiting deployment.",
     "F18": "calm task-led UI work ongoing",
     "F19": "Closed in staging: generic roster mutations require actual scoped admin permission. Negative raw HTTP gates passed. Atomic admin moves/trades and failure rollback deployed at 37646196."
   },
-  "staging_git_commit": "c4b5e541",
+  "staging_git_commit": "af7914e4",
   "production_git_commit": "9f33a271"
 }
