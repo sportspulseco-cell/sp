@@ -636,9 +636,10 @@ export function OrgSetupWizard({
     <MotionConfig reducedMotion="user">
     <div className={styles.workspace}>
       <aside className={styles.rail}>
-        <SetupPreview state={state} orgName={currentOrg?.displayName ?? currentOrg?.legalName ?? ""} firstStep={firstStep} lastStep={lastStep} panel={seasonPanel}/>
+        <SetupPreview state={state} orgName={currentOrg?.displayName ?? currentOrg?.legalName ?? ""} firstStep={firstStep} lastStep={lastStep} panel={seasonPanel}>
         <ProgressBar step={state.step} labels={STEP_LABELS} validation={stepValidation} lastStep={lastStep} firstStep={firstStep}
           onNavigate={(s) => { if (!busy) { setReviewConfirmed(false); setState((p) => ({ ...p, step: s })); } }}/>
+        </SetupPreview>
       </aside>
       <section className={styles.panel} aria-label="Guided season setup">
       <header className={styles.panelHeader}>
@@ -664,9 +665,9 @@ export function OrgSetupWizard({
       <fieldset disabled={busy || uploadingLogo || !draftReady || (state.step <= 3 && !!progress.current.leagueId) || ((state.step === 4 || state.step === 5) && !!progress.current.registrationSaved)}>
       <motion.div
         key={`step-${state.step}-${state.step===3?seasonPanel:""}`}
-        initial={{ opacity: 0, y: reducedMotion ? 0 : 12 }}
+        initial={{ opacity: 0, y: reducedMotion ? 0 : 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "tween", duration: reducedMotion ? 0 : 0.22, ease: [0.16,1,0.3,1] }}
+        transition={{ type: "tween", duration: reducedMotion ? 0 : 0.18, ease: [0.16,1,0.3,1] }}
       >
         {state.step === 1 ? (
           <OrgStep

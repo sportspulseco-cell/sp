@@ -168,7 +168,7 @@ export function LeagueStep({
           </Field>
 </section>
 <details open={!!draft.name.trim()&&!draft.slug} className="rounded-xl border border-border bg-surface-1 p-5">
-<summary className="cursor-pointer text-sm font-medium">League settings <span className="font-normal text-fg-muted">· {FORMATS.find(f=>f.value===draft.format)?.label} · {draft.privacy}</span></summary>
+<summary className="cursor-pointer text-sm font-medium">League settings</summary>
 <div className="mt-5 grid gap-4 sm:grid-cols-2"><Field
             label="League web address"
             required

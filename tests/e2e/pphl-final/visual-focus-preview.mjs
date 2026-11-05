@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync,renameSync} from 'node:fs';
 import {chromium,expect as baseExpect} from '@playwright/test';
 import {loadManifest,CFG,OUT,sql,SUPABASE_IP,entryUrl,apps} from './lib.mjs';
-const m=loadManifest(),dir=OUT+'/visual-focus',expect=baseExpect.configure({timeout:30000}),checks=[];mkdirSync(dir+'/shots',{recursive:true});mkdirSync(dir+'/motion',{recursive:true});
+const evidenceDir=process.env.VISUAL_EVIDENCE_DIR??'visual-focus';
+if(!/^[a-z0-9-]+$/.test(evidenceDir))throw Error('Invalid evidence directory');
+const m=loadManifest(),dir=OUT+'/'+evidenceDir,expect=baseExpect.configure({timeout:30000}),checks=[];mkdirSync(dir+'/shots',{recursive:true});mkdirSync(dir+'/motion',{recursive:true});
 const browser=await chromium.launch({args:[`--host-resolver-rules=MAP *.supabase.co ${SUPABASE_IP}`]});
 let page;
 try{
@@ -38,6 +40,8 @@ try{
   const toggle=page.getByRole('button',{name:'Switch to light mode'});if(await toggle.isVisible())await toggle.click();await page.getByRole('button',{name:'Step '+(app==='org'?2:3)+': Season',exact:true}).click();
   await page.getByRole('button',{name:'Season dates',exact:true}).click();await expect(page.getByLabel('Season name',{exact:false})).toHaveValue('Spring 2027');
   await page.screenshot({path:dir+'/shots/'+app+'-season-light-desktop.png',fullPage:true});
+  const dark=page.getByRole('button',{name:'Switch to dark mode'});if(await dark.isVisible())await dark.click();
+  await page.screenshot({path:dir+'/shots/'+app+'-season-dark-desktop.png',fullPage:true});
   await page.evaluate(key=>localStorage.removeItem(key),'sportspulse:season-setup:'+m.accounts[role].userId);
   const video=page.video();await context.close();if(video)renameSync(await video.path(),dir+'/motion/season-setup-'+app+'.webm');
   checks.push(app+': live draft preview, ordered step handoffs, preserved values, reduced motion, light/dark and five responsive widths.');

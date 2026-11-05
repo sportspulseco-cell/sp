@@ -1,4 +1,5 @@
 "use client";
+import type {ReactNode} from "react";
 import {motion,useReducedMotion} from "framer-motion";
 import {Check} from "lucide-react";
 import {formatCalendarDate} from "@sportspulse/kernel";
@@ -6,7 +7,7 @@ import type {WizardState,WizardStep,SeasonPanel} from "./types";
 import styles from "./setup-workspace.module.css";
 
 /** A live draft, not invented preview data. Puck movement mirrors setup progress. */
-export function SetupPreview({state,orgName,firstStep,lastStep,panel}:{state:WizardState;orgName:string;firstStep:WizardStep;lastStep:WizardStep;panel:SeasonPanel}) {
+export function SetupPreview({state,orgName,firstStep,lastStep,panel,children}:{state:WizardState;orgName:string;firstStep:WizardStep;lastStep:WizardStep;panel:SeasonPanel;children?:ReactNode}) {
  const reduced=useReducedMotion();
  const stage=(state.step-firstStep)/(lastStep-firstStep||1);
  const puck={x:30+stage*180,y:state.step===3?(panel==='season'?74:panel==='registration'?46:74):state.step===4?100:74};
@@ -14,10 +15,12 @@ export function SetupPreview({state,orgName,firstStep,lastStep,panel}:{state:Wiz
  const date=(value:string)=>formatCalendarDate(value,{month:'short',day:'numeric'});
  return <>
   <div className={styles.identity}><span>{orgName||'SportsPulse'}</span></div>
+  {children}
 
   <figure className={styles.preview} aria-label="Your season preview">
    <div className={styles.previewArt}>
     <div className={styles.previewStatus}><span>{state.step===6?'Review your season':'Season preview'}</span>{state.step===6?<Check size={14}/>:null}</div>
+    <div className={styles.previewMark}>
     <p className={styles.previewYear}>{state.season.startDate.slice(0,4)||'Season'}</p>
     <svg viewBox="0 0 240 148" fill="none" aria-hidden="true" data-preview={state.league.sportCode==="HOCKEY_ICE"?"rink":"calendar"}>
      {state.league.sportCode==="HOCKEY_ICE"?<>
@@ -34,11 +37,12 @@ export function SetupPreview({state,orgName,firstStep,lastStep,panel}:{state:Wiz
       <path d="M1 32H239M20 1V12M220 1V12" stroke="var(--setup-ticket-line)"/>
       {[55,82,109].flatMap(y=>[25,57,89,121,153,185,217].map(x=><rect key={x+'-'+y} x={x-4} y={y-4} width="8" height="8" rx="2" fill="var(--accent-fg)" fillOpacity=".3"/>))}
      </>}
-     <motion.g initial={false} animate={{x:puck.x,y:puck.y}} transition={{type:'tween',duration:reduced?0:.55,ease:[.16,1,.3,1]}}>
+     <motion.g initial={false} animate={{x:puck.x,y:puck.y}} transition={{type:'tween',duration:reduced?0:.36,ease:[.16,1,.3,1]}}>
       <circle r="15" fill="var(--setup-ticket-halo)"/><circle r="8" fill="var(--accent-fg)"/><circle cx="-2" cy="-2" r="2" fill="var(--accent-hover)" fillOpacity=".6"/>
      </motion.g>
      {state.step>=4?named.slice(0,6).map((d,i)=><motion.circle key={d.uid} initial={{opacity:0,scale:reduced?1:0}} animate={{opacity:1,scale:1}} transition={{duration:reduced?0:.25}} cx={36+i*33} cy="124" r="4" fill="var(--accent-fg)"/>):null}
     </svg>
+    </div>
    </div>
    <figcaption>
     <p className={styles.previewTitle}>{state.league.name||'Your league'}</p>

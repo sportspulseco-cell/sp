@@ -130,3 +130,8 @@ actual entered values. Step handoffs, the progress marker and rink movement
 explain changes; reduced motion skips spatial transitions. Generic welcome
 slogans and decorative stock-icon tiles are excluded. This pilot remains local
 until its visual review; engineering checks do not establish aesthetic acceptance.
+
+The second visual pass makes the progress steps lead the rail, reduces the
+season pass to a compact supporting object, steadies the form footer and
+shortens entry motion to 180 ms. Advanced league settings keep their fields
+without repeating default format/privacy values in the closed summary.

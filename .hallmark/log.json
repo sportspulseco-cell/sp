@@ -11,7 +11,8 @@
       "Continuous progress marker",
       "Draft-driven rink position"
     ],
-    "status": "Local design review; owner aesthetic acceptance outstanding",
-    "overrides": "Owner keeps current theme; existing Inter, neutral surfaces and one substantial violet pass intentionally retained."
+    "status": "Local refinement; both-theme and responsive browser review",
+    "overrides": "Owner keeps current theme; existing Inter, neutral surfaces and one substantial violet pass intentionally retained.",
+    "revision": "Refinement 2: progress first, compact season pass, stronger form emphasis, 180ms entry and 360ms preview movement."
   }
 ]

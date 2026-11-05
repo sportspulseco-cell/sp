@@ -12,7 +12,7 @@ export function ProgressBar({step,labels,validation,onNavigate,lastStep=6,firstS
 }){
  const id=useId(),reduced=useReducedMotion();
  const steps=([1,2,3,4,5,6] as WizardStep[]).filter(s=>s>=firstStep&&s<=lastStep);
- const hints={1:'Choose your organization',2:'Make it yours',3:'Set the timeline',4:'Build your divisions',5:'Welcome your players',6:'Ready when you are'};
+ const hints={1:'Choose your organization',2:'Name, sport and time zone',3:'Season and registration dates',4:'Teams, eligibility and rules',5:'Prices and required documents',6:'Check, save or publish'};
  return <nav className={styles.progress} aria-label="Season setup progress"><ol>
  {steps.map((s,i)=>{const active=s===step,done=s<step&&validation[s];return <li key={s}>
   <button type="button" className={styles.step+(done?' '+styles.completed:'')} aria-label={'Step '+(i+1)+': '+labels[s]}
