@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Shield } from "lucide-react";
 import { setActiveTeamId } from "@/lib/active-team-action";
@@ -8,13 +8,14 @@ import { setActiveTeamId } from "@/lib/active-team-action";
 type TeamOption = { id: string; name: string };
 
 /**
- * Team switcher for a captain or coach with two or more teams. Hidden
+ * Team switcher for a player with two or more teams. Hidden
  * with one team. The pick is kept in a cookie and the pages reload with
  * that team (same pattern as the org console's organization switcher).
  */
 export function TeamSwitcher({ teams, activeTeamId }: { teams: TeamOption[]; activeTeamId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
 
   if (teams.length < 2) return null;
   const active = teams.find((t) => t.id === activeTeamId) ?? teams[0];
@@ -30,9 +31,10 @@ export function TeamSwitcher({ teams, activeTeamId }: { teams: TeamOption[]; act
         disabled={pending}
         onChange={(e) => {
           const next = e.target.value;
+          setError("");
           startTransition(async () => {
-            await setActiveTeamId(next);
-            router.refresh();
+            try { await setActiveTeamId(next); router.refresh(); }
+            catch (err) { setError(err instanceof Error ? err.message : "The team could not be changed. Try again."); }
           });
         }}
         className="max-w-28 appearance-none truncate rounded-md border border-border bg-bg-subtle py-1.5 pl-2 pr-8 text-[12px] font-medium text-fg focus:border-accent focus:outline-none sm:max-w-56"
@@ -45,7 +47,8 @@ export function TeamSwitcher({ teams, activeTeamId }: { teams: TeamOption[]; act
         ))}
       </select>
       <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-fg-muted" strokeWidth={1.75} />
-      {active && pending ? <span className="sr-only">Switching to {active.name}…</span> : null}
+      {active && pending ? <span role="status" className="text-xs text-fg-muted">Switching team…</span> : null}
+      {error ? <span role="alert" className="text-xs text-danger">{error}</span> : null}
     </label>
   );
 }

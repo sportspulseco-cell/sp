@@ -20,7 +20,20 @@
     "atomic_draft_replacement_staging": "passed: failure after delete preserves old drafts; stale snapshot refused; provenance saved atomically; anon/authenticated execution denied",
     "publication_notice_staging": "passed: injected notice failure rolls back publication and notices; retry succeeds; replay does not duplicate",
     "official_response_staging": "passed: own response, unauthorized actor denial, started/revoked denial and personal availability; fixtures rolled back",
-    "season_copy_staging": "passed; 43s before batching, 10.6s after batching; rollback leaves no fixtures"
+    "season_copy_staging": "passed; 43s before batching, 10.6s after batching; rollback leaves no fixtures",
+    "connected_season": {
+      "tag": "SMW33MFOT",
+      "passed": 160,
+      "total": 161,
+      "duration_seconds": 2947,
+      "notes": "One obsolete assertion expected an archived league name to remain reserved. Follow-up postflight verifies live names are refused and archived names reusable; original report retained."
+    },
+    "connected_browser": "12/12 passed using the season-run player, captain and organization admin, including player registration detail and foreign-season denial",
+    "manual_membership_browser": "Passed: pending ID, private proof upload, staff verification with evidence provenance, and changed-ID reset",
+    "raw_privacy_and_role_gates": "Passed: captain recruiting redaction, player denial, and player/captain denial at generic admin roster writes",
+    "schedule_pagination_staging": "Passed with 134 games, 130 historic results, upcoming/live visibility, newest completed first, all-view order and no duplicate/omitted rows",
+    "multi_team_browser": "Passed: staff second-team add; player roster/schedule/stats switch and persistence; forged foreign-team cookie ignored; temporary membership closed",
+    "roster_atomicity_staging": "Passed locally after 69e3c7fc: injected projection failure leaves no orphan history, idempotency scoped to subject, and failed trade preserves original roster; deployment pending"
   },
   "deployed": {
     "solver_commit": "a456244bf98b6e3ee0cd566734a45d9ea6154d49",
@@ -32,41 +45,31 @@
       "scheduler-runs-list"
     ],
     "edge_target": "staging only",
-    "staging_migrations": ["0097_atomic_schedule_draft_replacement.sql"]
+    "staging_migrations": [
+      "0097_atomic_schedule_draft_replacement.sql"
+    ]
   },
   "findings": {
-    "F01": "server transaction guard and UI fail-closed implemented; API deployment and connected journey pending",
+    "F01": "Publication safety deployed to staging; all three divisions published 36 non-overlapping games; database rollback guard verified. Production unchanged.",
     "F02": "Solver constraints/objective remotely verified. Final retained-game constraints validated, prior division settings restored, and draft replacement atomic with stale-snapshot rejection. Deployed staging Edge + migration; latest UI browser validation pending.",
     "F03": "real provider explicitly deferred by user; mock status banner implemented; commercial blocker remains",
-    "F04": "Stricter allowlist now excludes future internal fields and arbitrary availability metadata in addition to email/DOB/note; unit verified locally; raw API pending.",
+    "F04": "Closed in staging: strict allowlist and raw captain-response canary test verify no email, DOB, arbitrary metadata, availability free text or private note; ordinary player denied.",
     "F05": "Transactional season/league copy and initial dialog committed to staging. Bulk 70-league pause/resume UI, batching, logical-request replay and league-name checks implemented after initial commit; awaiting final tests/deployment.",
     "F06": "guided setup not complete; currently four-phase wizard still split from registration",
     "F07": "logo file upload in shared wizard implemented using existing self-owned public image upload; browser test pending",
-    "F08": "separate playoff overtime in wizard/new/edit and finalization guard implemented; unit verified; scoresheet summary and API validation still needed",
-    "F09": "persistent scoped player team context implemented on five surfaces; browser multi-team regression pending",
+    "F08": "Regular OT and shootout finalization passed connected run. Playoff override and unsupported-value refusal unit verified; scoresheet shows effective rule. Dedicated playoff browser acceptance pending.",
+    "F09": "Multi-team browser acceptance passed across roster, schedule, stats, reload and foreign-cookie denial. Visible switching/error feedback added afterward; pending deployment.",
     "F10": "Schedule and single-game publication/creation write durable notices in the same transaction. Single-game failure/replay staging regression passed. Reschedule/cancel/finalize paths and external delivery acceptance remain pending.",
     "F11": "Scoped assigner access, own confirm/decline, private availability windows and assigner notifications implemented. Reply/start race guarded by transaction locks; negative staging controller/DB tests pass. Restricted-assigner browser and raw HTTP gate tests pending.",
     "F12": "not started",
-    "F13": "opponent fanout removed, schedule pagination and seasonal server filter added, registration pagination added; aggregate read model still needed",
-    "F14": "Initial connected API full-season run is active against local API :4123 and staging DB, using live updated Edge/solver. Existing test incorrectly treated an archived league name as a live duplicate; query corrected. Run in progress; no full acceptance claim.",
+    "F13": "Filter and order now applied in SQL before pagination, including upcoming/live and completed/all; 134-game staging test passed. Dashboard aggregate read model still outstanding.",
+    "F14": "Connected season finished 160/161 with one corrected fixture assumption rechecked via deployed API; 12/12 connected browser checks passed. CI on 69e3c7fc is running browser gates after type/unit/solver success.",
     "F15": "production-sized capacity remains unverified; user retained Free/Hobby",
     "F16": "public viewing scope pending client decision",
-    "F17": "User chose staff-reviewed proof. Governing-body card approval atomically verifies the matched ID with reviewer/document-hash provenance and expiry; changes/revocation reset pending; eligibility refresh preserves other rules. Pending/self-attested IDs cannot pass playoff membership. Unit + staging DB tests passed; deployed browser journey pending.",
-    "F18": "calm task-led UI work ongoing"
+    "F17": "Staff-reviewed membership flow implemented and browser verified end to end. Self-entered or changed IDs stay pending; reviewer, document hash and expiry recorded; eligibility refreshed preserving other rules.",
+    "F18": "calm task-led UI work ongoing",
+    "F19": "New P0 discovered and closed in staging: generic admin roster API previously trusted player-projected team scope. Now requires an admin role and actual scoped roster.write permission from admin roles. Captain safe workflow preserved. Raw HTTP negatives pass. Atomic admin moves/trades implemented locally afterward; pending deployment."
   },
-  "staging_git_commit": "bfa13c2b",
-  "production_git_commit": "9f33a271",
-  "active_local_api": {
-    "port": 4123,
-    "process_id": 40876,
-    "command": "node tests/e2e/season/local-api/run.mjs",
-    "notes": "staging Auth/JWKS and DB guarded; all transport provider credentials disabled in child environment; source changes require rebuilding/restart after current season run"
-  },
-  "active_full_season": {
-    "session_id": 42226,
-    "tag": "SMW33MFOT",
-    "season_id": "4f1f7a43-db6e-412b-a51e-1c8efc350afe",
-    "api": "http://localhost:4123/api",
-    "notes": "Polling session output; do not restart API during this run. Earlier auth-misconfigured run stopped; one archived-name false failure in this run."
-  }
+  "staging_git_commit": "69e3c7fc",
+  "production_git_commit": "9f33a271"
 }

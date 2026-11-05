@@ -7,9 +7,8 @@ import { ACTIVE_TEAM_COOKIE } from "./active-team";
 
 /**
  * Server action: remembers the team picked in the switcher. The read
- * path (`getActiveTeamId`) ignores a team outside the user's scope, so
- * nothing is checked here. `revalidatePath('/')` makes every page read
- * the new team on the next navigation.
+ * write checks membership and the read path ignores out-of-scope cookies.
+ * Revalidation makes each page use the selected team on navigation.
  */
 export async function setActiveTeamId(teamId: string): Promise<void> {
   const scope = await loadMeScope();

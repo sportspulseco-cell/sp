@@ -22,11 +22,14 @@ import { TEAM_MEMBERSHIP_REPOSITORY } from "./domain/repositories/team-membershi
 
 import { DrizzleRosterMoveRepository } from "./infrastructure/repositories/drizzle-roster-move.repository";
 import { DrizzleTeamMembershipRepository } from "./infrastructure/repositories/drizzle-team-membership.repository";
+import { DrizzleRosterUnitOfWork } from "./infrastructure/repositories/drizzle-roster-unit-of-work";
+import { ROSTER_UNIT_OF_WORK } from "./application/moves/roster-unit-of-work";
 
 @Module({
   imports: [LeagueManagementModule],
   controllers: [RosterMovesController, RostersController],
   providers: [
+    { provide: ROSTER_UNIT_OF_WORK, useClass: DrizzleRosterUnitOfWork },
     ListRosterMovesHandler,
     GetRosterMoveHandler,
     AddPlayerHandler,

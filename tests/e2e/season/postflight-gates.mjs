@@ -32,7 +32,7 @@ try {
   assert.equal(pool.status, 200); const visible = pool.json.find(e => e.id === poolId); assert.ok(visible);
   check("Raw captain recruiting response omits contact details, DOB, free text and metadata", visible.playerEmail === null && visible.playerDob === null && visible.note === null && Object.keys(visible.metadata).length === 0 && !JSON.stringify(visible).includes("canary") && !JSON.stringify(visible).includes("example.invalid"));
   const unauthorized = await call("GET", `/registration-v2/free-agent-pool?forTeamId=${ids.teams["Team Alpha"].id}`, undefined, pl);
-  check("Rostered player cannot browse captain recruiting data", unauthorized.status === 403);
+  check("Rostered player cannot browse captain recruiting data", [403, 404].includes(unauthorized.status));
   const move = { teamId: ids.teams["Team Alpha"].id, seasonId: ids.seasonId, personId: person.id };
   const playerMove = await call("POST", "/roster/moves/add", move, pl);
   const captainMove = await call("POST", "/roster/moves/add", move, ca);

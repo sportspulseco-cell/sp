@@ -12,7 +12,6 @@ import {
   type RosterMoveRepository
 } from "../../domain/repositories/roster-move.repository";
 import {
-  TEAM_MEMBERSHIP_REPOSITORY,
   type TeamMembershipRepository
 } from "../../domain/repositories/team-membership.repository";
 import { RosterMoveId } from "../../domain/identifiers";
@@ -24,6 +23,7 @@ import {
   isTerminatingMove
 } from "../../domain/value-objects/move-type.vo";
 import { RosterMoveDto, RosterMovePageDto } from "../dtos/roster.dto";
+import { ROSTER_UNIT_OF_WORK, type RosterUnitOfWork } from "./roster-unit-of-work";
 
 interface BaseMoveInput {
   teamId: string;
@@ -49,7 +49,12 @@ async function applyMove(
   // Idempotency
   if (input.sourceEventId) {
     const existing = await moves.findBySourceEventId(input.sourceEventId);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.teamId !== input.teamId || existing.personId !== input.personId ||
+          existing.seasonId !== input.seasonId || existing.moveType !== moveType)
+        throw new ConflictError("This request was already used for a different roster move. Start a new request.");
+      return existing;
+    }
   }
 
   const at = input.effectiveAt ? new Date(input.effectiveAt) : new Date();
@@ -239,33 +244,29 @@ export class GetRosterMoveHandler
 
 @Injectable()
 export class AddPlayerHandler implements CommandHandler<BaseMoveInput, RosterMoveDto> {
-  constructor(
-    @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository,
-    @Inject(TEAM_MEMBERSHIP_REPOSITORY)
-    private readonly memberships: TeamMembershipRepository
-  ) {}
+  constructor(@Inject(ROSTER_UNIT_OF_WORK) private readonly uow: RosterUnitOfWork) {}
   async execute(input: BaseMoveInput): Promise<RosterMoveDto> {
-    const m = await applyMove(this.moves, this.memberships, input, "add");
-    return RosterMoveDto.fromDomain(m);
+    return this.uow.run(input, async ({ moves, memberships }) => {
+      const m = await applyMove(moves, memberships, input, "add");
+      return RosterMoveDto.fromDomain(m);
+    });
   }
 }
 
 @Injectable()
 export class DropPlayerHandler implements CommandHandler<BaseMoveInput, RosterMoveDto> {
-  constructor(
-    @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository,
-    @Inject(TEAM_MEMBERSHIP_REPOSITORY)
-    private readonly memberships: TeamMembershipRepository
-  ) {}
+  constructor(@Inject(ROSTER_UNIT_OF_WORK) private readonly uow: RosterUnitOfWork) {}
   async execute(input: BaseMoveInput): Promise<RosterMoveDto> {
-    const m = await applyMove(
-      this.moves,
-      this.memberships,
-      input,
-      "drop",
-      "released"
-    );
-    return RosterMoveDto.fromDomain(m);
+    return this.uow.run(input, async ({ moves, memberships }) => {
+      const m = await applyMove(
+        moves,
+        memberships,
+        input,
+        "drop",
+        "released"
+      );
+      return RosterMoveDto.fromDomain(m);
+    });
   }
 }
 
@@ -286,49 +287,47 @@ export interface TradeInput {
 export class TradePlayerHandler
   implements CommandHandler<TradeInput, { tradeOut: RosterMoveDto; tradeIn: RosterMoveDto }>
 {
-  constructor(
-    @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository,
-    @Inject(TEAM_MEMBERSHIP_REPOSITORY)
-    private readonly memberships: TeamMembershipRepository
-  ) {}
+  constructor(@Inject(ROSTER_UNIT_OF_WORK) private readonly uow: RosterUnitOfWork) {}
   async execute(input: TradeInput) {
-    const out = await applyMove(
-      this.moves,
-      this.memberships,
-      {
-        teamId: input.fromTeamId,
-        personId: input.personId,
-        seasonId: input.seasonId,
-        effectiveAt: input.effectiveAt,
-        reason: input.reason,
-        sourceEventId: input.sourceEventId
-          ? `${input.sourceEventId}-out`
-          : null,
-        createdByUserId: input.createdByUserId
-      },
-      "trade_out",
-      "released"
-    );
-    const inMove = await applyMove(
-      this.moves,
-      this.memberships,
-      {
-        teamId: input.toTeamId,
-        personId: input.personId,
-        seasonId: input.seasonId,
-        effectiveAt: input.effectiveAt,
-        jerseyNumber: input.jerseyNumber,
-        positionCode: input.positionCode,
-        reason: input.reason,
-        sourceEventId: input.sourceEventId ? `${input.sourceEventId}-in` : null,
-        createdByUserId: input.createdByUserId
-      },
-      "trade_in"
-    );
-    return {
-      tradeOut: RosterMoveDto.fromDomain(out),
-      tradeIn: RosterMoveDto.fromDomain(inMove)
-    };
+    return this.uow.run(input, async ({ moves, memberships }) => {
+      const out = await applyMove(
+        moves,
+        memberships,
+        {
+          teamId: input.fromTeamId,
+          personId: input.personId,
+          seasonId: input.seasonId,
+          effectiveAt: input.effectiveAt,
+          reason: input.reason,
+          sourceEventId: input.sourceEventId
+            ? `${input.sourceEventId}-out`
+            : null,
+          createdByUserId: input.createdByUserId
+        },
+        "trade_out",
+        "released"
+      );
+      const inMove = await applyMove(
+        moves,
+        memberships,
+        {
+          teamId: input.toTeamId,
+          personId: input.personId,
+          seasonId: input.seasonId,
+          effectiveAt: input.effectiveAt,
+          jerseyNumber: input.jerseyNumber,
+          positionCode: input.positionCode,
+          reason: input.reason,
+          sourceEventId: input.sourceEventId ? `${input.sourceEventId}-in` : null,
+          createdByUserId: input.createdByUserId
+        },
+        "trade_in"
+      );
+      return {
+        tradeOut: RosterMoveDto.fromDomain(out),
+        tradeIn: RosterMoveDto.fromDomain(inMove)
+      };
+    });
   }
 }
 
@@ -336,19 +335,17 @@ export class TradePlayerHandler
 export class CallUpPlayerHandler
   implements CommandHandler<BaseMoveInput, RosterMoveDto>
 {
-  constructor(
-    @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository,
-    @Inject(TEAM_MEMBERSHIP_REPOSITORY)
-    private readonly memberships: TeamMembershipRepository
-  ) {}
+  constructor(@Inject(ROSTER_UNIT_OF_WORK) private readonly uow: RosterUnitOfWork) {}
   async execute(input: BaseMoveInput): Promise<RosterMoveDto> {
-    const m = await applyMove(
-      this.moves,
-      this.memberships,
-      { ...input, membershipType: input.membershipType ?? "call_up" },
-      "call_up"
-    );
-    return RosterMoveDto.fromDomain(m);
+    return this.uow.run(input, async ({ moves, memberships }) => {
+      const m = await applyMove(
+        moves,
+        memberships,
+        { ...input, membershipType: input.membershipType ?? "call_up" },
+        "call_up"
+      );
+      return RosterMoveDto.fromDomain(m);
+    });
   }
 }
 
@@ -356,19 +353,17 @@ export class CallUpPlayerHandler
 export class SendDownPlayerHandler
   implements CommandHandler<BaseMoveInput, RosterMoveDto>
 {
-  constructor(
-    @Inject(ROSTER_MOVE_REPOSITORY) private readonly moves: RosterMoveRepository,
-    @Inject(TEAM_MEMBERSHIP_REPOSITORY)
-    private readonly memberships: TeamMembershipRepository
-  ) {}
+  constructor(@Inject(ROSTER_UNIT_OF_WORK) private readonly uow: RosterUnitOfWork) {}
   async execute(input: BaseMoveInput): Promise<RosterMoveDto> {
-    const m = await applyMove(
-      this.moves,
-      this.memberships,
-      input,
-      "send_down",
-      "released"
-    );
-    return RosterMoveDto.fromDomain(m);
+    return this.uow.run(input, async ({ moves, memberships }) => {
+      const m = await applyMove(
+        moves,
+        memberships,
+        input,
+        "send_down",
+        "released"
+      );
+      return RosterMoveDto.fromDomain(m);
+    });
   }
 }
