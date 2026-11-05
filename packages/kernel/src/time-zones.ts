@@ -82,6 +82,44 @@ export function zonedWallTimeToUtc(local: string, timeZone: string): Date {
   return new Date(candidates[0] ?? first);
 }
 
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+function assertCalendarDate(ymd: string): void {
+  if (!YMD.test(ymd)) throw new RangeError(`Expected YYYY-MM-DD, got "${ymd}"`);
+}
+
+/**
+ * The instant the calendar day `ymd` ("YYYY-MM-DD", an <input type="date">
+ * value) begins in `timeZone`, as an ISO string. Registration opens at
+ * the start of the day the admin typed, in the season's zone: built at the
+ * browser's midnight, "Nov 4" typed from India for a New York season was
+ * stored as Nov 3 18:30Z and every page showed Nov 3 (PPHL, 4 Nov 2026).
+ * Throws on a malformed date or unknown zone, like zonedWallTimeToUtc.
+ */
+export function startOfDayInZone(ymd: string, timeZone: string): string {
+  assertCalendarDate(ymd);
+  return zonedWallTimeToUtc(`${ymd}T00:00`, timeZone).toISOString();
+}
+
+/** The last second (23:59:59) of the calendar day `ymd` in `timeZone`, as an ISO string. */
+export function endOfDayInZone(ymd: string, timeZone: string): string {
+  assertCalendarDate(ymd);
+  return new Date(zonedWallTimeToUtc(`${ymd}T23:59`, timeZone).getTime() + 59_000).toISOString();
+}
+
+/**
+ * The calendar date ("YYYY-MM-DD") that `instant` falls on in `timeZone`,
+ * for a date input that edits a stored timestamp. An unknown or missing
+ * zone reads the UTC date, as formatInZone does; a bad instant reads "".
+ */
+export function calendarDateInZone(instant: Date | string | null | undefined, timeZone: string | null | undefined): string {
+  if (!instant) return "";
+  const t = typeof instant === "string" ? Date.parse(instant) : instant.getTime();
+  if (Number.isNaN(t)) return "";
+  const zone = timeZone && isValidTimeZone(timeZone) ? timeZone : "UTC";
+  return utcToZonedWallTime(new Date(t), zone).slice(0, 10);
+}
+
 const GAME_TIME: Intl.DateTimeFormatOptions = {
   month: "short",
   day: "numeric",

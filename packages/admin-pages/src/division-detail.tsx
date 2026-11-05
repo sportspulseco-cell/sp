@@ -1,10 +1,29 @@
 import type { ReactNode } from "react";
-import { POINTS_RULE_LABELS, parsePlayoffSpots, playoffSpotsLabel, resolvePointsRule, formatCalendarDate } from "@sportspulse/kernel";
+import {
+  POINTS_RULE_LABELS,
+  parsePlayoffSpots,
+  playoffSpotsLabel,
+  resolvePointsRule,
+  formatCalendarDate,
+  statusLabel
+} from "@sportspulse/kernel";
 import Link from "next/link";
 import { Badge, Eyebrow, PageHeader, Reveal, statusTone, IconTile, LocalDate } from "@sportspulse/ui";
 import { ArrowLeft, Layers } from "lucide-react";
 import type { Division, Org, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
+// The same words the wizard and the division dialogs show for each code.
+import {
+  BODY_CHECKING,
+  BRACKETS,
+  CLOCK_TYPES,
+  HOME_ICE,
+  OVERTIME_RULES,
+  SERIES,
+  genderLabel,
+  optionLabel,
+  tierLabel
+} from "./divisions/option-labels";
 
 const TIEBREAKER_LABELS: Record<string, string> = {
   wins: "Wins",
@@ -13,13 +32,6 @@ const TIEBREAKER_LABELS: Record<string, string> = {
   goals_for: "Goals for",
   goals_against: "Goals against",
   coin_flip: "Coin flip"
-};
-
-const SERIES_LABELS: Record<string, string> = {
-  best_of_1: "Single game (best of 1)",
-  best_of_3: "Best of 3",
-  best_of_5: "Best of 5",
-  best_of_7: "Best of 7"
 };
 
 /** A calendar date (playoff start and end): the same day for every reader. */
@@ -148,8 +160,8 @@ export function DivisionDetail({
         description={
           <>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              {division.tier ? <Badge mono>{division.tier}</Badge> : null}
-              <Badge mono>{division.genderEligibility}</Badge>
+              {division.tier ? <Badge mono>{tierLabel(division.tier)}</Badge> : null}
+              <Badge mono>{genderLabel(division.genderEligibility)}</Badge>
               <Badge status={division.status} />
               {parentSeason ? (
                 <Link
@@ -216,11 +228,11 @@ export function DivisionDetail({
           <Field label="Region" tag="divisions.region_id">
             {division.regionName ?? "—"}
           </Field>
-          <Field label="Tier" tag="divisions.tier" mono>
-            {division.tier ?? "—"}
+          <Field label="Skill / tier" tag="divisions.tier">
+            {tierLabel(division.tier)}
           </Field>
-          <Field label="Gender eligibility" tag="divisions.gender_eligibility" mono>
-            {division.genderEligibility}
+          <Field label="Gender eligibility" tag="divisions.gender_eligibility">
+            {genderLabel(division.genderEligibility)}
           </Field>
           <Field label="Min age" tag="ageRange.min" mono>
             {rules.ageRange?.min ?? "—"}
@@ -234,8 +246,8 @@ export function DivisionDetail({
           <Field label="Max teams" tag="divisions.max_teams" mono>
             {division.maxTeams ?? "—"}
           </Field>
-          <Field label="Status" tag="divisions.status" mono>
-            {division.status}
+          <Field label="Status" tag="divisions.status">
+            {statusLabel(division.status)}
           </Field>
         </dl>
       </Reveal>
@@ -251,18 +263,14 @@ export function DivisionDetail({
           <Field label="Period length (min)" mono>
             {rules.gameRules?.periodLengthMin ?? "—"}
           </Field>
-          <Field label="Clock type" mono>
-            {rules.gameRules?.clockType ?? "—"}
+          <Field label="Clock type">
+            {optionLabel(CLOCK_TYPES, rules.gameRules?.clockType)}
           </Field>
-          <Field label="Overtime" mono>
-            {rules.gameRules?.overtimeRule
-              ? rules.gameRules.overtimeRule.replace(/_/g, " ")
-              : "—"}
+          <Field label="Overtime">
+            {optionLabel(OVERTIME_RULES, rules.gameRules?.overtimeRule)}
           </Field>
-          <Field label="Body checking" mono>
-            {rules.gameRules?.bodyChecking
-              ? rules.gameRules.bodyChecking.replace(/_/g, " ")
-              : "—"}
+          <Field label="Body checking">
+            {optionLabel(BODY_CHECKING, rules.gameRules?.bodyChecking)}
           </Field>
           <Field label="Min skaters to start" mono>
             {rules.gameRules?.minStartersToStart ?? "—"}
@@ -336,16 +344,14 @@ export function DivisionDetail({
             <Field label="End date" tag="endDate" mono>
               {fmtDate(playoff.endDate)}
             </Field>
-            <Field label="Series format" tag="seriesFormat" mono>
-              {playoff.seriesFormat
-                ? SERIES_LABELS[playoff.seriesFormat] ?? playoff.seriesFormat
-                : "—"}
+            <Field label="Series format" tag="seriesFormat">
+              {optionLabel(SERIES, playoff.seriesFormat)}
             </Field>
-            <Field label="Bracket type" tag="bracketType" mono>
-              {playoff.bracketType?.replace(/_/g, " ") ?? "—"}
+            <Field label="Bracket type" tag="bracketType">
+              {optionLabel(BRACKETS, playoff.bracketType)}
             </Field>
-            <Field label="Home ice rule" tag="homeIceRule" mono>
-              {playoff.homeIceRule?.replace(/_/g, " ") ?? "—"}
+            <Field label="Home ice" tag="homeIceRule">
+              {optionLabel(HOME_ICE, playoff.homeIceRule)}
             </Field>
           </dl>
         ) : (

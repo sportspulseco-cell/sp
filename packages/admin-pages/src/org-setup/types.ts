@@ -4,6 +4,8 @@ import {
   DEFAULT_POINTS_RULE,
   copyDivisionRules,
   defaultDivisionRules,
+  divisionNumberProblem,
+  validateDivisionGameRules,
   type DivisionBodyChecking,
   type DivisionClockType,
   type DivisionGameRules,
@@ -124,6 +126,26 @@ export const TIEBREAKER_LABELS: Record<TiebreakerCode, string> = {
   coin_flip: "Coin flip (admin confirms manually in the system)"
 };
 
+/** Team cap a fresh division card starts with; an emptied Max teams box goes back to it. */
+export const DEFAULT_MAX_TEAMS = 10;
+
+/**
+ * The first thing wrong with a division card, in plain words, or null.
+ * Publish waits until every card reads null; the card shows the sentence
+ * under the field it names. Numbers use the kernel ranges, the same ones
+ * the API refuses with.
+ */
+export function divisionDraftProblem(d: DivisionDraft): string | null {
+  if (d.name.trim().length === 0) return "Division name is required.";
+  if (d.regionId === NEW_REGION && d.regionName.trim().length === 0) return "Region name is required.";
+  const number = divisionNumberProblem("maxTeams", d.maxTeams) ?? validateDivisionGameRules(d.gameRules);
+  if (number) return number;
+  if (d.ageRangeMin !== null && d.ageRangeMax !== null && d.ageRangeMax < d.ageRangeMin) {
+    return "Max age must be at least min age.";
+  }
+  return null;
+}
+
 export function emptyDivision(uid: string): DivisionDraft {
   const r = defaultDivisionRules();
   return {
@@ -137,7 +159,7 @@ export function emptyDivision(uid: string): DivisionDraft {
     ageRangeMin: r.ageRange.min,
     ageRangeMax: r.ageRange.max,
     ageGroupLabel: r.ageRange.label,
-    maxTeams: 10,
+    maxTeams: DEFAULT_MAX_TEAMS,
     gameRules: r.gameRules,
     tiebreakers: r.tiebreakers,
     points: pointsRuleForm(r.pointsRule),

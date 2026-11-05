@@ -1,6 +1,6 @@
 "use client";
 
-import { cloneElement, isValidElement, useId, useMemo, type ReactElement } from "react";
+import { Children, cloneElement, isValidElement, useId, useMemo, type ReactElement } from "react";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import { cn, Input, Select, FieldHint } from "@sportspulse/ui";
 import {
@@ -101,6 +101,11 @@ export function LeagueStep({
             label="League name"
             required
             hint="Public-facing name shown on all registration pages, emails, and dashboards. Max 80 chars."
+            error={
+              nameTaken
+                ? 'A league with this name already exists in this organization. Pick it under "Add to an existing league", or choose another name.'
+                : undefined
+            }
           >
             <Input
               type="text"
@@ -110,17 +115,12 @@ export function LeagueStep({
               placeholder="e.g. New Hampshire AHL"
               required
             />
-            {nameTaken ? (
-              <p className="text-[13px] text-fg-danger" role="alert">
-                A league with this name already exists in this organization. Pick it under &quot;Add to an existing league&quot;, or choose another name.
-              </p>
-            ) : null}
           </Field>
 
           <Field
             label="Unique ID (slug)"
             required
-            hint="Part of the league's web address, made from its name. Fixed once a season is published."
+            hint="Part of the league's web address, made from its name. Type here to set your own."
           >
             <Input
               type="text"
@@ -329,33 +329,50 @@ export function LeagueStep({
 export function Field({
   label,
   hint,
+  error,
   required,
   children
 }: {
   label: string;
   hint?: string;
+  /** What is wrong with the value, in plain words; shown under the input. */
+  error?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
-  // Tie the label to its input so screen readers (and getByLabel) name
-  // it: only a bare input, select or textarea child.
+  // Tie the label to the first input, select or textarea child so screen
+  // readers (and getByLabel) name it. Binding only a lone child left the
+  // League name field, which also carried an error line, with no name.
   const autoId = useId();
-  const el =
-    isValidElement(children) &&
-    (typeof children.type === "string"
-      ? /^(input|select|textarea)$/.test(children.type)
-      : children.type === Input || children.type === Select)
-      ? (children as ReactElement<{ id?: string }>)
-      : null;
-  const htmlFor = el ? el.props.id ?? autoId : undefined;
-  const body = el && !el.props.id ? cloneElement(el, { id: autoId }) : children;
+  const errorId = `${autoId}-error`;
+  let labelFor: string | undefined;
+  let bound = false;
+  const body = Children.map(children, (child) => {
+    if (bound || !isValidElement(child)) return child;
+    const el = child as ReactElement<{ id?: string; "aria-invalid"?: boolean; "aria-describedby"?: string }>;
+    const t = el.type;
+    const inputLike =
+      typeof t === "string" ? /^(input|select|textarea)$/.test(t) : t === Input || t === Select;
+    if (!inputLike) return child;
+    bound = true;
+    labelFor = el.props.id ?? autoId;
+    return cloneElement(el, {
+      id: labelFor,
+      ...(error ? { "aria-invalid": true, "aria-describedby": errorId } : {})
+    });
+  });
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
+      <label htmlFor={labelFor} className="block font-mono text-[10px] uppercase tracking-[0.18em] text-fg-muted">
         {label}
         {required ? <span className="ml-1 text-[var(--error)]">*</span> : null}
       </label>
       {body}
+      {error ? (
+        <p id={errorId} role="alert" className="text-[13px] text-fg-danger">
+          {error}
+        </p>
+      ) : null}
       <FieldHint>{hint}</FieldHint>
     </div>
   );

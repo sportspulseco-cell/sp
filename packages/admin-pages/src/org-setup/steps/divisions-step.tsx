@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { Org } from "@sportspulse/api-client";
-import { playoffSpotsLabel } from "@sportspulse/kernel";
+import { playoffSpotsLabel, sportLabel } from "@sportspulse/kernel";
 import type { DivisionDraft, LeagueDraft, SeasonDraft } from "../types";
+import { BRACKETS, SERIES, genderLabel, optionLabel, tierLabel } from "../../divisions/option-labels";
 import { DivisionCard } from "./division-card";
+import { FORMATS, PRIVACY_OPTIONS } from "./league-step";
 
 /**
  * Phase 3 — Configure divisions. Multiple divisions allowed; each is
@@ -107,12 +109,13 @@ function ReviewSummary({
           <Row label="Currency" value={org?.defaultCurrency ?? "—"} />
         </SummaryCard>
 
+        {/* The words the forms used, never the stored codes (PPHL reads values literally). */}
         <SummaryCard title="League">
           <Row label="Name" value={league.name || "—"} />
           <Row label="Slug" value={league.slug || "—"} mono />
-          <Row label="Sport" value={league.sportCode || "—"} mono />
-          <Row label="Format" value={league.format} mono />
-          <Row label="Privacy" value={league.privacy} mono />
+          <Row label="Sport" value={sportLabel(league.sportCode)} />
+          <Row label="Format" value={optionLabel(FORMATS, league.format)} />
+          <Row label="Privacy" value={optionLabel(PRIVACY_OPTIONS, league.privacy, { short: true })} />
           <Row label="Time zone" value={league.timezone} mono />
         </SummaryCard>
 
@@ -134,11 +137,8 @@ function ReviewSummary({
         {divisions.map((d, i) => (
           <SummaryCard key={d.uid} title={`Division ${i + 1}`}>
             <Row label="Name" value={d.name || "—"} />
-            <Row
-              label="Tier / gender"
-              value={`${d.tier ?? "—"} · ${d.genderEligibility}`}
-              mono
-            />
+            <Row label="Skill / tier" value={tierLabel(d.tier)} />
+            <Row label="Gender eligibility" value={genderLabel(d.genderEligibility)} />
             <Row label="Age" value={d.ageGroupLabel || "—"} />
             <Row label="Max teams" value={String(d.maxTeams)} mono />
             <Row
@@ -153,11 +153,8 @@ function ReviewSummary({
                   value={playoffSpotsLabel(d.playoffConfig.playoffSpots)}
                   mono
                 />
-                <Row
-                  label="Format"
-                  value={d.playoffConfig.seriesFormat.replace(/_/g, " ")}
-                  mono
-                />
+                <Row label="Format" value={optionLabel(SERIES, d.playoffConfig.seriesFormat, { short: true })} />
+                <Row label="Bracket" value={optionLabel(BRACKETS, d.playoffConfig.bracketType)} />
                 <Row
                   label="Window"
                   value={`${d.playoffConfig.startDate || "—"} → ${d.playoffConfig.endDate || "—"}`}

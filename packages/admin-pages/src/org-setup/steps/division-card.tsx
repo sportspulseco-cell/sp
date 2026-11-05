@@ -1,14 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { PlayoffSpotsFields } from "../../divisions/playoff-spots-fields";
 import { PointsRuleFields, pointsRuleForm } from "../../divisions/points-rule-fields";
-import { SKILL_LEVEL_LABELS, SKILL_LEVELS } from "@sportspulse/kernel";
+import {
+  DEFAULT_DIVISION_GAME_RULES,
+  DIVISION_NUMBER_LIMITS,
+  divisionNumberProblem,
+  type DivisionNumberKey
+} from "@sportspulse/kernel";
 import { ChevronDown, ChevronUp, Copy, GripVertical, Trash2 } from "lucide-react";
 import { Badge, Input, Select, Button } from "@sportspulse/ui";
 import { cn } from "@sportspulse/ui";
 import {
+  DEFAULT_MAX_TEAMS,
   NEW_REGION,
   TIEBREAKER_LABELS,
+  divisionDraftProblem,
   type BodyChecking,
   type BracketType,
   type ClockType,
@@ -16,108 +24,25 @@ import {
   type Gender,
   type HomeIceRule,
   type OvertimeRule,
-  type SeriesFormat,
-  type Tier,
-  type TiebreakerCode
+  type Tier
 } from "../types";
+import {
+  BODY_CHECKING,
+  BRACKETS,
+  CLOCK_TYPES,
+  GENDERS,
+  HOME_ICE,
+  OVERTIME_RULES,
+  SERIES,
+  TIERS,
+  genderLabel,
+  tierLabel
+} from "../../divisions/option-labels";
 import { Field } from "./league-step";
 
-// Same A–D labels players pick their level from (REG-21), plus Premier.
-export const TIERS: { value: NonNullable<Tier>; label: string }[] = [
-  ...SKILL_LEVELS.map((value) => ({ value, label: SKILL_LEVEL_LABELS[value] })),
-  { value: "Premier", label: "Premier" }
-];
-
-export const GENDERS: { value: Gender; label: string }[] = [
-  { value: "open", label: "Open (any)" },
-  { value: "male", label: "Men" },
-  { value: "female", label: "Women" },
-  { value: "mixed", label: "Mixed" }
-];
-
-export const CLOCK_TYPES: { value: ClockType; label: string }[] = [
-  { value: "stopped", label: "Stopped clock" },
-  { value: "running", label: "Running clock" }
-];
-
-export const BODY_CHECKING: { value: BodyChecking; label: string }[] = [
-  { value: "permitted", label: "Permitted" },
-  { value: "not_permitted_penalty", label: "Not permitted, penalty" },
-  { value: "not_permitted_no_penalty", label: "Not permitted, no penalty" }
-];
-
-export const OVERTIME_RULES: { value: OvertimeRule; label: string }[] = [
-  { value: "none", label: "None: score is final" },
-  { value: "sudden_death", label: "Sudden death (first goal wins)" },
-  { value: "shootout", label: "Penalty shootout (skip OT)" },
-  { value: "5_min", label: "5 min overtime period" },
-  { value: "10_min", label: "10 min overtime period" }
-];
-
-export const SERIES: { value: SeriesFormat; label: string; description: string }[] = [
-  {
-    value: "best_of_1",
-    label: "Single game (best of 1)",
-    description:
-      "One game determines the winner. Quick-fire single elimination."
-  },
-  {
-    value: "best_of_3",
-    label: "Best of 3: first to win 2 games",
-    description:
-      "Max 3 games per matchup. Catches a single-game fluke. Requires roughly double the ice time of single-game format. Most common in rec leagues."
-  },
-  {
-    value: "best_of_5",
-    label: "Best of 5: first to win 3 games",
-    description:
-      "Max 5 games. Produces the most meaningful result. Used in competitive A divisions and finals. Significant ice-time commitment."
-  },
-  {
-    value: "best_of_7",
-    label: "Best of 7: first to win 4 games",
-    description:
-      "Max 7 games per round. NHL-style. Rare in rec leagues but available for competitive top divisions with long seasons."
-  }
-];
-
-export const BRACKETS: { value: BracketType; label: string; description: string }[] = [
-  {
-    value: "single_elim",
-    label: "Single elimination",
-    description: "One loss and you're out. Fast and decisive."
-  },
-  {
-    value: "double_elim",
-    label: "Double elimination",
-    description:
-      "Teams get a second chance via a loser bracket. More games but rewards consistency."
-  },
-  {
-    value: "round_robin",
-    label: "Round-robin",
-    description: "Every team plays every other. Twice the games."
-  }
-];
-
-export const HOME_ICE: { value: HomeIceRule; label: string; description: string }[] = [
-  {
-    value: "higher_seed_first",
-    label: "Higher seed hosts first game(s)",
-    description:
-      "Determines which team hosts in a series. Higher-seed-hosting gives 1 and 3 the most common option in seeded leagues."
-  },
-  {
-    value: "alternating",
-    label: "Alternating",
-    description: "Home/away alternates each game in the series."
-  },
-  {
-    value: "neutral",
-    label: "Neutral site",
-    description: "All games at a neutral location."
-  }
-];
+// The option labels live in ../../divisions/option-labels (a plain module
+// the server-rendered detail pages can read too); kept here for callers.
+export { BODY_CHECKING, BRACKETS, CLOCK_TYPES, GENDERS, HOME_ICE, OVERTIME_RULES, SERIES, TIERS };
 
 export function DivisionCard({
   index,
@@ -142,10 +67,12 @@ export function DivisionCard({
   onCopy: () => void;
   onRemove: () => void;
 }) {
+  // Publish waits while a card has a problem; a collapsed card says so here.
+  const problem = divisionDraftProblem(division);
   return (
     <section className="rounded-xl border border-border bg-surface-1">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={onToggle}
@@ -162,10 +89,11 @@ export function DivisionCard({
             Division {index + 1}
             {division.name ? `: ${division.name}` : ""}
           </p>
-          <Badge mono>{division.tier ?? "—"}</Badge>
+          <Badge mono>{tierLabel(division.tier)}</Badge>
           <Badge mono tone="info">
-            {division.genderEligibility}
+            {genderLabel(division.genderEligibility)}
           </Badge>
+          {problem ? <Badge tone="danger">Needs a fix</Badge> : null}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -341,6 +269,13 @@ function IdentityBlock({
       <Field
         label="Max age"
         hint="Oldest player allowed (years). Leave blank for no maximum."
+        error={
+          division.ageRangeMin !== null &&
+          division.ageRangeMax !== null &&
+          division.ageRangeMax < division.ageRangeMin
+            ? "Max age must be at least min age."
+            : undefined
+        }
       >
         <Input
           type="number"
@@ -371,43 +306,83 @@ function IdentityBlock({
         />
       </Field>
 
-      <Field
+      <WholeNumberField
+        name="maxTeams"
         label="Max teams"
         required
         hint="Hard cap on teams accepted into this division. Once reached, new team registrations are halted. Should be at least 4 to seed a tier."
-      >
-        <Input
-          type="number"
-          min={2}
-          max={64}
-          value={division.maxTeams}
-          onChange={(e) =>
-            onPatch({ maxTeams: Math.max(2, parseInt(e.target.value) || 2) })
-          }
-          required
-        />
-      </Field>
+        value={division.maxTeams}
+        defaultValue={DEFAULT_MAX_TEAMS}
+        onCommit={(maxTeams) => onPatch({ maxTeams })}
+      />
 
-      <Field
+      <WholeNumberField
+        name="minStartersToStart"
         label="Min skaters to start"
         hint="If a team can't ice this many skaters at puck drop, the game is forfeited."
-      >
-        <Input
-          type="number"
-          min={1}
-          max={20}
-          value={division.gameRules.minStartersToStart}
-          onChange={(e) =>
-            onPatch({
-              gameRules: {
-                ...division.gameRules,
-                minStartersToStart: Math.max(1, parseInt(e.target.value) || 1)
-              }
-            })
-          }
-        />
-      </Field>
+        value={division.gameRules.minStartersToStart}
+        defaultValue={DEFAULT_DIVISION_GAME_RULES.minStartersToStart}
+        onCommit={(minStartersToStart) =>
+          onPatch({ gameRules: { ...division.gameRules, minStartersToStart } })
+        }
+      />
     </div>
+  );
+}
+
+/* =========================== Whole numbers ========================== */
+
+/**
+ * A whole-number box that keeps what the admin typed, including nothing,
+ * until they leave it. Committing on every keystroke snapped a cleared box
+ * back to its default, so "17" typed over "20" became "2017" and Publish
+ * sent it (PPHL, 4 Nov 2026). On blur the number is committed as typed;
+ * when it is outside the kernel range, the kernel sentence shows under the
+ * box and Publish waits. An empty box goes back to the default.
+ */
+function WholeNumberField({
+  name,
+  label,
+  hint,
+  required,
+  value,
+  defaultValue,
+  onCommit
+}: {
+  name: DivisionNumberKey;
+  label: string;
+  hint?: string;
+  required?: boolean;
+  value: number;
+  defaultValue: number;
+  onCommit: (next: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  // The parent changed the value (a copy was made, a default restored): follow it.
+  const [seen, setSeen] = useState(value);
+  if (value !== seen) {
+    setSeen(value);
+    setText(String(value));
+  }
+  const limit = DIVISION_NUMBER_LIMITS[name];
+  return (
+    <Field label={label} required={required} hint={hint} error={divisionNumberProblem(name, value) ?? undefined}>
+      <Input
+        type="number"
+        inputMode="numeric"
+        step={1}
+        min={limit.min}
+        max={limit.max}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const typed = text.trim() === "" ? Number.NaN : Number(text);
+          const next = Number.isNaN(typed) ? defaultValue : typed;
+          setText(String(next));
+          if (next !== value) onCommit(next);
+        }}
+      />
+    </Field>
   );
 }
 
@@ -427,47 +402,25 @@ function GameRulesBlock({
         Game rules
       </p>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <Field
+        <WholeNumberField
+          name="numberOfPeriods"
           label="Number of periods"
           required
           hint="How many periods in a regulation game. Hockey standard is 3, lacrosse normally has quarters."
-        >
-          <Input
-            type="number"
-            min={1}
-            max={6}
-            value={r.numberOfPeriods}
-            onChange={(e) =>
-              onPatch({
-                gameRules: {
-                  ...r,
-                  numberOfPeriods: Math.max(1, parseInt(e.target.value) || 3)
-                }
-              })
-            }
-          />
-        </Field>
+          value={r.numberOfPeriods}
+          defaultValue={DEFAULT_DIVISION_GAME_RULES.numberOfPeriods}
+          onCommit={(numberOfPeriods) => onPatch({ gameRules: { ...r, numberOfPeriods } })}
+        />
 
-        <Field
+        <WholeNumberField
+          name="periodLengthMin"
           label="Period length (min)"
           required
           hint="Length of each period in minutes. Affects total game duration and time-on-ice tracking. Standard hockey is 20 minutes."
-        >
-          <Input
-            type="number"
-            min={1}
-            max={60}
-            value={r.periodLengthMin}
-            onChange={(e) =>
-              onPatch({
-                gameRules: {
-                  ...r,
-                  periodLengthMin: Math.max(1, parseInt(e.target.value) || 20)
-                }
-              })
-            }
-          />
-        </Field>
+          value={r.periodLengthMin}
+          defaultValue={DEFAULT_DIVISION_GAME_RULES.periodLengthMin}
+          onCommit={(periodLengthMin) => onPatch({ gameRules: { ...r, periodLengthMin } })}
+        />
 
         <Field
           label="Clock type"
@@ -532,48 +485,23 @@ function GameRulesBlock({
           </Select>
         </Field>
 
-        <Field
+        <WholeNumberField
+          name="maxGuestPlayersPerGame"
           label="Max guest players per game"
           hint="Subs / backups borrowed from another team for a single game. Capped per game so teams can't stack with ringers."
-        >
-          <Input
-            type="number"
-            min={0}
-            max={50}
-            value={r.maxGuestPlayersPerGame}
-            onChange={(e) =>
-              onPatch({
-                gameRules: {
-                  ...r,
-                  maxGuestPlayersPerGame: Math.max(
-                    0,
-                    parseInt(e.target.value) || 4
-                  )
-                }
-              })
-            }
-          />
-        </Field>
+          value={r.maxGuestPlayersPerGame}
+          defaultValue={DEFAULT_DIVISION_GAME_RULES.maxGuestPlayersPerGame}
+          onCommit={(maxGuestPlayersPerGame) => onPatch({ gameRules: { ...r, maxGuestPlayersPerGame } })}
+        />
 
-        <Field
+        <WholeNumberField
+          name="maxRosterSize"
           label="Max roster size"
           hint="Cap on permanent roster size for the season. Hockey leagues typically allow 18–25; lacrosse can go higher."
-        >
-          <Input
-            type="number"
-            min={1}
-            max={60}
-            value={r.maxRosterSize}
-            onChange={(e) =>
-              onPatch({
-                gameRules: {
-                  ...r,
-                  maxRosterSize: Math.max(1, parseInt(e.target.value) || 20)
-                }
-              })
-            }
-          />
-        </Field>
+          value={r.maxRosterSize}
+          defaultValue={DEFAULT_DIVISION_GAME_RULES.maxRosterSize}
+          onCommit={(maxRosterSize) => onPatch({ gameRules: { ...r, maxRosterSize } })}
+        />
       </div>
     </div>
   );

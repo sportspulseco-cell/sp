@@ -5,11 +5,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import { Alert, Button } from "@sportspulse/ui";
+import { calendarDateInZone, endOfDayInZone, startOfDayInZone, statusLabel } from "@sportspulse/kernel";
 import type { GoverningBody, League, Org, Season, Sport } from "@sportspulse/api-client";
 import {
   DEFAULT_TIEBREAKERS,
   NEW_REGION,
   copyDivisionDraft,
+  divisionDraftProblem,
   emptyDivision,
   slugify,
   type DivisionDraft,
@@ -214,10 +216,15 @@ export function OrgSetupWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.orgId]);
 
+  // The slug follows the whole name as it is typed until the admin types in
+  // the slug box; clearing that box lets it follow the name again. Guarding
+  // on "no slug yet" froze it after the first keystroke ("PPHL Demo" -> "p").
+  const slugTouched = useRef(false);
   function patchLeague(patch: Partial<LeagueDraft>) {
+    if (patch.slug !== undefined) slugTouched.current = patch.slug !== "";
     setState((s) => {
       const next = { ...s.league, ...patch };
-      if (patch.name !== undefined && !s.league.slug) {
+      if (patch.name !== undefined && patch.slug === undefined && !slugTouched.current) {
         next.slug = slugify(patch.name);
       }
       return { ...s, league: next };
@@ -317,7 +324,8 @@ export function OrgSetupWizard({
     const x = id ? leagueSeasons.find((y) => y.id === id) ?? null : null;
     setExistingSeason(x);
     if (!x) return;
-    const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
+    // The day as typed, in the season's zone (the UTC date is a day off east or west of it).
+    const day = (iso: string | null) => calendarDateInZone(iso, x.timezone);
     setState((st) => ({
       ...st,
       season: {
@@ -386,13 +394,9 @@ export function OrgSetupWizard({
         }
         return true;
       })(),
-      4:
-        state.divisions.length > 0 &&
-        state.divisions.every(
-          (d) =>
-            d.name.trim().length > 0 &&
-            (d.regionId !== NEW_REGION || d.regionName.trim().length > 0)
-        )
+      // Name, region name and every number inside the kernel ranges: the
+      // card shows what is wrong under the field, the API refuses the same.
+      4: state.divisions.length > 0 && state.divisions.every((d) => divisionDraftProblem(d) === null)
     } as Record<WizardStep, boolean>;
   }, [state, existingLeague, existingSeason, leagueNameTaken]);
 
@@ -452,6 +456,11 @@ export function OrgSetupWizard({
       const league = { id: saved.leagueId };
 
       stepLabel = "season";
+      // Registration and roster lock are the typed day in the season's own
+      // zone (the league time zone from step 2), not the browser's: "Nov 4"
+      // typed from India for a New York season was stored as Nov 3 18:30Z
+      // and every page showed Nov 3 (PPHL, 4 Nov 2026).
+      const zone = state.league.timezone;
       const season = existingSeason
         ? existingSeason
         : saved.seasonId
@@ -464,16 +473,14 @@ export function OrgSetupWizard({
         endDate: state.season.endDate,
         playoffStartDate: state.season.playoffStartDate || null,
         playoffEndDate: state.season.playoffEndDate || null,
-        timezone: state.league.timezone,
+        timezone: zone,
         registrationOpensAt: state.season.registrationOpensAt
-          ? new Date(state.season.registrationOpensAt + "T00:00:00").toISOString()
+          ? startOfDayInZone(state.season.registrationOpensAt, zone)
           : null,
         registrationClosesAt: state.season.registrationClosesAt
-          ? new Date(state.season.registrationClosesAt + "T23:59:59").toISOString()
+          ? endOfDayInZone(state.season.registrationClosesAt, zone)
           : null,
-        rosterLockAt: state.season.rosterLockAt
-          ? new Date(state.season.rosterLockAt + "T23:59:59").toISOString()
-          : null
+        rosterLockAt: state.season.rosterLockAt ? endOfDayInZone(state.season.rosterLockAt, zone) : null
       });
       saved.seasonId = season.id;
 
@@ -659,7 +666,7 @@ export function OrgSetupWizard({
                 pickLabel="Season"
                 items={leagueSeasons.map((x) => ({
                   id: x.id,
-                  name: `${x.name} (${x.status.replace(/_/g, " ")})`
+                  name: `${x.name} (${statusLabel(x.status)})`
                 }))}
                 selectedId={existingSeason?.id ?? null}
                 onPick={(id) => pickSeason(id)}

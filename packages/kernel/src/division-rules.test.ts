@@ -4,11 +4,14 @@ import {
   DEFAULT_DIVISION_GAME_RULES,
   DEFAULT_DIVISION_PLAYOFF_CONFIG,
   DEFAULT_DIVISION_TIEBREAKERS,
+  DIVISION_NUMBER_LIMITS,
   copyDivisionRules,
   defaultDivisionRules,
+  divisionNumberProblem,
   parsePlayoffSpots,
   playoffSpotsLabel,
-  readDivisionRules
+  readDivisionRules,
+  validateDivisionGameRules
 } from "./division-rules";
 import { DEFAULT_POINTS_RULE, STANDINGS_TIEBREAKERS } from "./game-results";
 
@@ -189,4 +192,92 @@ test("playoff dates travel within a season and are dropped across seasons", () =
   assert.equal(other.playoffConfig.endDate, "");
   assert.equal(other.playoffConfig.playoffSpots, 4, "everything but the dates is carried");
   assert.equal(source.playoffConfig.startDate, "2027-03-01", "the source keeps its dates");
+});
+
+// The values Publish accepted on staging on 4 Nov 2026 after a cleared
+// field snapped back to its default mid-typing ("17" over "20" -> "2017").
+const SNAPPED = { periodLengthMin: 2017, numberOfPeriods: 33, maxRosterSize: 2020 };
+
+test("the defaults sit inside every range, so a fresh card always publishes", () => {
+  assert.equal(validateDivisionGameRules(DEFAULT_DIVISION_GAME_RULES), null);
+  assert.equal(divisionNumberProblem("maxTeams", 10), null, "the wizard default team cap");
+  for (const [key, lim] of Object.entries(DIVISION_NUMBER_LIMITS)) {
+    assert.ok(lim.min <= lim.max, key);
+    assert.ok(lim.label.length > 0, key);
+  }
+});
+
+test("a number out of range is refused with the words the form uses, first problem only", () => {
+  assert.equal(
+    validateDivisionGameRules({ ...DEFAULT_DIVISION_GAME_RULES, ...SNAPPED }),
+    "Number of periods must be a whole number from 1 to 4."
+  );
+  assert.equal(
+    validateDivisionGameRules({ ...DEFAULT_DIVISION_GAME_RULES, periodLengthMin: 2017 }),
+    "Period length must be a whole number from 5 to 60 minutes."
+  );
+  assert.equal(
+    validateDivisionGameRules({ ...DEFAULT_DIVISION_GAME_RULES, maxRosterSize: 2020 }),
+    "Max roster size must be a whole number from 5 to 40."
+  );
+  assert.equal(
+    validateDivisionGameRules({ ...DEFAULT_DIVISION_GAME_RULES, minStartersToStart: 2 }),
+    "Min skaters to start must be a whole number from 3 to 20."
+  );
+  assert.equal(
+    validateDivisionGameRules({ ...DEFAULT_DIVISION_GAME_RULES, maxGuestPlayersPerGame: 11 }),
+    "Max guest players per game must be a whole number from 0 to 10."
+  );
+  assert.equal(divisionNumberProblem("maxTeams", 2017), "Max teams must be a whole number from 2 to 64.");
+  assert.equal(divisionNumberProblem("maxTeams", 1), "Max teams must be a whole number from 2 to 64.");
+});
+
+test("the edges of every range are accepted; just outside is not", () => {
+  for (const [key, lim] of Object.entries(DIVISION_NUMBER_LIMITS) as Array<[keyof typeof DIVISION_NUMBER_LIMITS, { min: number; max: number }]>) {
+    assert.equal(divisionNumberProblem(key, lim.min), null, `${key} min`);
+    assert.equal(divisionNumberProblem(key, lim.max), null, `${key} max`);
+    assert.ok(divisionNumberProblem(key, lim.min - 1), `${key} below min`);
+    assert.ok(divisionNumberProblem(key, lim.max + 1), `${key} above max`);
+  }
+  assert.equal(validateDivisionGameRules({ maxGuestPlayersPerGame: 0 }), null, "zero guests is a real setting");
+});
+
+test("not a whole number, text, null or NaN is refused with the same sentence", () => {
+  const msg = "Period length must be a whole number from 5 to 60 minutes.";
+  assert.equal(divisionNumberProblem("periodLengthMin", 17.5), msg);
+  assert.equal(divisionNumberProblem("periodLengthMin", "17"), msg, "a string is not a stored number");
+  assert.equal(divisionNumberProblem("periodLengthMin", null), msg);
+  assert.equal(divisionNumberProblem("periodLengthMin", Number.NaN), msg);
+  assert.equal(divisionNumberProblem("periodLengthMin", -20), msg);
+  assert.equal(validateDivisionGameRules({ periodLengthMin: null }), msg, "null is sent, so it is checked");
+});
+
+test("only the keys sent are checked: a legacy row with {} or no game rules saves", () => {
+  assert.equal(validateDivisionGameRules(undefined), null);
+  assert.equal(validateDivisionGameRules(null), null);
+  assert.equal(validateDivisionGameRules({}), null);
+  assert.equal(validateDivisionGameRules({ numberOfPeriods: 3 }), null);
+  assert.equal(validateDivisionGameRules(NORTH_RULES.gameRules), null, "the PPHL production row is fine");
+  assert.equal(validateDivisionGameRules("3 periods"), "Game rules must be a set of named values.");
+  assert.equal(validateDivisionGameRules([3, 20]), "Game rules must be a set of named values.");
+});
+
+test("a choice outside the catalogue is refused by name", () => {
+  assert.equal(
+    validateDivisionGameRules({ clockType: "paused" }),
+    "Clock type must be one of: stopped, running."
+  );
+  assert.equal(
+    validateDivisionGameRules({ overtimeRule: "15_min" }),
+    "Overtime must be one of: none, sudden_death, shootout, 5_min, 10_min."
+  );
+  assert.equal(
+    validateDivisionGameRules({ bodyChecking: null }),
+    "Body checking must be one of: permitted, not_permitted_penalty, not_permitted_no_penalty."
+  );
+  assert.equal(
+    validateDivisionGameRules({ numberOfPeriods: 9, clockType: "paused" }),
+    "Number of periods must be a whole number from 1 to 4.",
+    "numbers are reported before choices"
+  );
 });

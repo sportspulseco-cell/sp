@@ -1,5 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { STANDINGS_TIEBREAKERS, ValidationError, parseTiebreakers, pointsRuleProblem } from "@sportspulse/kernel";
+import {
+  STANDINGS_TIEBREAKERS,
+  ValidationError,
+  divisionNumberProblem,
+  parseTiebreakers,
+  pointsRuleProblem,
+  validateDivisionGameRules
+} from "@sportspulse/kernel";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -155,6 +162,7 @@ export class CreateDivisionHandler
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
   async execute(input: CreateDivisionInput): Promise<DivisionDto> {
+    assertMaxTeams(input.maxTeams);
     assertRuleSet(input.ruleSetOverrides);
     if (input.regionId) await assertRegionInSeasonOrg(this.db, input.seasonId, input.regionId);
     const division = Division.create({
@@ -197,6 +205,9 @@ export class UpdateDivisionHandler
   async execute(input: UpdateDivisionInput): Promise<DivisionDto> {
     const d = await this.divisions.findById(DivisionId.of(input.id));
     if (!d) throw new NotFoundError("Division", input.id);
+    // Refuse the whole command before touching the row.
+    assertMaxTeams(input.maxTeams);
+    if (input.ruleSetOverrides !== undefined) assertRuleSet(input.ruleSetOverrides);
     if (input.regionId !== undefined) {
       if (input.regionId) await assertRegionInSeasonOrg(this.db, d.seasonId.value, input.regionId);
       d.setRegion(input.regionId ? RegionId.of(input.regionId) : null);
@@ -208,10 +219,7 @@ export class UpdateDivisionHandler
     }
     if (input.genderEligibility !== undefined) d.setGenderEligibility(input.genderEligibility);
     if (input.maxTeams !== undefined) d.setMaxTeams(input.maxTeams);
-    if (input.ruleSetOverrides !== undefined) {
-      assertRuleSet(input.ruleSetOverrides);
-      d.setRuleSetOverrides(input.ruleSetOverrides);
-    }
+    if (input.ruleSetOverrides !== undefined) d.setRuleSetOverrides(input.ruleSetOverrides);
     if (input.playoffConfig !== undefined) d.setPlayoffConfig(input.playoffConfig);
     await this.divisions.save(d);
     return DivisionDto.fromDomain(d);
@@ -233,11 +241,25 @@ export class ArchiveDivisionHandler
 }
 
 /**
- * Standings points and tie-break order are read by every recompute
+ * The team cap, when sent, must sit in the kernel range (2 to 64). The
+ * wizard once sent 2017 after a cleared box snapped back mid-typing
+ * (PPHL, 4 Nov 2026); the sentence is the one the form shows.
+ */
+function assertMaxTeams(maxTeams: number | null | undefined): void {
+  if (maxTeams === undefined || maxTeams === null) return;
+  const problem = divisionNumberProblem("maxTeams", maxTeams);
+  if (problem) throw new ValidationError(problem);
+}
+
+/**
+ * Game rules (periods, period length, skaters, guests, roster), standings
+ * points and tie-break order are read by every game and recompute
  * (FR-3.13.1), so a bad value is refused here in words, never stored.
  */
 function assertRuleSet(rules: Record<string, unknown> | undefined): void {
   if (!rules) return;
+  const gameProblem = validateDivisionGameRules(rules.gameRules);
+  if (gameProblem) throw new ValidationError(gameProblem);
   const pr = rules.pointsRule;
   if (pr !== undefined && pr !== null) {
     if (typeof pr !== "object") throw new ValidationError("Standings points must be five whole numbers.");

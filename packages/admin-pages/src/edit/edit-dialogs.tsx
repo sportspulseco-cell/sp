@@ -8,14 +8,19 @@ import { Loader2, Pencil, Plus } from "lucide-react";
 import { Alert, Button, Dialog, DialogActions, Field, Input, Select } from "@sportspulse/ui";
 import { fetchAll, mapLimit, type Division, type GoverningBody, type League, type Org, type Page, type Season, type Team } from "@sportspulse/api-client";
 import { FORMATS, PRIVACY_OPTIONS, TIMEZONES } from "../org-setup/steps/league-step";
-import { BODY_CHECKING, BRACKETS, CLOCK_TYPES, GENDERS, OVERTIME_RULES, SERIES, TIERS } from "../org-setup/steps/division-card";
+import { BODY_CHECKING, BRACKETS, CLOCK_TYPES, GENDERS, OVERTIME_RULES, SERIES, TIERS, optionLabel } from "../divisions/option-labels";
 import { DEFAULT_TIEBREAKERS, emptyDivision } from "../org-setup/types";
 import {
+  calendarDateInZone,
   copyDivisionRules,
+  divisionNumberProblem,
+  endOfDayInZone,
   readDisciplineRules,
   readDivisionRules,
+  startOfDayInZone,
   validateDisciplineRules,
   type DisciplineRules,
+  type DivisionNumberKey,
   type DivisionRules
 } from "@sportspulse/kernel";
 
@@ -95,17 +100,23 @@ const today = () => {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 };
-/** ISO timestamp -> local YYYY-MM-DD for <input type="date">. */
-function toDateInput(iso: string | null | undefined): string {
+/**
+ * ISO timestamp -> YYYY-MM-DD for <input type="date">, as the day reads in
+ * the season's own zone. Reading it in the browser's zone showed the day
+ * before to anyone west of the season and the day after to anyone east.
+ */
+function toDateInput(iso: string | null | undefined, timeZone: string): string {
   if (!iso) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return calendarDateInZone(iso, timeZone);
 }
-/** Same conversion the Org setup wizard uses for registration timestamps. */
-const startOfDay = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : null);
-const endOfDay = (d: string) => (d ? new Date(`${d}T23:59:59`).toISOString() : null);
+/**
+ * Same conversion as the Org setup wizard: the typed day starts and ends
+ * in the season's zone, never the browser's (PPHL, 4 Nov 2026: "Nov 4"
+ * typed from India stored Nov 3 18:30Z and the season page showed Nov 3).
+ */
+const startOfDay = (d: string, timeZone: string) => (d ? startOfDayInZone(d, timeZone) : null);
+const endOfDay = (d: string, timeZone: string) => (d ? endOfDayInZone(d, timeZone) : null);
 
 // ---------- organization ----------
 
@@ -453,16 +464,16 @@ function SeasonFields({ f, set }: { f: SeasonForm; set: (k: keyof SeasonForm, v:
   );
 }
 
-function toSeasonBody(f: SeasonForm) {
+function toSeasonBody(f: SeasonForm, timeZone: string) {
   return {
     name: f.name.trim(),
     startDate: f.startDate,
     endDate: f.endDate,
     playoffStartDate: f.playoffStartDate || null,
     playoffEndDate: f.playoffEndDate || null,
-    registrationOpensAt: startOfDay(f.registrationOpensAt),
-    registrationClosesAt: endOfDay(f.registrationClosesAt),
-    rosterLockAt: endOfDay(f.rosterLockAt)
+    registrationOpensAt: startOfDay(f.registrationOpensAt, timeZone),
+    registrationClosesAt: endOfDay(f.registrationClosesAt, timeZone),
+    rosterLockAt: endOfDay(f.rosterLockAt, timeZone)
   };
 }
 
@@ -498,7 +509,7 @@ export function NewSeasonButton({
             const p = seasonProblem(f, null);
             if (p) return setError(p);
             void run(
-              () => create({ ...toSeasonBody(f), leagueId: league.id, sportCode: league.sportCode, timezone: tz }),
+              () => create({ ...toSeasonBody(f, tz), leagueId: league.id, sportCode: league.sportCode, timezone: tz }),
               () => setOpen(false)
             );
           }}
@@ -520,15 +531,17 @@ export function EditSeasonButton({
   season: Season;
   save: (body: SeasonUpdateBody) => Promise<unknown>;
 }) {
+  // Dates are typed and read back in the season's own zone.
+  const tz = season.timezone;
   const initial: SeasonForm = {
     name: season.name,
     startDate: season.startDate,
     endDate: season.endDate,
     playoffStartDate: season.playoffStartDate ?? "",
     playoffEndDate: season.playoffEndDate ?? "",
-    registrationOpensAt: toDateInput(season.registrationOpensAt),
-    registrationClosesAt: toDateInput(season.registrationClosesAt),
-    rosterLockAt: toDateInput(season.rosterLockAt)
+    registrationOpensAt: toDateInput(season.registrationOpensAt, tz),
+    registrationClosesAt: toDateInput(season.registrationClosesAt, tz),
+    rosterLockAt: toDateInput(season.rosterLockAt, tz)
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<SeasonForm>(initial);
@@ -545,7 +558,7 @@ export function EditSeasonButton({
             if (p) return setError(p);
             // Send only the timestamps the admin changed: resending an
             // untouched date as local midnight moved it (PPHL F-6 check).
-            const body: SeasonUpdateBody = toSeasonBody(f);
+            const body: SeasonUpdateBody = toSeasonBody(f, tz);
             for (const k of ["registrationOpensAt", "registrationClosesAt", "rosterLockAt"] as const) {
               if (f[k] === initial[k]) delete body[k];
             }
@@ -688,9 +701,23 @@ function DivisionFields({
   );
 }
 
+/** The number fields the dialog has, in form order; a blank one keeps the stored value. */
+const DIALOG_NUMBERS: Array<[keyof DivisionForm & DivisionNumberKey, DivisionNumberKey]> = [
+  ["maxTeams", "maxTeams"],
+  ["numberOfPeriods", "numberOfPeriods"],
+  ["periodLengthMin", "periodLengthMin"],
+  ["maxRosterSize", "maxRosterSize"]
+];
+
 function divisionProblem(f: DivisionForm): string | null {
   if (!f.name.trim()) return "Division name is required.";
-  if (f.maxTeams && Number(f.maxTeams) < 2) return "Max teams must be at least 2.";
+  // Same ranges and sentences as the wizard and the API (kernel).
+  for (const [field, key] of DIALOG_NUMBERS) {
+    const text = f[field];
+    if (text === "") continue;
+    const problem = divisionNumberProblem(key, Number(text));
+    if (problem) return problem;
+  }
   if (f.ageMin && f.ageMax && Number(f.ageMax) < Number(f.ageMin)) return "Max age must be at least min age.";
   const pts = pointsRuleFromForm(f.points);
   if ("problem" in pts) return pts.problem;
@@ -745,23 +772,21 @@ function newestSeasonFirst(a: Season, b: Season): number {
   return (b.startDate ?? "").localeCompare(a.startDate ?? "") || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 }
 
-const optionLabel = <T extends string>(list: Array<{ value: T; label: string }>, v: T) =>
-  (list.find((x) => x.value === v)?.label ?? v).split(":")[0]!;
-
 /** What the copy carries that the dialog has no fields for, so nothing is written unseen. */
 function carriedSummary(rules: DivisionRules, sameSeason: boolean): string {
   const g = rules.gameRules;
   const p = rules.playoffConfig;
+  const short = { short: true };
   const parts = [
-    optionLabel(CLOCK_TYPES, g.clockType),
-    `Overtime: ${optionLabel(OVERTIME_RULES, g.overtimeRule)}`,
-    `Body checking: ${optionLabel(BODY_CHECKING, g.bodyChecking).toLowerCase()}`,
+    optionLabel(CLOCK_TYPES, g.clockType, short),
+    `Overtime: ${optionLabel(OVERTIME_RULES, g.overtimeRule, short)}`,
+    `Body checking: ${optionLabel(BODY_CHECKING, g.bodyChecking, short).toLowerCase()}`,
     `${g.minStartersToStart} skaters to start`,
     `${g.maxGuestPlayersPerGame} guest players per game`,
     "Tiebreaker order",
     // Playoff spots are a field of the dialog, so they are not listed here.
     p.enabled
-      ? `Playoffs: ${optionLabel(SERIES, p.seriesFormat).toLowerCase()}, ${optionLabel(BRACKETS, p.bracketType).toLowerCase()}`
+      ? `Playoffs: ${optionLabel(SERIES, p.seriesFormat, short).toLowerCase()}, ${optionLabel(BRACKETS, p.bracketType, short).toLowerCase()}`
       : "No playoffs"
   ];
   return `Also copied: ${parts.join(" · ")}.${sameSeason ? "" : " Playoff dates are not copied from another season."}`;

@@ -191,6 +191,88 @@ export function readDivisionRules(ruleSetOverrides: unknown, playoffConfig: unkn
   };
 }
 
+/* ------------------------------ bounds ------------------------------ */
+
+/** The whole numbers a division takes: its game rules plus the team cap. */
+export type DivisionNumberKey =
+  | "numberOfPeriods"
+  | "periodLengthMin"
+  | "minStartersToStart"
+  | "maxGuestPlayersPerGame"
+  | "maxRosterSize"
+  | "maxTeams";
+
+export interface DivisionNumberLimit {
+  /** The words the forms use for this number, so a refusal names the field. */
+  label: string;
+  min: number;
+  max: number;
+  /** Spoken after the range: "from 5 to 60 minutes". */
+  unit?: string;
+}
+
+/**
+ * One range per number, read by the wizard, the Edit division dialog and
+ * the API, so a value is refused with the same sentence everywhere. A
+ * cleared field used to snap back to its default while typing, so "17"
+ * typed over "20" became "2017" and the API stored it (PPHL, 4 Nov 2026).
+ */
+export const DIVISION_NUMBER_LIMITS: Readonly<Record<DivisionNumberKey, DivisionNumberLimit>> = {
+  numberOfPeriods: { label: "Number of periods", min: 1, max: 4 },
+  periodLengthMin: { label: "Period length", min: 5, max: 60, unit: "minutes" },
+  minStartersToStart: { label: "Min skaters to start", min: 3, max: 20 },
+  maxGuestPlayersPerGame: { label: "Max guest players per game", min: 0, max: 10 },
+  maxRosterSize: { label: "Max roster size", min: 5, max: 40 },
+  maxTeams: { label: "Max teams", min: 2, max: 64 }
+};
+
+const GAME_RULE_NUMBER_KEYS = [
+  "numberOfPeriods",
+  "periodLengthMin",
+  "minStartersToStart",
+  "maxGuestPlayersPerGame",
+  "maxRosterSize"
+] as const satisfies readonly (keyof DivisionGameRules & DivisionNumberKey)[];
+
+/**
+ * The sentence for one number that is missing, not whole or out of range,
+ * or null when it is fine: "Period length must be a whole number from 5
+ * to 60 minutes."
+ */
+export function divisionNumberProblem(key: DivisionNumberKey, value: unknown): string | null {
+  const { label, min, max, unit } = DIVISION_NUMBER_LIMITS[key];
+  if (typeof value === "number" && Number.isInteger(value) && value >= min && value <= max) return null;
+  return `${label} must be a whole number from ${min} to ${max}${unit ? ` ${unit}` : ""}.`;
+}
+
+const choiceProblem = (label: string, value: unknown, allowed: readonly string[]): string | null =>
+  value === undefined || (typeof value === "string" && allowed.includes(value))
+    ? null
+    : `${label} must be one of: ${allowed.join(", ")}.`;
+
+/**
+ * The first problem in a game rule set, in plain words, or null when every
+ * value present is fine. Only the keys sent are checked: a row written
+ * before a key existed still saves, and readDivisionRules fills the gap.
+ * The API refuses with this sentence; the wizard shows it under the field
+ * it names.
+ */
+export function validateDivisionGameRules(rules: unknown): string | null {
+  if (rules === undefined || rules === null) return null;
+  if (typeof rules !== "object" || Array.isArray(rules)) return "Game rules must be a set of named values.";
+  const g = rules as Record<string, unknown>;
+  for (const key of GAME_RULE_NUMBER_KEYS) {
+    if (g[key] === undefined) continue;
+    const problem = divisionNumberProblem(key, g[key]);
+    if (problem) return problem;
+  }
+  return (
+    choiceProblem("Clock type", g.clockType, DIVISION_CLOCK_TYPES) ??
+    choiceProblem("Overtime", g.overtimeRule, DIVISION_OVERTIME_RULES) ??
+    choiceProblem("Body checking", g.bodyChecking, DIVISION_BODY_CHECKING)
+  );
+}
+
 /**
  * An independent copy of a rule set: editing the copy never touches the
  * source. Playoff dates belong to one season, so they are dropped unless

@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Badge, PageHeader, Reveal, Eyebrow, IconTile, LocalDate } from "@sportspulse/ui";
+import { Badge, PageHeader, Reveal, Eyebrow, IconTile } from "@sportspulse/ui";
 import type { Division, League, Season } from "@sportspulse/api-client";
 import { Field } from "./field";
-import { SEASON_CONFIG_DEFAULTS, formatCalendarDate, sportLabel } from "@sportspulse/kernel";
+import { DATE_FORMATS, SEASON_CONFIG_DEFAULTS, formatCalendarDate, formatInZone, sportLabel, statusLabel } from "@sportspulse/kernel";
+import { genderLabel, tierLabel } from "./divisions/option-labels";
 
 /** A season switch as set, or the default registration uses when it is not set. */
 function yesNo(v: boolean | undefined, fallback: boolean): string {
@@ -14,6 +15,15 @@ function yesNo(v: boolean | undefined, fallback: boolean): string {
 /** A calendar date (season start and end): the same day for every reader. */
 function fmtDate(value: string | null | undefined): string {
   return formatCalendarDate(value) || "—";
+}
+
+/**
+ * A registration or roster-lock instant as the day it is in the season's
+ * own zone, the day the admin typed. Shown in the reader's zone it moved a
+ * day for anyone east or west of the season (PPHL, 4 Nov 2026).
+ */
+function fmtSeasonDay(value: string | null | undefined, timezone: string): string {
+  return value ? formatInZone(value, timezone, DATE_FORMATS.date) || "—" : "—";
 }
 
 /**
@@ -141,8 +151,8 @@ export function SeasonDetail({
           <Field label="End date" tag="seasons.end_date" mono>
             {fmtDate(season.endDate)}
           </Field>
-          <Field label="Status" tag="seasons.status" mono>
-            {season.status.replace(/_/g, " ")}
+          <Field label="Status" tag="seasons.status">
+            {statusLabel(season.status)}
           </Field>
         </dl>
       </Reveal>
@@ -153,13 +163,13 @@ export function SeasonDetail({
         </p>
         <dl className="mt-3 grid gap-4 sm:grid-cols-3">
           <Field label="Opens" tag="seasons.registration_opens_at" mono>
-            <LocalDate iso={season.registrationOpensAt} format="date" fallback="—" />
+            {fmtSeasonDay(season.registrationOpensAt, season.timezone)}
           </Field>
           <Field label="Closes" tag="seasons.registration_closes_at" mono>
-            <LocalDate iso={season.registrationClosesAt} format="date" fallback="—" />
+            {fmtSeasonDay(season.registrationClosesAt, season.timezone)}
           </Field>
           <Field label="Roster lock" tag="seasons.roster_lock_at" mono>
-            <LocalDate iso={season.rosterLockAt} format="date" fallback="—" />
+            {fmtSeasonDay(season.rosterLockAt, season.timezone)}
           </Field>
         </dl>
       </Reveal>
@@ -232,8 +242,8 @@ export function SeasonDetail({
                 >
                   {d.name}
                 </Link>
-                <span className="font-mono text-[11px] text-fg-muted">
-                  {d.tier ?? "—"} · {d.genderEligibility}
+                <span className="text-[11px] text-fg-muted">
+                  {tierLabel(d.tier)} · {genderLabel(d.genderEligibility)}
                 </span>
                 <span className="font-mono text-[11px] text-fg-muted">
                   Max teams: {d.maxTeams ?? "—"}
