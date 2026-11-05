@@ -23,6 +23,7 @@ import { GAME_DAY_ROLE_CODES, GAME_OFFICIAL_ROLE_LABELS, type GameOfficialRoleCo
 import { NotificationService } from "../../communications/application/notification.service";
 import { gameNoticeContext, gameTimeLabel } from "../application/games/game-notifications";
 import type { GameOfficialRow } from "../domain/repositories/game-official.repository";
+import { activeRoleAssignment } from "../../../shared/auth/active-role";
 
 const log = new Logger("GameOfficials");
 class AvailabilityPeriod {
@@ -139,9 +140,11 @@ export class GameOfficialsController {
       .where(
         and(
           inArray(schema.roles.code, [...GAME_DAY_ROLE_CODES]),
-          isNull(schema.userRoleAssignments.revokedAt),
+          activeRoleAssignment(),
+          isNull(schema.persons.deletedAt),
           or(
             eq(schema.userRoleAssignments.scopeType, "platform"),
+            and(eq(schema.userRoleAssignments.scopeType, "game"), eq(schema.userRoleAssignments.scopeId, g.id)),
             and(eq(schema.userRoleAssignments.scopeType, "org"), eq(schema.userRoleAssignments.scopeId, g.orgId)),
             and(eq(schema.userRoleAssignments.scopeType, "league"), eq(schema.userRoleAssignments.scopeId, g.leagueId)),
             ...(g.seasonId ? [and(eq(schema.userRoleAssignments.scopeType, "season"), eq(schema.userRoleAssignments.scopeId, g.seasonId))] : []),

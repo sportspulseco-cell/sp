@@ -72,7 +72,7 @@ export class DrizzleGameOfficialRepository implements GameOfficialRepository {
         personId: input.personId,
         role: input.role,
         slot: input.slot ?? null,
-        status: input.status ?? "confirmed",
+        status: input.status ?? "tentative",
         assignedByUserId: input.assignedByUserId ?? null,
         notes: input.notes ?? null
       })

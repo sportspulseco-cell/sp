@@ -165,14 +165,19 @@ function AssignForm({
   const [byEmail, setByEmail] = useState(false);
   const [email, setEmail] = useState("");
   const [clash, setClash] = useState<string | null>(null);
+  const [candidateError, setCandidateError] = useState("");
+  const [retryCandidates, setRetryCandidates] = useState(0);
   useEffect(() => {
-    gameOps.officialCandidates(gameId).then(setCandidates).catch(() => setCandidates([]));
-  }, [gameId]);
+    let live = true; setCandidateError(""); setCandidates(null);
+    gameOps.officialCandidates(gameId).then(rows => { if (live) setCandidates(rows); })
+      .catch((e: Error) => { if (live) setCandidateError(e.message); });
+    return () => { live = false; };
+  }, [gameId, retryCandidates]);
   const [form, setForm] = useState({
     personId: "",
     role: "referee" as GameOfficialRole,
     slot: "",
-    status: "confirmed" as GameOfficialStatus,
+    status: "tentative" as GameOfficialStatus,
     notes: ""
   });
   const [loading, setLoading] = useState(false);
@@ -266,7 +271,7 @@ function AssignForm({
                 </option>
               ))}
         </Select>
-        <label className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-muted">
+        {persons.length > 0 ? <label className="mt-1.5 flex items-center gap-1.5 text-[12px] text-fg-muted">
           <input
             type="checkbox"
             checked={everyone}
@@ -276,7 +281,7 @@ function AssignForm({
             }}
           />
           Show everyone
-        </label>
+        </label> : null}
         <label className="mt-1 flex items-center gap-1.5 text-[12px] text-fg-muted">
           <input
             type="checkbox"
@@ -331,7 +336,8 @@ function AssignForm({
         </Select>
       </Field>
       <div className="flex items-end gap-2">
-        <Button type="submit" disabled={loading} size="sm">
+        {candidateError && !byEmail && !everyone ? <div role="alert" className="text-sm">Could not load officials: {candidateError} <Button type="button" variant="outline" size="sm" onClick={() => setRetryCandidates(n => n + 1)}>Retry</Button></div> : null}
+        <Button type="submit" disabled={loading || (!byEmail && !everyone && (!candidates || !!candidateError))} size="sm">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Assigning…
