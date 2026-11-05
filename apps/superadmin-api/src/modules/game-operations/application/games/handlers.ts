@@ -10,6 +10,8 @@ import {
   SCHEDULABLE_ENTRY_STATUSES,
   ValidationError,
   checkFinalResult,
+  divisionGameRulesForGame,
+  gameEndingRuleProblem,
   clampLimit,
   isValidTimeZone,
   NotFoundError,
@@ -24,6 +26,7 @@ import {
   type GameRepository
 } from "../../domain/repositories/game.repository";
 import { GameId } from "../../domain/identifiers";
+import { assertSchedulePublishable, lockSchedulePublication } from "./publication-safety";
 import { Game } from "../../domain/entities/game.entity";
 import { GameDto, GamePageDto } from "../dtos/game.dto";
 import { NotificationService } from "../../../communications/application/notification.service";
@@ -55,6 +58,7 @@ export interface ListGamesInput {
   limit?: number;
   cursor?: string;
   leagueId?: string;
+  seasonId?: string;
   divisionId?: string;
   teamId?: string;
   status?: string;
@@ -302,7 +306,7 @@ export class CreateGameHandler
         venueName: placed.rink.venueName,
         surfaceLabel: placed.rink.surfaceLabel
       });
-      if (conflicts.length > 0 && !input.force) {
+      if (conflicts.length > 0 && (!input.force || input.publish)) {
         throw new ConflictError(
           `This game clashes: ${conflicts.map((c) => c.message).join(" ")} Pick another time or rink, or schedule it anyway with a reason.`
         );
@@ -421,7 +425,9 @@ export class PublishGameHandler
   ) {}
   async execute(input: { id: string }): Promise<GameDto & { notificationsQueued: number }> {
     const changed = await this.db.transaction(async (tx) => {
+      await lockSchedulePublication(tx);
       const g = await lockGame(tx, input.id);
+      await assertSchedulePublishable(tx, sql`g.id = ${input.id}`);
       const status = g.status;
       const didPublish = g.publish();
       if (didPublish) await saveIfStatus(tx, g, status);
@@ -728,7 +734,7 @@ export class RescheduleGameHandler
       });
 
       const plan = await planMove(tx, before, input);
-      if (plan.conflicts.length > 0 && !input.force) {
+      if (plan.conflicts.length > 0 && (!input.force || before.publishedAt)) {
         throw new ConflictError(
           `This move clashes: ${plan.conflicts.map((c) => c.message).join(" ")} Pick another time or rink, or move it anyway with a reason.`
         );
@@ -999,6 +1005,13 @@ export class FinalizeGameHandler
         g.finalize(input.userId);
       }
 
+      const [settings] = await tx.select({gameType:schema.games.gameType, rules:schema.divisions.ruleSetOverrides,playoffs:schema.divisions.playoffConfig})
+        .from(schema.games).leftJoin(schema.divisions,eq(schema.divisions.id,schema.games.divisionId)).where(eq(schema.games.id,input.id)).limit(1);
+      if(settings) {
+        const rules=divisionGameRulesForGame(settings.rules,settings.playoffs,settings.gameType);
+        const problem=gameEndingRuleProblem(rules.overtimeRule,input.endedIn);
+        if(problem)throw new DomainError("GAME_ENDING_NOT_ALLOWED",problem);
+      }
       const goals = await tx
         .select({
           teamId: schema.gameEvents.teamId,

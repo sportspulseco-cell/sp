@@ -47,6 +47,8 @@ export interface DivisionGameRules {
 
 export interface DivisionPlayoffConfig {
   enabled: boolean;
+  /** null/absent inherits regular-season overtime; other values override it. */
+  overtimeRule?: DivisionOvertimeRule | null;
   /**
    * Who makes the playoffs: null means every team in the division (the
    * default, PPHL letter item 4), a number means the top N in the
@@ -90,6 +92,7 @@ export const DEFAULT_DIVISION_GAME_RULES: Readonly<DivisionGameRules> = {
 
 export const DEFAULT_DIVISION_PLAYOFF_CONFIG: Readonly<DivisionPlayoffConfig> = {
   enabled: true,
+  overtimeRule: null,
   playoffSpots: null,
   startDate: "",
   endDate: "",
@@ -181,6 +184,7 @@ export function readDivisionRules(ruleSetOverrides: unknown, playoffConfig: unkn
     },
     playoffConfig: {
       enabled: typeof p.enabled === "boolean" ? p.enabled : dp.enabled,
+      overtimeRule: p.overtimeRule == null ? null : oneOf(p.overtimeRule, DIVISION_OVERTIME_RULES, d.overtimeRule),
       playoffSpots: parsePlayoffSpots(p.playoffSpots),
       startDate: calendarDate(p.startDate),
       endDate: calendarDate(p.endDate),
@@ -189,6 +193,19 @@ export function readDivisionRules(ruleSetOverrides: unknown, playoffConfig: unkn
       homeIceRule: oneOf(p.homeIceRule, PLAYOFF_HOME_ICE_RULES, dp.homeIceRule)
     }
   };
+}
+
+export function divisionGameRulesForGame(ruleSetOverrides: unknown, playoffConfig: unknown, gameType: string): DivisionGameRules {
+  const rules = readDivisionRules(ruleSetOverrides, playoffConfig);
+  return gameType === "playoff" && rules.playoffConfig.overtimeRule != null
+    ? { ...rules.gameRules, overtimeRule: rules.playoffConfig.overtimeRule }
+    : rules.gameRules;
+}
+
+export function gameEndingRuleProblem(overtimeRule: DivisionOvertimeRule, endedIn: string | null | undefined): string | null {
+  if (endedIn === "overtime" && (overtimeRule === "none" || overtimeRule === "shootout")) return "This game's rules do not allow an overtime period.";
+  if (endedIn === "shootout" && (overtimeRule === "none" || overtimeRule === "sudden_death")) return "This game's rules do not allow a shootout.";
+  return null;
 }
 
 /* ------------------------------ bounds ------------------------------ */

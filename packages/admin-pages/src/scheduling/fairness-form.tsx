@@ -57,7 +57,7 @@ export function SchedulingFairnessForm({ seasonId, divisions, teamNames = {} }: 
       const res = await scheduler.fairnessReport({
         seasonId,
         divisionId: divisionId === ALL_DIVISIONS ? undefined : divisionId,
-        tolerance: Number(tolerance) || 0.1,
+        tolerance: tolerance.trim() === "" ? 0.1 : Number(tolerance),
         maxLateFraction: maxLate.trim() === "" ? undefined : Number(maxLate)
       });
       setResult(res);
@@ -107,7 +107,7 @@ export function SchedulingFairnessForm({ seasonId, divisions, teamNames = {} }: 
 
       {result && (
         <FairnessResult result={result} teamNames={teamNames}
-          tolerance={Number(tolerance) || 0.1}
+          tolerance={tolerance.trim() === "" ? 0.1 : Number(tolerance)}
           maxLateFraction={maxLate.trim() === "" ? undefined : Number(maxLate)} />
       )}
     </div>

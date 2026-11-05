@@ -28,7 +28,7 @@ export function GenerateForm({ orgId, ...props }: Props) {
           const { items } = await schedulingInventory.listVenues({ orgId });
           const venues = await Promise.all(items.map((v) => schedulingInventory.getVenue(v.id)));
           return venues.flatMap((v) =>
-            v.surfaces.map((s) => ({ id: s.id, label: `${v.venue.name} · ${s.label}` }))
+            v.surfaces.map((s) => ({ id: s.id, label: `${v.venue.name} · ${s.label}`, venueId: v.venue.id, venueName: v.venue.name }))
           );
         }
       }}

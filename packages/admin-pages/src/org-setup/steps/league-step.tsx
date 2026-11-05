@@ -10,6 +10,7 @@ import {
   type Privacy
 } from "../types";
 import { SectionHeader } from "./org-step";
+import { LogoUpload, type UploadLogo } from "./logo-upload";
 
 export const FORMATS: { value: LeagueFormat; label: string }[] = [
   { value: "regular", label: "Regular season" },
@@ -73,6 +74,8 @@ export function LeagueStep({
   sports,
   governingBodies,
   onChange,
+  uploadLogo,
+  onUploadBusy,
   nameTaken = false
 }: {
   draft: LeagueDraft;
@@ -80,6 +83,8 @@ export function LeagueStep({
   sports: Sport[];
   governingBodies: GoverningBody[];
   onChange: (patch: Partial<LeagueDraft>) => void;
+  uploadLogo?: UploadLogo;
+  onUploadBusy?: (busy:boolean)=>void;
   /** The name matches a live league in this org; the API refuses it. */
   nameTaken?: boolean;
 }) {
@@ -233,19 +238,8 @@ export function LeagueStep({
             label="League logo"
             hint="Upload a 512×512 PNG or JPG (max 2 MB)."
           >
-            {/* Upload UI is a follow-up — Storage isn't wired yet. The
-                input accepts a URL for now so this field still threads
-                through to the stored branding payload. */}
-            <Input
-              type="url"
-              value={draft.branding.logoUrl ?? ""}
-              onChange={(e) =>
-                onChange({
-                  branding: { ...draft.branding, logoUrl: e.target.value || null }
-                })
-              }
-              placeholder="https://… (paste logo URL)"
-            />
+            <LogoUpload value={draft.branding.logoUrl} upload={uploadLogo} onBusy={onUploadBusy}
+              onChange={url=>onChange({branding:{...draft.branding,logoUrl:url}})}/>
           </Field>
 
           <Field

@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-05",
+  "status": "implementation_in_progress",
+  "branch": "codex/pphl-remediation",
+  "constraints": {
+    "payments": "mock only, user instruction",
+    "supabase": "Free",
+    "vercel": "Hobby",
+    "production_capacity": "not certified"
+  },
+  "verification": {
+    "typescript_business_tests": 295,
+    "local_solver_regressions": 11,
+    "deployed_solver_regressions": 11,
+    "staging_database_publication_regression": "passed, fixtures rolled back",
+    "workspace_build": "passed before final incremental changes; rerun required",
+    "workspace_typecheck": "passed before final incremental changes; rerun pending",
+    "season_copy_staging": "passed; 43s before batching, 10.6s after batching; rollback leaves no fixtures"
+  },
+  "deployed": {
+    "solver_commit": "a456244bf98b6e3ee0cd566734a45d9ea6154d49",
+    "solver_version": "0.2.0",
+    "solver_hardware": "existing cpu-basic",
+    "edge_functions": [
+      "scheduler-generate",
+      "scheduler-publish"
+    ],
+    "edge_target": "staging only"
+  },
+  "findings": {
+    "F01": "server transaction guard and UI fail-closed implemented; API deployment and connected journey pending",
+    "F02": "constraints/objective and UI implemented; solver remotely verified; staging Edge deployed; final schedule validation and settings replay need work",
+    "F03": "real provider explicitly deferred by user; mock status banner implemented; commercial blocker remains",
+    "F04": "captain email/DOB/metadata/note redacted, UI columns removed; unit verified; raw API journey pending",
+    "F05": "Transactional season/league copy, form/pricing remapping, optional draft schedule and idempotent batch API implemented; live staging rollback regression passes; UI copy dialog wired in both admin apps. Bulk operator queue and browser acceptance pending.",
+    "F06": "guided setup not complete; currently four-phase wizard still split from registration",
+    "F07": "logo file upload in shared wizard implemented using existing self-owned public image upload; browser test pending",
+    "F08": "separate playoff overtime in wizard/new/edit and finalization guard implemented; unit verified; scoresheet summary and API validation still needed",
+    "F09": "persistent scoped player team context implemented on five surfaces; browser multi-team regression pending",
+    "F10": "schedule publication + durable notification writes atomic; API verification and single-game path pending",
+    "F11": "not started",
+    "F12": "not started",
+    "F13": "opponent fanout removed, schedule pagination and seasonal server filter added, registration pagination added; aggregate read model still needed",
+    "F14": "three stale browser assertions corrected; connected business-record browser journey still needed",
+    "F15": "production-sized capacity remains unverified; user retained Free/Hobby",
+    "F16": "public viewing scope pending client decision",
+    "F17": "manual versus registry verification flow still to complete",
+    "F18": "calm task-led UI work ongoing"
+  }
+}

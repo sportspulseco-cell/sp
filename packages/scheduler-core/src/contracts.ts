@@ -12,6 +12,10 @@ export interface TeamInput {
   divisionId: string;
   /** Hard exclusion windows (tournament travel, blackouts) as UTC ISO ranges. */
   blackouts?: Array<{ startTsUtc: string; endTsUtc: string }>;
+  preferredWeekdays?: number[]; // ISO weekdays: Monday=1
+  preferredVenueIds?: string[];
+  maxOffNightGames?: number;
+  maxOffVenueGames?: number;
 }
 
 /** A bookable ice slot the solver may assign a fixture to. */
@@ -57,6 +61,8 @@ export interface SolveRequest {
   seed: string;
   /** Warm-start hint from a prior solution (parity regen / conflict repair). */
   hint?: GameAssignment[];
+  timezone?: string;
+  maxGamesPerTeamPerWeek?: number;
 }
 
 /** Band boundaries; `band` applies to slots starting in [startsAt, endsBefore). */
@@ -104,6 +110,7 @@ export interface InfeasibilityReport {
 }
 
 export interface SolveResponse {
+  capabilities?: string[];
   status: SolveStatus;
   assignments: GameAssignment[];
   objectiveValue: number;

@@ -1,3 +1,4 @@
+import { getActiveTeamId } from "@/lib/active-team";
 import { formatMoney, registrationClosesLabel, DATE_FORMATS, formatCalendarDate, formatInZone } from "@sportspulse/kernel";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -81,7 +82,7 @@ export default async function PlayerHome() {
     );
   }
 
-  const myTeamId = scope.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   const team = myTeamId
     ? await leagueMgmt.getTeam(myTeamId).catch(() => null)
     : null;

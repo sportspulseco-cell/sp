@@ -36,6 +36,7 @@ import { UserScope } from "../../../shared/auth/decorators/user-scope.decorator"
 import { loadAdminScope, type UserScope as UserScopeType } from "../../../shared/auth/scope";
 import { RegistrationV2Service } from "../application/registration-v2.service";
 import { FreeAgentOffersService } from "../application/free-agent-offers.service";
+import { captainPoolView } from "../application/captain-pool-view";
 
 class UpsertFreeAgentBodyDto {
   @ApiProperty() @IsUUID() playerPersonId!: string;
@@ -105,7 +106,7 @@ export class FreeAgentPoolController {
       // Newest offer from this team per entry (offers are newest first).
       const latest = new Map<string, (typeof teamOffers)[number]>();
       for (const o of teamOffers) if (!latest.has(o.entryId)) latest.set(o.entryId, o);
-      return entries.map((e) => ({ ...e, teamOffer: latest.get(e.id) ?? null }));
+      return entries.map((e) => ({ ...captainPoolView(e), teamOffer: latest.get(e.id) ?? null }));
     }
 
     // Require seasonId for non-super-admin callers so we can scope-check

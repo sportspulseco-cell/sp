@@ -2142,6 +2142,7 @@ export function createApi(f: Fetcher) {
           limit?: number;
           cursor?: string;
           leagueId?: string;
+          seasonId?: string;
           divisionId?: string;
           teamId?: string;
           status?: GameStatus;
@@ -2679,6 +2680,10 @@ export function createApi(f: Fetcher) {
     // Registration v2 — pricing tiers, email templates, team invites,
     // free agent pool. Backed by apps/superadmin-api/src/modules/registration-v2.
     registrationV2: {
+      duplicateSeason: (sourceSeasonId:string, body:{name:string;startDate:string;requestId:string;newLeagueName?:string;copySchedule?:boolean;copyTeamEntries?:boolean})=>
+        f<{seasonId:string;leagueId:string;replayed:boolean;copied?:Record<string,number>}>(`/registration-v2/seasons/${sourceSeasonId}/duplicate`,{method:"POST",body:JSON.stringify(body)}),
+      duplicateSeasons: (items:Array<{sourceSeasonId:string;name:string;startDate:string;requestId:string;newLeagueName?:string;copySchedule?:boolean;copyTeamEntries?:boolean}>)=>
+        f<{results:Array<{requestId:string;ok:boolean;result?:{seasonId:string;leagueId:string};message?:string}>}>("/registration-v2/seasons/duplicate-batch",{method:"POST",body:JSON.stringify({items})}),
       listPricingTiers: (q: { seasonId?: string } = {}) =>
         f<PricingTier[]>(`/registration-v2/pricing-tiers${qs(q)}`),
       getPricingTier: (id: string) =>

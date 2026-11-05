@@ -21,7 +21,7 @@ for (const app of APPS) {
     ).toBeVisible();
     await page.getByRole("button", { name: /Get started/i }).click();
     await expect(page.getByText(/Step 2 of 4/i)).toBeVisible();
-    await expect(page.getByLabel(/Work email/i)).toBeVisible();
+    await expect(page.getByLabel(/^(Work )?email$/i)).toBeVisible();
     await expect(page.getByLabel(/^Password$/i)).toBeVisible();
   });
 }

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ConsoleShell } from "@/components/layout/console-shell";
-import { iam } from "@/lib/api/server-api";
+import { getActiveTeamId } from "@/lib/active-team";
+import { iam, leagueMgmt } from "@/lib/api/server-api";
 
 /**
  * Player app shell — sidebar + topbar + auth gate.
@@ -25,6 +26,8 @@ export default async function AppLayout({
     iam.meScope()
   ]);
 
+  const activeTeamId = await getActiveTeamId(scope);
+  const teams = (await Promise.all(scope.teamIds.map(id=>leagueMgmt.getTeamSummary(id)))).map(t=>({id:t.id,name:t.name}));
   const isCaptain = scope?.roleCodes.includes("captain") ?? false;
   const roleLine = profile && scope
     ? `${isCaptain ? "captain" : "player"} · ${scope.teamIds.length} team${scope.teamIds.length === 1 ? "" : "s"}`
@@ -36,6 +39,8 @@ export default async function AppLayout({
       displayName={profile?.displayName ?? null}
       roleLine={roleLine}
       isCaptain={isCaptain}
+      teams={teams}
+      activeTeamId={activeTeamId ?? ""}
     >
       {children}
     </ConsoleShell>

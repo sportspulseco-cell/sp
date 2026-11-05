@@ -123,6 +123,7 @@ export class ListGamesQueryDto {
   limit?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() cursor?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() leagueId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() seasonId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() divisionId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() teamId?: string;
   @ApiPropertyOptional({ enum: GAME_STATUSES })

@@ -75,6 +75,8 @@ export default async function OrgAdminSchedulingGeneratePage({
         seasonName={season.name}
         divisions={divisionsPage.items.map((d) => ({ id: d.id, name: d.name }))}
         teamNames={teamNames}
+        timezone={season.timezone ?? "UTC"}
+        divisionTeamIds={Object.fromEntries(divisionsPage.items.map((d,i)=>[d.id,teamPages[i]!.items.map(t=>t.id)]))}
       />
     </div>
   );

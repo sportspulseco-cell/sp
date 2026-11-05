@@ -5,7 +5,7 @@ import { OrgSetupWizard } from "@sportspulse/admin-pages";
 import type { GoverningBody, Org, Sport } from "@sportspulse/api-client";
 import { fetchAll } from "@sportspulse/api-client";
 import { NewOrgInline } from "@/components/orgs/new-org-inline";
-import { leagueMgmt } from "@/lib/api/browser-api";
+import { leagueMgmt, iam } from "@/lib/api/browser-api";
 import { navigateInPlace } from "@sportspulse/ui";
 
 /**
@@ -28,6 +28,7 @@ export function OrgSetupShell({
   return (
     <OrgSetupWizard
       orgs={orgs}
+      uploadLogo={async body=>{const me=await iam.me();return (await iam.uploadAvatar(me.id,body)).url;}}
       sports={sports}
       governingBodies={governingBodies}
       orgSports={orgSports}

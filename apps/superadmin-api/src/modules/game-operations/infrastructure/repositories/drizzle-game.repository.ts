@@ -146,6 +146,7 @@ export class DrizzleGameRepository implements GameRepository {
   async list(q: ListGamesQuery): Promise<Page<Game>> {
     const cs = [];
     if (q.leagueId) cs.push(eq(schema.games.leagueId, q.leagueId));
+    if (q.seasonId) cs.push(or(eq(schema.games.seasonId,q.seasonId),and(sql`${schema.games.seasonId} is null`,inArray(schema.games.divisionId,this.db.select({id:schema.divisions.id}).from(schema.divisions).where(eq(schema.divisions.seasonId,q.seasonId)))))!);
     if (q.divisionId) cs.push(eq(schema.games.divisionId, q.divisionId));
     if (q.status) cs.push(eq(schema.games.status, q.status));
     if (q.teamId) {

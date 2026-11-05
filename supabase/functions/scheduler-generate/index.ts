@@ -59,6 +59,7 @@ interface GenerateBody {
   maxLateFraction?: number;
   /** Optional: report teams with more games than this in one week. */
   maxGamesPerTeamPerWeek?: number;
+  teamConstraints?: Record<string, Omit<TeamInput, "teamId" | "divisionId">>;
 }
 
 interface ScopeGame {
@@ -149,12 +150,20 @@ Deno.serve(async (req) => {
   const teams: TeamInput[] = (entries ?? []).map((e) => ({
     teamId: e.team_id as string,
     divisionId: e.division_id as string,
+    blackouts: body.teamConstraints?.[e.team_id]?.blackouts,
+    preferredWeekdays: body.teamConstraints?.[e.team_id]?.preferredWeekdays,
+    preferredVenueIds: body.teamConstraints?.[e.team_id]?.preferredVenueIds,
+    maxOffNightGames: body.teamConstraints?.[e.team_id]?.maxOffNightGames,
+    maxOffVenueGames: body.teamConstraints?.[e.team_id]?.maxOffVenueGames,
   }));
   if (teams.length < 2) {
     return json({ error: "insufficient_teams", count: teams.length }, 422);
   }
   const teamIds = teams.map((t) => t.teamId);
   const teamSet = new Set(teamIds);
+  if (Object.keys(body.teamConstraints ?? {}).some(id => !teamSet.has(id))) {
+    return json({error:"Team preferences must belong to this division."},400);
+  }
 
   // ===== 3. Season ice, blackouts, games already in the division =====
   const [slotRes, blackoutRes, scopeRes] = await Promise.all([
@@ -311,6 +320,8 @@ Deno.serve(async (req) => {
     maxLateFraction: body.maxLateFraction,
     timeLimitSeconds: body.timeLimitSeconds ?? 60,
     seed,
+    timezone: seasonTz,
+    maxGamesPerTeamPerWeek: weeklyMax ?? undefined,
   };
   const inputHash = await sha256Hex(solveReq);
 
@@ -431,6 +442,12 @@ Deno.serve(async (req) => {
   const weekly = weeklyMax !== null
     ? weeklyOverLimit([...balanced.games, ...fixed], seasonTz, weeklyMax)
     : [];
+  // Fixed/played games can exceed a new limit even when the solver's
+  // round-robin subset does not. Never persist a run that breaks the cap.
+  if (weekly.length) {
+    await sb.from("schedule_runs").update({status:"failed", solution:{weeklyOverLimit:weekly}}).eq("id",runId);
+    return json({runId,status:"INFEASIBLE",gamesCreated:0,weeklyOverLimit:weekly,message:"Existing games exceed the weekly limit. Increase it or adjust the fixed games; no drafts were replaced."});
+  }
 
   // 7a. Replace the drafts (only those; see step 3).
   if (draftIds.length) {

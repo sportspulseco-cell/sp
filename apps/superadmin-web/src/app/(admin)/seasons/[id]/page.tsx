@@ -1,3 +1,4 @@
+import { CopySeason } from "@/components/seasons/copy-season";
 import { fetchAll, load } from "@sportspulse/api-client";
 import { notFound } from "next/navigation";
 import { LoadError } from "@sportspulse/ui";
@@ -72,11 +73,14 @@ export default async function SeasonDetailPage({
       }
       statusControl={<ChangeSeasonStatusButton season={season} />}
       actions={
+        <div className="flex flex-wrap items-center gap-2">
+        <CopySeason season={season} divisionCount={divisionsPage.items.length}/>
         <SeasonActions
           season={season}
           regions={regions.items.map((r) => ({ id: r.id, name: r.name }))}
           divisions={divisionsPage.items}
         />
+        </div>
       }
       extras={
         <ResourceAdminsSection

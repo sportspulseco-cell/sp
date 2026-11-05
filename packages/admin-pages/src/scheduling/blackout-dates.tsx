@@ -20,7 +20,7 @@ export interface BlackoutApi {
   create: (body: { startDate: string; endDate?: string; surfaceId?: string; reason?: string }) => Promise<unknown>;
   remove: (id: string) => Promise<unknown>;
   /** The season organization's rinks, for a one-rink blackout. */
-  rinks: () => Promise<Array<{ id: string; label: string }>>;
+  rinks: () => Promise<Array<{ id: string; label: string; venueId?: string; venueName?: string }>>;
 }
 
 /** A calendar day, not an instant, so it never shifts: "Sat, Nov 22, 2026". */

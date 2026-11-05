@@ -34,6 +34,7 @@ import { DRIZZLE } from "../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../shared/display/entity-names";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
+import { divisionGameRulesForGame } from "@sportspulse/kernel";
 import { and, eq, inArray } from "drizzle-orm";
 import { GameDto, GamePageDto } from "../application/dtos/game.dto";
 import {
@@ -137,6 +138,12 @@ export class GamesController {
 
   private async one<T extends GameDto>(dto: T): Promise<T> {
     const [named] = await this.withNames([dto]);
+    const [settings] = await this.db.select({gameType:schema.games.gameType, rules:schema.divisions.ruleSetOverrides,playoffs:schema.divisions.playoffConfig})
+      .from(schema.games).leftJoin(schema.divisions,eq(schema.divisions.id,schema.games.divisionId)).where(eq(schema.games.id,dto.id)).limit(1);
+    if(settings) {
+      named!.gameType=settings.gameType;
+      named!.gameRules=divisionGameRulesForGame(settings.rules,settings.playoffs,settings.gameType);
+    }
     return named!;
   }
 

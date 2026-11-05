@@ -1,3 +1,4 @@
+import { getActiveTeamId } from "@/lib/active-team";
 import { DATE_FORMATS, formatInZone } from "@sportspulse/kernel";
 import { ChartBar } from "lucide-react";
 import {
@@ -38,7 +39,7 @@ export default async function StatsPage({
   const seasonFilter = sp?.seasonId;
   const scope = await loadMeScope();
   const personId = scope?.personId ?? null;
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
 
   if (!personId) {
     return (

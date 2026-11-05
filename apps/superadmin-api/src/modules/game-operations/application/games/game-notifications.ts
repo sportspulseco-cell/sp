@@ -182,7 +182,8 @@ export async function queueScheduleNotices(
     /** Stable per publish, e.g. `schedule.published:<seasonId>:<publishedAt>`. */
     eventKey: string;
     teams: ScheduleNoticeTeam[];
-  }
+  },
+  tx?: import("../../../communications/application/notification.service").NotificationTransaction
 ): Promise<{ teams: number; recipients: number; queued: number }> {
   const jobs: Array<() => Promise<unknown>> = [];
   let recipients = 0;
@@ -211,7 +212,7 @@ export async function queueScheduleNotices(
             teamId: team.teamId
           },
           sourceEvent: "schedule.published"
-        })
+        }, tx)
       );
     }
   }

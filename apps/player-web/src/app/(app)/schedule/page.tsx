@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { getActiveTeamId } from "@/lib/active-team";
 import {
   formatInZone,
   orderSchedule,
@@ -64,18 +66,18 @@ function statusBadge(g: Game, myTeamId: string | null) {
 export default async function SchedulePage({
   searchParams
 }: {
-  searchParams?: Promise<{ filter?: string }>;
+  searchParams?: Promise<{ filter?: string;cursor?:string }>;
 }) {
   const sp = await searchParams;
   const filter = parseScheduleFilter(sp?.filter);
 
   const scope = await loadMeScope();
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
 
   // A failed games load is shown as an error, never as "no games".
   const [gamesResult, team] = await Promise.all([
     myTeamId
-      ? load(gameOps.listGames({ teamId: myTeamId, limit: 100, publishedOnly: true }))
+      ? load(gameOps.listGames({ teamId: myTeamId, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
       : Promise.resolve(null),
     myTeamId
       ? leagueMgmt.getTeam(myTeamId).catch(() => null)
@@ -87,28 +89,6 @@ export default async function SchedulePage({
   // F-5: the next game first. Upcoming nearest first, completed most
   // recent first; All is upcoming then the past (kernel orderSchedule).
   const list = orderSchedule(all, filter);
-
-  // Resolve opponent team names so the row reads "vs. Boston Gold Kings"
-  // instead of "vs. D99BA8FD" (BUG-037). One getTeam call per unique
-  // opponent across the visible list — at most ~20-30 calls per page
-  // load, all in parallel.
-  const opponentIds = Array.from(
-    new Set(
-      list
-        .map((g) => (g.homeTeamId === myTeamId ? g.awayTeamId : g.homeTeamId))
-        .filter((id): id is string => Boolean(id))
-    )
-  );
-  const opponentEntries = await Promise.all(
-    opponentIds.map(
-      async (id) =>
-        [id, await leagueMgmt.getTeamSummary(id).catch(() => null)] as const
-    )
-  );
-  const opponentNames = new Map<string, string>();
-  for (const [id, t] of opponentEntries) {
-    if (t?.name) opponentNames.set(id, t.name);
-  }
 
   // Unique season ids across this team's games — drives the Realtime
   // bridge below. If the team is in one active season, this is a single
@@ -183,7 +163,6 @@ export default async function SchedulePage({
           <TBody>
             {list.map((g: Game) => {
               const isHome = g.homeTeamId === myTeamId;
-              const oppId = isHome ? g.awayTeamId : g.homeTeamId;
               const { day, mon } = fmtDay(g.scheduledStartTsUtc, g.tz);
               return (
                 <TR key={g.id}>
@@ -200,7 +179,7 @@ export default async function SchedulePage({
                   <TD>
                     <p className="text-[13px] font-medium text-fg">
                       vs.{" "}
-                      <span>{opponentNames.get(oppId) ?? "Unnamed team"}</span>
+                      <span>{(isHome ? g.awayTeamName : g.homeTeamName) ?? "Unnamed team"}</span>
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-muted">
                       <Clock className="h-3 w-3" strokeWidth={1.75} />
@@ -225,6 +204,10 @@ export default async function SchedulePage({
           </TBody>
         </Table>
       )}
+      <nav aria-label="Schedule pages" className="flex items-center gap-4 text-sm">
+        {sp?.cursor ? <Link className="underline" href={`/schedule?filter=${filter}`}>First page</Link>:null}
+        {gamesResult?.ok ? gamesResult.data.nextCursor : null ? <Link className="underline" href={`/schedule?filter=${filter}&cursor=${encodeURIComponent((gamesResult?.ok ? gamesResult.data.nextCursor : null)!)}`}>Next games</Link>:null}
+      </nav>
     </div>
   );
 }

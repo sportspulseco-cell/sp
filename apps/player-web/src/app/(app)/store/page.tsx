@@ -1,3 +1,4 @@
+import { getActiveTeamId } from "@/lib/active-team";
 import { ShoppingBag, UsersRound } from "lucide-react";
 import { EmptyState, PageHeader, LoadError } from "@sportspulse/ui";
 import { load } from "@sportspulse/api-client";
@@ -15,7 +16,7 @@ export const metadata = { title: "Team store · Player" };
  */
 export default async function StorePage() {
   const scope = await loadMeScope();
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
 
   if (!myTeamId) {
     return (

@@ -24,6 +24,10 @@ export interface TeamInput {
   teamId: string;
   divisionId: string;
   blackouts?: Array<{ startTsUtc: string; endTsUtc: string }>;
+  preferredWeekdays?: number[];
+  preferredVenueIds?: string[];
+  maxOffNightGames?: number;
+  maxOffVenueGames?: number;
 }
 
 export interface SlotInput {
@@ -75,6 +79,8 @@ export interface SolveRequest {
   timeLimitSeconds: number;
   seed: string;
   hint?: GameAssignment[];
+  timezone?: string;
+  maxGamesPerTeamPerWeek?: number;
 }
 
 export type SolveStatus = "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "TIMEOUT";
@@ -106,6 +112,7 @@ export interface InfeasibilityReport {
 }
 
 export interface SolveResponse {
+  capabilities?: string[];
   status: SolveStatus;
   assignments: GameAssignment[];
   objectiveValue: number;

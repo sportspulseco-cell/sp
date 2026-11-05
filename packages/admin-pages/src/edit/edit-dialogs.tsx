@@ -614,6 +614,7 @@ type DivisionForm = {
   points: PointsRuleForm;
   /** null = every team in the division; a number = Top N. */
   playoffSpots: number | null;
+  playoffOvertimeRule?: string;
 };
 
 function DivisionFields({
@@ -694,6 +695,7 @@ function DivisionFields({
       <PointsRuleFields value={f.points} onChange={(next) => set("points", next)} />
       {playoffsOn ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Playoff overtime" hint="Independent from the regular-season overtime rule."><Select value={f.playoffOvertimeRule ?? ""} onChange={e=>set("playoffOvertimeRule",e.target.value)}><option value="">Same as regular season</option>{OVERTIME_RULES.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</Select></Field>
           <PlayoffSpotsFields value={f.playoffSpots} onChange={(next) => set("playoffSpots", next)} max={32} />
         </div>
       ) : null}
@@ -855,7 +857,8 @@ export function NewDivisionButton({
     periodLengthMin: String(d.gameRules.periodLengthMin),
     maxRosterSize: String(d.gameRules.maxRosterSize),
     points: pointsRuleForm(null),
-    playoffSpots: d.playoffConfig.playoffSpots
+    playoffSpots: d.playoffConfig.playoffSpots,
+    playoffOvertimeRule: d.playoffConfig.overtimeRule ?? ""
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(empty);
@@ -928,7 +931,8 @@ export function NewDivisionButton({
       periodLengthMin: String(rules.gameRules.periodLengthMin),
       maxRosterSize: String(rules.gameRules.maxRosterSize),
       points: pointsRuleForm(rules.pointsRule),
-      playoffSpots: rules.playoffConfig.playoffSpots
+      playoffSpots: rules.playoffConfig.playoffSpots,
+    playoffOvertimeRule: rules.playoffConfig.overtimeRule ?? ""
     }));
   }
   /** Settings the create body carries beyond the visible fields. Derived at submit, so a season change never leaves them stale. */
@@ -978,7 +982,7 @@ export function NewDivisionButton({
                       : { gameRules: d.gameRules, tiebreakers: DEFAULT_TIEBREAKERS },
                     f
                   ),
-                  playoffConfig: { ...basePlayoffs, playoffSpots: f.playoffSpots } as unknown as Record<string, unknown>
+                  playoffConfig: { ...basePlayoffs, playoffSpots: f.playoffSpots, overtimeRule: f.playoffOvertimeRule || null } as unknown as Record<string, unknown>
                 }),
               () => setOpen(false)
             );
@@ -1074,7 +1078,8 @@ export function EditDivisionButton({
     periodLengthMin: s(rules.gameRules?.periodLengthMin),
     maxRosterSize: s(rules.gameRules?.maxRosterSize),
     points: pointsRuleForm((division.ruleSetOverrides as { pointsRule?: unknown } | null)?.pointsRule),
-    playoffSpots: playoffs.playoffSpots
+    playoffSpots: playoffs.playoffSpots,
+    playoffOvertimeRule: playoffs.overtimeRule ?? ""
   };
   const [open, setOpen] = useState(false);
   const [f, setF] = useState<DivisionForm>(initial);
@@ -1100,7 +1105,7 @@ export function EditDivisionButton({
                   ruleSetOverrides: mergedRules((division.ruleSetOverrides ?? {}) as Record<string, unknown>, f),
                   // Only the spots change; every other stored playoff key is kept.
                   ...(playoffs.enabled
-                    ? { playoffConfig: { ...((division.playoffConfig ?? {}) as Record<string, unknown>), playoffSpots: f.playoffSpots } }
+                    ? { playoffConfig: { ...((division.playoffConfig ?? {}) as Record<string, unknown>), playoffSpots: f.playoffSpots, overtimeRule: f.playoffOvertimeRule || null } }
                     : {})
                 }),
               () => setOpen(false)

@@ -15,6 +15,8 @@ import {
 } from "@sportspulse/kernel";
 
 export class GameDto {
+  @ApiPropertyOptional() gameType?: string;
+  @ApiPropertyOptional() gameRules?: import("@sportspulse/kernel").DivisionGameRules;
   @ApiProperty() id!: string;
   @ApiProperty() leagueId!: string;
   /**

@@ -13,6 +13,8 @@ import {
   type GenerateResponse
 } from "./scheduler-client";
 import { BlackoutDates, type BlackoutApi } from "./blackout-dates";
+import { TeamPreferences } from "./team-preferences";
+import type { TeamScheduleConstraints } from "./scheduler-client";
 
 interface PublishBroadcast {
   seasonId: string;
@@ -29,6 +31,8 @@ interface Props {
   divisions: Division[];
   /** Team id to name, so violations show names instead of ids. */
   teamNames?: Record<string, string>;
+  divisionTeamIds?: Record<string,string[]>;
+  timezone?: string;
   /**
    * Publish through the API (SCH-8): the games go on every team's schedule
    * and each team's people get one notice. Each app binds its SDK here.
@@ -67,12 +71,22 @@ function StatusIcon({ status }: { status: RunStatus }) {
   return <XCircle className={cls} strokeWidth={1.75} />;
 }
 
-export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, publishSchedule, blackoutApi }: Props) {
+export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, divisionTeamIds, timezone = "UTC", publishSchedule, blackoutApi }: Props) {
   const [divisionId, setDivisionId] = useState(divisions[0]?.id ?? "");
   const [gamesPerPair, setGamesPerPair] = useState("1");
   const [timeLimit, setTimeLimit] = useState("60");
   const [seed, setSeed] = useState("");
   const [weeklyMax, setWeeklyMax] = useState("");
+  const [lateCap, setLateCap] = useState("");
+  const [teamConstraints,setTeamConstraints] = useState<Record<string,TeamScheduleConstraints>>({});
+  const [venues,setVenues] = useState<Array<{id:string;name:string}>>([]);
+  const [venueError,setVenueError] = useState("");
+  useEffect(()=>{
+    if (!blackoutApi) return;
+    blackoutApi.rinks().then(rows=>setVenues([...new Map(rows.filter(r=>r.venueId).map(r=>[r.venueId!,{id:r.venueId!,name:r.venueName ?? r.label}])).values()])).catch(()=>setVenueError("Venue preferences could not load. Refresh before setting a venue preference."));
+  // The app binds a new object per render; reload only when the season changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[seasonId]);
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
@@ -130,7 +144,9 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
         gamesPerPair: Number(gamesPerPair) || 1,
         timeLimitSeconds: Number(timeLimit) || 60,
         seed: seed.trim() || undefined,
-        maxGamesPerTeamPerWeek: weeklyMax ? Number(weeklyMax) : undefined
+        maxGamesPerTeamPerWeek: weeklyMax ? Number(weeklyMax) : undefined,
+        maxLateFraction: lateCap === "" ? undefined : Number(lateCap)/100,
+        teamConstraints: Object.fromEntries(Object.entries(teamConstraints).filter(([id])=>!divisionTeamIds || divisionTeamIds[divisionId]?.includes(id)))
       });
       setResult(res);
     } catch (err) {
@@ -140,15 +156,17 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
 
   async function onPublish() {
     if (!result?.runId) return;
-    // Publishing does not check conflicts on the server; say so before
-    // a team's double booking goes out to every schedule.
+    setPublishError(null); setPublishResult(null);
     try {
       const open = (await scheduler.listConflicts({ seasonId })).conflicts.length;
-      if (open > 0 && !confirm(`${open} schedule ${open === 1 ? "conflict is" : "conflicts are"} still open: a team plays twice at the same time. Publish anyway? You can fix ${open === 1 ? "it" : "them"} on the Conflicts tab first.`)) return;
-    } catch (err) {
-      console.warn("[schedule] could not check conflicts before publishing", err);
+      if (open > 0) {
+        setPublishError(`Resolve the ${open} open schedule ${open === 1 ? "conflict" : "conflicts"} on the Conflicts tab before publishing.`);
+        return;
+      }
+    } catch {
+      setPublishError("We could not verify schedule conflicts. Try again before publishing.");
+      return;
     }
-    setPublishError(null); setPublishResult(null);
     setPublishing(true);
     try {
       if (publishSchedule) {
@@ -192,7 +210,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
             <Input type="number" min="5" max="300" value={timeLimit}
               onChange={(e) => setTimeLimit(e.target.value)} disabled={submitting} />
           </Field>
-          <Field label="Max games per team per week" hint="Optional. Checked after the run and reported">
+          <Field label="Max games per team per week" hint="Optional hard limit, including fixed games.">
             <Input type="number" min="1" max="7" value={weeklyMax} placeholder="No limit"
               onChange={(e) => setWeeklyMax(e.target.value)} disabled={submitting} />
           </Field>
@@ -201,6 +219,9 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
               disabled={submitting} placeholder="auto-generated" />
           </Field>
         </div>
+        <Field label="Maximum late games (%)" hint="Optional hard limit per team. 0 means no late games."><Input type="number" min="0" max="100" value={lateCap} onChange={e=>setLateCap(e.target.value)} disabled={submitting} placeholder="No limit"/></Field>
+        {venueError ? <p role="alert" className="text-sm text-fg-muted">{venueError}</p>:null}
+        <TeamPreferences teams={Object.fromEntries(Object.entries(teamNames).filter(([id])=>!divisionTeamIds || divisionTeamIds[divisionId]?.includes(id)))} venues={venues} timezone={timezone} value={teamConstraints} onChange={setTeamConstraints} disabled={submitting}/>
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={submitting || !divisionId}>
             {submitting ? (
@@ -253,8 +274,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, pu
               {result.weeklyOverLimit && result.weeklyOverLimit.length > 0 ? (
                 <div className="rounded-md border border-border bg-bg-subtle p-3 text-sm">
                   <p className="text-fg">
-                    {result.weeklyOverLimit.length} team weeks go over {weeklyMax} games. The solver cannot hold a weekly
-                    limit yet, so check these before you publish.
+                    {result.weeklyOverLimit.length} team weeks go over {weeklyMax} games. Adjust fixed games or raise the limit before generating again.
                   </p>
                   <ul className="mt-2 space-y-1 text-fg-muted">
                     {result.weeklyOverLimit.slice(0, 8).map((x) => (

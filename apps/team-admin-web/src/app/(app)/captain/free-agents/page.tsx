@@ -11,17 +11,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata = { title: "Free agents · Team Admin" };
 
-function ageFromDob(dob: string | null): number | null {
-  if (!dob) return null;
-  const d = new Date(dob + "T00:00:00");
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age;
-}
-
 function fmtDay(iso: string | null) {
   return <LocalDate iso={iso} format="monthDay" fallback="—" />;
 }
@@ -78,7 +67,7 @@ export default async function CaptainFreeAgentsPage() {
       <PageHeader
         eyebrow="Captain console"
         title="Free agents"
-        description={`Players looking for a team. Offer one a spot on ${teamName}: they get an email, accept or decline, and join your roster when they accept.`}
+        description={`Players looking for a team. Offer one a spot on ${teamName}: they get an email, accept or decline, and join your roster when they accept. Contact details remain private in the recruiting pool.`}
       />
 
       {!pool.ok ? (
@@ -94,32 +83,21 @@ export default async function CaptainFreeAgentsPage() {
           <THead>
             <TR>
               <TH>Player</TH>
-              <TH>Age</TH>
               <TH>Positions</TH>
               <TH>Level</TH>
               <TH>Availability</TH>
-              <TH>Note</TH>
               <TH className="text-right">Offer</TH>
             </TR>
           </THead>
           <TBody>
             {active.map((e: FreeAgentPoolEntry) => {
-              const age = ageFromDob(e.playerDob);
               return (
                 <TR key={e.id}>
                   <TD>
                     <div className="font-medium text-fg">{e.playerName ?? "—"}</div>
-                    {e.playerEmail ? (
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-fg-muted">
-                        {e.playerEmail}
-                      </div>
-                    ) : null}
                     {e.seasonName ? (
                       <div className="text-[11px] text-fg-muted">{e.seasonName}</div>
                     ) : null}
-                  </TD>
-                  <TD className="font-mono text-[11px] text-fg-muted">
-                    {age != null ? `${age}` : "—"}
                   </TD>
                   <TD>
                     {e.positions.map((p: string) => (
@@ -140,9 +118,6 @@ export default async function CaptainFreeAgentsPage() {
                   </TD>
                   <TD className="text-[12px] text-fg-muted">
                     {formatFreeAgentAvailability(e.availability)}
-                  </TD>
-                  <TD className="max-w-[18ch] truncate text-[12px] text-fg-muted">
-                    {e.note ?? "—"}
                   </TD>
                   <TD className="text-right">
                     <ClaimFreeAgentButton

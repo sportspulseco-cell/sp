@@ -766,6 +766,8 @@ export type GameStatus =
   | "forfeited";
 
 export interface Game {
+  gameType?: string;
+  gameRules?: import("@sportspulse/kernel").DivisionGameRules;
   id: string;
   leagueId: string;
   /**

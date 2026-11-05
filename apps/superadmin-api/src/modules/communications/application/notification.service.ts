@@ -23,6 +23,7 @@ import {
 } from "../../../shared/notifications/sms-dispatcher.service";
 import { normalizePhoneE164, smsText } from "@sportspulse/kernel";
 import { DRIZZLE } from "../../../shared/database/database.tokens";
+export type NotificationTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 /**
  * Map dispatcher template codes → `email_templates.event_type` enum.
@@ -91,7 +92,7 @@ export class NotificationService {
   ) {}
 
   /** Queue a templated notification. Returns the row (existing or new). */
-  async queue(args: QueueArgs): Promise<NotificationRow | null> {
+  async queue(args: QueueArgs, tx?: NotificationTransaction): Promise<NotificationRow | null> {
     try {
       const channel = args.channel ?? "email";
       // A notice must name who gets it (COMP-19). A row with no person and
@@ -119,6 +120,7 @@ export class NotificationService {
         channel === "in_app" ? "in_app" : "email";
       const tpl = findDefaultTemplate(args.templateCode, tplChannel);
       if (!tpl) {
+        if (tx) throw new Error(`Missing notification template ${args.templateCode}`);
         this.log.warn(
           `no template for code=${args.templateCode} channel=${channel}`
         );
@@ -145,7 +147,7 @@ export class NotificationService {
         : null;
       const body = renderTemplate(bodySource, args.payload);
 
-      const row = await this.repo.enqueue({
+      const input = {
         orgId: args.orgId ?? null,
         idempotencyKey: args.idempotencyKey,
         templateCode: args.templateCode,
@@ -156,13 +158,21 @@ export class NotificationService {
         recipientEmail,
         payload: args.payload,
         sourceEvent: args.sourceEvent ?? args.templateCode
-      });
+      };
+      // Publication and its durable notices must commit together. Never
+      // dispatch externally before this transaction has committed.
+      const row = tx
+        ? (await tx.insert(schema.notifications).values(input).onConflictDoUpdate({
+            target: schema.notifications.idempotencyKey,
+            set: { idempotencyKey: input.idempotencyKey }
+          }).returning())[0]! as NotificationRow
+        : await this.repo.enqueue(input);
 
       // Inline dispatch — fire-and-forget so the caller's domain mutation
       // is never blocked or rolled back by a transport failure. Anything
       // that fails here stays queued and can be retried via the flush
       // endpoint.
-      if (row.status === "queued") {
+      if (!tx && row.status === "queued") {
         void this.dispatch(row).catch((err) => {
           this.log.error(
             `inline dispatch failed for ${row.id}: ${(err as Error).message}`
@@ -171,6 +181,7 @@ export class NotificationService {
       }
       return row;
     } catch (err) {
+      if (tx) throw err;
       // Never throw — domain mutation must succeed even if notification fails.
       this.log.error(
         `queue notification failed: ${(err as Error).message}`,

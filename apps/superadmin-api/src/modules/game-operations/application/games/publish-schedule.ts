@@ -7,6 +7,7 @@ import { NotificationService } from "../../../communications/application/notific
 import { DRIZZLE } from "../../../../shared/database/database.tokens";
 import { resolveEntityNames } from "../../../../shared/display/entity-names";
 import { gameTimeLabel, queueScheduleNotices, type ScheduleNoticeTeam } from "./game-notifications";
+import { assertSchedulePublishable, lockSchedulePublication } from "./publication-safety";
 
 /**
  * Publish a generated schedule (UC-08, SCH-8). One command on the API,
@@ -75,15 +76,33 @@ export class PublishScheduleHandler {
     if (!season) throw new Error(`season ${input.seasonId} not found`);
 
     const publishedAt = new Date();
-    const result = await this.db.execute<PublishedRow>(sql`
+    let notices = { teams: 0, recipients: 0, queued: 0 };
+    const result = await this.db.transaction(async (tx) => {
+      await lockSchedulePublication(tx);
+      await assertSchedulePublishable(tx, sql`g.season_id = ${input.seasonId}
+        and g.published_at is null
+        ${input.divisionId ? sql`and g.division_id = ${input.divisionId}` : sql``}
+        ${input.scheduleRunId ? sql`and g.schedule_run_id = ${input.scheduleRunId}` : sql``}
+        ${input.gameType ? sql`and g.game_type = ${input.gameType}` : sql``}`);
+      const result = await tx.execute<PublishedRow>(sql`
       update games set published_at = ${publishedAt.toISOString()}::timestamptz
        where season_id = ${input.seasonId}
          and published_at is null
-         and status <> 'cancelled'
+         and status not in ('cancelled', 'postponed')
          ${input.divisionId ? sql`and division_id = ${input.divisionId}` : sql``}
          ${input.scheduleRunId ? sql`and schedule_run_id = ${input.scheduleRunId}` : sql``}
          ${input.gameType ? sql`and game_type = ${input.gameType}` : sql``}
       returning id, home_team_id, away_team_id, scheduled_start_ts_utc, tz, venue_name, surface_label`);
+      const changed = rowsOf<PublishedRow>(result);
+      if (changed.length) {
+        const teams = await this.teamsOf(changed);
+        notices = await queueScheduleNotices(tx as unknown as Database, this.notify, {
+          seasonId: season.id, seasonName: season.name, orgId: season.orgId,
+          eventKey: `schedule.published:${season.id}:${publishedAt.toISOString()}`, teams
+        }, tx);
+      }
+      return result;
+    });
     const rows = rowsOf<PublishedRow>(result);
 
     // Readback: what the database now says was published at this instant.
@@ -97,16 +116,7 @@ export class PublishScheduleHandler {
       );
     }
 
-    let notices = { teams: 0, recipients: 0, queued: 0 };
     if (rows.length > 0) {
-      const teams = await this.teamsOf(rows);
-      notices = await queueScheduleNotices(this.db, this.notify, {
-        seasonId: season.id,
-        seasonName: season.name,
-        orgId: season.orgId,
-        eventKey: `schedule.published:${season.id}:${publishedAt.toISOString()}`,
-        teams
-      });
       await Promise.all([
         this.broadcast(season.id, {
           seasonId: season.id,

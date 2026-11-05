@@ -32,8 +32,17 @@ export interface GenerateRequest {
   timeLimitSeconds?: number;
   seed?: string;
   maxLateFraction?: number;
-  /** Report teams with more games than this in one week (not enforced). */
+  /** Hard limit in the season's local ISO calendar week. */
   maxGamesPerTeamPerWeek?: number;
+  teamConstraints?: Record<string, TeamScheduleConstraints>;
+}
+
+export interface TeamScheduleConstraints {
+  blackouts?: Array<{ startTsUtc: string; endTsUtc: string }>;
+  preferredWeekdays?: number[];
+  preferredVenueIds?: string[];
+  maxOffNightGames?: number;
+  maxOffVenueGames?: number;
 }
 
 export interface GenerateResponse {

@@ -4,6 +4,7 @@ import { GameId } from "../identifiers";
 
 export interface ListGamesQuery extends PageQuery {
   leagueId?: string;
+  seasonId?: string;
   divisionId?: string;
   teamId?: string;
   status?: string;

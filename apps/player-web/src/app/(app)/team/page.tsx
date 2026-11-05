@@ -1,3 +1,4 @@
+import { getActiveTeamId } from "@/lib/active-team";
 import { fetchAll, load } from "@sportspulse/api-client";
 import { Clock, UsersRound } from "lucide-react";
 import { pickRosterSeason, seasonCurrency } from "@sportspulse/kernel";
@@ -37,7 +38,7 @@ export default async function TeamPage({
     // Team offers / invites waiting for this player's answer (CAP-9).
     captain.myInvites().catch(() => ({ items: [] }))
   ]);
-  const myTeamId = scope?.teamIds[0] ?? null;
+  const myTeamId = await getActiveTeamId(scope);
   const myPersonId = scope?.personId ?? null;
 
   if (!myTeamId) {

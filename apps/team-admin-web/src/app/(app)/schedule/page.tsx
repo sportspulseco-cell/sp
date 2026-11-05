@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Link from "next/link";
 import {
   formatInZone,
   orderSchedule,
@@ -27,14 +28,15 @@ function fmtDateTime(iso: string, tz: string): string {
 export default async function TeamAdminSchedulePage({
   searchParams
 }: {
-  searchParams?: Promise<{ filter?: string }>;
+  searchParams?: Promise<{ filter?: string;cursor?:string }>;
 }) {
-  const filter = parseScheduleFilter((await searchParams)?.filter);
+  const sp = await searchParams;
+  const filter = parseScheduleFilter(sp?.filter);
   const scope = await loadMeScope();
   const teamId = await getActiveTeamId(scope);
 
   const pageResult = teamId
-    ? await load(gameOps.listGames({ teamId, limit: 100, publishedOnly: true }))
+    ? await load(gameOps.listGames({ teamId, cursor:sp?.cursor, limit: 100, publishedOnly: true }))
     : null;
   const page = pageResult?.ok ? pageResult.data : { items: [], nextCursor: null };
 
@@ -130,6 +132,10 @@ export default async function TeamAdminSchedulePage({
           </TBody>
         </Table>
       )}
+      <nav aria-label="Schedule pages" className="flex items-center gap-4 text-sm">
+        {sp?.cursor ? <Link className="underline" href={`/schedule?filter=${filter}`}>First page</Link>:null}
+        {page.nextCursor ? <Link className="underline" href={`/schedule?filter=${filter}&cursor=${encodeURIComponent((page.nextCursor)!)}`}>Next games</Link>:null}
+      </nav>
     </div>
   );
 }

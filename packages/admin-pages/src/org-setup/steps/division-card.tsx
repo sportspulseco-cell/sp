@@ -625,6 +625,12 @@ function PostSeasonBlock({
       {p.enabled ? (
         <>
           <div className="grid gap-5 sm:grid-cols-3">
+            <Field label="Playoff overtime" hint="Choose a playoff rule, or keep the regular-season rule.">
+              <Select value={p.overtimeRule ?? ""} onChange={e=>onPatch({playoffConfig:{...p,overtimeRule:(e.target.value || null) as OvertimeRule | null}})}>
+                <option value="">Same as regular season</option>
+                {OVERTIME_RULES.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+              </Select>
+            </Field>
             <PlayoffSpotsFields
               value={p.playoffSpots}
               onChange={(playoffSpots) => onPatch({ playoffConfig: { ...p, playoffSpots } })}

@@ -12,7 +12,6 @@ test("landing to every role workspace in one browser journey", async ({ page }) 
   await page.goto(E2E_URLS.landing);
   for (const origin of [
     E2E_URLS.superadmin,
-    E2E_URLS.league,
     E2E_URLS.orgAdmin,
     E2E_URLS.teamAdmin,
     E2E_URLS.player

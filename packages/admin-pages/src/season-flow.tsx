@@ -39,11 +39,11 @@ export interface SeasonFlowApi {
     }>;
   };
   gameOps: {
-    listGames: (q: { leagueId?: string; limit?: number; cursor?: string }) => Promise<Page<Game>>;
+    listGames: (q: { seasonId?: string; leagueId?: string; limit?: number; cursor?: string }) => Promise<Page<Game>>;
   };
   registration: {
     listForms: (q: { orgId?: string; limit?: number; cursor?: string }) => Promise<Page<RegistrationForm>>;
-    listRegistrations: (q?: { orgId?: string }) => Promise<Page<Registration>>;
+    listRegistrations: (q?: { orgId?: string; limit?:number;cursor?:string }) => Promise<Page<Registration>>;
   };
   roster: {
     listMemberships: (q: {
@@ -139,7 +139,7 @@ async function readSeason(
     safe("divisions", fetchAll((cursor) => api.leagueMgmt.listDivisions({ seasonId: season.id, limit: 100, cursor })), EMPTY as Page<Division>),
     safe("team applications", api.adminTransfers.listDivisionEntries({ status: "applied,pending_approval,accepted,confirmed" }), { items: [] }),
     safe("rosters", fetchAll((cursor) => api.roster.listMemberships({ seasonId: season.id, activeOnly: true, limit: 100, cursor })), EMPTY as Page<TeamMembership>),
-    safe("games", fetchAll((cursor) => api.gameOps.listGames({ leagueId: season.leagueId, limit: 100, cursor })), EMPTY as Page<Game>),
+    safe("games", fetchAll((cursor) => api.gameOps.listGames({ seasonId: season.id, limit: 100, cursor })), EMPTY as Page<Game>),
     // The season's organization only. The org console rewrites this read
     // to /org-admin/forms, which requires orgId.
     safe("forms", fetchAll((cursor) => api.registration.listForms({ orgId: season.orgId, limit: 100, cursor })), EMPTY as Page<RegistrationForm>)
@@ -275,7 +275,7 @@ export async function SeasonFlow({
   let regsFailed = false;
   if (!regs && shown.length) {
     try {
-      regs = (await api.registration.listRegistrations(orgId ? { orgId } : undefined)).items;
+      regs = (await fetchAll(cursor=>api.registration.listRegistrations({orgId,limit:100,cursor}))).items;
     } catch {
       regs = [];
       regsFailed = true;

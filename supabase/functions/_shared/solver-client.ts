@@ -46,7 +46,12 @@ export async function callSolver(
       text,
     );
   }
-  return JSON.parse(text) as SolveResponse;
+  const result = JSON.parse(text) as SolveResponse;
+  const required = ["team_blackouts", "late_cap", "weekly_cap", "preferences", "fairness_objective"];
+  if (!required.every(cap => result.capabilities?.includes(cap))) {
+    throw new SolverError("The deployed solver needs updating before it can enforce these scheduling rules.", 503, "solver_capabilities_missing");
+  }
+  return result;
 }
 
 export async function solverHealthy(env: SchedulerEnv): Promise<boolean> {

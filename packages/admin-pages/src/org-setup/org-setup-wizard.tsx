@@ -23,6 +23,7 @@ import {
 import { ProgressBar } from "./progress-bar";
 import { OrgStep } from "./steps/org-step";
 import { LeagueStep } from "./steps/league-step";
+import type { UploadLogo } from "./steps/logo-upload";
 import { SeasonStep } from "./steps/season-step";
 import { DivisionsStep } from "./steps/divisions-step";
 import { ExistingChoice } from "./steps/existing-choice";
@@ -101,10 +102,12 @@ export function OrgSetupWizard({
   orgSports = {},
   renderCreateOrg,
   listLeagues,
+  uploadLogo,
   listSeasons
 }: {
   /** Pre-filtered to the orgs the caller is allowed to write to. */
   orgs: Org[];
+  uploadLogo?: UploadLogo;
   /** Sport each org already plays (see sportByOrg); drives the default. */
   orgSports?: Record<string, string>;
   sports: Sport[];
@@ -178,6 +181,7 @@ export function OrgSetupWizard({
     divisions: [emptyDivision(crypto.randomUUID())]
   }));
   const [busy, setBusy] = useState(false);
+  const [uploadingLogo,setUploadingLogo] = useState(false);
   // Set once the save or publish went through. The buttons stay off
   // while the league page loads: a second click in that gap started a
   // fresh run and created another league (PPHL, 24 Oct item 3).
@@ -647,6 +651,8 @@ export function OrgSetupWizard({
             ) : null}
             {existingLeague ? null : (
               <LeagueStep
+                uploadLogo={uploadLogo}
+                onUploadBusy={setUploadingLogo}
                 draft={state.league}
                 org={currentOrg}
                 sports={sports}
@@ -701,7 +707,7 @@ export function OrgSetupWizard({
       <Footer
         step={state.step}
         canAdvance={stepValidation[state.step]}
-        busy={busy}
+        busy={busy || uploadingLogo}
         done={done}
         leagueActive={existingLeague?.status === "active"}
         onBack={goBack}
