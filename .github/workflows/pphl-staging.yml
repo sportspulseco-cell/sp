@@ -26,6 +26,11 @@ jobs:
       - run: pnpm --filter './packages/**' -r --workspace-concurrency=1 build
       - run: pnpm -r --workspace-concurrency=1 typecheck
       - run: node scripts/test-business-rules.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/scheduler-solver/requirements.txt
       - name: Solver regressions
         run: |
           python -m pip install -r apps/scheduler-solver/requirements.txt
