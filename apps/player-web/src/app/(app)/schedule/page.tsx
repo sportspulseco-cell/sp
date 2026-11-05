@@ -206,7 +206,7 @@ export default async function SchedulePage({
       )}
       <nav aria-label="Schedule pages" className="flex items-center gap-4 text-sm">
         {sp?.cursor ? <Link className="underline" href={`/schedule?filter=${filter}`}>First page</Link>:null}
-        {gamesResult?.ok ? gamesResult.data.nextCursor : null ? <Link className="underline" href={`/schedule?filter=${filter}&cursor=${encodeURIComponent((gamesResult?.ok ? gamesResult.data.nextCursor : null)!)}`}>Next games</Link>:null}
+        {gamesResult?.ok && gamesResult.data.nextCursor ? <Link className="underline" href={`/schedule?filter=${filter}&cursor=${encodeURIComponent(gamesResult.data.nextCursor)}`}>Next games</Link>:null}
       </nav>
     </div>
   );

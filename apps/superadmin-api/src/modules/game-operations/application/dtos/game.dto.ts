@@ -13,10 +13,11 @@ import {
   suspensionGamesRemaining,
   suspensionInForce
 } from "@sportspulse/kernel";
+import type { DivisionGameRules } from "@sportspulse/kernel";
 
 export class GameDto {
   @ApiPropertyOptional() gameType?: string;
-  @ApiPropertyOptional() gameRules?: import("@sportspulse/kernel").DivisionGameRules;
+  @ApiPropertyOptional() gameRules?: DivisionGameRules;
   @ApiProperty() id!: string;
   @ApiProperty() leagueId!: string;
   /**
