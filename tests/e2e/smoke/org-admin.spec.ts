@@ -28,7 +28,10 @@ test.describe("org-admin smoke", () => {
     await expect(picker).toBeVisible();
     await expect(page.locator("article")).toHaveCount(0);
     await picker.click();
-    await page.getByRole("option").first().click();
+    const seasons = page.getByRole("listbox");
+    await expect(seasons).toHaveAttribute("id", await picker.getAttribute("aria-controls") ?? "");
+    // The header's native organization select also exposes option roles.
+    await seasons.getByRole("option").first().click();
     await expect(page).toHaveURL(/season=/);
     await expect(page.locator("article")).toHaveCount(1);
     await expect(page.getByRole("main").getByText("Other season tasks", { exact: true })).toBeVisible();

@@ -48,9 +48,15 @@ test.describe("player smoke", () => {
   test("compliance: status banner present", async ({ page }) => {
     await page.goto(`${E2E_URLS.player}/compliance`);
     await expect(page.getByRole("heading", { name: /Waivers & documents/i })).toBeVisible();
-    // Either a banner or the empty-state.
-    const all = page.getByText(/All clear|need|requirements yet|attention/i);
-    await expect(all.first()).toBeVisible();
+    const main = page.getByRole("main");
+    await expect(main.getByRole("alert").filter({ hasText: /Could not load|Your role does not have access/i })).toHaveCount(0);
+    // Every legitimate summary counts, including unsigned registration waivers.
+    const summary = main.getByRole("alert").filter({
+      hasText: /\d+ items? blocking participation|\d+ documents? to sign|\d+ items? pending verification/i
+    }).or(main.getByRole("status").filter({ hasText: /All clear/i }))
+      .or(main.getByRole("heading", { name: "No requirements yet", exact: true }));
+    await expect(summary).toHaveCount(1);
+    await expect(summary).toBeVisible();
   });
 });
 

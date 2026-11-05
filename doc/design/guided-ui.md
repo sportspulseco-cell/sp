@@ -168,3 +168,12 @@ The phone test also found the super-admin command-palette pill covering the
 setup action bar. Phone page search now lives in the header, while its dialog
 renders outside the sticky header. Shared menu, theme and account buttons
 have 44px phone targets. The desktop page-search shortcut stays available.
+
+## Deployment checkpoint — 6 November 2026
+
+The owner authorized merging and deploying the completed work. The setup
+pilot and preceding backend fixes deployed to production and staging at
+`e7b554b1`; both `main` and `codex/staging` were updated. The database
+prerequisites and scheduler functions were released first. Deployed phone
+journeys passed in both setup consoles. Physical-device acceptance and the
+other role interfaces' phone task passes remain outstanding.

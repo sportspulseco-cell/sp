@@ -21,27 +21,30 @@ test("super-admin form builder shows cascading pickers when scope=division", asy
   await signIn(page, E2E_URLS.superadmin, SMOKE_USERS.superAdmin);
   await page.goto(`${E2E_URLS.superadmin}/forms`);
   await page.locator("header").getByRole("button", { name: /New form/i }).click();
+  const dialog = page.getByRole("dialog", { name: "New registration form", exact: true });
+  await expect(dialog).toBeVisible();
 
   // Dialog opens. With several orgs and no org filter nothing is
   // preselected (CAP-23); the league picker waits for an org.
-  await expect(page.getByLabel(/^Scope$/i)).toBeVisible();
-  const org = page.getByLabel(/^Organization$/i);
+  await expect(dialog.getByLabel(/^Scope$/i)).toBeVisible();
+  const org = dialog.getByLabel(/^Organization$/i);
   if (await org.isVisible()) {
     expect(await org.inputValue(), "no org preselected").toBe("");
     await org.selectOption({ index: 1 });
   }
   // A season-registration form asks for its league and season (REG-20).
-  await expect(page.getByLabel(/^Purpose$/i)).toHaveValue("season_registration");
-  await expect(page.getByLabel(/^League$/i)).toBeVisible();
-  // Any other purpose at Org-wide scope hides the pickers.
-  await page.getByLabel(/^Purpose$/i).selectOption("custom");
-  await expect(page.getByLabel(/^League$/i)).toBeHidden();
+  await expect(dialog.getByLabel(/^Purpose$/i)).toHaveValue("season_registration");
+  await expect(dialog.getByLabel(/^League$/i)).toBeVisible();
+  // Role profiles are the supported non-season purpose (legacy custom
+  // forms are readable but are no longer offered for creation).
+  await dialog.getByLabel(/^Purpose$/i).selectOption("role_profile");
+  await expect(dialog.getByLabel(/^League$/i)).toBeHidden();
 
-  await page.getByLabel(/^Scope$/i).selectOption("Division-specific");
+  await dialog.getByLabel(/^Scope$/i).selectOption({ label: "Division-specific" });
 
   // League picker becomes visible immediately. Season + Division
   // appear only after a league is picked, which we don't do here —
   // the regression is about the absence of any picker, not the
   // chain order.
-  await expect(page.getByLabel(/^League$/i)).toBeVisible();
+  await expect(dialog.getByLabel(/^League$/i)).toBeVisible();
 });

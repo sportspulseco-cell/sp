@@ -20,7 +20,7 @@
     "scope": "mobile-season-setup-pilot",
     "theme": "Existing SportsPulse",
     "revision": "Dedicated phone step menu, native date-question picker, one active division with add/copy/remove menu, keyboard-aware action bar and disclosed documents/questions. Phone search moved to header after a real blocked-tap failure; shared header touch targets enlarged.",
-    "status": "Local phone journeys passed for organization and super admin; staging unchanged",
+    "status": "Deployed to production and staging at e7b554b1; deployed phone journeys passed; physical-device acceptance remains",
     "evidence": "output/pphl-final-testing-2026-11-05/mobile-first-setup/results.json",
     "limitation": "Chromium touch emulation; physical iOS/Android and assistive technology checks remain."
   }
