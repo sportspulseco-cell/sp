@@ -724,7 +724,7 @@ export class RescheduleGameHandler
     if (input.force && !reason) {
       throw new ValidationError("Say why you are overriding the clash.");
     }
-    const { plan, record } = await this.db.transaction(async (tx) => {
+    const { plan, notices } = await this.db.transaction(async (tx) => {
       const before = await lockGame(tx, input.id);
       await lockPlacement(tx, {
         homeTeamId: before.homeTeamId,
@@ -750,42 +750,42 @@ export class RescheduleGameHandler
         overriddenConflicts: plan.conflicts.map((c) => c.message)
       });
       await saveIfStatus(tx, before, status);
-      return { plan, record };
-    });
+      const fresh = before;
 
+      // Teams only hear about games they can already see.
+      let notices: GameNoticeResult = { recipients: 0, queued: 0 };
+      if (fresh.publishedAt) {
+        const target = {
+          id: fresh.id.value,
+          leagueId: fresh.leagueId,
+          seasonId: fresh.seasonId,
+          homeTeamId: fresh.homeTeamId,
+          awayTeamId: fresh.awayTeamId
+        };
+        const ctx = await gameNoticeContext(tx as unknown as Database, target);
+        const venueClause = (v: string | null, s: string | null) =>
+          v ? `, ${v}${s ? `, ${s}` : ""}` : "";
+        notices = await queueGameNotice(tx as unknown as Database, this.notify, {
+          game: target,
+          templateCode: "game.rescheduled",
+          eventKey: `game.rescheduled:${fresh.id.value}:${record.at}`,
+          orgId: ctx.orgId,
+          payload: {
+            homeTeam: ctx.homeTeam,
+            awayTeam: ctx.awayTeam,
+            fromLabel: gameTimeLabel(new Date(record.from.startTsUtc), plan.tz),
+            fromVenueClause: venueClause(record.from.venueName, record.from.surfaceLabel),
+            toLabel: gameTimeLabel(new Date(record.to.startTsUtc), plan.tz),
+            toVenueClause: venueClause(record.to.venueName, record.to.surfaceLabel),
+            reasonClause: reason ? ` Reason: ${reason}` : ""
+          }
+        }, tx);
+      }
+      return { plan, notices };
+    });
     const fresh = await this.games.findById(GameId.of(input.id));
     if (!fresh || fresh.scheduledStartTsUtc.toISOString() !== plan.startTsUtc) {
       throw new Error(`game ${input.id}: readback after reschedule does not match the plan`);
-    }
-
-    // Teams only hear about games they can already see.
-    let notices: GameNoticeResult = { recipients: 0, queued: 0 };
-    if (fresh.publishedAt) {
-      const target = {
-        id: fresh.id.value,
-        leagueId: fresh.leagueId,
-        seasonId: fresh.seasonId,
-        homeTeamId: fresh.homeTeamId,
-        awayTeamId: fresh.awayTeamId
-      };
-      const ctx = await gameNoticeContext(this.db, target);
-      const venueClause = (v: string | null, s: string | null) =>
-        v ? `, ${v}${s ? `, ${s}` : ""}` : "";
-      notices = await queueGameNotice(this.db, this.notify, {
-        game: target,
-        templateCode: "game.rescheduled",
-        eventKey: `game.rescheduled:${fresh.id.value}:${record.at}`,
-        orgId: ctx.orgId,
-        payload: {
-          homeTeam: ctx.homeTeam,
-          awayTeam: ctx.awayTeam,
-          fromLabel: gameTimeLabel(new Date(record.from.startTsUtc), plan.tz),
-          fromVenueClause: venueClause(record.from.venueName, record.from.surfaceLabel),
-          toLabel: gameTimeLabel(new Date(record.to.startTsUtc), plan.tz),
-          toVenueClause: venueClause(record.to.venueName, record.to.surfaceLabel),
-          reasonClause: reason ? ` Reason: ${reason}` : ""
-        }
-      });
     }
     log.log(
       `reschedule game=${input.id} to=${plan.startTsUtc} surface=${plan.surfaceId ?? "none"} forced=${plan.conflicts.length > 0} queued=${notices.queued}`
@@ -861,41 +861,43 @@ async function stopGame(
   id: string,
   to: "postponed" | "cancelled"
 ): Promise<GameDto & { notificationsQueued: number }> {
-  await db.transaction(async (tx) => {
+  const notices = await db.transaction(async (tx) => {
     const g = await lockGame(tx, id);
     const status = g.status;
     if (to === "postponed") g.postpone();
     else g.cancel();
     await saveIfStatus(tx, g, status);
+    const fresh = g;
+    let notices: GameNoticeResult = { recipients: 0, queued: 0 };
+    if (fresh.publishedAt) {
+      const target = {
+        id: fresh.id.value,
+        leagueId: fresh.leagueId,
+        seasonId: fresh.seasonId,
+        homeTeamId: fresh.homeTeamId,
+        awayTeamId: fresh.awayTeamId
+      };
+      const ctx = await gameNoticeContext(tx as unknown as Database, target);
+      notices = await queueGameNotice(tx as unknown as Database, notify, {
+        game: target,
+        templateCode: to === "postponed" ? "game.postponed" : "game.cancelled",
+        eventKey: `game.${to}:${id}:${fresh.updatedAt.toISOString()}`,
+        orgId: ctx.orgId,
+        payload: {
+          homeTeam: ctx.homeTeam,
+          awayTeam: ctx.awayTeam,
+          whenLabel: gameTimeLabel(fresh.scheduledStartTsUtc, fresh.tz),
+          venueClause: fresh.venueName
+            ? ` at ${fresh.venueName}${fresh.surfaceLabel ? `, ${fresh.surfaceLabel}` : ""}`
+            : ""
+        }
+      }, tx);
+    }
+    return notices;
   });
   const fresh = await games.findById(GameId.of(id));
   if (!fresh || fresh.status !== to) {
     throw new Error(`game ${id}: readback after ${to} shows ${fresh?.status ?? "no row"}`);
-  }
-  let notices: GameNoticeResult = { recipients: 0, queued: 0 };
-  if (fresh.publishedAt) {
-    const target = {
-      id: fresh.id.value,
-      leagueId: fresh.leagueId,
-      seasonId: fresh.seasonId,
-      homeTeamId: fresh.homeTeamId,
-      awayTeamId: fresh.awayTeamId
-    };
-    const ctx = await gameNoticeContext(db, target);
-    notices = await queueGameNotice(db, notify, {
-      game: target,
-      templateCode: to === "postponed" ? "game.postponed" : "game.cancelled",
-      eventKey: `game.${to}:${id}:${fresh.updatedAt.toISOString()}`,
-      orgId: ctx.orgId,
-      payload: {
-        homeTeam: ctx.homeTeam,
-        awayTeam: ctx.awayTeam,
-        whenLabel: gameTimeLabel(fresh.scheduledStartTsUtc, fresh.tz),
-        venueClause: fresh.venueName
-          ? ` at ${fresh.venueName}${fresh.surfaceLabel ? `, ${fresh.surfaceLabel}` : ""}`
-          : ""
-      }
-    });
   }
   log.log(`${to} game=${id} published=${!!fresh.publishedAt} recipients=${notices.recipients} queued=${notices.queued}`);
   return { ...GameDto.fromDomain(fresh), notificationsQueued: notices.queued };
@@ -975,6 +977,19 @@ export interface FinalizeSummary {
  * idempotent. After commit: read the game back and queue one
  * notification per player and captain of both teams.
  */
+async function queueFinalizedGameNotice(tx: Tx, notify: NotificationService, game: Game, endedIn: GameEnding | null): Promise<GameNoticeResult> {
+  if (!game.publishedAt) return { recipients: 0, queued: 0 };
+  const target = { id: game.id.value, leagueId: game.leagueId, seasonId: game.seasonId,
+    homeTeamId: game.homeTeamId, awayTeamId: game.awayTeamId };
+  const db = tx as unknown as Database;
+  const ctx = await gameNoticeContext(db, target);
+  return queueGameNotice(db, notify, { game: target, templateCode: "game.finalized",
+    eventKey: `game.finalized:${game.id.value}:${game.finalizedAt?.toISOString() ?? ""}`, orgId: ctx.orgId,
+    payload: { homeTeam: ctx.homeTeam, awayTeam: ctx.awayTeam, homeScore: game.homeScore, awayScore: game.awayScore,
+      endedInClause: endedIn && endedIn !== "regulation" ? ` (${GAME_ENDING_LABELS[endedIn].toLowerCase()})` : "" },
+  }, tx);
+}
+
 @Injectable()
 export class FinalizeGameHandler
   implements
@@ -1044,6 +1059,7 @@ export class FinalizeGameHandler
         log.log(`game.shootout_goal game=${input.id} winner=${input.shootoutWinner} score=${g.homeScore}-${g.awayScore}`);
       }
       const verdict = checkFinalResult({
+        gameType: settings?.gameType,
         homeScore: g.homeScore,
         awayScore: g.awayScore,
         endedIn: input.endedIn ?? null,
@@ -1071,7 +1087,15 @@ export class FinalizeGameHandler
         leagueId: g.leagueId,
         seasonId: g.seasonId
       });
-      return { endedIn: verdict.endedIn, projection, standings, suspensions, autoIssued };
+      const notices = await queueFinalizedGameNotice(tx, this.notify, g, verdict.endedIn);
+      if (autoIssued.length > 0) {
+        const db = tx as unknown as Database;
+        const ctx = await gameNoticeContext(db, { id: g.id.value, leagueId: g.leagueId, seasonId: g.seasonId,
+          homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId });
+        await notifyAutomaticSuspensions(db, this.notify, autoIssued, { orgId: ctx.orgId,
+          leagueId: g.leagueId, seasonId: g.seasonId }, tx);
+      }
+      return { endedIn: verdict.endedIn, projection, standings, suspensions, autoIssued, notices };
     });
 
     const fresh = await this.games.findById(GameId.of(input.id));
@@ -1079,38 +1103,7 @@ export class FinalizeGameHandler
       throw new Error(`game ${input.id}: readback after finalize is not completed`);
     }
 
-    const target = {
-      id: fresh.id.value,
-      leagueId: fresh.leagueId,
-      seasonId: fresh.seasonId,
-      homeTeamId: fresh.homeTeamId,
-      awayTeamId: fresh.awayTeamId
-    };
-    const ctx = await gameNoticeContext(this.db, target);
-    const notices = await queueGameNotice(this.db, this.notify, {
-      game: target,
-      templateCode: "game.finalized",
-      eventKey: `game.finalized:${fresh.id.value}:${fresh.finalizedAt?.toISOString() ?? ""}`,
-      orgId: ctx.orgId,
-      payload: {
-        homeTeam: ctx.homeTeam,
-        awayTeam: ctx.awayTeam,
-        homeScore: fresh.homeScore,
-        awayScore: fresh.awayScore,
-        endedInClause:
-          done.endedIn && done.endedIn !== "regulation"
-            ? ` (${GAME_ENDING_LABELS[done.endedIn].toLowerCase()})`
-            : ""
-      }
-    });
-
-    if (done.autoIssued.length > 0) {
-      await notifyAutomaticSuspensions(this.db, this.notify, done.autoIssued, {
-        orgId: ctx.orgId,
-        leagueId: target.leagueId,
-        seasonId: target.seasonId
-      });
-    }
+    const notices = done.notices;
 
     const finalizeSummary: FinalizeSummary = {
       endedIn: done.endedIn,

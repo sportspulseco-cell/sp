@@ -71,9 +71,8 @@ export interface QueueArgs {
 
 /**
  * Application-level notification facade. Other modules call this from their
- * command handlers — the side effect is fire-and-forget (errors logged but
- * never thrown back to the caller, so a notification failure can't roll back
- * a domain mutation).
+ * command handlers. Transactional calls persist the outbox record with the
+ * domain mutation and propagate failures. Transport runs after commit.
  */
 @Injectable()
 export class NotificationService {
@@ -107,7 +106,7 @@ export class NotificationService {
       // did not pass one, instead of writing a row that fails at send.
       let recipientEmail = args.recipientEmail ?? null;
       if (channel === "email" && !recipientEmail && args.recipientPersonId) {
-        recipientEmail = await this.emailForPerson(args.recipientPersonId);
+        recipientEmail = await this.emailForPerson(args.recipientPersonId, tx);
         if (!recipientEmail) {
           // No account, so no inbox either: nothing could reach them.
           this.log.warn(
@@ -135,7 +134,8 @@ export class NotificationService {
       if (tplChannel === "email") {
         const override = await this.findEmailOverride(
           args.templateCode,
-          args.payload
+          args.payload,
+          tx
         );
         if (override) {
           subjectSource = override.subject;
@@ -192,8 +192,8 @@ export class NotificationService {
   }
 
   /** The person's sign-in email, or null when they have no account. */
-  private async emailForPerson(personId: string): Promise<string | null> {
-    const [row] = await this.db
+  private async emailForPerson(personId: string, tx?: NotificationTransaction): Promise<string | null> {
+    const [row] = await (tx ?? this.db)
       .select({ email: schema.profiles.email })
       .from(schema.persons)
       .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
@@ -491,7 +491,8 @@ export class NotificationService {
    */
   private async findEmailOverride(
     templateCode: TemplateCode,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
+    tx?: NotificationTransaction
   ): Promise<{ subject: string; bodyHtml: string } | null> {
     const eventType = TEMPLATE_CODE_TO_EVENT_TYPE[templateCode];
     if (!eventType) return null;
@@ -499,7 +500,7 @@ export class NotificationService {
     if (typeof seasonId !== "string" || !seasonId) return null;
 
     try {
-      const [row] = await this.db
+      const [row] = await (tx ?? this.db)
         .select({
           subject: schema.emailTemplates.subject,
           bodyHtml: schema.emailTemplates.bodyHtml
@@ -515,6 +516,7 @@ export class NotificationService {
         .limit(1);
       return row ?? null;
     } catch (err) {
+      if (tx) throw err;
       // Never block the catalog fallback on a lookup error.
       this.log.warn(
         `email_templates override lookup failed for ${templateCode} season=${seasonId}: ${(err as Error).message}`

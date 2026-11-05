@@ -8,6 +8,14 @@ import {
   type StandingsGame
 } from "./game-results";
 
+test("playoff finalization requires a winner while regular-season ties remain valid", () => {
+  const score = { homeScore: 0, awayScore: 0, endedIn: "regulation" as const, goalEvents: { home: 0, away: 0, withoutTeam: 0 } };
+  assert.equal(checkFinalResult({ ...score, gameType: "regular" }).ok, true);
+  const playoff = checkFinalResult({ ...score, gameType: "playoff" });
+  assert.equal(playoff.ok, false); if (!playoff.ok) assert.equal(playoff.code, "PLAYOFF_WINNER_REQUIRED");
+  assert.equal(checkFinalResult({ ...score, gameType: "playoff", homeScore: 1 }).ok, true);
+});
+
 function game(over: Partial<StandingsGame>): StandingsGame {
   return {
     status: "completed",

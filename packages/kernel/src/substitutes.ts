@@ -79,7 +79,8 @@ export const SUB_INELIGIBLE_REASONS = [
   "busy_other_game",
   "level_mismatch",
   "guest_season_limit",
-  "no_account"
+  "no_account",
+  "membership_proof"
 ] as const;
 export type SubIneligibleReason = (typeof SUB_INELIGIBLE_REASONS)[number];
 
@@ -93,7 +94,8 @@ export const SUB_INELIGIBLE_LABELS: Record<SubIneligibleReason, string> = {
   busy_other_game: "Has another game at that time",
   level_mismatch: "Skill level does not match this division",
   guest_season_limit: "Reached the guest limit for your team this season",
-  no_account: "Has no account to answer a request"
+  no_account: "Has no account to answer a request",
+  membership_proof: "Staff must verify USA Hockey proof valid through this game"
 };
 
 /**
@@ -212,6 +214,8 @@ export interface SubCandidateFacts {
   guestSeasonLimit: number;
   /** Has a sign-in, so they can answer a request. */
   hasAccount: boolean;
+  /** False only when the season requires membership and proof is missing or invalid. */
+  membershipVerifiedForGame?: boolean;
 }
 
 /** Every reason the player cannot be asked; empty when they can. */
@@ -228,6 +232,7 @@ export function subIneligibleReasons(f: SubCandidateFacts): SubIneligibleReason[
   if (f.level === "mismatch") out.push("level_mismatch");
   if (f.guestAppearances >= f.guestSeasonLimit) out.push("guest_season_limit");
   if (!f.hasAccount) out.push("no_account");
+  if (f.membershipVerifiedForGame === false) out.push("membership_proof");
   return out;
 }
 

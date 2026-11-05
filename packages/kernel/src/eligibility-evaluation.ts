@@ -71,6 +71,15 @@ export interface SeasonEligibilityResult {
   reasons: string[];
 }
 
+/** A verified credential must remain valid for the entire game. */
+export function membershipValidThrough(credential: {
+  status: string; externalId: string; verifiedAt: Date | string | null; expiresAt: Date | string | null;
+} | null | undefined, through: Date, now: Date = new Date()): boolean {
+  if (!credential || credential.status !== "verified" || !credential.externalId.trim() || !credential.verifiedAt || !credential.expiresAt) return false;
+  const verified = new Date(credential.verifiedAt).getTime(), expiry = new Date(credential.expiresAt).getTime();
+  return Number.isFinite(verified) && verified <= now.getTime() && Number.isFinite(expiry) && expiry >= through.getTime();
+}
+
 const RANK: Record<SeasonEligibilityResult["status"], number> = {
   ineligible: 5,
   expired: 4,

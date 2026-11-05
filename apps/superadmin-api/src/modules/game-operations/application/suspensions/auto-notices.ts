@@ -2,7 +2,7 @@ import { Logger } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import type { NotificationService } from "../../../communications/application/notification.service";
+import type { NotificationService, NotificationTransaction } from "../../../communications/application/notification.service";
 import { notifyAudience } from "../../../../shared/audience/notify-audience";
 import { personContact } from "./handlers";
 import type { IssuedAutomatically } from "./suspension-rules";
@@ -10,7 +10,7 @@ import type { IssuedAutomatically } from "./suspension-rules";
 const log = new Logger("AutoSuspensionNotices");
 
 /**
- * After the finalize commit: tell the suspended player, their team's
+ * Record notices with the finalize transaction: tell the player, their team's
  * captains and the league's admins (UC-14). One notice per person per
  * suspension (idempotency key), so a retry cannot double them.
  */
@@ -18,7 +18,8 @@ export async function notifyAutomaticSuspensions(
   db: Database,
   notify: NotificationService,
   issued: ReadonlyArray<IssuedAutomatically>,
-  scope: { orgId: string | null; leagueId: string; seasonId: string | null }
+  scope: { orgId: string | null; leagueId: string; seasonId: string | null },
+  tx?: NotificationTransaction
 ): Promise<number> {
   let queued = 0;
   for (const s of issued) {
@@ -39,7 +40,7 @@ export async function notifyAutomaticSuspensions(
       recipientEmail: who.email,
       payload: { ...base, kind: "league" },
       sourceEvent: "suspension.automatic"
-    });
+    }, tx);
     if (row) queued++;
     if (scope.orgId) {
       const sends = [
@@ -53,7 +54,7 @@ export async function notifyAutomaticSuspensions(
               payload: base,
               sourceEvent: "suspension.automatic",
               excludePersonIds: [s.personId]
-            })
+            }, tx)
           : null,
         notifyAudience(db, notify, {
           orgId: scope.orgId,
@@ -64,7 +65,7 @@ export async function notifyAutomaticSuspensions(
           payload: base,
           sourceEvent: "suspension.automatic",
           excludePersonIds: [s.personId]
-        })
+        }, tx)
       ];
       for (const r of await Promise.all(sends)) queued += r?.queued ?? 0;
     }

@@ -336,6 +336,7 @@ export function withEnteredTeams<T extends { divisionId: string | null; teamId: 
 }
 
 export interface FinalResultInput {
+  gameType?: string;
   homeScore: number;
   awayScore: number;
   /** What the scorekeeper says; null when not given. */
@@ -357,6 +358,9 @@ export type FinalResultVerdict =
 export function checkFinalResult(input: FinalResultInput): FinalResultVerdict {
   const { homeScore, awayScore, endedIn, goalEvents } = input;
   const decided = homeScore !== awayScore;
+  if (input.gameType === "playoff" && !decided) return {
+    ok: false, code: "PLAYOFF_WINNER_REQUIRED", message: "A playoff game needs a winner before it can be finalized.",
+  };
 
   if (decided && endedIn === null) {
     return {

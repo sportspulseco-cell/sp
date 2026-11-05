@@ -19,6 +19,7 @@ import {
   freeAgentLevelLabel,
   freeAgentPositionLabel,
   localDayAndHour,
+  membershipValidThrough,
   normalizeSkillLevel,
   subAdminMayOverride,
   subIneligibleReasons,
@@ -384,7 +385,7 @@ export class SubstituteRequestsService {
     if (ids.length === 0) return [];
 
     const end = new Date(game.start.getTime() + game.durationMin * 60_000);
-    const [people, memberships, listed, guestCounts, openReqs, blocked] = await Promise.all([
+    const [people, memberships, listed, guestCounts, openReqs, blocked, seasons, identities] = await Promise.all([
       exec
         .select({
           id: schema.persons.id,
@@ -426,7 +427,14 @@ export class SubstituteRequestsService {
             inArray(schema.substituteRequests.substitutePersonId, ids)
           )
         ),
-      suspensionBlocksForGame(exec, { game: { id: game.id, start: game.start }, teamId, personIds: ids })
+      suspensionBlocksForGame(exec, { game: { id: game.id, start: game.start }, teamId, personIds: ids }),
+      exec.select({ config: schema.seasons.config }).from(schema.seasons).where(eq(schema.seasons.id, game.seasonId)).limit(1),
+      exec.selectDistinctOn([schema.identityVerifications.personId], { personId: schema.identityVerifications.personId,
+        status: schema.identityVerifications.status, externalId: schema.identityVerifications.externalId,
+        verifiedAt: schema.identityVerifications.verifiedAt, expiresAt: schema.identityVerifications.expiresAt })
+        .from(schema.identityVerifications).innerJoin(schema.governingBodies, eq(schema.governingBodies.id, schema.identityVerifications.governingBodyId))
+        .where(and(inArray(schema.identityVerifications.personId, ids), eq(schema.governingBodies.code, "USA_HOCKEY")))
+        .orderBy(schema.identityVerifications.personId, sql`${schema.identityVerifications.createdAt} DESC`, sql`${schema.identityVerifications.id} DESC`),
     ]);
 
     // Their own games that overlap this one (rostered players only).
@@ -470,6 +478,8 @@ export class SubstituteRequestsService {
     const guestN = new Map(guestCounts.map((g) => [g.personId, g.n]));
     const openBy = new Map(openReqs.map((r) => [r.personId, { id: r.id, teamId: r.teamId }]));
     const blockedSet = new Set(blocked.map((b) => b.personId));
+    const requireMembership = !!(seasons[0]?.config as { requireUsaHockeyId?: boolean } | undefined)?.requireUsaHockeyId;
+    const membershipByPerson = new Map(identities.map(identity => [identity.personId, identity]));
     const slot = localDayAndHour(game.start, game.tz);
 
     const out: SubCandidateView[] = [];
@@ -488,7 +498,8 @@ export class SubstituteRequestsService {
         level: r.source === "free_agent" ? subLevelFit(r.levels, division?.tier ?? null) : "match",
         guestAppearances: guestN.get(r.personId) ?? 0,
         guestSeasonLimit: seasonLimit,
-        hasAccount: !!person.userId
+        hasAccount: !!person.userId,
+        membershipVerifiedForGame: !requireMembership || membershipValidThrough(membershipByPerson.get(r.personId), end)
       });
       out.push({
         personId: r.personId,

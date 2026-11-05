@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import type { Database } from "@sportspulse/db";
 import type { NotificationService } from "../../modules/communications/application/notification.service";
+import type { NotificationTransaction } from "../../modules/communications/application/notification.service";
 import type { TemplateCode } from "../../modules/communications/domain/templates/catalog";
 import {
   resolveAnnouncementRecipients,
@@ -31,11 +32,13 @@ export async function notifyAudience(
     sourceEvent?: string;
     /** Already told through another notice (the person it is about). */
     excludePersonIds?: readonly string[];
-  }
+  },
+  tx?: NotificationTransaction
 ): Promise<{ recipients: number; queued: number; noEmail: number }> {
   try {
-    return await send(db, notify, args);
+    return await send((tx ?? db) as Database, notify, args, tx);
   } catch (err) {
+    if (tx) throw err;
     // Never fail the caller's action over a notice; say so in the log.
     log.error(`code=${args.templateCode} key=${args.key} failed: ${(err as Error).message}`);
     return { recipients: 0, queued: 0, noEmail: 0 };
@@ -45,7 +48,8 @@ export async function notifyAudience(
 async function send(
   db: Database,
   notify: NotificationService,
-  args: Parameters<typeof notifyAudience>[2]
+  args: Parameters<typeof notifyAudience>[2],
+  tx?: NotificationTransaction
 ): Promise<{ recipients: number; queued: number; noEmail: number }> {
   const people = await resolveAnnouncementRecipients(
     db,
@@ -66,20 +70,20 @@ async function send(
     if (skip.has(p.personId)) continue;
     if (!p.email) {
       noEmail++;
-      continue;
+      if (!tx) continue;
     }
     sends.push(
       notify
         .queue({
           orgId: args.orgId,
           templateCode: args.templateCode,
-          channel: "email",
+          channel: p.email ? "email" : "in_app",
           idempotencyKey: `${args.key}:${p.personId}`,
           recipientPersonId: p.personId,
           recipientEmail: p.email,
           payload: args.payload,
           sourceEvent: args.sourceEvent ?? args.templateCode
-        })
+        }, tx)
         .then((row) => {
           if (row) queued++;
         })

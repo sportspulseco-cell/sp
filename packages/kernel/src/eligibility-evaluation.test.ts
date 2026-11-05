@@ -5,10 +5,22 @@ import {
   evaluateSeasonEligibility,
   genderMatchesDivision,
   sweepOutcome,
+  membershipValidThrough,
   type SeasonEligibilityInput
 } from "./eligibility-evaluation";
 
 const NOW = new Date("2026-10-25T12:00:00Z");
+
+test("game membership requires reviewed proof valid through the game, including boundary and malformed dates", () => {
+  const end = new Date("2026-11-05T23:00:00Z");
+  const proof = { status: "verified", externalId: "QA12345", verifiedAt: NOW, expiresAt: end };
+  assert.equal(membershipValidThrough(proof, end, NOW), true);
+  assert.equal(membershipValidThrough({ ...proof, status: "pending" }, end, NOW), false);
+  assert.equal(membershipValidThrough({ ...proof, verifiedAt: null }, end, NOW), false);
+  assert.equal(membershipValidThrough({ ...proof, expiresAt: new Date(end.getTime() - 1) }, end, NOW), false);
+  assert.equal(membershipValidThrough({ ...proof, expiresAt: "bad date" }, end, NOW), false);
+  assert.equal(membershipValidThrough({ ...proof, externalId: " " }, end, NOW), false);
+});
 
 function input(over: Partial<SeasonEligibilityInput> = {}): SeasonEligibilityInput {
   return {

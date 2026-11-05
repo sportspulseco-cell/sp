@@ -7,7 +7,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { resolveDivisionRules, SCHEDULABLE_ENTRY_STATUSES } from "@sportspulse/kernel";
+import { resolveDivisionRules, SCHEDULABLE_ENTRY_STATUSES, membershipValidThrough } from "@sportspulse/kernel";
 
 type ResolvedDivisionRules = ReturnType<typeof resolveDivisionRules>;
 import { suspensionBlocksForGame } from "../../game-operations/application/suspensions/suspension-rules";
@@ -131,6 +131,24 @@ export async function addGameGuest(tx: Tx, input: AddGuestInput): Promise<AddGue
     throw new ConflictException({
       error: "wrong_season",
       message: "This game belongs to another season."
+    });
+  }
+
+  // A guest must satisfy the same required membership rule as a rostered
+  // player. A name-only walk-in cannot bypass staff-reviewed proof.
+  const [season] = await tx.select({ config: schema.seasons.config }).from(schema.seasons)
+    .where(eq(schema.seasons.id, input.seasonId)).limit(1);
+  if ((season?.config as { requireUsaHockeyId?: boolean } | undefined)?.requireUsaHockeyId) {
+    const [membership] = input.personId ? await tx.select({ status: schema.identityVerifications.status,
+      verifiedAt: schema.identityVerifications.verifiedAt, expiresAt: schema.identityVerifications.expiresAt,
+      externalId: schema.identityVerifications.externalId }).from(schema.identityVerifications)
+      .innerJoin(schema.governingBodies, eq(schema.governingBodies.id, schema.identityVerifications.governingBodyId))
+      .where(and(eq(schema.identityVerifications.personId, input.personId), eq(schema.governingBodies.code, "USA_HOCKEY")))
+      .orderBy(sql`${schema.identityVerifications.createdAt} DESC`).limit(1).for("share", { of: schema.identityVerifications }) : [];
+    const gameEnd = new Date(game.scheduledStartTsUtc.getTime() + game.durationMin * 60_000);
+    if (!membershipValidThrough(membership, gameEnd)) throw new ConflictException({
+      error: "membership_proof_required",
+      message: "Staff must verify this player's USA Hockey membership proof, valid through this game, before adding them as a guest.",
     });
   }
 

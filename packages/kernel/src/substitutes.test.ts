@@ -80,6 +80,7 @@ function facts(over: Partial<SubCandidateFacts>): SubCandidateFacts {
 
 test("eligibility reasons", () => {
   assert.deepEqual(subIneligibleReasons(facts({})), []);
+  assert.deepEqual(subIneligibleReasons(facts({ membershipVerifiedForGame: false })), ["membership_proof"]);
   assert.deepEqual(subIneligibleReasons(facts({ level: "unknown" })), []);
   assert.deepEqual(subIneligibleReasons(facts({ suspended: true })), ["suspended"]);
   assert.deepEqual(subIneligibleReasons(facts({ availability: "no" })), ["not_available"]);
@@ -105,5 +106,6 @@ test("admin override covers availability, level and account only", () => {
   assert.equal(subAdminMayOverride(["guest_season_limit"]), false);
   assert.equal(subAdminMayOverride(["on_roster"]), false);
   assert.equal(subAdminMayOverride(["in_game"]), false);
+  assert.equal(subAdminMayOverride(["membership_proof"]), false);
   assert.equal(describeSubReasons(["suspended", "busy_other_game"]), "Suspended for this game; Has another game at that time");
 });
