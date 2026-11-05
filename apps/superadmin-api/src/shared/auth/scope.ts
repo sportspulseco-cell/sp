@@ -37,6 +37,9 @@ export interface UserScope {
   orgWideOrgIds: string[] | null;
   /** Explicit season grants stay narrow; they never widen to a whole league or org. */
   seasonIds?: string[] | null;
+  /** Direct administrative division grants; parent seasons are metadata-only. */
+  divisionIds?: string[];
+  parentSeasonIds?: string[];
 }
 
 /** Role codes that administer records (mirrors PEOPLE_ADMIN_ROLES in org-admin.ts, minus super_admin, which is a profile flag here). */
@@ -125,8 +128,9 @@ async function loadUserScopeFresh(
   // and surfaces like player-web's "Join free-agent pool" page (which
   // filters seasons by orgId) render an empty state.
   const directDivisionIds = rows
-    .filter((r) => r.scopeType === "division" && r.scopeId)
+    .filter((r) => r.scopeType === "division" && r.scopeId && !ADMIN_SCOPE_ROLE_CODES.includes(r.roleCode))
     .map((r) => r.scopeId as string);
+  const adminDivisionIds = rows.filter(r => r.scopeType === "division" && r.scopeId && ADMIN_SCOPE_ROLE_CODES.includes(r.roleCode)).map(r => r.scopeId as string);
 
   // These projections depend only on the assignments above, so run them
   // together instead of adding a database round trip for each scope type.
@@ -238,6 +242,13 @@ async function loadUserScopeFresh(
   const teamIds = Array.from(
     new Set([...directTeamIds, ...membershipProjection.teamIds])
   );
+  let parentSeasonIds: string[] = [];
+  if (adminDivisionIds.length) {
+    const parents = await db.selectDistinct({ seasonId: schema.divisions.seasonId }).from(schema.divisions).where(inArray(schema.divisions.id, adminDivisionIds));
+    parentSeasonIds = parents.map(r => r.seasonId);
+    const entries = await db.selectDistinct({ teamId: schema.divisionTeamEntries.teamId }).from(schema.divisionTeamEntries).where(inArray(schema.divisionTeamEntries.divisionId, adminDivisionIds));
+    for (const entry of entries) if (!teamIds.includes(entry.teamId)) teamIds.push(entry.teamId);
+  }
   if (directSeasonIds.length) {
     const entries = await db.selectDistinct({ teamId: schema.divisionTeamEntries.teamId }).from(schema.divisionTeamEntries)
       .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
@@ -251,6 +262,7 @@ async function loadUserScopeFresh(
     orgIds,
     teamIds,
     orgWideOrgIds,
-    ...(directSeasonIds.length ? { seasonIds: [...new Set(directSeasonIds)] } : {})
+    ...(directSeasonIds.length ? { seasonIds: [...new Set(directSeasonIds)] } : {}),
+    ...(adminDivisionIds.length ? { divisionIds: [...new Set(adminDivisionIds)], parentSeasonIds } : {})
   };
 }

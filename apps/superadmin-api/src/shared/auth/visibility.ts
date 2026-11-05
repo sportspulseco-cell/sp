@@ -48,6 +48,12 @@ export function visibleSeasonIds(scope: UserScope): SQL | null {
   return sql`(select s.id from seasons s where s.org_id in (${uuidList(scope.orgWideOrgIds)}) or s.league_id in (${uuidList(scope.leagueIds)}) or s.id in (${uuidList(scope.seasonIds)}))`;
 }
 
+/** Full-season grants include every division; direct division grants include only themselves. */
+export function visibleDivisionIds(scope: UserScope): SQL | null {
+  if (unrestricted(scope)) return null;
+  return sql`(select d.id from divisions d where d.season_id in ${visibleSeasonIds(scope)!} or d.id in (${uuidList(scope.divisionIds)}))`;
+}
+
 /**
  * Subquery of user ids reachable from the scope: anyone holding a role
  * or an active roster spot inside it, anyone who submitted a
@@ -63,16 +69,17 @@ export function visibleUserIds(v: Visibility): SQL | null {
       (ura.scope_type = 'org' and ura.scope_id in (${uuidList(scope.orgIds)}))
       or (ura.scope_type = 'league' and ura.scope_id in (${uuidList(scope.leagueIds)}))
       or (ura.scope_type = 'season' and ura.scope_id in ${seasons})
-      or (ura.scope_type = 'division' and ura.scope_id in (select d.id from divisions d where d.season_id in ${seasons}))
+      or (ura.scope_type = 'division' and ura.scope_id in ${visibleDivisionIds(scope)!})
+      or (ura.scope_type = 'team' and ura.scope_id in (select e.team_id from division_team_entries e where e.division_id in ${visibleDivisionIds(scope)!} and e.left_at is null))
       or (ura.scope_type = 'team' and ura.scope_id in (select t.id from teams t where t.org_id in (${uuidList(scope.orgIds)})))
     )
     union select p.user_id from persons p
       join team_memberships tm on tm.person_id = p.id and tm.current_status = 'active'
       join teams t on t.id = tm.team_id
-      where p.user_id is not null and (t.org_id in (${uuidList(scope.orgIds)}) or tm.season_id in ${seasons})
+      where p.user_id is not null and (t.org_id in (${uuidList(scope.orgIds)}) or tm.season_id in ${seasons} or (tm.season_id in (select d.season_id from divisions d where d.id in (${uuidList(scope.divisionIds)})) and tm.team_id in (select e.team_id from division_team_entries e where e.division_id in (${uuidList(scope.divisionIds)}) and e.left_at is null)))
     union select r.submitted_by_user_id from registrations r
       where r.submitted_by_user_id is not null
-        and (r.org_id in (${uuidList(scope.orgWideOrgIds)}) or r.league_id in (${uuidList(scope.leagueIds)}) or r.season_id in ${seasons})
+        and (r.org_id in (${uuidList(scope.orgWideOrgIds)}) or r.league_id in (${uuidList(scope.leagueIds)}) or r.season_id in ${seasons} or r.division_id in (${uuidList(scope.divisionIds)}))
     union select ${v.userId}::uuid
   )`;
 }
@@ -86,7 +93,8 @@ export function visibleFormsWhere(scope: UserScope): SQL | null {
     ${f.orgId} in (${uuidList(scope.orgWideOrgIds)})
     or (${f.scope} = 'league' and ${f.scopeId} in (${uuidList(scope.leagueIds)}))
     or (${f.scope} = 'season' and ${f.scopeId} in ${seasons})
-    or (${f.scope} = 'division' and ${f.scopeId} in (select d.id from divisions d where d.season_id in ${seasons}))
+    or (${f.scope} = 'division' and ${f.scopeId} in ${visibleDivisionIds(scope)!})
+    or (${f.scope} = 'season' and ${f.scopeId} in (${uuidList(scope.parentSeasonIds)}))
     or ${f.seasonId} in ${seasons}
   )`;
 }
@@ -95,7 +103,7 @@ export function visibleFormsWhere(scope: UserScope): SQL | null {
 export function visibleRegistrationsWhere(scope: UserScope): SQL | null {
   if (unrestricted(scope)) return null;
   const r = schema.registrations;
-  return sql`(${r.orgId} in (${uuidList(scope.orgWideOrgIds)}) or ${r.leagueId} in (${uuidList(scope.leagueIds)}) or ${r.seasonId} in ${visibleSeasonIds(scope)!})`;
+  return sql`(${r.orgId} in (${uuidList(scope.orgWideOrgIds)}) or ${r.leagueId} in (${uuidList(scope.leagueIds)}) or ${r.seasonId} in ${visibleSeasonIds(scope)!} or ${r.divisionId} in (${uuidList(scope.divisionIds)}))`;
 }
 
 /** True when the org is one the scope may read. A `null` org is a platform-wide record, visible to everyone. */
@@ -164,7 +172,7 @@ export function visiblePersonIds(v: Visibility): SQL | null {
     select p.id from persons p where p.user_id in ${users}
     union select tm.person_id from team_memberships tm
       join teams t on t.id = tm.team_id
-      where t.org_id in (${uuidList(scope.orgIds)}) or tm.season_id in ${visibleSeasonIds(scope)!}
+      where t.org_id in (${uuidList(scope.orgIds)}) or tm.season_id in ${visibleSeasonIds(scope)!} or (tm.season_id in (select d.season_id from divisions d where d.id in (${uuidList(scope.divisionIds)})) and tm.team_id in (select e.team_id from division_team_entries e where e.division_id in (${uuidList(scope.divisionIds)}) and e.left_at is null))
     union select registrations.subject_person_id from registrations where ${regs}
   )`;
 }

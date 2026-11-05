@@ -200,7 +200,7 @@ export function RosterScreen({
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border">
+      <div className="flex flex-wrap items-center gap-1 border-b border-border">
         {TABS.map((t) => (
           <button
             key={t.key}

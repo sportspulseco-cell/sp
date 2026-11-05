@@ -1,0 +1,4 @@
+import {writeFileSync} from 'node:fs';
+import {browser,open,snapshot} from './browser-lib.mjs';
+import {OUT,sql} from './lib.mjs';
+try{const a=await open('captain','team','/captain/roster');await a.page.setViewportSize({width:320,height:1100});await snapshot(a.page,'captain-roster-mobile');writeFileSync(OUT+'/layout-diagnostics.json',JSON.stringify(await a.page.locator('body').evaluate(b=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,elements:[...b.querySelectorAll('*')].filter(e=>{let r=e.getBoundingClientRect();return r.right>innerWidth+2&&r.width>0}).map(e=>({tag:e.tagName,cls:e.className,text:e.textContent?.slice(0,70),width:e.getBoundingClientRect().width,right:e.getBoundingClientRect().right})).slice(0,30)})),null,2));console.log('Saved layout diagnostics');}finally{await browser.close();await sql.end({timeout:5});}

@@ -67,7 +67,7 @@ export class SeasonsController {
       ...q,
       leagueIdsFilter: scope.leagueIds ?? undefined,
       orgIdsFilter: scope.orgWideOrgIds ?? undefined,
-      seasonIdsFilter: scope.seasonIds ?? undefined
+      seasonIdsFilter: [...(scope.seasonIds ?? []), ...(scope.parentSeasonIds ?? [])]
     });
   }
 
@@ -80,7 +80,7 @@ export class SeasonsController {
       id,
       leagueIdsFilter: scope.leagueIds ?? undefined,
       orgIdsFilter: scope.orgWideOrgIds ?? undefined,
-      seasonIdsFilter: scope.seasonIds ?? undefined
+      seasonIdsFilter: [...(scope.seasonIds ?? []), ...(scope.parentSeasonIds ?? [])]
     });
   }
 

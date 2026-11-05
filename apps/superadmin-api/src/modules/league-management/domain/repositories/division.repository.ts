@@ -14,6 +14,7 @@ export interface ListDivisionsQuery extends PageQuery {
    */
   leagueIdsFilter?: string[];
   seasonIdsFilter?: string[];
+  divisionIdsFilter?: string[];
 }
 
 export interface DivisionRepository {

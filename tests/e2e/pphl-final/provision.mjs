@@ -17,9 +17,10 @@ async function account(key,name,roles,app='player',internal=false) {
   persist();
  }
  const parts=name.split(' '),first=parts[0],last=parts.slice(1).join(' ');
+ const updated=await auth.auth.admin.updateUserById(a.userId,{user_metadata:{full_name:name,display_name:name,first_name:first,last_name:last}});assert.ok(!updated.error,`Update ${key} identity metadata`);
  await sql`update profiles set display_name=${name},legal_first_name=${first},legal_last_name=${last},dob_date='1980-03-03',country_code='US',timezone='America/New_York',status='active',metadata=metadata||jsonb_build_object('pphlFinalTesting',${marker}::text) where id=${a.userId}`;
  const [person]=await sql`select id from persons where user_id=${a.userId}`;
- if(person)a.personId=person.id;
+ if(person){a.personId=person.id;await sql`update persons set legal_first_name=${first},legal_last_name=${last} where id=${person.id}`;}
  else {const [person]=await sql`insert into persons(user_id,legal_first_name,legal_last_name,dob_date,country_code,metadata) values(${a.userId},${first},${last},'1980-03-03','US',jsonb_build_object('pphlFinalTesting',${marker}::text)) returning id`;a.personId=person.id;}
  persist();return a;
 }

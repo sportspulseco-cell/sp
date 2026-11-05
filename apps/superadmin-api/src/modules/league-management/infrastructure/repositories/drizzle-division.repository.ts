@@ -58,7 +58,9 @@ export class DrizzleDivisionRepository implements DivisionRepository {
         .from(schema.seasons)
         .where(inArray(schema.seasons.leagueId, q.leagueIdsFilter));
       const byLeague = inArray(schema.divisions.seasonId, allowedSeasonIds);
-      cs.push(q.seasonIdsFilter?.length ? or(byLeague, inArray(schema.divisions.seasonId, q.seasonIdsFilter))! : byLeague);
+      cs.push(or(byLeague,
+        ...(q.seasonIdsFilter?.length ? [inArray(schema.divisions.seasonId, q.seasonIdsFilter)] : []),
+        ...(q.divisionIdsFilter?.length ? [inArray(schema.divisions.id, q.divisionIdsFilter)] : []))!);
     } else if (q.seasonIdsFilter?.length) {
       cs.push(inArray(schema.divisions.seasonId, q.seasonIdsFilter));
     }

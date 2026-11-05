@@ -41,6 +41,7 @@ export interface ListDivisionsInput {
   search?: string;
   leagueIdsFilter?: string[];
   seasonIdsFilter?: string[];
+  divisionIdsFilter?: string[];
 }
 
 @Injectable()
@@ -49,7 +50,7 @@ export class ListDivisionsHandler
 {
   constructor(@Inject(DIVISION_REPOSITORY) private readonly divisions: DivisionRepository) {}
   async execute(input: ListDivisionsInput): Promise<DivisionPageDto> {
-    if (input.leagueIdsFilter && input.leagueIdsFilter.length === 0 && !input.seasonIdsFilter?.length) {
+    if (input.leagueIdsFilter && input.leagueIdsFilter.length === 0 && !input.seasonIdsFilter?.length && !input.divisionIdsFilter?.length) {
       return { items: [], nextCursor: null };
     }
     const page = await this.divisions.list({
@@ -60,7 +61,8 @@ export class ListDivisionsHandler
       status: input.status,
       search: input.search,
       leagueIdsFilter: input.leagueIdsFilter,
-      seasonIdsFilter: input.seasonIdsFilter
+      seasonIdsFilter: input.seasonIdsFilter,
+      divisionIdsFilter: input.divisionIdsFilter
     });
     return {
       items: page.items.map(DivisionDto.fromDomain),
@@ -73,7 +75,7 @@ export class ListDivisionsHandler
 export class GetDivisionHandler
   implements
     QueryHandler<
-      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[]; seasonIdsFilter?: string[] },
+      { id: string; leagueIdsFilter?: string[]; orgIdsFilter?: string[]; seasonIdsFilter?: string[]; divisionIdsFilter?: string[] },
       DivisionDto
     >
 {
@@ -83,9 +85,11 @@ export class GetDivisionHandler
     leagueIdsFilter?: string[];
     orgIdsFilter?: string[];
     seasonIdsFilter?: string[];
+    divisionIdsFilter?: string[];
   }): Promise<DivisionDto> {
     const d = await this.divisions.findById(DivisionId.of(input.id));
     if (!d) throw new NotFoundError("Division", input.id);
+    if (input.divisionIdsFilter?.includes(input.id)) return DivisionDto.fromDomain(d);
     if (input.seasonIdsFilter?.includes(d.seasonId.value)) return DivisionDto.fromDomain(d);
 
     // Scope check: division → parent season has leagueId + orgId.
