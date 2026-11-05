@@ -211,7 +211,7 @@ export function evaluateSeasonEligibility(input: SeasonEligibilityInput): Season
     ruleEvaluation.usaHockeyId = {
       provided: id?.externalId ?? null,
       expiresAt: expires?.toISOString() ?? null,
-      source: id?.source === "api" ? "live_api" : "self_attest",
+      source: id?.source === "api" ? "live_api" : id?.source === "document_upload" ? "document_review" : "self_attest",
       status: usa,
       checkedAt,
       adminWaived: false,

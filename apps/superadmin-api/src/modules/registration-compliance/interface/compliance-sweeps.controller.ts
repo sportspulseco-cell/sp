@@ -71,6 +71,25 @@ export class ComplianceSweepsController {
     private readonly notify: NotificationService
   ) {}
 
+  /** Internal refresh after evidence changes; keep all other eligibility rules. */
+  async refreshPersonMembership(personId: string) {
+    const memberships = await this.db.selectDistinct({ seasonId: schema.teamMemberships.seasonId })
+      .from(schema.teamMemberships).where(and(eq(schema.teamMemberships.personId, personId),
+        eq(schema.teamMemberships.currentStatus, "active")));
+    const suspensions = await loadStandingSuspensions(this.db, [personId]);
+    const severity = ["eligible", "expiring", "pending", "flagged", "expired", "ineligible"];
+    for (const { seasonId } of memberships) {
+      if (!seasonId) continue;
+      const season = await this.loadSeason(seasonId);
+      if (!season) continue;
+      const members = (await this.loadActiveMembers(seasonId)).filter(m => m.personId === personId);
+      const evaluations = await Promise.all(members.map(m => this.evaluateRegistrationChecks(m, season, seasonId, suspensions)));
+      evaluations.sort((a, b) => severity.indexOf(b.status) - severity.indexOf(a.status));
+      const worst = evaluations[0];
+      if (worst) await this.upsertEligibility(personId, seasonId, worst.ruleEvaluation as Record<string, unknown>, worst.status);
+    }
+  }
+
   // -------------------------------------------------------------------
   // POST /compliance/eligibility/season/:id/sweep
   // Bulk re-run of all 5 registration checks.
@@ -338,15 +357,17 @@ export class ComplianceSweepsController {
       let check2 = true;
       if (requireUsaHockeyId) {
         const [idRow] = await this.db
-          .select()
+          .select({ externalId: schema.identityVerifications.externalId, status: schema.identityVerifications.status,
+            expiresAt: schema.identityVerifications.expiresAt, source: schema.identityVerifications.source })
           .from(schema.identityVerifications)
-          .where(eq(schema.identityVerifications.personId, m.personId))
+          .innerJoin(schema.governingBodies, eq(schema.governingBodies.id, schema.identityVerifications.governingBodyId))
+          .where(and(eq(schema.identityVerifications.personId, m.personId), eq(schema.governingBodies.code, "USA_HOCKEY")))
           .orderBy(sql`${schema.identityVerifications.createdAt} DESC`)
           .limit(1);
         const cutoff = playoffConfig.startDate
           ? new Date(playoffConfig.startDate)
           : new Date();
-        check2 = !!idRow?.expiresAt && idRow.expiresAt >= cutoff;
+        check2 = idRow?.status === "verified" && !!idRow.expiresAt && idRow.expiresAt >= cutoff;
       }
 
       // Check 3: guest appearances within the season limit (this season's games only)
@@ -680,9 +701,11 @@ export class ComplianceSweepsController {
 
     const [id] = requireUsaHockeyId
       ? await this.db
-          .select()
+          .select({ externalId: schema.identityVerifications.externalId, status: schema.identityVerifications.status,
+            expiresAt: schema.identityVerifications.expiresAt, source: schema.identityVerifications.source })
           .from(schema.identityVerifications)
-          .where(eq(schema.identityVerifications.personId, m.personId))
+          .innerJoin(schema.governingBodies, eq(schema.governingBodies.id, schema.identityVerifications.governingBodyId))
+          .where(and(eq(schema.identityVerifications.personId, m.personId), eq(schema.governingBodies.code, "USA_HOCKEY")))
           .orderBy(sql`${schema.identityVerifications.createdAt} DESC`)
           .limit(1)
       : [];

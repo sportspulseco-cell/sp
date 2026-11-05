@@ -338,7 +338,8 @@ export class CreateGameHandler
         .values(gameInsertValues(g.toSnapshot()))
         .returning({ id: schema.games.id });
       if (rows.length !== 1) throw new Error(`game insert wrote ${rows.length} rows`);
-      return { id: g.id.value, start: placed.start, forcedOver: conflicts.length };
+      const notices = g.publishedAt ? await notifyScheduled(tx as unknown as Database, this.notify, g, tx) : { recipients: 0, queued: 0 };
+      return { id: g.id.value, start: placed.start, forcedOver: conflicts.length, notices };
     });
 
     const saved = await this.games.findById(GameId.of(created.id));
@@ -351,9 +352,7 @@ export class CreateGameHandler
     ) {
       throw new Error(`game ${created.id}: readback after create does not match what was written`);
     }
-    const notices = saved.publishedAt
-      ? await notifyScheduled(this.db, this.notify, saved)
-      : { recipients: 0, queued: 0 };
+    const notices = created.notices;
     log.log(
       `create game=${created.id} by=${input.userId} division=${input.divisionId} surface=${input.surfaceId} start=${created.start.toISOString()} published=${!!saved.publishedAt} forcedOver=${created.forcedOver} queued=${notices.queued}`
     );
@@ -364,7 +363,8 @@ export class CreateGameHandler
 async function notifyScheduled(
   db: Database,
   notify: NotificationService,
-  g: Game
+  g: Game,
+  tx?: Tx
 ): Promise<GameNoticeResult> {
   const target = {
     id: g.id.value,
@@ -387,7 +387,7 @@ async function notifyScheduled(
         ? ` at ${g.venueName}${g.surfaceLabel ? `, ${g.surfaceLabel}` : ""}`
         : ""
     }
-  });
+  }, tx);
 }
 
 /** Lock the game row for the rest of the transaction and load it. */
@@ -424,20 +424,18 @@ export class PublishGameHandler
     private readonly notify: NotificationService
   ) {}
   async execute(input: { id: string }): Promise<GameDto & { notificationsQueued: number }> {
-    const changed = await this.db.transaction(async (tx) => {
+    const { changed, notices } = await this.db.transaction(async (tx) => {
       await lockSchedulePublication(tx);
       const g = await lockGame(tx, input.id);
       await assertSchedulePublishable(tx, sql`g.id = ${input.id}`);
       const status = g.status;
       const didPublish = g.publish();
       if (didPublish) await saveIfStatus(tx, g, status);
-      return didPublish;
+      const notices = didPublish ? await notifyScheduled(tx as unknown as Database, this.notify, g, tx) : { recipients: 0, queued: 0 };
+      return { changed: didPublish, notices };
     });
     const fresh = await this.games.findById(GameId.of(input.id));
     if (!fresh?.publishedAt) throw new Error(`game ${input.id}: published_at missing after publish`);
-    const notices = changed
-      ? await notifyScheduled(this.db, this.notify, fresh)
-      : { recipients: 0, queued: 0 };
     log.log(`publish game=${input.id} changed=${changed} queued=${notices.queued}`);
     return { ...GameDto.fromDomain(fresh), notificationsQueued: notices.queued };
   }

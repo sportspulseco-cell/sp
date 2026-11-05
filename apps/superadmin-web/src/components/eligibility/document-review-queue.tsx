@@ -18,6 +18,7 @@ export function DocumentReviewQueue({
       initialError={initialError}
       personHref={(personId) => `/persons/${personId}`}
       api={{
+        get: (id) => compliance.getDocumentSubmission(id),
         list: (q) => compliance.listDocumentSubmissions(q),
         decide: (id, body) => compliance.decideDocumentSubmission(id, body),
         fileUrl: (id) => compliance.documentSubmissionFile(id),

@@ -1,3 +1,4 @@
+import { activeRoleAssignment } from "./active-role";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -25,7 +26,7 @@ export async function userHasOrgAdminOnOrg(
         eq(schema.userRoleAssignments.userId, userId),
         eq(schema.userRoleAssignments.scopeType, "org"),
         eq(schema.userRoleAssignments.scopeId, orgId),
-        isNull(schema.userRoleAssignments.revokedAt)
+        activeRoleAssignment()
       )
     );
   return rows.some((r) => ["super_admin", "org_admin"].includes(r.code));
@@ -60,7 +61,7 @@ export async function userIsPeopleAdmin(db: Database, userId: string): Promise<b
     .where(
       and(
         eq(schema.userRoleAssignments.userId, userId),
-        isNull(schema.userRoleAssignments.revokedAt)
+        activeRoleAssignment()
       )
     );
   return rows.some((r) => PEOPLE_ADMIN_ROLES.includes(r.code));

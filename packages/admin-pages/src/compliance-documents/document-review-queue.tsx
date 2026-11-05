@@ -8,6 +8,7 @@ import {
   Button,
   Dialog,
   EmptyState,
+  Input,
   LoadError,
   LocalDate,
   Select,
@@ -39,10 +40,12 @@ import { LicenceScan } from "./licence-scan";
 
 /** Transport injected by the consuming app (sa-web / org-admin-web). Scope is enforced by the API. */
 export interface DocumentReviewApi {
+  get: (id: string) => Promise<AdminComplianceDocument>;
   list: (q: { status?: ComplianceDocumentStatus; cursor?: string }) => Promise<ComplianceDocumentQueuePage>;
   decide: (
     id: string,
-    body: { decision: ComplianceDocumentDecision; reason?: string | null }
+    body: { decision: ComplianceDocumentDecision; reason?: string | null;
+      membershipProof?: { identityVerificationId: string; expectedExternalId: string; expiresAt: string; confirmedMatched: true } }
   ) => Promise<{ alreadyDecided: boolean; notified: number; submission: AdminComplianceDocument }>;
   fileUrl: (id: string) => Promise<ComplianceFileLink>;
   /** UC-29 licence barcode check. Without it the scan section is hidden. */
@@ -311,6 +314,11 @@ function ReviewDialog({
   const [busy, setBusy] = useState<ComplianceDocumentDecision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [idChecks, setIdChecks] = useState<LicenceIdCheck[]>(doc.idChecks ?? []);
+  const [memberships, setMemberships] = useState<NonNullable<AdminComplianceDocument["memberships"]>>([]);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
+  const [membershipId, setMembershipId] = useState("");
+  const [membershipExpiry, setMembershipExpiry] = useState("");
+  const [confirmedMatched, setConfirmedMatched] = useState(false);
   const rule = useMemo(() => divisionRule(doc), [doc]);
   const localDate = useLocalDate();
   // The consuming app builds `api` inline; keep the latest without
@@ -320,6 +328,9 @@ function ReviewDialog({
 
   useEffect(() => {
     let live = true;
+    if (doc.kind === "governing_body_card") apiRef.current.get(doc.id).then(detail => {
+      if (live) setMemberships(detail.memberships ?? []);
+    }).catch((e: Error) => { if (live) setMembershipError(e.message); });
     apiRef.current
       .fileUrl(doc.id)
       .then((l) => live && setLink(l))
@@ -342,7 +353,16 @@ function ReviewDialog({
     }
     setBusy(decision);
     try {
-      const res = await api.decide(doc.id, { decision, reason: trimmed || null });
+      const membership = memberships.find(m => m.id === membershipId);
+      if (decision === "approved" && doc.kind === "governing_body_card" &&
+          (!membership || !membershipExpiry || !confirmedMatched || !link)) {
+        throw new Error("Review the card, choose the matching membership ID, enter its expiry and confirm the details.");
+      }
+      const res = await api.decide(doc.id, { decision, reason: trimmed || null,
+        membershipProof: decision === "approved" && membership ? {
+          identityVerificationId: membership.id, expectedExternalId: membership.externalId,
+          expiresAt: `${membershipExpiry}T23:59:59.999Z`, confirmedMatched: true,
+        } : undefined });
       const label = COMPLIANCE_DOCUMENT_STATUS_LABELS[res.submission.status];
       const msg = res.alreadyDecided
         ? `${doc.personName}: already ${label.toLowerCase()}. Nothing changed.`
@@ -422,6 +442,25 @@ function ReviewDialog({
             </div>
           )}
         </div>
+
+        {doc.kind === "governing_body_card" ? (
+          <fieldset className="space-y-3 rounded-md border border-border p-3" disabled={busy !== null}>
+            <legend className="px-1 text-sm font-medium">Membership proof</legend>
+            <p className="text-sm text-fg-muted">Check the member's name, ID and expiry on the card. This records a staff review; it does not query the registry.</p>
+            {membershipError ? <Alert tone="error">Could not load membership IDs: {membershipError}. Close and reopen to retry.</Alert> : null}
+            <label className="block text-sm">Membership ID
+              <Select value={membershipId} onChange={e => { setMembershipId(e.target.value); setConfirmedMatched(false); }}>
+                <option value="">Choose the ID shown on the card</option>
+                {memberships.map(m => <option key={m.id} value={m.id}>{m.governingBodyName} · {m.externalId} ({m.status})</option>)}
+              </Select>
+            </label>
+            {!memberships.length && !membershipError ? <p className="text-sm text-fg-muted">If no ID appears, ask the player to enter their membership ID under Waivers &amp; documents first.</p> : null}
+            <label className="block text-sm">Membership expires on
+              <Input type="date" value={membershipExpiry} onChange={e => { setMembershipExpiry(e.target.value); setConfirmedMatched(false); }} />
+            </label>
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmedMatched} onChange={e => setConfirmedMatched(e.target.checked)} /> I checked the card and its name, membership ID and expiry match this member.</label>
+          </fieldset>
+        ) : null}
 
         {doc.kind === "government_id" && api.licenceCheck ? (
           <LicenceScan

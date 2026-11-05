@@ -58,12 +58,16 @@ try {
   // ---------------- 1. Hierarchy ----------------
   oa = await login(CFG.orgAdmin.email, CFG.orgAdmin.password);
   sa = await login(CFG.superAdmin.email, CFG.superAdmin.password);
+  for (const token of [oa,sa]) {
+    const ready=await call("GET","/iam/me",undefined,token);
+    if(ready.status!==200)throw new Error(`Authenticated API preflight failed (${ready.status}); no business fixtures will be created.`);
+  }
   const [org] = await q(`select id, display_name as name, slug from orgs where slug = $1`, [CFG.orgSlug]);
   ids.orgId = org.id;
   step("setup", `target org on ${TARGET} is "${org?.name}" (${CFG.orgSlug}); PPHL's real org is never written`, !!org && org.slug === CFG.orgSlug);
 
   let leagueName = "Test League Oct";
-  const [dupe] = await q(`select id from leagues where org_id = $1 and name = $2 and deleted_at is null`, [org.id, leagueName]).catch(() => q(`select id from leagues where org_id = $1 and name = $2`, [org.id, leagueName]));
+  const [dupe] = await q(`select id from leagues where org_id = $1 and name = $2 and status <> 'archived' and deleted_at is null`, [org.id, leagueName]);
   if (dupe) {
     const again = await call("POST", "/league/leagues", { orgId: org.id, sportCode: "HOCKEY_ICE", name: leagueName }, oa);
     step("setup", "a second league with the same name in the same org is refused", again.status === 409 || again.status === 400, `${again.status} ${msgOf(again)}`);

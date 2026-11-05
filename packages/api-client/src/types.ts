@@ -467,6 +467,7 @@ export interface ComplianceDocumentSubmission {
 
 /** Review-queue row: the submission plus what the reviewer checks it against. */
 export interface AdminComplianceDocument extends ComplianceDocumentSubmission {
+  memberships?: Array<{ id: string; governingBodyName: string; externalId: string; status: string; expiresAt: string | null }>;
   dobDate: string | null;
   submittedByName: string | null;
   /** True when someone other than the person uploaded it (a guardian). */

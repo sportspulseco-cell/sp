@@ -1,3 +1,4 @@
+import { activeRoleAssignment } from "./active-role";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -23,7 +24,7 @@ export async function userIsTeamStaff(
         eq(schema.userRoleAssignments.scopeType, "team"),
         eq(schema.userRoleAssignments.scopeId, teamId),
         eq(schema.roles.code, "coach"),
-        isNull(schema.userRoleAssignments.revokedAt)
+        activeRoleAssignment()
       )
     )
     .limit(1);
@@ -83,7 +84,7 @@ export async function userIsCaptainOfTeam(
         eq(schema.userRoleAssignments.scopeType, "team"),
         eq(schema.userRoleAssignments.scopeId, teamId),
         eq(schema.roles.code, "captain"),
-        isNull(schema.userRoleAssignments.revokedAt)
+        activeRoleAssignment()
       )
     )
     .limit(1);

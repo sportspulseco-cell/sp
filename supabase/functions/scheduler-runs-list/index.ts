@@ -18,12 +18,15 @@ import { serviceRoleClient } from "../_shared/supabase-client.ts";
 import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 
 interface ListBody {
+  includeSettings?: boolean;
   seasonId: string;
   divisionId?: string;
   limit?: number;
 }
 
 interface ScheduleRunListItem {
+  settings?: { gamesPerPair?: number; timeLimitSeconds?: number; maxLateFraction?: number;
+    maxGamesPerTeamPerWeek?: number; teamConstraints: Record<string, unknown> };
   id: string;
   seasonId: string;
   divisionId: string | null;
@@ -96,12 +99,12 @@ Deno.serve(async (req) => {
   }, appMetadata);
   if (!allowed) return forbidden("scheduler.report.read permission required");
 
-  const limit = Math.min(Math.max(body.limit ?? 50, 1), 200);
+  const limit = body.includeSettings ? 1 : Math.min(Math.max(body.limit ?? 50, 1), 200);
 
   let rq = sb
     .from("schedule_runs")
     .select(
-      "id, season_id, division_id, engine, seed, input_hash, status, games_created, games_locked_preserved, duration_ms, ran_by_user_id, ran_at, infeasibility_report",
+      "id, season_id, division_id, engine, seed, input_hash, status, games_created, games_locked_preserved, duration_ms, ran_by_user_id, ran_at, infeasibility_report" + (body.includeSettings ? ", constraint_snapshot" : ""),
     )
     .eq("season_id", body.seasonId)
     .order("ran_at", { ascending: false })
@@ -155,6 +158,20 @@ Deno.serve(async (req) => {
         ? (inf.summary as string)
         : null;
     return {
+      ...(body.includeSettings ? { settings: (() => {
+        // Only the human-editable constraints cross the wire; never the slot inventory.
+        const saved = (r as unknown as { constraint_snapshot: Record<string, unknown> }).constraint_snapshot ?? {};
+        const savedTeams = Array.isArray(saved.teams) ? saved.teams as Array<Record<string, unknown>> : [];
+        return { gamesPerPair: saved.gamesPerPair as number | undefined,
+          timeLimitSeconds: saved.timeLimitSeconds as number | undefined,
+          maxLateFraction: saved.maxLateFraction as number | undefined,
+          maxGamesPerTeamPerWeek: saved.maxGamesPerTeamPerWeek as number | undefined,
+          teamConstraints: Object.fromEntries(savedTeams.map(t => [String(t.teamId), {
+            blackouts: t.blackouts, preferredWeekdays: t.preferredWeekdays, preferredVenueIds: t.preferredVenueIds,
+            maxOffNightGames: t.maxOffNightGames, maxOffVenueGames: t.maxOffVenueGames,
+          }])),
+        };
+      })() } : {}),
       id: r.id as string,
       seasonId: r.season_id as string,
       divisionId: (r.division_id as string | null) ?? null,

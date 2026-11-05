@@ -53,6 +53,10 @@ export class DuplicateSeasonService {
       const instant=(v:Date|null,tz=zone)=>shiftSeasonInstant(v,days,tz);
       let leagueId=source.leagueId;
       if(input.newLeagueName?.trim()){
+        const leagueName=input.newLeagueName.trim();
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`league-name:${source.orgId}:${leagueName.toLowerCase()}`}))`);
+        const [clash]=await tx.select({id:schema.leagues.id}).from(schema.leagues).where(and(eq(schema.leagues.orgId,source.orgId),isNull(schema.leagues.deletedAt),sql`${schema.leagues.status} <> 'archived' and lower(btrim(${schema.leagues.name})) = lower(btrim(${leagueName}))`)).limit(1);
+        if(clash)throw new ConflictError("A live league already uses that name. Choose another name for the copy.");
         const [league]=await tx.select().from(schema.leagues).where(eq(schema.leagues.id,source.leagueId)).limit(1);
         if(!league)throw new NotFoundError("League",source.leagueId);
         leagueId=randomUUID();

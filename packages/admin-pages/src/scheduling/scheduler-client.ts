@@ -224,6 +224,8 @@ export interface ApplyConflictResponse {
 }
 
 export interface ScheduleRunListItem {
+  settings?: { gamesPerPair?: number; timeLimitSeconds?: number; maxLateFraction?: number;
+    maxGamesPerTeamPerWeek?: number; teamConstraints: Record<string, TeamScheduleConstraints> };
   id: string;
   seasonId: string;
   divisionId: string | null;
@@ -243,6 +245,7 @@ export interface ScheduleRunListItem {
 }
 
 export interface ListRunsRequest {
+  includeSettings?: boolean;
   seasonId: string;
   divisionId?: string;
   limit?: number;

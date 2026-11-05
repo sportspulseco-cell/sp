@@ -16,6 +16,7 @@ export { FinanceReportsPanel } from "./finance/finance-reports-panel";
 export type { FinanceBalances, FinanceExportKind, FinanceReportsPanelProps } from "./finance/finance-reports-panel";
 export { SeasonDetail } from "./season-detail";
 export { CopySeasonButton } from "./copy-season";
+export { BulkCopySeasonsButton } from "./bulk-copy-seasons";
 export { SeasonFlow } from "./season-flow";
 export type { SeasonFlowApi, SeasonFlowLinks } from "./season-flow";
 export { SeasonStatusControl } from "./season-status-control";

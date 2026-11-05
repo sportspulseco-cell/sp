@@ -4,6 +4,8 @@ import { Alert, EmptyState, PageHeader, UrlFilters } from "@sportspulse/ui";
 import { CalendarRange, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { gameOps } from "@/lib/api/server-api";
+import { iam } from "@/lib/api/server-api";
+import { OfficialAvailability } from "./official-availability";
 import { GameStatusBadge } from "@/components/games/game-status-badge";
 import type { Game, GameStatus } from "@/lib/api/types";
 
@@ -27,6 +29,7 @@ export async function OfficialGames({
   sp: { q?: string; status?: GameStatus };
 }) {
   let loadFailed = false;
+  const profile=await iam.me();
   const page = await fetchAll((cursor) =>
     gameOps.listGames({ assignedToMe: true, status: sp.status, limit: 100, cursor })
   ).catch((e) => {
@@ -61,6 +64,7 @@ export async function OfficialGames({
         title="My games"
         description="Games you keep score or referee for. Open one to run the scoresheet."
       />
+      <OfficialAvailability timezone={profile.timezone || "UTC"}/>
       <UrlFilters
         searchPlaceholder="Search by team or rink"
         selects={[{ param: "status", label: "Status", allLabel: "All statuses", options: STATUS_OPTIONS }]}

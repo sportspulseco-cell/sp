@@ -123,9 +123,10 @@ export async function queueGameNotice(
     eventKey: string;
     orgId: string | null;
     payload: Record<string, unknown>;
-  }
+  },
+  tx?: import("../../../communications/application/notification.service").NotificationTransaction
 ): Promise<GameNoticeResult> {
-  const recipients = await recipientsFor(db, args.game);
+  const recipients = await recipientsFor((tx ?? db) as Database, args.game);
   let queued = 0;
   // Batches of 8: two full rosters can be 30+ people, and queueing them
   // one after another inside the finalize request ran close to the API's
@@ -143,7 +144,7 @@ export async function queueGameNotice(
           recipientEmail: r.email,
           payload: { ...args.payload, gameId: args.game.id, seasonId: args.game.seasonId },
           sourceEvent: args.templateCode
-        })
+        }, tx)
       )
     );
     queued += rows.filter(Boolean).length;

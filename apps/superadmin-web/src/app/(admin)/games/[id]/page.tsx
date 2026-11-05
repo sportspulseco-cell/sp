@@ -58,6 +58,7 @@ export default async function GameDetailPage({
     );
   }
   const game = gameResult.data;
+  const myPersonId = official ? (await iam.meScope()).personId : null;
 
   const none = { items: [], nextCursor: null };
   const [events, statLines, teamsPage, leaguesPage, officials, personsPage, division, suspensionsResult, gamePlayers] = await Promise.all([
@@ -220,6 +221,7 @@ export default async function GameDetailPage({
         persons={personsPage.items}
         personMap={Array.from(personMap.entries())}
         canEdit={can("game.assign_officials")}
+        myPersonId={myPersonId}
       />
 
       {/* Subs (UC-31): both teams' guests and sub requests; assign a sub

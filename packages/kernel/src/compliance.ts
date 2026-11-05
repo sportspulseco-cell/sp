@@ -61,7 +61,7 @@ export type EligibilityStatus = (typeof ELIGIBILITY_STATUSES)[number];
 export interface UsaHockeyEvaluation {
   provided: string | null;
   expiresAt: string | null;
-  source: "self_attest" | "live_api";
+  source: "self_attest" | "live_api" | "document_review";
   /**
    * `pending` = self-attested and not verified yet; `mismatch` = the
    * identity check failed. Neither counts as verified (COMP-14).

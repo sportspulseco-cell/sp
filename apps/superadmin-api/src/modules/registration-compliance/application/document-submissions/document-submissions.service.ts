@@ -37,6 +37,8 @@ import { visibleComplianceSubmissionsWhere } from "../../../../shared/auth/visib
 import { AuditWriterService } from "../../../audit/application/audit-writer.service";
 import { NotificationService } from "../../../communications/application/notification.service";
 import { complianceRecipients } from "../compliance-recipients";
+import { reviewMembershipProof, invalidateMembershipProof, type MembershipProofReview } from "./membership-proof";
+import { ComplianceSweepsController } from "../../interface/compliance-sweeps.controller";
 
 /**
  * COMP-3 + COMP-1 (UC-29): player / guardian uploads of ID and
@@ -111,6 +113,7 @@ export interface ComplianceDocumentSubmissionDto {
 
 /** Queue row: the submission plus what the reviewer checks it against (UC-29). */
 export interface AdminComplianceDocumentDto extends ComplianceDocumentSubmissionDto {
+  memberships?: Array<{ id: string; governingBodyName: string; externalId: string; status: string; expiresAt: string | null }>;
   dobDate: string | null;
   submittedByName: string | null;
   /** True when someone other than the person uploaded it (a guardian). */
@@ -220,7 +223,8 @@ export class ComplianceDocumentSubmissionsService {
     private readonly storage: SupabaseAdminService,
     private readonly notify: NotificationService,
     private readonly audit: AuditWriterService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly eligibilitySweeps: ComplianceSweepsController
   ) {}
 
   // ------------------------------------------------------------------
@@ -539,7 +543,15 @@ export class ComplianceDocumentSubmissionsService {
     if (!row) throw new NotFoundException("Document not found");
     const decisions = await this.decisionsFor([row.id]);
     const checks = await this.idChecksFor([row.id]);
-    return this.toAdminDto(row, decisions.get(row.id) ?? [], checks);
+    const memberships = row.kind === "governing_body_card" ? await this.db.select({
+      id: schema.identityVerifications.id, governingBodyName: schema.governingBodies.name,
+      externalId: schema.identityVerifications.externalId, status: schema.identityVerifications.status,
+      expiresAt: schema.identityVerifications.expiresAt,
+    }).from(schema.identityVerifications).innerJoin(schema.governingBodies,
+      eq(schema.governingBodies.id, schema.identityVerifications.governingBodyId))
+      .where(eq(schema.identityVerifications.personId, row.personId)) : [];
+    return { ...this.toAdminDto(row, decisions.get(row.id) ?? [], checks),
+      memberships: memberships.map(m => ({ ...m, expiresAt: m.expiresAt?.toISOString() ?? null })) };
   }
 
   /**
@@ -555,6 +567,7 @@ export class ComplianceDocumentSubmissionsService {
     id: string;
     decision: ComplianceDocumentDecision;
     reason?: string | null;
+    membershipProof?: MembershipProofReview;
   }): Promise<{ submission: AdminComplianceDocumentDto; alreadyDecided: boolean; notified: number }> {
     await this.getForAdmin(input.scope, input.id);
     const cds = schema.complianceDocumentSubmissions;
@@ -562,7 +575,7 @@ export class ComplianceDocumentSubmissionsService {
 
     const result = await this.db.transaction(async (tx) => {
       const [row] = await tx
-        .select({ id: cds.id, status: cds.status })
+        .select({ id: cds.id, status: cds.status, kind: cds.kind, personId: cds.personId, sha256: cds.sha256 })
         .from(cds)
         .where(eq(cds.id, input.id))
         .for("update");
@@ -583,7 +596,22 @@ export class ComplianceDocumentSubmissionsService {
         if (check.code === "withdrawn") throw new ConflictException(check.reason);
         throw new BadRequestException(check.reason);
       }
-      if (!check.changed) return { changed: false as const, decisionId: null };
+      let proofChanged = false;
+      if (input.membershipProof && input.decision !== "approved") {
+        throw new BadRequestException("Membership verification requires approval of the proof.");
+      }
+      if (row.kind === "governing_body_card" && input.decision === "approved") {
+        if (!input.membershipProof) throw new BadRequestException("Select the membership ID and confirm the card details before approval.");
+        proofChanged = await reviewMembershipProof(tx, row, input.actorUserId, input.membershipProof);
+      }
+      if (!check.changed && !proofChanged) return { changed: false as const, decisionId: null };
+      if (input.decision !== "approved") await invalidateMembershipProof(tx, row.id);
+      // Never leave a stale eligible result if the subsequent refresh fails.
+      if (row.kind === "governing_body_card") await tx.update(schema.eligibilityRecords)
+        .set({ status: "pending", updatedAt: sql`now()` }).where(and(
+          eq(schema.eligibilityRecords.personId, row.personId),
+          notInArray(schema.eligibilityRecords.status, ["waived", "ineligible", "expired"]),
+        ));
 
       const inserted = await tx
         .insert(cdd)
@@ -613,6 +641,10 @@ export class ComplianceDocumentSubmissionsService {
     );
 
     const submission = await this.getForAdmin(input.scope, input.id);
+    if (result.changed && submission.kind === "governing_body_card") {
+      try { await this.eligibilitySweeps.refreshPersonMembership(submission.personId); }
+      catch (error) { this.log.error(`Membership proof saved; eligibility refresh pending for submission ${input.id}`, error instanceof Error ? error.stack : undefined); }
+    }
     if (submission.status !== input.decision) {
       this.log.error(
         `compliance decision readback mismatch id=${input.id}: wanted ${input.decision}, read ${submission.status}`

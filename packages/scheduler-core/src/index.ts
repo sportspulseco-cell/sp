@@ -4,4 +4,5 @@ export * from "./engine";
 export * from "./fairness";
 export * from "./tiebreaker";
 export * from "./post-solve";
+export * from "./final-constraints";
 export * from "./bracket";

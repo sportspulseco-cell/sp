@@ -1,3 +1,4 @@
+import { activeRoleAssignment } from "../active-role";
 ﻿import {
   CanActivate,
   ExecutionContext,
@@ -78,7 +79,7 @@ export class AuthorizedAccessGuard implements CanActivate {
         .where(
           and(
             eq(schema.userRoleAssignments.userId, principal.userId),
-            isNull(schema.userRoleAssignments.revokedAt),
+            activeRoleAssignment(),
             inArray(schema.userRoleAssignments.scopeType, ["season", "game"]),
             inArray(schema.roles.code, ["season_admin", "scorekeeper", "referee"])
           )

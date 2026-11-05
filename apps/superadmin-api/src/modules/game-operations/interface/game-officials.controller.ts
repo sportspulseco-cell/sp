@@ -16,11 +16,22 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { IsArray, ArrayMaxSize, IsDateString, ValidateNested } from "class-validator";
+import { Type } from "class-transformer";
+import { officialUnavailableAt } from "@sportspulse/kernel";
 import { GAME_DAY_ROLE_CODES, GAME_OFFICIAL_ROLE_LABELS, type GameOfficialRoleCode } from "@sportspulse/kernel";
 import { NotificationService } from "../../communications/application/notification.service";
 import { gameNoticeContext, gameTimeLabel } from "../application/games/game-notifications";
+import type { GameOfficialRow } from "../domain/repositories/game-official.repository";
 
 const log = new Logger("GameOfficials");
+class AvailabilityPeriod {
+  @IsDateString() startTsUtc!:string;
+  @IsDateString() endTsUtc!:string;
+}
+class AvailabilityBody {
+  @IsArray() @ArrayMaxSize(100) @ValidateNested({each:true}) @Type(()=>AvailabilityPeriod) periods!:AvailabilityPeriod[];
+}
 import type { AuthPrincipal } from "@sportspulse/auth";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
@@ -54,9 +65,8 @@ import {
 /**
  * Game officials. Reads follow the game's visibility; assigning and
  * revoking need `game.assign_officials` on the game (league and org
- * admins: PPHL 7.1 "Assign refs"). Person-wide lists and the official's
- * own confirm/decline stay platform-admin only until a referee surface
- * exists (UC-30 not built).
+ * admins: PPHL 7.1 "Assign refs"). Officials can read their own history,
+ * maintain private availability and confirm or decline their own invitation.
  */
 @ApiTags("game-operations/officials")
 @ApiBearerAuth()
@@ -72,6 +82,20 @@ export class GameOfficialsController {
     private readonly notify: NotificationService,
     @Inject(DRIZZLE) private readonly db: Database
   ) {}
+
+  @Get("game-officials/availability/me")
+  async availability(@CurrentUser() user:AuthPrincipal) {
+    const [profile]=await this.db.select({metadata:schema.profiles.metadata}).from(schema.profiles).where(eq(schema.profiles.id,user.userId)).limit(1);
+    const data=(profile?.metadata as {officialAvailability?:{periods?:AvailabilityPeriod[]}}|undefined)?.officialAvailability;
+    return {periods:Array.isArray(data?.periods)?data.periods:[]};
+  }
+  @Post("game-officials/availability/me") @AllowScopedWrite()
+  async saveAvailability(@Body() body:AvailabilityBody,@CurrentUser() user:AuthPrincipal) {
+    if(body.periods.some(p=>!/(Z|[+-]\d{2}:\d{2})$/.test(p.startTsUtc) || !/(Z|[+-]\d{2}:\d{2})$/.test(p.endTsUtc) || Date.parse(p.startTsUtc)>=Date.parse(p.endTsUtc)))throw new BadRequestException("Unavailable periods need explicit time zones, with end after start.");
+    const data={periods:body.periods.map(p=>({startTsUtc:new Date(p.startTsUtc).toISOString(),endTsUtc:new Date(p.endTsUtc).toISOString()}))};
+    await this.db.update(schema.profiles).set({metadata:sql`jsonb_set(coalesce(${schema.profiles.metadata},'{}'::jsonb),'{officialAvailability}',${JSON.stringify(data)}::jsonb,true)`,updatedAt:new Date()}).where(eq(schema.profiles.id,user.userId));
+    return data;
+  }
 
   @Get("games/:gameId/officials")
   async list(
@@ -160,7 +184,6 @@ export class GameOfficialsController {
     const list = (Array.isArray(rows) ? rows : (rows as { rows?: unknown[] }).rows ?? []) as Array<{
       person_id: string; scheduled_start_ts_utc: Date | string; tz: string; home_team_id: string; away_team_id: string;
     }>;
-    if (list.length === 0) return out;
     const names = await resolveEntityNames(this.db, list.flatMap((r) => [{ type: "team" as const, id: r.home_team_id }, { type: "team" as const, id: r.away_team_id }]));
     for (const r of list) {
       if (out.has(r.person_id)) continue;
@@ -169,15 +192,22 @@ export class GameOfficialsController {
         `${names.get(`team:${r.away_team_id}`) ?? "Away"} at ${names.get(`team:${r.home_team_id}`) ?? "Home"}, ${gameTimeLabel(new Date(r.scheduled_start_ts_utc), r.tz)}`
       );
     }
+    const unavailable=await this.db.select({personId:schema.persons.id,metadata:schema.profiles.metadata}).from(schema.persons)
+      .innerJoin(schema.profiles,eq(schema.profiles.id,schema.persons.userId)).where(inArray(schema.persons.id,personIds));
+    for(const p of unavailable)if(!out.has(p.personId) && officialUnavailableAt(p.metadata,game.start,game.duration))out.set(p.personId,"Unavailable during this game.");
     return out;
   }
 
   @Get("game-officials/for-person/:personId")
-  forPerson(
+  async forPerson(
     @Param("personId") personId: string,
-    @UserScope() scope: UserScopeType
+    @UserScope() scope: UserScopeType,
+    @CurrentUser() user: AuthPrincipal
   ): Promise<GameOfficialDto[]> {
-    if (!scope.isSuperAdmin) throw new ForbiddenException("Only a platform admin can list a person's assignments.");
+    if (!scope.isSuperAdmin) {
+      const [own]=await this.db.select({id:schema.persons.id}).from(schema.persons).where(and(eq(schema.persons.id,personId),eq(schema.persons.userId,user.userId),isNull(schema.persons.deletedAt))).limit(1);
+      if(!own)throw new NotFoundException("Official assignments not found.");
+    }
     return this.forPersonH.execute({ personId });
   }
 
@@ -282,11 +312,46 @@ export class GameOfficialsController {
   }
 
   @Patch("game-officials/:id/status")
-  status(
+  @AllowScopedWrite()
+  async status(
     @Param("id") id: string,
-    @Body() body: UpdateOfficialStatusBodyDto
+    @Body() body: UpdateOfficialStatusBodyDto,
+    @CurrentUser() user: AuthPrincipal,
+    @UserScope() scope: UserScopeType
   ): Promise<GameOfficialDto> {
-    return this.statusH.execute({ id, status: body.status });
+    const [assignment]=await this.db.select({gameId:schema.gameOfficials.gameId,personId:schema.gameOfficials.personId,revokedAt:schema.gameOfficials.revokedAt,status:schema.gameOfficials.status,assignedByUserId:schema.gameOfficials.assignedByUserId})
+      .from(schema.gameOfficials).where(eq(schema.gameOfficials.id,id)).limit(1);
+    if(!assignment || assignment.revokedAt)throw new NotFoundException("Official assignment not found.");
+    const [self]=await this.db.select({id:schema.persons.id}).from(schema.persons).where(and(eq(schema.persons.id,assignment.personId),eq(schema.persons.userId,user.userId),isNull(schema.persons.deletedAt))).limit(1);
+    if(!self)await requireGamePermission(this.db,user.userId,scope,assignment.gameId,"game.assign_officials","change official responses");
+    const { result, changed }=await this.db.transaction(async tx => {
+      // Same lock order as game-day mutations: game before assignment.
+      const [game]=await tx.select({status:schema.games.status}).from(schema.games)
+        .where(eq(schema.games.id,assignment.gameId)).for("update");
+      const [current]=await tx.select().from(schema.gameOfficials).where(eq(schema.gameOfficials.id,id)).for("update");
+      if(!current || current.revokedAt || current.personId!==assignment.personId || current.gameId!==assignment.gameId)
+        throw new ConflictException("This assignment changed. Reload before responding.");
+      if(self) {
+        if(!game || game.status!=="scheduled")throw new ConflictException("Responses can only change before the game starts.");
+        if(body.status!=="confirmed" && body.status!=="declined")throw new BadRequestException("Confirm or decline your assignment.");
+      }
+      if(current.status===body.status)return {result:GameOfficialDto.fromRow(current as GameOfficialRow),changed:false};
+      const [updated]=await tx.update(schema.gameOfficials).set({status:body.status,updatedAt:sql`now()`})
+        .where(and(eq(schema.gameOfficials.id,id),isNull(schema.gameOfficials.revokedAt))).returning();
+      if(!updated)throw new ConflictException("This assignment changed. Reload before responding.");
+      return {result:GameOfficialDto.fromRow(updated as GameOfficialRow),changed:true};
+    });
+    if(self && assignment.assignedByUserId && changed){
+      const [recipient]=await this.db.select({personId:schema.persons.id,email:schema.profiles.email}).from(schema.persons).innerJoin(schema.profiles,eq(schema.profiles.id,schema.persons.userId)).where(eq(schema.persons.userId,assignment.assignedByUserId)).limit(1);
+      const [game]=await this.db.select({home:schema.games.homeTeamId,away:schema.games.awayTeamId,at:schema.games.scheduledStartTsUtc,tz:schema.games.tz}).from(schema.games).where(eq(schema.games.id,assignment.gameId)).limit(1);
+      if(recipient && game){
+        const names=await resolveEntityNames(this.db,[{type:"person",id:assignment.personId},{type:"team",id:game.home},{type:"team",id:game.away}]);
+        await this.notify.queue({templateCode:"game.official_replied",channel:recipient.email?"email":"in_app",recipientPersonId:recipient.personId,recipientEmail:recipient.email,
+          idempotencyKey:`official-reply:${id}:${result.status}:${result.updatedAt}`,
+          payload:{officialName:names.get(`person:${assignment.personId}`) ?? "An official",status:result.status,homeTeam:names.get(`team:${game.home}`) ?? "Home",awayTeam:names.get(`team:${game.away}`) ?? "Away",whenLabel:gameTimeLabel(game.at,game.tz),gameId:assignment.gameId},sourceEvent:"game.official_replied"});
+      }
+    }
+    return result;
   }
 
   @Delete("game-officials/:id")

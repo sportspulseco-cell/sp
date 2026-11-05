@@ -51,6 +51,7 @@ export const PREFERENCE_TOPICS: PreferenceTopic[] = [
   { key: "game.rescheduled", category: "Games", label: "Game moved", description: "When a game's time or rink changes.", codes: ["game.rescheduled"] },
   { key: "game.postponed", category: "Games", label: "Game postponed or cancelled", description: "When a game is postponed or cancelled.", codes: ["game.postponed", "game.cancelled"] },
   { key: "game.official_assigned", category: "Games", label: "Officiating assignment", description: "When you are put on a game's crew as a referee or scorekeeper.", codes: ["game.official_assigned"] },
+  { key: "game.official_replied", category: "Games", label: "Official responses", description: "When an official confirms or declines an assignment you made.", codes: ["game.official_replied"] },
   { key: "game.finalized", category: "Games", label: "Final score", description: "When a game is final and stats are in.", codes: ["game.finalized"] },
   // Announcements (UC-19, UC-20)
   { key: "org.broadcast", category: "Announcements", label: "Announcements", description: "Messages from your league, organization, captain or coach.", codes: ["org.broadcast"] },
@@ -103,6 +104,8 @@ export interface DefaultTemplate {
 }
 
 export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
+  { code:"game.official_replied",channel:"email",subject:"Official assignment {{status}}",body:"{{officialName}} has {{status}} the assignment for {{homeTeam}} vs {{awayTeam}} ({{whenLabel}}). Open the game to review its crew.",variables:["officialName","status","homeTeam","awayTeam","whenLabel","gameId"] },
+  { code:"game.official_replied",channel:"in_app",subject:"Official assignment {{status}}",body:"{{officialName}} has {{status}} the assignment for {{homeTeam}} vs {{awayTeam}} ({{whenLabel}}).",variables:["officialName","status","homeTeam","awayTeam","whenLabel","gameId"] },
   {
     code: "registration.submitted",
     channel: "email",

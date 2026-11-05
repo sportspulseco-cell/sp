@@ -9,12 +9,17 @@
     "production_capacity": "not certified"
   },
   "verification": {
-    "typescript_business_tests": 295,
+    "typescript_business_tests": 331,
     "local_solver_regressions": 11,
     "deployed_solver_regressions": 11,
     "staging_database_publication_regression": "passed, fixtures rolled back",
-    "workspace_build": "passed before final incremental changes; rerun required",
-    "workspace_typecheck": "passed before final incremental changes; rerun pending",
+    "workspace_build": "passed for every app; latest API changes rebuilt separately and passed",
+    "workspace_typecheck": "all workspace projects passed",
+    "browser_suite": "74 passed against bfa13c2b / 2b95db57 deployments; player registration detail fixture missing, so that route is not certified",
+    "manual_membership_staging": "passed: scope, ownership, changed IDs, expiry, append-only decision, idempotency and revocation; fixtures rolled back",
+    "atomic_draft_replacement_staging": "passed: failure after delete preserves old drafts; stale snapshot refused; provenance saved atomically; anon/authenticated execution denied",
+    "publication_notice_staging": "passed: injected notice failure rolls back publication and notices; retry succeeds; replay does not duplicate",
+    "official_response_staging": "passed: own response, unauthorized actor denial, started/revoked denial and personal availability; fixtures rolled back",
     "season_copy_staging": "passed; 43s before batching, 10.6s after batching; rollback leaves no fixtures"
   },
   "deployed": {
@@ -23,28 +28,45 @@
     "solver_hardware": "existing cpu-basic",
     "edge_functions": [
       "scheduler-generate",
-      "scheduler-publish"
+      "scheduler-publish",
+      "scheduler-runs-list"
     ],
-    "edge_target": "staging only"
+    "edge_target": "staging only",
+    "staging_migrations": ["0097_atomic_schedule_draft_replacement.sql"]
   },
   "findings": {
     "F01": "server transaction guard and UI fail-closed implemented; API deployment and connected journey pending",
-    "F02": "constraints/objective and UI implemented; solver remotely verified; staging Edge deployed; final schedule validation and settings replay need work",
+    "F02": "Solver constraints/objective remotely verified. Final retained-game constraints validated, prior division settings restored, and draft replacement atomic with stale-snapshot rejection. Deployed staging Edge + migration; latest UI browser validation pending.",
     "F03": "real provider explicitly deferred by user; mock status banner implemented; commercial blocker remains",
-    "F04": "captain email/DOB/metadata/note redacted, UI columns removed; unit verified; raw API journey pending",
-    "F05": "Transactional season/league copy, form/pricing remapping, optional draft schedule and idempotent batch API implemented; live staging rollback regression passes; UI copy dialog wired in both admin apps. Bulk operator queue and browser acceptance pending.",
+    "F04": "Stricter allowlist now excludes future internal fields and arbitrary availability metadata in addition to email/DOB/note; unit verified locally; raw API pending.",
+    "F05": "Transactional season/league copy and initial dialog committed to staging. Bulk 70-league pause/resume UI, batching, logical-request replay and league-name checks implemented after initial commit; awaiting final tests/deployment.",
     "F06": "guided setup not complete; currently four-phase wizard still split from registration",
     "F07": "logo file upload in shared wizard implemented using existing self-owned public image upload; browser test pending",
     "F08": "separate playoff overtime in wizard/new/edit and finalization guard implemented; unit verified; scoresheet summary and API validation still needed",
     "F09": "persistent scoped player team context implemented on five surfaces; browser multi-team regression pending",
-    "F10": "schedule publication + durable notification writes atomic; API verification and single-game path pending",
-    "F11": "not started",
+    "F10": "Schedule and single-game publication/creation write durable notices in the same transaction. Single-game failure/replay staging regression passed. Reschedule/cancel/finalize paths and external delivery acceptance remain pending.",
+    "F11": "Scoped assigner access, own confirm/decline, private availability windows and assigner notifications implemented. Reply/start race guarded by transaction locks; negative staging controller/DB tests pass. Restricted-assigner browser and raw HTTP gate tests pending.",
     "F12": "not started",
     "F13": "opponent fanout removed, schedule pagination and seasonal server filter added, registration pagination added; aggregate read model still needed",
-    "F14": "three stale browser assertions corrected; connected business-record browser journey still needed",
+    "F14": "Initial connected API full-season run is active against local API :4123 and staging DB, using live updated Edge/solver. Existing test incorrectly treated an archived league name as a live duplicate; query corrected. Run in progress; no full acceptance claim.",
     "F15": "production-sized capacity remains unverified; user retained Free/Hobby",
     "F16": "public viewing scope pending client decision",
-    "F17": "manual versus registry verification flow still to complete",
+    "F17": "User chose staff-reviewed proof. Governing-body card approval atomically verifies the matched ID with reviewer/document-hash provenance and expiry; changes/revocation reset pending; eligibility refresh preserves other rules. Pending/self-attested IDs cannot pass playoff membership. Unit + staging DB tests passed; deployed browser journey pending.",
     "F18": "calm task-led UI work ongoing"
+  },
+  "staging_git_commit": "bfa13c2b",
+  "production_git_commit": "9f33a271",
+  "active_local_api": {
+    "port": 4123,
+    "process_id": 40876,
+    "command": "node tests/e2e/season/local-api/run.mjs",
+    "notes": "staging Auth/JWKS and DB guarded; all transport provider credentials disabled in child environment; source changes require rebuilding/restart after current season run"
+  },
+  "active_full_season": {
+    "session_id": 42226,
+    "tag": "SMW33MFOT",
+    "season_id": "4f1f7a43-db6e-412b-a51e-1c8efc350afe",
+    "api": "http://localhost:4123/api",
+    "notes": "Polling session output; do not restart API during this run. Earlier auth-misconfigured run stopped; one archived-name false failure in this run."
   }
 }

@@ -50,7 +50,6 @@ export function UsaHockeyIdForm() {
       });
       setSuccess(true);
       router.refresh();
-      setTimeout(close, 1200);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -71,7 +70,7 @@ export function UsaHockeyIdForm() {
         open={open}
         onClose={close}
         title="Submit your USA Hockey ID"
-        description="An admin will verify the number against USA Hockey's roster. Updates overwrite any prior submission for this body."
+        description="Enter your ID, then upload your current membership card under Waivers & documents. Staff will check the card. Changing the ID returns it to pending review."
         size="md"
       >
         <form onSubmit={submit} className="space-y-4">
@@ -107,7 +106,7 @@ export function UsaHockeyIdForm() {
 
           {success ? (
             <Alert tone="success" role="status">
-              Submitted. Your admin will verify it.
+              ID saved as pending. Upload your current membership card under Waivers &amp; documents so staff can review it.
             </Alert>
           ) : null}
 

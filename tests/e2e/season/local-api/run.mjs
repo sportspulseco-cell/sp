@@ -30,6 +30,18 @@ for (const e of list.envs ?? []) {
   if (typeof one.value === "string") { env[e.key] = one.value; n++; }
 }
 env.API_PORT = "4123";
+// Never let a hosted credential or a local .env fallback turn a QA run
+// into production traffic or external messages.
+const expectedRef = local.STAGING_SUPABASE_REF;
+if (!expectedRef || expectedRef === "nmiiqyfwvbcvtwumtwil" ||
+    new URL(env.SUPABASE_URL).hostname !== `${expectedRef}.supabase.co` ||
+    !decodeURIComponent(new URL(env.DATABASE_POOL_URL).username).includes(expectedRef)) {
+  throw new Error("Local QA API must use the staging Auth and database projects.");
+}
+env.SUPABASE_JWT_SECRET ??= "";
+env.SUPABASE_JWKS_URL = `${env.SUPABASE_URL.replace(/\/+$/, "")}/auth/v1/.well-known/jwks.json`;
+env.SUPABASE_JWT_AUDIENCE = "authenticated";
+for (const key of ["RESEND_API_KEY", "TWILIO_AUTH_TOKEN", "VAPID_PRIVATE_KEY"]) env[key] = "";
 env.NODE_OPTIONS = `--require ${path.join(here, "pin-dns.cjs")}`;
 const dbHost = (env.DATABASE_URL || env.DATABASE_POOL_URL || "").replace(/^.*@/, "").replace(/\/.*$/, "");
 console.log(`loaded ${n} staging env values; database host ${dbHost || "(none)"}; starting on :4123`);

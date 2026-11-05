@@ -6,6 +6,8 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { json, type NextFunction, type Request, type Response } from "express";
 import { AppModule } from "./app.module";
 import { DomainExceptionFilter } from "./shared/filters/domain-exception.filter";
+import { withRequestReads } from "./shared/auth/request-read-cache";
+import { requestTiming,RequestTimingInterceptor } from "./shared/request-timing";
 
 /**
  * Configures pipes, filters, CORS, prefix, and Swagger on a Nest app.
@@ -13,6 +15,11 @@ import { DomainExceptionFilter } from "./shared/filters/domain-exception.filter"
  * the Vercel serverless handler (which calls `app.init()`).
  */
 export async function configureApp(app: INestApplication): Promise<void> {
+  app.use((req:Request,_res:Response,next:NextFunction)=>withRequestReads(req.method,next));
+  app.use(requestTiming);
+  app.useGlobalInterceptors(new RequestTimingInterceptor());
+  const imageUploadJson=json({limit:"2900kb"});
+  app.use("/api/iam/users/:id/avatar",function imageUploadJsonParser(req:Request,res:Response,next:NextFunction){imageUploadJson(req,res,next);});
   // Compliance document uploads (COMP-3) carry a base64 file: 3 MiB
   // decoded, about 4.2 MB encoded. Only that path gets the larger JSON
   // limit; every other route keeps the default 100 kB. Registered before

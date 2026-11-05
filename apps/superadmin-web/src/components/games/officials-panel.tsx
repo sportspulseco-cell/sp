@@ -41,7 +41,8 @@ export function GameOfficialsPanel({
   officials,
   persons,
   personMap,
-  canEdit = true
+  canEdit = true,
+  myPersonId
 }: {
   gameId: string;
   officials: GameOfficial[];
@@ -49,6 +50,7 @@ export function GameOfficialsPanel({
   personMap: [string, string][];
   /** False hides Assign and Revoke (viewer lacks game.assign_officials). */
   canEdit?: boolean;
+  myPersonId?: string | null;
 }) {
   const router = useRouter();
   const lookup = useMemo(() => new Map(personMap), [personMap]);
@@ -119,6 +121,7 @@ export function GameOfficialsPanel({
                 ) : null}
               </div>
               <Badge status={o.status} />
+              {o.personId===myPersonId ? <OfficialReply id={o.id} status={o.status}/>:null}
               {canEdit ? <RevokeOfficialBtn id={o.id} /> : null}
             </li>
           ))}
@@ -126,6 +129,22 @@ export function GameOfficialsPanel({
       )}
     </section>
   );
+}
+
+function OfficialReply({id,status}:{id:string;status:GameOfficialStatus}) {
+  const router=useRouter();const [busy,setBusy]=useState(false);const [error,setError]=useState("");
+  async function reply(next:"confirmed"|"declined"){
+    setBusy(true);setError("");
+    try{await gameOps.updateOfficialStatus(id,next);router.refresh();}
+    catch(e){setError(e instanceof Error?e.message:"Could not save your response. Try again.");}
+    finally{setBusy(false);}
+  }
+  return <div className="flex flex-wrap items-center gap-2">
+    <Button size="sm" variant="outline" disabled={busy || status==="confirmed"} onClick={()=>void reply("confirmed")}>Confirm</Button>
+    <Button size="sm" variant="ghost" disabled={busy || status==="declined"} onClick={()=>void reply("declined")}>Decline</Button>
+    {busy?<span role="status" className="text-xs text-fg-muted">Saving...</span>:null}
+    {error?<p role="alert" className="max-w-64 text-xs text-fg">{error}</p>:null}
+  </div>;
 }
 
 function AssignForm({

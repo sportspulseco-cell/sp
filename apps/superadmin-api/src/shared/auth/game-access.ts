@@ -1,3 +1,4 @@
+import { activeRoleAssignment } from "./active-role";
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { and, eq, gt, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
@@ -8,6 +9,7 @@ import {
   permissionGranted
 } from "@sportspulse/kernel";
 import type { UserScope } from "./scope";
+import { readOnce } from "./request-read-cache";
 
 /**
  * Who may read and operate one game (SCH-12).
@@ -82,6 +84,9 @@ export const GAME_ACTION_PERMISSIONS = [
 ] as const;
 
 export async function isSuperAdmin(db: Database, userId: string): Promise<boolean> {
+  return readOnce(db,`superadmin:${userId}`,()=>isSuperAdminFresh(db,userId));
+}
+async function isSuperAdminFresh(db: Database,userId:string):Promise<boolean> {
   const [p] = await db
     .select({ s: schema.profiles.isSuperAdmin })
     .from(schema.profiles)
@@ -91,6 +96,9 @@ export async function isSuperAdmin(db: Database, userId: string): Promise<boolea
 }
 
 export async function loadActiveAssignments(db: Database, userId: string): Promise<ActiveAssignment[]> {
+  return readOnce(db,`assignments:${userId}`,()=>loadActiveAssignmentsFresh(db,userId));
+}
+async function loadActiveAssignmentsFresh(db:Database,userId:string):Promise<ActiveAssignment[]> {
   return db
     .select({
       scopeType: schema.userRoleAssignments.scopeType,
@@ -104,7 +112,7 @@ export async function loadActiveAssignments(db: Database, userId: string): Promi
     .where(
       and(
         eq(schema.userRoleAssignments.userId, userId),
-        isNull(schema.userRoleAssignments.revokedAt),
+        activeRoleAssignment(),
         or(
           isNull(schema.userRoleAssignments.effectiveTo),
           gt(schema.userRoleAssignments.effectiveTo, new Date())
@@ -369,7 +377,7 @@ export async function officiatingFilter(db: Database, userId: string): Promise<O
     loadOfficialAssignments(db, userId)
   ]);
   for (const a of assignments) {
-    if (!permissionGranted(rolePermissions(a), "game_event.write")) continue;
+    if (!permissionGranted(rolePermissions(a), "game_event.write") && !permissionGranted(rolePermissions(a), "game.assign_officials")) continue;
     if (a.scopeType === "platform") f.all = true;
     if (!a.scopeId) continue;
     if (a.scopeType === "org") f.orgIds.push(a.scopeId);

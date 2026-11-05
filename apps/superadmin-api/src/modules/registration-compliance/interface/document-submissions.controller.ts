@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
+import { Equals, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateNested } from "class-validator";
 import {
   LICENCE_CHECK_METHODS,
   type LicenceCheckMethod,
@@ -52,7 +52,16 @@ class LicenceCheckBodyDto {
   method!: LicenceCheckMethod;
 }
 
+class MembershipProofBodyDto {
+  @IsUUID() identityVerificationId!: string;
+  @IsString() @MinLength(1) @MaxLength(100) expectedExternalId!: string;
+  @IsDateString() expiresAt!: string;
+  @Equals(true) confirmedMatched!: true;
+}
+
 class DecideDocumentSubmissionBodyDto {
+  @IsOptional() @ValidateNested() @Type(() => MembershipProofBodyDto)
+  membershipProof?: MembershipProofBodyDto;
   @IsIn([...COMPLIANCE_DOCUMENT_DECISIONS])
   decision!: ComplianceDocumentDecision;
 
@@ -113,7 +122,8 @@ export class DocumentSubmissionsController {
       actorUserId: principal.userId,
       id,
       decision: body.decision,
-      reason: body.reason ?? null
+      reason: body.reason ?? null,
+      membershipProof: body.membershipProof
     });
     // `id` and `orgId` at the top level so the audit interceptor files
     // the event under this document and its organisation.

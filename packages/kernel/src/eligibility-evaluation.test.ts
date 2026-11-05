@@ -32,6 +32,16 @@ test("clean adult in an open division with no ID rule is eligible", () => {
   assert.deepEqual(r.reasons, []);
 });
 
+test("staff-reviewed membership retains document provenance and respects expiry", () => {
+  const reviewed = { externalId: "ABC123456", status: "verified", expiresAt: "2027-08-31", source: "document_upload" };
+  const season = { startDate: "2026-09-01", endDate: "2027-04-30", requireUsaHockeyId: true };
+  const result = evaluateSeasonEligibility(input({ season, usaHockeyId: reviewed }));
+  assert.equal(result.status, "eligible");
+  assert.equal(result.ruleEvaluation.usaHockeyId?.source, "document_review");
+  assert.equal(evaluateSeasonEligibility(input({ season, usaHockeyId: { ...reviewed, expiresAt: "2026-01-01" } })).status, "expired");
+  assert.equal(evaluateSeasonEligibility(input({ season, usaHockeyId: { ...reviewed, status: "pending" } })).status, "pending");
+});
+
 test("COMP-14: missing DOB under an age rule is pending, never eligible", () => {
   const r = evaluateSeasonEligibility(
     input({ person: { dobDate: null, genderSelfId: null }, division: { genderEligibility: "open", maxRosterSize: 20, ageMinYears: 18 } })

@@ -30,6 +30,7 @@ import { loadEnv } from "../_shared/env.ts";
 import { sha256Hex } from "../_shared/hash.ts";
 import { serviceRoleClient } from "../_shared/supabase-client.ts";
 import { callSolver, SolverError } from "../_shared/solver-client.ts";
+import { finalTeamConstraintViolations } from "../_shared/final-constraints.ts";
 import { forbidden, userHasPermission, type AppMetadata } from "../_shared/permissions.ts";
 import {
   DEFAULT_WEIGHTS,
@@ -63,6 +64,9 @@ interface GenerateBody {
 }
 
 interface ScopeGame {
+  updated_at: string;
+  duration_min: number | null;
+  time_band: string | null;
   id: string;
   home_team_id: string;
   away_team_id: string;
@@ -182,7 +186,7 @@ Deno.serve(async (req) => {
       .eq("season_id", body.seasonId),
     sb
       .from("games")
-      .select("id, home_team_id, away_team_id, slot_id, scheduled_start_ts_utc, status, source, game_type, locked_at, published_at")
+      .select("id, updated_at, duration_min, time_band, home_team_id, away_team_id, slot_id, scheduled_start_ts_utc, status, source, game_type, locked_at, published_at")
       .eq("season_id", body.seasonId)
       .eq("division_id", body.divisionId),
   ]);
@@ -424,7 +428,10 @@ Deno.serve(async (req) => {
     (slotMetaById.get(x.slotId)?.startTsUtc ?? "").localeCompare(slotMetaById.get(y.slotId)?.startTsUtc ?? "")
   )) {
     const meta = slotMetaById.get(a.slotId);
-    if (!meta) continue; // defensive: solver returned a slot we didn't send
+    if (!meta || !teamSet.has(a.homeTeamId) || !teamSet.has(a.awayTeamId) || a.homeTeamId === a.awayTeamId) {
+      await sb.from("schedule_runs").update({ status: "failed" }).eq("id", runId);
+      return json({ runId, status: "FAILED", gamesCreated: 0, error: "Solver returned an unknown slot or invalid team. Existing drafts were preserved." }, 502);
+    }
     if (pinnedSlotIds.has(a.slotId)) continue;
     const key = pairKey(a.homeTeamId, a.awayTeamId);
     const drop = dropLeft.get(key) ?? 0;
@@ -442,27 +449,26 @@ Deno.serve(async (req) => {
   const weekly = weeklyMax !== null
     ? weeklyOverLimit([...balanced.games, ...fixed], seasonTz, weeklyMax)
     : [];
+  const inputSlots = new Map(slots.map(s => [s.slotId, s]));
+  const hardViolations = finalTeamConstraintViolations([
+    ...balanced.games.map(g => ({ ...g, durationMin: inputSlots.get(g.slotId)!.durationMin,
+      band: inputSlots.get(g.slotId)!.band, venueId: inputSlots.get(g.slotId)!.venueId })),
+    ...covering.filter(g => g.status !== "postponed").map(g => ({ homeTeamId: g.home_team_id,
+      awayTeamId: g.away_team_id, startTsUtc: g.scheduled_start_ts_utc,
+      durationMin: g.duration_min ?? 60, band: g.time_band,
+      venueId: g.slot_id ? inputSlots.get(g.slot_id)?.venueId ?? null : null })),
+  ], teams, seasonTz, body.maxLateFraction);
+  if (hardViolations.length) {
+    const report = { summary: "The final schedule violates team constraints, including retained games. No drafts were replaced.",
+      hardViolations, softViolations: [], placedGames: 0, unplacedGames: balanced.games.length };
+    await sb.from("schedule_runs").update({ status: "failed", infeasibility_report: report }).eq("id", runId);
+    return json({ runId, status: "INFEASIBLE", gamesCreated: 0, infeasibility: report, message: report.summary });
+  }
   // Fixed/played games can exceed a new limit even when the solver's
   // round-robin subset does not. Never persist a run that breaks the cap.
   if (weekly.length) {
     await sb.from("schedule_runs").update({status:"failed", solution:{weeklyOverLimit:weekly}}).eq("id",runId);
     return json({runId,status:"INFEASIBLE",gamesCreated:0,weeklyOverLimit:weekly,message:"Existing games exceed the weekly limit. Increase it or adjust the fixed games; no drafts were replaced."});
-  }
-
-  // 7a. Replace the drafts (only those; see step 3).
-  if (draftIds.length) {
-    // In batches, like the slot holders: hundreds of ids in one URL fail.
-    let delErr: { message: string } | null = null;
-    for (let i = 0; i < draftIds.length && !delErr; i += 150) {
-      ({ error: delErr } = await sb.from("games").delete().in("id", draftIds.slice(i, i + 150)));
-    }
-    if (delErr) {
-      await sb.from("schedule_runs").update({
-        status: "failed",
-        infeasibility_report: { summary: `delete prior draft games failed: ${delErr.message}`, hardViolations: [], softViolations: [], unplacedGames: 0, placedGames: 0 },
-      }).eq("id", runId);
-      return json({ runId, status: "FAILED", error: delErr.message }, 500);
-    }
   }
 
   const gameRows: Record<string, unknown>[] = [];
@@ -501,8 +507,13 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (gameRows.length > 0) {
-    const { error: insErr } = await sb.from("games").insert(gameRows);
+  // 7a. Optimistic snapshot check + replacement + provenance in one transaction.
+  // A concurrent edit/publication or any failed insert preserves ALL prior drafts.
+  {
+    const { error: insErr } = await sb.rpc("sp_replace_schedule_drafts", {
+      p_run_id: runId, p_scope_snapshot: scopeGames.map(g => ({ id: g.id, updated_at: g.updated_at })),
+      p_replaced_ids: draftIds, p_games: gameRows, p_provenance: provRows,
+    });
     if (insErr) {
       await sb.from("schedule_runs").update({
         status: "failed",
@@ -510,8 +521,6 @@ Deno.serve(async (req) => {
       }).eq("id", runId);
       return json({ runId, status: "FAILED", error: insErr.message }, 500);
     }
-    const { error: provErr } = await sb.from("game_provenance").insert(provRows);
-    if (provErr) console.error("provenance insert failed (games kept):", provErr);
   }
   console.log(`scheduler-generate run=${runId} created=${gameRows.length} replaced=${draftIds.length} kept=${kept.length} blackedOut=${blackedOut} maxImbalance=${balanced.maxImbalance}`);
 

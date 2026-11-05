@@ -1,3 +1,4 @@
+import { BulkCopySeasons } from "@/components/seasons/bulk-copy-seasons";
 import { fetchAll } from "@sportspulse/api-client";
 import { Alert, Badge, EmptyState, UrlFilters, PageHeader, TBody, TD, TH, THead, TR, Table, statusTone } from "@sportspulse/ui";
 import { CalendarRange, Wand2, Trophy, CircleDot, Archive } from "lucide-react";
@@ -89,6 +90,7 @@ export default async function SeasonsPage({
 
   return (
     <div className="space-y-8">
+      <div className="flex justify-end"><BulkCopySeasons seasons={seasonsPage.items} leagueNames={Object.fromEntries(leagueMap)}/></div>
       <PageHeader
         eyebrow="Competition"
         title="Seasons"

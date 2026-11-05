@@ -334,17 +334,23 @@ export class SelfComplianceController {
       .limit(1);
 
     if (existing) {
-      const [updated] = await this.db
-        .update(schema.identityVerifications)
+      const updated = await this.db.transaction(async tx => {
+        const [identity] = await tx.update(schema.identityVerifications)
         .set({
           externalId: validation.normalized,
           status: "pending",
           source: "self_attest",
           verifiedAt: null,
+          expiresAt: null,
           updatedAt: sql`now()`
         })
         .where(eq(schema.identityVerifications.id, existing.id))
         .returning();
+        await tx.update(schema.eligibilityRecords).set({ status: "pending", updatedAt: sql`now()` })
+          .where(and(eq(schema.eligibilityRecords.personId, person.id),
+            notInArray(schema.eligibilityRecords.status, ["waived", "ineligible", "expired"])));
+        return identity;
+      });
       return toDto(updated!);
     }
 

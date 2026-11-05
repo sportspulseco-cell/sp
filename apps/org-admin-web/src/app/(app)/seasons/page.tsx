@@ -1,3 +1,4 @@
+import { BulkCopySeasons } from "@/components/seasons/bulk-copy-seasons";
 import { fetchAll } from "@sportspulse/api-client";
 import { formatCalendarDate, sportLabel } from "@sportspulse/kernel";
 /* Hallmark · page: list (seasons) · genre: editorial · theme: project
@@ -90,6 +91,7 @@ export default async function SeasonsPage({
 
   return (
     <div className="space-y-12">
+      <div className="flex justify-end"><BulkCopySeasons seasons={page.items} leagueNames={Object.fromEntries(leagueMap)}/></div>
       <PageHeader
         eyebrow="Seasons"
         title="Seasons"

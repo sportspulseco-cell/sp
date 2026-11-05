@@ -26,7 +26,8 @@ export { JWT_VERIFIER };
           jwksUrl,
           // Optional fallback for legacy HS256 tokens during migration
           jwtSecret: config.get<string>("SUPABASE_JWT_SECRET"),
-          audience: config.get<string>("SUPABASE_JWT_AUDIENCE") ?? "authenticated"
+          audience: config.get<string>("SUPABASE_JWT_AUDIENCE") ?? "authenticated",
+          issuer: `${supabaseUrl.replace(/\/+$/, "")}/auth/v1`
         });
       }
     },

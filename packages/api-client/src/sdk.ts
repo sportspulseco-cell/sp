@@ -683,7 +683,8 @@ export function createApi(f: Fetcher) {
         f<AdminComplianceDocument>(`/compliance/document-submissions/${id}`),
       decideDocumentSubmission: (
         id: string,
-        body: { decision: "approved" | "rejected" | "resubmit_requested"; reason?: string | null }
+        body: { decision: "approved" | "rejected" | "resubmit_requested"; reason?: string | null;
+          membershipProof?: { identityVerificationId: string; expectedExternalId: string; expiresAt: string; confirmedMatched: true } }
       ) =>
         f<{
           id: string;
@@ -2137,6 +2138,8 @@ export function createApi(f: Fetcher) {
     },
 
     gameOps: {
+      myOfficialAvailability:()=>f<{periods:Array<{startTsUtc:string;endTsUtc:string}>}>("/game-officials/availability/me"),
+      saveOfficialAvailability:(periods:Array<{startTsUtc:string;endTsUtc:string}>)=>f<{periods:Array<{startTsUtc:string;endTsUtc:string}>}>("/game-officials/availability/me",{method:"POST",body:JSON.stringify({periods})}),
       listGames: (
         q: {
           limit?: number;

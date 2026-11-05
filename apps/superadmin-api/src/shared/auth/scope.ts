@@ -1,6 +1,8 @@
+import { activeRoleAssignment } from "./active-role";
 ﻿import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, gt, lte } from "drizzle-orm";
+import { readOnce } from "./request-read-cache";
 
 /**
  * Resolved access scope for the current principal.
@@ -61,6 +63,14 @@ export async function loadUserScope(
   userId: string,
   opts: { adminRolesOnly?: boolean } = {}
 ): Promise<UserScope> {
+  return readOnce(db,`scope:${userId}:${!!opts.adminRolesOnly}`,()=>loadUserScopeFresh(db,userId,opts));
+}
+
+async function loadUserScopeFresh(
+  db: Database,
+  userId: string,
+  opts: { adminRolesOnly?: boolean } = {}
+): Promise<UserScope> {
   const [profile] = await db
     .select({ isSuperAdmin: schema.profiles.isSuperAdmin })
     .from(schema.profiles)
@@ -83,7 +93,7 @@ export async function loadUserScope(
       .where(
         and(
           eq(schema.userRoleAssignments.userId, userId),
-          isNull(schema.userRoleAssignments.revokedAt)
+          activeRoleAssignment()
         )
       )
   ).filter(

@@ -18,6 +18,7 @@ export const NOTIFICATION_TEMPLATE_CODES = [
   "game.rescheduled",
   // FR-3.9: a referee or scorekeeper is put on a game's crew.
   "game.official_assigned",
+  "game.official_replied",
   // UC-08 a schedule run is published: one digest per person per team (SCH-8).
   "schedule.published",
   // FR-3.17.3 auto-reminder about a day before a game.

@@ -113,16 +113,17 @@ export async function userHasPermission(
   if (isSuperAdminMetadata(appMetadata ?? null)) return true;
 
   // 2. Fallback: assignment-row scan.
-  const nowIso = new Date().toISOString();
+  const now = Date.now();
   const { data, error } = await sb
     .from("user_role_assignments")
-    .select("scope_type, scope_id, effective_to, roles!inner(code, permissions)")
+    .select("scope_type, scope_id, effective_from, effective_to, roles!inner(code, permissions)")
     .eq("user_id", userId)
     .is("revoked_at", null);
   if (error || !data) return false;
 
   for (const row of data) {
-    if (row.effective_to && row.effective_to < nowIso) continue;
+    if (row.effective_from && !(Date.parse(row.effective_from) <= now)) continue;
+    if (row.effective_to && !(Date.parse(row.effective_to) > now)) continue;
     // deno-lint-ignore no-explicit-any
     const role = (row as any).roles;
     if (!role) continue;

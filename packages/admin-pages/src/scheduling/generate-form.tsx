@@ -81,6 +81,25 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
   const [teamConstraints,setTeamConstraints] = useState<Record<string,TeamScheduleConstraints>>({});
   const [venues,setVenues] = useState<Array<{id:string;name:string}>>([]);
   const [venueError,setVenueError] = useState("");
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsRetry, setSettingsRetry] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setSettingsLoading(true); setSettingsError(""); setResult(null); setPublishResult(null);
+    scheduler.listRuns({ seasonId, divisionId, includeSettings: true, limit: 1 }).then(data => {
+      if (!live) return;
+      const saved = data.runs[0]?.settings;
+      if (data.runs.length && !saved) throw new Error("Saved schedule constraints could not be read. Retry before generating.");
+      setGamesPerPair(String(saved?.gamesPerPair ?? 1));
+      setTimeLimit(String(saved?.timeLimitSeconds ?? 60)); setSeed("");
+      setWeeklyMax(saved?.maxGamesPerTeamPerWeek == null ? "" : String(saved.maxGamesPerTeamPerWeek));
+      setLateCap(saved?.maxLateFraction == null ? "" : String(saved.maxLateFraction * 100));
+      setTeamConstraints(saved?.teamConstraints ?? {});
+    }).catch((e: Error) => { if (live) setSettingsError(e.message); })
+      .finally(() => { if (live) setSettingsLoading(false); });
+    return () => { live = false; };
+  }, [seasonId, divisionId, settingsRetry]);
   useEffect(()=>{
     if (!blackoutApi) return;
     blackoutApi.rinks().then(rows=>setVenues([...new Map(rows.filter(r=>r.venueId).map(r=>[r.venueId!,{id:r.venueId!,name:r.venueName ?? r.label}])).values()])).catch(()=>setVenueError("Venue preferences could not load. Refresh before setting a venue preference."));
@@ -135,6 +154,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (settingsLoading || settingsError) return;
     setError(null); setResult(null);
     setPublishResult(null); setPublishError(null);
     setSubmitting(true);
@@ -188,13 +208,13 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
   return (
     <div className="space-y-6">
       <LiveChannelBar status={channelStatus} lastBroadcast={lastBroadcast} />
-      {blackoutApi ? <BlackoutDates api={blackoutApi} disabled={submitting} /> : null}
+      {blackoutApi ? <BlackoutDates api={blackoutApi} disabled={submitting || settingsLoading} /> : null}
       <form onSubmit={onSubmit} className="rounded-lg border border-border bg-bg p-6 space-y-5">
         <Field label="Division">
           <Select
             value={divisionId}
             onChange={(e) => setDivisionId(e.target.value)}
-            disabled={submitting}
+            disabled={submitting || settingsLoading}
           >
             {divisions.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
@@ -204,26 +224,28 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames = {}, di
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
           <Field label="Games per pair" hint="1 = single round-robin, 2 = double">
             <Input type="number" min="1" max="4" value={gamesPerPair}
-              onChange={(e) => setGamesPerPair(e.target.value)} disabled={submitting} />
+              onChange={(e) => setGamesPerPair(e.target.value)} disabled={submitting || settingsLoading} />
           </Field>
           <Field label="Time limit (seconds)" hint="Solver budget, max 300">
             <Input type="number" min="5" max="300" value={timeLimit}
-              onChange={(e) => setTimeLimit(e.target.value)} disabled={submitting} />
+              onChange={(e) => setTimeLimit(e.target.value)} disabled={submitting || settingsLoading} />
           </Field>
           <Field label="Max games per team per week" hint="Optional hard limit, including fixed games.">
             <Input type="number" min="1" max="7" value={weeklyMax} placeholder="No limit"
-              onChange={(e) => setWeeklyMax(e.target.value)} disabled={submitting} />
+              onChange={(e) => setWeeklyMax(e.target.value)} disabled={submitting || settingsLoading} />
           </Field>
           <Field label="Seed" hint="Leave blank for a random seed (stored for replay)">
             <Input value={seed} onChange={(e) => setSeed(e.target.value)}
-              disabled={submitting} placeholder="auto-generated" />
+              disabled={submitting || settingsLoading} placeholder="auto-generated" />
           </Field>
         </div>
-        <Field label="Maximum late games (%)" hint="Optional hard limit per team. 0 means no late games."><Input type="number" min="0" max="100" value={lateCap} onChange={e=>setLateCap(e.target.value)} disabled={submitting} placeholder="No limit"/></Field>
+        <Field label="Maximum late games (%)" hint="Optional hard limit per team. 0 means no late games."><Input type="number" min="0" max="100" value={lateCap} onChange={e=>setLateCap(e.target.value)} disabled={submitting || settingsLoading} placeholder="No limit"/></Field>
         {venueError ? <p role="alert" className="text-sm text-fg-muted">{venueError}</p>:null}
-        <TeamPreferences teams={Object.fromEntries(Object.entries(teamNames).filter(([id])=>!divisionTeamIds || divisionTeamIds[divisionId]?.includes(id)))} venues={venues} timezone={timezone} value={teamConstraints} onChange={setTeamConstraints} disabled={submitting}/>
+        <TeamPreferences teams={Object.fromEntries(Object.entries(teamNames).filter(([id])=>!divisionTeamIds || divisionTeamIds[divisionId]?.includes(id)))} venues={venues} timezone={timezone} value={teamConstraints} onChange={setTeamConstraints} disabled={submitting || settingsLoading}/>
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={submitting || !divisionId}>
+          {settingsLoading ? <p className="text-sm text-fg-muted" role="status">Loading this division's saved schedule settings…</p> : null}
+          {settingsError ? <div role="alert" className="text-sm text-danger">{settingsError} <Button type="button" variant="outline" size="sm" onClick={() => setSettingsRetry(n => n + 1)}>Retry</Button></div> : null}
+          <Button type="submit" disabled={submitting || !divisionId || settingsLoading || !!settingsError}>
             {submitting ? (
               <><Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />Generating…</>
             ) : (
