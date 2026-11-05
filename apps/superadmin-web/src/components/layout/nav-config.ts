@@ -4,6 +4,7 @@
 import {
   LayoutDashboard,
   Users,
+  UserPlus,
   UserCircle2,
   Building2,
   Trophy,
@@ -55,6 +56,7 @@ const ADMIN_NAV: AdminNavSection[] = [
     label: "Teams",
     items: [
       { href: "/teams", label: "Teams", icon: Network },
+      { href: "/substitutes", label: "Substitute requests", icon: UserPlus },
       { href: "/division-applications", label: "Team applications", icon: ClipboardList },
       { href: "/rosters", label: "Rosters", icon: ListChecks },
       { href: "/transfers", label: "Transfers", icon: ShieldCheck }
@@ -148,5 +150,5 @@ export const ROUTES = [
   "/scheduling/[seasonId]/parity", "/scheduling/[seasonId]/playoffs", "/scheduling/[seasonId]/rinks",
   "/scheduling/[seasonId]/runs", "/scheduling/[seasonId]/tournament", "/scheduling/[seasonId]/verify", "/seasons",
   "/seasons/[id]", "/seasons/[id]/applications", "/site-map", "/stats", "/teams", "/teams/[id]", "/teams/new",
-  "/transfers", "/users", "/users/[id]", "/venues"
+  "/substitutes", "/transfers", "/users", "/users/[id]", "/venues"
 ] as const;

@@ -6,10 +6,23 @@ import {
   genderMatchesDivision,
   sweepOutcome,
   membershipValidThrough,
+  playoffGuestEligible,
   type SeasonEligibilityInput
 } from "./eligibility-evaluation";
 
 const NOW = new Date("2026-10-25T12:00:00Z");
+
+test("playoff guests require reviewed playoff history or an explicit staff waiver", () => {
+  for (const record of [null, undefined, { status: "eligible", ruleEvaluation: null },
+    { status: "eligible", ruleEvaluation: { playoffEligibility: { status: "ineligible" } } },
+    { status: "pending", ruleEvaluation: { playoffEligibility: { status: "eligible" } } },
+    { status: "expired", ruleEvaluation: { playoffEligibility: { status: "eligible" } } }]) {
+    assert.equal(playoffGuestEligible(record), false);
+  }
+  for (const status of ["eligible", "expiring"]) assert.equal(playoffGuestEligible({ status,
+    ruleEvaluation: { playoffEligibility: { status: "eligible" } } }), true);
+  assert.equal(playoffGuestEligible({ status: "waived", ruleEvaluation: null }), true);
+});
 
 test("game membership requires reviewed proof valid through the game, including boundary and malformed dates", () => {
   const end = new Date("2026-11-05T23:00:00Z");

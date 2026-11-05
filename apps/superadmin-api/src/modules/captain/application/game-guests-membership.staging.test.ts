@@ -46,6 +46,20 @@ test("required membership proof cannot be bypassed through a guest or name-only 
     await tx.update(schema.identityVerifications).set({ expiresAt: new Date("2099-01-01") }).where(eq(schema.identityVerifications.id, identity.id));
     const [cleared] = await subs.candidatesFor(tx, context, game.homeTeamId, { personIds: [personId] });
     assert.ok(cleared); assert.equal(cleared.reasons.includes("membership_proof"), false);
+    await tx.update(schema.games).set({ gameType: "playoff" }).where(eq(schema.games.id, game.id));
+    const playoffRefusal = (error: unknown) => String(error).includes("Staff must review");
+    await assert.rejects(addGameGuest(tx, input), playoffRefusal);
+    await tx.execute(sql`update seasons set config=config||'{"requireUsaHockeyId":false}'::jsonb where id=${ids.seasonId}::uuid`);
+    await assert.rejects(addGameGuest(tx, { ...input, personId: undefined, guestName: "QA Playoff Walk In" }), playoffRefusal);
+    const [eligibility] = await tx.insert(schema.eligibilityRecords).values({ personId, seasonId: ids.seasonId,
+      status: "eligible", ruleEvaluation: {}, effectiveFrom: new Date(game.scheduledStartTsUtc.getTime() - 86400000) }).returning();
+    assert.ok(eligibility);
+    await assert.rejects(addGameGuest(tx, input), playoffRefusal);
+    await tx.update(schema.eligibilityRecords).set({ status: "waived", waiverReason: "QA reviewed history",
+      effectiveTo: new Date(game.scheduledStartTsUtc.getTime() - 1) }).where(eq(schema.eligibilityRecords.id, eligibility.id));
+    await assert.rejects(addGameGuest(tx, input), playoffRefusal);
+    await tx.update(schema.eligibilityRecords).set({ status: "eligible", effectiveTo: null,
+      ruleEvaluation: { playoffEligibility: { status: "eligible" } } }).where(eq(schema.eligibilityRecords.id, eligibility.id));
     const accepted = await addGameGuest(tx, input);
     assert.equal(accepted.attendance.personId, personId); assert.equal(accepted.attendance.isGuest, true);
     throw rollback;

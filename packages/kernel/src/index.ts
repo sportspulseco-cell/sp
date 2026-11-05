@@ -34,6 +34,7 @@ export * from "./division-rules";
 export * from "./official-availability";
 export * from "./guided-registration";
 export * from "./season-overview";
+export * from "./regional-substitutes";
 export * from "./hockey-scoring";
 export * from "./time-zones";
 export * from "./division-entries";

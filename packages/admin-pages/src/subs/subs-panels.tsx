@@ -10,6 +10,7 @@ import type {
   SubRequest,
   TeamSubs
 } from "@sportspulse/api-client";
+import { RegionalSubCaptainPanel, type RegionalCaptainApi } from "./regional-sub-panels";
 
 /**
  * Substitute requests (UC-31, FR-3.3.1, FR-3.3.3), shared by the captain
@@ -86,7 +87,7 @@ function RequestRows({
 // Captain
 // =====================================================================
 
-export interface CaptainSubsApi {
+export interface CaptainSubsApi extends RegionalCaptainApi {
   captainView: (teamId: string, gameId: string) => Promise<CaptainGameSubs>;
   request: (
     teamId: string,
@@ -139,6 +140,7 @@ export function CaptainSubsPanel({
 
   return (
     <div className="space-y-6">
+      <RegionalSubCaptainPanel api={api} teamId={teamId} gameId={gameId} onChanged={reload} />
       <section className="rounded-xl border border-border bg-surface-1 p-5">
         <Eyebrow>Guest spots</Eyebrow>
         <p className="mt-1 text-[15px] font-semibold text-fg">

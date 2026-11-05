@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 
@@ -121,7 +121,9 @@ export async function activeMemberPersonIds(
     .where(
       and(
         inArray(schema.teamMemberships.teamId, teamIds),
-        eq(schema.teamMemberships.currentStatus, "active")
+        eq(schema.teamMemberships.currentStatus, "active"),
+        sql`${schema.teamMemberships.effectiveFrom}<=now()`,
+        sql`(${schema.teamMemberships.effectiveTo} IS NULL OR ${schema.teamMemberships.effectiveTo}>now())`
       )
     );
   return rows.map((r) => r.personId);

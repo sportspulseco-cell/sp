@@ -51,6 +51,7 @@ import {
 } from "./game-notifications";
 import { issueAutomaticSuspensions, serveSuspensionsForFinalizedGame } from "../suspensions/suspension-rules";
 import { notifyAutomaticSuspensions } from "../suspensions/auto-notices";
+import { closeRegionalSubRequests } from "../../../captain/application/regional-substitute-events";
 
 const log = new Logger("GameCommands");
 
@@ -751,6 +752,8 @@ export class RescheduleGameHandler
       });
       await saveIfStatus(tx, before, status);
       const fresh = before;
+      const regional = await closeRegionalSubRequests(tx, this.notify, { gameId: input.id,
+        reason: "The game's time or venue changed. A new request needs staff approval.", actorId: input.userId });
 
       // Teams only hear about games they can already see.
       let notices: GameNoticeResult = { recipients: 0, queued: 0 };
@@ -781,7 +784,7 @@ export class RescheduleGameHandler
           }
         }, tx);
       }
-      return { plan, notices };
+      return { plan, notices: { recipients: notices.recipients + regional.recipients, queued: notices.queued + regional.queued } };
     });
     const fresh = await this.games.findById(GameId.of(input.id));
     if (!fresh || fresh.scheduledStartTsUtc.toISOString() !== plan.startTsUtc) {
@@ -868,6 +871,7 @@ async function stopGame(
     else g.cancel();
     await saveIfStatus(tx, g, status);
     const fresh = g;
+    const regional = await closeRegionalSubRequests(tx, notify, { gameId: id, reason: to === "cancelled" ? "The game was cancelled." : "The game was postponed." });
     let notices: GameNoticeResult = { recipients: 0, queued: 0 };
     if (fresh.publishedAt) {
       const target = {
@@ -893,7 +897,7 @@ async function stopGame(
         }
       }, tx);
     }
-    return notices;
+    return { recipients: notices.recipients + regional.recipients, queued: notices.queued + regional.queued };
   });
   const fresh = await games.findById(GameId.of(id));
   if (!fresh || fresh.status !== to) {

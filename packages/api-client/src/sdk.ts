@@ -1,4 +1,4 @@
-import type { GuidedRegistrationSetupInput, SeasonOverview } from "@sportspulse/kernel";
+import type { GuidedRegistrationSetupInput, SeasonOverview, RegionalSubBroadcast, RegionalSubGameView, RegionalSubInbox, RegionalSubRequestInput } from "@sportspulse/kernel";
 import type {
   BroadcastAttachment,
   LicenceIdCheck,
@@ -4157,6 +4157,15 @@ export function createApi(f: Fetcher) {
      * the player answers, a league admin may assign a sub directly.
      */
     subs: {
+      regionalView: (teamId: string, gameId: string) => f<RegionalSubGameView>(`/captain/regional-subs/${teamId}/games/${gameId}`),
+      requestRegional: (teamId: string, gameId: string, body: RegionalSubRequestInput) => f<RegionalSubBroadcast>(`/captain/regional-subs/${teamId}/games/${gameId}/requests`, { method: "POST", body: JSON.stringify(body) }),
+      cancelRegional: (teamId: string, id: string) => f<RegionalSubBroadcast>(`/captain/regional-subs/${teamId}/requests/${id}/cancel`, { method: "POST" }),
+      regionalMine: (cursor?: string) => f<RegionalSubInbox>(`/regional-subs/mine${qs({ cursor })}`),
+      subscribeRegional: (regionId: string, body: { enabled: boolean; positions: string[] }) => f<{ regionId: string; enabled: boolean; positions: string[] }>(`/regional-subs/subscriptions/${regionId}`, { method: "PUT", body: JSON.stringify(body) }),
+      answerRegional: (id: string, action: "accept" | "decline") => f<{ response: string; broadcast: RegionalSubBroadcast }>(`/regional-subs/requests/${id}/${action}`, { method: "POST" }),
+      regionalPending: (cursor?: string, orgId?: string) => f<{ items: RegionalSubBroadcast[]; nextCursor: string | null }>(`/admin/regional-subs/pending${qs({ cursor, orgId })}`),
+      regionalAdminView: (gameId: string) => f<{ items: RegionalSubBroadcast[] }>(`/admin/regional-subs/games/${gameId}`),
+      reviewRegional: (id: string, body: { action: "approve" | "reject"; note?: string }) => f<RegionalSubBroadcast>(`/admin/regional-subs/requests/${id}/review`, { method: "POST", body: JSON.stringify(body) }),
       captainView: (teamId: string, gameId: string) =>
         f<CaptainGameSubs>(`/captain/subs/${teamId}/games/${gameId}`),
       request: (teamId: string, gameId: string, body: { personId: string; note?: string }) =>

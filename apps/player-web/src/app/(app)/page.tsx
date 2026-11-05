@@ -8,6 +8,7 @@ import type { Game, Notification, Registration } from "@sportspulse/api-client";
 import { captain, communications, finance, gameOps, iam, leagueMgmt, loadMeScope, publicRegistration, registration, roster, subs } from "@/lib/api/server-api";
 import { TeamOffersCard } from "@/components/team-offers-card";
 import { SubRequestsCard } from "@/components/sub-requests-card";
+import { RegionalSubsCard } from "@/components/regional-subs-card";
 import { detectRegistrationState, stoppedAtLabel } from "./registration-state-banner";
 import { CaptainConsoleBanner } from "@/components/captain-console-banner";
 import { iconFor, noticeAt, tintFor, titleOf } from "./notifications/notice-format";
@@ -94,7 +95,7 @@ export default async function PlayerHome() {
   const openRegs = await fetchOpenRegistrations();
 
   // Single batch — Home view fetches everything in parallel.
-  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites, mySubRequests] =
+  const [gamesPage, regPage, invoicesPage, notifsPage, membershipsPage, myInvites, mySubRequests, regionalSubs] =
     await Promise.all([
       myTeamId
         ? gameOps
@@ -121,7 +122,8 @@ export default async function PlayerHome() {
       // Team offers / invites waiting for this player's answer (CAP-9).
       captain.myInvites().catch(() => ({ items: [] })),
       // Captains asking this player to sub for one game (UC-31).
-      subs.mine().catch(() => ({ items: [] }))
+      subs.mine().catch(() => ({ items: [] })),
+      subs.regionalMine().catch(() => null),
     ]);
 
   // -- Next game (chronologically earliest future scheduled game) --
@@ -260,6 +262,7 @@ export default async function PlayerHome() {
       {/* Decisions waiting on the player: a team offer, a sub request. */}
       <TeamOffersCard items={myInvites.items} />
       <SubRequestsCard items={mySubRequests.items} />
+      {regionalSubs?.invitations.length ? <RegionalSubsCard initial={regionalSubs} /> : null}
 
       <TodoList items={todo} doneText="You're all set." />
 
@@ -271,6 +274,7 @@ export default async function PlayerHome() {
       />
 
       <RecentGamesCard recent={recent} myTeamId={myTeamId} opponentNames={opponentNames} />
+      {!regionalSubs?.invitations.length ? <RegionalSubsCard initial={regionalSubs} /> : null}
 
       {/* Captains run their team in the team app. */}
       {scope.roleCodes.includes("captain") && <CaptainConsoleBanner />}

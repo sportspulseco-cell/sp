@@ -4,6 +4,7 @@ import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { NotificationService } from "../../modules/communications/application/notification.service";
 import { activeMemberPersonIds } from "./org-targets";
+import { activeRoleAssignment } from "../auth/active-role";
 
 /**
  * Written announcements, shared by the league announcement (UC-19,
@@ -63,7 +64,7 @@ export async function resolveAnnouncementRecipients(
           eq(schema.userRoleAssignments.scopeType, "team"),
           inArray(schema.userRoleAssignments.scopeId, target.teamIds),
           inArray(schema.roles.code, teamRoles),
-          isNull(schema.userRoleAssignments.revokedAt)
+          activeRoleAssignment()
         )
       );
     for (const r of rows) userIds.add(r.userId);
@@ -89,7 +90,7 @@ export async function resolveAnnouncementRecipients(
           eq(schema.userRoleAssignments.scopeType, "league"),
           inArray(schema.userRoleAssignments.scopeId, target.leagueIds),
           eq(schema.roles.code, "referee"),
-          isNull(schema.userRoleAssignments.revokedAt)
+          activeRoleAssignment()
         )
       );
     for (const r of rows) userIds.add(r.userId);
@@ -131,7 +132,7 @@ export async function resolveAnnouncementRecipients(
         and(
           or(...scoped),
           inArray(schema.roles.code, ADMIN_ROLE_CODES),
-          isNull(schema.userRoleAssignments.revokedAt)
+          activeRoleAssignment()
         )
       );
     for (const r of rows) userIds.add(r.userId);

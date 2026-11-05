@@ -9,6 +9,8 @@ import { TeamJoinRequestsController } from "./interface/team-join-requests.contr
 import { InviteRemindersCronController } from "./interface/invite-reminders-cron.controller";
 import { SubstituteRequestsController } from "./interface/substitute-requests.controller";
 import { SubstituteRequestsService } from "./application/substitute-requests.service";
+import { RegionalSubstitutesService } from "./application/regional-substitutes.service";
+import { RegionalSubstitutesController } from "./interface/regional-substitutes.controller";
 
 /**
  * Workflow 7A Phase 2 · captain console endpoints.
@@ -25,6 +27,7 @@ import { SubstituteRequestsService } from "./application/substitute-requests.ser
   // when the player accepts or declines (CAP-9).
   imports: [CommunicationsModule, RegistrationV2Module],
   controllers: [
+    RegionalSubstitutesController,
     CaptainController,
     CaptainRosterController,
     ComplianceController,
@@ -35,6 +38,6 @@ import { SubstituteRequestsService } from "./application/substitute-requests.ser
     // UC-31 substitute requests (captain, asked player, league admin).
     SubstituteRequestsController
   ],
-  providers: [SubstituteRequestsService]
+  providers: [SubstituteRequestsService, RegionalSubstitutesService]
 })
 export class CaptainModule {}

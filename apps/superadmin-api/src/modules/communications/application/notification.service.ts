@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import {
@@ -191,6 +191,37 @@ export class NotificationService {
     }
   }
 
+  /** Persist a private fanout with its originating command. */
+  async queueAudienceBatch(args: {
+    orgId: string; templateCode: TemplateCode; eventKey: string; payload: Record<string, unknown>;
+    sourceEvent: string; recipients: Array<{ personId: string; email: string | null }>;
+  }, tx: NotificationTransaction): Promise<number> {
+    // Homogeneous fanout renders twice at most and writes in bounded batches.
+    // Delivery stays in the existing durable outbox worker after commit.
+    const recipients = [...new Map(args.recipients.map(r => [r.personId, r])).values()];
+    if (!recipients.length) return 0;
+    const rendered = new Map<string, { subject: string | null; body: string }>();
+    for (const channel of ["email", "in_app"] as const) {
+      const template = findDefaultTemplate(args.templateCode, channel);
+      if (!template) throw new Error(`Missing notification template ${args.templateCode}`);
+      const override = channel === "email" ? await this.findEmailOverride(args.templateCode, args.payload, tx) : null;
+      const subject = override?.subject ?? template.subject;
+      rendered.set(channel, { subject: subject ? renderTemplate(subject, args.payload) : null,
+        body: renderTemplate(override?.bodyHtml ?? template.body, args.payload) });
+    }
+    let queued = 0;
+    for (let i = 0; i < recipients.length; i += 100) {
+      const rows = recipients.slice(i, i + 100).map(recipient => {
+        const channel = recipient.email ? "email" : "in_app";
+        return { orgId: args.orgId, idempotencyKey: `${args.eventKey}:${recipient.personId}`,
+          templateCode: args.templateCode, channel, ...rendered.get(channel)!, recipientPersonId: recipient.personId,
+          recipientEmail: recipient.email, payload: args.payload, sourceEvent: args.sourceEvent };
+      });
+      queued += (await tx.insert(schema.notifications).values(rows).onConflictDoNothing().returning({ id: schema.notifications.id })).length;
+    }
+    return queued;
+  }
+
   /** The person's sign-in email, or null when they have no account. */
   private async emailForPerson(personId: string, tx?: NotificationTransaction): Promise<string | null> {
     const [row] = await (tx ?? this.db)
@@ -215,7 +246,23 @@ export class NotificationService {
    *               up to 3 attempts, a permanent refusal uses all 3 at once
    */
   async dispatch(row: NotificationRow): Promise<void> {
-    if (row.status === "sent") return;
+    if (row.status === "sent" || row.status === "suppressed") return;
+    if (row.sourceEvent === "substitute.broadcast.invitation") {
+      const id = row.payload.broadcastId;
+      const validId = typeof id === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id);
+      const [open] = validId && row.recipientPersonId ? await this.db.select({ id: schema.substituteBroadcastRecipients.id })
+        .from(schema.substituteBroadcastRecipients).innerJoin(schema.substituteBroadcasts,
+          eq(schema.substituteBroadcasts.id, schema.substituteBroadcastRecipients.broadcastId))
+        .innerJoin(schema.substituteSubscriptions, and(eq(schema.substituteSubscriptions.personId, schema.substituteBroadcastRecipients.personId),
+          eq(schema.substituteSubscriptions.regionId, schema.substituteBroadcasts.regionId), eq(schema.substituteSubscriptions.enabled, true)))
+        .innerJoin(schema.games, eq(schema.games.id, schema.substituteBroadcasts.gameId))
+        .where(and(eq(schema.substituteBroadcastRecipients.broadcastId, id), eq(schema.substituteBroadcastRecipients.personId, row.recipientPersonId),
+          eq(schema.substituteBroadcastRecipients.status, "invited"), eq(schema.substituteBroadcasts.status, "approved"),
+          sql`(${schema.substituteBroadcasts.position}='any' OR (${schema.substituteBroadcasts.position}='goalie' AND 'G'=ANY(${schema.substituteSubscriptions.positions}))
+            OR (${schema.substituteBroadcasts.position}='skater' AND EXISTS (SELECT 1 FROM unnest(${schema.substituteSubscriptions.positions}) p WHERE p<>'G')))`,
+          eq(schema.games.status, "scheduled"), sql`${schema.games.scheduledStartTsUtc}>now()`)).limit(1) : [];
+      if (!open) { await this.markSuppressed(row.id, "Regional invitation is closed or the player opted out"); return; }
+    }
 
     // A message to a person on the email or in-app channel also goes by
     // text and push when they have those on (FR-3.10.2).

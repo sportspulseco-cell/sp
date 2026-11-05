@@ -9,11 +9,11 @@
     "production_capacity": "not certified"
   },
   "verification": {
-    "typescript_business_tests": 335,
+    "typescript_business_tests": 336,
     "local_solver_regressions": 11,
     "deployed_solver_regressions": 11,
     "staging_database_publication_regression": "passed, fixtures rolled back",
-    "workspace_build": "All apps passed; admin consoles rebuilt after guided-setup changes. Latest progress-label layout awaits staging build.",
+    "workspace_build": "All workspace packages and all six applications passed with regional substitute interfaces.",
     "workspace_typecheck": "all workspace projects passed",
     "browser_suite": "74 passed against bfa13c2b / 2b95db57 deployments; player registration detail fixture missing, so that route is not certified",
     "manual_membership_staging": "passed: scope, ownership, changed IDs, expiry, append-only decision, idempotency and revocation; fixtures rolled back",
@@ -35,20 +35,21 @@
     "multi_team_browser": "Passed: staff second-team add; player roster/schedule/stats switch and persistence; forged foreign-team cookie ignored; temporary membership closed",
     "roster_atomicity_staging": "Passed: injected projection failure leaves no orphan history, idempotency scoped to subject, and failed trade preserves original roster; deployed at 37646196.",
     "official_assigner_browser": "Passed all four: game-scoped custom role and raw HTTP privacy gates, busy-window assignment refusal, tentative invitation, own confirmation and assigner notice; fixture accounts removed.",
-    "guided_registration_staging": "Passed: atomic rollback, replay, drafts stay closed through cron, and existing form editor releases the draft hold only on explicit publication; editor compatibility change awaits deployment.",
+    "guided_registration_staging": "Passed: atomic rollback, replay, drafts stay closed through cron, and existing form editor releases the draft hold only on explicit publication; editor compatibility deployed 2d0eb1fa.",
     "github_ci": {
-      "commit": "2d0eb1fa",
+      "commit": "4a01fdf4",
       "result": "success",
-      "url": "https://github.com/sportspulseco-cell/sp/actions/runs/41986427115"
+      "url": "https://github.com/sportspulseco-cell/sp/actions/runs/41988717888"
     },
     "guided_registration_browser": "Passed: league/season/division setup, near-2MB logo upload and oversized refusal, custom question/key persisted, 390/1024/1440px review fit, refresh recovery, draft stays publicly closed, explicit publication reuses form/prices, team fee off and staff-reviewed membership choice retained.",
-    "season_overview_staging": "Passed locally: 2,107-registration count without pagination truncation, connected 12-team/36-game/6-final/60-person counts, player denial, bounded response; fixtures rolled back. Deployment/browser acceptance pending.",
+    "season_overview_staging": "Passed locally: 2,107-registration count without pagination truncation, connected 12-team/36-game/6-final/60-person counts, player denial, bounded response; fixtures rolled back. Deployed and raw HTTP gates passed at 2d0eb1fa.",
     "bulk_season_copy_staging": "Passed 70 separate league/season copies in 433 seconds, resumed worker plus 12 logical-request replays, all form/pricing references checked, no live records copied, all fixtures rolled back.",
     "season_overview_gates": "Passed deployed raw HTTP: accurate 12-team/60-person/36-game/6-final summary under 800 bytes; player/captain denied and foreign-organization admin read 404. Five observed staging reads: 742,591,510,529,559ms; not a capacity certification.",
-    "game_transition_notice_staging": "Passed injected failure, retry and replay for reschedule/postpone/cancel/finalization. Discipline audience failure also rolls back the primary notice; all writes use the game transaction. Fixtures rolled back; latest deployment pending.",
-    "guest_membership_staging": "Passed: required proof blocks missing, pending, unreviewed, expired and name-only guest attempts; valid reviewed proof permits guest. Candidate projection shows a non-overridable membership reason. Fixtures rolled back; deployment pending.",
+    "game_transition_notice_staging": "Passed injected failure, retry and replay for reschedule/postpone/cancel/finalization. Discipline audience failure also rolls back the primary notice; all writes use the game transaction. Fixtures rolled back; deployed 4a01fdf4; new regional invitation closure integration awaiting deployment.",
+    "guest_membership_staging": "Passed required membership gates plus playoff missing history, name-only walk-in and expired waiver refusal; reviewed eligible playoff record permits guest. Fixtures rolled back. Membership gates deployed 4a01fdf4; new playoff history guard awaits deployment.",
     "notification_connection_staging": "Passed actual NotificationService with a single-connection transaction and poisoned outside DB/repository/dispatchers: recipient and season email-template lookup remain inside the transaction, outbox row stays queued, rollback removes it.",
-    "playoff_rules_staging": "Passed actual finalization handler: tied playoff refused, unsupported shootout refused, null override inherits regular no-OT rule, sudden-death playoff override allows overtime completion. Fixtures rolled back; dedicated browser check outstanding."
+    "playoff_rules_staging": "Passed actual finalization handler: tied playoff refused, unsupported shootout refused, null override inherits regular no-OT rule, sudden-death playoff override allows overtime completion. Fixtures rolled back; dedicated browser check outstanding.",
+    "regional_substitutes_staging": "Passed actual services and transactional outbox: approval required, cross-league same-region matching, other-region exclusion, privacy allowlist, last-slot replay, failed approval/cancellation rollback, changed-position delivery suppression, cancellation closes invitations and opt-out removes consent. All fixtures rolled back. Browser acceptance pending."
   },
   "deployed": {
     "solver_commit": "a456244bf98b6e3ee0cd566734a45d9ea6154d49",
@@ -62,7 +63,9 @@
     "edge_target": "staging only",
     "staging_migrations": [
       "0097_atomic_schedule_draft_replacement.sql",
-      "0098_season_overview_membership_index.sql"
+      "0098_season_overview_membership_index.sql",
+      "0099_approved_substitute_broadcasts.sql",
+      "0100_regional_substitute_lifecycle_audit.sql"
     ]
   },
   "findings": {
@@ -73,19 +76,19 @@
     "F05": "70-copy/resume database rehearsal passed with references intact and no live records copied. Copied forms stay unpublished. Scope checks now require destination season/league creation rights. Bulk UI pause/resume browser acceptance outstanding.",
     "F06": "Six-step setup and custom questions, prices, documents, explicit review, saved draft recovery and atomic publication browser verified. Existing form-editor draft publication compatibility deployed at 2d0eb1fa.",
     "F07": "Closed in staging: near-2MB logo upload and actual preview passed; oversized file refused with clear message. QA artifacts reference only synthetic archived leagues.",
-    "F08": "Regular OT/shootout connected flow passed; dedicated playoff finalization database regression now passes override, inheritance, unsupported ending and tied-playoff refusal. Latest winner guard deployment and dedicated browser acceptance pending.",
+    "F08": "Regular OT/shootout connected flow passed; dedicated playoff finalization database regression now passes override, inheritance, unsupported ending and tied-playoff refusal. Winner guard deployed 4a01fdf4; dedicated browser acceptance pending.",
     "F09": "Multi-team browser acceptance passed across roster, schedule, stats, reload and foreign-cookie denial. Switching/error feedback deployed.",
-    "F10": "Schedule/single-game publication/creation atomic notices deployed. Reschedule/postpone/cancel/finalize and automatic discipline notices now share the game transaction; injected failure/retry/replay and audience rollback tests passed locally. Actual notification service lookup test confirms no extra pool connection or precommit send. Latest deployment and external delivery acceptance remain pending.",
+    "F10": "Schedule/single-game publication/creation atomic notices deployed. Reschedule/postpone/cancel/finalize and automatic discipline notices now share the game transaction; injected failure/retry/replay and audience rollback tests passed locally. Actual notification service lookup test confirms no extra pool connection or precommit send. Deployed 4a01fdf4; new regional closure/guest audience integration and external delivery acceptance remain pending.",
     "F11": "Restricted assigner and official connected browser journey passed all four gates. Invitations tentative by default; personal availability is private and blocks conflicting assignment; own response and assigner notice verified. Deployed 2ae09f3a.",
-    "F12": "not started",
+    "F12": "Regional opt-in / captain request / staff approval / private invitation / volunteer guest acceptance implemented. Database privacy, failure rollback, cross-league eligibility and stale-delivery gates passed. User confirmed all PPHL leagues in the requesting region. Browser acceptance and optional substitute fee/credit handling outstanding.",
     "F13": "SQL-before-pagination schedule fix and bounded season overview deployed and verified. 2,107-registration count test and role gates passed; dashboard no longer downloads full registrations/rosters to count them. Additional admin game-detail fanout remains outstanding.",
-    "F14": "CI green at 2d0eb1fa; 334 business rules currently pass locally. Connected browser 12/12 rechecked; 70-copy backend rehearsal passed. Remaining acceptance checks tracked separately.",
+    "F14": "CI green at 4a01fdf4; 336 business rules pass locally with current changes. Connected browser 12/12 rechecked; 70-copy backend rehearsal passed. Remaining acceptance checks tracked separately.",
     "F15": "production-sized capacity remains unverified; user retained Free/Hobby",
     "F16": "public viewing scope pending client decision",
-    "F17": "Staff-reviewed proof browser verified. New shared game guest and substitute checks reject missing/pending/expired/unreviewed proof through game end and prevent a name-only walk-in bypass; new checks awaiting deployment.",
+    "F17": "Staff-reviewed proof browser verified. New shared game guest and substitute checks reject missing/pending/expired/unreviewed proof through game end and prevent a name-only walk-in bypass; required proof checks deployed 4a01fdf4; new playoff history guard awaiting deployment.",
     "F18": "calm task-led UI work ongoing",
     "F19": "Closed in staging: generic roster mutations require actual scoped admin permission. Negative raw HTTP gates passed. Atomic admin moves/trades and failure rollback deployed at 37646196."
   },
-  "staging_git_commit": "2d0eb1fa",
+  "staging_git_commit": "4a01fdf4",
   "production_git_commit": "9f33a271"
 }

@@ -102,3 +102,5 @@ export { DiscountsPanel } from "./finance/discounts-panel";
 export type { DiscountsApi, DiscountsPanelProps } from "./finance/discounts-panel";
 export { CaptainSubsPanel, GameSubsAdminPanel } from "./subs/subs-panels";
 export type { AdminSubsApi, CaptainSubsApi } from "./subs/subs-panels";
+export { RegionalSubCaptainPanel, RegionalSubStaffQueue } from "./subs/regional-sub-panels";
+export { RegionalSubPlayerPanel } from "./subs/regional-sub-player";

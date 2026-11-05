@@ -7,7 +7,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
-import { resolveDivisionRules, SCHEDULABLE_ENTRY_STATUSES, membershipValidThrough } from "@sportspulse/kernel";
+import { resolveDivisionRules, SCHEDULABLE_ENTRY_STATUSES, membershipValidThrough, playoffGuestEligible } from "@sportspulse/kernel";
 
 type ResolvedDivisionRules = ReturnType<typeof resolveDivisionRules>;
 import { suspensionBlocksForGame } from "../../game-operations/application/suspensions/suspension-rules";
@@ -152,26 +152,30 @@ export async function addGameGuest(tx: Tx, input: AddGuestInput): Promise<AddGue
     });
   }
 
-  // Workflow 7C §4.1 — playoff eligibility guard (registered players only;
-  // walk-in guests are accepted, admin discretion).
-  if (game.gameType === "playoff" && input.personId) {
+  // Playoff participation needs reviewed season history; an absent record
+  // or a name-only walk-in is not evidence that the player qualifies.
+  if (game.gameType === "playoff") {
+    if (!input.personId) throw new ConflictException("Staff must review playoff eligibility before adding this guest.");
     const [er] = await tx
-      .select({ ruleEvaluation: schema.eligibilityRecords.ruleEvaluation })
+      .select({ ruleEvaluation: schema.eligibilityRecords.ruleEvaluation, status: schema.eligibilityRecords.status })
       .from(schema.eligibilityRecords)
       .where(
         and(
           eq(schema.eligibilityRecords.personId, input.personId),
-          eq(schema.eligibilityRecords.seasonId, input.seasonId)
+          eq(schema.eligibilityRecords.seasonId, input.seasonId),
+          sql`${schema.eligibilityRecords.effectiveFrom} <= ${game.scheduledStartTsUtc.toISOString()}::timestamptz`,
+          sql`(${schema.eligibilityRecords.effectiveTo} IS NULL OR ${schema.eligibilityRecords.effectiveTo} >= ${new Date(game.scheduledStartTsUtc.getTime() + game.durationMin * 60000).toISOString()}::timestamptz)`
         )
       )
+      .orderBy(sql`${schema.eligibilityRecords.evaluatedAt} DESC`)
       .limit(1);
     const playoff = (er?.ruleEvaluation as Record<string, unknown> | undefined)?.[
       "playoffEligibility"
     ] as Record<string, unknown> | undefined;
-    if (playoff && playoff.status === "ineligible") {
+    if (!playoffGuestEligible(er)) {
       throw new ConflictException({
         error: "playoff_ineligible",
-        message: "Player is not eligible for playoff games in this season.",
+        message: "Staff must review this player's playoff eligibility before adding them as a guest.",
         personId: input.personId,
         reason: playoff
       });

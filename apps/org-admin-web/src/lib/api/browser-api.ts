@@ -142,6 +142,7 @@ export const registrationV2Admin = api.registrationV2Admin;
 export const registration = api.registration;
 export const registrationV2 = api.registrationV2;
 export const leagueMgmt = api.leagueMgmt;
+export const subs = api.subs;
 export const teamMovement = api.teamMovement;
 // Review queue of uploaded ID / eligibility documents (COMP-1). Scoped
 // server-side by ScopedAdminGuard + visibility.

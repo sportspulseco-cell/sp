@@ -62,6 +62,7 @@ interface GameCtx {
   leagueId: string;
   orgId: string;
   seasonId: string;
+  divisionId: string | null;
   homeTeamId: string;
   awayTeamId: string;
   homeTeamName: string;
@@ -70,6 +71,8 @@ interface GameCtx {
   durationMin: number;
   tz: string;
   status: string;
+  publishedAt: Date | null;
+  gameType: string;
   venueName: string | null;
 }
 
@@ -187,7 +190,7 @@ export class SubstituteRequestsService {
   // Loading and access
   // ===================================================================
 
-  private async loadGame(gameId: string, exec: Exec = this.db, opts: { allowSeasonless?: boolean } = {}): Promise<GameCtx | null> {
+  async loadGame(gameId: string, exec: Exec = this.db, opts: { allowSeasonless?: boolean } = {}): Promise<GameCtx | null> {
     const home = sql<string>`(select name from teams where id = ${schema.games.homeTeamId})`;
     const away = sql<string>`(select name from teams where id = ${schema.games.awayTeamId})`;
     const [g] = await exec
@@ -197,6 +200,7 @@ export class SubstituteRequestsService {
         orgId: schema.leagues.orgId,
         gameSeasonId: schema.games.seasonId,
         divisionSeasonId: schema.divisions.seasonId,
+        divisionId: schema.games.divisionId,
         homeTeamId: schema.games.homeTeamId,
         awayTeamId: schema.games.awayTeamId,
         homeTeamName: home,
@@ -205,6 +209,8 @@ export class SubstituteRequestsService {
         durationMin: schema.games.durationMin,
         tz: schema.games.tz,
         status: schema.games.status,
+        publishedAt: schema.games.publishedAt,
+        gameType: schema.games.gameType,
         venueName: schema.games.venueName
       })
       .from(schema.games)
@@ -221,6 +227,7 @@ export class SubstituteRequestsService {
       leagueId: g.leagueId,
       orgId: g.orgId,
       seasonId: seasonId ?? "",
+      divisionId: g.divisionId,
       homeTeamId: g.homeTeamId,
       awayTeamId: g.awayTeamId,
       homeTeamName: g.homeTeamName ?? "Home",
@@ -229,22 +236,24 @@ export class SubstituteRequestsService {
       durationMin: g.durationMin,
       tz: g.tz,
       status: g.status,
+      publishedAt: g.publishedAt,
+      gameType: g.gameType,
       venueName: g.venueName
     };
   }
 
   /** The captain's team and one of its games; 404 for anything outside that. */
-  async requireCaptainGame(userId: string, teamId: string, gameId: string) {
-    const [team] = await this.db
+  async requireCaptainGame(userId: string, teamId: string, gameId: string, exec: Exec = this.db) {
+    const [team] = await exec
       .select({ id: schema.teams.id, name: schema.teams.name, orgId: schema.teams.orgId, captainUserId: schema.teams.captainUserId })
       .from(schema.teams)
       .where(and(eq(schema.teams.id, teamId), isNull(schema.teams.deletedAt)))
       .limit(1);
-    if (!team || !(await userIsCaptainOfTeam(this.db, userId, teamId, team.captainUserId))) {
+    if (!team || !(await userIsCaptainOfTeam(exec as Database, userId, teamId, team.captainUserId))) {
       this.log.warn(`captain subs refused user=${userId} team=${teamId}: not captain`);
       throw new NotFoundException("Team not found");
     }
-    const game = await this.loadGame(gameId);
+    const game = await this.loadGame(gameId, exec);
     if (!game || (game.homeTeamId !== teamId && game.awayTeamId !== teamId)) {
       throw new NotFoundException("Game not found");
     }
@@ -252,9 +261,9 @@ export class SubstituteRequestsService {
   }
 
   /** A league / org admin whose admin scope covers the game; 404 otherwise. */
-  async requireAdminGame(userId: string, gameId: string, opts: { allowSeasonless?: boolean } = {}): Promise<GameCtx> {
-    const game = await this.loadGame(gameId, this.db, opts);
-    const scope = await loadAdminScope(this.db, userId);
+  async requireAdminGame(userId: string, gameId: string, opts: { allowSeasonless?: boolean } = {}, exec: Exec = this.db): Promise<GameCtx> {
+    const game = await this.loadGame(gameId, exec, opts);
+    const scope = await loadAdminScope(exec as Database, userId);
     const inScope =
       !!game &&
       (scope.isSuperAdmin ||
@@ -283,7 +292,7 @@ export class SubstituteRequestsService {
     exec: Exec,
     game: GameCtx,
     teamId: string,
-    opts: { personIds?: string[] } = {}
+    opts: { personIds?: string[]; regional?: boolean } = {}
   ): Promise<SubCandidateView[]> {
     const only = opts.personIds;
     if (only && only.length === 0) return [];
@@ -301,10 +310,11 @@ export class SubstituteRequestsService {
         levelFlexibility: schema.freeAgentPoolEntries.levelFlexibility
       })
       .from(schema.freeAgentPoolEntries)
+      .innerJoin(schema.seasons, eq(schema.seasons.id, schema.freeAgentPoolEntries.seasonId))
       .innerJoin(schema.persons, eq(schema.persons.id, schema.freeAgentPoolEntries.playerPersonId))
       .where(
         and(
-          eq(schema.freeAgentPoolEntries.seasonId, game.seasonId),
+          opts.regional ? eq(schema.seasons.orgId, game.orgId) : eq(schema.freeAgentPoolEntries.seasonId, game.seasonId),
           eq(schema.freeAgentPoolEntries.status, "active"),
           isNull(schema.persons.deletedAt),
           only ? inArray(schema.freeAgentPoolEntries.playerPersonId, only) : undefined
@@ -323,15 +333,18 @@ export class SubstituteRequestsService {
             tier: schema.divisions.tier
           })
           .from(schema.teamMemberships)
+          .innerJoin(schema.seasons, eq(schema.seasons.id, schema.teamMemberships.seasonId))
           .innerJoin(schema.teams, eq(schema.teams.id, schema.teamMemberships.teamId))
           .innerJoin(schema.divisionTeamEntries, eq(schema.divisionTeamEntries.teamId, schema.teamMemberships.teamId))
           .innerJoin(schema.divisions, eq(schema.divisions.id, schema.divisionTeamEntries.divisionId))
           .innerJoin(schema.persons, eq(schema.persons.id, schema.teamMemberships.personId))
           .where(
             and(
-              eq(schema.teamMemberships.seasonId, game.seasonId),
+              opts.regional ? eq(schema.seasons.orgId, game.orgId) : eq(schema.teamMemberships.seasonId, game.seasonId),
               eq(schema.teamMemberships.currentStatus, "active"),
-              eq(schema.divisions.seasonId, game.seasonId),
+              sql`${schema.teamMemberships.effectiveFrom} <= ${game.start.toISOString()}::timestamptz`,
+              sql`(${schema.teamMemberships.effectiveTo} IS NULL OR ${schema.teamMemberships.effectiveTo} > ${game.start.toISOString()}::timestamptz)`,
+              eq(schema.divisions.seasonId, schema.teamMemberships.seasonId),
               inArray(schema.divisionTeamEntries.entryStatus, [...SCHEDULABLE_ENTRY_STATUSES]),
               isNull(schema.divisionTeamEntries.leftAt),
               isNull(schema.teams.deletedAt),
@@ -368,6 +381,7 @@ export class SubstituteRequestsService {
     for (const p of levelPlayers) {
       const have = byPerson.get(p.personId);
       if (have) {
+        if (p.tier && !have.levels.includes(p.tier)) have.levels.push(p.tier);
         if (p.positionCode && !have.positions.includes(p.positionCode)) have.positions.push(p.positionCode);
         continue;
       }
@@ -399,7 +413,9 @@ export class SubstituteRequestsService {
       exec
         .select({ personId: schema.teamMemberships.personId, teamId: schema.teamMemberships.teamId, seasonId: schema.teamMemberships.seasonId })
         .from(schema.teamMemberships)
-        .where(and(inArray(schema.teamMemberships.personId, ids), eq(schema.teamMemberships.currentStatus, "active"))),
+        .where(and(inArray(schema.teamMemberships.personId, ids), eq(schema.teamMemberships.currentStatus, "active"),
+          sql`${schema.teamMemberships.effectiveFrom} <= ${game.start.toISOString()}::timestamptz`,
+          sql`(${schema.teamMemberships.effectiveTo} IS NULL OR ${schema.teamMemberships.effectiveTo} > ${game.start.toISOString()}::timestamptz)`)),
       exec
         .select({ personId: schema.gameAttendance.personId })
         .from(schema.gameAttendance)

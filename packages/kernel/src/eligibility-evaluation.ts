@@ -80,6 +80,12 @@ export function membershipValidThrough(credential: {
   return Number.isFinite(verified) && verified <= now.getTime() && Number.isFinite(expiry) && expiry >= through.getTime();
 }
 
+export function playoffGuestEligible(record: { status: string; ruleEvaluation: unknown } | null | undefined): boolean {
+  if (record?.status === "waived") return true;
+  if (record?.status !== "eligible" && record?.status !== "expiring") return false;
+  return (record.ruleEvaluation as { playoffEligibility?: { status?: string } } | null)?.playoffEligibility?.status === "eligible";
+}
+
 const RANK: Record<SeasonEligibilityResult["status"], number> = {
   ineligible: 5,
   expired: 4,

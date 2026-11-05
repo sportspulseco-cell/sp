@@ -1,10 +1,11 @@
 import { Logger } from "@nestjs/common";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@sportspulse/db";
 import { schema } from "@sportspulse/db";
 import type { NotificationService } from "../../../communications/application/notification.service";
 import type { TemplateCode } from "../../../communications/domain/templates/catalog";
 import { resolveEntityNames } from "../../../../shared/display/entity-names";
+import { activeRoleAssignment } from "../../../../shared/auth/active-role";
 
 /**
  * Fan a game notice out to the people on both teams: active rostered
@@ -39,7 +40,13 @@ async function recipientsFor(
   db: Database,
   game: GameNoticeTarget
 ): Promise<Array<{ personId: string; email: string | null }>> {
-  return teamRecipients(db, [game.homeTeamId, game.awayTeamId], game.seasonId);
+  const [team, guests] = await Promise.all([teamRecipients(db, [game.homeTeamId, game.awayTeamId], game.seasonId), db
+    .select({ personId: schema.persons.id, email: schema.profiles.email }).from(schema.gameAttendance)
+    .innerJoin(schema.persons, eq(schema.persons.id, schema.gameAttendance.personId))
+    .leftJoin(schema.profiles, eq(schema.profiles.id, schema.persons.userId))
+    .where(and(eq(schema.gameAttendance.gameId, game.id), eq(schema.gameAttendance.isGuest, true),
+      inArray(schema.gameAttendance.status, ["present", "late", "sub"]), isNull(schema.persons.deletedAt)))]);
+  return [...new Map([...team, ...guests].map(person => [person.personId, person])).values()];
 }
 
 /**
@@ -61,6 +68,8 @@ export async function teamRecipients(
       and(
         inArray(schema.teamMemberships.teamId, teamIds),
         eq(schema.teamMemberships.currentStatus, "active"),
+        sql`${schema.teamMemberships.effectiveFrom}<=now()`,
+        sql`(${schema.teamMemberships.effectiveTo} IS NULL OR ${schema.teamMemberships.effectiveTo}>now())`,
         ...(seasonId ? [eq(schema.teamMemberships.seasonId, seasonId)] : [])
       )
     );
@@ -76,7 +85,7 @@ export async function teamRecipients(
         eq(schema.userRoleAssignments.scopeType, "team"),
         inArray(schema.userRoleAssignments.scopeId, teamIds),
         inArray(schema.roles.code, ["captain", "coach"]),
-        isNull(schema.userRoleAssignments.revokedAt)
+        activeRoleAssignment()
       )
     );
   for (const s of staff) personIds.add(s.personId);

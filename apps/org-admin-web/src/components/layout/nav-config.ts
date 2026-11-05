@@ -15,7 +15,8 @@ import {
   ScrollText,
   Trophy,
   Wallet,
-  Wand2
+  Wand2,
+  UserPlus
 } from "lucide-react";
 import type { ShellNavSection } from "@sportspulse/ui";
 
@@ -37,7 +38,7 @@ export const NAV: ShellNavSection[] = [
       { href: "/venues", label: "Rinks & ice time", icon: Building2 }
     ]
   },
-  { label: "Teams", items: [{ href: "/teams", label: "Teams", icon: Network }] },
+  { label: "Teams", items: [{ href: "/teams", label: "Teams", icon: Network }, { href: "/substitutes", label: "Substitute requests", icon: UserPlus }] },
   {
     label: "Registration",
     // Reviewing registrations is the org admin's daily job: keep it in view.
@@ -67,5 +68,5 @@ export const ROUTES = [
   "/scheduling/[seasonId]/conflicts", "/scheduling/[seasonId]/fairness", "/scheduling/[seasonId]/generate",
   "/scheduling/[seasonId]/parity", "/scheduling/[seasonId]/playoffs", "/scheduling/[seasonId]/rinks",
   "/scheduling/[seasonId]/runs", "/scheduling/[seasonId]/tournament", "/scheduling/[seasonId]/verify", "/seasons",
-  "/seasons/[id]", "/teams", "/teams/[teamId]", "/teams/new", "/venues"
+  "/seasons/[id]", "/substitutes", "/teams", "/teams/[teamId]", "/teams/new", "/venues"
 ] as const;
