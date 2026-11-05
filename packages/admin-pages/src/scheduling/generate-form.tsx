@@ -223,7 +223,7 @@ export function SchedulingGenerateForm({ seasonId, divisions, teamNames: initial
         <Field label="Division">
           <Select
             value={divisionId}
-            onChange={(e) => { setSettingsLoading(true); setTeamsLoading(!!loadTeams); setResult(null); setPublishResult(null); setDivisionId(e.target.value); }}
+            onChange={(e) => { if (e.target.value === divisionId) return; setSettingsLoading(true); setTeamsLoading(!!loadTeams); setResult(null); setPublishResult(null); setDivisionId(e.target.value); }}
             disabled={submitting || settingsLoading}
           >
             {divisions.map((d) => (

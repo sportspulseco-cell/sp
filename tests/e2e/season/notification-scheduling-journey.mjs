@@ -97,7 +97,7 @@ try {
   await oa.page.route(`**/api/scheduling/seasons/${qa.seasonId}/blackouts`, route => route.request().method() === "GET" && failBlackouts ?
     route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "QA blackout list unavailable" }) }) : route.continue());
   await oa.page.goto(`${oa.base}/scheduling/${qa.seasonId}/generate`);
-  const initialDivision = await oa.page.getByLabel("Division", { exact: true }).inputValue();
+  const initialDivision = await oa.page.getByRole("combobox", { name: "Division", exact: true }).inputValue();
   await expect(oa.page.getByRole("alert").filter({ hasText: "QA team list unavailable" })).toBeVisible();
   await expect(oa.page.getByRole("alert").filter({ hasText: "QA blackout list unavailable" })).toBeVisible();
   await expect(oa.page.getByText("No blackout dates yet", { exact: true })).toHaveCount(0);
@@ -105,6 +105,8 @@ try {
   failTeams = false; failBlackouts = false;
   await oa.page.getByRole("button", { name: "Retry teams" }).click();
   await oa.page.getByRole("button", { name: "Retry blackout dates" }).click();
+  await expect(oa.page.getByRole("button", { name: "Generate", exact: true })).toBeEnabled();
+  await oa.page.getByLabel("Division", { exact: true }).selectOption(initialDivision);
   await expect(oa.page.getByRole("button", { name: "Generate", exact: true })).toBeEnabled();
   assert.ok(teamRequests.length > 0 && teamRequests.every(id => id === initialDivision), "Unselected divisions must not preload their rosters");
   passed("Failed team/blackout loads are visible, cannot look empty, block generation, and recover through retry.");
